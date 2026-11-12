@@ -17,8 +17,10 @@ config.json. Those paths are only measured (stat) for the storage report.
 from __future__ import annotations
 
 import fnmatch
+import json
 import os
 from pathlib import Path
+import re
 import shutil
 import time
 
@@ -79,11 +81,13 @@ def _inside(path, root):
         return False
 
 
-def is_protected(path, home=None):
+def is_protected(path, home=None, roots=None):
     path = Path(path)
     if any(fnmatch.fnmatch(path.name, p) for p in SAMANTHA_LOGS):
         return True
-    return any(path == root or _inside(path, root) for root in protected_roots(home))
+    if roots is None:
+        roots = protected_roots(home)
+    return any(path == root or _inside(path, root) for root in roots)
 
 
 def _size(path):
@@ -104,15 +108,49 @@ def _size(path):
     return total
 
 
+def _skip_dirs(root, keep):
+    """Resolved directories the walker must not enter (kept snapshots and staging)."""
+    skipped = set()
+    for path in list(keep) + [Path(root) / '.trash']:
+        try:
+            if path.is_dir() and not path.is_symlink():
+                skipped.add(path.resolve())
+        except OSError:
+            pass
+    return skipped
+
+
 def _candidates(root, keep, now, days, backup_days, home):
     if not root.is_dir() or is_protected(root, home):
         return
+    roots = protected_roots(home)
+    skip = _skip_dirs(root, keep)
+    keep_files = set()
+    for path in keep:
+        try:
+            if path.is_file():
+                keep_files.add(path.resolve())
+        except OSError:
+            pass
     for base, dirs, files in os.walk(root):
         base_path = Path(base)
-        dirs[:] = [d for d in dirs if not is_protected(base_path / d, home) and not (base_path / d).is_symlink()]
+        remaining = []
+        for name in dirs:
+            child = base_path / name
+            try:
+                if child.is_symlink() or child.resolve() in skip or is_protected(child, home, roots=roots):
+                    continue
+            except OSError:
+                continue
+            remaining.append(name)
+        dirs[:] = remaining
         for name in files:
             path = base_path / name
-            if path in keep or path.is_symlink() or is_protected(path, home):
+            try:
+                resolved = path.resolve()
+            except OSError:
+                continue
+            if resolved in keep_files or path.is_symlink() or is_protected(path, home, roots=roots):
                 continue
             limit = backup_days if any(fnmatch.fnmatch(name, p) for p in BACKUP_PATTERNS) else days
             try:
@@ -129,7 +167,18 @@ def prune(config, out_dir, dry_run=False, now=None, home=None):
     home = Path(home or Path.home())
     now = time.time() if now is None else now
     out_dir = Path(out_dir).expanduser()
-    roots = [('outputs', out_dir, {out_dir / 'findings.json'})]
+    keep = {out_dir / 'findings.json'}
+    try:
+        snapshot_id = json.loads((out_dir / 'findings.json').read_text()).get('snapshot_id')
+    except (OSError, ValueError, AttributeError):
+        snapshot_id = None
+    if isinstance(snapshot_id, str) and len(snapshot_id) == 32 and all(c in '0123456789abcdef' for c in snapshot_id):
+        keep.add(out_dir / 'snapshots' / snapshot_id)
+    staged = [path for path in (out_dir / '.trash').iterdir()
+              if path.is_dir() and not path.is_symlink() and re.fullmatch(r'[0-9a-f]{32}', path.name)] \
+        if (out_dir / '.trash').is_dir() else []
+    keep.update(staged)
+    roots = [('outputs', out_dir, keep)]
     roots += [('cache', Path(p).expanduser(), set()) for p in opts['cache_dirs']]
     roots += [('traces', Path(p).expanduser(), set()) for p in opts['trace_paths']]
     trash = Path(opts['trash_dir']).expanduser() / time.strftime('%Y%m%d-%H%M%S', time.localtime(now))
@@ -137,6 +186,26 @@ def prune(config, out_dir, dry_run=False, now=None, home=None):
     moved, freed, capped, items = 0, 0, False, []
     if not opts['enabled']:
         return {'enabled': False, 'dry_run': dry_run, 'moved': 0, 'bytes': 0}
+    for path in staged:
+        try:
+            age = now - path.stat().st_mtime
+        except OSError:
+            continue
+        if age <= opts['days'] * DAY:
+            continue
+        size = _size(path)
+        if size > budget:
+            capped = True
+            continue
+        if len(items) < 50:
+            items.append({'root': 'outputs', 'name': path.name, 'age_days': int(age // DAY), 'bytes': size})
+        if not dry_run:
+            target = trash / 'outputs' / path.relative_to(out_dir)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(path), str(target))
+        budget -= size
+        moved += 1
+        freed += size
     for label, root, keep in roots:
         for path, base, age in _candidates(root, keep, now, opts['days'], opts['backup_days'], home):
             size = _size(path)

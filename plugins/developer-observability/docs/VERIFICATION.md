@@ -2,9 +2,9 @@
 
 Source checks: `python3 -m unittest discover -s tests`; the collection runner
 selects the pinned local runtime installed by `runtime/install.py`. Tests cover
-modern discovery, legacy initialization, six tools, typed errors, Apps resource,
+modern discovery, legacy initialization, task and issue tools, typed errors, Apps resource,
 generated JS syntax, reproducible bundle and delayed project-response races.
-Backend tests: `tests/test_backend.py` (ported from the producer project); drift against upstream: `tests/test_drift.py`.
+Backend tests: `tests/test_backend.py`; `tests/test_drift.py` asserts the canonical-source record.
 
 Live tool probe: `tests/probe_installed.py --launcher /absolute/installed/launcher
 --output /private/proof.json [--decision]`. Ordinary tests never create production

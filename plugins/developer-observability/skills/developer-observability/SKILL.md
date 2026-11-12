@@ -7,6 +7,10 @@ description: Use when diagnosing project build or runtime issues, or inspecting 
 Use the MCP directly. Kindle and Decider skills own collection, device and
 service repair, not routine inspection.
 
+For "what happened in task X," call `observability_tasks` to choose a `run_ref`,
+then `observability_task` and, only when needed, `observability_task_detail`.
+Use `observability_diagnose` for triage.
+
 1. Call `observability_diagnose` to discover projects, then call it with the
    selected `project_id` for counts and ranked findings. Check snapshot
    freshness, source coverage and unassigned counts. Attribution may be

@@ -1,4 +1,4 @@
-"""Strict allowlist for metadata that may enter a Kindle snapshot."""
+"""Strict allowlist for metadata that may enter a prepared observability snapshot."""
 
 from __future__ import annotations
 

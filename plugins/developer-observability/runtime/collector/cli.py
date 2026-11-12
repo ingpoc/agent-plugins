@@ -6,9 +6,11 @@ from collections import Counter
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import tempfile
 import time
+import uuid
 
 RUNTIME = Path(__file__).resolve().parents[1]
 if str(RUNTIME) not in sys.path:
@@ -73,6 +75,36 @@ def _write(out, document):
     return out / 'findings.json'
 
 
+def _retire_snapshot(out, snapshot_id):
+    if not isinstance(snapshot_id, str) or not re.fullmatch(r'[0-9a-f]{32}', snapshot_id):
+        return
+    previous = out / 'snapshots' / snapshot_id
+    if previous.is_dir():
+        target = out / '.trash' / snapshot_id
+        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if not target.exists():
+            os.replace(previous, target)
+
+
+def _omit_none(value):
+    if isinstance(value, dict):
+        return {key: compact for key, item in value.items() if (compact := _omit_none(item)) is not None}
+    if isinstance(value, list):
+        return [_omit_none(item) for item in value]
+    return value
+
+
+def _write_sidecar(out, snapshot_id, kind, ref, document):
+    path = out / 'snapshots' / snapshot_id / kind / f'{ref}.json'
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    fd, tmp = tempfile.mkstemp(prefix=f'.{ref}-', suffix='.json', dir=path.parent)
+    with os.fdopen(fd, 'w') as handle:
+        json.dump(_omit_none(document), handle, separators=(',', ':'), ensure_ascii=False)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, path)
+    return path.relative_to(out).as_posix()
+
+
 def analysis_settings(config, include_tests=None):
     settings = collector_settings(config)
     def number(key, default):
@@ -97,8 +129,20 @@ def collect(specs, out, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H,
             yield from iter_spec(spec, stats)
 
     collected = list(events())
-    document = build(collected, stats, now, include_tests, window_h, threshold_ms, test_threshold_ms)
+    out = Path(out).expanduser()
+    try:
+        previous_snapshot = json.loads((out / 'findings.json').read_text()).get('snapshot_id')
+    except (OSError, ValueError, AttributeError):
+        previous_snapshot = None
+    snapshot_id = uuid.uuid4().hex
+    writer = lambda kind, ref, detail: _write_sidecar(out, snapshot_id, kind, ref, detail)
+    document = build(collected, stats, now, include_tests, window_h, threshold_ms, test_threshold_ms,
+                     snapshot_id=snapshot_id, sidecar_writer=writer)
+    event_count = len(collected)
+    del collected
     pruned = storage = None
+    path = _write(out, document)
+    _retire_snapshot(out, previous_snapshot)
     if config is not None:
         pruned = retention.prune(config, out, now=now, home=home)
         storage = retention.report(config, out, home=home)
@@ -106,7 +150,7 @@ def collect(specs, out, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H,
         document['findings'].extend(retention.storage_findings(storage, document['generated_at']))
         for rank, finding in enumerate(document['findings'], 1):
             finding['rank'] = rank
-    path = _write(Path(out).expanduser(), document)
+        path = _write(out, document)
     findings = document['findings']
     return {'out': ref(path, 0)[:-2], 'findings': len(findings), 'total': len(findings),
             'active': sum(f['status'] == 'active' for f in findings),
@@ -116,7 +160,7 @@ def collect(specs, out, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H,
             'excluded_test_events': sum(item.get('excluded_test', 0) for item in stats.values()),
             'mirrored_events': sum(item.get('mirrors', 0) for item in stats.values()),
             'include_tests': include_tests,
-            'events': len(collected), 'sources': len(stats),
+            'events': event_count, 'sources': len(stats),
             'runtime_ms': int((time.perf_counter() - started) * 1000), 'peak_rss_mb': _peak_rss_mb(),
             'generated_at': document['generated_at'],
             **({'pruned': {k: pruned[k] for k in ('moved', 'bytes', 'capped') if k in pruned},

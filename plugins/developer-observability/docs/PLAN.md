@@ -1,13 +1,16 @@
 # MCP interface plan
 
-Data owner: a findings producer's prepared report (today Kindle's snapshot
-service). The read-side backend is vendored here; collection, recommendation
+Data owner: a findings producer's prepared report. The read-side backend is
+canonical here; collection, recommendation
 evidence preparation and Decider validation stay with their owners.
 
 | Tool | Contract |
 | --- | --- |
 | `observability_projects` | Configured IDs, attribution basis, source coverage, freshness and unassigned count |
 | `observability_issues` | Scoped bounded issue list; stable IDs and snapshot-bound pagination |
+| `observability_tasks` | Recent task summaries indexed by run_ref, with no session lookup required |
+| `observability_task` | One run_ref-linked task with ordered steps and first failure |
+| `observability_task_detail` | One capped task-step facet with snapshot-bound pagination |
 | `observability_inspect_issue` | Observed failure, rule-based lead, bounded redacted evidence and outcome provenance |
 | `observability_storage` | Disk use of observability paths and the 0.1.8 prune plan (dry run by default) |
 | `observability_recommendation` | Read existing Ledger pilot; explicit propose reuses owner locking/validation |
