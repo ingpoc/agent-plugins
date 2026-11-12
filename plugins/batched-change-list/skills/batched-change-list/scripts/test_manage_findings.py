@@ -194,6 +194,7 @@ class ManageFindingsTests(unittest.TestCase):
             ops.write_text(json.dumps(list(items)))
             return self.cli('batch', self.data, ops, '--render', page)
         self.assertNotEqual(batch({'action':'introspect','issues':[{'issue':'x','evidence':'','outcome':'fixed'}]}).returncode, 0)
+        self.assertNotEqual(batch({'action':'add','entry':{'id':'WF-09','title':'t','source':'Agent reported','status':'untested','observed':'o','recommendation':'r'}}).returncode, 0)
         before = len(json.loads(self.data.read_text())['findings'])
         result = batch({'action':'introspect','issues':[
             {'issue':'stale report shown','evidence':'rel.log','outcome':'fixed'},

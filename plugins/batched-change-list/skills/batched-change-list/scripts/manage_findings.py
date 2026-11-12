@@ -751,6 +751,8 @@ def main(argv=None):
                     item = operation.get("entry")
                     if not isinstance(item, dict):
                         raise ValueError("entry must be a JSON object")
+                    if re.fullmatch(r"WF-\d+", str(item.get("id", ""))):
+                        raise ValueError("WF- tasks come only from one introspect call: {\"action\":\"introspect\",\"issues\":[...]} (one task per Introspect)")
                     validate_detail_limits(item)
                     trim_verification_evidence(item)
                     run = store["document"].get("tracking", {}).get("verification_run", {})
