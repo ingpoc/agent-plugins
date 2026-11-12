@@ -118,10 +118,13 @@ for name in codex cursor claude grok; do
 done
 plugins=agent-computer-use
 [ ! -d "$comet_app" ] || plugins="$plugins comet-control"
-case ",$requested," in *,context-ledger,*) plugins="$plugins context-ledger" ;; esac
+# Opt-in plugins, installed only when named in --plugins.
+for p in context-ledger batched-change-list developer-observability; do
+    case ",$requested," in *,"$p",*) plugins="$plugins $p" ;; esac
+done
 if [ -n "$requested" ] && [ "$requested" != pending ]; then
     for p in ${requested//,/ }; do
-        case "$p" in agent-computer-use|comet-control|context-ledger) ;; *) fail 13 "Unknown plugin: $p" ;; esac
+        case "$p" in agent-computer-use|comet-control|context-ledger|batched-change-list|developer-observability) ;; *) fail 13 "Unknown plugin: $p" ;; esac
     done
 fi
 bundle=com.ingpoc.cua-service
