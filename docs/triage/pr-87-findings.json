@@ -1934,9 +1934,8 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-12T08:02:56Z",
-      "now": "2026-11-12T08:02:56Z — 13:33 IST OBS-20 verified fixed (35 of 36); AGENT-15: typed turn waits for Samantha startup"
+      "stage": "report_rollover",
+      "updated_at": "2026-11-12T08:10:30+00:00"
     },
     "rollover": {
       "source_pr": 96,
@@ -3369,14 +3368,28 @@
       "id": "AGENT-15",
       "title": "Typed turn rejected while Samantha is still starting",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "POST /api/session/text about 3 s after voice_control start returned 'no active live session' although start reported healthy; audio_ready arrived at 6.4 s.",
       "recommendation": "Have the text endpoint wait up to a bounded startup timeout for the session to become ready, and return a startup_in_progress error with the current phase if it times out.",
-      "verification": "",
+      "verification": "Live on ACU 0.2.141, session a0171722: the typed turn was posted 1.0 s after start while status read active true, ready false; it waited for session.updated (1.6 s) and returned 'Hello!' in 5.1 s instead of 'no active live session'. A never-ready session now returns error_type session_not_ready; no session still fails fast (unit tests).",
       "details": {
         "session": "10c1a548",
         "startup_phases": "realtime_session_updated 3.5 s, mic_preflight 3.5 s, audio_ready 6.4 s"
-      }
+      },
+      "verification_evidence": [
+        {
+          "check": "Stop Samantha, start via voice_control, post a typed turn 1.0 s after start returns",
+          "outcome": "pass",
+          "build": "ACU 0.2.141+add24e6e826e",
+          "session": "a0171722",
+          "timestamp": "2026-11-12T13:41:00+05:30",
+          "reference": "/Users/gurusharan/code/acu-release/evidence/agent15-startup-0.2.141.png; ~/code/acu-release/startup_text.py"
+        }
+      ],
+      "verification_refs": [
+        "/Users/gurusharan/code/acu-release/evidence/agent15-startup-0.2.141.png",
+        "~/code/acu-release/pr96/rel-0.2.141.json"
+      ]
     }
   ]
 }
