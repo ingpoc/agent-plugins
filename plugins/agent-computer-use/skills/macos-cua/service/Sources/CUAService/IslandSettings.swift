@@ -207,13 +207,13 @@ enum IslandSettingsSchema {
     // Samantha voice settings: same keys as ~/.config/voice-cua/settings.json (read by voice_settings.py),
     // so stored values survive the move from the old Samantha Settings window.
     static let voicePrefix = "voice."
-    static let voiceModel = "voice.realtime_model"
-    static let voiceVoice = "voice.realtime_voice"
+    static let voiceModel = "voice.live_model"
+    static let voiceVoice = "voice.live_voice"
     static let voiceEagerness = "voice.eagerness"
     static let voiceMic = "voice.mic_profile"
     static let voiceLiveBulk = "voice.live_bulk_model"
     static let voiceLiveIntelligence = "voice.live_intelligence_model"
-    /// Listening / Microphone tuned the removed Realtime session; GPT-Live owns turn-taking, so
+    /// Listening / Microphone tuned the old session; GPT-Live owns turn-taking, so
     /// those keys stay in settings.json (local mic gate) but have no Settings row.
     static let voiceKeys = [voiceModel, voiceVoice, voiceLiveBulk, voiceLiveIntelligence]
     /// `visibleWhen` for the GPT-Live-1 backend pickers ("key=value" form).
@@ -350,9 +350,9 @@ enum IslandSettingsSchema {
     ]
     static let samantha: [SettingDef] = [
         .init(tab: .samantha, section: nil, key: voiceVoice, label: "Voice", kind: .popup(VoiceSettingsStore.voices),
-              defaultValue: .string(VoiceSettingsStore.Settings.default.realtimeVoice), visibleWhen: whenLive),
+              defaultValue: .string(VoiceSettingsStore.Settings.default.liveVoice), visibleWhen: whenLive),
         .init(tab: .samantha, section: nil, key: voiceModel, label: "Model", kind: .popup(VoiceSettingsStore.models),
-              defaultValue: .string(VoiceSettingsStore.Settings.default.realtimeModel), caption: "Changes apply the next time Samantha starts.")
+              defaultValue: .string(VoiceSettingsStore.Settings.default.liveModel), caption: "Changes apply the next time Samantha starts.")
     ]
     static func agent(_ s: AgentSource) -> [SettingDef] { sourceSettings.filter { $0.key.hasPrefix(s.keyPrefix) } }
 

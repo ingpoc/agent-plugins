@@ -1,4 +1,4 @@
-"""Realtime-facing tools — CUA + confirm + secrets. No named-app helpers."""
+"""Live voice tools — CUA + confirm + secrets. No named-app helpers."""
 
 from __future__ import annotations
 
@@ -678,7 +678,7 @@ def _retry_parent(name: str, args: dict[str, Any]) -> str:
 
 
 def reset_session_state() -> None:
-    """New Realtime conversation: fresh retry budget, no carried-over approvals."""
+    """New live conversation: fresh retry budget, no carried-over approvals."""
     with _STEP_LOCK:
         _STEP_FAILS.clear()
     GATE.reset()

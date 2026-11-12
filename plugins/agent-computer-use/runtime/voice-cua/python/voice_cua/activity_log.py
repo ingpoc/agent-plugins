@@ -43,6 +43,46 @@ _LEDGER_DETAIL_KEYS = frozenset({
 _TASK_OUTCOME_TOOLS = frozenset({"cua_act", "comet_act", "system_volume", "ledger_task"})
 _process_session_id = uuid.uuid4().hex[:8]  # fallback when startup_trace never ran
 _build_label: str | None = None
+_timeline_lock = threading.Lock()
+_spoken_timelines: dict[str, dict[str, Any]] = {}
+
+
+def spoken_timeline(session_id: str, first_audio: float, playback: float | None) -> dict[str, Any]:
+    """Return observed wall-clock phases for the current spoken turn and audio burst."""
+    with _timeline_lock:
+        state = _spoken_timelines.get(session_id, {})
+        transcript = state.get("transcript")
+        if transcript is None:
+            return {}
+        first_tool = state.get("first_tool")
+        last_tool_end = state.get("last_tool_end")
+        backend_reply = state.get("backend_reply")
+        tools = state.get("tools", [])
+        total_tool_ms = sum(round((end - start) * 1000) for start, end, _ in tools)
+        slowest = max(tools, key=lambda row: row[1] - row[0]) if tools else None
+
+    def elapsed(start: float | None, end: float | None) -> int | None:
+        return round((end - start) * 1000) if start is not None and end is not None else None
+
+    durations = {
+        "user_transcript_to_first_audio": elapsed(transcript, first_audio),
+        "user_transcript_to_first_tool_start": elapsed(transcript, first_tool),
+        "tool_time_total": total_tool_ms if tools else None,
+        "last_tool_end_to_first_audio": elapsed(last_tool_end, first_audio)
+        if last_tool_end is not None and last_tool_end <= first_audio else None,
+        "backend_reply_to_first_audio": elapsed(backend_reply, first_audio)
+        if backend_reply is not None and backend_reply <= first_audio else None,
+        "first_audio_delta_to_playback_start": elapsed(first_audio, playback),
+        "total_user_transcript_to_playback_start": elapsed(transcript, playback),
+    }
+    phases = {key: value for key, value in durations.items()
+              if key != "total_user_transcript_to_playback_start" and value is not None}
+    return {**durations,
+            "slowest_tool": slowest[2] if slowest else None,
+            "slowest_tool_ms": round((slowest[1] - slowest[0]) * 1000) if slowest else None,
+            "dominant_phase": max(phases, key=phases.get) if phases else None,
+            "over_budget": durations["total_user_transcript_to_playback_start"] is not None
+                           and durations["total_user_transcript_to_playback_start"] > 4000}
 
 
 def build_label() -> str:
@@ -82,7 +122,29 @@ def _append_row(entry: dict[str, Any]) -> None:
 
 def log_event(kind: str, **fields: Any) -> None:
     """Append one local JSON line, preserving task data and scrubbing credentials."""
-    entry: dict[str, Any] = {"ts": time.time(), "kind": kind, "session_id": current_session_id(),
+    now = time.monotonic()
+    session_id = current_session_id()
+    with _timeline_lock:
+        state = _spoken_timelines.setdefault(session_id, {"tools": []})
+        if kind == "user_transcript":
+            state.clear()
+            state.update(transcript=now, tools=[])
+        elif kind == "tool_start":
+            state.setdefault("pending", []).append((now, str(fields.get("tool") or "")))
+            state.setdefault("first_tool", now)
+        elif kind == "live_delegation":
+            state.setdefault("first_tool", now)
+        elif kind in ("tool_result", "tool_error"):
+            tool = str(fields.get("tool") or "")
+            pending = state.setdefault("pending", [])
+            match = next((i for i in range(len(pending) - 1, -1, -1) if pending[i][1] == tool), None)
+            if match is not None:
+                started, _ = pending.pop(match)
+                state.setdefault("tools", []).append((started, now, tool))
+                state["last_tool_end"] = now
+        elif kind == "assistant_reply" and fields.get("source") == "backend":
+            state["backend_reply"] = now
+    entry: dict[str, Any] = {"ts": time.time(), "kind": kind, "session_id": session_id,
                              "build": build_label()}
     for key, value in fields.items():
         if value is None:
@@ -216,7 +278,7 @@ def log_usage_final(*, reason: str = "session_close", **extra: Any) -> None:
     _append_row(row)
 
 
-# Per-thread tool-call context: realtime_session runs each tool in its own
+# Per-thread tool-call context: live_session runs each tool in its own
 # thread, so tool_result rows can carry call_id/response_id without changing
 # the dispatch() signature.
 _tool_ctx = threading.local()

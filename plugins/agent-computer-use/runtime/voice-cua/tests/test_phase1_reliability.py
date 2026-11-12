@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 
 from voice_cua.activity_log import log_event, tail_events  # noqa: E402
-from voice_cua.realtime_session import RealtimeSession  # noqa: E402
+from voice_cua.live_session import LiveSession  # noqa: E402
 from loop_harness import passthrough  # noqa: E402
 
 
@@ -49,7 +49,7 @@ class FakeWS:
 
 
 class FakeAudio:
-    """RealtimeAudio substitute: has playback, returns canned interrupt stats."""
+    """LiveAudio substitute: has playback, returns canned interrupt stats."""
 
     def __init__(self, played_ms: int = 700, item_id: str = "item_1") -> None:
         self.played_ms_value = played_ms
@@ -74,27 +74,27 @@ class FakeAudio:
         pass
 
 
-def make_session(eagerness: str = "balanced") -> RealtimeSession:
+def make_session(eagerness: str = "balanced") -> LiveSession:
     # Patch voice_settings.load_settings (apply_env + turn_detection_config both
     # resolve it there) so the machine's settings.json can't leak into tests.
     settings = {
-        "realtime_model": "gpt-live-1",
-        "realtime_voice": "alloy",
+        "live_model": "gpt-live-1",
+        "live_voice": "alloy",
         "eagerness": eagerness,
         "mic_profile": "near_field",
     }
     with patch("voice_cua.voice_settings.load_settings", return_value=settings), \
-            patch("voice_cua.realtime_session.make_provider", passthrough):
-        session = RealtimeSession(api_key="test", enable_audio=False)
+            patch("voice_cua.live_session.make_provider", passthrough):
+        session = LiveSession(api_key="test", enable_audio=False)
     session.ws = FakeWS()
     return session
 
 
-def feed(session: RealtimeSession, event: dict) -> None:
+def feed(session: LiveSession, event: dict) -> None:
     session._on_message(None, json.dumps(event))
 
 
-def event_types(session: RealtimeSession) -> list[str]:
+def event_types(session: LiveSession) -> list[str]:
     return [e.get("type", "") for e in session.ws.events]
 
 
@@ -114,7 +114,7 @@ class GAEventTests(unittest.TestCase):
         session = make_session()
         published: list[str] = []
         with patch(
-            "voice_cua.realtime_session.island_publish",
+            "voice_cua.live_session.island_publish",
             side_effect=lambda kind, **kw: published.append(kind),
         ):
             feed(session, {
@@ -150,7 +150,7 @@ class GAEventTests(unittest.TestCase):
         session = make_session()
         published: list[str] = []
         with patch(
-            "voice_cua.realtime_session.island_publish",
+            "voice_cua.live_session.island_publish",
             side_effect=lambda kind, **kw: published.append(kind),
         ):
             feed(session, {"type": "response.audio.started"})
@@ -164,7 +164,7 @@ class GAEventTests(unittest.TestCase):
         session = make_session()
         published: list[str] = []
         with patch(
-            "voice_cua.realtime_session.island_publish",
+            "voice_cua.live_session.island_publish",
             side_effect=lambda kind, **kw: published.append(kind),
         ):
             feed(session, {
@@ -186,18 +186,18 @@ class GAEventTests(unittest.TestCase):
 
 
 class ToolListAckTests(unittest.TestCase):
-    def _run_comet_begin(self, *, acknowledge: bool) -> tuple[RealtimeSession, list[str]]:
+    def _run_comet_begin(self, *, acknowledge: bool) -> tuple[LiveSession, list[str]]:
         session = make_session()
         logged: list[str] = []
         session._wait_for_responses_idle = Mock(return_value=True)
         timeout = 2.0 if acknowledge else 0.02
-        with patch("voice_cua.realtime_session.dispatch", return_value={"ok": True}), \
-                patch("voice_cua.realtime_session.comet_is_active", return_value=True), \
-                patch("voice_cua.realtime_session.plugin_island.tool_started"), \
-                patch("voice_cua.realtime_session.plugin_island.tool_finished"), \
-                patch("voice_cua.realtime_session.log_event",
+        with patch("voice_cua.live_session.dispatch", return_value={"ok": True}), \
+                patch("voice_cua.live_session.comet_is_active", return_value=True), \
+                patch("voice_cua.live_session.plugin_island.tool_started"), \
+                patch("voice_cua.live_session.plugin_island.tool_finished"), \
+                patch("voice_cua.live_session.log_event",
                       side_effect=lambda event, **_: logged.append(event)), \
-                patch("voice_cua.realtime_session.TOOLS_UPDATE_ACK_TIMEOUT", timeout):
+                patch("voice_cua.live_session.TOOLS_UPDATE_ACK_TIMEOUT", timeout):
             session._run_tool("call_1", "comet_begin", "{}")
             deadline = time.monotonic() + 1
             while "session.update" not in event_types(session) and time.monotonic() < deadline:
@@ -225,12 +225,12 @@ class ToolListAckTests(unittest.TestCase):
 class ResponseDonePartsTests(unittest.TestCase):
     """P1-3: output_text not double-added; output_audio transcript accepted."""
 
-    def _assistant_reply(self, session: RealtimeSession, response: dict) -> str:
+    def _assistant_reply(self, session: LiveSession, response: dict) -> str:
         replies: list[str] = []
         with patch(
-            "voice_cua.realtime_session.island_publish",
+            "voice_cua.live_session.island_publish",
         ), patch(
-            "voice_cua.realtime_session.log_event",
+            "voice_cua.live_session.log_event",
             side_effect=lambda kind, **kw: replies.append(str(kw.get("text") or "")),
         ):
             feed(session, {"type": "response.done", "response": response})
@@ -295,19 +295,19 @@ class ReconnectTests(unittest.TestCase):
     """P1-4: ping timeout constants, jittered backoff, planned reconnect."""
 
     def test_keepalive_and_planned_reconnect_constants(self) -> None:
-        self.assertEqual(RealtimeSession.REALTIME_PING_INTERVAL, 20)
-        self.assertIn(RealtimeSession.REALTIME_PING_TIMEOUT, range(15, 21))
-        self.assertEqual(RealtimeSession.PLANNED_RECONNECT_SECONDS, 3300.0)
+        self.assertEqual(LiveSession.LIVE_PING_INTERVAL, 20)
+        self.assertIn(LiveSession.LIVE_PING_TIMEOUT, range(15, 21))
+        self.assertEqual(LiveSession.PLANNED_RECONNECT_SECONDS, 3300.0)
 
     def test_connect_uses_ping_interval_and_timeout(self) -> None:
         session = make_session()
         app = Mock()
-        with patch("voice_cua.realtime_session.websocket") as ws_module:
+        with patch("voice_cua.live_session.websocket") as ws_module:
             ws_module.WebSocketApp.return_value = app
             session.connect()
         app.run_forever.assert_called_once_with(
-            ping_interval=RealtimeSession.REALTIME_PING_INTERVAL,
-            ping_timeout=RealtimeSession.REALTIME_PING_TIMEOUT,
+            ping_interval=LiveSession.LIVE_PING_INTERVAL,
+            ping_timeout=LiveSession.LIVE_PING_TIMEOUT,
             suppress_origin=True,
         )
 
@@ -315,16 +315,16 @@ class ReconnectTests(unittest.TestCase):
         # Full jitter: attempt n draws from U(0, min(30, 0.5 * 2**(n-1))).
         for attempt, ceiling in enumerate([0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 30.0, 30.0], start=1):
             for seed in range(20):
-                delay = RealtimeSession._reconnect_delay(attempt, rng=random.Random(seed))
-                self.assertGreaterEqual(delay, RealtimeSession.RECONNECT_DELAY_FLOOR)
+                delay = LiveSession._reconnect_delay(attempt, rng=random.Random(seed))
+                self.assertGreaterEqual(delay, LiveSession.RECONNECT_DELAY_FLOOR)
                 self.assertLessEqual(delay, ceiling)
 
     def test_session_updated_marks_connected_without_resetting_backoff(self) -> None:
         session = make_session()
         session._reconnect_attempts = 5
         with (
-            patch("voice_cua.realtime_session.island_publish"),
-            patch.object(RealtimeSession, "_schedule_planned_reconnect") as schedule,
+            patch("voice_cua.live_session.island_publish"),
+            patch.object(LiveSession, "_schedule_planned_reconnect") as schedule,
         ):
             feed(session, {"type": "session.updated"})
         # A flapping socket must not reset the counter — only 30 s of stability does.
@@ -337,8 +337,8 @@ class ReconnectTests(unittest.TestCase):
         connects = []
         with (
             patch.object(session, "connect", side_effect=lambda: connects.append(1)),
-            patch.object(RealtimeSession, "_reconnect_delay", return_value=0.01),
-            patch("voice_cua.realtime_session.island_publish"),
+            patch.object(LiveSession, "_reconnect_delay", return_value=0.01),
+            patch("voice_cua.live_session.island_publish"),
         ):
             thread = threading.Thread(target=session.run, daemon=True)
             thread.start()
@@ -368,8 +368,8 @@ class ReconnectTests(unittest.TestCase):
         with patch.object(session, "connect", side_effect=failing_connect), \
                 patch.object(session._stop, "wait", side_effect=fake_wait), \
                 patch.object(session, "_schedule_planned_reconnect"), \
-                patch("voice_cua.realtime_session.island_publish"), \
-                patch("voice_cua.realtime_session.random.uniform", side_effect=lambda _lo, hi: hi):
+                patch("voice_cua.live_session.island_publish"), \
+                patch("voice_cua.live_session.random.uniform", side_effect=lambda _lo, hi: hi):
             session.run()
         self.assertEqual(delays, [0.5, 1.0, 2.0, 4.0, 8.0])
         self.assertEqual(session._reconnect_attempts, 5)
@@ -424,7 +424,7 @@ class ReconnectTests(unittest.TestCase):
         ):
             session._planned_reconnect()
         request.assert_not_called()
-        schedule.assert_called_once_with(delay=RealtimeSession.PLANNED_RECONNECT_RETRY_SECONDS)
+        schedule.assert_called_once_with(delay=LiveSession.PLANNED_RECONNECT_RETRY_SECONDS)
 
     def test_planned_reconnect_idle_requests_reconnect(self) -> None:
         session = make_session()
@@ -446,7 +446,7 @@ class ReconnectTests(unittest.TestCase):
         import base64
         session = make_session()
         session._last_activity = 0.0
-        with patch("voice_cua.realtime_session.time.monotonic", return_value=100.0):
+        with patch("voice_cua.live_session.time.monotonic", return_value=100.0):
             session._send({"type": "input_audio_buffer.append", "audio": base64.b64encode(b"\xff\x7f" * 480).decode()})
         self.assertEqual(session._last_activity, 100.0)
         self.assertTrue(session._conversation_busy(101.0))
@@ -471,7 +471,7 @@ class BargeInTests(unittest.TestCase):
         with session._response_condition:
             session._active_response_ids.add("resp1")
             session._current_response_id = "resp1"
-        with patch("voice_cua.realtime_session.island_publish"):
+        with patch("voice_cua.live_session.island_publish"):
             feed(session, {"type": "input_audio_buffer.speech_started"})
         types = event_types(session)
         self.assertNotIn("response.cancel", types)  # balanced: server interrupts itself
@@ -488,7 +488,7 @@ class BargeInTests(unittest.TestCase):
         with session._response_condition:
             session._active_response_ids.add("resp1")
             session._current_response_id = "resp1"
-        with patch("voice_cua.realtime_session.island_publish"):
+        with patch("voice_cua.live_session.island_publish"):
             feed(session, {"type": "input_audio_buffer.speech_started"})
             feed(session, {
                 "type": "response.output_audio.delta",
@@ -513,7 +513,7 @@ class BargeInTests(unittest.TestCase):
                 return False
 
         session._audio = IdleAudio()  # type: ignore[assignment]
-        with patch("voice_cua.realtime_session.island_publish"):
+        with patch("voice_cua.live_session.island_publish"):
             feed(session, {"type": "input_audio_buffer.speech_started"})
         self.assertEqual(session.ws.events, [])
 
@@ -546,22 +546,22 @@ class ErrorHandlingTests(unittest.TestCase):
             {"code": "conversation_item_not_found", "param": "item_id"},
         ]
         for case in cases:
-            self.assertEqual(RealtimeSession._classify_error(case), "recoverable", case)
+            self.assertEqual(LiveSession._classify_error(case), "recoverable", case)
 
     def test_classify_config_and_session_and_client(self) -> None:
         self.assertEqual(
-            RealtimeSession._classify_error({
+            LiveSession._classify_error({
                 "type": "invalid_request_error",
                 "message": "Unknown parameter: session.audio.x",
             }),
             "config",
         )
         self.assertEqual(
-            RealtimeSession._classify_error({"message": "Session expired"}),
+            LiveSession._classify_error({"message": "Session expired"}),
             "session",
         )
         self.assertEqual(
-            RealtimeSession._classify_error({"type": "server_error", "message": "internal"}),
+            LiveSession._classify_error({"type": "server_error", "message": "internal"}),
             "client",
         )
 
@@ -569,7 +569,7 @@ class ErrorHandlingTests(unittest.TestCase):
         session = make_session()
         published: list[str] = []
         with patch(
-            "voice_cua.realtime_session.island_publish",
+            "voice_cua.live_session.island_publish",
             side_effect=lambda kind, **kw: published.append(kind),
         ):
             feed(session, {
@@ -591,10 +591,10 @@ class ErrorHandlingTests(unittest.TestCase):
         published: list[str] = []
         logged: list[dict] = []
         with patch(
-            "voice_cua.realtime_session.island_publish",
+            "voice_cua.live_session.island_publish",
             side_effect=lambda kind, **kw: published.append(kind),
         ), patch(
-            "voice_cua.realtime_session.log_event",
+            "voice_cua.live_session.log_event",
             side_effect=lambda kind, **kw: logged.append(kw),
         ):
             for _ in range(2):
@@ -619,7 +619,7 @@ class ErrorHandlingTests(unittest.TestCase):
     def test_session_error_triggers_reconnect(self) -> None:
         session = make_session()
         with (
-            patch("voice_cua.realtime_session.island_publish"),
+            patch("voice_cua.live_session.island_publish"),
             patch.object(session, "_request_reconnect") as request,
         ):
             feed(session, {"type": "error", "error": {"message": "Session expired"}})
@@ -635,7 +635,7 @@ class ErrorHandlingTests(unittest.TestCase):
                 low_events.append(dict(kwargs))
             calls(kind, **kwargs)
 
-        with patch("voice_cua.realtime_session.log_event", side_effect=capture):
+        with patch("voice_cua.live_session.log_event", side_effect=capture):
             feed(session, {"type": "rate_limits.updated", "rate_limits": [
                 {"name": "requests", "limit": 100, "remaining": 99},
                 {"name": "tokens", "limit": 10000, "remaining": 500},

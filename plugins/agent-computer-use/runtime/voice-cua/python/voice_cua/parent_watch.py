@@ -1,7 +1,7 @@
 """Exit the voice helper when its CUAService parent goes away.
 
 A CUAService restart used to leave the helper running with ppid 1: old code,
-mic and Realtime socket open, no island. The supervisor passes its pid in
+mic and live voice socket open, no island. The supervisor passes its pid in
 ``VOICE_CUA_PARENT_PID``; this watchdog polls it (and re-parenting to launchd)
 and, once the parent is gone, runs the normal SIGTERM shutdown path, with a
 hard exit as the fallback.

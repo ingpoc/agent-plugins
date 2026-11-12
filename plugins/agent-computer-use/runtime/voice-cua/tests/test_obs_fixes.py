@@ -25,7 +25,7 @@ from voice_cua import audio_io, island_facade  # noqa: E402
 from voice_cua.activity_log import log_tool_result  # noqa: E402
 from voice_cua.island_facade import errors_published, summarize_result  # noqa: E402
 from voice_cua.island_state import ISLAND  # noqa: E402
-from voice_cua.realtime_session import RealtimeSession  # noqa: E402
+from voice_cua.live_session import LiveSession  # noqa: E402
 
 
 class FakeWS:
@@ -47,11 +47,11 @@ class OneIslandErrorPerFailureTests(unittest.TestCase):
         self.addCleanup(env.stop)
 
     def _run(self, dispatch) -> Mock:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
         with (
             patch.object(ISLAND, "publish") as publish,
-            patch("voice_cua.realtime_session.dispatch", side_effect=dispatch),
+            patch("voice_cua.live_session.dispatch", side_effect=dispatch),
         ):
             session._run_tool("call_1", "cua_act", '{"app":"Calculator"}')
             deadline = time.monotonic() + 3
@@ -121,12 +121,12 @@ class NoMicFailsFastTests(unittest.TestCase):
         fake_sd.InputStream.assert_not_called()
 
     def test_start_audio_marks_skip_once_and_goes_text_only(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=True)
+        session = LiveSession(api_key="test", enable_audio=True)
         with (
             patch("voice_cua.audio_io.audio_available", return_value=True),
             patch("voice_cua.audio_io.wait_mic_preflight", return_value=audio_io.MIC_NO_INPUT_DEVICE),
-            patch("voice_cua.realtime_session.island_publish") as publish,
-            patch("voice_cua.realtime_session.mark") as mark,
+            patch("voice_cua.live_session.island_publish") as publish,
+            patch("voice_cua.live_session.mark") as mark,
         ):
             session._start_audio()
             session._start_audio()  # reconnect path: no second preflight row

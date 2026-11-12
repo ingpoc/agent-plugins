@@ -129,10 +129,10 @@ class MicFrameTests(unittest.TestCase):
 
     def test_live_is_not_muted_while_samantha_talks(self):
         with patch.object(audio_io, "_local_mute_mode", lambda *_: "tail"):
-            audio = audio_io.RealtimeAudio(lambda _e: None, continuous=True)
+            audio = audio_io.LiveAudio(lambda _e: None, continuous=True)
         self.assertEqual(audio.mute_mode, "none")
         with patch.object(audio_io, "_local_mute_mode", lambda *_: "full"):
-            polite = audio_io.RealtimeAudio(lambda _e: None, continuous=True)
+            polite = audio_io.LiveAudio(lambda _e: None, continuous=True)
         self.assertEqual(polite.mute_mode, "full")  # polite keeps the echo guard on purpose
 
     def test_muted_live_mic_still_streams_silence(self):
@@ -256,9 +256,9 @@ class SpeakerAudibleTests(unittest.TestCase):
 
 class SessionBargeInTests(unittest.TestCase):
     def _session(self, playing=True):
-        from voice_cua import realtime_session
+        from voice_cua import live_session
 
-        session = realtime_session.RealtimeSession.__new__(realtime_session.RealtimeSession)
+        session = live_session.LiveSession.__new__(live_session.LiveSession)
         session.provider = providers.LiveProvider()
         session._send = lambda _e: True
 
@@ -273,7 +273,7 @@ class SessionBargeInTests(unittest.TestCase):
                 return 900, "live_out_1"
 
         session._audio = Player()
-        return session, Player, realtime_session
+        return session, Player, live_session
 
     def test_server_transcript_delta_does_not_flush_live_playback(self):
         session, player, rs = self._session()
@@ -394,7 +394,7 @@ class VoiceLatencyTests(unittest.TestCase):
         self.assertTrue(player.timings.empty())
 
     def test_finished_utterances_once_with_same_output_item(self):
-        audio = audio_io.RealtimeAudio(lambda _e: None, continuous=True)
+        audio = audio_io.LiveAudio(lambda _e: None, continuous=True)
         speech = base64.b64encode(frame_at(0.2)).decode()
         for turn_id, ended_at in ((1, 10.0), (2, 20.0)):
             audio._mic.speech_snapshot = (turn_id, ended_at)
@@ -408,7 +408,7 @@ class VoiceLatencyTests(unittest.TestCase):
             self.assertTrue(audio._speaker.timings.empty())
 
     def test_overlap_does_not_create_late_first_audio_sample(self):
-        audio = audio_io.RealtimeAudio(lambda _e: None, continuous=True)
+        audio = audio_io.LiveAudio(lambda _e: None, continuous=True)
         audio._mic.speech_snapshot = (1, 10.0)
         speech = base64.b64encode(frame_at(0.2)).decode()
         for now in (10.1, 10.7):
@@ -429,7 +429,7 @@ class VoiceLatencyTests(unittest.TestCase):
         self.assertEqual(mic.speech_snapshot[0], 2)
 
     def test_speech_update_during_output_read_cannot_mix_turn_and_timestamp(self):
-        audio = audio_io.RealtimeAudio(lambda _e: None, continuous=True)
+        audio = audio_io.LiveAudio(lambda _e: None, continuous=True)
         from types import SimpleNamespace
 
         class InterleavedMic:
@@ -455,7 +455,7 @@ class VoiceLatencyTests(unittest.TestCase):
         self.assertTrue(audio._speaker.timings.empty())
 
     def test_interrupt_drops_old_mark_and_allows_next_utterance(self):
-        audio = audio_io.RealtimeAudio(lambda _e: None, continuous=True)
+        audio = audio_io.LiveAudio(lambda _e: None, continuous=True)
         speech = base64.b64encode(frame_at(0.2)).decode()
         for turn_id, ended_at in ((1, 10.0), (2, 12.0)):
             audio._mic.speech_snapshot = (turn_id, ended_at)

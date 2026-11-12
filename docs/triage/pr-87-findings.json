@@ -1923,8 +1923,8 @@
     },
     "workflow": {
       "stage": "install",
-      "updated_at": "2026-11-11T15:22:26Z",
-      "now": "2026-11-11T15:22:26Z — Spoken test showed ~10 s to first action and ~16 s to final answer that turn_latency missed; releasing 0.2.137 to log every spoken response"
+      "updated_at": "2026-11-12T04:38:03Z",
+      "now": "2026-11-12T04:38:03Z — 10:10 IST Releasing and installing ACU 0.2.138 (spoken timeline + GPT-Live rename)"
     },
     "rollover": {
       "source_pr": 96,

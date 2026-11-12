@@ -99,7 +99,7 @@ def hide_agent_cursor() -> None:
 
 
 def redact_for_model(result: dict[str, Any]) -> dict[str, Any]:
-    """Strip screenshots and huge trees before returning to Realtime."""
+    """Strip screenshots and huge trees before returning to the live voice model."""
     out = {k: v for k, v in result.items() if k not in {
         "screenshot", "screenshot_before", "screenshot_after"
     }}

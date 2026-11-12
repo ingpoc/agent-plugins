@@ -14,7 +14,7 @@ _LOG_DIR = tempfile.TemporaryDirectory(prefix="credential-capture-test-")
 os.environ["VOICE_CUA_ACTIVITY_LOG"] = str(Path(_LOG_DIR.name) / "activity.jsonl")
 
 from voice_cua import credential_capture as capture, session_hub, tools
-from voice_cua.realtime_session import RealtimeSession
+from voice_cua.live_session import LiveSession
 
 
 class CredentialCaptureTests(unittest.TestCase):
@@ -95,7 +95,7 @@ class PrivacyAndInjectionTests(unittest.TestCase):
         self.assertEqual([c.args for c in session.set_input_muted.call_args_list], [(True,), (False,)])
 
     def test_mic_audio_cannot_pass_send_guard_during_entry(self):
-        session = RealtimeSession.__new__(RealtimeSession)
+        session = LiveSession.__new__(LiveSession)
         session._credential_capture = True
         self.assertFalse(session._send({"type": "input_audio_buffer.append", "audio": "fixture"}))
 

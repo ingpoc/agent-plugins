@@ -1,4 +1,4 @@
-"""Low-latency PCM capture/playback for OpenAI Realtime GA (24 kHz mono int16).
+"""Low-latency PCM capture/playback for GPT-Live 1 (24 kHz mono int16).
 
 Design: 20 ms frames (480 samples), callback I/O, dedicated mic sender thread,
 minimal playback buffer. The mic opens at the input device's native rate (AirPods in
@@ -279,7 +279,7 @@ def reset_mic_preflight_async() -> None:
 
 
 def start_mic_preflight_async() -> None:
-    """Run mic TCC preflight on a background thread (overlaps Realtime WS connect)."""
+    """Run mic TCC preflight on a background thread (overlaps voice socket connect)."""
     reset_mic_preflight_async()
 
     def _run() -> None:
@@ -662,8 +662,8 @@ class SpeakerPlayer:
             self._stream = None
 
 
-class RealtimeAudio:
-    """Mic + speaker pair for a Realtime session."""
+class LiveAudio:
+    """Mic + speaker pair for a LiveSession."""
 
     def __init__(
         self,

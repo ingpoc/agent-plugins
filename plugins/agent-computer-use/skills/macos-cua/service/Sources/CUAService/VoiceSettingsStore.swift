@@ -10,16 +10,16 @@ enum VoiceSettingsStore {
     }()
 
     struct Settings: Equatable {
-        var realtimeModel: String
-        var realtimeVoice: String
+        var liveModel: String
+        var liveVoice: String
         var eagerness: String
         var micProfile: String
         var liveBulkModel: String = "gpt-6-luna"
         var liveIntelligenceModel: String = "gpt-6.1-sol"
 
         static let `default` = Settings(
-            realtimeModel: "gpt-live-1",
-            realtimeVoice: "marin",
+            liveModel: "gpt-live-1",
+            liveVoice: "marin",
             eagerness: "balanced",
             micProfile: "near_field"
         )
@@ -96,8 +96,8 @@ enum VoiceSettingsStore {
     static func value(for key: String) -> String {
         let s = load()
         switch key {
-        case "voice.realtime_model": return s.realtimeModel
-        case "voice.realtime_voice": return s.realtimeVoice
+        case "voice.live_model": return s.liveModel
+        case "voice.live_voice": return s.liveVoice
         case "voice.eagerness": return s.eagerness
         case "voice.mic_profile": return s.micProfile
         case "voice.live_bulk_model": return s.liveBulkModel
@@ -109,8 +109,8 @@ enum VoiceSettingsStore {
     static func set(_ value: String, for key: String) {
         var s = load()
         switch key {
-        case "voice.realtime_model": s.realtimeModel = value
-        case "voice.realtime_voice": s.realtimeVoice = value
+        case "voice.live_model": s.liveModel = value
+        case "voice.live_voice": s.liveVoice = value
         case "voice.eagerness": s.eagerness = value
         case "voice.mic_profile": s.micProfile = value
         case "voice.live_bulk_model": s.liveBulkModel = value
@@ -128,8 +128,8 @@ enum VoiceSettingsStore {
             return .default
         }
         var s = Settings.default
-        if let v = obj["realtime_model"] as? String, !v.isEmpty { s.realtimeModel = normalizedModel(v) }
-        if let v = obj["realtime_voice"] as? String, !v.isEmpty { s.realtimeVoice = v }
+        if let v = (obj["live_model"] ?? obj["realtime_model"]) as? String, !v.isEmpty { s.liveModel = normalizedModel(v) }
+        if let v = (obj["live_voice"] ?? obj["realtime_voice"]) as? String, !v.isEmpty { s.liveVoice = v }
         if let v = obj["eagerness"] as? String, !v.isEmpty { s.eagerness = v }
         if let v = obj["mic_profile"] as? String, !v.isEmpty { s.micProfile = v }
         if let v = obj["live_bulk_model"] as? String, !v.isEmpty { s.liveBulkModel = v }
@@ -143,8 +143,8 @@ enum VoiceSettingsStore {
         // Merge: keys this app doesn't know (written by voice_settings.py) are kept.
         var payload: [String: Any] = (try? Data(contentsOf: path))
             .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
-        payload["realtime_model"] = settings.realtimeModel
-        payload["realtime_voice"] = settings.realtimeVoice
+        payload["live_model"] = settings.liveModel
+        payload["live_voice"] = settings.liveVoice
         payload["eagerness"] = settings.eagerness
         payload["mic_profile"] = settings.micProfile
         payload["live_bulk_model"] = settings.liveBulkModel
@@ -156,8 +156,8 @@ enum VoiceSettingsStore {
 
     static func applyToEnvironment(_ settings: Settings) -> [String: String] {
         [
-            "VOICE_CUA_REALTIME_MODEL": settings.realtimeModel,
-            "VOICE_CUA_REALTIME_VOICE": settings.realtimeVoice,
+            "VOICE_CUA_LIVE_MODEL": settings.liveModel,
+            "VOICE_CUA_LIVE_VOICE": settings.liveVoice,
             "VOICE_CUA_EAGERNESS": settings.eagerness,
             "VOICE_CUA_MIC_PROFILE": settings.micProfile,
             "VOICE_CUA_LIVE_BULK_MODEL": settings.liveBulkModel,

@@ -89,7 +89,7 @@ struct IslandSettingsRoot: View {
         defs(tab).filter { d in d.visibleWhen.map { visible($0, store) } ?? true }
     }
 
-    /// `visibleWhen`: a bool key, "key=value" (the GPT-Live-1 pickers) or "key^=prefix" (Realtime-only rows).
+    /// `visibleWhen`: a bool key, "key=value" (the GPT-Live-1 pickers) or "key^=prefix" (prefix-filtered rows).
     static func visible(_ cond: String, _ store: IslandSettingsStore) -> Bool {
         if cond.hasPrefix(IslandSettingsSchema.installedPrefix) {
             let p = ACUPermission.allCases.first { $0.bundleID == String(cond.dropFirst(IslandSettingsSchema.installedPrefix.count)) }

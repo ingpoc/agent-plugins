@@ -53,18 +53,18 @@ PRICES = {
 }
 
 ARMS = {
-    "gpt-live-1": {"realtime_model": "gpt-live-1", "live_bulk_model": "gpt-6-luna",
+    "gpt-live-1": {"live_model": "gpt-live-1", "live_bulk_model": "gpt-6-luna",
                    "live_intelligence_model": "gpt-6.1-sol"},
-    "grok-voice-latest": {"realtime_model": "grok-voice-latest"},
+    "grok-voice-latest": {"live_model": "grok-voice-latest"},
 }
 
 
 def worker(arm: str, runs: int, out: Path) -> int:
     sys.path.insert(0, str(PYDIR))
-    from voice_cua.realtime_session import RealtimeSession
+    from voice_cua.live_session import LiveSession
 
     results = []
-    session = RealtimeSession(enable_audio=False)
+    session = LiveSession(enable_audio=False)
     import threading
 
     threading.Thread(target=session.run, daemon=True).start()
@@ -134,11 +134,11 @@ def main() -> int:
     for arm in arms:
         with tempfile.TemporaryDirectory(prefix=f"vcmp-{arm}-") as td:
             tdp = Path(td)
-            settings = {"realtime_voice": "alloy", "eagerness": "balanced", "mic_profile": "near_field", **ARMS[arm]}
+            settings = {"live_voice": "alloy", "eagerness": "balanced", "mic_profile": "near_field", **ARMS[arm]}
             (tdp / "settings.json").write_text(json.dumps(settings))
             env = dict(os.environ, VOICE_CUA_SETTINGS=str(tdp / "settings.json"),
                        VOICE_CUA_ACTIVITY_LOG=str(tdp / "activity.jsonl"), VOICE_CUA_NO_AUDIO="1")
-            env.pop("VOICE_CUA_REALTIME_MODEL", None)
+            env.pop("VOICE_CUA_LIVE_MODEL", None)
             out = tdp / "out.json"
             proc = subprocess.run([sys.executable, __file__, "--worker", arm, "--runs", str(a.runs), "--out", str(out)],
                                   env=env, check=False)

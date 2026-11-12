@@ -94,6 +94,14 @@ if(pageContentSignature(page('findings','run','workflow','build','changed'))===o
         self.assertIn('Verification by version', page)
         self.assertEqual(self.data, before)
 
+    def test_introspect_stage_renders_between_verify_and_report(self):
+        data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
+        data['tracking'] = {'workflow': {'stage':'introspect','updated_at':'2026-11-10T10:00:00Z'}}
+        page = renderer.render(data, Path(__file__).parents[1])
+        self.assertIn('Introspect', page)
+        self.assertLess(page.index('>Verify<'), page.index('>Introspect<'))
+        self.assertLess(page.index('>Introspect<'), page.index('>Report &amp; roll over<'))
+
     def test_legacy_combined_stage_is_preserved_without_guessing_current_step(self):
         self.data.setdefault('tracking', {})['workflow'] = {'stage':'install_verify','updated_at':'2026-11-08T00:00:00Z'}
         page = renderer.render(self.data, self.base)

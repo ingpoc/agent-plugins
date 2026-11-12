@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from voice_cua import realtime_session  # noqa: E402
+from voice_cua import live_session  # noqa: E402
 from test_phase1_reliability import make_session  # noqa: E402
 
 
@@ -37,7 +37,7 @@ class HandshakeAccess(unittest.TestCase):
     def test_socket_is_opened_without_origin(self) -> None:
         session = make_session()
         app = MagicMock()
-        with patch.object(realtime_session.websocket, "WebSocketApp", return_value=app):
+        with patch.object(live_session.websocket, "WebSocketApp", return_value=app):
             session.connect()
         self.assertTrue(app.run_forever.call_args.kwargs.get("suppress_origin"))
 
@@ -52,7 +52,7 @@ class HandshakeAccess(unittest.TestCase):
         with patch.object(session, "connect", side_effect=refused), \
                 patch.object(session, "_schedule_planned_reconnect"), \
                 patch.object(session._stop, "wait", return_value=False), \
-                patch.object(realtime_session, "island_publish") as pub:
+                patch.object(live_session, "island_publish") as pub:
             session.run()
         self.assertEqual(len(calls), 1)  # no 8x retry storm
         self.assertIn("403", session._access_refused)
@@ -73,8 +73,8 @@ class HandshakeAccess(unittest.TestCase):
         session.ws = ws
         ws.sock.handshake_response.headers = {"x-request-id": "request-123", "cf-ray": "edge-BOM",
                                               "authorization": "must-not-log"}
-        with patch.object(session, "_send"), patch("voice_cua.realtime_session.log_event") as logged, \
-                patch("voice_cua.realtime_session.island_publish"):
+        with patch.object(session, "_send"), patch("voice_cua.live_session.log_event") as logged, \
+                patch("voice_cua.live_session.island_publish"):
             session._on_open(ws)
             session._on_message(ws, json.dumps({"type": "session.output_audio.delta", "delta": "AAA="}))
             session._on_close(ws, None, None)
@@ -91,8 +91,8 @@ class HandshakeAccess(unittest.TestCase):
         session.ws = ws
         ws.last_ping_tm = time.time() - 4
         ws.last_pong_tm = time.time() - 2
-        with patch("voice_cua.realtime_session.log_event") as logged, \
-                patch("voice_cua.realtime_session.island_publish"):
+        with patch("voice_cua.live_session.log_event") as logged, \
+                patch("voice_cua.live_session.island_publish"):
             session._on_open(ws)
             session._send_wire({"type": "input_audio_buffer.append", "audio": "ignored"})
             session._on_close(ws, None, None)
@@ -107,7 +107,7 @@ class HandshakeAccess(unittest.TestCase):
         session = make_session()
         ws = MagicMock()
         session.ws = ws
-        with patch("voice_cua.realtime_session.log_event"), patch("voice_cua.realtime_session.island_publish"):
+        with patch("voice_cua.live_session.log_event"), patch("voice_cua.live_session.island_publish"):
             session._on_open(ws)
             session._send_wire({"type": "session.input_audio.append", "audio": "ignored"})
             session._on_close(ws, None, None)
@@ -116,13 +116,13 @@ class HandshakeAccess(unittest.TestCase):
 
     def test_websocket_teardown_captures_ping_age_before_close(self) -> None:
         session = make_session()
-        app = realtime_session.websocket.WebSocketApp("ws://example.invalid", on_error=session._on_error,
+        app = live_session.websocket.WebSocketApp("ws://example.invalid", on_error=session._on_error,
                                                        on_close=session._on_close)
         app.last_ping_tm = time.time() - 4
         app.last_pong_tm = time.time() - 2
         app.sock = MagicMock()
-        with patch("voice_cua.realtime_session.log_event") as logged, \
-                patch("voice_cua.realtime_session.island_publish"):
+        with patch("voice_cua.live_session.log_event") as logged, \
+                patch("voice_cua.live_session.island_publish"):
             session._on_error(app, ConnectionError("transport drop"))
             app._stop_ping_thread()
             app.sock = None
@@ -135,7 +135,7 @@ class HandshakeAccess(unittest.TestCase):
         session = make_session()
         ws = MagicMock()
         session.ws = ws
-        with patch("voice_cua.realtime_session.log_event"), patch("voice_cua.realtime_session.island_publish"):
+        with patch("voice_cua.live_session.log_event"), patch("voice_cua.live_session.island_publish"):
             session._on_open(ws)
             ws.send.side_effect = ConnectionError("closed")
             self.assertFalse(session._send_wire({"type": "input_audio_buffer.append", "audio": "ignored"}))
@@ -145,10 +145,10 @@ class HandshakeAccess(unittest.TestCase):
         self.assertEqual(session._last_mic_append_at, 0.0)
 
     def test_close_handles_missing_connection_fields(self) -> None:
-        session = realtime_session.RealtimeSession.__new__(realtime_session.RealtimeSession)
+        session = live_session.LiveSession.__new__(live_session.LiveSession)
         session._stop = MagicMock()
         session._stop.is_set.return_value = True
-        with patch("voice_cua.realtime_session.log_event") as logged:
+        with patch("voice_cua.live_session.log_event") as logged:
             session._on_close(None, None, None)
         row = next(c.kwargs for c in logged.call_args_list if c.args[0] == "ws_closed")
         self.assertIsNone(row["last_client_wire_type"])

@@ -1,6 +1,6 @@
 """Voice provider adapters: one session loop, two speech backends.
 
-The session loop (realtime_session.RealtimeSession) speaks the OpenAI Realtime
+The session loop (live_session.LiveSession) speaks the OpenAI Realtime
 event dialect internally (the loop's own event schema; the OpenAI Realtime API itself is no
 longer a backend). An adapter translates at the socket edge only:
 
@@ -588,7 +588,7 @@ class LiveProvider(VoiceProvider):
             if itype == "message":
                 text = " ".join(str(c.get("text") or "") for c in item.get("content") or [] if isinstance(c, dict))
                 if item.get("role") == "system":
-                    if self._forking and text.startswith("The realtime connection was re-established"):
+                    if self._forking and text.startswith("The live voice connection was re-established"):
                         return []  # a fork keeps the conversation: no 'earlier turns are gone' note
                     return [{"type": "session.instructions.append", "event_id": self.event_id("instructions"),
                              "content": text[:LIVE_APPEND_MAX_CHARS], "delegation_id": None}]
@@ -828,7 +828,7 @@ class LiveProvider(VoiceProvider):
             started = self._ready
             forking = self._forking
         phase = "running" if started else "startup"
-        log_event("live_error", phase=phase, code=code or None, param=param or None,
+        log_event("realtime_error", phase=phase, code=code or None, param=param or None,
                   client_event_id=client_event_id or None, error_type=str(err.get("type") or "") or None,
                   message=str(err.get("message") or "")[:160] or None, forked=forking or None)
         if not started and forking:
@@ -1007,6 +1007,6 @@ def make_provider(model: str, settings: dict[str, str] | None = None) -> VoicePr
         LIVE_MODEL,
         bulk=os.environ.get("VOICE_CUA_LIVE_BULK_MODEL") or settings.get("live_bulk_model"),
         intelligence=os.environ.get("VOICE_CUA_LIVE_INTELLIGENCE_MODEL") or settings.get("live_intelligence_model"),
-        voice=os.environ.get("VOICE_CUA_LIVE_VOICE") or live_voice(settings.get("realtime_voice")),
+        voice=os.environ.get("VOICE_CUA_LIVE_VOICE") or live_voice(settings.get("live_voice")),
         store=str(settings.get("live_store", "true")).lower() not in {"0", "false", "no", "off"},
     )

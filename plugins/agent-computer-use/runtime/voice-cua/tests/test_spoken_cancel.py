@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 
 from voice_cua import activity_log  # noqa: E402
-from voice_cua.realtime_session import RealtimeSession  # noqa: E402
+from voice_cua.live_session import LiveSession  # noqa: E402
 
 
 class FakeWS:
@@ -24,7 +24,7 @@ class FakeWS:
 
 class SpokenStopTests(unittest.TestCase):
     def test_typed_stop_uses_cancel_path_and_is_not_a_new_request(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
         calls = []
         session.island_control = lambda action, **kw: calls.append((action, kw)) or True  # type: ignore
@@ -40,16 +40,16 @@ class SpokenStopTests(unittest.TestCase):
             "leave it", "stop it", "you can stop", "that's enough",
         ):
             with self.subTest(phrase=phrase):
-                self.assertTrue(RealtimeSession._spoken_task_cancel(phrase))
+                self.assertTrue(LiveSession._spoken_task_cancel(phrase))
         for phrase in (
             "don't stop", "keep going", "stop by the store and open Safari",
             "please stop by the store", "the stop button is there",
         ):
             with self.subTest(phrase=phrase):
-                self.assertFalse(RealtimeSession._spoken_task_cancel(phrase))
+                self.assertFalse(LiveSession._spoken_task_cancel(phrase))
 
     def test_spoken_stop_between_response_start_and_dispatch_skips_action(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
         run_id = "run-spoken-stop"
         session._active_task_run_id = run_id
@@ -57,8 +57,8 @@ class SpokenStopTests(unittest.TestCase):
         rows: list[dict] = []
 
         with patch.object(activity_log, "_append_row", side_effect=rows.append), \
-                patch("voice_cua.realtime_session.dispatch") as dispatch, \
-                patch("voice_cua.realtime_session.island_publish"):
+                patch("voice_cua.live_session.dispatch") as dispatch, \
+                patch("voice_cua.live_session.island_publish"):
             session._dispatch_event({"type": "response.created", "response": {
                 "id": "response-before-stop", "metadata": {"voice_cua_request_id": run_id},
             }})
@@ -87,7 +87,7 @@ if __name__ == "__main__":
 
 
 def test_detector_ignores_leading_filler_words() -> None:
-    from voice_cua.realtime_session import RealtimeSession
+    from voice_cua.live_session import LiveSession
     for phrase in ("Uh, you can stop", "Um, wait, stop", "Okay, please stop.", "Hey Samantha, cancel that"):
-        assert RealtimeSession._spoken_task_cancel(phrase), phrase
-    assert not RealtimeSession._spoken_task_cancel("Uh, don't stop")
+        assert LiveSession._spoken_task_cancel(phrase), phrase
+    assert not LiveSession._spoken_task_cancel("Uh, don't stop")

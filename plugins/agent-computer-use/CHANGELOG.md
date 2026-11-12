@@ -1,5 +1,10 @@
 # Changelog: agent-computer-use
 
+## 0.2.138
+
+- Samantha: spoken turns log a full `turn_latency` timeline (speech, transcript, first reply, tool, final reply) built from the GPT-Live events Samantha actually receives.
+- Samantha: Realtime-era names renamed to GPT-Live (`live_session.py`, `LiveSession`, `VOICE_CUA_LIVE_*`, `live_model`/`live_voice`); old env vars and settings keys still read as fallbacks.
+
 ## 0.2.137
 
 - Samantha: `turn_latency` is logged for every spoken response of a turn (with `response_id`), so the wait before the final answer is measured, not just the first "on it" reply.
