@@ -45,8 +45,8 @@ def _normalize_scope_rule(scope: str, rule: str) -> tuple[str, str]:
 
 
 def _norm_text(text: str) -> str:
-    """Casefolded words only, so quotes match across punctuation, quotes and spacing."""
-    return ' '.join(re.findall(r'[\w]+', str(text or '').casefold()))
+    """Casefolded words only, so quotes match across punctuation, quotes, spacing and snake_case values."""
+    return ' '.join(re.findall(r'[^\W_]+', str(text or '').casefold()))
 
 
 _REJECTS = re.compile(r"\b(?:do not|don't|dont|never)\s+(?:save|remember|store|record)\b|\b(?:reject(?:ed)?|not approved)\b"

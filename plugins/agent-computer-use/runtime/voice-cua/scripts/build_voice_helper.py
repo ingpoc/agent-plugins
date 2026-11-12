@@ -108,7 +108,7 @@ def build(*, clean: bool = True, onefile: bool = False) -> Path:
             "--hidden-import",
             "voice_cua.voice_stack",
             "--hidden-import",
-            "voice_cua.realtime_session",
+            "voice_cua.live_session",
             "--hidden-import",
             "voice_cua.gateway",
             "--hidden-import",

@@ -26,7 +26,7 @@ import voice_cua.gateway  # noqa: E402
 
 from voice_cua.island_facade import describe_tool, summarize_result  # noqa: E402
 from voice_cua.island_state import ISLAND, IslandBus  # noqa: E402
-from voice_cua.realtime_session import RealtimeSession  # noqa: E402
+from voice_cua.live_session import LiveSession  # noqa: E402
 
 
 def _bus() -> IslandBus:
@@ -201,30 +201,30 @@ class SSEStreamTests(unittest.TestCase):
 
 
 class RunToolIslandTests(unittest.TestCase):
-    """RealtimeSession._run_tool island publishes + error resilience."""
+    """LiveSession._run_tool island publishes + error resilience."""
 
     @staticmethod
-    def _make_session() -> RealtimeSession:
+    def _make_session() -> LiveSession:
         settings = {
-            "realtime_model": "gpt-live-1",
-            "realtime_voice": "alloy",
+            "live_model": "gpt-live-1",
+            "live_voice": "alloy",
             "eagerness": "balanced",
             "mic_profile": "near_field",
         }
         with patch("voice_cua.voice_settings.load_settings", return_value=settings):
-            session = RealtimeSession(api_key="test", enable_audio=False)
+            session = LiveSession(api_key="test", enable_audio=False)
         session.ws = _RecordingWS()
         return session
 
-    def _run(self, session: RealtimeSession, dispatch_result, *, raw_args: str) -> None:
+    def _run(self, session: LiveSession, dispatch_result, *, raw_args: str) -> None:
         published: list[tuple] = []
 
         def record_publish(kind, **kwargs):
             published.append((kind, kwargs))
 
         with (
-            patch("voice_cua.realtime_session.dispatch", dispatch_result),
-            patch("voice_cua.realtime_session.island_publish", side_effect=record_publish),
+            patch("voice_cua.live_session.dispatch", dispatch_result),
+            patch("voice_cua.live_session.island_publish", side_effect=record_publish),
             patch.object(session, "_wait_for_responses_idle", return_value=True),
             patch.object(session, "_send_response_create"),
         ):
@@ -343,7 +343,7 @@ class IslandCopyContractTests(unittest.TestCase):
 
         bus = IslandBus()
         bus.publish("listening", title="Listening")
-        self.assertIsNone(bus.publish("error", title="Realtime error",
+        self.assertIsNone(bus.publish("error", title="Live voice error",
                                       detail="Audio content of 5ms is already shorter than 9ms"))
         self.assertEqual(bus.state.kind, "listening")
         bus.publish("error", title="Failed", detail="RPC -32000 raw trace")

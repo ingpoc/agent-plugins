@@ -1,4 +1,4 @@
-"""Island card controls → live Realtime session (stop speaking / cancel / retry / replay)."""
+"""Island card controls → LiveSession (stop speaking / cancel / retry / replay)."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 
 from voice_cua import session_hub
-from voice_cua.realtime_session import RealtimeSession
+from voice_cua.live_session import LiveSession
 
 
 class _FakeAudio:
@@ -34,8 +34,8 @@ class _FakeAudio:
         return 1200, "item-1"
 
 
-def _session() -> RealtimeSession:
-    s = RealtimeSession.__new__(RealtimeSession)
+def _session() -> LiveSession:
+    s = LiveSession.__new__(LiveSession)
     s._stop = threading.Event()
     s._session_ready = threading.Event()
     s._session_ready.set()
@@ -65,7 +65,7 @@ def _session() -> RealtimeSession:
 
 class IslandControlTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.pub = patch("voice_cua.realtime_session.island_publish").start()
+        self.pub = patch("voice_cua.live_session.island_publish").start()
         self.addCleanup(patch.stopall)
 
     def test_stop_speaking_cancels_active_response_and_truncates(self) -> None:

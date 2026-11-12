@@ -647,6 +647,8 @@ def main(argv=None):
                 raise ValueError("batch requires a nonempty operations array")
             existing_run = store["document"].get("tracking", {}).get("verification_run")
             run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "set-stage", "set-activity"}
+            if (existing_run or any(isinstance(op, dict) and op.get("action") == "rollover" for op in operations)) and not args.render:
+                raise ValueError("rollover requires --render so the page stays current")
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()
@@ -677,6 +679,23 @@ def main(argv=None):
                     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                     store["document"].setdefault("tracking", {})["workflow"] = {
                         "stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
+                    continue
+                if action == "rollover":
+                    # One step at merge time: exclude every verified_fixed finding, list the rest as carried over,
+                    # point the page header at the new PR and worktree, and set the stage (was five manual edits).
+                    pr, worktree = operation.get("pull_request"), operation.get("worktree")
+                    if not isinstance(pr, dict) or not pr.get("label") or not pr.get("url") or not isinstance(worktree, str) or not worktree.strip():
+                        raise ValueError("rollover requires pull_request {label,url} and worktree")
+                    tracking = store["document"].setdefault("tracking", {})
+                    fixed = [item["id"] for item in findings if item.get("status") == "verified_fixed"]
+                    rollover = tracking.setdefault("rollover", {})
+                    rollover["source_pr"] = operation.get("source_pr", rollover.get("source_pr"))
+                    rollover["excluded_ids"] = sorted(set(rollover.get("excluded_ids", [])) | set(fixed))
+                    rollover["unresolved_ids"] = [item["id"] for item in findings if item.get("status") not in CLOSED_STATUSES]
+                    tracking["pull_request"], tracking["worktree"] = {"label": pr["label"], "url": pr["url"]}, worktree.strip()
+                    timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                    note = str(operation.get("now") or f"Rolled over to {pr['label']}").strip().splitlines()[0]
+                    tracking["workflow"] = {"stage": "report_rollover", "updated_at": timestamp, "now": f"{timestamp} — {note}"}
                     continue
                 if action in run_actions:
                     if action == "finish-check" and operation.get("id") in started_checks:

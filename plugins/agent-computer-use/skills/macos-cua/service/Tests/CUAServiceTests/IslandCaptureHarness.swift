@@ -116,7 +116,7 @@ final class IslandCaptureHarness: XCTestCase {
         }
         // Benign Realtime race never shows.
         model.forceCompact = true
-        try await post("/api/island/publish", ["kind": "error", "title": "Realtime error",
+        try await post("/api/island/publish", ["kind": "error", "title": "Live voice error",
                                                "detail": "Audio content of 1850ms is already shorter than 8640ms"])
         try await Task.sleep(nanoseconds: 900_000_000)
         try capture(dir, "10-benign-error-suppressed-compact", tall: false)

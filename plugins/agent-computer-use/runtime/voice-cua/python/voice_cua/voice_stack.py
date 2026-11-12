@@ -1,4 +1,4 @@
-"""Single supervised process: localhost gateway + Realtime session.
+"""Single supervised process: localhost gateway + LiveSession.
 
 Used by CUAService Voice ▶ (no VOICE_CUA_REMOTE_ISLAND — ISLAND bus is in-process).
 """
@@ -108,9 +108,9 @@ def main(argv: list[str] | None = None) -> int:
     island_publish("listening", title="Connecting", detail="")
     mark("island_connecting")
 
-    from voice_cua.realtime_session import main as realtime_main
+    from voice_cua.live_session import main as live_main
 
-    code = realtime_main(argv)
+    code = live_main(argv)
     mark("stack_exit", status="ok" if code == 0 else "fail", detail=f"exit={code}")
     return code
 

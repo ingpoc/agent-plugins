@@ -38,7 +38,7 @@ from voice_cua import SYSTEM_INSTRUCTIONS  # noqa: E402
 from voice_cua import comet_bridge  # noqa: E402
 from voice_cua.audio_io import MicStreamer  # noqa: E402
 from voice_cua.comet_bridge import CometLease, redact_actions, redact_url  # noqa: E402
-from voice_cua.realtime_session import RealtimeSession, _task_outcome  # noqa: E402
+from voice_cua.live_session import LiveSession, _task_outcome  # noqa: E402
 
 
 class TerminalOutcomeTests(unittest.TestCase):
@@ -78,12 +78,12 @@ class FakeWS:
 
 class TaskOutcomeTests(unittest.TestCase):
     def test_response_without_explicit_run_link_remains_unlinked(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session._active_task_run_id = "c" * 32
         from voice_cua import activity_log
         rows = []
         with patch.object(activity_log, "_append_row", side_effect=rows.append), \
-             patch("voice_cua.realtime_session.island_publish"):
+             patch("voice_cua.live_session.island_publish"):
             session._dispatch_event({"type": "response.created", "response": {"id": "untagged"}})
             session._handle_error_event({"error": {"type": "server_error", "message": "synthetic error"}})
         row = next(row for row in rows if row["kind"] == "model_response_start")
@@ -95,7 +95,7 @@ class TaskOutcomeTests(unittest.TestCase):
         self.assertEqual(error["run_ref_gap"], "realtime_error_run_link_missing")
 
     def test_task_cancel_links_inflight_step_and_waits_for_response_ack(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         run_id = "c" * 32
         session._active_task_run_id = run_id
         session._task_runs[run_id] = []
@@ -106,12 +106,12 @@ class TaskOutcomeTests(unittest.TestCase):
         session._response_step_refs["response-1"] = "response-step"
         session._pending_calls["call-1"] = {"run_id": run_id, "step_ref": "tool-step"}
         events = []
-        with patch("voice_cua.realtime_session.log_event", lambda kind, **kw: events.append((kind, kw))), \
+        with patch("voice_cua.live_session.log_event", lambda kind, **kw: events.append((kind, kw))), \
              patch.object(session, "_send", return_value=True), \
-             patch("voice_cua.realtime_session.island_publish"), \
-             patch("voice_cua.realtime_session.log_usage"), \
-             patch("voice_cua.realtime_session.log_task_outcome"), \
-             patch("voice_cua.realtime_session.hide_agent_cursor"):
+             patch("voice_cua.live_session.island_publish"), \
+             patch("voice_cua.live_session.log_usage"), \
+             patch("voice_cua.live_session.log_task_outcome"), \
+             patch("voice_cua.live_session.hide_agent_cursor"):
             self.assertTrue(session.island_control("stopTask"))
             cancel = dict(events)["cancel"]
             self.assertEqual(cancel["run_id"], run_id)
@@ -130,7 +130,7 @@ class TaskOutcomeTests(unittest.TestCase):
         self.assertEqual(acknowledged["queued_action_suppressed"], "unknown")
 
     def test_cancel_before_action_with_unconfirmed_ack_settles_unknown(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         run_id = "e" * 32
         session._active_task_run_id = run_id
         session._task_runs[run_id] = []
@@ -140,12 +140,12 @@ class TaskOutcomeTests(unittest.TestCase):
         session._response_task_run_ids["response-failed"] = run_id
         session._response_step_refs["response-failed"] = "response-step"
         events = []
-        with patch("voice_cua.realtime_session.log_event", lambda kind, **kw: events.append((kind, kw))), \
-             patch("voice_cua.realtime_session.log_task_outcome") as outcome, \
-             patch("voice_cua.realtime_session.log_usage"), \
-             patch("voice_cua.realtime_session.island_publish"), \
-             patch("voice_cua.realtime_session.mark"), \
-             patch("voice_cua.realtime_session.hide_agent_cursor"), \
+        with patch("voice_cua.live_session.log_event", lambda kind, **kw: events.append((kind, kw))), \
+             patch("voice_cua.live_session.log_task_outcome") as outcome, \
+             patch("voice_cua.live_session.log_usage"), \
+             patch("voice_cua.live_session.island_publish"), \
+             patch("voice_cua.live_session.mark"), \
+             patch("voice_cua.live_session.hide_agent_cursor"), \
              patch.object(session, "_send", return_value=True):
             session.island_control("stopTask")
             session._dispatch_event({"type": "response.done", "response": {
@@ -157,7 +157,7 @@ class TaskOutcomeTests(unittest.TestCase):
         self.assertEqual(outcome.call_args.kwargs["outcome"], "unknown")
 
     def test_spoken_cancel_skips_queued_tool_and_logs_count(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         run_id = "f" * 32
         session._active_task_run_id = run_id
         session._task_runs[run_id] = []
@@ -175,12 +175,12 @@ class TaskOutcomeTests(unittest.TestCase):
             self.assertTrue(release.wait(2))
             return ("working", "Calculator", "", "Calculator")
 
-        with patch("voice_cua.realtime_session.describe_tool", side_effect=describe), \
-             patch("voice_cua.realtime_session.dispatch") as dispatch, \
-             patch("voice_cua.realtime_session.log_event", lambda kind, **kw: events.append((kind, kw))), \
-             patch("voice_cua.realtime_session.island_publish"), \
-             patch("voice_cua.realtime_session.plugin_island.tool_started"), \
-             patch("voice_cua.realtime_session.plugin_island.tool_finished"), \
+        with patch("voice_cua.live_session.describe_tool", side_effect=describe), \
+             patch("voice_cua.live_session.dispatch") as dispatch, \
+             patch("voice_cua.live_session.log_event", lambda kind, **kw: events.append((kind, kw))), \
+             patch("voice_cua.live_session.island_publish"), \
+             patch("voice_cua.live_session.plugin_island.tool_started"), \
+             patch("voice_cua.live_session.plugin_island.tool_finished"), \
              patch.object(session, "_send", return_value=True), \
              patch.object(session, "_deliver_tool_result", side_effect=lambda _cid, _name, result, **_kw:
                           delivered.append(result) or "delivered"):
@@ -202,16 +202,19 @@ class TaskOutcomeTests(unittest.TestCase):
         self.assertIsNone(session._plan_drop_recovery())
 
     def test_spoken_cancel_transcript_routes_to_task_cancel(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
+        session._active_task_run_id = "spoken-stop-run"
         with patch.object(session, "island_control", return_value=True) as cancel, \
              patch.object(session, "_note_user_turn") as note:
             session._dispatch_event({"type": "conversation.item.input_audio_transcription.completed",
                                      "transcript": "Leave the task."})
-        cancel.assert_called_once_with("cancel")
+        cancel.assert_called_once()
+        self.assertEqual(cancel.call_args.args, ("cancel",))
+        self.assertEqual(cancel.call_args.kwargs["cancel_source"], "transcript")
         note.assert_not_called()
 
     def test_cancel_during_tool_reports_unknown_and_never_replays(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         run_id = "d" * 32
         session._active_task_run_id = run_id
         session._task_runs[run_id] = []
@@ -221,13 +224,13 @@ class TaskOutcomeTests(unittest.TestCase):
         started = threading.Event()
         release = threading.Event()
         delivered = []
-        with patch("voice_cua.realtime_session.describe_tool", return_value=("working", "Calculator", "", "Calculator")), \
-             patch("voice_cua.realtime_session.dispatch", side_effect=lambda *_: (started.set(), release.wait(2),
+        with patch("voice_cua.live_session.describe_tool", return_value=("working", "Calculator", "", "Calculator")), \
+             patch("voice_cua.live_session.dispatch", side_effect=lambda *_: (started.set(), release.wait(2),
                                                                                   {"ok": True, "verified": True})[2]) as dispatch, \
-             patch("voice_cua.realtime_session.log_event"), \
-             patch("voice_cua.realtime_session.island_publish"), \
-             patch("voice_cua.realtime_session.plugin_island.tool_started"), \
-             patch("voice_cua.realtime_session.plugin_island.tool_finished"), \
+             patch("voice_cua.live_session.log_event"), \
+             patch("voice_cua.live_session.island_publish"), \
+             patch("voice_cua.live_session.plugin_island.tool_started"), \
+             patch("voice_cua.live_session.plugin_island.tool_finished"), \
              patch.object(session, "_send", return_value=True), \
              patch.object(session, "_deliver_tool_result", side_effect=lambda _cid, _name, result, **_kw:
                           delivered.append(result) or "delivered"):
@@ -242,9 +245,11 @@ class TaskOutcomeTests(unittest.TestCase):
         dispatch.assert_called_once()
         self.assertEqual(delivered[0]["error_type"], "cancelled_outcome_unknown")
         self.assertEqual(delivered[0]["outcome"], "unknown")
+        self.assertNotIn("cancelled", delivered[0])
+        self.assertIn("outcome unknown", delivered[0]["error"])
 
     def test_duplicate_tool_delivery_emits_mirror_reference_without_dispatch(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         with tempfile.TemporaryDirectory() as tmp:
             log = Path(tmp) / "activity.jsonl"
             with patch.dict(os.environ, {"VOICE_CUA_ACTIVITY_LOG": str(log)}):
@@ -262,15 +267,15 @@ class TaskOutcomeTests(unittest.TestCase):
         self.assertIn("call-1", session._pending_calls)
 
     def test_user_retry_uses_new_run_ref_with_parent_relation(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         with patch("voice_cua.workflow_store.begin_engagement"), patch("voice_cua.tools.note_user_turn"):
             previous_run = session._note_user_turn("Open the report")
         events = []
-        with patch("voice_cua.realtime_session.log_event", lambda kind, **kw: events.append((kind, kw))), \
+        with patch("voice_cua.live_session.log_event", lambda kind, **kw: events.append((kind, kw))), \
              patch.object(session, "_send", return_value=True), \
              patch("voice_cua.workflow_store.begin_engagement"), \
              patch("voice_cua.tools.note_user_turn"), \
-             patch("voice_cua.realtime_session.island_publish"):
+             patch("voice_cua.live_session.island_publish"):
             self.assertTrue(session.island_control("retry"))
         new_request = dict(events)["user_request"]
         self.assertNotEqual(new_request["run_id"], previous_run)
@@ -280,27 +285,27 @@ class TaskOutcomeTests(unittest.TestCase):
         self.assertRegex(new_request["step_ref"], r"^[0-9a-f]{32}$")
 
     def test_tool_result_is_correlated_through_final_response(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         request_id, response_id = "b" * 32, "response-1"
         with patch("voice_cua.workflow_store.begin_engagement"), patch("voice_cua.tools.note_user_turn"):
             run_id = session._note_user_turn("Calculate 8 times 8", request_id=request_id)
         request_step_ref = session._task_request_step_refs[run_id]
-        with patch("voice_cua.realtime_session.island_publish"):
+        with patch("voice_cua.live_session.island_publish"):
             session._dispatch_event({
                 "type": "response.created",
                 "response": {"id": response_id, "metadata": {"voice_cua_request_id": request_id}},
             })
-        with patch("voice_cua.realtime_session.dispatch", return_value={"ok": True, "verified": True}), patch(
-            "voice_cua.realtime_session.describe_tool", return_value=("acting", "Acting", "", "Calculator")
-        ), patch("voice_cua.realtime_session.island_publish"), patch(
-            "voice_cua.realtime_session.log_event"
+        with patch("voice_cua.live_session.dispatch", return_value={"ok": True, "verified": True}), patch(
+            "voice_cua.live_session.describe_tool", return_value=("acting", "Acting", "", "Calculator")
+        ), patch("voice_cua.live_session.island_publish"), patch(
+            "voice_cua.live_session.log_event"
         ), patch.object(session, "_deliver_tool_result", return_value=False), patch.object(
             session, "_sync_tool_groups"
         ), patch.object(session, "_wait_for_responses_idle", return_value=False):
             session._run_tool("call-1", "cua_act", "{}", request_id=request_id, response_id=response_id)
             self.assertTrue(_wait(lambda: "call-1" not in session._pending_calls))
-        with patch("voice_cua.realtime_session.log_task_outcome") as log, patch(
-            "voice_cua.realtime_session.mark"
+        with patch("voice_cua.live_session.log_task_outcome") as log, patch(
+            "voice_cua.live_session.mark"
         ):
             session._note_response_done({"id": response_id, "status": "completed", "output": []})
         outcome = log.call_args.kwargs
@@ -317,18 +322,18 @@ class TaskOutcomeTests(unittest.TestCase):
         self.assertNotIn(run_id, session._task_runs)
 
     def test_response_settlement_emits_unknown_outcome_without_action_evidence(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         run_id, response_id = "d" * 32, "response-unknown"
         session._response_task_run_ids[response_id] = run_id
         session._task_runs[run_id] = []
         session._task_request_step_refs[run_id] = "request-step"
         session._task_started_at[run_id] = time.monotonic()
-        with patch("voice_cua.realtime_session.log_event"), \
-             patch("voice_cua.realtime_session.log_task_outcome") as outcome, \
-             patch("voice_cua.realtime_session.log_usage"), \
-             patch("voice_cua.realtime_session.island_publish"), \
-             patch("voice_cua.realtime_session.mark"), \
-             patch("voice_cua.realtime_session.hide_agent_cursor"):
+        with patch("voice_cua.live_session.log_event"), \
+             patch("voice_cua.live_session.log_task_outcome") as outcome, \
+             patch("voice_cua.live_session.log_usage"), \
+             patch("voice_cua.live_session.island_publish"), \
+             patch("voice_cua.live_session.mark"), \
+             patch("voice_cua.live_session.hide_agent_cursor"):
             session._dispatch_event({"type": "response.done", "response": {
                 "id": response_id, "status": "completed", "output": [],
             }})
@@ -344,14 +349,14 @@ class TaskOutcomeTests(unittest.TestCase):
         self.assertIsInstance(fields["duration_ms"], int)
 
     def test_ledger_only_run_records_success_and_request_expectation(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         run_id, response_id = "e" * 32, "response-ledger-only"
         request = "Check the Context Ledger for my calculation app preference"
         session._response_task_run_ids[response_id] = run_id
         session._task_runs[run_id] = [{"tool": "ledger_task", "ok": True}]
         session._task_expected_outcomes[run_id] = request
-        with patch("voice_cua.realtime_session.log_task_outcome") as log, patch(
-            "voice_cua.realtime_session.mark"
+        with patch("voice_cua.live_session.log_task_outcome") as log, patch(
+            "voice_cua.live_session.mark"
         ):
             session._note_response_done({"id": response_id, "status": "completed", "output": []})
         outcome = log.call_args.kwargs
@@ -360,13 +365,13 @@ class TaskOutcomeTests(unittest.TestCase):
         self.assertEqual(outcome["tools"], ["ledger_task"])
 
     def test_old_response_cannot_clear_a_new_turn_outcome(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         old_run, new_run = "a" * 32, "b" * 32
         session._task_runs[old_run] = [{"tool": "cua_act", "ok": True, "verified": True}]
         session._task_runs[new_run] = []
         session._response_task_run_ids.update({"old-response": old_run, "new-response": new_run})
-        with patch("voice_cua.realtime_session.log_task_outcome") as log, patch(
-            "voice_cua.realtime_session.mark"
+        with patch("voice_cua.live_session.log_task_outcome") as log, patch(
+            "voice_cua.live_session.mark"
         ):
             session._note_response_done({"id": "old-response", "status": "completed", "output": []})
         outcome = log.call_args.kwargs
@@ -378,11 +383,11 @@ class TaskOutcomeTests(unittest.TestCase):
         self.assertEqual(session._response_task_run_ids["new-response"], new_run)
 
     def test_typed_prompt_sends_the_task_correlation_id(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
         with patch("voice_cua.workflow_store.begin_engagement"), patch(
             "voice_cua.tools.note_user_turn"
-        ), patch("voice_cua.realtime_session.island_publish"):
+        ), patch("voice_cua.live_session.island_publish"):
             session.send_text("Open Calculator")
         create = next(e for e in session.ws.events if e["type"] == "response.create")
         request_id = create["response"]["metadata"]["voice_cua_request_id"]
@@ -455,14 +460,14 @@ class MicSenderTests(unittest.TestCase):
 
 class SendAndAudioTests(unittest.TestCase):
     def test_send_drops_when_socket_closed(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
         session.ws.fail = True
         self.assertFalse(session._send({"type": "input_audio_buffer.append"}))
         self.assertEqual(session._send_drops, 1)
 
     def test_start_audio_revives_dead_mic_on_reconnect(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session._audio_enabled = True
 
         class FakeAudio:
@@ -482,7 +487,7 @@ class SendAndAudioTests(unittest.TestCase):
 
 class ReconnectDuringToolTests(unittest.TestCase):
     def test_result_after_reconnect_recreates_call_then_output(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
         session._conn_epoch = 1
 
@@ -493,8 +498,8 @@ class ReconnectDuringToolTests(unittest.TestCase):
             session._session_ready.set()
             return {"ok": True, "lease": "isolated"}
 
-        with patch("voice_cua.realtime_session.dispatch", side_effect=dispatch), patch(
-            "voice_cua.realtime_session.comet_is_active", return_value=False
+        with patch("voice_cua.live_session.dispatch", side_effect=dispatch), patch(
+            "voice_cua.live_session.comet_is_active", return_value=False
         ):
             session._run_tool("call_old", "cua_state", '{"app":"Calculator"}')
             self.assertTrue(_wait(lambda: any(e["type"] == "response.create" for e in session.ws.events)))
@@ -508,7 +513,7 @@ class ReconnectDuringToolTests(unittest.TestCase):
         self.assertLess(max(i for i, t in enumerate(types) if t == "conversation.item.create"), types.index("response.create"))
 
     def test_rejected_recreated_call_falls_back_to_note(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
         session._recreated_calls["call_kj1"] = "Tool cua_state ... finished with result: ok=True"
         with contextlib.redirect_stderr(io.StringIO()):
@@ -522,7 +527,7 @@ class ReconnectDuringToolTests(unittest.TestCase):
         self.assertNotIn("call_kj1", session._recreated_calls)
 
     def test_stale_note_is_summary_not_raw_payload(self) -> None:
-        note = RealtimeSession.stale_result_note(
+        note = LiveSession.stale_result_note(
             "comet_act", {"ok": True, "page_text": "PRIVATE PAGE BODY", "nested": {"path": "/Users/x"}}
         )
         self.assertNotIn("PRIVATE PAGE BODY", note)
@@ -530,7 +535,7 @@ class ReconnectDuringToolTests(unittest.TestCase):
         self.assertIn("ok=True", note)
 
     def test_shutdown_unblocks_stale_delivery(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
         session.ws.fail = True
         session._stop.set()
@@ -539,10 +544,10 @@ class ReconnectDuringToolTests(unittest.TestCase):
         self.assertLess(time.monotonic() - started, 1.0)
 
     def test_same_epoch_posts_function_call_output(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
-        with patch("voice_cua.realtime_session.dispatch", return_value={"ok": True}), patch(
-            "voice_cua.realtime_session.comet_is_active", return_value=False
+        with patch("voice_cua.live_session.dispatch", return_value={"ok": True}), patch(
+            "voice_cua.live_session.comet_is_active", return_value=False
         ):
             session._run_tool("call_1", "cua_state", '{"app":"Calculator"}')
             self.assertTrue(_wait(lambda: any(e["type"] == "response.create" for e in session.ws.events)))
@@ -550,9 +555,9 @@ class ReconnectDuringToolTests(unittest.TestCase):
         self.assertEqual(session.ws.events[0]["item"]["call_id"], "call_1")
 
     def test_on_open_after_reconnect_sends_lease_note(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
-        with patch("voice_cua.realtime_session.comet_is_active", return_value=True):
+        with patch("voice_cua.live_session.comet_is_active", return_value=True):
             with contextlib.redirect_stdout(io.StringIO()):
                 session._on_open(None)
                 session._on_open(None)
@@ -568,13 +573,13 @@ class ReconnectDuringToolTests(unittest.TestCase):
 class DropRecoveryTests(unittest.TestCase):
     """Unrequested socket drop mid-turn: reconnect, then redeliver or replay exactly once."""
 
-    def _session(self) -> RealtimeSession:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+    def _session(self) -> LiveSession:
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
         session._conn_epoch = 1
         return session
 
-    def _drop_and_reopen(self, session: RealtimeSession) -> FakeWS:
+    def _drop_and_reopen(self, session: LiveSession) -> FakeWS:
         with contextlib.redirect_stdout(io.StringIO()):
             session._on_close(None, None, None)  # TCP lost: no close code
         session._prepare_reconnect()
@@ -647,8 +652,8 @@ class DropRecoveryTests(unittest.TestCase):
             gate.wait(2.0)
             return {"ok": True, "done": True}
 
-        with patch("voice_cua.realtime_session.dispatch", side_effect=dispatch), patch(
-            "voice_cua.realtime_session.comet_is_active", return_value=False
+        with patch("voice_cua.live_session.dispatch", side_effect=dispatch), patch(
+            "voice_cua.live_session.comet_is_active", return_value=False
         ):
             session._run_tool("call_long", "cua_act", "{}")
             self.assertTrue(_wait(lambda: session._inflight_tools == 1))
@@ -673,7 +678,7 @@ class DropRecoveryTests(unittest.TestCase):
 
 class NestedDropTests(unittest.TestCase):
     def test_second_drop_while_recovery_waits_keeps_waiter_and_delivers_once(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
         session._conn_epoch = 1
         waiter = {"event": threading.Event(), "reply": "", "error": ""}
@@ -693,8 +698,8 @@ class NestedDropTests(unittest.TestCase):
             session.ws = FakeWS()
             session._session_ready.set()
 
-        with patch("voice_cua.realtime_session.dispatch", side_effect=dispatch), patch(
-            "voice_cua.realtime_session.comet_is_active", return_value=False
+        with patch("voice_cua.live_session.dispatch", side_effect=dispatch), patch(
+            "voice_cua.live_session.comet_is_active", return_value=False
         ):
             session._run_tool("call_x", "cua_act", "{}")
             self.assertTrue(_wait(lambda: session._inflight_tools == 1))
@@ -715,7 +720,7 @@ class NestedDropTests(unittest.TestCase):
 
 class DeliveredThenDropTests(unittest.TestCase):
     def test_drop_after_output_before_continuation_yields_one_recovery_turn(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
         session._conn_epoch = 1
         session.send_text("open example.com and read the heading")
@@ -728,8 +733,8 @@ class DeliveredThenDropTests(unittest.TestCase):
             return real_idle(timeout=0.1)
 
         with patch.object(session, "_wait_for_responses_idle", side_effect=idle), patch(
-            "voice_cua.realtime_session.dispatch", return_value={"ok": True, "text": "Example Domain"}
-        ), patch("voice_cua.realtime_session.comet_is_active", return_value=False):
+            "voice_cua.live_session.dispatch", return_value={"ok": True, "text": "Example Domain"}
+        ), patch("voice_cua.live_session.comet_is_active", return_value=False):
             session._run_tool("call_c", "comet_act", "{}")
             self.assertTrue(_wait(lambda: "call_c" in session._unacked))
             with contextlib.redirect_stdout(io.StringIO()):
@@ -781,7 +786,7 @@ class StaleLeaseTests(unittest.TestCase):
 
 class TranscriptionTests(unittest.TestCase):
     def test_completed_transcript_prints_you_line(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             session._on_message(None, json.dumps({
@@ -971,7 +976,7 @@ class CometLeaseTests(unittest.TestCase):
         self.assertEqual(lease.purpose(), "user_task")
 
     def test_reconnect_note_keeps_user_window_open(self) -> None:
-        note = RealtimeSession.reconnect_note(comet_active=True)
+        note = LiveSession.reconnect_note(comet_active=True)
         self.assertIn("user_requested: true", note)
         self.assertNotIn("if the browser task is done", note)
 
@@ -1054,9 +1059,9 @@ class CometLeaseTests(unittest.TestCase):
 
 class TruncateAndLanguageTests(unittest.TestCase):
     def test_played_ms_is_per_item(self) -> None:
-        from voice_cua.audio_io import RealtimeAudio
+        from voice_cua.audio_io import LiveAudio
 
-        audio = RealtimeAudio(lambda _m: None)
+        audio = LiveAudio(lambda _m: None)
         speaker = audio._speaker
         one_second = __import__("base64").b64encode(b"\x00\x00" * 24000).decode()
         audio.on_output_delta(one_second, item_id="item_a")
@@ -1071,10 +1076,10 @@ class TruncateAndLanguageTests(unittest.TestCase):
     def test_already_shorter_is_benign(self) -> None:
         err = {"type": "invalid_request_error", "code": "invalid_value",
                "message": "Audio content of 1850ms is already shorter than 8640ms"}
-        self.assertEqual(RealtimeSession._classify_error(err), "recoverable")
+        self.assertEqual(LiveSession._classify_error(err), "recoverable")
 
     def test_transcription_language_en(self) -> None:
-        from voice_cua.realtime_session import input_transcription_config
+        from voice_cua.live_session import input_transcription_config
 
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("VOICE_CUA_TRANSCRIBE_LANGUAGE", None)

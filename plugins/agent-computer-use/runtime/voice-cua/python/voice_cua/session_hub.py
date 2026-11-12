@@ -1,4 +1,4 @@
-"""Active Realtime session registry — inject text while CUAService island streams."""
+"""Active LiveSession registry — inject text while CUAService island streams."""
 
 from __future__ import annotations
 
@@ -7,20 +7,20 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from voice_cua.realtime_session import RealtimeSession
+    from voice_cua.live_session import LiveSession
 
 _lock = threading.Lock()
-_active: RealtimeSession | None = None
+_active: LiveSession | None = None
 _credential_lock = threading.Lock()
 
 
-def register(session: RealtimeSession) -> None:
+def register(session: LiveSession) -> None:
     global _active
     with _lock:
         _active = session
 
 
-def unregister(session: RealtimeSession) -> None:
+def unregister(session: LiveSession) -> None:
     global _active
     with _lock:
         if _active is session:
@@ -48,7 +48,7 @@ def send_text_and_wait(text: str, *, timeout: float = 90.0) -> dict[str, Any]:
     with _lock:
         sess = _active
     if sess is None or sess._stop.is_set():
-        return {"ok": False, "error": "no active realtime session — turn Samantha on in menu bar"}
+        return {"ok": False, "error": "no active live session — turn Samantha on in menu bar"}
     if not sess._session_ready.is_set():
         # A resting GPT-Live session (idle close / expiry) wakes for a typed turn; a reconnect
         # in flight gets a short grace instead of an immediate "not ready".
@@ -56,7 +56,8 @@ def send_text_and_wait(text: str, *, timeout: float = 90.0) -> dict[str, Any]:
         if dormant is not None and dormant.is_set():
             sess._wake.set()
         if not sess._session_ready.wait(timeout=WAKE_WAIT_S):
-            return {"ok": False, "error": "realtime session not ready yet"}
+            return {"ok": False, "error": "live session still starting or reconnecting — try again shortly",
+                    "error_type": "session_not_ready"}
     return sess.send_text_and_wait(text, timeout=timeout)
 
 

@@ -12,7 +12,7 @@ own judgement never unlocks it:
 3. The retried call consumes the approval (single use) right before it runs.
 
 Any error inside the gate refuses. State is per process and cleared on
-reconnect: the voice helper runs exactly one Realtime session per process, so
+reconnect: the voice helper runs exactly one LiveSession per process, so
 "per process" is "per conversation".
 """
 

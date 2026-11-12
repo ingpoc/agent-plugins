@@ -14,7 +14,7 @@ STATUSES = {"verified_fixed", "failing", "untested", "in_progress", "awaiting_us
             "awaiting_verification", "blocked", "investigation"}
 SOURCES = {"User reported", "User requested", "Agent reported", "Telemetry lead", "Source hypothesis"}
 CHECK_STATES = {"pending", "checking", "fixed", "not_fixed", "blocked", "inconclusive"}
-WORKFLOW_STAGES = {"collect": "Collect", "present": "Present", "plan_fix": "Plan & fix", "install": "Install", "verify": "Verify", "report_rollover": "Report & roll over"}
+WORKFLOW_STAGES = {"collect": "Collect", "present": "Present", "plan_fix": "Plan & fix", "install": "Install", "verify": "Verify", "introspect": "Introspect", "report_rollover": "Report & roll over"}
 TEMPLATE = Path(__file__).resolve().parent.parent / "templates/change-list.html"
 
 

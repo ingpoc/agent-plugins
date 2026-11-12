@@ -45,7 +45,7 @@ from voice_cua.comet_bridge import CometLease, _run_json  # noqa: E402
 from voice_cua.inventory import build_inventory, find_by_label  # noqa: E402
 from voice_cua.island_state import IslandBus  # noqa: E402
 from voice_cua.audio_io import FRAME_BYTES, BLOCKSIZE, SpeakerPlayer  # noqa: E402
-from voice_cua.realtime_session import RealtimeSession, build_session_update  # noqa: E402
+from voice_cua.live_session import LiveSession, _model_and_voice, _ws_url, build_session_update  # noqa: E402
 from voice_cua.tools import tool_definitions  # noqa: E402
 from voice_cua import SYSTEM_INSTRUCTIONS  # noqa: E402
 from voice_cua.activity_log import log_event, tail_events  # noqa: E402
@@ -353,24 +353,60 @@ class AudioIOTests(unittest.TestCase):
         nr = upd["session"]["audio"]["input"]["noise_reduction"]
         self.assertEqual(nr["type"], "near_field")
 
-    def test_realtime_model_choices(self) -> None:
+    def test_live_model_choices(self) -> None:
         self.assertEqual(
             [model for model, _ in MODELS],
             ["gpt-live-1", "grok-voice-latest"],
         )
 
-    def test_retired_realtime_setting_maps_to_live(self) -> None:
+    def test_retired_live_setting_maps_to_live(self) -> None:
         import tempfile
         from voice_cua.voice_settings import load_settings, live_voice
 
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "settings.json"
-            path.write_text(json.dumps({"realtime_model": "gpt-realtime-2.1", "realtime_voice": "shimmer"}))
+            path.write_text(json.dumps({"live_model": "gpt-realtime-2.1", "live_voice": "shimmer"}))
             with patch.dict(os.environ, {"VOICE_CUA_SETTINGS": str(path)}):
                 cfg = load_settings()
-        self.assertEqual(cfg["realtime_model"], "gpt-live-1")
-        self.assertEqual(live_voice(cfg["realtime_voice"]), "shimmer")
+        self.assertEqual(cfg["live_model"], "gpt-live-1")
+        self.assertEqual(live_voice(cfg["live_voice"]), "shimmer")
         self.assertEqual(live_voice("nonsense"), "marin")
+
+    def test_realtime_settings_and_environment_remain_read_fallbacks(self) -> None:
+        from voice_cua.voice_settings import load_settings
+
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "settings.json"
+            path.write_text(json.dumps({"realtime_model": "grok-voice-latest", "realtime_voice": "ash"}))
+            with patch.dict(os.environ, {"VOICE_CUA_SETTINGS": str(path),
+                                         "VOICE_CUA_REALTIME_MODEL": "gpt-live-1",
+                                         "VOICE_CUA_REALTIME_VOICE": "cedar",
+                                         "VOICE_CUA_REALTIME_URL": "wss://legacy.example/session"}, clear=True):
+                cfg = load_settings()
+                self.assertEqual((cfg["live_model"], cfg["live_voice"]), ("grok-voice-latest", "ash"))
+                self.assertEqual(_model_and_voice(), ("gpt-live-1", "cedar"))
+                self.assertEqual(_ws_url(), "wss://legacy.example/session")
+                os.environ["VOICE_CUA_LIVE_MODEL"] = "grok-voice-latest"
+                os.environ["VOICE_CUA_LIVE_VOICE"] = "marin"
+                os.environ["VOICE_CUA_LIVE_URL"] = "wss://live.example/session"
+                self.assertEqual(_model_and_voice(), ("grok-voice-latest", "marin"))
+                self.assertEqual(_ws_url(), "wss://live.example/session")
+
+    def test_live_settings_prefer_new_keys_and_keep_old_keys_on_write(self) -> None:
+        from voice_cua.voice_settings import load_settings, save_settings
+
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "settings.json"
+            path.write_text(json.dumps({"live_model": "grok-voice-latest", "realtime_model": "gpt-live-1",
+                                        "live_voice": "marin", "realtime_voice": "ash", "extra": "kept"}))
+            with patch.dict(os.environ, {"VOICE_CUA_SETTINGS": str(path)}):
+                cfg = load_settings()
+                self.assertEqual((cfg["live_model"], cfg["live_voice"]), ("grok-voice-latest", "marin"))
+                save_settings(cfg)
+            saved = json.loads(path.read_text())
+            self.assertEqual((saved["live_model"], saved["live_voice"]), ("grok-voice-latest", "marin"))
+            self.assertEqual((saved["realtime_model"], saved["realtime_voice"], saved["extra"]),
+                             ("gpt-live-1", "ash", "kept"))
 
     def test_text_wait_ignores_unrelated_response(self) -> None:
         class FakeWS:
@@ -380,17 +416,17 @@ class AudioIOTests(unittest.TestCase):
             def send(self, raw):
                 self.events.append(json.loads(raw))
 
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
         # response.done runs the idle hook: hide the agent cursor through
         # CUAService and publish to the island. Both are host boundaries; the
         # real hide call blocks in CUAClient.connect() (5s deadline, extended by
         # recovery; measured ~16s on Debian) when no service socket exists,
         # outliving the 2s text wait.
-        hide_patch = patch("voice_cua.realtime_session.hide_agent_cursor")
+        hide_patch = patch("voice_cua.live_session.hide_agent_cursor")
         hide = hide_patch.start()
         self.addCleanup(hide_patch.stop)
-        island_patch = patch("voice_cua.realtime_session.island_publish")
+        island_patch = patch("voice_cua.live_session.island_publish")
         island_patch.start()
         self.addCleanup(island_patch.stop)
         result = {}
@@ -428,11 +464,11 @@ class AudioIOTests(unittest.TestCase):
         self.assertEqual(hide.call_count, 2)
 
     def test_failed_mic_preflight_disables_audio_status(self) -> None:
-        session = RealtimeSession(api_key="test", enable_audio=True)
+        session = LiveSession(api_key="test", enable_audio=True)
         with (
             patch("voice_cua.audio_io.audio_available", return_value=True),
             patch("voice_cua.audio_io.wait_mic_preflight", return_value=1),
-            patch("voice_cua.realtime_session.island_publish"),
+            patch("voice_cua.live_session.island_publish"),
         ):
             session._start_audio()
         self.assertFalse(session._audio_enabled)
@@ -445,12 +481,12 @@ class AudioIOTests(unittest.TestCase):
             def send(self, raw):
                 self.events.append(json.loads(raw))
 
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
         with session._response_condition:
             session._active_response_ids.add("resp_active")
         with patch(
-            "voice_cua.realtime_session.dispatch",
+            "voice_cua.live_session.dispatch",
             return_value={"ok": True, "verified": True},
         ):
             session._run_tool("call_1", "cua_state", '{"app":"Calculator"}')
@@ -475,12 +511,12 @@ class AudioIOTests(unittest.TestCase):
             def send(self, raw):
                 self.events.append(json.loads(raw))
 
-        session = RealtimeSession(api_key="test", enable_audio=False)
+        session = LiveSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
         with session._response_condition:
             session._active_response_ids.add("resp_active")
-        with patch("voice_cua.realtime_session.dispatch", return_value={"ok": True}), patch(
-            "voice_cua.realtime_session.comet_is_active", return_value=True
+        with patch("voice_cua.live_session.dispatch", return_value={"ok": True}), patch(
+            "voice_cua.live_session.comet_is_active", return_value=True
         ):
             session._run_tool("call_comet", "comet_begin", '{"url":"https://example.com"}')
             deadline = time.monotonic() + 1

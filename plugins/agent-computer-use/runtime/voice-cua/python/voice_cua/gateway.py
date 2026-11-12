@@ -28,8 +28,9 @@ SSE_HEARTBEAT_S = 10.0
 _HTTPD: ThreadingHTTPServer | None = None
 
 
-def realtime_model() -> str:
-    return os.environ.get("VOICE_CUA_REALTIME_MODEL") or load_settings()["realtime_model"]
+def live_model() -> str:
+    return (os.environ.get("VOICE_CUA_LIVE_MODEL") or os.environ.get("VOICE_CUA_REALTIME_MODEL")
+            or load_settings()["live_model"])
 
 
 def request_shutdown() -> None:
@@ -107,7 +108,7 @@ class Handler(BaseHTTPRequestHandler):
             status = openai_status()
             self._json(200, {
                 "configured": status["configured"],
-                "model": realtime_model(),
+                "model": live_model(),
                 "tools": [t["name"] for t in tool_definitions()],
                 "auth": {
                     "source": status["source"],
@@ -121,7 +122,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {
                 "instructions": session_instructions(),
                 "tools": tool_definitions(),
-                "model": realtime_model(),
+                "model": live_model(),
             })
             return
         if path == "/api/session/status":
@@ -342,7 +343,7 @@ class Handler(BaseHTTPRequestHandler):
 def serve(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
     global _HTTPD
     _HTTPD = ThreadingHTTPServer((host, port), Handler)
-    print(f"voice-cua gateway http://{host}:{port} model={realtime_model()}")
+    print(f"voice-cua gateway http://{host}:{port} model={live_model()}")
     _HTTPD.serve_forever()
 
 

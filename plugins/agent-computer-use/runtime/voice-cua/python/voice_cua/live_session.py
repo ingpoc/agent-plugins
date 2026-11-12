@@ -2,6 +2,8 @@
 
 Provider adapters expose the internal Realtime-shaped event stream; GPT Live 1
 is the active OpenAI transport. Function tools execute locally through dispatch.
+
+GPT-Live 1 (gpt-live-1), not the Realtime API.
 """
 
 from __future__ import annotations
@@ -20,7 +22,9 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from voice_cua import SYSTEM_INSTRUCTIONS, session_instructions
-from voice_cua.activity_log import log_event, log_task_outcome, log_usage, new_step_ref, tool_context
+from voice_cua.activity_log import (current_session_id, log_event, log_task_outcome, log_tool_result, log_usage,
+                                    spoken_timeline,
+                                    new_step_ref, tool_context)
 from voice_cua.activity_log import log_exception as _log_exception
 from voice_cua.cua_bridge import hide_agent_cursor
 from voice_cua.comet_bridge import comet_add_listener, comet_end, comet_is_active, comet_remove_listener
@@ -33,7 +37,7 @@ from voice_cua.providers import VoiceProvider, make_provider
 from voice_cua.voice_settings import apply_env, load_settings, noise_reduction_config, turn_detection_config
 
 if TYPE_CHECKING:
-    from voice_cua.audio_io import RealtimeAudio
+    from voice_cua.audio_io import LiveAudio
 
 try:
     import websocket  # websocket-client
@@ -42,9 +46,9 @@ except ImportError:  # pragma: no cover
 
 EXIT_NEEDS_API_KEY = 78  # EX_CONFIG: CUAService does not auto-restart on this exit
 TOOLS_UPDATE_ACK_TIMEOUT = 2.0
-REALTIME_MODEL = os.environ.get("VOICE_CUA_REALTIME_MODEL", "gpt-live-1")
-REALTIME_VOICE = os.environ.get("VOICE_CUA_REALTIME_VOICE", "marin")
-REALTIME_SAMPLE_RATE = int(os.environ.get("VOICE_CUA_SAMPLE_RATE", "24000"))
+LIVE_MODEL = os.environ.get("VOICE_CUA_LIVE_MODEL") or os.environ.get("VOICE_CUA_REALTIME_MODEL", "gpt-live-1")
+LIVE_VOICE = os.environ.get("VOICE_CUA_LIVE_VOICE") or os.environ.get("VOICE_CUA_REALTIME_VOICE", "marin")
+LIVE_SAMPLE_RATE = int(os.environ.get("VOICE_CUA_SAMPLE_RATE", "24000"))
 # After a drop recovery, GPT-Live sometimes answers the recovery turn from stale context and
 # then starts a second delegation for the same request within a fraction of a second. The
 # first recovery answer waits this long; a newer response for the same turn supersedes it.
@@ -55,10 +59,39 @@ _TASK_ACTION_EVIDENCE = {
     "system_volume": "app_readback",
     "ledger_task": "ledger_result",
 }
+_READ_ONLY_TOOLS = {
+    "cua_state", "secrets_list", "secrets_get", "more_tools", "show_details", "workflow_read",
+}
+
+
+def _turn_latency_fields(turn: dict[str, Any], playback_at: float | None) -> dict[str, Any]:
+    """Calculate observed turn phases; absent timestamp pairs stay unknown."""
+    def elapsed(start: str, end: str) -> int | None:
+        a, b = turn.get(start), playback_at if end == "playback" else turn.get(end)
+        return round((b - a) * 1000) if isinstance(a, (int, float)) and isinstance(b, (int, float)) else None
+
+    durations = {
+        "speech_end_to_response_created": elapsed("speech_end", "response_created"),
+        "response_created_to_first_tool_start": elapsed("response_created", "first_tool_start"),
+        "tool_time_total": turn.get("tool_time_total_ms", 0) if turn.get("tool_count") else None,
+        "last_tool_end_to_first_audio_delta": elapsed("last_tool_end", "first_audio_delta"),
+        "first_audio_delta_to_playback_start": elapsed("first_audio_delta", "playback"),
+        "total_speech_end_to_playback_start": elapsed("speech_end", "playback"),
+    }
+    phases = {k: v for k, v in durations.items()
+              if k != "total_speech_end_to_playback_start" and v is not None}
+    return {**durations,
+            "slowest_tool": turn.get("slowest_tool") if turn.get("tool_count") else None,
+            "slowest_tool_ms": turn.get("slowest_tool_ms") if turn.get("tool_count") else None,
+            "dominant_phase": max(phases, key=phases.get) if phases else None,
+            "over_budget": durations["total_speech_end_to_playback_start"] is not None
+                           and durations["total_speech_end_to_playback_start"] > 4000}
 
 
 def _task_outcome(results: list[dict[str, Any]], *, status: str) -> tuple[str, str | None]:
     evidence_class = "tool_reported" if results else None
+    if any(row.get("outcome") == "unknown" for row in results):
+        return "unknown", evidence_class
     if status == "cancelled" or any(row.get("cancelled") is True for row in results):
         return "cancelled", evidence_class
     if not results:
@@ -80,7 +113,7 @@ def _has_sound(b64: str, floor: int = 600) -> bool:
 
 
 def _normalize_reply(text: str) -> str:
-    """Collapse duplicated Realtime transcript chunks (e.g. 'pong pong' → 'pong')."""
+    """Collapse duplicated live transcript chunks (e.g. 'pong pong' → 'pong')."""
     words = text.split()
     if len(words) == 2 and words[0] == words[1]:
         return words[0]
@@ -93,8 +126,8 @@ def _normalize_reply(text: str) -> str:
 
 def _model_and_voice() -> tuple[str, str]:
     cfg = load_settings()
-    model = os.environ.get("VOICE_CUA_REALTIME_MODEL") or cfg["realtime_model"]
-    voice = os.environ.get("VOICE_CUA_REALTIME_VOICE") or cfg["realtime_voice"]
+    model = os.environ.get("VOICE_CUA_LIVE_MODEL") or os.environ.get("VOICE_CUA_REALTIME_MODEL") or cfg["live_model"]
+    voice = os.environ.get("VOICE_CUA_LIVE_VOICE") or os.environ.get("VOICE_CUA_REALTIME_VOICE") or cfg["live_voice"]
     return model, voice
 
 
@@ -118,7 +151,7 @@ def input_transcription_config() -> dict[str, Any] | None:
 
 
 def _ws_url() -> str:
-    explicit = os.environ.get("VOICE_CUA_REALTIME_URL", "").strip()
+    explicit = (os.environ.get("VOICE_CUA_LIVE_URL") or os.environ.get("VOICE_CUA_REALTIME_URL", "")).strip()
     if explicit:
         return explicit
     model, _ = _model_and_voice()
@@ -128,7 +161,7 @@ def _ws_url() -> str:
 def build_session_update(
     *, text_only: bool = False, comet_active: bool = False, groups: frozenset[str] = frozenset()
 ) -> dict[str, Any]:
-    """GA Realtime session.update (beta header/shape retired 2026)."""
+    """Build the provider-neutral audio session update."""
     _, voice = _model_and_voice()
     eagerness = os.environ.get("VOICE_CUA_EAGERNESS") or load_settings()["eagerness"]
     session: dict[str, Any] = {
@@ -143,12 +176,12 @@ def build_session_update(
     if not text_only:
         session["audio"] = {
             "input": {
-                "format": {"type": "audio/pcm", "rate": REALTIME_SAMPLE_RATE},
+                "format": {"type": "audio/pcm", "rate": LIVE_SAMPLE_RATE},
                 "turn_detection": turn_detection_config(eagerness),
                 "noise_reduction": noise_reduction_config(),
             },
             "output": {
-                "format": {"type": "audio/pcm", "rate": REALTIME_SAMPLE_RATE},
+                "format": {"type": "audio/pcm", "rate": LIVE_SAMPLE_RATE},
                 "voice": voice,
             },
         }
@@ -226,9 +259,9 @@ def retry_after_seconds(err: dict[str, Any] | None = None, headers: Any = None) 
     return None
 
 
-class RealtimeSession:
-    REALTIME_PING_INTERVAL = 20
-    REALTIME_PING_TIMEOUT = 15
+class LiveSession:
+    LIVE_PING_INTERVAL = 20
+    LIVE_PING_TIMEOUT = 15
     # Server enforces a 60-minute WS cap — plan a proactive reconnect at 55 min.
     PLANNED_RECONNECT_SECONDS = 3300.0
     # GPT-Live bills per second: close after this long with no speech, playback or work.
@@ -263,7 +296,7 @@ class RealtimeSession:
             raise RuntimeError("pip install websocket-client")
         apply_env()
         model, _ = _model_and_voice()
-        # Provider adapter (Realtime / GPT-Live / Grok Voice): translates at the socket edge only.
+        # Provider adapter (GPT-Live / Grok Voice): translates at the socket edge only.
         self.provider: VoiceProvider = make_provider(model, load_settings())
         self.provider.bind(self._send_wire)
         self.api_key = (api_key or self.provider.resolve_key()).strip()
@@ -286,6 +319,8 @@ class RealtimeSession:
         self._task_started_at: dict[str, float] = {}
         self._cancel_requested_by_run: dict[str, str] = {}
         self._cancel_requested_at_by_run: dict[str, float] = {}
+        self._latest_spoken_stop_at = 0.0
+        self._latest_spoken_stop_step_ref = ""
         self._dispatching_calls: set[str] = set()
         self._counted_skipped_calls: set[str] = set()
         self._skipped_calls_by_run: dict[str, int] = {}
@@ -295,7 +330,7 @@ class RealtimeSession:
         self._text_waiters: dict[str, dict[str, Any]] = {}
         self._text_only = not enable_audio
         self._audio_enabled = enable_audio
-        self._audio: RealtimeAudio | None = None
+        self._audio: LiveAudio | None = None
         self._stop = threading.Event()
         self._session_ready = threading.Event()
         self._tools_update_ack = threading.Event()
@@ -325,6 +360,9 @@ class RealtimeSession:
         self._access_refused = ""  # "HTTP 403 ..." when the handshake says this key can't use the model
         self._tool_groups: set[str] = set()  # lazy tool groups loaded this conversation
         self._response_started: dict[str, float] = {}  # response_id → monotonic at response.created
+        self._turn_latency: dict[str, Any] = {}
+        self._pending_speech_end: float | None = None
+        self._spoken_stop_response_ids: set[str] = set()
         self._config_error_published = False
         self._rate_limit_warned = False
         self._planned_reconnect_timer: threading.Timer | None = None
@@ -356,7 +394,7 @@ class RealtimeSession:
     def connect(self) -> None:
         """One blocking WS attempt (returns when the socket closes)."""
         headers = [f"Authorization: Bearer {self.api_key}"]
-        explicit = os.environ.get("VOICE_CUA_REALTIME_URL", "").strip()
+        explicit = (os.environ.get("VOICE_CUA_LIVE_URL") or os.environ.get("VOICE_CUA_REALTIME_URL", "")).strip()
         self.ws = websocket.WebSocketApp(
             explicit or self.provider.url(),
             header=headers,
@@ -371,8 +409,8 @@ class RealtimeSession:
         # marking this server-side socket as a browser. GPT-Live's edge refuses browser-origin
         # sockets with a bare 403 "Forbidden" (Realtime tolerates it); the official SDKs send none.
         self.ws.run_forever(
-            ping_interval=self.REALTIME_PING_INTERVAL,
-            ping_timeout=self.REALTIME_PING_TIMEOUT,
+            ping_interval=self.LIVE_PING_INTERVAL,
+            ping_timeout=self.LIVE_PING_TIMEOUT,
             suppress_origin=True,
         )
 
@@ -407,6 +445,11 @@ class RealtimeSession:
 
     def run(self) -> None:
         """Resilient top-level loop: connect, retry with backoff until stopped or out of attempts."""
+        from voice_cua.session_hub import register
+
+        # Register while still connecting so a typed turn sent during startup waits for
+        # readiness instead of being told no session exists.
+        register(self)
         self._schedule_planned_reconnect()
         if getattr(self.provider, "manages_barge_in", False) and not getattr(self, "_watchdog_started", False):
             self._watchdog_started = True
@@ -465,7 +508,7 @@ class RealtimeSession:
             )
             why = f" ({reason})" if reason else ""
             print(
-                f"Realtime closed — reconnect attempt {attempt}/{self.RECONNECT_MAX_ATTEMPTS} in {delay:.1f}s{why}",
+                f"Live voice closed — reconnect attempt {attempt}/{self.RECONNECT_MAX_ATTEMPTS} in {delay:.1f}s{why}",
                 flush=True,
             )
             if self._stop.wait(timeout=delay):
@@ -473,7 +516,7 @@ class RealtimeSession:
         if self._reconnect_gave_up:
             return
         island_publish("idle", title="Idle", detail="Disconnected")
-        print("Realtime closed", flush=True)
+        print("Live voice closed", flush=True)
 
     def _refuse_access(self) -> None:
         """401/403 at the handshake: the key can't use this model — retrying can't fix it."""
@@ -481,7 +524,7 @@ class RealtimeSession:
         self._cancel_planned_reconnect()
         self._prepare_reconnect()
         detail = f"{self.provider.name} {self.provider.model}: {self._access_refused}"[:160]
-        mark("realtime_access_refused", status="fail", detail=detail)
+        mark("live_access_refused", status="fail", detail=detail)
         log_event("voice_access_refused", provider=self.provider.name, model=self.provider.model,
                   status=self._access_refused)
         island_publish("error", title="Couldn't connect: access denied", detail=self.provider.model)
@@ -494,7 +537,7 @@ class RealtimeSession:
         self._take_retry_hint()  # drop any pending hold with the session
         self._cancel_planned_reconnect()
         self._prepare_reconnect()
-        mark("realtime_reconnect_gave_up", status="fail", detail=f"{failures} attempts")
+        mark("live_reconnect_gave_up", status="fail", detail=f"{failures} attempts")
         log_event("reconnect_gave_up", attempts=failures)
         # Island error copy must be a "Couldn't ..." line <= 32 chars (island_copy).
         island_publish("error", title="Couldn't reconnect voice")
@@ -591,7 +634,7 @@ class RealtimeSession:
         self._request_reconnect(reason="planned_reconnect_55m")
 
     def _send(self, event: dict[str, Any]) -> bool:
-        """Send one loop (Realtime-dialect) event through the provider adapter."""
+        """Send one loop event through the provider adapter."""
         if getattr(self, "_credential_capture", False) and event.get("type") == "input_audio_buffer.append":
             return False
         if self._dormant.is_set():
@@ -651,7 +694,7 @@ class RealtimeSession:
                 mark("audio_ready", status="ok", detail="mic sender restarted")
                 print("Audio I/O active — speak now (mic restarted).", flush=True)
             return
-        from voice_cua.audio_io import MIC_NO_INPUT_DEVICE, RealtimeAudio, audio_available, wait_mic_preflight
+        from voice_cua.audio_io import MIC_NO_INPUT_DEVICE, LiveAudio, audio_available, wait_mic_preflight
 
         if not audio_available():
             self._audio_enabled = False
@@ -682,7 +725,7 @@ class RealtimeSession:
             return
         mark("mic_preflight", status="ok")
         live = bool(getattr(self.provider, "manages_barge_in", False))
-        self._audio = RealtimeAudio(
+        self._audio = LiveAudio(
             self._send,
             meter=lambda side, level, bars: island_voice_meter(side, level, bars),
             continuous=live,
@@ -726,6 +769,7 @@ class RealtimeSession:
         island_publish("listening", title="Listening", detail="")
 
     def _on_open(self, _ws: Any) -> None:
+        # Observability still consumes the established Realtime event labels.
         mark("realtime_ws_open")
         headers = getattr(getattr(getattr(_ws, "sock", None), "handshake_response", None), "headers", {})
         headers = headers if isinstance(headers, dict) else {}
@@ -754,7 +798,7 @@ class RealtimeSession:
         if self._text_only:
             print("Text session open.", flush=True)
         else:
-            print("Realtime session open — speak or type a task + Enter.", flush=True)
+            print("Live voice session open — speak or type a task + Enter.", flush=True)
 
     @staticmethod
     def reconnect_note(*, comet_active: bool) -> str:
@@ -895,7 +939,24 @@ class RealtimeSession:
             if heard:
                 if self._spoken_task_cancel(heard):
                     self._last_user_text = heard
-                    self.island_control("cancel")
+                    with self._response_lock:
+                        response_id = self._current_response_id
+                        run_id = (self._response_task_run_ids.get(response_id, "")
+                                  or self._active_task_run_id)
+                        response_active = response_id in self._active_response_ids
+                        response_step_ref = self._response_step_refs.get(response_id, "")
+                        request_step_ref = self._task_request_step_refs.get(run_id, "")
+                    transcript_step_ref = new_step_ref()
+                    log_event("user_transcript", run_id=run_id or None,
+                              run_ref_status="linked" if run_id else "unknown",
+                              run_ref_gap=None if run_id else "stop_transcript_without_task",
+                              step_ref=transcript_step_ref,
+                              caused_by=[ref for ref in (request_step_ref, response_step_ref) if ref] or None,
+                              text=heard, source=str(event.get("source") or "microphone_transcription"),
+                              item_id=str(event.get("item_id") or ""), chars=len(heard))
+                    if response_active or run_id:
+                        self.island_control("cancel", caused_by_step_ref=transcript_step_ref,
+                                            cancel_source="transcript")
                     print(f"You: {heard}", flush=True)
                     return
                 self._last_user_text = heard
@@ -911,6 +972,7 @@ class RealtimeSession:
                       run_ref_status="unknown", run_ref_gap="transcript_not_available_for_task_link",
                       error_context=err)
         elif et == "input_audio_buffer.speech_stopped":
+            self._pending_speech_end = time.monotonic()
             if not (self._audio and self._audio.has_playback()):
                 island_publish("listening", title="Listening", detail="")
         elif et == "conversation.item.truncated":
@@ -940,7 +1002,16 @@ class RealtimeSession:
                 if response_id:
                     if len(self._response_started) > 256:  # never grow without bound
                         self._response_started.clear()
+                        self._spoken_stop_response_ids.clear()
                     self._response_started[response_id] = time.monotonic()
+                    if request_id:
+                        turn = getattr(self, "_turn_latency", None)
+                        if not isinstance(turn, dict) or turn.get("run_id") != request_id:
+                            turn = {"run_id": request_id, "step_ref": step_ref,
+                                    "tool_time_total_ms": 0, "tool_count": 0}
+                            self._turn_latency = turn
+                        turn.setdefault("response_created", self._response_started[response_id])
+                        turn["step_ref"] = step_ref
                     self._response_step_refs[response_id] = step_ref
                     self._active_response_ids.add(response_id)
                     self._current_response_id = response_id
@@ -1018,6 +1089,10 @@ class RealtimeSession:
                 except Exception:  # noqa: BLE001 — logging must never break a turn
                     pass
                 self._note_response_done(response)
+                turn = getattr(self, "_turn_latency", None)
+                if (not self._turn_open and isinstance(turn, dict) and turn.get("run_id") == run_id
+                        and not turn.get("emitted")):
+                    self._emit_turn_latency(turn, None)
                 self._finish_response(str(response.get("id") or ""))
             self._publish_listening_when_idle()
         elif et == "error":
@@ -1039,7 +1114,30 @@ class RealtimeSession:
             return
         delta = event.get("delta") or ""
         if self._audio and delta:
+            turn = getattr(self, "_turn_latency", None)
+            if isinstance(turn, dict) and response_id and turn.get("audio_response_id") != response_id:
+                # Each spoken response gets its own event, so waits after the first reply are measured too.
+                turn["audio_response_id"] = response_id
+                turn["first_audio_delta"] = time.monotonic()
+                turn["spoken_first_audio"] = turn["first_audio_delta"]
+                turn["emitted"] = False
             self._audio.on_output_delta(delta, item_id=item_id)
+            if isinstance(turn, dict) and self._audio.has_playback():
+                self._emit_turn_latency(turn, time.monotonic())
+
+    def _emit_turn_latency(self, turn: dict[str, Any], playback_at: float | None) -> None:
+        if turn.get("emitted"):
+            return
+        turn["emitted"] = True
+        run_id = turn.get("run_id") or ""
+        fields = _turn_latency_fields(turn, playback_at)
+        fields.update(spoken_timeline(current_session_id(), turn.get("spoken_first_audio", 0), playback_at))
+        log_event("turn_latency", run_id=run_id or None,
+                  run_ref_status="linked" if run_id else "unknown",
+                  run_ref_gap=None if run_id else "turn_run_id_missing",
+                  step_ref=turn.get("step_ref") or None,
+                  response_id=turn.get("audio_response_id") or None,
+                  **fields)
 
     def _handle_content_part_added(self, event: dict[str, Any]) -> None:
         part = event.get("part") or {}
@@ -1227,10 +1325,10 @@ class RealtimeSession:
             # Session config was rejected — tell the user once, not per event.
             if not self._config_error_published:
                 self._config_error_published = True
-                island_publish("error", title="Realtime config error", detail=msg)
+                island_publish("error", title="Live voice config error", detail=msg)
             return
         mark("realtime_error", status="fail", error=msg)
-        island_publish("error", title="Realtime error", detail=msg)
+        island_publish("error", title="Live voice error", detail=msg)
 
     def _handle_function_done(self, event: dict[str, Any]) -> None:
         call_id = event.get("call_id") or ""
@@ -1302,22 +1400,42 @@ class RealtimeSession:
         def work() -> None:
             try:
                 with self._response_lock:
-                    cancelled = bool(task_run_id and task_run_id in self._cancel_requested_by_run)
+                    response_started_at = self._response_started.get(response_id, 0.0)
+                    stop_cancelled = bool(
+                        name not in _READ_ONLY_TOOLS and response_started_at
+                        and response_started_at <= self._latest_spoken_stop_at
+                    ) or (name not in _READ_ONLY_TOOLS and response_id in self._spoken_stop_response_ids)
+                    cancellation_step_ref = (self._cancel_requested_by_run.get(task_run_id, "")
+                                             or self._response_cancellation_step_refs.get(response_id, "")
+                                             or (self._latest_spoken_stop_step_ref if stop_cancelled else ""))
+                with self._response_lock:
+                    cancelled = bool(task_run_id and task_run_id in self._cancel_requested_by_run) or stop_cancelled
                     if cancelled:
                         if call_id not in self._counted_skipped_calls:
                             self._counted_skipped_calls.add(call_id)
-                            self._skipped_calls_by_run[task_run_id] = self._skipped_calls_by_run.get(task_run_id, 0) + 1
-                        skipped = self._skipped_calls_by_run[task_run_id]
+                            if task_run_id:
+                                self._skipped_calls_by_run[task_run_id] = self._skipped_calls_by_run.get(task_run_id, 0) + 1
+                        skipped = self._skipped_calls_by_run.get(task_run_id, 1) if task_run_id else 1
                 if cancelled:
-                    log_event("task_data", run_id=task_run_id,
-                              task_data={"cancellation": {"state": "requested", "skipped_calls": skipped,
-                                                          "in_flight_outcome": "unknown"}})
-                    result = {"ok": False, "cancelled": True, "outcome": "not_started",
-                              "error": "Task cancelled before this tool started", "retryable": False}
-                    self._record_task_result(task_run_id, name, result)
+                    with tool_context(call_id=call_id, response_id=response_id, run_id=task_run_id,
+                                      step_ref=tool_step_ref, caused_by=caused_by + ([cancellation_step_ref]
+                                                                                   if cancellation_step_ref else [])):
+                        result = {"ok": False, "cancelled": True, "outcome": "not_started",
+                                  "error": "User cancelled before this tool started",
+                                  "error_type": "user_cancelled", "retryable": False}
+                        log_tool_result(name, result, arguments=arguments)
+                        self._record_task_result(task_run_id, name, result)
+                    if task_run_id:
+                        log_event("task_data", run_id=task_run_id,
+                                  task_data={"cancellation": {"state": "requested", "skipped_calls": skipped,
+                                                              "in_flight_outcome": "unknown"}})
                     self._deliver_tool_result(call_id, name, result, epoch=epoch, arguments=arguments)
                     return
                 kind, title, detail, app = describe_tool(name, arguments)
+                tool_started_at = time.monotonic()
+                turn = getattr(self, "_turn_latency", None)
+                if isinstance(turn, dict) and turn.get("run_id") == task_run_id:
+                    turn.setdefault("first_tool_start", tool_started_at)
                 app = plugin_island.island_app(name, app)
                 # Plugin use first: the hub row (ring + app inside) must exist before the acting post, or
                 # the island flashes the app outside for one post (0.2.86, 13:26:54 IST).
@@ -1347,14 +1465,22 @@ class RealtimeSession:
                         _log_exception(name, exc)
                     finally:
                         plugin_island.tool_finished(name, arguments)
+                tool_duration_ms = round((time.monotonic() - tool_started_at) * 1000)
+                if isinstance(turn, dict) and turn.get("run_id") == task_run_id:
+                    turn["tool_time_total_ms"] = turn.get("tool_time_total_ms", 0) + tool_duration_ms
+                    turn["tool_count"] = turn.get("tool_count", 0) + 1
+                    if tool_duration_ms > turn.get("slowest_tool_ms", -1):
+                        turn["slowest_tool_ms"] = tool_duration_ms
+                        turn["slowest_tool"] = name
+                    turn["last_tool_end"] = time.monotonic()
                 if not isinstance(result, dict):
                     result = {"ok": False, "error": "non-dict tool result"}
                 with self._response_lock:
                     cancelled_inflight = bool(dispatch_started and task_run_id
                                               and task_run_id in self._cancel_requested_by_run)
                 if cancelled_inflight:
-                    result = {"ok": False, "cancelled": True, "outcome": "unknown",
-                              "error": "Task cancelled while this tool was in flight; outcome unknown. Do not retry.",
+                    result = {"ok": False, "outcome": "unknown",
+                              "error": "Action was interrupted while executing; outcome unknown. Do not repeat it.",
                               "error_type": "cancelled_outcome_unknown", "retryable": False}
                 if task_run_id:
                     with self._response_lock:
@@ -1407,6 +1533,7 @@ class RealtimeSession:
                     "ok": result.get("ok") is True,
                     "verified": result.get("verified") is True,
                     "cancelled": result.get("cancelled") is True,
+                    "outcome": result.get("outcome"),
                 })
 
     @staticmethod
@@ -1579,7 +1706,7 @@ class RealtimeSession:
             self._drop_plan = self._plan_drop_recovery()
         # Phase 1: close no longer kills the session — run() reconnects.
         island_publish("reconnecting", title="Reconnecting", detail="")
-        print("Realtime closed", flush=True)
+        print("Live voice closed", flush=True)
 
     def _conversation_busy(self, now: float) -> bool:
         """Maintenance must not interrupt input speech, playback, or unfinished work."""
@@ -1615,7 +1742,7 @@ class RealtimeSession:
         return self._conversation_busy(now) or now - self._last_user_activity < self.LIVE_KEEPALIVE_SECONDS
 
     def _silence_keepalive(self) -> None:
-        rate = REALTIME_SAMPLE_RATE
+        rate = LIVE_SAMPLE_RATE
         chunk = base64.b64encode(b"\x00\x00" * int(rate * self.LIVE_KEEPALIVE_CHUNK_S)).decode()
         logged = False
         while not self._stop.wait(timeout=self.LIVE_KEEPALIVE_CHUNK_S):
@@ -1735,6 +1862,10 @@ class RealtimeSession:
 
     def send_text_and_wait(self, text: str, *, timeout: float = 90.0) -> dict[str, Any]:
         started = time.monotonic()
+        if self._spoken_task_cancel(text):
+            # A stop must not queue behind the request it is stopping.
+            self.send_text(text)
+            return {"ok": True, "reply": "", "stopped": True}
         if not self._text_request_lock.acquire(timeout=timeout):
             return {"ok": False, "error": "timeout waiting for another text request"}
         request_id = uuid.uuid4().hex
@@ -1930,7 +2061,7 @@ class RealtimeSession:
             event["response"] = {"metadata": metadata}
         self._send(event)
 
-    def island_control(self, action: str) -> bool:
+    def island_control(self, action: str, *, caused_by_step_ref: str = "", cancel_source: str = "card") -> bool:
         """Island card buttons (Stop / Cancel / Replay / Retry). True when the session acted."""
         if action in ("stopSpeaking", "cancel", "stopTask"):
             self._handle_speech_started()          # drop buffered audio + truncate what was heard
@@ -1946,6 +2077,15 @@ class RealtimeSession:
             cancel_step_ref = new_step_ref()
             task_cancel = action in ("cancel", "stopTask")
             caused_by = [ref for ref in [response_step_ref, *inflight_refs] if ref]
+            if caused_by_step_ref:
+                caused_by.append(caused_by_step_ref)
+                self._latest_spoken_stop_at = time.monotonic()
+                self._latest_spoken_stop_step_ref = cancel_step_ref
+                if active:
+                    if len(self._spoken_stop_response_ids) > 256:
+                        self._spoken_stop_response_ids.clear()
+                    self._spoken_stop_response_ids.add(active)
+                    self._response_cancellation_step_refs[active] = cancel_step_ref
             if task_cancel and run_id:
                 with self._response_lock:
                     self._cancel_requested_by_run[run_id] = cancel_step_ref
@@ -1992,6 +2132,7 @@ class RealtimeSession:
                       cancellation_state="requested" if task_cancel else "response_stop_requested",
                       cancellation_delivery=("steer_instruction" if provider_manages else "response_cancel")
                       if response_active else "no_active_response",
+                      cancel_source=cancel_source if caused_by_step_ref else "card",
                       cancel_send_ok=cancel_send_ok, cancelled=bool(response_active),
                       inflight_tool_count=len(inflight), inflight_step_refs=inflight_refs,
                       settlement_gap="no_active_response_to_ack" if not response_active else None)
@@ -2035,6 +2176,10 @@ class RealtimeSession:
         self._last_user_text = text
         self._turn_tools = 0
         task_request_id = request_id or uuid.uuid4().hex
+        turn = getattr(self, "_turn_latency", {})
+        self._turn_latency = {"speech_end": self._pending_speech_end, "run_id": task_request_id,
+                              "step_ref": "", "tool_time_total_ms": 0, "tool_count": 0}
+        self._pending_speech_end = None
         request_step_ref = new_step_ref()
         with self._response_lock:
             if task_request_id:
@@ -2056,9 +2201,12 @@ class RealtimeSession:
 
     @staticmethod
     def _spoken_task_cancel(text: str) -> bool:
+        text = text.replace("’", "'")
+        text = re.sub(r"^\s*(?:(?:uh+|um+|er+|hmm+|hey|ok(?:ay)?|so|actually|well|alright|samantha)\b[\s,.;:!-]*)+", "", text, flags=re.IGNORECASE)
         return bool(re.fullmatch(
-            r"\s*(?:(?:please\s+)?(?:cancel|stop)(?:\s+(?:the\s+)?(?:task|it|this|that))?|"
-            r"leave\s+(?:it|that|this|the\s+task)|never\s+mind|forget\s+(?:it|that|this))[.!?\s]*",
+            r"\s*(?:(?:wait[,;:]?\s+)?(?:please\s+)?(?:stop(?:\s+(?:it|this|that|the task))?|"
+            r"cancel(?:\s+(?:it|this|that|(?:the\s+)?task))?|never\s+mind|leave\s+(?:it|that|this|the task)|"
+            r"you\s+can\s+stop|that'?s\s+enough|forget\s+(?:it|that|this)))[.!?\s]*",
             text, re.IGNORECASE,
         ))
 
@@ -2147,6 +2295,11 @@ class RealtimeSession:
 
     def send_text(self, text: str, *, request_id: str = "", replay: bool = False,
                   retry_of_run_ref: str = "") -> None:
+        if not replay and self._spoken_task_cancel(text):
+            # A typed stop word takes the same cancel path as a spoken one.
+            self._dispatch_event({"type": "conversation.item.input_audio_transcription.completed",
+                                  "transcript": text, "item_id": "typed", "source": "typed"})
+            return
         if not replay:
             request_id = self._note_user_turn(text, request_id=request_id,
                                               retry_of_run_ref=retry_of_run_ref)
@@ -2163,7 +2316,7 @@ class RealtimeSession:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Voice CUA Realtime session")
+    parser = argparse.ArgumentParser(description="Voice CUA live session")
     parser.add_argument("--text", help="One-shot text task then exit after tools settle")
     parser.add_argument(
         "--no-audio",
@@ -2175,7 +2328,7 @@ def main(argv: list[str] | None = None) -> int:
     from voice_cua.auth import MissingApiKey
 
     try:
-        session = RealtimeSession(enable_audio=not no_audio and not args.text)
+        session = LiveSession(enable_audio=not no_audio and not args.text)
     except MissingApiKey as exc:
         # Selected provider (Grok Voice) has no key: say so instead of a silent crash.
         island_publish("error", title="Needs API key", detail="Grok Voice: add xai-api to Keychain")
@@ -2186,7 +2339,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.text:
         threading.Thread(target=session.run, daemon=True).start()
         if not session._session_ready.wait(timeout=30.0):
-            print("Timed out waiting for Realtime session", file=sys.stderr, flush=True)
+            print("Timed out waiting for live voice session", file=sys.stderr, flush=True)
             session.shutdown()
             return 1
         result = session.send_text_and_wait(args.text, timeout=90.0)

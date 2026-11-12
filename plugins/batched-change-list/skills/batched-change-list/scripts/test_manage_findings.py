@@ -147,6 +147,23 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIn('class="workflow-now"', html)
         self.assertNotIn('id="verification-progress"', html)
 
+    def test_rollover_excludes_fixed_lists_rest_and_updates_header(self):
+        document = json.loads(self.data.read_text())
+        document['findings'][0].update(status='verified_fixed', verification='Verified on the installed build.', verification_refs=['receipt'])
+        self.data.write_text(json.dumps(document))
+        operations, page = self.root / 'rollover.json', self.root / 'rollover.html'
+        operations.write_text(json.dumps([{'action':'rollover','source_pr':96,'worktree':'next-wt',
+            'pull_request':{'label':'PR #98','url':'https://example.test/pull/98'}}]))
+        self.assertNotEqual(self.cli('batch', self.data, operations).returncode, 0)
+        result = self.cli('batch', self.data, operations, '--render', page)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        tracking = json.loads(self.data.read_text())['tracking']
+        self.assertIn('ISSUE-01', tracking['rollover']['excluded_ids'])
+        self.assertNotIn('ISSUE-01', tracking['rollover']['unresolved_ids'])
+        self.assertEqual((tracking['pull_request']['label'], tracking['worktree']), ('PR #98', 'next-wt'))
+        self.assertEqual(tracking['workflow']['stage'], 'report_rollover')
+        self.assertIn('PR #98', page.read_text())
+
     def test_set_activity_requires_reopen_for_closed_findings(self):
         operations, page = self.root / 'closed-activity.json', self.root / 'closed-activity.html'
         for status in ('verified_fixed', 'closed'):

@@ -31,15 +31,15 @@ final class IslandSettingsTests: XCTestCase {
         let saved = VoiceSettingsStore.path
         defer { VoiceSettingsStore.path = saved }
         VoiceSettingsStore.path = dir.appendingPathComponent("settings.json")
-        try JSONSerialization.data(withJSONObject: ["realtime_model": "gpt-realtime-2.1-mini", "realtime_voice": "nope", "extra": "kept"])
+        try JSONSerialization.data(withJSONObject: ["live_model": "gpt-realtime-2.1-mini", "live_voice": "nope", "extra": "kept"])
             .write(to: VoiceSettingsStore.path)
         let defaults = TestDefaults.make("voice-\(UUID().uuidString)")!
         let s = IslandSettingsStore(defaults: defaults, tokens: MemoryTokenStore(), voiceInFile: true)
         XCTAssertEqual(s.string(IslandSettingsSchema.voiceModel), "gpt-live-1", "retired Realtime id maps to GPT-Live-1")
         s.set("ash", for: IslandSettingsSchema.voiceVoice)
         let obj = try JSONSerialization.jsonObject(with: Data(contentsOf: VoiceSettingsStore.path)) as? [String: Any]
-        XCTAssertEqual(obj?["realtime_voice"] as? String, "ash")
-        XCTAssertEqual(obj?["realtime_model"] as? String, "gpt-live-1")
+        XCTAssertEqual(obj?["live_voice"] as? String, "ash")
+        XCTAssertEqual(obj?["live_model"] as? String, "gpt-live-1")
         XCTAssertEqual(obj?["extra"] as? String, "kept")
         XCTAssertNil(defaults.object(forKey: IslandSettingsSchema.voiceVoice), "voice rows never land in UserDefaults")
         // Only Voice and Model are schema rows. Voice backend choices persist in the file without UI defaults.
@@ -56,7 +56,7 @@ final class IslandSettingsTests: XCTestCase {
     func testModelPickerAndSamanthaRows() {
         XCTAssertEqual(VoiceSettingsStore.models.map(\.value),
                        ["gpt-live-1", "grok-voice-latest"])
-        XCTAssertEqual(VoiceSettingsStore.Settings.default.realtimeModel, "gpt-live-1")
+        XCTAssertEqual(VoiceSettingsStore.Settings.default.liveModel, "gpt-live-1")
         XCTAssertEqual(VoiceSettingsStore.normalizedModel("gpt-realtime-2.1"), "gpt-live-1")
         XCTAssertEqual(VoiceSettingsStore.backendModels.map(\.value), ["gpt-6-luna", "gpt-6-sol", "gpt-6.1-sol", "gpt-6-astra"])
         let saved = VoiceSettingsStore.xaiKeyAvailable
@@ -87,11 +87,32 @@ final class IslandSettingsTests: XCTestCase {
         s.set("gpt-live-1", for: IslandSettingsSchema.voiceModel)
         s.set("gpt-6-astra", for: IslandSettingsSchema.voiceLiveIntelligence)
         let obj = try JSONSerialization.jsonObject(with: Data(contentsOf: VoiceSettingsStore.path)) as? [String: Any]
-        XCTAssertEqual(obj?["realtime_model"] as? String, "gpt-live-1")
+        XCTAssertEqual(obj?["live_model"] as? String, "gpt-live-1")
         XCTAssertEqual(obj?["live_intelligence_model"] as? String, "gpt-6-astra")
         XCTAssertEqual(obj?["live_bulk_model"] as? String, "gpt-6-luna")
         let env = VoiceSettingsStore.applyToEnvironment(VoiceSettingsStore.load())
         XCTAssertEqual(env["VOICE_CUA_LIVE_INTELLIGENCE_MODEL"], "gpt-6-astra")
+    }
+
+    func testLegacyRealtimeKeysReadAndSaveAsLiveKeys() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("voice-legacy-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let saved = VoiceSettingsStore.path
+        defer { VoiceSettingsStore.path = saved }
+        VoiceSettingsStore.path = dir.appendingPathComponent("settings.json")
+        try JSONSerialization.data(withJSONObject: ["realtime_model": "gpt-live-1", "realtime_voice": "ash"])
+            .write(to: VoiceSettingsStore.path)
+
+        let settings = VoiceSettingsStore.load()
+        XCTAssertEqual(settings.liveModel, "gpt-live-1")
+        XCTAssertEqual(settings.liveVoice, "ash")
+        try VoiceSettingsStore.save(settings)
+        let obj = try JSONSerialization.jsonObject(with: Data(contentsOf: VoiceSettingsStore.path)) as? [String: Any]
+        XCTAssertEqual(obj?["live_model"] as? String, "gpt-live-1")
+        XCTAssertEqual(obj?["live_voice"] as? String, "ash")
+        XCTAssertEqual(obj?["realtime_model"] as? String, "gpt-live-1")
+        XCTAssertEqual(obj?["realtime_voice"] as? String, "ash")
     }
 
     func testSamanthaSourceSettingsAreMetadataNotPaneRows() {

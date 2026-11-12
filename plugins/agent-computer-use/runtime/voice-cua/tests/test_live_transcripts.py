@@ -109,19 +109,19 @@ class LiveCloseTests(unittest.TestCase):
         self.assertEqual(live.voice_seconds, 7)
 
     def test_socket_close_marks_latest_usage_unconfirmed_once(self):
-        from voice_cua.realtime_session import RealtimeSession
+        from voice_cua.live_session import LiveSession
 
         live = providers.LiveProvider()
         live._ready = True
         live.voice_seconds = 9
-        session = RealtimeSession.__new__(RealtimeSession)
+        session = LiveSession.__new__(LiveSession)
         session.provider = live
         session._stop = threading.Event()
         session._stop.set()
         session._ping_ages_at_error = (None, None)
         ws = SimpleNamespace(last_ping_tm=time.time() - 8, last_pong_tm=time.time() - 3)
-        with patch("voice_cua.realtime_session.mark"), \
-                patch("voice_cua.realtime_session.log_event") as session_log, \
+        with patch("voice_cua.live_session.mark"), \
+                patch("voice_cua.live_session.log_event") as session_log, \
                 patch.object(providers, "log_event") as log:
             session._on_close(ws, None, None)
             session._on_close(ws, None, None)
@@ -159,9 +159,9 @@ class LiveCloseTests(unittest.TestCase):
 
 class LiveBargeInTests(unittest.TestCase):
     def test_live_barge_in_flushes_player_without_cancel_or_truncate(self):
-        from voice_cua import realtime_session
+        from voice_cua import live_session
 
-        session = realtime_session.RealtimeSession.__new__(realtime_session.RealtimeSession)
+        session = live_session.LiveSession.__new__(live_session.LiveSession)
         session.provider = providers.LiveProvider()
         sent = []
         session._send = sent.append
@@ -174,7 +174,7 @@ class LiveBargeInTests(unittest.TestCase):
                 return 640, "live_out_1"
 
         session._audio = Player()
-        with patch.object(realtime_session, "log_event", lambda *a, **k: None):
+        with patch.object(live_session, "log_event", lambda *a, **k: None):
             session._handle_speech_started()
         self.assertEqual(sent, [])
 
@@ -295,7 +295,7 @@ class WakeDetectionTests(unittest.TestCase):
     def test_has_sound(self):
         import array
         import base64
-        from voice_cua.realtime_session import _has_sound
+        from voice_cua.live_session import _has_sound
 
         silent = base64.b64encode(bytes(960)).decode()
         loud = base64.b64encode(array.array("h", [3000] * 480).tobytes()).decode()
@@ -311,9 +311,9 @@ class ExpiryRestTests(unittest.TestCase):
     def _session(self, idle_s: float):
         import threading
         import time as _t
-        from voice_cua.realtime_session import RealtimeSession
+        from voice_cua.live_session import LiveSession
 
-        s = RealtimeSession.__new__(RealtimeSession)
+        s = LiveSession.__new__(LiveSession)
         s._response_condition = threading.Condition()
         s._active_response_ids = set()
         s._pending_calls = {}
@@ -369,9 +369,9 @@ class KeepaliveTests(unittest.TestCase):
     def _session(self):
         import threading
         import time as _t
-        from voice_cua.realtime_session import RealtimeSession
+        from voice_cua.live_session import LiveSession
 
-        s = RealtimeSession.__new__(RealtimeSession)
+        s = LiveSession.__new__(LiveSession)
         s._response_condition = threading.Condition()
         s._active_response_ids = set()
         s._pending_calls = {}

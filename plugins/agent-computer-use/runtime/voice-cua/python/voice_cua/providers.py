@@ -1,6 +1,6 @@
 """Voice provider adapters: one session loop, two speech backends.
 
-The session loop (realtime_session.RealtimeSession) speaks the OpenAI Realtime
+The session loop (live_session.LiveSession) speaks the OpenAI Realtime
 event dialect internally (the loop's own event schema; the OpenAI Realtime API itself is no
 longer a backend). An adapter translates at the socket edge only:
 
@@ -146,7 +146,9 @@ LIVE_INSTRUCTIONS = (
     "get a short spoken reply and no delegation.\n"
     "Honor exact output-format requests without adding a greeting or acknowledgment.\n"
     "Interruption policy: Stop speaking when interrupted and listen. If the user changes or cancels the "
-    "request, delegate the change; never say work was cancelled until the backend confirms it.\n"
+    "request, delegate the change; never say work was cancelled until the backend confirms it. If a "
+    "state-changing action was executing when the user stopped it, report its outcome as unknown; do not "
+    "say it completed or was cancelled, and never repeat it.\n"
     "Delegation policy:\n"
     "Backend tools:\n- Mac apps (Calculator, Finder, TextEdit, Music, Calendar, Settings), Comet browsing, and "
     "saved credential lookup without revealing secrets, and Context Ledger decisions.\n"
@@ -586,7 +588,7 @@ class LiveProvider(VoiceProvider):
             if itype == "message":
                 text = " ".join(str(c.get("text") or "") for c in item.get("content") or [] if isinstance(c, dict))
                 if item.get("role") == "system":
-                    if self._forking and text.startswith("The realtime connection was re-established"):
+                    if self._forking and text.startswith("The live voice connection was re-established"):
                         return []  # a fork keeps the conversation: no 'earlier turns are gone' note
                     return [{"type": "session.instructions.append", "event_id": self.event_id("instructions"),
                              "content": text[:LIVE_APPEND_MAX_CHARS], "delegation_id": None}]
@@ -826,7 +828,7 @@ class LiveProvider(VoiceProvider):
             started = self._ready
             forking = self._forking
         phase = "running" if started else "startup"
-        log_event("live_error", phase=phase, code=code or None, param=param or None,
+        log_event("realtime_error", phase=phase, code=code or None, param=param or None,
                   client_event_id=client_event_id or None, error_type=str(err.get("type") or "") or None,
                   message=str(err.get("message") or "")[:160] or None, forked=forking or None)
         if not started and forking:
@@ -1005,6 +1007,6 @@ def make_provider(model: str, settings: dict[str, str] | None = None) -> VoicePr
         LIVE_MODEL,
         bulk=os.environ.get("VOICE_CUA_LIVE_BULK_MODEL") or settings.get("live_bulk_model"),
         intelligence=os.environ.get("VOICE_CUA_LIVE_INTELLIGENCE_MODEL") or settings.get("live_intelligence_model"),
-        voice=os.environ.get("VOICE_CUA_LIVE_VOICE") or live_voice(settings.get("realtime_voice")),
+        voice=os.environ.get("VOICE_CUA_LIVE_VOICE") or live_voice(settings.get("live_voice")),
         store=str(settings.get("live_store", "true")).lower() not in {"0", "false", "no", "off"},
     )

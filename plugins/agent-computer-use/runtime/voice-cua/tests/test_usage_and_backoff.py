@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from voice_cua import activity_log  # noqa: E402
 from voice_cua.activity_log import log_event, log_usage, usage_row  # noqa: E402
 from voice_cua.island_copy import human_error  # noqa: E402
-from voice_cua.realtime_session import RealtimeSession, retry_after_seconds  # noqa: E402
+from voice_cua.live_session import LiveSession, retry_after_seconds  # noqa: E402
 from test_phase1_reliability import feed, make_session  # noqa: E402
 
 USAGE_FIELDS = [
@@ -127,7 +127,7 @@ class UsageRowTests(_LogCase):
 
     def test_response_done_appends_one_usage_row(self) -> None:
         session = make_session()
-        with patch("voice_cua.realtime_session.island_publish"), \
+        with patch("voice_cua.live_session.island_publish"), \
                 patch.object(session, "_run_tool"):
             feed(session, {"type": "response.created", "response": {"id": "resp_fake123"}})
             time.sleep(0.02)
@@ -155,7 +155,7 @@ class UsageRowTests(_LogCase):
     def test_tool_thread_logs_call_and_response_ids(self) -> None:
         session = make_session()
         done = []
-        with patch("voice_cua.realtime_session.island_publish"), \
+        with patch("voice_cua.live_session.island_publish"), \
                 patch("voice_cua.tools._cua_state", return_value={"ok": True, "elements": []}), \
                 patch.object(session, "_wait_for_responses_idle", return_value=True), \
                 patch.object(session, "_send_response_create", side_effect=lambda **_: done.append(1)):
@@ -217,7 +217,7 @@ class _Stop(Exception):
 
 
 class BackoffTests(_LogCase):
-    def _run(self, session: RealtimeSession, connect, *, max_waits: int = 50) -> tuple[list[float], list, str]:
+    def _run(self, session: LiveSession, connect, *, max_waits: int = 50) -> tuple[list[float], list, str]:
         waits: list[float] = []
 
         def fake_wait(timeout: float | None = None) -> bool:
@@ -228,7 +228,7 @@ class BackoffTests(_LogCase):
         with patch.object(session, "connect", side_effect=connect), \
                 patch.object(session._stop, "wait", side_effect=fake_wait), \
                 patch.object(session, "_schedule_planned_reconnect"), \
-                patch("voice_cua.realtime_session.island_publish") as pub, \
+                patch("voice_cua.live_session.island_publish") as pub, \
                 redirect_stdout(out):
             session.run()
         return waits, pub.call_args_list, out.getvalue()
@@ -248,7 +248,7 @@ class BackoffTests(_LogCase):
         session._reconnect_attempts = 6
 
         def stable() -> None:
-            session._connected_at = time.monotonic() - (RealtimeSession.RECONNECT_STABLE_SECONDS + 1)
+            session._connected_at = time.monotonic() - (LiveSession.RECONNECT_STABLE_SECONDS + 1)
 
         self._run(session, stable, max_waits=3)
         attempts = [r["attempt"] for r in self.rows() if r.get("kind") == "reconnecting"]
@@ -261,7 +261,7 @@ class BackoffTests(_LogCase):
             raise OSError("refused")
 
         waits, publishes, out = self._run(session, refuse)
-        self.assertEqual(len(waits), RealtimeSession.RECONNECT_MAX_ATTEMPTS)
+        self.assertEqual(len(waits), LiveSession.RECONNECT_MAX_ATTEMPTS)
         rows = self.rows()
         self.assertEqual([r["attempt"] for r in rows if r.get("kind") == "reconnecting"], list(range(1, 9)))
         self.assertEqual(len([r for r in rows if r.get("kind") == "reconnect_gave_up"]), 1)
@@ -282,24 +282,24 @@ class BackoffTests(_LogCase):
                 return hi
 
         for attempt in range(1, 10):
-            RealtimeSession._reconnect_delay(attempt, rng=Rng())
+            LiveSession._reconnect_delay(attempt, rng=Rng())
         self.assertEqual(calls, [(0.0, c) for c in (0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 30.0, 30.0, 30.0)])
-        self.assertEqual(RealtimeSession._reconnect_delay(1, rng=random.Random(0), min_delay=12.0), 12.0)
+        self.assertEqual(LiveSession._reconnect_delay(1, rng=random.Random(0), min_delay=12.0), 12.0)
 
     def test_rate_limit_error_sets_long_minimum_delay(self) -> None:
         session = make_session()
-        with patch("voice_cua.realtime_session.island_publish"):
+        with patch("voice_cua.live_session.island_publish"):
             feed(session, {"type": "error", "error": {"type": "rate_limit_error", "code": "rate_limit_exceeded",
                                                       "message": "Rate limit reached for tokens per min"}})
         self.assertEqual(session._classify_error({"code": "rate_limit_exceeded"}), "rate_limit")
         min_delay, reason = session._take_retry_hint()
-        self.assertGreater(min_delay, RealtimeSession.RATE_LIMIT_MIN_DELAY - 1)
+        self.assertGreater(min_delay, LiveSession.RATE_LIMIT_MIN_DELAY - 1)
         self.assertTrue(reason.startswith("rate_limit"))
-        self.assertGreaterEqual(RealtimeSession._reconnect_delay(1, min_delay=min_delay), min_delay)
+        self.assertGreaterEqual(LiveSession._reconnect_delay(1, min_delay=min_delay), min_delay)
 
     def test_rate_limit_honours_longer_server_retry_after(self) -> None:
         session = make_session()
-        with patch("voice_cua.realtime_session.island_publish"):
+        with patch("voice_cua.live_session.island_publish"):
             feed(session, {"type": "error", "error": {"code": "rate_limit_exceeded",
                                                       "message": "Please try again in 45s."}})
         min_delay, _ = session._take_retry_hint()
@@ -341,7 +341,7 @@ class BackoffTests(_LogCase):
         session = make_session()
         session._note_retry_hint(min_delay=10_000, reason="retry_after:test")
         min_delay, _ = session._take_retry_hint()
-        self.assertLessEqual(min_delay, RealtimeSession.RETRY_AFTER_MAX)
+        self.assertLessEqual(min_delay, LiveSession.RETRY_AFTER_MAX)
 
 
 if __name__ == "__main__":

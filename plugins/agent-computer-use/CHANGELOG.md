@@ -1,5 +1,56 @@
 # Changelog: agent-computer-use
 
+## 0.2.141
+
+- A typed Samantha turn sent while she is still starting now waits for her to be ready instead of failing with no session.
+
+## 0.2.140
+
+- A correct result now counts as confirmed when the app reopened already showing the same value (all steps ran and the screen text changed).
+
+## 0.2.139
+
+- macos-cua: a locked Mac is reported as `screen_locked` (hint: ask the user to unlock) instead of `observation_incomplete`, and Samantha stops retrying until it is unlocked.
+
+## 0.2.138
+
+- Samantha: spoken turns log a full `turn_latency` timeline (speech, transcript, first reply, tool, final reply) built from the GPT-Live events Samantha actually receives.
+- Samantha: Realtime-era names renamed to GPT-Live (`live_session.py`, `LiveSession`, `VOICE_CUA_LIVE_*`, `live_model`/`live_voice`); old env vars and settings keys still read as fallbacks.
+- macos-cua: a click by label re-reads the app's controls for up to about 1.2 s before failing, so the first click right after an app launches no longer misses.
+- macos-cua: a failed multi-step action names the step whose label was missing in `failure.expected_target`, not the first step.
+
+## 0.2.137
+
+- Samantha: `turn_latency` is logged for every spoken response of a turn (with `response_id`), so the wait before the final answer is measured, not just the first "on it" reply.
+
+## 0.2.136
+
+- Samantha: `turn_latency` keeps the first response's start time, so response_created_to_first_tool_start is never negative.
+
+## 0.2.135
+
+- Samantha observability: a `turn_latency` event per turn (phase milliseconds, dominant phase, over-budget flag) and a `mic_preflight` event per preflight (error text, failure class, devices seen, recovery), with up to two retries for transient preflight failures.
+
+## 0.2.134
+
+- Samantha: a typed stop no longer waits behind the running request, so it can arrive mid-task.
+
+## 0.2.133
+
+- Samantha: a typed stop ("stop", "uh, stop") now takes the same cancel path as a spoken one, so stop behavior can be tested without a microphone. The log marks it source=typed.
+
+## 0.2.132
+
+- Spoken stop detection ignores leading filler words ("uh, you can stop", "okay, please stop"); the live transcript "Uh, you can stop" did not trigger the cancel on 0.2.131 (AGENT-07).
+
+## 0.2.131
+
+- A spoken stop ("wait, stop", "you can stop", "please stop") now runs the same cancel as the island card: tool calls from a response already in progress are not started, and an action already executing is reported as outcome unknown and never repeated (AGENT-07).
+
+## 0.2.130
+
+- Ledger preference save accepts a snake_case value (`dark_mode`) when the owner said the same words with spaces ("dark mode"); it was rejected as not in the user statement (USER-03).
+
 ## 0.2.129
 
 - Treat numbers with grouping separators (9,801) as equal to plain digits in `expect` checks; report the label of the step that actually failed in `target_missing`.

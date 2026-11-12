@@ -221,7 +221,7 @@ final class IslandTests: XCTestCase {
         XCTAssertEqual(IslandCopy.humanError("Couldn't close Comet"), "Couldn't close Comet")
         let m = IslandModel()
         m.apply(IslandSnapshot(kind: "listening", title: "Listening"))
-        XCTAssertFalse(m.apply(IslandSnapshot(kind: "error", title: "Realtime error",
+        XCTAssertFalse(m.apply(IslandSnapshot(kind: "error", title: "Live voice error",
                                               detail: "Audio content of 10ms is already shorter than 20ms")))
         XCTAssertEqual(m.kind, "listening", "benign error never shows")
         m.apply(IslandSnapshot(kind: "error", title: "Failed", detail: "RPC -32000 something raw"))

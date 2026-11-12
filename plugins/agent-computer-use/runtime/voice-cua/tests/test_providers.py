@@ -24,7 +24,7 @@ from voice_cua import auth, providers, tools  # noqa: E402
 from voice_cua.providers import (  # noqa: E402
     ESCALATE_TOOL, LiveProvider, XAIProvider, make_provider, provider_for,
 )
-from voice_cua.realtime_session import RealtimeSession, build_session_update  # noqa: E402
+from voice_cua.live_session import LiveSession, build_session_update  # noqa: E402
 from test_phase1_reliability import FakeWS, feed  # noqa: E402
 
 TOOLS = [{"type": "function", "name": "cua_act", "description": "d", "parameters": {"type": "object"}}]
@@ -417,13 +417,13 @@ class LiveTests(_Rows):
         self.assertNotIn("input_tokens", rows[0])
 
 
-def live_session() -> RealtimeSession:
-    settings = {"realtime_model": "gpt-live-1", "realtime_voice": "alloy", "eagerness": "balanced",
+def live_session() -> LiveSession:
+    settings = {"live_model": "gpt-live-1", "live_voice": "alloy", "eagerness": "balanced",
                 "mic_profile": "near_field", "live_bulk_model": "gpt-6-luna",
                 "live_intelligence_model": "gpt-6.1-sol"}
     with patch("voice_cua.voice_settings.load_settings", return_value=settings), \
-            patch("voice_cua.realtime_session.load_settings", return_value=settings):
-        session = RealtimeSession(api_key="test", enable_audio=False)
+            patch("voice_cua.live_session.load_settings", return_value=settings):
+        session = LiveSession(api_key="test", enable_audio=False)
     session.ws = FakeWS()
     return session
 
@@ -453,7 +453,7 @@ class LiveSessionLoopTests(_Rows):
         s.provider._ready = True
         done: list[int] = []
         risky = json.dumps({"app": "Mail", "op": "click", "label": "Send"})
-        with patch("voice_cua.realtime_session.island_publish"), \
+        with patch("voice_cua.live_session.island_publish"), \
                 patch("voice_cua.tools.island_publish"), \
                 patch.object(s, "_wait_for_responses_idle", return_value=True), \
                 patch.object(s, "_send_response_create", side_effect=lambda **_: done.append(1)):
@@ -474,7 +474,7 @@ class LiveSessionLoopTests(_Rows):
         s = live_session()
         feed(s, {"type": "response.event", "delegation_id": "dlg5",
                  "event": {"type": "response.created", "response": {"id": "resp_u"}}})
-        with patch("voice_cua.realtime_session.island_publish"):
+        with patch("voice_cua.live_session.island_publish"):
             feed(s, {"type": "response.event", "delegation_id": "dlg5", "event": {
                 "type": "response.completed", "response": {"id": "resp_u", "status": "completed",
                                                            "usage": {"input_tokens": 700, "output_tokens": 30}}}})
@@ -632,14 +632,14 @@ class LiveDropThenThreeRequestsTests(_Rows):
         # hide_agent_cursor talks to the ACU service; unstubbed it blocks on a host without one
         # (or moves the real agent cursor on a Mac), outlasting the settle window.
         for target in (
-            "voice_cua.realtime_session.island_publish",
+            "voice_cua.live_session.island_publish",
             "voice_cua.tools.island_publish",
-            "voice_cua.realtime_session.hide_agent_cursor",
+            "voice_cua.live_session.hide_agent_cursor",
         ):
             p = patch(target)
             p.start()
             self.addCleanup(p.stop)
-        settle = patch("voice_cua.realtime_session.RECOVERY_SETTLE_S", 0.2)
+        settle = patch("voice_cua.live_session.RECOVERY_SETTLE_S", 0.2)
         settle.start()
         self.addCleanup(settle.stop)
         self.s = live_session()

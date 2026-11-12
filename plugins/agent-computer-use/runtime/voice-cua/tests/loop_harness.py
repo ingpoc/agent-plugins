@@ -28,7 +28,7 @@ def passthrough(model: str = "test-loop", settings: dict[str, str] | None = None
     return PassthroughProvider(model)
 
 
-_PATCH = patch("voice_cua.realtime_session.make_provider", passthrough)
+_PATCH = patch("voice_cua.live_session.make_provider", passthrough)
 
 
 def install() -> None:

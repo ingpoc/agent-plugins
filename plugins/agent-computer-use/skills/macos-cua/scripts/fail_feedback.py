@@ -14,6 +14,7 @@ OBSERVATION_INCOMPLETE = "observation_incomplete"
 ACTION_FAILED = "action_failed"
 EXPECT_UNVERIFIED = "expect_unverified"
 VERIFICATION_REQUIRED = "verification_required"
+SCREEN_LOCKED = "screen_locked"
 
 _REASON_HINTS = {
     TARGET_MISSING: "No matching control; fresh state by label, then retry or use coordinates.",
@@ -22,6 +23,7 @@ _REASON_HINTS = {
     ACTION_FAILED: "Native step failed; change approach (AX → coord) or raise the app.",
     EXPECT_UNVERIFIED: "Dispatch ran but expect was not new in the settled observation; read the settled state below (no cua_state needed); do not claim done unless it shows the result.",
     VERIFICATION_REQUIRED: "Mutating act needs expect (or allow_unverified for dispatch-only).",
+    SCREEN_LOCKED: "Mac is locked; ask the user to unlock, then retry. Do not call state or replay steps until it is unlocked.",
 }
 _CREDENTIAL_TARGET = re.compile(r"(?i)(password|secret|credential|api[_ -]?key|authorization|auth token|securetextfield)")
 
@@ -73,6 +75,8 @@ def classify_failure(
     after = (after_text or "").strip()
     before = (before_text or "").strip()
 
+    if error_type == SCREEN_LOCKED or "mac is locked" in blob or "-32002" in blob:
+        return SCREEN_LOCKED
     if not after:
         return OBSERVATION_INCOMPLETE
     if any(
@@ -218,6 +222,12 @@ def _failure_facts(
     failed_step = (reported_step - 1 if isinstance(reported_step, int) and reported_step > 0
                    else failed_result_index)
     steps = arguments.get("steps")
+    missing = re.search(r"Label not found: (.+?)\. elementCount=", str(error or ""))
+    if missing and isinstance(steps, list):
+        named = next((i for i, step in enumerate(steps) if isinstance(step, dict)
+                      and str(step.get("label", "")).casefold() == missing.group(1).strip().casefold()), None)
+        if named is not None:
+            failed_step = named
     expected_step = (steps[failed_step] if failed_step is not None and isinstance(steps, list)
                      and failed_step < len(steps) and isinstance(steps[failed_step], dict) else arguments)
     target_keys = ("op", "label", "text", "query", "selector", "element", "element_index", "role", "expect")

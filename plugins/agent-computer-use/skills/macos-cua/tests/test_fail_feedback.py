@@ -111,6 +111,31 @@ class FailFeedbackTests(unittest.TestCase):
         self.assertNotIn('AXButton "Cancel"', out["text"])
         self.assertIn("AX target lookup failed", failure["error"])
 
+    def test_missing_label_error_names_the_step_with_that_label(self):
+        err = "RPC error -32602: Label not found: Multiply. elementCount=16 axTrusted=true."
+        out = ff.apply_failure_feedback(
+            {"ok": False, "dispatched": False, "verified": False, "error": err, "failed_step": 1,
+             "results": [{"ok": False, "error": err}]},
+            arguments={"app": "Calculator", "steps": [
+                {"op": "click", "label": "All Clear"}, {"op": "click", "label": "1"},
+                {"op": "click", "label": "Multiply"}]},
+            before_text='[0] AXWindow "Calculator"', after_text='[0] AXWindow "Calculator"',
+        )
+        self.assertEqual(out["failure"]["failed_step"], 3)
+        self.assertEqual(out["failure"]["expected_target"]["label"], "Multiply")
+
+    def test_locked_mac_is_screen_locked_not_observation_incomplete(self):
+        err = "RPC error -32002: Mac is locked; ask the user to unlock"
+        out = ff.apply_failure_feedback(
+            {"ok": False, "dispatched": False, "verified": False, "error": err,
+             "results": [{"ok": False, "error": err}]},
+            arguments={"app": "Calculator", "steps": [{"op": "click", "label": "All Clear"}]},
+            before_text="", after_text="",
+        )
+        self.assertEqual(out["error_type"], ff.SCREEN_LOCKED)
+        self.assertIn("ask the user to unlock", out["text"])
+        self.assertNotIn("get state", out["text"])
+
     def test_failure_target_uses_reported_failed_step(self):
         out = ff.apply_failure_feedback(
             {"ok": False, "dispatched": False, "verified": False,

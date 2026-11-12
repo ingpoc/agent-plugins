@@ -75,6 +75,23 @@ def expectation_is_supported(expect: Any) -> bool:
     )
 
 
+_TEXT_VALUE_RE = re.compile(r'AX(?:StaticText|TextArea|TextField|Cell)[^\n]*value="([^"]*)"')
+
+
+def _text_values(tree_text: str) -> list[str]:
+    return sorted(_norm_text(v) for v in _TEXT_VALUE_RE.findall(tree_text or "") if _norm_text(v))
+
+
+def _expect_rewritten(expect: str, before_tree: str, after_tree: str, results: list[dict[str, Any]] | None) -> bool:
+    """Same value as before (e.g. an app restored its last result) but every step ran and the text values changed."""
+    return bool(
+        results
+        and all(item.get("ok") is True for item in results)
+        and expect_verified(expect, after_tree)
+        and _text_values(before_tree) != _text_values(after_tree)
+    )
+
+
 def expectation_is_new(
     expect: Any,
     before_tree: str,
@@ -84,7 +101,7 @@ def expectation_is_new(
 ) -> bool:
     """Verify compact positive/negative postconditions against settled AX values."""
     if isinstance(expect, str):
-        return expect_is_new(expect, before_tree, after_tree)
+        return expect_is_new(expect, before_tree, after_tree) or _expect_rewritten(expect, before_tree, after_tree, results)
     if isinstance(expect, list):
         return bool(expect) and all(
             expectation_is_new(item, before_tree, after_tree, results, after_state)
@@ -94,7 +111,8 @@ def expectation_is_new(
         return False
     checks: list[bool] = []
     if expect.get("text"):
-        checks.append(expect_is_new(str(expect["text"]), before_tree, after_tree))
+        text = str(expect["text"])
+        checks.append(expect_is_new(text, before_tree, after_tree) or _expect_rewritten(text, before_tree, after_tree, results))
     if expect.get("not_text"):
         needle = str(expect["not_text"])
         checks.append(

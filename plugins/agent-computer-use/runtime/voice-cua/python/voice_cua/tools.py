@@ -1,4 +1,4 @@
-"""Realtime-facing tools — CUA + confirm + secrets. No named-app helpers."""
+"""Live voice tools — CUA + confirm + secrets. No named-app helpers."""
 
 from __future__ import annotations
 
@@ -593,6 +593,7 @@ FAIL_HINTS = {
     "expect_unverified": ("It ran but isn't confirmed: read the settled state in this result (no cua_state); don't repeat it.", False),
     "allow_unverified": ("Action dispatched without verification; inspect its result or current state before proceeding, and do not repeat it.", False),
     "user_denied": ("User said no: don't retry.", False),
+    "screen_locked": ("Mac is locked: tell the user to unlock it; don't retry until they say it's unlocked.", False),
 }
 CAP_HINT = "Stopped retrying this action: tell the user what blocked it, or take a different approach."
 
@@ -678,7 +679,7 @@ def _retry_parent(name: str, args: dict[str, Any]) -> str:
 
 
 def reset_session_state() -> None:
-    """New Realtime conversation: fresh retry budget, no carried-over approvals."""
+    """New live conversation: fresh retry budget, no carried-over approvals."""
     with _STEP_LOCK:
         _STEP_FAILS.clear()
     GATE.reset()

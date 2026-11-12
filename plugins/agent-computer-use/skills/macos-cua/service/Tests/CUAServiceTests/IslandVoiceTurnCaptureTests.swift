@@ -6,7 +6,7 @@ import XCTest
 
 /// Real frames of one Samantha conversation turn from the live view, hosted in an offscreen borderless
 /// window of the test process (never on screen, no input, no URLs, no clipboard). Fixture data only, in the
-/// order voice_cua posts it (realtime_session.py + island_facade.py + plugin_island.py, the 13:27 IST turn).
+/// order voice_cua posts it (live_session.py + island_facade.py + plugin_island.py, the 13:27 IST turn).
 /// CUA_ISLAND_TURN_DIR=<dir> swift test --filter IslandVoiceTurnCaptureTests
 @MainActor
 final class IslandVoiceTurnCaptureTests: XCTestCase {
