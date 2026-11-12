@@ -143,7 +143,7 @@ class APITests(unittest.TestCase):
             'coverage_gap_scope': 'Dropped-row detail currently comes from Cursor; other sources are unknown.',
         })
         self.write()
-        result = self.api.projects()
+        result = self.api.projects(include_coverage=True)
         self.assertEqual(result['coverage_details']['samantha']['last_event_at'], '2026-10-24T11:35:00.000000Z')
         self.assertEqual(result['coverage_details']['samantha']['dropped_rows'], 'unknown')
         self.assertIn('other sources are unknown', result['coverage_gap_scope'])

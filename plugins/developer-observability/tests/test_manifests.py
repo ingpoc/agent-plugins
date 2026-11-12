@@ -5,10 +5,14 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.1.28'
+sys.path.insert(0, str(ROOT / 'runtime'))
+from collector import VERSION as COLLECTOR_VERSION  # noqa: E402
+
+VERSION = '0.1.30'
 PLACEHOLDERS = ('${PLUGIN_ROOT}', '${CURSOR_PLUGIN_ROOT}', '${CLAUDE_PLUGIN_ROOT}')
 
 
@@ -30,6 +34,8 @@ class ManifestTests(unittest.TestCase):
                     '.grok-plugin/plugin.json', 'package.json'):
             self.assertEqual(json.loads((ROOT / rel).read_text())['version'], VERSION, rel)
         self.assertIn(f"version='{VERSION}'", (ROOT / 'runtime/server.py').read_text())
+        self.assertEqual(COLLECTOR_VERSION, VERSION)
+        self.assertEqual(json.loads((ROOT / 'package-lock.json').read_text())['version'], VERSION)
 
     def run_resolver(self, rel, roots, home):
         entry = server(rel)

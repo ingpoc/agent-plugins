@@ -207,7 +207,7 @@ class CollectorTests(unittest.TestCase):
         summary = collect([{'type': 'project_dir', 'path': str(self.project)}], out, NOW)
         path = out / 'findings.json'
         self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
-        self.assertEqual(sorted(p.name for p in out.iterdir()), ['findings.json'])
+        self.assertEqual(sorted(p.name for p in out.iterdir()), ['findings.json', 'snapshots'])
         self.assertGreater(summary['findings'], 0)
         self.assertGreater(summary['by_kind']['redundancy'], 0)
         with self.assertRaises(ValueError):
@@ -226,12 +226,12 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual({p['project_id']: p['issue_count'] for p in only_primary['projects']}['a'], 1)
         self.assertEqual(only_primary['unassigned_issue_count'], 0)
         collect([{'type': 'project_dir', 'path': str(self.project)}], out, NOW)
-        merged = api.projects()
+        merged = api.projects(include_coverage=True)
         counts = {p['project_id']: p['issue_count'] for p in merged['projects']}
         self.assertGreater(counts['sample-project'], 0)
         self.assertNotEqual(merged['snapshot_id'], only_primary['snapshot_id'])
         self.assertEqual(merged['optional_services']['collector'], 'present')
-        self.assertIn('collected', merged['coverage'].values())
+        self.assertIn('collected', {item['status'] for item in merged['coverage_details'].values()})
         issues = api.issues('sample-project', limit=25)
         keys = [i['issue_id'] for i in issues['issues']]
         self.assertEqual(len(keys), len(set(keys)))

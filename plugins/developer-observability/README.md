@@ -25,7 +25,7 @@ The plugin reads a prepared `findings.json`. Two producers can feed it, and the 
 - the bundled portable collector (`runtime/collector/`, stdlib only, any OS): `observability_collect` or `bin/developer-observability collect --project-dir <dir>` scans JSONL and text logs, JUnit XML, agent-plugins `check.py` logs, git state and `hygiene --json` reports, and writes failure, latency-hotspot (p50/p95), slow-turn (`turn_latency`), island-layout and redundancy findings with `file:line` evidence to `~/.local/share/developer-observability/collected/findings.json`. Extra sources go in config `collector.sources` (`[{"type": "jsonl", "path": "...", "project": "..."}]`); `collector.known_sources: false` skips the built-in Samantha and agent-plugins CI paths. Each cause is one finding however many logs repeat it, and downstream errors of the same incident (same session, turn and subsystem within 30 s) are attached to the root cause as `effects`; tool and app errors are `app_error`, while `collector_failure` means only that the collector could not read a source; a duplicate call needs the same tool and arguments (otherwise it is a retry); issue IDs are stable across runs; island HUD mirrors and test sessions (`--include-tests` to keep them) never count as failures; latency comes only from real step durations; `active` means seen within `collector.active_window_h` (24 h), and sessions with a `version` get before/after counts. Nothing is capped: findings are ranked and paginated. Transcript and audio fields are never stored; tokens, emails and home paths are scrubbed.
 - an external producer such as the Kindle telemetry snapshot service (its source adapters, SigNoz and launchd jobs live in that project). When `~/Library/Application Support/KindleSnapshot/runtime/findings.json` exists, the default config points at it.
 
-Retention (0.1.8): after each collect, `runtime/collector/retention.py` moves expired plugin-owned files (collector scratch and snapshots over 7 days, except the live `findings.json`; `~/.cache/observability` files over 7 days, and backups over 30 days; optional `retention.trace_paths`) to `~/.Trash/developer-observability-pruned/` (capped at 2 GiB, never `rm`). It never touches `~/.cache/macos-cua`, Samantha logs or the runtime venv. It reports their sizes, plus any `*signoz*` container VM, as `storage` findings over 1 GiB. `observability_storage` shows the report and a dry run. `backend_root` is legacy and ignored at runtime.
+Retention (0.1.8): after each collect, `runtime/collector/retention.py` moves expired plugin-owned files (collector scratch and snapshots over 7 days, except the live `findings.json`; `~/.cache/observability` files over 7 days, and backups over 30 days; optional `retention.trace_paths`) to `~/.Trash/developer-observability-pruned/` (capped at 2 GiB, never `rm`). It never touches `~/.cache/macos-cua`, Samantha logs or the runtime venv. It reports their sizes, plus any `*signoz*` container VM, as `storage` findings over 1 GiB. `observability_storage` shows the report and a dry run.
 
 Without either, `observability_projects` returns an empty state with a hint instead of an error.
 
@@ -73,20 +73,22 @@ Replace `unmeasured` after a real suite. Do not invent scores.
 
 ## Opt-in Codex task usage
 
-Direct task detail exposes `direct_measurement_eligible` for a clean, single-thread, single-turn CLI capture with required usage fields. This does not establish child coverage, independent acceptance, cost, or comparison eligibility. Usage attached to failed events is retained as bounded, unaggregated observations and may be incomplete or duplicated. Malformed streams are not included in totals.
+Direct task detail exposes `direct_measurement_eligible` when a CLI capture has a bound thread, complete single-turn execution, and required usage fields. Task status also requires a complete stream with no observed child spawns and a passing separate verification receipt. Usage attached to failed events is retained as bounded, unaggregated observations and may be incomplete or duplicated. Malformed streams are not included in totals.
 
-`observability_task_usage(task_id=...)` reads one explicit capture, including its Codex thread ID and any artifact check receipt. `codex-verify --task-id UUID --scenario FILE --skill FILE --artifact FILE --verifier EXECUTABLE` runs a separate executable with the artifact path and records SHA-256 digests and its result. The caller must choose a genuinely independent verifier; the tool cannot prove independence or that the artifact came from the capture. Child coverage and acceptance remain unknown.
+`observability_task_usage(task_id=...)` reads one explicit capture, including its Codex thread ID, observed child spawn count, and any artifact check receipt. A complete stream with no child spawn items reports `child_coverage=none_spawned`; observed spawns remain unattributed. `codex-verify --task-id UUID --scenario FILE --skill FILE --artifact FILE --verifier EXECUTABLE` runs a separate executable with the artifact path and records SHA-256 digests, `verifier_sha256`, `independence=separate_process`, and its result. It rejects a verifier whose digest matches the scenario, skill, or artifact. A passing receipt reports acceptance as `pass`; failed and missing receipts leave a task incomplete. Comparisons sum tokens and duration only for tasks with a bound thread, complete execution, and full usage, and report the rest as `excluded_incomplete`.
 
-`observability_task_usage` reports explicitly captured Codex jobs and a separate bounded recent-session sample. These populations can overlap and must not be added together. Missing model, effort, usage, cost, or independent acceptance remain unknown.
+`observability_task_usage` reports explicitly captured Codex jobs and a separate bounded recent-session sample. These populations can overlap and must not be added together. Missing model, effort, usage, or cost remain unknown.
 
 To capture an explicitly launched Codex CLI job, run `bin/developer-observability codex-capture --category analysis -- <codex arguments>`. This forwards Codex JSON events to stdout and stores aggregate usage locally. The optional `--verify` check records a caller-supplied check result, not independent task acceptance. The command exits nonzero if usage cannot be stored. Captured elapsed time ends before the optional check and is not end-to-end time through acceptance. Usage totals remain unknown for failed turns or ambiguous replayed/multiple unidentifiable turns. The JSON event stream is forwarded to stdout and can contain task content; pass `--quiet-events` to suppress it. This wrapper does not capture or attribute T3-delegated child sessions.
 
 ## Interface
 
-Six tools: projects, scoped issues, issue/evidence detail, existing Ledger
-recommendation, typed Decider decision, and MCP Apps dashboard. The read-side
-backend is vendored in `runtime/backend/` (see `VENDORED.json`). Tool names carry
-the `observability_` prefix. Prepared data is reused without a source rescan.
+Task tools: `observability_tasks` lists recent runs,
+`observability_task` reads a run, and `observability_task_detail` pages a bounded
+facet. For "what happened in task X," start with `observability_tasks` or
+`observability_task`; use `observability_diagnose` for triage. The canonical
+read-side backend lives in `runtime/backend/`; its source record is
+`runtime/backend/VENDORED.json`. Prepared data is reused without a source rescan.
 
 The dashboard is bundled with the official `@modelcontextprotocol/ext-apps`
 2.0.3 SDK. The server uses MCP Python SDK 2.2.0 with modern 2026-07-28 discovery
@@ -98,6 +100,6 @@ Setup and proof boundaries: [AGENTS.md](AGENTS.md). Architecture and usage:
 latency/token improvement or general cross-project recommendation coverage is
 claimed. Private bindings and telemetry are never part of this public package.
 
-Design: [six-tool plan](docs/PLAN.md). Proof contract and bounded retrieval
+Design: [tool plan](docs/PLAN.md). Proof contract and bounded retrieval
 measurements: [verification](docs/VERIFICATION.md). Installed/runtime observations
 and screenshots remain private, not in this public repository.

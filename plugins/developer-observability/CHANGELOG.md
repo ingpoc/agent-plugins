@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.30
+
+- Count child agent spawns in captured Codex runs, accept a task only from a passing separate verifier receipt (the verifier must be a different file), report a task complete only when nothing is missing, and leave incomplete tasks out of token and duration totals while counting them as excluded.
+
+## 0.1.29
+
+- Treat sources read in the current collect as collected, scope coverage by project, and group retired legacy snapshot gaps.
+- Add run-indexed task lookup, bounded task facets, compact coverage, and snapshot-bound detail sidecars while retaining reads of old monolithic findings files.
+- Join tool lifecycle events by call ID, include task outcomes and Ledger summaries, and list tasks newest first (failures via status=failure) and accept a raw run_id wherever a run_ref is expected.
+- Build the task Ledger summary field by field so the result row's status and decision count win over the start row.
+- Report ledger_decision_id_missing only when a Ledger lookup returned decisions.
+- After a fresh collect, the coverage line uses that collect's sources and heartbeats — the same snapshot freshness uses — and only mentions a legacy snapshot when that snapshot is the data being served.
+- Collect parses each source once, stores compact events, writes sidecars without null fields, and skips walking kept snapshot trees during prune.
+- Live measurements (Mac Mini, 2026-11-12, ~59k events, same method as the tool: `/usr/bin/time -l` on collect with `--project-dir`): collect 9.26 s / 298 MB RSS -> 6.7 s / 223 MB; session sidecars 67.9 MB -> 42.2 MB; prune on a collected dir with 25 staged snapshots 14.3 s -> 0.7 s (the 22.7 s / 353 MB live collect was this prune plus collect). Still above the 150 MB RSS aim because analysis holds the event set, including layout payloads.
+- Link CI check logs to explicit reporter attempts and move superseded snapshot sidecars into retention staging.
+- Match CI and JUnit fix guidance to the finding kind: failure, latency hotspot, or redundancy.
+- Live measurements (Mac Mini, 2026-11-11, ~45.5k events, 62 findings, before = 0.1.28): `findings.json` 81.3 MB -> 0.42 MB (session/scope/task detail now in lazily read per-snapshot sidecars, 57 MB / 323 files on disk vs 81 MB before); collect 6.1 s / 295 MB RSS -> 5.5 s / 250 MB; `observability_issues` 22.4 KB -> 19.8 KB (Samantha) and 17.7 KB -> 15.1 KB (agent-plugins), coverage block ~2.5 KB -> one line under 100 B, read latency 483 ms -> 7 ms; one task view: Samantha 1.7 KB (the session view was 72 KB) and a CI run 3.8 KB, each naming the first failing step and its typed error.
+
 ## 0.1.28
 
 - Reject malformed-stream totals for direct measurement and expose bounded failed-event usage observations.
@@ -90,7 +108,6 @@ Automatic clearing and storage visibility (Guru 2026-11-04 11:39 IST):
 - Hard exclusions, which are never moved or written: every `[protected].paths` entry in `~/.agents/machine.toml` (read on each run and skipped quietly when the file or list is missing), `~/.cache/macos-cua` and other ACU-owned dirs, Samantha's `samantha-activity*.jsonl` and `voice.log` (Samantha/ACU rotates them), the runtime venv and `~/.config/developer-observability`. Tests cover each exclusion.
 - Storage report: disk use of collector outputs, the runtime venv, plugin caches, trace dirs, the pruned-trash folder, Samantha log sizes (stat only) and any Apple container VM named `*signoz*`. A path over `retention.warn_bytes` (1 GiB) becomes a `storage` finding (`observability_issues kind=storage`).
 - Settings live in config `retention` (`enabled`, `days`, `backup_days`, `cache_dirs`, `trace_paths`, `trash_dir`, `max_trash_bytes`, `warn_bytes`), and each has a default.
-- `backend_root` (the legacy kindle-project checkout) is not used at runtime. The plugin runs only on its vendored backend. Only the optional drift test reads the key, and it skips when the path is missing.
 
 ## 0.1.7 (2026-11-04)
 

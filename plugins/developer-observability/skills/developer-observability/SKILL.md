@@ -7,6 +7,10 @@ description: Use when diagnosing project build or runtime issues, or inspecting 
 Use the MCP directly. Kindle and Decider skills own collection, device and
 service repair, not routine inspection.
 
+For "what happened in task X," call `observability_tasks` to choose a `run_ref`,
+then `observability_task` and, only when needed, `observability_task_detail`.
+Use `observability_diagnose` for triage.
+
 1. Call `observability_diagnose` to discover projects, then call it with the
    selected `project_id` for counts and ranked findings. Check snapshot
    freshness, source coverage and unassigned counts. Attribution may be
@@ -34,4 +38,4 @@ Ledger or error details, read [issues and sessions](references/issues-and-sessio
 For the Ledger recommendation pilot, typed Decider choices, storage or dashboard,
 read [optional tools](references/optional-tools.md). These are not routine steps.
 
-For opt-in Codex task usage, call `observability_task_usage`, optionally with an exact captured `task_id`. `codex-verify` records hashes and the result of a separately executed artifact check; verifier independence and the artifact's relationship to the task are caller assertions, so acceptance remains unknown. Direct measurement eligibility applies only to the captured CLI process; failed-event usage observations are incomplete and must not be summed as totals. Recorded jobs and recent sampled sessions are separate and can overlap; usage does not establish cost or independent acceptance.
+For opt-in Codex task usage, call `observability_task_usage`, optionally with an exact captured `task_id`. The capture counts Codex `spawn_agent` items; only a complete stream with no spawns reports `child_coverage=none_spawned`. `codex-verify` records the verifier digest and result from a separate process, and rejects verifier files identical by digest to the scenario, skill, or artifact. A passing receipt marks acceptance `pass`; otherwise the task remains incomplete. Direct comparisons sum tokens and duration only for tasks with a bound thread, complete execution, and full usage; excluded tasks are counted as `excluded_incomplete`. Failed-event usage observations are incomplete and must not be summed as totals. Recorded jobs and recent sampled sessions are separate and can overlap; usage does not establish cost.
