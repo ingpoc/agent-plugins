@@ -27,7 +27,7 @@ class AppsExtension(Extension):
         return {'mimeTypes': ['text/html;profile=mcp-app']}
 
 
-server = MCPServer('developer-observability', extensions=[AppsExtension()], version='0.1.29', instructions=(
+server = MCPServer('developer-observability', extensions=[AppsExtension()], version='0.1.30', instructions=(
     'Start with observability_tasks or observability_task for what happened in a task; '
     'start with observability_diagnose for triage and selected issue evidence. '
     'If findings are missing or stale, call observability_collect once, then repeat diagnosis. '
