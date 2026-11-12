@@ -178,6 +178,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIn('introspect', blocked.stderr)
         self.assertNotEqual(batch({'action':'rollover','source_pr':1,'worktree':'w','pull_request':{'label':'PR #2','url':'https://example.test/pull/2'}}).returncode, 0)
         self.assertNotEqual(batch({'action':'introspect','result':'two\nlines'}).returncode, 0)
+        self.assertEqual(batch({'action':'start-verification','run':{'id':'r1','build':'b1','revision':'abc','installed_at':'2026-11-12T10:00:00+05:30','install_evidence':'log'}}).returncode, 0)
         result = batch({'action':'introspect','result':'no issues'}, {'action':'set-stage','stage':'report_rollover'})
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(self.data.read_text())['tracking']['introspect']['result'], 'no issues')
@@ -185,6 +186,26 @@ class ManageFindingsTests(unittest.TestCase):
         tracking = json.loads(self.data.read_text())['tracking']
         self.assertNotIn('introspect', tracking)
         self.assertNotIn('stages_reached', tracking)
+        self.assertNotIn('verification_run', tracking)
+
+    def test_introspect_creates_one_task_listing_all_issues(self):
+        page, ops = self.root / 'one.html', self.root / 'one.json'
+        def batch(*items):
+            ops.write_text(json.dumps(list(items)))
+            return self.cli('batch', self.data, ops, '--render', page)
+        self.assertNotEqual(batch({'action':'introspect','issues':[{'issue':'x','evidence':'','outcome':'fixed'}]}).returncode, 0)
+        before = len(json.loads(self.data.read_text())['findings'])
+        result = batch({'action':'introspect','issues':[
+            {'issue':'stale report shown','evidence':'rel.log','outcome':'fixed'},
+            {'issue':'runner mismatch','evidence':'gate.log','outcome':'next_cycle'}]})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        doc = json.loads(self.data.read_text())
+        self.assertEqual(len(doc['findings']), before + 1)
+        task = doc['findings'][-1]
+        self.assertEqual((task['id'], task['status'], doc['tracking']['introspect']['task']), ('WF-01', 'untested', 'WF-01'))
+        self.assertIn('stale report shown', task['observed'])
+        self.assertIn('runner mismatch', task['recommendation'])
+        self.assertNotIn('stale report', task['recommendation'])
 
     def test_set_activity_requires_reopen_for_closed_findings(self):
         operations, page = self.root / 'closed-activity.json', self.root / 'closed-activity.html'

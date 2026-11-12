@@ -657,11 +657,34 @@ def main(argv=None):
                     raise ValueError("batch operation must be an object")
                 action = operation.get("action")
                 if action == "introspect":
+                    # One Introspect = one record and at most ONE WF- task listing every issue found, never a task per issue.
+                    issues = operation.get("issues", [])
                     result = operation.get("result")
-                    if not isinstance(result, str) or not result.strip() or "\n" in result or "\r" in result:
+                    if not isinstance(issues, list) or any(
+                            not isinstance(i, dict) or not all(isinstance(i.get(k), str) and i[k].strip() for k in ("issue", "evidence"))
+                            or i.get("outcome") not in ("fixed", "next_cycle") for i in issues):
+                        raise ValueError("introspect issues must be [{issue, evidence, outcome: fixed|next_cycle}]; no evidence, no issue")
+                    if not issues and (not isinstance(result, str) or not result.strip() or "\n" in result or "\r" in result):
                         raise ValueError("introspect requires result: one nonempty line, e.g. \"no issues\"")
-                    store["document"].setdefault("tracking", {})["introspect"] = {
-                        "result": result.strip(), "at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")}
+                    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                    record = {"result": (result or "").strip() or f"{len(issues)} issue(s)", "at": stamp}
+                    if issues:
+                        used = [int(f["id"][3:]) for f in findings if re.fullmatch(r"WF-\d+", str(f.get("id", "")))]
+                        task_id = f"WF-{max(used, default=0) + 1:02d}"
+                        lines = [f"{n}. {i['issue'].strip()} ({'fixed in Introspect' if i['outcome'] == 'fixed' else 'next cycle'}); evidence: {i['evidence'].strip()}" for n, i in enumerate(issues, 1)]
+                        pending = [line for line, i in zip(lines, issues) if i["outcome"] == "next_cycle"]
+                        task = {"id": task_id, "title": f"Introspect {stamp[:10]}: {len(issues)} issue(s), {len(pending)} for next cycle",
+                                "source": "Agent reported", "status": "untested" if pending else "verified_fixed",
+                                "observed": "\n".join(lines), "recommendation": "\n".join(pending) or "None; all fixed during Introspect.",
+                                "verification": "" if pending else "All issues fixed and checked during Introspect.",
+                                "details": {f"issue_{n}": line for n, line in enumerate(lines, 1)}}
+                        if not pending:
+                            task["verification_refs"] = [i["evidence"].strip() for i in issues]
+                        validate_detail_limits(task)
+                        validate_ids(findings + [task])
+                        findings.append(task)
+                        record["task"] = task_id
+                    store["document"].setdefault("tracking", {})["introspect"] = record
                     continue
                 if action in ("set-stage", "set-activity", "rollover"):
                     target = "report_rollover" if action == "rollover" else operation.get("stage")
@@ -710,6 +733,9 @@ def main(argv=None):
                     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                     note = str(operation.get("now") or f"Rolled over to {pr['label']}").strip().splitlines()[0]
                     tracking["workflow"] = {"stage": "report_rollover", "updated_at": timestamp, "now": f"{timestamp} — {note}"}
+                    run = tracking.pop("verification_run", None)  # a run never carries into the next PR's list
+                    if isinstance(run, dict):
+                        tracking.setdefault("verification_history", []).append({**run, "status": "interrupted" if run.get("status") == "active" else run.get("status")})
                     tracking.pop("stages_reached", None)  # a new cycle starts after rollover
                     tracking.pop("introspect", None)
                     continue

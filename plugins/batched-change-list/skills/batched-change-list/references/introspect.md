@@ -5,9 +5,10 @@ Run only after a **full cycle**: one that reached Install and live Verify. Skip 
 Keep it one cheap pass over what the run already recorded (failed commands, retries, reruns, stale or contradicting reports, checks that disagreed), not a re-read of the whole run.
 
 1. **No evidence, no issue.** Flag a step only when the run shows a concrete sign: a failure, a retry, a rerun, a silent failure (no error, wrong result shown as success, swallowed exception), or a step that turned out redundant. Never invent issues.
-2. **Clean run:** record one line and move on:
-   `{"action":"introspect","result":"no issues"}`
-3. **Small, safe fixes happen now** (a few lines, no release, checkable at once: a redundant step, a stale note, a wrong setting, a missed decision, leftovers). Log each as a `WF-` finding marked `verified_fixed` with `details.fixed_in` naming this Introspect, so there is a record of what changed.
-4. **Anything needing code, a release or a live test** becomes a `WF-` finding (`untested`) for the next cycle, with the evidence and the proposed delete, simplify, optimize or automate action.
+2. **Clean run:** one line and move on: `{"action":"introspect","result":"no issues"}`
+3. **Small, safe fixes happen now** (a few lines, no release, checkable at once: a redundant step, a stale note, a wrong setting, a missed decision, leftovers).
+4. **Anything needing code, a release or a live test** is left for the next cycle.
 5. **Silent failures are always addressed**: the owning script must exit non-zero with a one-line cause.
-6. Record the result line, e.g. `{"action":"introspect","result":"fixed WF-02..04; next cycle WF-01"}`, then `set-activity` stage `report_rollover`.
+6. **Record everything in one call; it creates exactly one `WF-` task** listing every issue (never one task per issue):
+   `{"action":"introspect","issues":[{"issue":"...","evidence":"log/path or value","outcome":"fixed"},{"issue":"...","evidence":"...","outcome":"next_cycle"}]}`
+   The task is `verified_fixed` when every issue was fixed in Introspect, otherwise `untested` with the next-cycle items as its recommendation. Then `set-activity` stage `report_rollover`.
