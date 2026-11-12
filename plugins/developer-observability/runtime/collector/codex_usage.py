@@ -18,6 +18,8 @@ def summarize(lines):
     completed = failed = invalid = 0
     present = {field: 0 for field in FIELDS}
     threads = set()
+    child_spawns = set()
+    anonymous_child_spawns = 0
     turn_ids = set()
     ambiguous = False
     missing_turn_id = False
@@ -38,6 +40,14 @@ def summarize(lines):
             except (ValueError, TypeError, AttributeError):
                 invalid += 1
             continue
+        item = event.get('item')
+        if (event.get('type') in ('item.started', 'item.updated', 'item.completed') and
+                isinstance(item, dict) and item.get('type') == 'collab_tool_call' and
+                item.get('tool') == 'spawn_agent'):
+            if isinstance(item.get('id'), str) and item['id']:
+                child_spawns.add(item['id'])
+            else:
+                anonymous_child_spawns += 1
         if event.get('type') == 'turn.failed':
             failed += 1
             usage = event.get('usage')
@@ -76,6 +86,7 @@ def summarize(lines):
                 totals[field] += value
                 present[field] += 1
     return {'completed_turns': completed, 'failed_turns': failed, 'invalid_events': invalid,
+            'child_spawns': len(child_spawns) + anonymous_child_spawns,
             'usage': {field: totals[field] if completed and not failed and not invalid and not ambiguous and present[field] == completed else None for field in FIELDS},
             'failed_usage_observations': failed_usage, 'failed_usage_truncated': failed_usage_truncated,
             'thread_id': next(iter(threads)) if len(threads) == 1 else None,
@@ -87,7 +98,7 @@ def record(path, task_id, category, summary):
     task_id = str(uuid.UUID(task_id))
     if category not in ('coding', 'research', 'computer_use', 'writing', 'analysis', 'other', 'unknown'):
         raise ValueError('unknown task category')
-    allowed = {'completed_turns', 'failed_turns', 'invalid_events', 'usage', 'thread_id', 'model', 'effort', 'acceptance', 'cost', 'requested_model', 'requested_effort', 'process_exit_code', 'elapsed_seconds', 'check_status', 'check_seconds', 'failed_usage_observations', 'failed_usage_truncated'}
+    allowed = {'completed_turns', 'failed_turns', 'invalid_events', 'child_spawns', 'usage', 'thread_id', 'model', 'effort', 'acceptance', 'cost', 'requested_model', 'requested_effort', 'process_exit_code', 'elapsed_seconds', 'check_status', 'check_seconds', 'failed_usage_observations', 'failed_usage_truncated'}
     if not isinstance(summary, dict) or set(summary) - allowed or not isinstance(summary.get('usage'), dict) or set(summary['usage']) - set(FIELDS):
         raise ValueError('invalid usage summary fields')
     if summary.get('acceptance', 'unknown') != 'unknown' or summary.get('cost') is not None:
@@ -114,7 +125,7 @@ def record(path, task_id, category, summary):
             raise ValueError('invalid thread id') from None
     if summary.get('check_status') not in (None, 'not_run', 'passed', 'failed', 'error'):
         raise ValueError('invalid check status')
-    for field in ('completed_turns', 'failed_turns', 'invalid_events'):
+    for field in ('completed_turns', 'failed_turns', 'invalid_events', 'child_spawns'):
         value = summary.get(field)
         if value is not None and (type(value) is not int or value < 0):
             raise ValueError('invalid event count')
@@ -153,16 +164,31 @@ def task_detail(path, task_id):
     summary = json.loads(row[1])
     usage = summary.get('usage', {})
     reasons = []
+    stream_complete = (summary.get('completed_turns') == 1 and
+                       summary.get('failed_turns') == 0 and summary.get('invalid_events') == 0)
     if not summary.get('thread_id'):
         reasons.append('binding_unavailable')
-    if summary.get('process_exit_code') != 0 or summary.get('failed_turns') != 0 or summary.get('invalid_events') != 0 or summary.get('completed_turns') != 1:
+    if summary.get('process_exit_code') != 0 or not stream_complete:
         reasons.append('execution_incomplete')
         usage = {}
-    if any(usage.get(k) is None for k in ('input_tokens', 'cached_input_tokens', 'output_tokens')):
+    full_usage = all(type(usage.get(k)) is int and usage[k] >= 0 for k in ('input_tokens', 'cached_input_tokens', 'output_tokens'))
+    if not full_usage:
         reasons.append('usage_partial')
     measurement_eligible = not reasons
-    reasons.extend(('child_coverage_unknown', 'acceptance_unverified'))
-    return {'status': 'incomplete', 'task_id': task_id, 'category': row[0],
+    child_spawns = summary.get('child_spawns')
+    if not stream_complete or type(child_spawns) is not int:
+        child_coverage = 'unknown'
+        reasons.append('child_coverage_unknown')
+    elif child_spawns:
+        child_coverage = 'children_unattributed'
+        reasons.append('child_coverage_unknown')
+    else:
+        child_coverage = 'none_spawned'
+    verification = json.loads(verification[0]) if verification else None
+    acceptance = verification.get('result', 'unknown') if verification else 'unknown'
+    if acceptance != 'pass':
+        reasons.append('acceptance_unverified')
+    return {'status': 'complete' if not reasons else 'incomplete', 'task_id': task_id, 'category': row[0],
             'source': 'explicit_codex_cli_capture', 'usage': {k: usage.get(k) for k in FIELDS},
             'model': summary.get('model'), 'effort': summary.get('effort'),
             'thread_id': summary.get('thread_id'), 'elapsed_seconds': summary.get('elapsed_seconds'),
@@ -170,8 +196,8 @@ def task_detail(path, task_id):
             'direct_measurement_eligible': measurement_eligible,
             'failed_usage_observations': summary.get('failed_usage_observations', []),
             'failed_usage_truncated': summary.get('failed_usage_truncated', False),
-            'verification': json.loads(verification[0]) if verification else None,
-            'acceptance': 'unknown', 'reasons': reasons}
+            'verification': verification, 'acceptance': acceptance,
+            'child_coverage': child_coverage, 'reasons': reasons}
 
 
 def task_overview(path):
@@ -184,7 +210,7 @@ def task_overview(path):
     with sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True) as db:
         for category, raw in db.execute('SELECT category, summary FROM task_usage ORDER BY category'):
             summary = json.loads(raw)
-            row = categories.setdefault(category, {'category': category, 'tasks': 0, 'known_input_tasks': 0, 'input_tokens': 0,
+            row = categories.setdefault(category, {'category': category, 'tasks': 0, 'excluded_incomplete': 0, 'known_input_tasks': 0, 'input_tokens': 0,
                                                     'known_output_tasks': 0, 'output_tokens': 0,
                                                     'checks_passed': 0, 'checks_failed': 0, 'checks_unknown': 0})
             row['tasks'] += 1
@@ -202,22 +228,32 @@ def task_overview(path):
                                                 'tasks': 0, 'checks_passed': 0, 'checks_failed': 0,
                                                 'checks_unknown': 0, 'known_input_tasks': 0, 'input_tokens': 0,
                                                 'known_output_tasks': 0, 'output_tokens': 0,
-                                                'known_duration_tasks': 0, 'elapsed_seconds': 0.0})
+                                                'known_duration_tasks': 0, 'elapsed_seconds': 0.0,
+                                                'excluded_incomplete': 0})
             group['tasks'] += 1
             group['checks_passed' if check == 'passed' else 'checks_failed' if check == 'failed' else 'checks_unknown'] += 1
-            value = summary.get('usage', {}).get('input_tokens') if not summary.get('invalid_events') else None
+            usage = summary.get('usage', {})
+            eligible = (bool(summary.get('thread_id')) and summary.get('process_exit_code') == 0 and
+                        summary.get('completed_turns') == 1 and summary.get('failed_turns') == 0 and
+                        summary.get('invalid_events') == 0 and
+                        all(type(usage.get(field)) is int and usage[field] >= 0
+                            for field in ('input_tokens', 'cached_input_tokens', 'output_tokens')))
+            if not eligible:
+                row['excluded_incomplete'] += 1
+                group['excluded_incomplete'] += 1
+            value = usage.get('input_tokens') if eligible else None
             if type(value) is int and value >= 0:
                 row['known_input_tasks'] += 1
                 row['input_tokens'] += value
                 group['known_input_tasks'] += 1
                 group['input_tokens'] += value
-            value = summary.get('usage', {}).get('output_tokens') if not summary.get('invalid_events') else None
+            value = usage.get('output_tokens') if eligible else None
             if type(value) is int and value >= 0:
                 row['known_output_tasks'] += 1
                 row['output_tokens'] += value
                 group['known_output_tasks'] += 1
                 group['output_tokens'] += value
-            value = summary.get('elapsed_seconds')
+            value = summary.get('elapsed_seconds') if eligible else None
             if type(value) in (int, float) and math.isfinite(value) and value >= 0:
                 group['known_duration_tasks'] += 1
                 group['elapsed_seconds'] += value

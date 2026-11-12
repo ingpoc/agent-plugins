@@ -25,6 +25,8 @@ def verify(database, task_id, scenario, skill, artifact, verifier):
         if not db.execute('SELECT 1 FROM task_usage WHERE task_id = ?', (task_id,)).fetchone():
             raise ValueError('task not found')
         values = [digest(p) for p in (scenario, skill, artifact, verifier)]
+        if values[3] in values[:3]:
+            raise ValueError('verifier must be a separate file')
         try:
             result = subprocess.run([str(Path(verifier).resolve()), str(Path(artifact).resolve())],
                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=300)
@@ -33,7 +35,7 @@ def verify(database, task_id, scenario, skill, artifact, verifier):
         if values != [digest(p) for p in (scenario, skill, artifact, verifier)]:
             raise ValueError('verification inputs changed during check')
         receipt = dict(zip(('scenario_sha256', 'skill_sha256', 'artifact_sha256', 'verifier_sha256'), values))
-        receipt.update(result='pass' if result.returncode == 0 else 'fail', independence='caller_asserted')
+        receipt.update(result='pass' if result.returncode == 0 else 'fail', independence='separate_process')
         payload = json.dumps(receipt, sort_keys=True, separators=(',', ':'))
         db.execute('CREATE TABLE IF NOT EXISTS task_verification (task_id TEXT PRIMARY KEY, receipt TEXT NOT NULL)')
         previous = db.execute('SELECT receipt FROM task_verification WHERE task_id = ?', (task_id,)).fetchone()
