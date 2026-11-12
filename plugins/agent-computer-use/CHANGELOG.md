@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.141
+
+- A typed Samantha turn sent while she is still starting now waits for her to be ready instead of failing with no session.
+
 ## 0.2.140
 
 - A correct result now counts as confirmed when the app reopened already showing the same value (all steps ran and the screen text changed).

@@ -445,6 +445,11 @@ class LiveSession:
 
     def run(self) -> None:
         """Resilient top-level loop: connect, retry with backoff until stopped or out of attempts."""
+        from voice_cua.session_hub import register
+
+        # Register while still connecting so a typed turn sent during startup waits for
+        # readiness instead of being told no session exists.
+        register(self)
         self._schedule_planned_reconnect()
         if getattr(self.provider, "manages_barge_in", False) and not getattr(self, "_watchdog_started", False):
             self._watchdog_started = True

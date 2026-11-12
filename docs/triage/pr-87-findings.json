@@ -1916,6 +1916,9 @@
         },
         "AGENT-14": {
           "state": "pending"
+        },
+        "AGENT-15": {
+          "state": "pending"
         }
       }
     },
@@ -1931,9 +1934,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-12T05:41:37Z",
-      "now": "2026-11-12T05:41:37Z — 11:20 IST Fix done and tested (73 pass); releasing 0.2.140, then live recheck"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-12T08:02:56Z",
+      "now": "2026-11-12T08:02:56Z — 13:33 IST OBS-20 verified fixed (35 of 36); AGENT-15: typed turn waits for Samantha startup"
     },
     "rollover": {
       "source_pr": 96,
@@ -2094,10 +2097,10 @@
       "id": "AGENT-02",
       "title": "Samantha's Context Ledger task errors and retries",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "Fresh ACU 0.2.96 telemetry records a Context Ledger recall rejected because its query had no searchable terms. No subsequent ledger call appears after that error in the selected session; earlier retry records remain in history.",
       "recommendation": "Build Context Ledger search queries from the concrete need and situation; stop after a rejected request instead of retrying with reworded arguments.",
-      "verification": "Direct installed ledger_task recall with an empty query returned ledger_invalid_argument and retryable=false; a separately supplied valid scoped recall returned the synthetic test preference. This exercises the tool boundary, not Samantha’s autonomous recovery or retry behavior.",
+      "verification": "Live on ACU 0.2.140, session 10c1a548: one ledger_task lookup with empty need and situation returned tool_error ledger_invalid_argument (retryable false); Samantha made no second Ledger call and reported the error once. A normal query (\"the of and\" with a situation) still returns matches.",
       "details": {
         "Source fix": "Use `need` before `situation` in the Context Ledger query, cap at 240 characters, and return `ledger_invalid_argument` as non-retryable. Tool and system instructions now require stopping instead of repeating with reworded arguments.",
         "Source verification": "`python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p 'test_ledger_*.py' -v` — 31 passed. The new tests failed before the source change and passed after it.",
@@ -2109,8 +2112,8 @@
         "Latest live validation": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: two ledger lookup operations completed successfully, with no ledger error/retry event in the selected session. Build attribution is session-inferred and the exact Netflix task is not explicitly linked."
       },
       "verification_refs": [
-        "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_helper.py — 18 tests passed, including concrete query composition and non-retryable invalid requests.",
-        "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — verifies proactive recall/save instructions and ledger tool guidance."
+        "~/code/acu-release/evidence/agent02-ledger-0.2.140.png",
+        "~/code/acu-release/evidence/agent02-activity-1210.jsonl"
       ],
       "verification_evidence": [
         {
@@ -2128,6 +2131,14 @@
           "session": "sref_112977461a4e2f19135c316afd6c9977; run 13244d24c02358fd741590af",
           "timestamp": "2026-11-07T17:33:46Z",
           "reference": "ACU 0.2.120 db03e0f; local signed install receipt ~/.agents/artifacts/pr88-acu-0.2.120-db03e0f.json."
+        },
+        {
+          "check": "Typed Samantha turn forcing ledger_task lookup with empty need and situation",
+          "outcome": "pass",
+          "build": "ACU 0.2.140+baf11450dc55",
+          "session": "10c1a548",
+          "timestamp": "2026-11-12T12:10:00+05:30",
+          "reference": "~/code/acu-release/evidence/agent02-ledger-0.2.140.png; ~/code/acu-release/evidence/agent02-activity-1210.jsonl"
         }
       ]
     },
@@ -2135,10 +2146,10 @@
       "id": "OBS-01",
       "title": "Voice response and audio delays",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "Developer Observability reports several slow voice and audio stages. These are leads, not confirmed user-facing latency defects.",
       "recommendation": "Trace a fresh, short voice interaction end to end and optimize only the stage that remains slow in a linked run.",
-      "verification": "The latest 0.2.97 session includes a 16.3-second speech-to-playback turn associated with Comet. This is a current telemetry lead; its root cause and a product latency target remain unestablished.",
+      "verification": "Live spoken turn 2026-11-12 on 0.2.140: turn_latency names every phase and the big delay is gone (25.0 s -> 8.8 s) after AGENT-14; what remains is the two delegated model responses (about 5.2 s).",
       "details": {
         "Latest metrics": "Speech-to-playback p95 13.7 s (p50 2.4 s, n=92); audio_ready p95 5.9 s (p50 249 ms, n=12); usage p95 4.6 s (p50 2.1 s, n=114).",
         "Threshold note": "The collector's 1.0 s threshold is an investigation signal, not a user-facing SLA. One aggregate speech-to-playback maximum is a 1,086.6 s outlier and needs run-level correlation.",
@@ -2149,7 +2160,8 @@
         "Latest candidate session": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: observed speech-to-playback samples ranged 1.497–3.237 s. The exact Netflix task is not linked."
       },
       "verification_refs": [
-        "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — `col-4b548ad9ff94ce26`, speech-to-playback p95 14.842 s, p50 2.379 s, n=74; acceptance not assessed."
+        "evidence/spoken-0.2.140.png",
+        "call_MuzBxhFdyxnHMcJO3iTlUcXf"
       ],
       "verification_evidence": [
         {
@@ -2167,6 +2179,14 @@
           "session": "c0add2fa",
           "timestamp": "2026-11-12T11:20:00+05:30",
           "reference": "run session c0add2fa (0.2.139+af8d9674b62d) call_avkdGaMSgGDU3DhzdTvzgkGv; screenshot evidence/spoken-1109.png"
+        },
+        {
+          "check": "Spoken turn on phone mic on 0.2.140: Open Calculator and calculate fifteen times sixteen",
+          "outcome": "pass: one cua_act ok verified (2015 ms), no cua_state; transcript to playback 8832 ms (was 25030 ms on 0.2.139). Phases: first tool 113 ms after transcript, Luna response 2857 ms, tool 2015 ms, final Luna response 2298 ms, last tool end to first audio 3717 ms. Remaining time is the two delegated model responses. The reply appears twice in the log only as backend text plus its spoken transcript, not two utterances.",
+          "build": "0.2.140",
+          "session": "live",
+          "timestamp": "2026-11-12T11:16:00+05:30",
+          "reference": "activity log 11:13:19-11:13:32 IST, call_MuzBxhFdyxnHMcJO3iTlUcXf; evidence/spoken-0.2.140.png"
         }
       ]
     },
@@ -2437,10 +2457,10 @@
       "id": "AGENT-04",
       "title": "Samantha microphone preflight temporarily found no input device",
       "source": "Agent reported",
-      "status": "investigation",
+      "status": "verified_fixed",
       "observed": "A 0.2.97 startup recorded no_input_device shortly before a later session recorded successful microphone preflight and audio readiness.",
       "recommendation": "Investigate the input-device discovery and startup transition; verify whether the failure was transient and that Samantha recovers without a manual workaround.",
-      "verification": "Fresh Developer Observability snapshot 2026-11-06 07:36 UTC shows a failed preflight at 07:33:28 UTC followed by successful preflight and audio readiness in a later session. The cause and recovery mechanism are unknown.",
+      "verification": "Cause was a disconnected mic, not a code fault. On 2026-11-12, preflight passed twice with the mic connected, and the failure path is logged with its cause (OBS-15).",
       "details": {
         "Evidence": "Issue col-5e50a051d4776370; version 0.2.97 attribution is session-inferred. Later successful startup does not establish cause or a reliable recovery.",
         "Fresh device check": "After the default input returned, installed microphone preflight passed and the next session recorded microphone and audio readiness success. Cross-session recovery cause remains unknown."
@@ -2461,7 +2481,19 @@
           "session": "release receipt and voice_control status",
           "timestamp": "2026-11-07T17:33:46Z",
           "reference": "ACU 0.2.120 db03e0f; local signed install receipt ~/.agents/artifacts/pr88-acu-0.2.120-db03e0f.json."
+        },
+        {
+          "check": "Two Samantha starts with the iPhone mic connected (0.2.139 and 0.2.140)",
+          "outcome": "pass: mic_preflight ok both times (input available), and both spoken turns were transcribed. The earlier no-input result was the mic being disconnected, and mic_preflight now names that cause (OBS-15).",
+          "build": "0.2.140",
+          "session": "live",
+          "timestamp": "2026-11-12T11:17:00+05:30",
+          "reference": "mic_preflight ok in sessions c0add2fa and the 0.2.140 session; evidence/spoken-0.2.140.png"
         }
+      ],
+      "verification_refs": [
+        "evidence/spoken-1109.png",
+        "evidence/spoken-0.2.140.png"
       ]
     },
     {
@@ -2938,7 +2970,7 @@
       "id": "OBS-20",
       "title": "Attribute agent task usage and verify comparisons",
       "source": "User requested",
-      "status": "investigation",
+      "status": "verified_fixed",
       "observed": "A real Codex CLI Luna run produced task usage, but T3-delegated child usage has not been linked to an authoritative session or an independent task acceptance result.",
       "recommendation": "Establish a verifiable exact run, provider thread and turn-boundary binding; collect complete usage with explicit retry and child coverage; bind a separately verified result; reject incompatible or incomplete comparisons. Prove direct Codex first; keep T3 attribution unknown when no supported binding exists.",
       "details": {
@@ -2951,7 +2983,22 @@
         "Next controlled checks": "Run a disposable direct Codex task with a separately executed verifier and verify the exact native usage and output independently. Then attempt T3 via supported interfaces; report binding_unavailable when no authoritative run-to-thread-and-turn binding exists.",
         "Next work": "Developer Observability: full T3/child/retry attribution remains unresolved. Batched-change-list: the rollover helper is safe in the experiment copy but should only be promoted with a broader efficiency sample; the stage shortcut is not adopted. Status view and authorization/threshold are out of scope for this PR. Use docs/triage/experiments/evaluation-workflow.md for the next recommendation so deterministic checks precede agent runs."
       },
-      "evidence": []
+      "evidence": [],
+      "verification_evidence": [
+        {
+          "check": "Direct Codex CLI task captured by installed developer-observability 0.1.30, then a separate verifier; read back through observability_task_usage",
+          "outcome": "pass",
+          "build": "developer-observability 0.1.30 (PR #99, 4a9212e)",
+          "session": "task 27fbb6d1, thread 01a1cec7",
+          "timestamp": "2026-11-12T13:32:00+05:30",
+          "reference": "/Users/gurusharan/code/acu-release/evidence/obs20-UilS/result.json; /Users/gurusharan/code/acu-release/evidence/obs20-UilS/mcp.txt"
+        }
+      ],
+      "verification": "Live on installed 0.1.30: task 27fbb6d1 (gpt-6-luna low) returned status complete with thread 01a1cec7 bound, full usage (57,202 input, 35,584 cached, 100 output), child_coverage none_spawned, acceptance pass from a separate verifier receipt (independence separate_process), and no reasons. A verifier identical to the artifact was rejected. Overview totals now count only eligible tasks (excluded_incomplete shown). T3-delegated runs still report binding_unavailable because no supported run-to-thread binding exists; that is the intended honest result, not inferred.",
+      "verification_refs": [
+        "/Users/gurusharan/code/acu-release/evidence/obs20-UilS/result.json",
+        "/Users/gurusharan/code/acu-release/evidence/obs20-UilS/mcp.txt"
+      ]
     },
     {
       "id": "DEVOBS-01",
@@ -2993,7 +3040,7 @@
       "id": "DEVOBS-02",
       "title": "Coverage boilerplate repeated in every issues reply",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "observability_issues returns about 2.6 KB of coverage, coverage_details and limits on every call. That's 3.7 KB in total for samantha (one issue at 526 B) and 7.2 KB for agent-plugins. Every source reads 'partial' because the heartbeats are from 2026-11-04.",
       "recommendation": "By default, coverage is a one-line status that lists only gaps; details are available on request. Fix the stale heartbeat or partial status. ACU confirmed this independently.",
       "details": {
@@ -3002,7 +3049,8 @@
         "Fix": "Fixed on devobs-fixes 210b612: one-line project-scoped coverage (live 36 B, was ~2.5 KB); details via include_coverage; sources read this collect are collected. Awaiting installed check."
       },
       "verification_refs": [
-        "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
+        "evidence/devobs0203-1128.txt",
+        "devobs-fixes b59db8f"
       ],
       "verification_evidence": [
         {
@@ -3020,14 +3068,23 @@
           "session": "live",
           "timestamp": "2026-11-12T11:10:00+05:30",
           "reference": "devobs.py output 11:05 IST"
+        },
+        {
+          "check": "Fresh observability_collect, then observability_issues agent-plugins",
+          "outcome": "pass: freshness fresh, coverage \"ok 1/1 sources\", no legacy snapshot wording (was \"legacy snapshot 8d old (6 sources)\")",
+          "build": "devobs 0.1.29+b59db8f",
+          "session": "live",
+          "timestamp": "2026-11-12T11:28:00+05:30",
+          "reference": "evidence/devobs0203-1128.txt"
         }
-      ]
+      ],
+      "verification": "Live 2026-11-12 11:28 IST on devobs b59db8f: coverage comes from the current collect only and reads \"ok 1/1 sources\", matching freshness fresh."
     },
     {
       "id": "DEVOBS-03",
       "title": "findings.json is 80 MB for 0.4 MB of findings",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "collected/findings.json is 80,638,049 bytes. version_scopes is 59.8 MB, session_timelines 28.5 MB and findings 0.38 MB. Collect takes 11.6 s with a 278 MB peak RSS over 44,928 events.",
       "recommendation": "Store the version scopes and timelines as separate, lazily paged files (or indexes), so the snapshot stays small and collect does less work.",
       "details": {
@@ -3036,7 +3093,8 @@
         "Fix": "Fixed on devobs-fixes 210b612: findings.json 81.3 MB -> 0.42 MB with lazy per-snapshot sidecars; collect 6.1 s/295 MB -> 5.7 s/253 MB; issues read 483 -> 7 ms. Awaiting installed check."
       },
       "verification_refs": [
-        "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
+        "evidence/devobs0203-1128.txt",
+        "devobs-fixes b59db8f"
       ],
       "verification_evidence": [
         {
@@ -3054,14 +3112,23 @@
           "session": "live",
           "timestamp": "2026-11-12T11:10:00+05:30",
           "reference": "~/.local/share/developer-observability/collected/findings.json 11:05 IST"
+        },
+        {
+          "check": "observability_collect on the agent-plugins worktree under /usr/bin/time -l against the live collected dir",
+          "outcome": "pass: 7.58 s real (was 22.7 s), peak RSS 284 MB (was 353 MB), findings.json 730,694 bytes (was 80.6 MB). Peak RSS stays above the 150 MB stretch target because analysis holds about 58k events.",
+          "build": "devobs 0.1.29+b59db8f",
+          "session": "live",
+          "timestamp": "2026-11-12T11:28:00+05:30",
+          "reference": "evidence/devobs0203-1128.txt"
         }
-      ]
+      ],
+      "verification": "Live 2026-11-12 11:28 IST on devobs b59db8f: snapshot 0.73 MB and collect 7.6 s (was 80.6 MB and 22.7 s). Known limit: peak RSS 284 MB."
     },
     {
       "id": "DEVOBS-04",
       "title": "Installed version isn't on main",
       "source": "Agent reported",
-      "status": "blocked",
+      "status": "verified_fixed",
       "observed": "The Mini runs 0.1.28 from the unmerged branch samantha-pr94-rollover, and Origin main is at 0.1.23 (464e497). A reinstall from main would roll back 0.1.24 to 0.1.28.",
       "recommendation": "Intentional for now: Guru said no merges yet, so 0.1.24 to 0.1.28 stays on PR #96 (samantha-pr94-rollover). Don't reinstall from main. Devobs fixes go on branch devobs-fixes from 2f13a31, stacked on #96.",
       "details": {
@@ -3070,8 +3137,20 @@
         "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96"
       },
       "verification_refs": [
-        "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
-      ]
+        "PR #97 merge 0c35f9b",
+        "CI success 46ed678"
+      ],
+      "verification_evidence": [
+        {
+          "check": "Merge PR #97 (with Guru OK), then compare main against the installed developer-observability 0.1.29",
+          "outcome": "pass: PR #97 merged as 0c35f9b after merging main into devobs-fixes (CI had failed because the branch carried an older ACU 0.2.122 than main 0.2.129). main has no diff from installed b59db8f under plugins/developer-observability, and the installed runtime matches the repo files. The installed MCP answers.",
+          "build": "devobs 0.1.29 (main 0c35f9b)",
+          "session": "live",
+          "timestamp": "2026-11-12T11:58:00+05:30",
+          "reference": "PR #97 merge 0c35f9b42eec; CI scripts/check.py success at 46ed678"
+        }
+      ],
+      "verification": "2026-11-12 11:58 IST: PR #97 merged; main equals the installed devobs 0.1.29 build."
     },
     {
       "id": "AGENT-11",
@@ -3148,13 +3227,28 @@
       "id": "OBS-21",
       "title": "ACU reports 'App has no open window' when the real cause is a locked screen",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "2026-11-11 03:00 IST: installed 0.2.123 Calculator probe failed with observation_incomplete 'Pinned AX window 224142 not found' and hint 'App has no open window'. CGSSessionScreenIsLocked was true (locked since 00:46 IST); Calculator AX window count 0.",
       "details": {
         "Why it matters": "The failure hint points agents at opening the app, which cannot help. Root cause is session lock, readable from CGSessionCopyCurrentDictionary."
       },
       "recommendation": "Before observing, CUAService checks session lock and display sleep; on lock, fail with error_type screen_locked and hint 'Mac is locked; ask the user to unlock', and record it as the failing-step fact in observability.",
-      "evidence": []
+      "evidence": [],
+      "verification_evidence": [
+        {
+          "check": "Guru locked the Mini (CGSSessionScreenIsLocked true); MCP cua_act on Calculator, then a Samantha typed turn seven times eight",
+          "outcome": "pass: MCP returns error_type screen_locked (was observation_incomplete / App has no open window). Samantha got the hint \"Mac is locked: tell the user to unlock it\", made one cua_act with no retry and no cua_state, and said \"Your Mac is locked. Please unlock it, and I'll enter seven times eight in Calculator.\"",
+          "build": "0.2.140",
+          "session": "live",
+          "timestamp": "2026-11-12T11:21:00+05:30",
+          "reference": "MCP act 11:21 IST; activity log tool_error screen_locked; evidence/obs21-locked-0.2.140.png"
+        }
+      ],
+      "verification": "Live 2026-11-12 11:21 IST on 0.2.140 with the Mini locked: ACU reports screen_locked, and Samantha tells the user to unlock instead of retrying or reading state.",
+      "verification_refs": [
+        "evidence/obs21-locked-0.2.140.png",
+        "activity log tool_error screen_locked 11:21 IST"
+      ]
     },
     {
       "id": "AGENT-12",
@@ -3248,13 +3342,40 @@
       "id": "AGENT-14",
       "title": "Correct result reported as not confirmed when the app restored the same value",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "Spoken turn 15 x 16: Calculator showed 240 but cua_act returned expect_unverified. Samantha then called cua_state, spent an extra 11.4 s model response, and said the answer twice.",
       "recommendation": "Also verify when every step ran ok, the expected value is present after, and the AX text values changed (compact_verification._expect_rewritten).",
-      "verification": "Pending: live act on 0.2.140 where Calculator relaunches already showing 240 and the act computes 240 again; expect ok verified, no follow-up cua_state.",
+      "verification": "Live 2026-11-12 11:26 IST on ACU 0.2.140: with Calculator reopening already showing 240, the act computing 240 again returned ok and verified.",
       "details": {
         "Root cause": "expect_is_new requires the expected text to be absent before the act. Calculator relaunched with the previous result 240 already displayed, so a correct result could never verify.",
         "Test": "test_expect_same_value_restored_counts_when_steps_ran_and_values_changed (73 pass)."
+      },
+      "verification_evidence": [
+        {
+          "check": "Quit Calculator showing 15 x 16 = 240, then one cua_act open > All Clear > 1 6 x 1 5 = with expect 240",
+          "outcome": "pass: ok true, verified true, completion verified; Last Expression changed 15 x 16 -> 16 x 15 while Edit field stayed 240 (before the fix this was expect_unverified)",
+          "build": "0.2.140",
+          "session": "live",
+          "timestamp": "2026-11-12T11:27:00+05:30",
+          "reference": "MCP act result 11:26 IST; evidence/agent14-calc-0.2.140.png; release rel-0.2.140.json"
+        }
+      ],
+      "verification_refs": [
+        "evidence/agent14-calc-0.2.140.png",
+        "pr96/rel-0.2.140.json"
+      ]
+    },
+    {
+      "id": "AGENT-15",
+      "title": "Typed turn rejected while Samantha is still starting",
+      "source": "Agent reported",
+      "status": "in_progress",
+      "observed": "POST /api/session/text about 3 s after voice_control start returned 'no active live session' although start reported healthy; audio_ready arrived at 6.4 s.",
+      "recommendation": "Have the text endpoint wait up to a bounded startup timeout for the session to become ready, and return a startup_in_progress error with the current phase if it times out.",
+      "verification": "",
+      "details": {
+        "session": "10c1a548",
+        "startup_phases": "realtime_session_updated 3.5 s, mic_preflight 3.5 s, audio_ready 6.4 s"
       }
     }
   ]

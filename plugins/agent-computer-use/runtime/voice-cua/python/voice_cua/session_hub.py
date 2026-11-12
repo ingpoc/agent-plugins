@@ -56,7 +56,8 @@ def send_text_and_wait(text: str, *, timeout: float = 90.0) -> dict[str, Any]:
         if dormant is not None and dormant.is_set():
             sess._wake.set()
         if not sess._session_ready.wait(timeout=WAKE_WAIT_S):
-            return {"ok": False, "error": "live session not ready yet"}
+            return {"ok": False, "error": "live session still starting or reconnecting — try again shortly",
+                    "error_type": "session_not_ready"}
     return sess.send_text_and_wait(text, timeout=timeout)
 
 
