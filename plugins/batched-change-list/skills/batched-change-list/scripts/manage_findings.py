@@ -656,6 +656,20 @@ def main(argv=None):
                 if not isinstance(operation, dict):
                     raise ValueError("batch operation must be an object")
                 action = operation.get("action")
+                if action == "introspect":
+                    result = operation.get("result")
+                    if not isinstance(result, str) or not result.strip() or "\n" in result or "\r" in result:
+                        raise ValueError("introspect requires result: one nonempty line, e.g. \"no issues\"")
+                    store["document"].setdefault("tracking", {})["introspect"] = {
+                        "result": result.strip(), "at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")}
+                    continue
+                if action in ("set-stage", "set-activity", "rollover"):
+                    target = "report_rollover" if action == "rollover" else operation.get("stage")
+                    tracking = store["document"].setdefault("tracking", {})
+                    if target == "report_rollover" and "install" in tracking.get("stages_reached", []) and not tracking.get("introspect"):
+                        raise ValueError("full cycle (reached install): record {\"action\":\"introspect\",\"result\":\"no issues\"} or its findings before report_rollover")
+                    if target in RENDERER.WORKFLOW_STAGES and target not in tracking.setdefault("stages_reached", []):
+                        tracking["stages_reached"].append(target)
                 if action == "set-stage":
                     stage = operation.get("stage")
                     if stage not in (*RENDERER.WORKFLOW_STAGES, None) or "stage" not in operation:
@@ -696,6 +710,8 @@ def main(argv=None):
                     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                     note = str(operation.get("now") or f"Rolled over to {pr['label']}").strip().splitlines()[0]
                     tracking["workflow"] = {"stage": "report_rollover", "updated_at": timestamp, "now": f"{timestamp} — {note}"}
+                    tracking.pop("stages_reached", None)  # a new cycle starts after rollover
+                    tracking.pop("introspect", None)
                     continue
                 if action in run_actions:
                     if action == "finish-check" and operation.get("id") in started_checks:

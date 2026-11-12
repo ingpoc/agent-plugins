@@ -1919,6 +1919,21 @@
         },
         "AGENT-15": {
           "state": "pending"
+        },
+        "WF-01": {
+          "state": "pending"
+        },
+        "WF-02": {
+          "state": "pending"
+        },
+        "WF-03": {
+          "state": "pending"
+        },
+        "WF-04": {
+          "state": "pending"
+        },
+        "WF-05": {
+          "state": "pending"
         }
       }
     },
@@ -1935,7 +1950,8 @@
     },
     "workflow": {
       "stage": "report_rollover",
-      "updated_at": "2026-11-12T08:10:30+00:00"
+      "updated_at": "2026-11-12T08:59:15Z",
+      "now": "2026-11-12T08:59:15Z — 14:29 IST WF-05 and WF-01 verified; PR #100 ready for review (small cycle, no Introspect)"
     },
     "rollover": {
       "source_pr": 96,
@@ -1975,7 +1991,10 @@
         "USER-07",
         "AGENT-12"
       ]
-    }
+    },
+    "stages_reached": [
+      "report_rollover"
+    ]
   },
   "findings": [
     {
@@ -3389,6 +3408,84 @@
       "verification_refs": [
         "/Users/gurusharan/code/acu-release/evidence/agent15-startup-0.2.141.png",
         "~/code/acu-release/pr96/rel-0.2.141.json"
+      ]
+    },
+    {
+      "id": "WF-01",
+      "title": "New test passed locally but failed in the release gate's runner",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "ACU 0.2.141 release source-checks failed: test_session_hub_startup.py raised ModuleNotFoundError voice_cua under the gate's per-file unittest run, after passing under local pytest from voice-cua/python. One extra release cycle (~3 min).",
+      "recommendation": "Give the local check the same per-file runner the gate uses for changed tests (e.g. check.py --changed), and run it before release.sh, so a runner mismatch fails in seconds, not in the release.",
+      "verification": "release.sh now runs scripts/check.py --changed-since origin-cursor/main (the gate's own runner) right after its commit and before push/release. Proof: a voice-cua test without the sys.path insert passed under pytest but the precheck failed in about 70 s with ModuleNotFoundError: voice_cua, so release would stop before starting.",
+      "details": {
+        "evidence": "~/code/acu-release/pr96 rel-0.2.141 first source-checks log, commit fb4602e",
+        "fixed_in_introspect": "release.sh now deletes the previous report before running and fails loudly unless the PR branch on origin-cursor equals HEAD (a -q push had silently failed because the branch tracked main)"
+      },
+      "verification_refs": [
+        "~/code/acu-release/evidence/wf01-precheck-catches.log",
+        "~/code/acu-release/pr96/release.sh"
+      ]
+    },
+    {
+      "id": "WF-02",
+      "title": "Release showed the previous run's failure as the new run's",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "Second 0.2.141 release attempt reported the first attempt's source-checks failure (same log, commit fb4602e instead of 75e2ac4).",
+      "recommendation": "release.sh deletes this version's report and logs before starting.",
+      "verification": "Fixed in Introspect: a temp dir with rel-9.9.json, rel-9.9.log, rel-9.9-x.log and rel-9.9.wrap.log kept only the caller's wrap log after the new cleanup line ran.",
+      "details": {
+        "fixed_in": "Introspect after PR #98 verify (2026-11-12)"
+      },
+      "verification_refs": [
+        "~/code/acu-release/pr96/release.sh line 5"
+      ]
+    },
+    {
+      "id": "WF-03",
+      "title": "Push to the PR branch failed silently",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "git push -q after the tracker commit pushed nothing because the branch tracked origin-cursor/main; PR #98 kept showing 75e2ac4 until checked by hand.",
+      "recommendation": "Push HEAD to the branch by name and fail unless the remote ref equals HEAD; set the branch upstream to its own PR branch.",
+      "verification": "Fixed in Introspect: release.sh pushes HEAD:<branch> and exits 'push failed' unless ls-remote equals HEAD; the same check confirmed samantha-introspect pushed for PR #100.",
+      "details": {
+        "fixed_in": "Introspect after PR #98 verify (2026-11-12)"
+      },
+      "verification_refs": [
+        "~/code/acu-release/pr96/release.sh lines 6-8"
+      ]
+    },
+    {
+      "id": "WF-04",
+      "title": "Merged work left a worktree and branch behind",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "After PR #99 merged, worktree obs20-usage and branch codex/obs20-usage-binding were still present.",
+      "recommendation": "Remove a task worktree and branch once its PR merges.",
+      "verification": "Fixed in Introspect: worktree removed and branch deleted (was 4a9212e).",
+      "details": {
+        "fixed_in": "Introspect after PR #98 verify (2026-11-12)"
+      },
+      "verification_refs": [
+        "git worktree list"
+      ]
+    },
+    {
+      "id": "WF-05",
+      "title": "Introspect can be skipped after a full cycle",
+      "source": "User requested",
+      "status": "verified_fixed",
+      "observed": "After the PR #98 Verify the list moved straight to Report & roll over with no Introspect record.",
+      "recommendation": "Block report_rollover after a full cycle (one that reached Install and Verify) until an Introspect line is recorded; a clean run records one line; small cycles skip it.",
+      "verification": "On a copy of the live PR #96 tracker with batched-change-list 0.1.7 (541c855): reaching install then report_rollover was refused with the introspect message (exit 2); after one introspect line 'no issues' the move succeeded. New unit test covers small cycles not gated and rollover clearing the record; all three test files pass per-file.",
+      "details": {
+        "rule": "Guru 2026-11-12 14:16-14:23 IST"
+      },
+      "verification_refs": [
+        "~/code/acu-release/evidence/wf05/live.txt",
+        "test_full_cycle_needs_introspect_before_report_small_cycle_does_not"
       ]
     }
   ]
