@@ -218,6 +218,12 @@ def _failure_facts(
     failed_step = (reported_step - 1 if isinstance(reported_step, int) and reported_step > 0
                    else failed_result_index)
     steps = arguments.get("steps")
+    missing = re.search(r"Label not found: (.+?)\. elementCount=", str(error or ""))
+    if missing and isinstance(steps, list):
+        named = next((i for i, step in enumerate(steps) if isinstance(step, dict)
+                      and str(step.get("label", "")).casefold() == missing.group(1).strip().casefold()), None)
+        if named is not None:
+            failed_step = named
     expected_step = (steps[failed_step] if failed_step is not None and isinstance(steps, list)
                      and failed_step < len(steps) and isinstance(steps[failed_step], dict) else arguments)
     target_keys = ("op", "label", "text", "query", "selector", "element", "element_index", "role", "expect")

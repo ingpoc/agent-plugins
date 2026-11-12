@@ -1907,6 +1907,12 @@
         },
         "AGENT-12": {
           "state": "pending"
+        },
+        "OBS-22": {
+          "state": "pending"
+        },
+        "AGENT-13": {
+          "state": "pending"
         }
       }
     },
@@ -1923,8 +1929,8 @@
     },
     "workflow": {
       "stage": "install",
-      "updated_at": "2026-11-12T04:38:03Z",
-      "now": "2026-11-12T04:38:03Z — 10:10 IST Releasing and installing ACU 0.2.138 (spoken timeline + GPT-Live rename)"
+      "updated_at": "2026-11-12T04:40:32Z",
+      "now": "2026-11-12T04:40:32Z — 10:30 IST Re-releasing 0.2.138 with the OBS-22 and AGENT-13 fixes (first run stopped: tree changed mid-release)"
     },
     "rollover": {
       "source_pr": 96,
@@ -3097,6 +3103,32 @@
         "Release source-checks swift step completed in 73.9 s on 0.2.126 (rel-0.2.126b-source-checks.log)."
       ],
       "verification": "Full CUAService swift test run finishes (602 tests, 0 failures, about 95 s) and completes inside the release source checks on 0.2.126."
+    },
+    {
+      "id": "OBS-22",
+      "title": "Failed multi-step click names the wrong button in the error record",
+      "source": "Agent reported",
+      "status": "in_progress",
+      "observed": "Calculator cua_act failed with \"Label not found: Multiply\" but failure.expected_target said label 1 / All Clear and failed_step 1 (activity log rows 4923, 5556).",
+      "details": {
+        "Cause": "CUAService resolves labels before running and reports failed_step 1; fail_feedback used that index, so expected_target pointed at the first step."
+      },
+      "recommendation": "When the error names a missing label, attribute the failure to the step with that label (fail_feedback.py + unit test).",
+      "verification_evidence": [],
+      "verification_refs": []
+    },
+    {
+      "id": "AGENT-13",
+      "title": "Samantha clicks Calculator buttons before the app has finished loading",
+      "source": "Agent reported",
+      "status": "in_progress",
+      "observed": "First cua_act after opening Calculator failed target_missing with elementCount=16 (buttons not yet in the AX tree); a retry seconds later worked.",
+      "details": {
+        "Cause": "handleClick looked the label up once, in a cached snapshot taken before the app had filled its AX tree."
+      },
+      "recommendation": "On label miss, re-walk the tree up to 4 times over about 1.2 s before failing (MethodRouter.handleClick).",
+      "verification_evidence": [],
+      "verification_refs": []
     }
   ]
 }

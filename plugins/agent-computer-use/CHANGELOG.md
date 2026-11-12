@@ -4,6 +4,8 @@
 
 - Samantha: spoken turns log a full `turn_latency` timeline (speech, transcript, first reply, tool, final reply) built from the GPT-Live events Samantha actually receives.
 - Samantha: Realtime-era names renamed to GPT-Live (`live_session.py`, `LiveSession`, `VOICE_CUA_LIVE_*`, `live_model`/`live_voice`); old env vars and settings keys still read as fallbacks.
+- macos-cua: a click by label re-reads the app's controls for up to about 1.2 s before failing, so the first click right after an app launches no longer misses.
+- macos-cua: a failed multi-step action names the step whose label was missing in `failure.expected_target`, not the first step.
 
 ## 0.2.137
 

@@ -750,14 +750,16 @@ final class MethodRouter: @unchecked Sendable {
         let elementIndex: Int? = req.paramInt("element_index")
         let cached = axTree.cachedSnapshot(windowID: resolved.windowID)
             .flatMap { snap in snap.elements.count > (elementIndex ?? -1) ? snap : nil }
-        let snapshot = cached
-            ?? axTree.walk(
+        let freshWalk = {
+            self.axTree.walk(
                 axApp: resolved.axApp,
                 windowID: resolved.windowID,
                 maxElements: Self.walkBound(for: elementIndex),
                 pid: resolved.pid,
                 bundleID: resolved.bundleID
             )
+        }
+        var snapshot = cached ?? freshWalk()
 
         let label: String? = req.param("label")
         let x: Double? = req.paramDouble("x")
@@ -769,6 +771,15 @@ final class MethodRouter: @unchecked Sendable {
             target = axTree.findElementByIndex(snapshot, index: elementIndex)
         } else if let label {
             target = axTree.findElementByLabel(snapshot, label: label)
+            // A just-launched app may still be filling its AX tree, and the cached
+            // snapshot can predate it: re-walk (up to ~1.2 s) before failing.
+            var attempt = 0
+            while target == nil, x == nil, attempt < 4 {
+                if attempt > 0 { try await Task.sleep(nanoseconds: 300_000_000) }
+                snapshot = freshWalk()
+                target = axTree.findElementByLabel(snapshot, label: label)
+                attempt += 1
+            }
         }
 
         let clickPoint: CGPoint
