@@ -48,21 +48,24 @@ class CometBeginTests(unittest.TestCase):
         return result, published, events, backend
 
     def test_comet_is_never_a_separate_island_app(self) -> None:
-        _, published, _, _ = self._run({"url": "https://www.netflix.com/browse?q=secret"}, frontmost=[])
+        _, published, _, _ = self._run({"url": "https://example.test/browse?q=diagnostic-query-sentinel"}, frontmost=[])
         self.assertTrue(published)
         self.assertTrue(all(k.get("app") == "" for _, k in published), published)
 
-    def test_comet_call_logs_opaque_target_and_tab_ids_only(self) -> None:
-        _, _, events, _ = self._run({"url": "https://www.netflix.com/browse?q=secret"}, frontmost=[])
+    def test_comet_call_keeps_task_url_with_opaque_target_and_tab_ids(self) -> None:
+        url = "https://example.test/browse?q=diagnostic-query-sentinel"
+        _, _, events, _ = self._run({"url": url}, frontmost=[])
         call = next(k for kind, k in events if kind == "comet_call")
         self.assertRegex(call["target_id"], r"^[0-9a-f]{12}$")
         self.assertEqual(call["tab_id"], "abc123def456")
-        self.assertNotIn("secret", json.dumps(call))
+        self.assertEqual(call["requested_url"], url)
+        self.assertNotIn("url", call)
+        self.assertIn("diagnostic-query-sentinel", json.dumps(call))
         self.assertEqual(tools.comet_target_id("x"), tools.comet_target_id("x"), "stable for duplicate detection")
 
     def test_foreground_is_claimed_only_when_verified(self) -> None:
         result, published, events, backend = self._run(
-            {"url": "https://netflix.com", "foreground": True}, frontmost=["Finder", "Comet"])
+            {"url": "https://example.test", "foreground": True}, frontmost=["Finder", "Comet"])
         backend.focus.assert_called_once_with("Comet")
         self.assertTrue(result["ok"])
         self.assertTrue(result["frontmost"])
@@ -71,7 +74,7 @@ class CometBeginTests(unittest.TestCase):
 
     def test_foreground_failure_is_reported_not_claimed(self) -> None:
         result, published, _, _ = self._run(
-            {"url": "https://netflix.com", "foreground": True}, frontmost=["Finder"] * 50)
+            {"url": "https://example.test", "foreground": True}, frontmost=["Finder"] * 50)
         self.assertFalse(result["ok"])
         self.assertFalse(result["frontmost"])
         self.assertEqual(result["error_type"], "comet_not_frontmost")

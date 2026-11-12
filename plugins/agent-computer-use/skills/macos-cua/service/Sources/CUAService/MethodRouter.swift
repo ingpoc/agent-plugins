@@ -46,11 +46,30 @@ final class MethodRouter: @unchecked Sendable {
     /// Methods that never move the tip: no action bracket, so observers
     /// polling them neither show the tip nor extend its idle countdown.
     static let nonActionMethods: Set<String> = ["runtime_contract", "list_apps", "hide_agent_cursor", "wait", "credential_request", "credential_status", "credential_cancel", "system_volume", "local_sessions", "voice_control"]
+    private static let appWindowMethods: Set<String> = ["get_app_state", "click", "press_key", "hold_key", "type_text", "scroll", "set_value", "select_text", "perform_secondary_action", "drag", "open_item", "execute_plan"]
 
     static func movesTip(_ req: JSONRPCRequest) -> Bool {
         if nonActionMethods.contains(req.method) { return false }
         if req.method == "get_app_state" { return (req.param("raiseForInput") as Bool?) == true }
         return true
+    }
+
+    static func screenFailure(
+        sessionDictionary: () -> [String: Any]?,
+        displayIsAsleep: () -> Bool
+    ) -> (errorType: String, hint: String)? {
+        if sessionDictionary()?["CGSSessionScreenIsLocked"] as? Bool == true {
+            return ("screen_locked", "Mac is locked; ask the user to unlock")
+        }
+        if displayIsAsleep() { return ("display_asleep", "Display is asleep; wake it") }
+        return nil
+    }
+
+    private static func currentScreenFailure() -> (errorType: String, hint: String)? {
+        screenFailure(
+            sessionDictionary: { CGSessionCopyCurrentDictionary() as? [String: Any] },
+            displayIsAsleep: { CGDisplayIsAsleep(CGMainDisplayID()) != 0 }
+        )
     }
 
     static func contractMatches(_ supplied: [String: String]?, expected: [String: Any]) -> Bool {
@@ -81,7 +100,7 @@ final class MethodRouter: @unchecked Sendable {
             do {
                 return .success(id: request.id, try handleCursorControl(request))
             } catch let e as RPCMethodError {
-                return .error(id: request.id, code: e.code, message: e.message)
+                return .error(id: request.id, code: e.code, message: e.message, errorType: e.errorType, hint: e.hint)
             } catch {
                 return .error(id: request.id, code: -32603, message: error.localizedDescription)
             }
@@ -104,10 +123,13 @@ final class MethodRouter: @unchecked Sendable {
         if isAction { cursorOverlay.beginAction(request.method) }
         defer { if isAction { cursorOverlay.endAction(request.method) } }
         do {
+            if Self.appWindowMethods.contains(request.method), let failure = Self.currentScreenFailure() {
+                throw RPCMethodError(code: -32002, message: failure.hint, errorType: failure.errorType, hint: failure.hint)
+            }
             let result = try await dispatch(request)
             return .success(id: request.id, result)
         } catch let e as RPCMethodError {
-            return .error(id: request.id, code: e.code, message: e.message)
+            return .error(id: request.id, code: e.code, message: e.message, errorType: e.errorType, hint: e.hint)
         } catch {
             return .error(id: request.id, code: -32603, message: error.localizedDescription)
         }

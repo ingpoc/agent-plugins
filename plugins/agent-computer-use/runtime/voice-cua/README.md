@@ -26,6 +26,8 @@ cause of an unframed transport loss by themselves.
 
 A confirmed missing Comet lease clears Samantha’s local lease pointer. The failed action is not replayed; the next browser task must acquire a new lease with `comet_begin`. Timeouts retain the existing lease because ownership remains uncertain.
 
+Local activity rows carry the existing task run ID plus stable request, response, tool, and playback step refs with causal links. Full requests, non-secret arguments, and Ledger results stay in the local log; credential fields and recognized tokens are scrubbed. CUA and Comet observations are summarized to relevant target facts and counts instead of full trees or page text. The same shared append writer and rotation lock are used for every row.
+
 Connection-close diagnostics include successful client-send and microphone-append ages, plus ping/pong timing captured before transport teardown when available. They contain no audio payloads and do not establish a disconnect cause. Repository test runs write activity to temporary logs rather than the live Kindle feed.
 
 Browser function schemas are available at delegation start; their connections remain lazy and actions require an active lease. Credential cancellation emits `tool_cancelled` without creating a workflow repair latch. Explicit acceptance checkers can emit validated `task_outcome` records; these are machine-check results, not inferred assistant completion. A completed spoken turn is not reused to identify a later delegation; an unmatched delegation remains unattributed.

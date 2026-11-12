@@ -168,7 +168,10 @@ class CUABackend:
             try:
                 state = self.state(app)
             except Exception as exc:  # noqa: BLE001 - app still launching
-                state = {"ok": False, "error": str(exc)[:240]}
+                state = {"ok": False, "error": str(exc)[:240],
+                         "error_type": getattr(exc, "error_type", None), "hint": getattr(exc, "hint", None)}
+            if state.get("error_type") in {"screen_locked", "display_asleep"}:
+                return {key: state[key] for key in ("ok", "error", "error_type", "hint") if state.get(key) is not None}
             if state.get("ok") and state.get("elementCount"):
                 break
             if time.monotonic() >= deadline:

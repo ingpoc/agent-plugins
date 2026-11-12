@@ -29,8 +29,13 @@ except ImportError:  # pragma: no cover — bundled without package root
     from audio_dsp import BargeInDetector, FrameChunker, StreamResampler, pcm_rms  # type: ignore
 
 try:
-    from voice_cua.activity_log import log_event as _log_event
+    from voice_cua.activity_log import log_event as _log_event, new_step_ref
 except ImportError:  # pragma: no cover
+    from uuid import uuid4
+
+    def new_step_ref() -> str:
+        return uuid4().hex
+
     def _log_event(_kind: str, **_fields: Any) -> None:
         return None
 
@@ -654,13 +659,18 @@ class RealtimeAudio:
             # Output overlapping speech cannot measure the first audio after that utterance.
             self._timed_turn_id = turn_id
 
-    def flush_timings(self, run_id: str = "") -> None:
+    def flush_timings(self, run_id: str = "", causal_ref: str = "") -> None:
         """Drain playback timings; ``run_id`` joins the row to the task run (OBS-14)."""
         while True:
             try:
                 row = self._speaker.timings.get_nowait()
             except queue.Empty:
                 return
+            row = {**row, "step_ref": new_step_ref(),
+                   "run_ref_status": "linked" if run_id else "unknown",
+                   "run_ref_gap": None if run_id else "playback_run_id_missing",
+                   "caused_by": [causal_ref] if causal_ref else None,
+                   "causal_ref_gap": None if causal_ref else "response_step_ref_missing"}
             if run_id:
                 row = {**row, "run_id": run_id}
             _log_event("voice_latency", **row)

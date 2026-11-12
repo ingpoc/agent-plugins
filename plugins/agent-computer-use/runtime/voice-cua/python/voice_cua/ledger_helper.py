@@ -90,10 +90,16 @@ class LedgerHelper:
         self._requests: dict[str, dict[str, Any]] = {}
         self._pending_dir = pending_dir or Path.home() / '.cache/macos-cua/ledger-pending'
         self._history: dict[tuple[str, str], dict[str, Any]] = {}
+        self._rejected_recall = ""
 
     def note_user(self, text: str) -> None:
         if isinstance(text, str) and text.strip():
             self._utterances.append(' '.join(text.split())[:2000])
+            self._rejected_recall = ""
+
+    def _reject_recall(self, reason: str) -> dict[str, Any]:
+        self._rejected_recall = reason
+        return _invalid(reason)
 
     @staticmethod
     def _request(prompt: dict[str, Any]) -> dict[str, Any]:
@@ -136,6 +142,8 @@ class LedgerHelper:
     def run(self, *, operation: str, situation: str = "", need: str = "", project: str | None = None, capture_gate: dict[str, str] | None = None, scope: str = "", rule: str = "", value: str = "", owner_quote: str = "") -> dict[str, Any]:
         if self._closed.is_set():
             return {'ok': False, 'error': 'Ledger helper session closed'}
+        if operation == 'recall' and self._rejected_recall:
+            return _invalid('Context Ledger already rejected this recall; stop and explain the earlier reason')
         if operation in {'recall', 'preference'}:
             if not all(isinstance(item, str) for item in (scope, rule, value, owner_quote)):
                 return _invalid('Scope, rule, value, and owner_quote must be text')
@@ -144,9 +152,9 @@ class LedgerHelper:
                 return _invalid('Use scope fleet, tool:<lowercase-id>, or project:<lowercase-id>; rule must be lowercase_snake_case')
             try:
                 if operation == 'recall':
+                    if not any(isinstance(v, str) and v.strip() for v in (need, situation)):
+                        return self._reject_recall('Recall needs a concrete need or situation')
                     query = ' '.join(f'{need} {situation} {rule.replace("_", " ")}'.split())[:240]
-                    if not query:
-                        return _invalid('Recall needs concrete search terms or a decision rule')
                     args = {'query': query, 'scope': scope, 'actor': 'samantha'}
                     if rule:
                         args['rule'] = rule
@@ -173,7 +181,7 @@ class LedgerHelper:
                     raise LedgerUnavailable('missing save receipt')
                 return {'ok': True, 'status': 'saved', **result['data']}
             except LedgerInvalidArgument as exc:
-                return _invalid(f'Context Ledger rejected the request: {exc.message or exc.code}')
+                return self._reject_recall(f'Context Ledger rejected the request: {exc.message or exc.code}')
             except Exception:
                 return {'ok': False, 'error': 'Context Ledger unavailable or save outcome unknown', 'error_type': 'ledger_unavailable' if operation == 'recall' else 'ledger_outcome_unknown'}
         if operation not in {'lookup', 'capture'} or not situation.strip() or not need.strip():
@@ -308,10 +316,11 @@ class LedgerHelper:
                 detail = exc.message or exc.code
                 return _invalid(f'Context Ledger rejected the request (invalid argument: {detail[:80]}); nothing was saved')
             except Exception as exc:
-                from voice_cua.activity_log import _current_tool_ids, log_event
+                from voice_cua.activity_log import _current_tool_ids, _diagnostic_text, log_event
                 cause = exc.__cause__
                 log_event('ledger_helper_error', **_current_tool_ids(), stage='capture' if write_started else 'lookup',
-                          error_class=type(exc).__name__, cause_class=type(cause).__name__ if cause else None,
+                          error_class=type(exc).__name__, error=_diagnostic_text(str(exc), limit=240),
+                          cause_class=type(cause).__name__ if cause else None,
                           http_status=exc.code if isinstance(exc, urllib.error.HTTPError) else None)
                 if write_started:
                     return {'ok': False, 'error': 'Ledger save outcome unknown; do not retry without checking', 'error_type': 'ledger_outcome_unknown'}

@@ -46,6 +46,10 @@ class LiveInboundTranscriptTests(unittest.TestCase):
         self.assertIn("user_transcript", kinds)
         user = dict(events)["user_transcript"]
         self.assertEqual(user["chars"], len("Open Calculator"))
+        self.assertEqual(user["text"], "Open Calculator")
+        self.assertEqual(user["run_ref_status"], "linked")
+        self.assertTrue(user["run_id"])
+        self.assertTrue(user["step_ref"])
         self.assertEqual(dict(events)["assistant_reply"]["text"], "Opening it now.")
 
 

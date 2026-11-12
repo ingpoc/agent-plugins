@@ -228,28 +228,31 @@ final class InputActions: @unchecked Sendable {
         // a sibling writable area (Codex r11 confirm major 1).
         let focusedIsArea = focused.map { axRole($0) == "AXTextArea" } ?? false
         if let focused {
+            let facts = focusedFacts(focused)
             if axInsertText(focused, text) {
-                return [
+                return addingFocusedFacts([
                     "ok": true, "method": "ax-set-value", "length": text.count,
                     "focused_is_area": focusedIsArea,
-                ]
+                ], facts)
             }
-            return [
+            return addingFocusedFacts([
                 "ok": false,
                 "error": "type_focused_insert_failed",
                 "method": "refused",
                 "windowId": Int(resolved.windowID),
                 "hint": "focused field rejected AX insert; refusing sibling fallthrough",
-            ]
+            ], facts)
         }
         for (el, _) in areas {
+            let facts = focusedFacts(el)
             if axInsertText(el, text) {
-                return ["ok": true, "method": "ax-set-value", "length": text.count]
+                return addingFocusedFacts(["ok": true, "method": "ax-set-value", "length": text.count], facts)
             }
         }
         for el in live {
+            let facts = focusedFacts(el)
             if axInsertText(el, text) {
-                return ["ok": true, "method": "ax-set-value", "length": text.count]
+                return addingFocusedFacts(["ok": true, "method": "ax-set-value", "length": text.count], facts)
             }
         }
 
@@ -274,13 +277,15 @@ final class InputActions: @unchecked Sendable {
                     "hint": "click did not focus the requested text field; nothing was typed",
                 ]
             }
-            return hidTypeResult(text, resolved: resolved)
+            let facts = focusedFacts(el)
+            return addingFocusedFacts(hidTypeResult(text, resolved: resolved), facts)
         }
         // HID without a prior pinned-window click only when focus is already
         // inside the pinned window — otherwise we would type into the wrong one.
-        if focused != nil {
+        if let focused {
             if let refuse = hidRefusal() { return refuse }
-            return hidTypeResult(text, resolved: resolved)
+            let facts = focusedFacts(focused)
+            return addingFocusedFacts(hidTypeResult(text, resolved: resolved), facts)
         }
         if rawFocused != nil || !live.isEmpty {
             return [
@@ -335,11 +340,12 @@ final class InputActions: @unchecked Sendable {
                 "windowId": Int(resolved.windowID),
             ]
         }
+        let facts = focusedFacts(axEl)
         if isTextRole(axEl), axInsertText(axEl, text) {
-            return [
+            return addingFocusedFacts([
                 "ok": true, "method": "ax-set-value", "length": text.count,
                 "element_index": target.index,
-            ]
+            ], facts)
         }
         let frame = target.frame
         guard frame.width > 1, frame.height > 1, frame.origin.x.isFinite, frame.origin.y.isFinite else {
@@ -366,7 +372,7 @@ final class InputActions: @unchecked Sendable {
                 "hint": "click did not focus the requested element; nothing was typed",
             ]
         }
-        var typed = hidTypeResult(text, resolved: resolved)
+        var typed = addingFocusedFacts(hidTypeResult(text, resolved: resolved), facts)
         typed["element_index"] = target.index
         return typed
     }
@@ -424,6 +430,28 @@ final class InputActions: @unchecked Sendable {
         var ref: CFTypeRef?
         AXUIElementCopyAttributeValue(el, kAXRoleAttribute as CFString, &ref)
         return (ref as? String) ?? ""
+    }
+
+    private func axSubrole(_ el: AXUIElement) -> String? {
+        var ref: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(el, kAXSubroleAttribute as CFString, &ref) == .success else {
+            return nil
+        }
+        return ref as? String
+    }
+
+    private func focusedFacts(_ element: AXUIElement) -> [String: Any] {
+        var facts: [String: Any] = [:]
+        let role = axRole(element)
+        if !role.isEmpty { facts["focused_role"] = role }
+        if let subrole = axSubrole(element), !subrole.isEmpty { facts["focused_subrole"] = subrole }
+        return facts
+    }
+
+    private func addingFocusedFacts(_ result: [String: Any], _ facts: [String: Any]) -> [String: Any] {
+        var enriched = result
+        enriched.merge(facts) { _, new in new }
+        return enriched
     }
 
     private func isTextRole(_ el: AXUIElement) -> Bool {

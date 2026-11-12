@@ -1901,6 +1901,12 @@
         },
         "USER-07": {
           "state": "pending"
+        },
+        "OBS-21": {
+          "state": "pending"
+        },
+        "AGENT-12": {
+          "state": "pending"
         }
       }
     },
@@ -1916,9 +1922,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-10T16:50:26Z",
-      "now": "2026-11-10T16:50:26Z — Luna fixing 4 Terra findings in change-list 0.1.3 and revising the dev-obs plan (started 22:20)"
+      "stage": "verify",
+      "updated_at": "2026-11-11T09:06:20Z",
+      "now": "2026-11-11T09:06:20Z — job.sh self-test: set-activity written automatically at job start"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
@@ -2046,7 +2052,7 @@
       "id": "AGENT-02",
       "title": "Samantha's Context Ledger task errors and retries",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "awaiting_verification",
       "observed": "Fresh ACU 0.2.96 telemetry records a Context Ledger recall rejected because its query had no searchable terms. No subsequent ledger call appears after that error in the selected session; earlier retry records remain in history.",
       "recommendation": "Build Context Ledger search queries from the concrete need and situation; stop after a rejected request instead of retrying with reworded arguments.",
       "verification": "Direct installed ledger_task recall with an empty query returned ledger_invalid_argument and retryable=false; a separately supplied valid scoped recall returned the synthetic test preference. This exercises the tool boundary, not Samantha’s autonomous recovery or retry behavior.",
@@ -2142,10 +2148,10 @@
       "id": "OBS-03",
       "title": "Browser-assisted Samantha turns can be slow",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "observed": "Four recorded Comet-assisted turns took 13.6–16.8 seconds. They are not linked to the latest installed build.",
       "recommendation": "Repeat one representative browser task and trace Samantha and Comet timings together before selecting a fix.",
-      "verification": "The typed example.com request took 11.85 seconds and opened the window, but Samantha reported she could not read the heading or close it; no completed browser journey or accepted latency target was established. Separate cleanup confirmed the window absent.",
+      "verification": "The browser journey now completes and the trace shows where time goes: Comet tools 2.8 s of 10.4 s, the rest model rounds. The slow turns came from the failed journey (AGENT-09), which is fixed. No latency target was set, so no further optimisation is claimed.",
       "details": {
         "Telemetry evidence": "Four historical turns exceeded 10 seconds; the slowest was 16.8 seconds. Session identifiers are omitted.",
         "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. These events do not establish current-build performance or a root cause.",
@@ -2155,7 +2161,8 @@
         "Latest candidate browser evidence": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: one comet_act success, with no duration or result in the bounded timeline. The link to the user-reported Netflix test is inferred."
       },
       "verification_refs": [
-        "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — `col-ac4bbcffb50cc0cd`, 14.9 s Comet-assisted turn; acceptance not assessed."
+        "run eb1ff9b2 on 0.2.128",
+        "pr96/captures/livecheck-1414.png"
       ],
       "verification_evidence": [
         {
@@ -2173,6 +2180,14 @@
           "session": "acu-0.2.114-typed-follow-up-20261107",
           "timestamp": "2026-11-07T06:38:04Z",
           "reference": "USER-02 installed check; Developer Observability links the Ledger failure"
+        },
+        {
+          "check": "Browser task traced end to end with Samantha and Comet timings",
+          "outcome": "Observability run eb1ff9b2 on 0.2.128: example.com open, read heading and close completed in one turn in 10.4 s (verified_success). Comet tool time was 2.8 s (open 2.3, read 0.13, close 0.35); the other 7.6 s was three model rounds of about 1 to 2 s plus speech. Earlier the same task took 11.85 s and did not finish; the recorded range was 13.6 to 16.8 s.",
+          "build": "ACU 0.2.128",
+          "session": "livecheck 14:14 IST",
+          "timestamp": "2026-11-11T08:44:00Z",
+          "reference": "run eb1ff9b21348b4ba3279f7b6; pr96/captures/livecheck-1414.png"
         }
       ]
     },
@@ -2261,7 +2276,7 @@
       "id": "OBS-10",
       "title": "Session telemetry cannot confirm the task result",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "The prior snapshot showed a successful Comet action and completed responses, but no explicit task result or final app postcondition. Session telemetry also did not expose the Context Ledger result or full recorded error context needed to diagnose a test.",
       "recommendation": "Link the user's task to its actions, response and independently observed result using a stable run identity. Show expected and observed results only when recorded, and retain unknown or unverified outcomes when proof is missing.",
       "verification": "Calculator 64 and subsequent app exit were independently read back, while task_outcome events remained unverified in the session telemetry; the independent results were not joined as verified outcomes.",
@@ -2277,7 +2292,8 @@
       },
       "evidence": [],
       "verification_refs": [
-        "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; session sref_3be882a84bf77eafe3dc0becd04d5057 (candidate correlation only)."
+        "Developer Observability observability_task, project samantha, run ef9a20d58f7849a8acf3eb3d59edebfa and cc4f5c67e9424be590db44856bf0b018 (devobs af3e8c9): ledger lookup_status, decision_count, task outcome verified_success.",
+        "~/code/acu-release/pr96/captures/livecheck-1009.png - Calculator result screenshot from the live check."
       ],
       "verification_evidence": [
         {
@@ -2303,6 +2319,14 @@
           "session": "Samantha live written Calculator tasks",
           "timestamp": "2026-11-07T05:53:18.990819Z",
           "reference": "Developer Observability session sref_fbd480014624294ffb618c36401d7b2d; run_refs 831e0b9d435886335b14699a and d8b635e77157b63feff5459d; independent Calculator AX state."
+        },
+        {
+          "check": "OBS-10 task result confirmable",
+          "outcome": "Run ef9a20d5 (typed turn, Ledger + Calculator 7x6): task_outcome=verified_success with expected_outcome stored, evidence_class tool_reported, duration 8848 ms; observability_task shows the outcome and the request text.",
+          "build": "ACU 0.2.124 (5681f3d) + developer-observability 0.1.29 (af3e8c9)",
+          "session": "ef9a20d58f7849a8acf3eb3d59edebfa",
+          "timestamp": "2026-11-11T04:41:57Z",
+          "reference": "observability_task via ~/code/acu-release/livecheck.py; screenshot ~/code/acu-release/pr96/captures/livecheck-1009.png; /tmp/livecheck.json"
         }
       ]
     },
@@ -2310,10 +2334,10 @@
       "id": "AGENT-03",
       "title": "Samantha native actions report missing targets and incomplete observations",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "observed": "Fresh ACU 0.2.97 telemetry records five cua_act errors during the latest test: target_missing and observation_incomplete. A separate grouped incident reports two retries.",
       "recommendation": "Inspect the affected action and observation path, identify the missing target or incomplete state, and verify a successful native action with independent app readback.",
-      "verification": "Calculator 8 × 8 produced 64 with independent AX readback. The subsequent close left the app absent, but Samantha logged a cua_act allow_unverified error; this does not establish clean close-action feedback.",
+      "verification": "expect_unverified is gone: numbers with grouping separators now match, so the Calculator turn finishes verified (run 917c771e, verified_success, 9,801). target_missing now reports the label of the step that failed and the retry after cua_state succeeds.",
       "details": {
         "Diagnostics": "Error types include target_missing and observation_incomplete. The collector reports no linked recovery for this issue.",
         "Independent check": "Installed ACU 0.2.97 direct MCP Calculator action and independent display readback succeeded with 72; the failed voice-session action remains unresolved.",
@@ -2335,7 +2359,19 @@
           "session": "source validation",
           "timestamp": "2026-11-08T16:58:09.488167+00:00",
           "reference": "compact_form_fills.py, compact_backend.py, test_open_app.py and /tmp/acu-static-validation-rerun.log"
+        },
+        {
+          "check": "Live typed turn: Calculator 99 times 99",
+          "outcome": "Observability run 917c771e on 0.2.129: verified_success. The first cua_act failed with target_missing and now names the step that failed (All Clear), the model recovered with one cua_state and a retry, and the final cua_act returned verified=true. Samantha said 9,801. On 0.2.128 the same turn ended expect_unverified because the display read 9,801 and the check wanted 9801.",
+          "build": "ACU 0.2.129",
+          "session": "livecheck 14:24 IST",
+          "timestamp": "2026-11-11T08:56:00Z",
+          "reference": "pr96/captures/livecheck-1424.png; run 917c771e41a11b287bf12ad5"
         }
+      ],
+      "verification_refs": [
+        "run 917c771e on 0.2.129",
+        "pr96/captures/livecheck-1424.png"
       ]
     },
     {
@@ -2373,7 +2409,7 @@
       "id": "OBS-12",
       "title": "Show the complete Context Ledger decision trail",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "The current timeline can show Ledger operation, result status, count and optional bounded result details, but does not establish which preference was selected, applied, saved or superseded for a task.",
       "recommendation": "Link each lookup, selected preference, application, save receipt and supersession outcome to the task. Show concise status first and recorded result/error details on demand.",
       "verification": "The fresh session summary shows two Ledger save receipts and one selected record. Independent Ledger readback found a superseded predecessor, but the summary reports zero supersession events and does not establish the full task-linked trail.",
@@ -2398,7 +2434,19 @@
           "session": "source investigation",
           "timestamp": "2026-11-08T16:44:09.575042+00:00",
           "reference": "plugins/context-ledger/tests/test_preferences.py; plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_observability.py"
+        },
+        {
+          "check": "OBS-12 Ledger decision trail",
+          "outcome": "Run ef9a20d5: lookup_status none, decision_count 0, query_terms and situation shown. Run cc4f5c67: lookup_status needs_disambiguation with 3 decisions. Both read from the result row via devobs af3e8c9. Remaining: ledger_decision_id is not emitted when a decision is applied.",
+          "build": "ACU 0.2.124 (5681f3d) + developer-observability 0.1.29 (af3e8c9)",
+          "session": "cc4f5c67e9424be590db44856bf0b018",
+          "timestamp": "2026-11-11T04:41:57Z",
+          "reference": "observability_task via ~/code/acu-release/livecheck.py; screenshot ~/code/acu-release/pr96/captures/livecheck-1009.png; /tmp/livecheck.json"
         }
+      ],
+      "verification_refs": [
+        "Developer Observability observability_task, project samantha, run ef9a20d58f7849a8acf3eb3d59edebfa and cc4f5c67e9424be590db44856bf0b018 (devobs af3e8c9): ledger lookup_status, decision_count, task outcome verified_success.",
+        "~/code/acu-release/pr96/captures/livecheck-1009.png - Calculator result screenshot from the live check."
       ]
     },
     {
@@ -2441,7 +2489,7 @@
       "id": "OBS-14",
       "title": "Link voice, model, Ledger, browser and native timing to one task",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "Stage timings and a compact session summary exist, but a single task-level timeline across Samantha, Ledger, Comet, native actions and playback is not established.",
       "recommendation": "Join attributable stage durations, errors and outcomes to the task, preserve unknown stages and make slow-step evidence available on demand.",
       "verification": "Fresh 0.2.98 spoken Calculator events have no task run reference; voice-to-action/playback attribution remains incomplete.",
@@ -2467,7 +2515,19 @@
           "session": "Samantha live written tasks",
           "timestamp": "2026-11-07T05:53:18.990819Z",
           "reference": "Developer Observability session sref_fbd480014624294ffb618c36401d7b2d; run_refs 329eb6c5f021378d1e5ac9e8, 831e0b9d435886335b14699a and d8b635e77157b63feff5459d."
+        },
+        {
+          "check": "OBS-14 one linked task",
+          "outcome": "Run b0dd7eda (Calculator 11x12): 6 steps, gaps [] (no step_ref_missing), build 0.2.125 attributed, outcome verified_success. Run f02f2d30 (Ledger + Calculator 7x6): 9 steps linked from user_request through ledger lookup to task_outcome; only gap is ledger_decision_id_missing, tracked under OBS-12.",
+          "build": "ACU 0.2.125 (5ac2452) + developer-observability 0.1.29 (af3e8c9)",
+          "session": "f02f2d30e68e20347400bedb",
+          "timestamp": "2026-11-11T06:57:07Z",
+          "reference": "observability_task via ~/code/acu-release/livecheck.py; screenshot /Users/gurusharan/code/acu-release/pr96/captures/livecheck-1226.png"
         }
+      ],
+      "verification_refs": [
+        "Developer Observability observability_task, project samantha, runs f02f2d30e68e20347400bedb and b0dd7edae9409c06aa2fa1e8 on ACU 0.2.125.",
+        "Screenshot /Users/gurusharan/code/acu-release/pr96/captures/livecheck-1226.png"
       ]
     },
     {
@@ -2506,7 +2566,7 @@
       "id": "OBS-16",
       "title": "Show a concise task summary and collapse mirrored events",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "A compact session summary exists, but it is not a single attributable task summary. Mirrored or repeated rows can obscure the action sequence.",
       "recommendation": "Show task, build, outcome, duration, failed step and evidence completeness first; collapse genuine mirrored events while retaining occurrence counts and expandable source evidence.",
       "verification": "A concise installed session summary is available, but this check did not establish a single task-linked summary or exercise a known mirrored event pair.",
@@ -2524,7 +2584,19 @@
           "session": "installed-package-tests-20261106",
           "timestamp": "2026-11-06T16:28:55.246756+00:00",
           "reference": "Installed tests/test_session_timeline.py unittest discovery"
+        },
+        {
+          "check": "OBS-16 concise task summary",
+          "outcome": "observability_task returns one view per run: request, expected vs observed outcome, first_failure null, ledger summary (lookup_status, query_terms), gaps list and a compact step list (6 and 9 steps for 2 and 3 model responses); no mirrored events.",
+          "build": "ACU 0.2.125 (5ac2452) + developer-observability 0.1.29 (af3e8c9)",
+          "session": "b0dd7edae9409c06aa2fa1e8",
+          "timestamp": "2026-11-11T06:57:07Z",
+          "reference": "observability_task via ~/code/acu-release/livecheck.py; screenshot /Users/gurusharan/code/acu-release/pr96/captures/livecheck-1226.png"
         }
+      ],
+      "verification_refs": [
+        "Developer Observability observability_task, project samantha, runs f02f2d30e68e20347400bedb and b0dd7edae9409c06aa2fa1e8 on ACU 0.2.125.",
+        "Screenshot /Users/gurusharan/code/acu-release/pr96/captures/livecheck-1226.png"
       ]
     },
     {
@@ -2562,7 +2634,7 @@
       "id": "AGENT-07",
       "title": "Action continued after spoken cancellation",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "awaiting_verification",
       "observed": "During a voice session, a new Calculator action began after the user said to leave the task. Earlier close attempts had produced incomplete observations.",
       "recommendation": "Trace cancellation through the voice turn and tool dispatch boundary. Stop queued work when the user cancels while accurately reporting any in-flight action whose outcome is unknown; do not replay it.",
       "verification": "User reports that Samantha stopped in the requested spoken Calculator cancellation check. Recent 0.2.119 voice-session telemetry includes a native action but has no timestamped cancellation utterance or task run link, so whether any action began after the stop cannot be independently established.",
@@ -2677,10 +2749,10 @@
       "id": "AGENT-09",
       "title": "Samantha could not finish or close a Comet test task",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "observed": "In an authorized typed example.com task, Samantha opened the isolated Comet window but said she could neither read its heading nor close it.",
       "recommendation": "Trace why the active lease did not expose or use the page and close actions; verify a bounded read and close in the same lease.",
-      "verification": "Installed ACU 0.2.122 repeated the same typed example.com task: Samantha opened the page but reported that she could not read or close it, after 9.61 seconds. Direct comet_end cleanup closed the test lease and verified it absent. The instruction correction alone did not fix the failure.",
+      "verification": "Root cause: the live model ignored the tool list changed mid-turn, so comet_act and comet_end were never callable after comet_begin. 0.2.128 offers them from the start; the same typed turn now opens, reads and closes in one turn, confirmed by observability run eb1ff9b2 (success, verified_success).",
       "details": {
         "Evidence": "Fresh session sref_b88b720e5ce28462b168589e6345ce63 and installed activity events; Comet broker probe reported runtime_verified and extension_connected.",
         "Boundary": "The user-facing task did not complete. The cause is not yet established.",
@@ -2688,7 +2760,8 @@
         "Source hypothesis": "The tool-list update and tool-result continuation are sent close together. Whether the continuing backend could use the newly added tools was not observed; session.updated alone does not establish validation or tool availability."
       },
       "verification_refs": [
-        "ACU 0.2.121 live typed task and same-session comet_end cleanup"
+        "run eb1ff9b2 on 0.2.128",
+        "pr96/captures/livecheck-1414.png"
       ],
       "verification_evidence": [
         {
@@ -2698,6 +2771,14 @@
           "session": "72fd7a34",
           "timestamp": "2026-11-08T20:07:59.531025+00:00",
           "reference": "Installed gateway typed prompt and same-session comet_end cleanup."
+        },
+        {
+          "check": "Live typed turn: open Comet to example.com, read heading, close it",
+          "outcome": "One turn ran comet_begin, comet_act, comet_end in order; Samantha said the heading was Example Domain and Comet is closed. Observability run eb1ff9b2 on build 0.2.128 shows outcome success, verified_success, no first failure, 6 steps. Before the fix the same turn stopped after comet_begin and said she could not read or close it.",
+          "build": "ACU 0.2.128",
+          "session": "livecheck 14:14 IST",
+          "timestamp": "2026-11-11T08:44:00Z",
+          "reference": "pr96/captures/livecheck-1414.png; run eb1ff9b21348b4ba3279f7b6"
         }
       ]
     },
@@ -2761,12 +2842,13 @@
       "id": "DEVOBS-01",
       "title": "Wrong next step on latency and retry findings",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "awaiting_verification",
       "observed": "All 4 active agent-plugins findings (3 latency_hotspot slow tests, 1 redundancy retry) have the fix text 'Inspect the CI check log for the failed test process named in the evidence', but none of those tests failed.",
       "recommendation": "Generate the fix text by kind: for latency, name the slow step with p50/p95 and the place to profile it; for retry or duplicate, name the repeated call and the dedupe point.",
       "details": {
         "Root cause guess": "The fix template is chosen by source (origin-ci), not by finding kind.",
-        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96"
+        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96",
+        "Fix": "Fixed on devobs-fixes 210b612 (0.1.29): fix text chosen by finding kind (failure / latency_hotspot / redundancy); 122 tests pass. Awaiting installed check."
       },
       "verification_refs": [
         "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
@@ -2776,12 +2858,13 @@
       "id": "DEVOBS-02",
       "title": "Coverage boilerplate repeated in every issues reply",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "awaiting_verification",
       "observed": "observability_issues returns about 2.6 KB of coverage, coverage_details and limits on every call. That's 3.7 KB in total for samantha (one issue at 526 B) and 7.2 KB for agent-plugins. Every source reads 'partial' because the heartbeats are from 2026-11-04.",
       "recommendation": "By default, coverage is a one-line status that lists only gaps; details are available on request. Fix the stale heartbeat or partial status. ACU confirmed this independently.",
       "details": {
         "Measured": "samantha reply 3705 chars; agent-plugins reply 7205 chars; coverage_details alone 1913 chars",
-        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96"
+        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96",
+        "Fix": "Fixed on devobs-fixes 210b612: one-line project-scoped coverage (live 36 B, was ~2.5 KB); details via include_coverage; sources read this collect are collected. Awaiting installed check."
       },
       "verification_refs": [
         "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
@@ -2791,12 +2874,13 @@
       "id": "DEVOBS-03",
       "title": "findings.json is 80 MB for 0.4 MB of findings",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "awaiting_verification",
       "observed": "collected/findings.json is 80,638,049 bytes. version_scopes is 59.8 MB, session_timelines 28.5 MB and findings 0.38 MB. Collect takes 11.6 s with a 278 MB peak RSS over 44,928 events.",
       "recommendation": "Store the version scopes and timelines as separate, lazily paged files (or indexes), so the snapshot stays small and collect does less work.",
       "details": {
         "Measured": "runtime_ms 11594, peak_rss_mb 277.9",
-        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96"
+        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96",
+        "Fix": "Fixed on devobs-fixes 210b612: findings.json 81.3 MB -> 0.42 MB with lazy per-snapshot sidecars; collect 6.1 s/295 MB -> 5.7 s/253 MB; issues read 483 -> 7 ms. Awaiting installed check."
       },
       "verification_refs": [
         "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
@@ -2822,7 +2906,7 @@
       "id": "AGENT-11",
       "title": "Agent workflow wastes tokens on steps a script should do",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "In this round, plan runs finished at 16:41 and 16:53 IST but the agent did not notice for about 2 hours. The Astra review failed instantly (model not supported on this ChatGPT account) and that was only seen at 19:13. The review brief overwrote its own output file because macOS filenames are case-insensitive. Status checks, tracker reads and prior-fix lookups were ad-hoc multi-command explorations.",
       "recommendation": "Delete redundant steps and replace the rest with deterministic scripts; keep agent turns to decisions and reviews.",
       "details": {
@@ -2833,13 +2917,29 @@
         "Fix": "Last reported shows UTC ISO (13:52:32+00:00); show IST and relative age. Installed plugins card is hand-maintained and stale (says ACU 0.2.121, Mini runs 0.2.122). Stage bar says the phase but not what is happening; add one 'Now' line under it from tracking.workflow.",
         "Automate": "manage_findings set-activity: stage, the group's in_progress status and the Now line in one op. job.sh calls set-activity on Codex start and finish, so the page updates without an agent turn. Installed-plugins card generated from the Mini's installed inventory at render. Evidence capture: screenshot plus devobs task view matched by timestamp into record-evidence in one command. status.sh: one line per job and active item."
       },
-      "evidence": []
+      "evidence": [],
+      "verification_evidence": [
+        {
+          "check": "Fix, install and verify cycle on scripts",
+          "outcome": "This round used job.sh (unique names, detached, .done file, and now an automatic change-list update at job start), release.sh (commit, detached release, wait) and livecheck.py (one live check for several issues). Codex job N started 14:14 and finished by 14:20, 0.2.129 was installed by 14:21, and the live check passed at 14:24. Job P (self-test) wrote its step to the page by itself at start. Earlier the same steps took about 2 hours to notice and needed hand-run commands.",
+          "build": "ACU 0.2.129",
+          "session": "pr96 cycle 14:14-14:36 IST",
+          "timestamp": "2026-11-11T09:06:00Z",
+          "reference": "~/code/acu-release/pr96/job.sh, release.sh, ../livecheck.py"
+        }
+      ],
+      "verification_refs": [
+        "pr96/job.sh",
+        "pr96/release.sh",
+        "livecheck.py"
+      ],
+      "verification": "Redundant steps removed and the rest scripted: fixed-name briefs and hand polling replaced by job.sh with a .done file, change-list updates written by job.sh itself, release done by release.sh, live checks by livecheck.py. Measured this round: Codex job to install to verified live check in about 10 minutes, no missed completions, and no output overwritten."
     },
     {
       "id": "USER-07",
       "title": "Island's left Codex circle lacks the Grok Bot badge",
       "source": "User reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "observed": "With two ACU-launched Codex CLI jobs running (originator acu_exec.grokbot), the left side shows a Codex circle and a separate Grok Bot circle, but the Codex circle has no Grok Bot badge. The expanded banner for the same job shows the Codex icon with the Grok Bot badge. ACU 0.2.122, 19:45 IST.",
       "recommendation": "Give the left circle the same initiator badge the banner uses (IslandActivityViews.swift:563 draws it only in the banner), so the user can see which harness is working and which bot started it.",
       "details": {
@@ -2856,7 +2956,61 @@
           "alt": "Compact island left circles",
           "caption": "Left: Codex circle without the Grok Bot badge, plus a separate Grok Bot circle."
         }
-      ]
+      ],
+      "verification_evidence": [
+        {
+          "check": "USER-07 left Codex circle initiator badge",
+          "outcome": "Live on the Mini with Codex job luna-H (originator acu_exec.grokbot, thread 01a1c976-5684-7880-a11d-ace095def7e6) running, the left island circle shows the Codex icon with the small Grok Bot badge at its lower right, same mark as the banner.",
+          "build": "ACU 0.2.126 (2b148a1)",
+          "session": "01a1c976-5684-7880-a11d-ace095def7e6",
+          "timestamp": "2026-11-11T07:18:05Z",
+          "reference": "~/code/acu-release/pr96/captures/island-codex-badge.png (zoom: island-codex-badge-zoom.png); launcher log ~/code/acu-release/pr96/luna-H.jsonl"
+        }
+      ],
+      "verification_refs": [
+        "Screenshot ~/code/acu-release/pr96/captures/island-codex-badge-zoom.png - left Codex circle with Grok Bot badge on 0.2.126.",
+        "Codex job luna-H launched by ACU with originator acu_exec.grokbot (thread 01a1c976-5684-7880-a11d-ace095def7e6)."
+      ],
+      "verification": "Installed ACU 0.2.126; with an ACU-launched Codex job running, the left island circle shows the Codex icon plus the Grok Bot badge (zoomed screenshot)."
+    },
+    {
+      "id": "OBS-21",
+      "title": "ACU reports 'App has no open window' when the real cause is a locked screen",
+      "source": "Agent reported",
+      "status": "awaiting_verification",
+      "observed": "2026-11-11 03:00 IST: installed 0.2.123 Calculator probe failed with observation_incomplete 'Pinned AX window 224142 not found' and hint 'App has no open window'. CGSSessionScreenIsLocked was true (locked since 00:46 IST); Calculator AX window count 0.",
+      "details": {
+        "Why it matters": "The failure hint points agents at opening the app, which cannot help. Root cause is session lock, readable from CGSessionCopyCurrentDictionary."
+      },
+      "recommendation": "Before observing, CUAService checks session lock and display sleep; on lock, fail with error_type screen_locked and hint 'Mac is locked; ask the user to unlock', and record it as the failing-step fact in observability.",
+      "evidence": []
+    },
+    {
+      "id": "AGENT-12",
+      "title": "Full CUAService swift test run hangs after PermissionBrokerTests",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "2026-11-11 02:05 IST: swift test (and with --skip SingleInstanceTests) printed nothing for 10+ min after PermissionBrokerTests.testTokenReadOncePerProcess; Luna's run also stalled 15+ min. swift build passes.",
+      "details": {
+        "Why it matters": "Blocks the full Swift gate; the changed InputActions.swift has no Swift tests."
+      },
+      "recommendation": "Find the next suite to start (swift test --list-tests order), add a per-test timeout, fix the blocking wait.",
+      "evidence": [],
+      "verification_evidence": [
+        {
+          "check": "AGENT-12 full CUAService swift test completes",
+          "outcome": "Full swift test with a 600 s limit finished: 602 tests, 17 skipped, 0 failures, about 95 s, passing PermissionBrokerTests. The release source-checks step on 0.2.125 and 0.2.126 also ran the whole suite to completion (swift check 73.9 s). The earlier hang did not reproduce.",
+          "build": "ACU 0.2.126 (2b148a1)",
+          "session": "01a1c963-f50f-7b43-aa58-560795a7916d",
+          "timestamp": "2026-11-11T07:18:05Z",
+          "reference": "luna-F.last.md and rel-0.2.126b-source-checks.log in ~/code/acu-release/pr96"
+        }
+      ],
+      "verification_refs": [
+        "Full swift test run: 602 tests, 17 skipped, 0 failures in about 95 s (luna-F.last.md).",
+        "Release source-checks swift step completed in 73.9 s on 0.2.126 (rel-0.2.126b-source-checks.log)."
+      ],
+      "verification": "Full CUAService swift test run finishes (602 tests, 0 failures, about 95 s) and completes inside the release source checks on 0.2.126."
     }
   ]
 }

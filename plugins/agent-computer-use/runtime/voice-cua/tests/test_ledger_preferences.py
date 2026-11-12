@@ -29,14 +29,15 @@ def test_preferences_and_recall_without_helper(tmp_path):
         args = transport.call.call_args.args[1]
         assert (args['scope'], args['rule'], args['decision']) == (scope, rule, value)
     replay = LedgerHelper(transport, decide, tmp_path / 'pending2')
-    assert replay.run(operation='recall', scope='Gmail', rule='Account Select')['data']['matches'][0]['decision'] == 'Work'
+    assert replay.run(operation='recall', scope='Gmail', rule='Account Select', need='email account',
+                      situation='choose Gmail account')['data']['matches'][0]['decision'] == 'Work'
     decide.assert_not_called()
     assert 'ledger_task' in {tool['name'] for tool in tool_definitions()}
     assert 'proactively' in SYSTEM_INSTRUCTIONS
     assert 'same scope and rule' in SYSTEM_INSTRUCTIONS
     assert 'do not wait for the user to ask' in SYSTEM_INSTRUCTIONS
     ledger_tool = next(tool for tool in tool_definitions() if tool['name'] == 'ledger_task')
-    assert 'search uses both need and situation' in ledger_tool['description']
+    assert 'For recall, always provide both a concrete need and the actual situation' in ledger_tool['description']
     assert 'non-retryable' in ledger_tool['description']
     skill = (Path(__file__).resolve().parents[3] / 'skills/macos-cua/SKILL.md').read_text()
     assert 'the helper searches both `need` and `situation`' in skill
