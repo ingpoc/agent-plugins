@@ -1,5 +1,10 @@
 # Changelog: batched-change-list
 
+## 0.1.7
+
+- Introspect gate: after a full cycle (one that reached `install`), `set-stage`, `set-activity` or `rollover` to `report_rollover` fails until an `introspect` record exists. New batch action `{"action":"introspect","result":"<one line>"}`; a clean run is `"no issues"`. Small cycles that never reached install are not gated. Rollover clears the record for the next cycle.
+- Introspect guidance: no evidence, no issue; small safe fixes are done during Introspect and logged as fixed `WF-` findings with `details.fixed_in`; larger ones become `WF-` findings for the next cycle.
+
 ## 0.1.6
 
 - Add the Introspect stage between Verify and Report and roll over: the agent reviews the finished cycle, deletes, simplifies, optimizes or automates each slow, redundant or silently failing step, and records each as a `WF-` finding on the same tracker. Stage id `introspect` is accepted by `set-stage` and `set-activity` and shown in the stage bar.

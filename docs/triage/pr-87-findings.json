@@ -1931,6 +1931,9 @@
         },
         "WF-04": {
           "state": "pending"
+        },
+        "WF-05": {
+          "state": "pending"
         }
       }
     },
@@ -1946,9 +1949,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-12T08:47:43Z",
-      "now": "2026-11-12T08:47:43Z — 14:20 IST Introspect: fixed release.sh (stale report, silent push), removed merged obs20 worktree; logged WF-01 for next cycle"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-12T08:54:48Z",
+      "now": "2026-11-12T08:54:48Z — 14:25 IST WF-05 Introspect gate in manage_findings.py, then WF-01 local runner matches release gate"
     },
     "rollover": {
       "source_pr": 96,
@@ -3408,7 +3411,7 @@
       "id": "WF-01",
       "title": "New test passed locally but failed in the release gate's runner",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "observed": "ACU 0.2.141 release source-checks failed: test_session_hub_startup.py raised ModuleNotFoundError voice_cua under the gate's per-file unittest run, after passing under local pytest from voice-cua/python. One extra release cycle (~3 min).",
       "recommendation": "Give the local check the same per-file runner the gate uses for changed tests (e.g. check.py --changed), and run it before release.sh, so a runner mismatch fails in seconds, not in the release.",
       "verification": "",
@@ -3461,6 +3464,18 @@
       "verification_refs": [
         "git worktree list"
       ]
+    },
+    {
+      "id": "WF-05",
+      "title": "Introspect can be skipped after a full cycle",
+      "source": "User requested",
+      "status": "in_progress",
+      "observed": "After the PR #98 Verify the list moved straight to Report & roll over with no Introspect record.",
+      "recommendation": "Block report_rollover after a full cycle (one that reached Install and Verify) until an Introspect line is recorded; a clean run records one line; small cycles skip it.",
+      "verification": "",
+      "details": {
+        "rule": "Guru 2026-11-12 14:16-14:23 IST"
+      }
     }
   ]
 }

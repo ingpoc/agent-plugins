@@ -43,8 +43,9 @@ class ManageFindingsTests(unittest.TestCase):
 
     def test_each_phase_updates_the_timeline_and_can_be_cleared(self):
         ops, page = self.root / 'phase.json', self.root / 'report.html'
-        for stage in ('collect', 'present', 'plan_fix', 'install', 'verify', 'report_rollover', None):
-            ops.write_text(json.dumps([{'action':'set-stage','stage':stage}]))
+        for stage in ('collect', 'present', 'plan_fix', 'install', 'verify', 'introspect', 'report_rollover', None):
+            pre = [{'action':'introspect','result':'no issues'}] if stage == 'report_rollover' else []
+            ops.write_text(json.dumps(pre + [{'action':'set-stage','stage':stage}]))
             result = self.cli('batch', self.data, ops, '--render', page)
             self.assertEqual(result.returncode, 0, result.stderr)
             doc = json.loads(self.data.read_text())
@@ -163,6 +164,27 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual((tracking['pull_request']['label'], tracking['worktree']), ('PR #98', 'next-wt'))
         self.assertEqual(tracking['workflow']['stage'], 'report_rollover')
         self.assertIn('PR #98', page.read_text())
+
+    def test_full_cycle_needs_introspect_before_report_small_cycle_does_not(self):
+        page = self.root / 'gate.html'
+        def batch(*items):
+            ops = self.root / 'gate.json'
+            ops.write_text(json.dumps(list(items)))
+            return self.cli('batch', self.data, ops, '--render', page)
+        self.assertEqual(batch({'action':'set-stage','stage':'verify'}, {'action':'set-stage','stage':'report_rollover'}).returncode, 0)
+        self.assertEqual(batch({'action':'set-stage','stage':'install'}).returncode, 0)
+        blocked = batch({'action':'set-stage','stage':'report_rollover'})
+        self.assertNotEqual(blocked.returncode, 0)
+        self.assertIn('introspect', blocked.stderr)
+        self.assertNotEqual(batch({'action':'rollover','source_pr':1,'worktree':'w','pull_request':{'label':'PR #2','url':'https://example.test/pull/2'}}).returncode, 0)
+        self.assertNotEqual(batch({'action':'introspect','result':'two\nlines'}).returncode, 0)
+        result = batch({'action':'introspect','result':'no issues'}, {'action':'set-stage','stage':'report_rollover'})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(self.data.read_text())['tracking']['introspect']['result'], 'no issues')
+        self.assertEqual(batch({'action':'rollover','source_pr':1,'worktree':'w','pull_request':{'label':'PR #2','url':'https://example.test/pull/2'}}).returncode, 0)
+        tracking = json.loads(self.data.read_text())['tracking']
+        self.assertNotIn('introspect', tracking)
+        self.assertNotIn('stages_reached', tracking)
 
     def test_set_activity_requires_reopen_for_closed_findings(self):
         operations, page = self.root / 'closed-activity.json', self.root / 'closed-activity.html'
