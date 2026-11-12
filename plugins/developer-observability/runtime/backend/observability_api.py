@@ -147,10 +147,11 @@ class ObservabilityAPI:
             for field in ('session_timelines', 'session_index', 'version_scopes', 'task_index', 'task_gaps'):
                 if field in collected:
                     data[field] = collected[field]
-            for field in ('coverage', 'coverage_details', 'coverage_gaps'):
-                if isinstance(primary.get(field), dict) and isinstance(collected.get(field), dict):
-                    data[field] = {**primary[field], **collected[field]}
-                elif field in collected:
+            # Coverage follows the current collect snapshot, the same source as
+            # snapshot_id / freshness. A retired primary snapshot is mentioned
+            # only when it is the data actually being served.
+            for field in ('coverage', 'coverage_details', 'coverage_gaps', 'coverage_gap_scope'):
+                if field in collected:
                     data[field] = collected[field]
             stamps = [d.get('generated_at') for d in (primary, collected) if isinstance(d.get('generated_at'), str)]
             data['generated_at'] = max(stamps) if stamps else None

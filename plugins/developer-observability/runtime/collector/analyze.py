@@ -88,10 +88,10 @@ class Context:
         self.threshold_ms, self.test_threshold_ms = threshold_ms, test_threshold_ms
         first = defaultdict(dict)
         for e in events:
-            if e['version'] and e['ts'] is not None:
-                seen = first[e['project']].get(e['version'])
-                if seen is None or e['ts'] < seen:
-                    first[e['project']][e['version']] = e['ts']
+            if e.get('version') and e.get('ts') is not None:
+                seen = first[e['project']].get(e.get('version'))
+                if seen is None or e.get('ts') < seen:
+                    first[e['project']][e.get('version')] = e.get('ts')
         self.latest = {project: max(order, key=order.get) for project, order in first.items()}
 
     def recent(self, ts):
@@ -101,17 +101,17 @@ class Context:
 def prepare(events, include_tests=False):
     """Propagate session version/test flags across sources; split out excluded test events."""
     events = list(events)
-    tests = {(e['project'], e['session']) for e in events if e['test'] and e['session'] and e.get('session_attribution') == 'event'}
+    tests = {(e['project'], e.get('session')) for e in events if e['test'] and e.get('session') and e.get('session_attribution') == 'event'}
     versions = defaultdict(set)
     for e in events:
-        if e['version'] and e['session'] and e.get('session_attribution') == 'event' and e.get('version_attribution') == 'event':
-            versions[(e['project'], e['session'])].add(e['version'])
+        if e.get('version') and e.get('session') and e.get('session_attribution') == 'event' and e.get('version_attribution') == 'event':
+            versions[(e['project'], e.get('session'))].add(e.get('version'))
     kept, excluded = [], Counter()
     for e in events:
-        key = (e['project'], e['session'])
+        key = (e['project'], e.get('session'))
         if e.get('session_attribution') == 'event' and key in tests:
             e['test'] = True
-        if not e['version'] and e.get('session_attribution') == 'event' and len(versions[key]) == 1:
+        if not e.get('version') and e.get('session_attribution') == 'event' and len(versions[key]) == 1:
             e['version'] = next(iter(versions[key]))
             e['version_attribution'] = 'session_inferred'
         if e['test'] and not include_tests:
@@ -120,9 +120,9 @@ def prepare(events, include_tests=False):
         kept.append(e)
     nxt = {}
     for e in reversed(kept):
-        key = (e['source'], e['session'])
+        key = (e['source'], e.get('session'))
         if e.get('turn') is not None:
-            nxt[key] = e['turn']
+            nxt[key] = e.get('turn')
         e['turn_ctx'] = nxt.get(key)
     return kept, excluded
 
@@ -150,20 +150,20 @@ def rollup(events):
     result = {'effect_of': {}, 'effects': defaultdict(list), 'calls': defaultdict(list), 'absorbed_calls': set()}
     groups = defaultdict(list)
     for e in events:
-        if not e['error'] or e['mirror'] or e.get('alias') or e['session'] is None or e['ts'] is None:
+        if not e['error'] or e['mirror'] or e.get('alias') or e.get('session') is None or e.get('ts') is None:
             continue
         family = _family(e)
         if family is not None:
-            groups[(e['project'], e['session'], e.get('turn_ctx'), family)].append(e)
+            groups[(e['project'], e.get('session'), e.get('turn_ctx'), family)].append(e)
     tool_starts = defaultdict(list)
     for e in events:
-        if e['kind'] == 'tool_start' and e['ts'] is not None and e['step']:
-            tool_starts[(e['project'], e['session'], e.get('turn_ctx'))].append(e)
+        if e['kind'] == 'tool_start' and e.get('ts') is not None and e['step']:
+            tool_starts[(e['project'], e.get('session'), e.get('turn_ctx'))].append(e)
     for (_project, _session, _turn, family), family_rows in groups.items():
-        family_rows.sort(key=lambda e: e['ts'])
+        family_rows.sort(key=lambda e: e.get('ts'))
         runs = [[family_rows[0]]]
         for prev, cur in zip(family_rows, family_rows[1:]):
-            if cur['ts'] - prev['ts'] <= ROLLUP_WINDOW_S:
+            if cur.get('ts') - prev.get('ts') <= ROLLUP_WINDOW_S:
                 runs[-1].append(cur)
             else:
                 runs.append([cur])
@@ -173,8 +173,8 @@ def rollup(events):
                 continue
             root = next((e for e in run if 'tool' not in e['kind']), run[0])
             effects = [e for e in run if _cause(e) != _cause(root)]
-            calls = [c for c in tool_starts[(root['project'], root['session'], root.get('turn_ctx'))]
-                     if c['step'].split('_')[0] == family and run[0]['ts'] - ROLLUP_LEAD_S <= c['ts'] <= run[-1]['ts']]
+            calls = [c for c in tool_starts[(root['project'], root.get('session'), root.get('turn_ctx'))]
+                     if c['step'].split('_')[0] == family and run[0].get('ts') - ROLLUP_LEAD_S <= c.get('ts') <= run[-1].get('ts')]
             result['effects'][id(root)] = effects
             result['calls'][id(root)] = calls
             result['absorbed_calls'].update(id(c) for c in calls)
@@ -193,15 +193,15 @@ def _status(ctx, project, last_ts, by_version):
 
 def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None, by_version=None):
     project = events[0]['project']
-    stamped = sorted((e for e in events if e['ts'] is not None), key=lambda e: e['ts'])
-    first = stamped[0]['ts'] if stamped else ctx.now
-    last = stamped[-1]['ts'] if stamped else ctx.now
+    stamped = sorted((e for e in events if e.get('ts') is not None), key=lambda e: e.get('ts'))
+    first = stamped[0].get('ts') if stamped else ctx.now
+    last = stamped[-1].get('ts') if stamped else ctx.now
     newest = stamped or events
     lead = Counter((e['kind'], e['step']) for e in events if e['step']).most_common(1)
     step = lead[0][0][1] if lead else (events[0]['step'] or events[0]['kind'])
     plain = [e for e in newest if not e.get('alias')] or newest
     message = plain[-1].get('message') or ''
-    times = [iso(e['ts']) for e in stamped[-64:]]
+    times = [iso(e.get('ts')) for e in stamped[-64:]]
     sources = Counter(e['source'] for e in events)
     finding = {
         'finding_key': _key([*parts, kind]), 'kind': kind, 'error_class': error_class,
@@ -214,7 +214,7 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
         'recovery_times': [], 'recovery_times_complete': True,
         'workflow_id': f"wf:{sources.most_common(1)[0][0]}", 'step_id': f'step:{project}-{step}',
         'latest_evidence': {'project': project, 'tool': step, 'first_error_line': message, 'error_type': events[0]['kind']},
-        'event_timeline': [{'event_id': e['ref'], 'event_at': iso(e['ts']) if e['ts'] is not None else None,
+        'event_timeline': [{'event_id': e['ref'], 'event_at': iso(e.get('ts')) if e.get('ts') is not None else None,
                             'event_type': e['kind'], 'outcome': 'failure' if e['error'] else 'unknown',
                             'safe_evidence': {'tool': e['step'], 'version': e.get('version'),
                                               'version_attribution': e.get('version_attribution', 'unknown'),
@@ -257,8 +257,8 @@ def _occurrences(items):
     for rows in by_source.values():
         per_session, version_of = defaultdict(Counter), {}
         for e in rows:
-            per_session[e['session']][(e['kind'], e['step'], signature(e['message']))] += 1
-            version_of.setdefault(e['session'], e['version'])
+            per_session[e.get('session')][(e['kind'], e['step'], signature(e['message']))] += 1
+            version_of.setdefault(e.get('session'), e.get('version'))
         by_version = Counter()
         for session, counts in per_session.items():
             by_version[version_of.get(session) or 'unknown'] += max(counts.values())
@@ -282,12 +282,12 @@ def failures(ctx, events, roll):
         tool = e['step'] if 'tool' in e['kind'] else ''
         key = (e['project'], signature(e['message']) or f"{e['kind']}/{e['step']}", tool)
         clusters[key].append(e)
-        if e['step'] and e['session'] is not None:
-            phase_home.setdefault((e['project'], e['session'], e['step']), key)
+        if e['step'] and e.get('session') is not None:
+            phase_home.setdefault((e['project'], e.get('session'), e['step']), key)
     for e in errors:
         if e.get('alias') and id(e) not in effects_of:
             # Prose lines ('mic preflight failed: …') join the structured failure of that phase in the same session.
-            home = phase_home.get((e['project'], e['session'], e['step']))
+            home = phase_home.get((e['project'], e.get('session'), e['step']))
             clusters[home or (e['project'], signature(e['message']) or f"{e['kind']}/{e['step']}", '')].append(e)
     out = []
     for parts, items in clusters.items():
@@ -298,7 +298,7 @@ def failures(ctx, events, roll):
         # Name the cluster after the source that was counted, so a log echo never renames the failure.
         lead = Counter(_label(e) for e in counted or items if e['step']).most_common(1)
         label = lead[0][0] if lead else _label(items[0])
-        condition = next((e['condition'] for e in items if e['condition']), None)
+        condition = next((e.get('condition') for e in items if e.get('condition')), None)
         cause = f' ({condition})' if condition else ''
         error_class = 'environment_condition' if condition else 'app_error'
         by_version = dict(by_version)
@@ -342,13 +342,13 @@ def latency(ctx, events):
     the source with the most samples is used, so one measurement is never counted twice."""
     by_source = defaultdict(lambda: defaultdict(list))
     for e in events:
-        if e['duration_ms'] is None or e['duration_ms'] < 0:
+        if e.get('duration_ms') is None or e.get('duration_ms') < 0:
             continue
-        by_source[(e['project'], e['step'] or e['kind'], e['metric'] or 'ms')][e['source']].append(e)
+        by_source[(e['project'], e['step'] or e['kind'], e.get('metric') or 'ms')][e['source']].append(e)
     out = []
     for parts, sources in by_source.items():
         items = max(sources.values(), key=len)
-        values = [e['duration_ms'] for e in items]
+        values = [e.get('duration_ms') for e in items]
         if len(values) < MIN_SAMPLES:
             continue
         p95 = percentile(values, 0.95)
@@ -369,7 +369,7 @@ def latency(ctx, events):
 
 def _redundancy(ctx, parts, items, pattern, occurrences, bursts, words):
     e = items[0]
-    wasted = round(sum(x['duration_ms'] for x in items if x['duration_ms'] is not None), 1)
+    wasted = round(sum(x.get('duration_ms') for x in items if x.get('duration_ms') is not None), 1)
     return _finding(ctx, 'redundancy', 'redundancy', parts, items,
                     f"{e['project']}: {_label(e)} {words} {occurrences}x ({pattern})", occurrences,
                     {'redundancy': {'occurrences': occurrences, 'bursts': bursts, 'wasted_ms': wasted, 'pattern': pattern}})
@@ -397,7 +397,7 @@ def redundancy(ctx, events, roll):
         run = [stream[0]] if stream else []
         for prev, cur in zip(stream, stream[1:]):
             same = (cur['kind'], cur['step'], signature(cur['message'])) == (prev['kind'], prev['step'], signature(prev['message']))
-            close = cur['ts'] is not None and prev['ts'] is not None and 0 <= cur['ts'] - prev['ts'] <= BURST_GAP_S
+            close = cur.get('ts') is not None and prev.get('ts') is not None and 0 <= cur.get('ts') - prev.get('ts') <= BURST_GAP_S
             if same and close:
                 run.append(cur)
                 continue
@@ -415,30 +415,30 @@ def redundancy(ctx, events, roll):
             out.append(_redundancy(ctx, parts + ('retry',), items, 'retry', len(items), 0, 'repeated'))
     streams = defaultdict(list)
     for e in events:
-        streams[(e['source'], e['session'])].append(e)
+        streams[(e['source'], e.get('session'))].append(e)
     last_call, duplicates, tool_retries = {}, defaultdict(list), defaultdict(list)
     for (source, session), rows in streams.items():
         for index, e in enumerate(rows):
             # One canonical call record per tool use; companion rows (comet_call) would double every call.
-            if e['kind'] != 'tool_start' or e['ts'] is None or id(e) in roll['absorbed_calls']:
+            if e['kind'] != 'tool_start' or e.get('ts') is None or id(e) in roll['absorbed_calls']:
                 continue
             args = e.get('args')
             if args is None:
                 for other in rows[index + 1:]:
                     if other['kind'] == 'tool_start':
                         break
-                    if (other['kind'].endswith('_call') and other['step'] == e['step'] and other['ts'] is not None
-                            and 0 <= other['ts'] - e['ts'] <= 1.0):
+                    if (other['kind'].endswith('_call') and other['step'] == e['step'] and other.get('ts') is not None
+                            and 0 <= other.get('ts') - e.get('ts') <= 1.0):
                         args = other.get('args')
                         break
             key = (e['project'], source, session, e['step'])
-            if key in last_call and e['ts'] - last_call[key][0] <= DUPLICATE_WINDOW_S:
+            if key in last_call and e.get('ts') - last_call[key][0] <= DUPLICATE_WINDOW_S:
                 prev_args = last_call[key][1]
                 if args is not None and args == prev_args:
                     duplicates[(e['project'], source, e['step'])].append(e)
                 else:
                     tool_retries[(e['project'], source, e['step'])].append(e)
-            last_call[key] = (e['ts'], args)
+            last_call[key] = (e.get('ts'), args)
     for parts, items in duplicates.items():
         if len(items) >= 2:
             out.append(_redundancy(ctx, parts + ('duplicate_call',), items, 'duplicate_call', len(items), 0, 'duplicated'))
@@ -453,28 +453,28 @@ def turn_latency(ctx, events):
     """Each session's slowest explicitly numbered turns, with the tools called and errors seen in them."""
     turns = defaultdict(dict)
     for e in events:
-        if e.get('turn') is None or e['session'] is None or e['metric'] not in TURN_METRICS or e['duration_ms'] is None:
+        if e.get('turn') is None or e.get('session') is None or e.get('metric') not in TURN_METRICS or e.get('duration_ms') is None:
             continue
-        current = turns[(e['project'], e['session'])].get(e['turn'])
-        if current is None or e['duration_ms'] > current['duration_ms']:
-            turns[(e['project'], e['session'])][e['turn']] = e
+        current = turns[(e['project'], e.get('session'))].get(e.get('turn'))
+        if current is None or e.get('duration_ms') > current.get('duration_ms'):
+            turns[(e['project'], e.get('session'))][e.get('turn')] = e
     out = []
     for (project, session), session_turns in turns.items():
-        slow = sorted(((turn, e) for turn, e in session_turns.items() if e['duration_ms'] >= TURN_SLOW_MS),
-                      key=lambda item: item[1]['duration_ms'], reverse=True)
+        slow = sorted(((turn, e) for turn, e in session_turns.items() if e.get('duration_ms') >= TURN_SLOW_MS),
+                      key=lambda item: item[1].get('duration_ms'), reverse=True)
         if not slow:
             continue
         details = []
         for turn, event in slow[:TURN_TOP_N]:
-            tools = sorted({x['step'] for x in events if x['kind'] == 'tool_start' and x['session'] == session
+            tools = sorted({x['step'] for x in events if x['kind'] == 'tool_start' and x.get('session') == session
                             and x.get('turn_ctx') == turn and x['step']})[:5]
-            errors = sum(1 for x in events if x['error'] and not x['mirror'] and x['session'] == session
+            errors = sum(1 for x in events if x['error'] and not x['mirror'] and x.get('session') == session
                          and x.get('turn_ctx') == turn)
-            duration = round(event['duration_ms'], 1)
+            duration = round(event.get('duration_ms'), 1)
             details.append({'turn': turn, 'ms': int(duration) if duration == int(duration) else duration,
-                            'tools': tools, 'errors': errors, 'timestamp': iso(event['ts']) if event['ts'] is not None else None,
+                            'tools': tools, 'errors': errors, 'timestamp': iso(event.get('ts')) if event.get('ts') is not None else None,
                             'version': event.get('version'), 'metric': event.get('metric')})
-        headline = (f"{project}: session {session} slowest turn {_seconds(slow[0][1]['duration_ms'])} "
+        headline = (f"{project}: session {session} slowest turn {_seconds(slow[0][1].get('duration_ms'))} "
                     f"(turn {slow[0][0]}")
         if details[0]['tools']:
             headline += f", tools {', '.join(details[0]['tools'])}"
@@ -484,7 +484,7 @@ def turn_latency(ctx, events):
         out.append(_finding(ctx, 'turn_latency', 'turn_latency', (project, 'session', session),
                             [e for _turn, e in slow], headline, len(slow),
                             {'turn_latency': {'session': session, 'threshold_ms': TURN_SLOW_MS,
-                                              'max_ms': slow[0][1]['duration_ms'], 'slow_turns': len(slow),
+                                              'max_ms': slow[0][1].get('duration_ms'), 'slow_turns': len(slow),
                                               'turns': details}}))
     return out
 
@@ -529,8 +529,8 @@ def island_layout(ctx, events):
         items = [row[0] for row in rows]
         max_overflow = max(row[1] for row in rows)
         triggers = dict(sorted(Counter(row[2] for row in rows).items()))
-        recent = sorted(rows, key=lambda row: row[0]['ts'] if row[0]['ts'] is not None else -1, reverse=True)[:10]
-        occurrences = [{'timestamp': iso(e['ts']) if e['ts'] is not None else None,
+        recent = sorted(rows, key=lambda row: row[0].get('ts') if row[0].get('ts') is not None else -1, reverse=True)[:10]
+        occurrences = [{'timestamp': iso(e.get('ts')) if e.get('ts') is not None else None,
                         'version': e.get('version'), 'version_attribution': e.get('version_attribution', 'unknown'), 'trigger': trigger,
                         'overflow_pt': round(overflow, 1), 'bounds': bounds, 'rect': rect}
                        for e, overflow, trigger, bounds, rect in recent]
@@ -542,7 +542,7 @@ def island_layout(ctx, events):
                             {'island_layout': {'overlay_kind': name, 'violation': violation,
                                                'max_overflow_pt': round(max_overflow, 1), 'triggers': triggers,
                                                'occurrences': occurrences}},
-                            by_version=Counter(e['version'] or 'unknown' for e in items)))
+                            by_version=Counter(e.get('version') or 'unknown' for e in items)))
     return out
 
 
@@ -614,7 +614,7 @@ def _task_records(events, snapshot_id, sidecar_writer):
             merged = {}
             for row in event_rows:
                 merged.update(row['data'])
-            duration = next((row['duration_ms'] for row in reversed(event_rows)
+            duration = next((row.get('duration_ms') for row in reversed(event_rows)
                              if isinstance(row.get('duration_ms'), (int, float))), None)
             if duration is None:
                 times = [datetime.fromisoformat(row['timestamp'].replace('Z', '+00:00')).timestamp()
@@ -631,7 +631,7 @@ def _task_records(events, snapshot_id, sidecar_writer):
                     'mirror_count': 1, 'mirror_refs': [], 'data': merged,
                     'error_type': failed['error_type'] if failed else None,
                     'message': failed['message'] if failed else None,
-                    'caused_by': list(dict.fromkeys(ref for row in event_rows for ref in row['caused_by']))}
+                    'caused_by': list(dict.fromkeys(ref for row in event_rows for ref in (row.get('caused_by') or [])))}
             steps.append((event_rows[0].get('timestamp') or '', step))
             details[step_ref] = event_rows
         steps.sort(key=lambda pair: (pair[0], pair[1]['step_ref']))
@@ -698,7 +698,7 @@ def _task_records(events, snapshot_id, sidecar_writer):
             action_events = [event for event in all_events if
                              str(event.get('kind') or '').endswith('_act') or
                              str(event.get('kind') or '').startswith('tool_') or
-                             (isinstance(event.get('task_data'), dict) and event['task_data'].get('action'))]
+                             (isinstance(event.get('task_data'), dict) and event.get('task_data').get('action'))]
             decision_ids = {event.get('ledger_decision_id') for event in action_events
                             if event.get('ledger_decision_id')}
             use = next((event for event in all_events if event.get('kind') in ('ledger_use', 'ledger_record_used')
@@ -780,42 +780,55 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
             stage = event.get('step') if event.get('step') in SESSION_STAGES else event.get('kind')
             if stage not in SESSION_STAGES:
                 continue
-            session_groups[(event['project'], event['session'])].append((event, stage))
+            session_groups[(event['project'], event.get('session'))].append((event, stage))
     compact = bool(sidecar_writer)
     session_timelines = []
     for (project, session), rows in session_groups.items():
-        rows.sort(key=lambda row: row[0]['ts'])
+        rows.sort(key=lambda row: row[0].get('ts'))
         session_ref = 'sref_' + hashlib.sha256((project + '\0' + session).encode()).hexdigest()[:32]
-        timeline = [{'timestamp': iso(event['ts']), 'stage': stage,
-                     'duration_ms': event.get('duration_ms'), 'metric': event.get('metric'),
-                     'outcome': event.get('outcome') or ('failure' if event['error'] else 'unknown'),
-                     'version': event.get('version'),
-                     'version_attribution': event.get('version_attribution') or 'unknown',
-                     'ledger_operation': event.get('ledger_operation'),
-                     'ledger_scope_kind': event.get('ledger_scope_kind'),
-                     'ledger_rule_supplied': event.get('ledger_rule_supplied'),
-                     'ledger_error_category': event.get('ledger_error_category'),
-                     'ledger_result_status': event.get('ledger_result_status'),
-                     'ledger_decision_count': event.get('ledger_decision_count'),
-                     'ledger_result_detail': event.get('ledger_result_detail'),
-                     'ledger_detail_truncated': event.get('ledger_detail_truncated'),
-                     'input_availability': event.get('input_availability'), 'input_device': event.get('input_device'),
-                     'input_rate': event.get('input_rate'), 'input_recovery': event.get('input_recovery'),
-                     'input_selection': event.get('input_selection'),
-                     'layout': event.get('layout'),
-                     'task_outcome': event.get('task_outcome'), 'task_check_id': event.get('task_check_id'),
-                     'task_evidence_class': event.get('task_evidence_class'), 'task_tools': event.get('task_tools'),
-                     'error_details': event.get('error_details'), 'run_ref': event.get('run_ref'),
-                     'call_ref': event.get('call_ref'), 'response_ref': event.get('response_ref'),
-                     'mirror_ref': event.get('mirror_ref'), 'source': event.get('source'), 'source_ref': event.get('ref'),
-                     'event_kind': event.get('kind'), 'build': event.get('build'),
-                     'ledger_rule': event.get('ledger_rule'),
-                     'ledger_selected_count': event.get('ledger_selected_count'),
-                     'ledger_selected_id': event.get('ledger_selected_id'),
-                     'ledger_supersedes': event.get('ledger_supersedes'),
-                     'ledger_decision_id': event.get('ledger_decision_id'),
-                     'ledger_revision': event.get('ledger_revision')}
-                    for event, stage in rows]
+        timeline = []
+        for event, stage in rows:
+            item = {'timestamp': iso(event.get('ts')), 'stage': stage,
+                    'outcome': event.get('outcome') or ('failure' if event['error'] else 'unknown'),
+                    'version_attribution': event.get('version_attribution') or 'unknown',
+                    'source': event.get('source'), 'source_ref': event.get('ref'),
+                    'event_kind': event.get('kind')}
+            for key, value in (
+                    ('duration_ms', event.get('duration_ms')), ('metric', event.get('metric')),
+                    ('version', event.get('version')),
+                    ('ledger_operation', event.get('ledger_operation')),
+                    ('ledger_scope_kind', event.get('ledger_scope_kind')),
+                    ('ledger_rule_supplied', event.get('ledger_rule_supplied')),
+                    ('ledger_error_category', event.get('ledger_error_category')),
+                    ('ledger_result_status', event.get('ledger_result_status')),
+                    ('ledger_decision_count', event.get('ledger_decision_count')),
+                    ('ledger_result_detail', event.get('ledger_result_detail')),
+                    ('ledger_detail_truncated', event.get('ledger_detail_truncated')),
+                    ('input_availability', event.get('input_availability')),
+                    ('input_device', event.get('input_device')),
+                    ('input_rate', event.get('input_rate')),
+                    ('input_recovery', event.get('input_recovery')),
+                    ('input_selection', event.get('input_selection')),
+                    ('layout', event.get('layout')),
+                    ('task_outcome', event.get('task_outcome')),
+                    ('task_check_id', event.get('task_check_id')),
+                    ('task_evidence_class', event.get('task_evidence_class')),
+                    ('task_tools', event.get('task_tools')),
+                    ('error_details', event.get('error_details')),
+                    ('run_ref', event.get('run_ref')),
+                    ('call_ref', event.get('call_ref')),
+                    ('response_ref', event.get('response_ref')),
+                    ('mirror_ref', event.get('mirror_ref')),
+                    ('build', event.get('build')),
+                    ('ledger_rule', event.get('ledger_rule')),
+                    ('ledger_selected_count', event.get('ledger_selected_count')),
+                    ('ledger_selected_id', event.get('ledger_selected_id')),
+                    ('ledger_supersedes', event.get('ledger_supersedes')),
+                    ('ledger_decision_id', event.get('ledger_decision_id')),
+                    ('ledger_revision', event.get('ledger_revision'))):
+                if value is not None:
+                    item[key] = value
+            timeline.append(item)
         # Collapse only records that explicitly carry the same producer-issued identity.
         grouped = {}
         collapsed = []
@@ -834,7 +847,7 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
                     grouped[key] = item
         timeline = collapsed
         session = {'project': project, 'session_ref': session_ref,
-                   'last_seen': iso(rows[-1][0]['ts']), 'events': timeline,
+                   'last_seen': iso(rows[-1][0].get('ts')), 'events': timeline,
                    'total': len(timeline), 'raw_total': len(rows), 'truncated': False}
         if compact:
             scope_counts, scope_raw_counts, scope_last_seen = Counter(), Counter(), {}

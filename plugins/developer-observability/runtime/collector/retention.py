@@ -81,11 +81,13 @@ def _inside(path, root):
         return False
 
 
-def is_protected(path, home=None):
+def is_protected(path, home=None, roots=None):
     path = Path(path)
     if any(fnmatch.fnmatch(path.name, p) for p in SAMANTHA_LOGS):
         return True
-    return any(path == root or _inside(path, root) for root in protected_roots(home))
+    if roots is None:
+        roots = protected_roots(home)
+    return any(path == root or _inside(path, root) for root in roots)
 
 
 def _size(path):
@@ -106,15 +108,49 @@ def _size(path):
     return total
 
 
+def _skip_dirs(root, keep):
+    """Resolved directories the walker must not enter (kept snapshots and staging)."""
+    skipped = set()
+    for path in list(keep) + [Path(root) / '.trash']:
+        try:
+            if path.is_dir() and not path.is_symlink():
+                skipped.add(path.resolve())
+        except OSError:
+            pass
+    return skipped
+
+
 def _candidates(root, keep, now, days, backup_days, home):
     if not root.is_dir() or is_protected(root, home):
         return
+    roots = protected_roots(home)
+    skip = _skip_dirs(root, keep)
+    keep_files = set()
+    for path in keep:
+        try:
+            if path.is_file():
+                keep_files.add(path.resolve())
+        except OSError:
+            pass
     for base, dirs, files in os.walk(root):
         base_path = Path(base)
-        dirs[:] = [d for d in dirs if not is_protected(base_path / d, home) and not (base_path / d).is_symlink()]
+        remaining = []
+        for name in dirs:
+            child = base_path / name
+            try:
+                if child.is_symlink() or child.resolve() in skip or is_protected(child, home, roots=roots):
+                    continue
+            except OSError:
+                continue
+            remaining.append(name)
+        dirs[:] = remaining
         for name in files:
             path = base_path / name
-            if path in keep or any(kept.is_dir() and _inside(path, kept) for kept in keep) or path.is_symlink() or is_protected(path, home):
+            try:
+                resolved = path.resolve()
+            except OSError:
+                continue
+            if resolved in keep_files or path.is_symlink() or is_protected(path, home, roots=roots):
                 continue
             limit = backup_days if any(fnmatch.fnmatch(name, p) for p in BACKUP_PATTERNS) else days
             try:

@@ -86,14 +86,20 @@ def _retire_snapshot(out, snapshot_id):
             os.replace(previous, target)
 
 
+def _omit_none(value):
+    if isinstance(value, dict):
+        return {key: compact for key, item in value.items() if (compact := _omit_none(item)) is not None}
+    if isinstance(value, list):
+        return [_omit_none(item) for item in value]
+    return value
+
+
 def _write_sidecar(out, snapshot_id, kind, ref, document):
     path = out / 'snapshots' / snapshot_id / kind / f'{ref}.json'
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     fd, tmp = tempfile.mkstemp(prefix=f'.{ref}-', suffix='.json', dir=path.parent)
     with os.fdopen(fd, 'w') as handle:
-        json.dump(document, handle, separators=(',', ':'), ensure_ascii=False)
-        handle.flush()
-        os.fsync(handle.fileno())
+        json.dump(_omit_none(document), handle, separators=(',', ':'), ensure_ascii=False)
     os.chmod(tmp, 0o600)
     os.replace(tmp, path)
     return path.relative_to(out).as_posix()
@@ -132,6 +138,8 @@ def collect(specs, out, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H,
     writer = lambda kind, ref, detail: _write_sidecar(out, snapshot_id, kind, ref, detail)
     document = build(collected, stats, now, include_tests, window_h, threshold_ms, test_threshold_ms,
                      snapshot_id=snapshot_id, sidecar_writer=writer)
+    event_count = len(collected)
+    del collected
     pruned = storage = None
     path = _write(out, document)
     _retire_snapshot(out, previous_snapshot)
@@ -152,7 +160,7 @@ def collect(specs, out, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H,
             'excluded_test_events': sum(item.get('excluded_test', 0) for item in stats.values()),
             'mirrored_events': sum(item.get('mirrors', 0) for item in stats.values()),
             'include_tests': include_tests,
-            'events': len(collected), 'sources': len(stats),
+            'events': event_count, 'sources': len(stats),
             'runtime_ms': int((time.perf_counter() - started) * 1000), 'peak_rss_mb': _peak_rss_mb(),
             'generated_at': document['generated_at'],
             **({'pruned': {k: pruned[k] for k in ('moved', 'bytes', 'capped') if k in pruned},

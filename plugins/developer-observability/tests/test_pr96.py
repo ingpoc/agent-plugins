@@ -460,7 +460,7 @@ class PR96Tests(unittest.TestCase):
     def test_coverage_scopes_sources_and_groups_legacy_snapshot(self):
         out = self.root / 'scoped-coverage'
         out.mkdir()
-        old = '2026-11-04T00:00:00Z'
+        old = datetime.fromtimestamp(NOW - 7 * 86400, timezone.utc).isoformat().replace('+00:00', 'Z')
         details = {'agent-plugins:origin-ci': {'read_in_collect': True, 'last_event_at': old,
                                                 'collector_heartbeat_at': old},
                    'samantha:voice.log': {'read_in_collect': True, 'last_event_at': old,
@@ -492,6 +492,47 @@ class PR96Tests(unittest.TestCase):
         agent_plugins_coverage = api.issues('agent-plugins')['coverage']
         self.assertEqual(agent_plugins_coverage, 'ok 1/1 sources')
         self.assertNotIn('legacy snapshot', agent_plugins_coverage)
+
+    def test_fresh_collect_coverage_ignores_legacy_primary_snapshot(self):
+        runtime, collected = self.root / 'fresh-runtime', self.root / 'fresh-collected'
+        runtime.mkdir()
+        collected.mkdir()
+        old = '2026-11-04T00:00:00Z'
+        legacy_names = ('codex', 'cursor', 'grokbot', 'opencode', 'samantha', 't3')
+        (runtime / 'findings.json').write_text(json.dumps({
+            'generated_at': old,
+            'findings': [{'finding_key': 'legacy-s', 'owner_ref': 'owner:samantha',
+                          'source': 'samantha', 'latest_evidence': {'project': 'samantha'}}],
+            'coverage': {name: 'partial' for name in legacy_names},
+            'coverage_details': {name: {'status': 'partial', 'read_in_collect': False,
+                                        'collector_heartbeat_at': old, 'last_event_at': old}
+                                 for name in legacy_names},
+            'coverage_gaps': [{'source': name, 'status': 'partial'} for name in legacy_names]}))
+        (collected / 'findings.json').write_text(json.dumps({
+            'generated_at': STAMP, 'snapshot_id': 'c' * 32,
+            'findings': [{'finding_key': 'fresh-s', 'owner_ref': 'owner:samantha',
+                          'source': 'samantha:voice.log', 'latest_evidence': {'project': 'samantha'}}],
+            'task_index': [{'project': 'samantha', 'source': 'samantha:voice.log'}],
+            'coverage': {'samantha:voice.log': 'collected', 'agent-plugins:origin-ci': 'collected'},
+            'coverage_details': {
+                'samantha:voice.log': {'read_in_collect': True, 'last_event_at': STAMP,
+                                       'collector_heartbeat_at': STAMP},
+                'agent-plugins:origin-ci': {'read_in_collect': True, 'last_event_at': STAMP,
+                                            'collector_heartbeat_at': STAMP}},
+            'coverage_gaps': []}))
+        api = ObservabilityAPI(runtime, {'samantha': {'owners': ['owner:samantha']},
+                                         'agent-plugins': {'owners': ['owner:agent-plugins']}},
+                               None, collected=collected)
+        samantha = api.issues('samantha')
+        self.assertEqual(samantha['freshness'], 'fresh')
+        self.assertEqual(samantha['coverage'], 'ok 1/1 sources')
+        self.assertNotIn('legacy snapshot', samantha['coverage'])
+        projects = api.projects()
+        self.assertEqual(projects['freshness'], 'fresh')
+        self.assertNotIn('legacy snapshot', projects['coverage'])
+        detailed = api.issues('samantha', include_coverage=True)
+        self.assertEqual(set(detailed['coverage_details']), {'samantha:voice.log'})
+        self.assertNotIn('legacy snapshot', api.issues('agent-plugins')['coverage'])
 
     def test_coverage_gap_fallback_never_crosses_project(self):
         out = self.root / 'coverage-gap-scope'

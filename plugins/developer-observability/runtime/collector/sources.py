@@ -123,11 +123,13 @@ def _task_fields(obj):
     return fields
 
 
+_HOME = str(Path.home())
+
+
 def ref(path, line) -> str:
     text = str(path)
-    home = str(Path.home())
-    if text.startswith(home):
-        text = '~' + text[len(home):]
+    if text.startswith(_HOME):
+        text = '~' + text[len(_HOME):]
     return f'{text}:{line}'
 
 
@@ -188,27 +190,36 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
     item['test_events'] = item.get('test_events', 0) + bool(test)
     if ts is not None and (item['last_event_at'] is None or iso(ts) > item['last_event_at']):
         item['last_event_at'] = iso(ts)
-    return {'project': project, 'source': source, 'kind': kind, 'step': step, 'error': bool(error), 'ts': ts,
-            'duration_ms': duration_ms, 'metric': metric, 'message': message, 'ref': where, 'session': session,
-            'condition': condition, 'mirror': bool(mirror), 'test': bool(test), 'version': version,
-            'alias': bool(alias), 'turn': turn, 'args': args, 'layout': layout,
-            'session_attribution': session_attribution, 'version_attribution': version_attribution,
-            'ledger_operation': ledger_operation, 'ledger_error_category': ledger_error_category,
-            'ledger_result_status': ledger_result_status, 'ledger_decision_count': ledger_decision_count,
-            'ledger_scope_kind': ledger_scope_kind, 'ledger_rule_supplied': ledger_rule_supplied,
-            'task_outcome': task_outcome, 'task_check_id': task_check_id,
-            'task_evidence_class': task_evidence_class, 'task_tools': task_tools,
-            'call_ref': call_ref, 'response_ref': response_ref, 'run_ref': run_ref,
-            'error_details': error_details, 'ledger_result_detail': ledger_result_detail, 'outcome': outcome,
-            'ledger_detail_truncated': ledger_detail_truncated, 'input_availability': input_availability,
-            'input_device': input_device, 'input_rate': input_rate, 'input_recovery': input_recovery,
-            'input_selection': input_selection, 'mirror_ref': mirror_ref, 'build': build,
-            'ledger_rule': ledger_rule, 'ledger_selected_count': ledger_selected_count,
-            'ledger_selected_id': ledger_selected_id, 'ledger_supersedes': ledger_supersedes,
-            'ledger_decision_id': ledger_decision_id, 'ledger_revision': ledger_revision,
-            'step_ref': step_ref, 'retry_of_step_ref': retry_of_step_ref,
-            'retry_of_run_ref': retry_of_run_ref, 'mirror_of': mirror_of,
-            'caused_by': caused_by or [], 'task_data': task_data or {}}
+    event = {'project': project, 'source': source, 'kind': kind, 'step': step, 'error': bool(error),
+             'ts': ts, 'duration_ms': duration_ms, 'metric': metric, 'message': message, 'ref': where,
+             'session': session, 'condition': condition, 'mirror': bool(mirror), 'test': bool(test),
+             'version': version, 'alias': bool(alias),
+             'session_attribution': session_attribution, 'version_attribution': version_attribution,
+             'outcome': outcome}
+    optional = {'turn': turn, 'args': args, 'layout': layout,
+                'ledger_operation': ledger_operation, 'ledger_error_category': ledger_error_category,
+                'ledger_result_status': ledger_result_status, 'ledger_decision_count': ledger_decision_count,
+                'ledger_scope_kind': ledger_scope_kind, 'ledger_rule_supplied': ledger_rule_supplied,
+                'task_outcome': task_outcome, 'task_check_id': task_check_id,
+                'task_evidence_class': task_evidence_class, 'task_tools': task_tools,
+                'call_ref': call_ref, 'response_ref': response_ref, 'run_ref': run_ref,
+                'error_details': error_details, 'ledger_result_detail': ledger_result_detail,
+                'ledger_detail_truncated': ledger_detail_truncated, 'input_availability': input_availability,
+                'input_device': input_device, 'input_rate': input_rate, 'input_recovery': input_recovery,
+                'input_selection': input_selection, 'mirror_ref': mirror_ref, 'build': build,
+                'ledger_rule': ledger_rule, 'ledger_selected_count': ledger_selected_count,
+                'ledger_selected_id': ledger_selected_id, 'ledger_supersedes': ledger_supersedes,
+                'ledger_decision_id': ledger_decision_id, 'ledger_revision': ledger_revision,
+                'step_ref': step_ref, 'retry_of_step_ref': retry_of_step_ref,
+                'retry_of_run_ref': retry_of_run_ref, 'mirror_of': mirror_of}
+    for key, value in optional.items():
+        if value is not None:
+            event[key] = value
+    if caused_by:
+        event['caused_by'] = caused_by
+    if task_data:
+        event['task_data'] = task_data
+    return event
 
 
 def _normalize(value):
@@ -318,43 +329,59 @@ def _jsonl_rows(path, max_bytes, stats, source):
         yield number, obj
 
 
+def _session_flags_update(info, obj):
+    session = obj.get('session_id') or obj.get('session')
+    if not isinstance(session, str) or not session:
+        return
+    entry = info.setdefault(session, {'versions': set(), 'purpose_test': False, 'canned': False, 'instant': False})
+    if isinstance(obj.get('version'), str) and obj['version']:
+        entry['versions'].add(obj['version'][:40])
+    if obj.get('purpose') in TEST_PURPOSES:
+        entry['purpose_test'] = True
+    # Replies are compared against two canned words only; their text is never stored.
+    if obj.get('kind') == 'assistant_reply' and obj.get('text') in CANNED_REPLIES:
+        entry['canned'] = True
+    step = _number(obj.get('step_ms'))
+    if obj.get('phase') == 'response_done' and step is not None and step <= INSTANT_MS:
+        entry['instant'] = True
+
+
 def _sessions(path, max_bytes):
     """Collect flags only from explicitly identified sessions; conflicting versions stay unknown."""
     info = {}
     for _line, obj in _jsonl_rows(path, max_bytes, {None: {'skipped': 0}}, None):
-        session = obj.get('session_id') or obj.get('session')
-        if not isinstance(session, str) or not session:
-            continue
-        entry = info.setdefault(session, {'versions': set(), 'purpose_test': False, 'canned': False, 'instant': False})
-        if isinstance(obj.get('version'), str) and obj['version']:
-            entry['versions'].add(obj['version'][:40])
-        if obj.get('purpose') in TEST_PURPOSES:
-            entry['purpose_test'] = True
-        # Replies are compared against two canned words only; their text is never stored.
-        if obj.get('kind') == 'assistant_reply' and obj.get('text') in CANNED_REPLIES:
-            entry['canned'] = True
-        step = _number(obj.get('step_ms'))
-        if obj.get('phase') == 'response_done' and step is not None and step <= INSTANT_MS:
-            entry['instant'] = True
+        _session_flags_update(info, obj)
     return info
+
+
+def _apply_session_flags(event, info, stats, source):
+    flags = info.get(event.get('session'), {})
+    if event.get('version_attribution') != 'event':
+        versions = flags.get('versions', set())
+        if len(versions) == 1:
+            event['version'] = next(iter(versions))
+            event['version_attribution'] = 'session_inferred'
+    test = bool(flags.get('purpose_test') or (flags.get('canned') and flags.get('instant')))
+    if test and not event.get('test'):
+        event['test'] = True
+        item = stats.get(source)
+        if item is not None:
+            item['test_events'] = item.get('test_events', 0) + 1
 
 
 def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
     _stat(stats, source)
-    sessions = _sessions(path, max_bytes)
+    produced, info = [], {}
     for number, obj in _jsonl_rows(path, max_bytes, stats, source):
+        _session_flags_update(info, obj)
         own = obj.get('session_id') or obj.get('session')
         current = own if isinstance(own, str) and own else None
-        flags = sessions.get(current, {})
-        versions = flags.get('versions', set())
         direct_version = obj.get('version')
         if isinstance(direct_version, str) and direct_version:
             version, version_attribution = direct_version[:40], 'event'
-        elif len(versions) == 1:
-            version, version_attribution = next(iter(versions)), 'session_inferred'
         else:
             version, version_attribution = None, 'unknown'
-        test = bool(flags.get('purpose_test') or (flags.get('canned') and flags.get('instant')))
+        test = False
         error_details = scrub_detail(obj.get('error_details'))
         ledger_result_detail = scrub_detail(obj.get('ledger_result_detail'))
         obj = {key: value for key, value in obj.items() if key not in DENY_KEYS}
@@ -431,7 +458,7 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
         refs = obj.get('caused_by')
         caused_by = [_task_id(value) for value in refs] if isinstance(refs, list) else []
         caused_by = [value for value in caused_by if value]
-        yield _event(stats, project=project, source=source, kind=kind, step=step, error=error, ts=ts,
+        produced.append(_event(stats, project=project, source=source, kind=kind, step=step, error=error, ts=ts,
                      duration_ms=duration, metric=metric, message=message, where=ref(path, number), session=current,
                      condition=condition, mirror=mirror, test=test, version=version, turn=turn,
                      args=args, layout=layout, session_attribution='event' if current else 'unknown',
@@ -460,7 +487,10 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
                      retry_of_run_ref=_run_ref(obj.get('retry_of_run_ref')),
                      mirror_of=_task_id(obj.get('mirror_of')), caused_by=caused_by,
                      task_data=_task_fields(obj),
-                     outcome='failure' if error else ('success' if obj.get('ok') is True or status == 'ok' else 'unknown'))
+                     outcome='failure' if error else ('success' if obj.get('ok') is True or status == 'ok' else 'unknown')))
+    for event in produced:
+        _apply_session_flags(event, info, stats, source)
+        yield event
 
 
 _SESSION = re.compile(r'\bsession_id=(\w+)')
