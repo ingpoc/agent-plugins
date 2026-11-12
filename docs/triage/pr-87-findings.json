@@ -1919,6 +1919,9 @@
         },
         "AGENT-15": {
           "state": "pending"
+        },
+        "WF-01": {
+          "state": "pending"
         }
       }
     },
@@ -1934,8 +1937,9 @@
       }
     },
     "workflow": {
-      "stage": "report_rollover",
-      "updated_at": "2026-11-12T08:10:30+00:00"
+      "stage": "introspect",
+      "updated_at": "2026-11-12T08:47:43Z",
+      "now": "2026-11-12T08:47:43Z — 14:20 IST Introspect: fixed release.sh (stale report, silent push), removed merged obs20 worktree; logged WF-01 for next cycle"
     },
     "rollover": {
       "source_pr": 96,
@@ -3390,6 +3394,19 @@
         "/Users/gurusharan/code/acu-release/evidence/agent15-startup-0.2.141.png",
         "~/code/acu-release/pr96/rel-0.2.141.json"
       ]
+    },
+    {
+      "id": "WF-01",
+      "title": "New test passed locally but failed in the release gate's runner",
+      "source": "Agent reported",
+      "status": "untested",
+      "observed": "ACU 0.2.141 release source-checks failed: test_session_hub_startup.py raised ModuleNotFoundError voice_cua under the gate's per-file unittest run, after passing under local pytest from voice-cua/python. One extra release cycle (~3 min).",
+      "recommendation": "Give the local check the same per-file runner the gate uses for changed tests (e.g. check.py --changed), and run it before release.sh, so a runner mismatch fails in seconds, not in the release.",
+      "verification": "",
+      "details": {
+        "evidence": "~/code/acu-release/pr96 rel-0.2.141 first source-checks log, commit fb4602e",
+        "fixed_in_introspect": "release.sh now deletes the previous report before running and fails loudly unless the PR branch on origin-cursor equals HEAD (a -q push had silently failed because the branch tracked main)"
+      }
     }
   ]
 }
