@@ -1550,6 +1550,16 @@ class ExpectVerifiedTests(unittest.TestCase):
         self.assertTrue(compact_mcp.expect_verified("batch-cross-app", tree))
         self.assertFalse(compact_mcp.expect_verified("Open", tree))
 
+    def test_expect_same_value_restored_counts_when_steps_ran_and_values_changed(self):
+        before = '[28] AXStaticText "Last Expression" value="15 × 16"\n[29] AXStaticText "Edit field" value="240"\n'
+        after_same = before
+        after_new = '[28] AXStaticText "Last Expression" value="16 × 15"\n[29] AXStaticText "Edit field" value="240"\n'
+        ran = [{"ok": True}, {"ok": True}]
+        self.assertTrue(compact_mcp.expectation_is_new("240", before, after_new, ran))
+        self.assertFalse(compact_mcp.expectation_is_new("240", before, after_same, ran))
+        self.assertFalse(compact_mcp.expectation_is_new("240", before, after_new, [{"ok": True}, {"ok": False}]))
+        self.assertFalse(compact_mcp.expectation_is_new("240", before, after_new, None))
+
     def test_expect_is_new_rejects_needle_already_in_before_tree(self):
         before = '[16] AXTextArea value="the event horizon is a boundary"\n'
         after = (

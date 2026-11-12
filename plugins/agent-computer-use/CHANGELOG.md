@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.140
+
+- A correct result now counts as confirmed when the app reopened already showing the same value (all steps ran and the screen text changed).
+
 ## 0.2.139
 
 - macos-cua: a locked Mac is reported as `screen_locked` (hint: ask the user to unlock) instead of `observation_incomplete`, and Samantha stops retrying until it is unlocked.

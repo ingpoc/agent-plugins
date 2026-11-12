@@ -1913,6 +1913,9 @@
         },
         "AGENT-13": {
           "state": "pending"
+        },
+        "AGENT-14": {
+          "state": "pending"
         }
       }
     },
@@ -1929,8 +1932,8 @@
     },
     "workflow": {
       "stage": "install",
-      "updated_at": "2026-11-12T04:55:44Z",
-      "now": "2026-11-12T04:55:44Z — 10:45 IST 0.2.139 ready (screen_locked mapping); install waits for the Mini to be unlocked"
+      "updated_at": "2026-11-12T05:41:37Z",
+      "now": "2026-11-12T05:41:37Z — 11:20 IST Fix done and tested (73 pass); releasing 0.2.140, then live recheck"
     },
     "rollover": {
       "source_pr": 96,
@@ -2156,6 +2159,14 @@
           "session": "7ea66e04",
           "timestamp": "2026-11-11T20:43:39+05:30",
           "reference": "run 8cf21a13, samantha-activity.jsonl turn_latency ts 1794407619"
+        },
+        {
+          "check": "Spoken turn on phone mic: Open Calculator and calculate fifteen times sixteen",
+          "outcome": "spoken turn_latency now has every phase: total 25030 ms to playback, transcript to first tool 522 ms, tools 2225 ms (cua_act 2081), last tool end to first audio 5885 ms, dominant user_transcript_to_first_audio. It explains the delay: the extra 11.4 s Luna response after an unverified act (AGENT-14). Delay itself still over budget.",
+          "build": "0.2.139+af8d9674b62d",
+          "session": "c0add2fa",
+          "timestamp": "2026-11-12T11:20:00+05:30",
+          "reference": "run session c0add2fa (0.2.139+af8d9674b62d) call_avkdGaMSgGDU3DhzdTvzgkGv; screenshot evidence/spoken-1109.png"
         }
       ]
     },
@@ -2582,10 +2593,10 @@
       "id": "OBS-15",
       "title": "Explain microphone preflight failures and recovery",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "A no-input-device preflight failure was followed by a successful startup in another session; available evidence does not establish what changed or whether recovery was automatic.",
       "recommendation": "Record input availability and device selection at preflight and audio readiness, with correlated failure and recovery transitions.",
-      "verification": "Requested enhancement based on the 0.2.97 preflight lead; root cause and reliable recovery remain unknown.",
+      "verification": "Failure path (0.2.135): mic_preflight logs failure_class, error, devices, attempt and recovery. Recovery path (0.2.139, 2026-11-12 11:08 IST): preflight ok with the phone mic and the spoken turn worked.",
       "details": {
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "AGENT-04 tracks the product symptom; OBS-02 tracks startup timing.",
@@ -2623,7 +2634,19 @@
           "session": "f6a6541a",
           "timestamp": "2026-11-11T20:38:20+05:30",
           "reference": "samantha-activity.jsonl mic_preflight ts 1794407300; release check rel-0.2.135-microphone.log"
+        },
+        {
+          "check": "Start Samantha with the iPhone mic connected after the earlier no-input failure",
+          "outcome": "mic_preflight ok, input_availability available, selection system_default_snapshot; spoken transcript received correctly. Failure path was logged with cause and recovery on 0.2.135.",
+          "build": "0.2.139+af8d9674b62d",
+          "session": "c0add2fa",
+          "timestamp": "2026-11-12T11:20:00+05:30",
+          "reference": "run session c0add2fa (0.2.139+af8d9674b62d) call_avkdGaMSgGDU3DhzdTvzgkGv; screenshot evidence/spoken-1109.png"
         }
+      ],
+      "verification_refs": [
+        "session c0add2fa mic_preflight ok",
+        "evidence/spoken-1109.png"
       ]
     },
     {
@@ -2934,7 +2957,7 @@
       "id": "DEVOBS-01",
       "title": "Wrong next step on latency and retry findings",
       "source": "Agent reported",
-      "status": "awaiting_verification",
+      "status": "verified_fixed",
       "observed": "All 4 active agent-plugins findings (3 latency_hotspot slow tests, 1 redundancy retry) have the fix text 'Inspect the CI check log for the failed test process named in the evidence', but none of those tests failed.",
       "recommendation": "Generate the fix text by kind: for latency, name the slow step with p50/p95 and the place to profile it; for retry or duplicate, name the repeated call and the dedupe point.",
       "details": {
@@ -2943,14 +2966,34 @@
         "Fix": "Fixed on devobs-fixes 210b612 (0.1.29): fix text chosen by finding kind (failure / latency_hotspot / redundancy); 122 tests pass. Awaiting installed check."
       },
       "verification_refs": [
-        "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
-      ]
+        "evidence/devobs01-inspect-1105.txt",
+        "issues col-c56a5cccf80f5577, col-49ca7e0770137f22"
+      ],
+      "verification_evidence": [
+        {
+          "check": "Open Calculator and calculate fifteen times sixteen.",
+          "outcome": "success, 6 steps; gaps: ['step_ref_missing']",
+          "build": "0.2.139+af8d9674b62d",
+          "session": "a50daff1",
+          "timestamp": "2026-11-12T11:04:30+05:30",
+          "reference": "observability run a50daff13c84383e7dcafbf7; screenshot /Users/gurusharan/code/acu-release/pr96/captures/livecheck-1104.png"
+        },
+        {
+          "check": "observability_inspect_issue on a latency_hotspot (col-c56a5ccc) and a redundancy retry (col-49ca7e07) after fresh collect",
+          "outcome": "pass: latency says Profile and shorten the step or split it (p95 102800 ms over 12 runs); retry says Deduplicate or cache the repeated test call; if it is a retry, explain its cause. No CI-log text.",
+          "build": "devobs 0.1.29+fc169a7",
+          "session": "live",
+          "timestamp": "2026-11-12T11:10:00+05:30",
+          "reference": "evidence/devobs01-inspect-1105.txt; devobs 0.1.29 at fc169a7"
+        }
+      ],
+      "verification": "Live 2026-11-12 11:05 IST on developer-observability 0.1.29+fc169a7: latency and retry findings get kind-specific fix text (profile with p95; deduplicate the repeated call), no CI-log boilerplate."
     },
     {
       "id": "DEVOBS-02",
       "title": "Coverage boilerplate repeated in every issues reply",
       "source": "Agent reported",
-      "status": "awaiting_verification",
+      "status": "in_progress",
       "observed": "observability_issues returns about 2.6 KB of coverage, coverage_details and limits on every call. That's 3.7 KB in total for samantha (one issue at 526 B) and 7.2 KB for agent-plugins. Every source reads 'partial' because the heartbeats are from 2026-11-04.",
       "recommendation": "By default, coverage is a one-line status that lists only gaps; details are available on request. Fix the stale heartbeat or partial status. ACU confirmed this independently.",
       "details": {
@@ -2960,13 +3003,31 @@
       },
       "verification_refs": [
         "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
+      ],
+      "verification_evidence": [
+        {
+          "check": "Open Calculator and calculate fifteen times sixteen.",
+          "outcome": "success, 6 steps; gaps: ['step_ref_missing']",
+          "build": "0.2.139+af8d9674b62d",
+          "session": "a50daff1",
+          "timestamp": "2026-11-12T11:04:30+05:30",
+          "reference": "observability run a50daff13c84383e7dcafbf7; screenshot /Users/gurusharan/code/acu-release/pr96/captures/livecheck-1104.png"
+        },
+        {
+          "check": "observability_issues agent-plugins and samantha after a fresh collect",
+          "outcome": "partial: coverage is one line and coverage_details/limits are gone, but the line reads legacy snapshot 8d old (6 sources) right after a fresh collect while freshness says fresh. Stale-heartbeat part not fixed.",
+          "build": "devobs 0.1.29+fc169a7",
+          "session": "live",
+          "timestamp": "2026-11-12T11:10:00+05:30",
+          "reference": "devobs.py output 11:05 IST"
+        }
       ]
     },
     {
       "id": "DEVOBS-03",
       "title": "findings.json is 80 MB for 0.4 MB of findings",
       "source": "Agent reported",
-      "status": "awaiting_verification",
+      "status": "in_progress",
       "observed": "collected/findings.json is 80,638,049 bytes. version_scopes is 59.8 MB, session_timelines 28.5 MB and findings 0.38 MB. Collect takes 11.6 s with a 278 MB peak RSS over 44,928 events.",
       "recommendation": "Store the version scopes and timelines as separate, lazily paged files (or indexes), so the snapshot stays small and collect does less work.",
       "details": {
@@ -2976,6 +3037,24 @@
       },
       "verification_refs": [
         "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
+      ],
+      "verification_evidence": [
+        {
+          "check": "Open Calculator and calculate fifteen times sixteen.",
+          "outcome": "success, 6 steps; gaps: ['step_ref_missing']",
+          "build": "0.2.139+af8d9674b62d",
+          "session": "a50daff1",
+          "timestamp": "2026-11-12T11:04:30+05:30",
+          "reference": "observability run a50daff13c84383e7dcafbf7; screenshot /Users/gurusharan/code/acu-release/pr96/captures/livecheck-1104.png"
+        },
+        {
+          "check": "observability_collect on the agent-plugins worktree, timed with /usr/bin/time -l",
+          "outcome": "partial: findings.json 724,859 bytes (was 80.6 MB), but collect took 22.7 s real with 353 MB peak RSS (was 11.6 s / 278 MB; fix note claimed 5.7 s / 253 MB). Collect work regressed.",
+          "build": "devobs 0.1.29+fc169a7",
+          "session": "live",
+          "timestamp": "2026-11-12T11:10:00+05:30",
+          "reference": "~/.local/share/developer-observability/collected/findings.json 11:05 IST"
+        }
       ]
     },
     {
@@ -3108,27 +3187,75 @@
       "id": "OBS-22",
       "title": "Failed multi-step click names the wrong button in the error record",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "Calculator cua_act failed with \"Label not found: Multiply\" but failure.expected_target said label 1 / All Clear and failed_step 1 (activity log rows 4923, 5556).",
       "details": {
         "Cause": "CUAService resolves labels before running and reports failed_step 1; fail_feedback used that index, so expected_target pointed at the first step."
       },
       "recommendation": "When the error names a missing label, attribute the failure to the step with that label (fail_feedback.py + unit test).",
-      "verification_evidence": [],
-      "verification_refs": []
+      "verification_evidence": [
+        {
+          "check": "cua_act on Calculator with a wrong label on step 3 (All Clear>7>Multiplyzz)",
+          "outcome": "pass: failure.failed_step 3, expected_target.label Multiplyzz (was step 1 / All Clear before the fix)",
+          "build": "0.2.139",
+          "session": "live",
+          "timestamp": "2026-11-12T11:10:00+05:30",
+          "reference": "MCP structuredContent 11:03 IST; screenshot evidence/agent13-calc-0.2.139.png"
+        }
+      ],
+      "verification_refs": [
+        "MCP act result 11:03 IST, 0.2.139",
+        "evidence/agent13-calc-0.2.139.png"
+      ],
+      "verification": "Live 2026-11-12 11:03 IST on ACU 0.2.139: wrong label on step 3 reported failed_step 3 and expected_target label Multiplyzz. Unit test test_missing_label_error_names_the_step_with_that_label."
     },
     {
       "id": "AGENT-13",
       "title": "Samantha clicks Calculator buttons before the app has finished loading",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "First cua_act after opening Calculator failed target_missing with elementCount=16 (buttons not yet in the AX tree); a retry seconds later worked.",
       "details": {
         "Cause": "handleClick looked the label up once, in a cached snapshot taken before the app had filled its AX tree."
       },
       "recommendation": "On label miss, re-walk the tree up to 4 times over about 1.2 s before failing (MethodRouter.handleClick).",
-      "verification_evidence": [],
-      "verification_refs": []
+      "verification_evidence": [
+        {
+          "check": "Open Calculator and calculate fifteen times sixteen.",
+          "outcome": "success, 6 steps; gaps: ['step_ref_missing']",
+          "build": "0.2.139+af8d9674b62d",
+          "session": "a50daff1",
+          "timestamp": "2026-11-12T11:04:30+05:30",
+          "reference": "observability run a50daff13c84383e7dcafbf7; screenshot /Users/gurusharan/code/acu-release/pr96/captures/livecheck-1104.png"
+        },
+        {
+          "check": "Quit Calculator, then one cua_act All Clear>7>Multiply>8>Equals right after launch (MCP) and Samantha typed turn fifteen times sixteen",
+          "outcome": "pass: MCP act ok verified 56 first try; Samantha run a50daff1 success, 1 cua_act, no target_missing, reply 15 x 16 = 240",
+          "build": "0.2.139",
+          "session": "live",
+          "timestamp": "2026-11-12T11:10:00+05:30",
+          "reference": "screenshots evidence/agent13-calc-0.2.139.png, pr96/captures/livecheck-1104.png; observability run a50daff13c84383e7dcafbf7"
+        }
+      ],
+      "verification_refs": [
+        "run a50daff13c84383e7dcafbf7, 0.2.139",
+        "evidence/agent13-calc-0.2.139.png",
+        "pr96/captures/livecheck-1104.png"
+      ],
+      "verification": "Live 2026-11-12 11:03-11:05 IST on ACU 0.2.139: first click after a fresh Calculator launch succeeded (MCP 7x8=56 verified; Samantha run a50daff1 15x16=240, one cua_act, no target_missing)."
+    },
+    {
+      "id": "AGENT-14",
+      "title": "Correct result reported as not confirmed when the app restored the same value",
+      "source": "Agent reported",
+      "status": "in_progress",
+      "observed": "Spoken turn 15 x 16: Calculator showed 240 but cua_act returned expect_unverified. Samantha then called cua_state, spent an extra 11.4 s model response, and said the answer twice.",
+      "recommendation": "Also verify when every step ran ok, the expected value is present after, and the AX text values changed (compact_verification._expect_rewritten).",
+      "verification": "Pending: live act on 0.2.140 where Calculator relaunches already showing 240 and the act computes 240 again; expect ok verified, no follow-up cua_state.",
+      "details": {
+        "Root cause": "expect_is_new requires the expected text to be absent before the act. Calculator relaunched with the previous result 240 already displayed, so a correct result could never verify.",
+        "Test": "test_expect_same_value_restored_counts_when_steps_ran_and_values_changed (73 pass)."
+      }
     }
   ]
 }
