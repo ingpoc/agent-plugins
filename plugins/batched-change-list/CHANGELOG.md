@@ -1,5 +1,10 @@
 # Changelog: batched-change-list
 
+## 0.1.8
+
+- One task per Introspect: `introspect` takes `issues` `[{issue, evidence, outcome: fixed|next_cycle}]` and creates a single `WF-` task listing them all (fixed when every issue was fixed during Introspect). Evidence is required for each issue. The task page shows them as an "Issues found" bulleted timeline (Fixed in green, Next cycle in amber), each with its evidence.
+- `rollover` closes any open verification run into history, so the next list never shows a stale "Checked 0 of N".
+
 ## 0.1.7
 
 - Introspect gate: after a full cycle (one that reached `install`), `set-stage`, `set-activity` or `rollover` to `report_rollover` fails until an `introspect` record exists. New batch action `{"action":"introspect","result":"<one line>"}`; a clean run is `"no issues"`. Small cycles that never reached install are not gated. Rollover clears the record for the next cycle.

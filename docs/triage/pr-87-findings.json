@@ -1798,145 +1798,145 @@
         "install_evidence": "Installed version observed at this time; installer reported exact PR head e79d864 and MCP probe passed. Observation time is not installation time.",
         "status": "complete",
         "checks": {}
-      }
-    ],
-    "verification_run": {
-      "id": "devobs-0128-fbd3040",
-      "build": "developer-observability 0.1.28",
-      "revision": "fbd3040e5cc8d0c48cc2c01002ac85a1e0a932f3",
-      "installed_at": "2026-11-09T07:24:41.533803+00:00",
-      "install_evidence": "Exact PR head installed; release MCP probe passed, snapshot freshness stale.",
-      "status": "active",
-      "checks": {
-        "USER-02": {
-          "state": "pending"
-        },
-        "USER-03": {
-          "state": "pending"
-        },
-        "AGENT-02": {
-          "state": "pending"
-        },
-        "OBS-01": {
-          "state": "pending"
-        },
-        "OBS-02": {
-          "state": "pending"
-        },
-        "OBS-03": {
-          "state": "pending"
-        },
-        "OBS-04": {
-          "state": "pending"
-        },
-        "OBS-06": {
-          "state": "pending"
-        },
-        "OBS-10": {
-          "state": "pending"
-        },
-        "AGENT-03": {
-          "state": "pending"
-        },
-        "AGENT-04": {
-          "state": "pending"
-        },
-        "OBS-12": {
-          "state": "pending"
-        },
-        "OBS-13": {
-          "state": "pending"
-        },
-        "OBS-14": {
-          "state": "pending"
-        },
-        "OBS-15": {
-          "state": "pending"
-        },
-        "OBS-16": {
-          "state": "pending"
-        },
-        "OBS-17": {
-          "state": "pending"
-        },
-        "AGENT-07": {
-          "state": "pending"
-        },
-        "USER-06": {
-          "state": "pending"
-        },
-        "OBS-18": {
-          "state": "pending"
-        },
-        "OBS-19": {
-          "state": "pending"
-        },
-        "AGENT-09": {
-          "state": "pending"
-        },
-        "AGENT-10": {
-          "state": "pending"
-        },
-        "OBS-20": {
-          "state": "inconclusive",
-          "started_at": "2026-11-09T07:24:41Z",
-          "updated_at": "2026-11-09T07:24:41Z",
-          "evidence": "Installed 0.1.28 MCP and clean live direct capture passed, with synthetic malformed and failed-event checks. Full child/retry coverage, independent acceptance and general comparison remain unproven.",
-          "finished_at": "2026-11-09T07:37:24Z"
-        },
-        "DEVOBS-01": {
-          "state": "pending"
-        },
-        "DEVOBS-02": {
-          "state": "pending"
-        },
-        "DEVOBS-03": {
-          "state": "pending"
-        },
-        "DEVOBS-04": {
-          "state": "pending"
-        },
-        "AGENT-11": {
-          "state": "pending"
-        },
-        "USER-07": {
-          "state": "pending"
-        },
-        "OBS-21": {
-          "state": "pending"
-        },
-        "AGENT-12": {
-          "state": "pending"
-        },
-        "OBS-22": {
-          "state": "pending"
-        },
-        "AGENT-13": {
-          "state": "pending"
-        },
-        "AGENT-14": {
-          "state": "pending"
-        },
-        "AGENT-15": {
-          "state": "pending"
-        },
-        "WF-01": {
-          "state": "pending"
-        },
-        "WF-02": {
-          "state": "pending"
-        },
-        "WF-03": {
-          "state": "pending"
-        },
-        "WF-04": {
-          "state": "pending"
-        },
-        "WF-05": {
-          "state": "pending"
+      },
+      {
+        "id": "devobs-0128-fbd3040",
+        "build": "developer-observability 0.1.28",
+        "revision": "fbd3040e5cc8d0c48cc2c01002ac85a1e0a932f3",
+        "installed_at": "2026-11-09T07:24:41.533803+00:00",
+        "install_evidence": "Exact PR head installed; release MCP probe passed, snapshot freshness stale.",
+        "status": "interrupted",
+        "checks": {
+          "USER-02": {
+            "state": "pending"
+          },
+          "USER-03": {
+            "state": "pending"
+          },
+          "AGENT-02": {
+            "state": "pending"
+          },
+          "OBS-01": {
+            "state": "pending"
+          },
+          "OBS-02": {
+            "state": "pending"
+          },
+          "OBS-03": {
+            "state": "pending"
+          },
+          "OBS-04": {
+            "state": "pending"
+          },
+          "OBS-06": {
+            "state": "pending"
+          },
+          "OBS-10": {
+            "state": "pending"
+          },
+          "AGENT-03": {
+            "state": "pending"
+          },
+          "AGENT-04": {
+            "state": "pending"
+          },
+          "OBS-12": {
+            "state": "pending"
+          },
+          "OBS-13": {
+            "state": "pending"
+          },
+          "OBS-14": {
+            "state": "pending"
+          },
+          "OBS-15": {
+            "state": "pending"
+          },
+          "OBS-16": {
+            "state": "pending"
+          },
+          "OBS-17": {
+            "state": "pending"
+          },
+          "AGENT-07": {
+            "state": "pending"
+          },
+          "USER-06": {
+            "state": "pending"
+          },
+          "OBS-18": {
+            "state": "pending"
+          },
+          "OBS-19": {
+            "state": "pending"
+          },
+          "AGENT-09": {
+            "state": "pending"
+          },
+          "AGENT-10": {
+            "state": "pending"
+          },
+          "OBS-20": {
+            "state": "inconclusive",
+            "started_at": "2026-11-09T07:24:41Z",
+            "updated_at": "2026-11-09T07:24:41Z",
+            "evidence": "Installed 0.1.28 MCP and clean live direct capture passed, with synthetic malformed and failed-event checks. Full child/retry coverage, independent acceptance and general comparison remain unproven.",
+            "finished_at": "2026-11-09T07:37:24Z"
+          },
+          "DEVOBS-01": {
+            "state": "pending"
+          },
+          "DEVOBS-02": {
+            "state": "pending"
+          },
+          "DEVOBS-03": {
+            "state": "pending"
+          },
+          "DEVOBS-04": {
+            "state": "pending"
+          },
+          "AGENT-11": {
+            "state": "pending"
+          },
+          "USER-07": {
+            "state": "pending"
+          },
+          "OBS-21": {
+            "state": "pending"
+          },
+          "AGENT-12": {
+            "state": "pending"
+          },
+          "OBS-22": {
+            "state": "pending"
+          },
+          "AGENT-13": {
+            "state": "pending"
+          },
+          "AGENT-14": {
+            "state": "pending"
+          },
+          "AGENT-15": {
+            "state": "pending"
+          },
+          "WF-01": {
+            "state": "pending"
+          },
+          "WF-02": {
+            "state": "pending"
+          },
+          "WF-03": {
+            "state": "pending"
+          },
+          "WF-04": {
+            "state": "pending"
+          },
+          "WF-05": {
+            "state": "pending"
+          }
         }
       }
-    },
+    ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
     "installed_plugins": {
       "observed_at": "2026-11-08T13:43:48.840859+00:00",
@@ -1950,8 +1950,7 @@
     },
     "workflow": {
       "stage": "report_rollover",
-      "updated_at": "2026-11-12T08:59:15Z",
-      "now": "2026-11-12T08:59:15Z — 14:29 IST WF-05 and WF-01 verified; PR #100 ready for review (small cycle, no Introspect)"
+      "updated_at": "2026-11-12T10:55:46+00:00"
     },
     "rollover": {
       "source_pr": 96,
@@ -3411,68 +3410,6 @@
       ]
     },
     {
-      "id": "WF-01",
-      "title": "New test passed locally but failed in the release gate's runner",
-      "source": "Agent reported",
-      "status": "verified_fixed",
-      "observed": "ACU 0.2.141 release source-checks failed: test_session_hub_startup.py raised ModuleNotFoundError voice_cua under the gate's per-file unittest run, after passing under local pytest from voice-cua/python. One extra release cycle (~3 min).",
-      "recommendation": "Give the local check the same per-file runner the gate uses for changed tests (e.g. check.py --changed), and run it before release.sh, so a runner mismatch fails in seconds, not in the release.",
-      "verification": "release.sh now runs scripts/check.py --changed-since origin-cursor/main (the gate's own runner) right after its commit and before push/release. Proof: a voice-cua test without the sys.path insert passed under pytest but the precheck failed in about 70 s with ModuleNotFoundError: voice_cua, so release would stop before starting.",
-      "details": {
-        "evidence": "~/code/acu-release/pr96 rel-0.2.141 first source-checks log, commit fb4602e",
-        "fixed_in_introspect": "release.sh now deletes the previous report before running and fails loudly unless the PR branch on origin-cursor equals HEAD (a -q push had silently failed because the branch tracked main)"
-      },
-      "verification_refs": [
-        "~/code/acu-release/evidence/wf01-precheck-catches.log",
-        "~/code/acu-release/pr96/release.sh"
-      ]
-    },
-    {
-      "id": "WF-02",
-      "title": "Release showed the previous run's failure as the new run's",
-      "source": "Agent reported",
-      "status": "verified_fixed",
-      "observed": "Second 0.2.141 release attempt reported the first attempt's source-checks failure (same log, commit fb4602e instead of 75e2ac4).",
-      "recommendation": "release.sh deletes this version's report and logs before starting.",
-      "verification": "Fixed in Introspect: a temp dir with rel-9.9.json, rel-9.9.log, rel-9.9-x.log and rel-9.9.wrap.log kept only the caller's wrap log after the new cleanup line ran.",
-      "details": {
-        "fixed_in": "Introspect after PR #98 verify (2026-11-12)"
-      },
-      "verification_refs": [
-        "~/code/acu-release/pr96/release.sh line 5"
-      ]
-    },
-    {
-      "id": "WF-03",
-      "title": "Push to the PR branch failed silently",
-      "source": "Agent reported",
-      "status": "verified_fixed",
-      "observed": "git push -q after the tracker commit pushed nothing because the branch tracked origin-cursor/main; PR #98 kept showing 75e2ac4 until checked by hand.",
-      "recommendation": "Push HEAD to the branch by name and fail unless the remote ref equals HEAD; set the branch upstream to its own PR branch.",
-      "verification": "Fixed in Introspect: release.sh pushes HEAD:<branch> and exits 'push failed' unless ls-remote equals HEAD; the same check confirmed samantha-introspect pushed for PR #100.",
-      "details": {
-        "fixed_in": "Introspect after PR #98 verify (2026-11-12)"
-      },
-      "verification_refs": [
-        "~/code/acu-release/pr96/release.sh lines 6-8"
-      ]
-    },
-    {
-      "id": "WF-04",
-      "title": "Merged work left a worktree and branch behind",
-      "source": "Agent reported",
-      "status": "verified_fixed",
-      "observed": "After PR #99 merged, worktree obs20-usage and branch codex/obs20-usage-binding were still present.",
-      "recommendation": "Remove a task worktree and branch once its PR merges.",
-      "verification": "Fixed in Introspect: worktree removed and branch deleted (was 4a9212e).",
-      "details": {
-        "fixed_in": "Introspect after PR #98 verify (2026-11-12)"
-      },
-      "verification_refs": [
-        "git worktree list"
-      ]
-    },
-    {
       "id": "WF-05",
       "title": "Introspect can be skipped after a full cycle",
       "source": "User requested",
@@ -3486,6 +3423,41 @@
       "verification_refs": [
         "~/code/acu-release/evidence/wf05/live.txt",
         "test_full_cycle_needs_introspect_before_report_small_cycle_does_not"
+      ]
+    },
+    {
+      "id": "WF-01",
+      "title": "Introspect 2026-11-12 (PR #98 cycle): 4 issues, all fixed",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "Introspect found 4 issue(s): 4 fixed, 0 left for the next cycle.",
+      "recommendation": "None; all fixed.",
+      "verification": "1: precheck caught a pytest-passing test with ModuleNotFoundError (wf01-precheck-catches.log). 2-4: release.sh lines 5-8 and worktree list checked during Introspect.",
+      "verification_refs": [
+        "~/code/acu-release/evidence/wf01-precheck-catches.log",
+        "~/code/acu-release/pr96/release.sh"
+      ],
+      "issues": [
+        {
+          "issue": "New test passed under local pytest but failed in the release gate's per-file runner, costing one extra release cycle (about 3 min). release.sh now runs check.py --changed-since after its commit, before push.",
+          "evidence": "rel-0.2.141 source-checks log; wf01-precheck-catches.log",
+          "outcome": "fixed"
+        },
+        {
+          "issue": "Release showed the previous run's failure as the new run's. release.sh now deletes old reports first.",
+          "evidence": "rel-0.2.141 second run read the first run's report",
+          "outcome": "fixed"
+        },
+        {
+          "issue": "Push to the PR branch failed silently (git push -q while upstream was main). release.sh now checks the remote head and exits loudly.",
+          "evidence": "origin-cursor branch head did not match local HEAD",
+          "outcome": "fixed"
+        },
+        {
+          "issue": "Merged work left the obs20 worktree and branch behind; deleted.",
+          "evidence": "git worktree list after #99 merged",
+          "outcome": "fixed"
+        }
       ]
     }
   ]
