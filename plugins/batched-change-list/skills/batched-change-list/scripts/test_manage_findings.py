@@ -203,7 +203,8 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(len(doc['findings']), before + 1)
         task = doc['findings'][-1]
         self.assertEqual((task['id'], task['status'], doc['tracking']['introspect']['task']), ('WF-01', 'untested', 'WF-01'))
-        self.assertIn('stale report shown', task['observed'])
+        self.assertEqual([i['issue'] for i in task['issues']], ['stale report shown', 'runner mismatch'])
+        self.assertIn('Issues found', page.read_text())
         self.assertIn('runner mismatch', task['recommendation'])
         self.assertNotIn('stale report', task['recommendation'])
 

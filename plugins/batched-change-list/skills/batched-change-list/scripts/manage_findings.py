@@ -671,13 +671,14 @@ def main(argv=None):
                     if issues:
                         used = [int(f["id"][3:]) for f in findings if re.fullmatch(r"WF-\d+", str(f.get("id", "")))]
                         task_id = f"WF-{max(used, default=0) + 1:02d}"
-                        lines = [f"{n}. {i['issue'].strip()} ({'fixed in Introspect' if i['outcome'] == 'fixed' else 'next cycle'}); evidence: {i['evidence'].strip()}" for n, i in enumerate(issues, 1)]
-                        pending = [line for line, i in zip(lines, issues) if i["outcome"] == "next_cycle"]
+                        clean = [{"issue": i["issue"].strip(), "evidence": i["evidence"].strip(), "outcome": i["outcome"]} for i in issues]
+                        pending = [i["issue"] for i in clean if i["outcome"] == "next_cycle"]
                         task = {"id": task_id, "title": f"Introspect {stamp[:10]}: {len(issues)} issue(s), {len(pending)} for next cycle",
                                 "source": "Agent reported", "status": "untested" if pending else "verified_fixed",
-                                "observed": "\n".join(lines), "recommendation": "\n".join(pending) or "None; all fixed during Introspect.",
+                                "observed": f"Introspect found {len(clean)} issue(s): {len(clean) - len(pending)} fixed during Introspect, {len(pending)} left for the next cycle.",
+                                "recommendation": "; ".join(pending) or "None; all fixed during Introspect.",
                                 "verification": "" if pending else "All issues fixed and checked during Introspect.",
-                                "details": {f"issue_{n}": line for n, line in enumerate(lines, 1)}}
+                                "issues": clean}
                         if not pending:
                             task["verification_refs"] = [i["evidence"].strip() for i in issues]
                         validate_detail_limits(task)
