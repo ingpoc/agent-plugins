@@ -1922,6 +1922,15 @@
         },
         "WF-01": {
           "state": "pending"
+        },
+        "WF-02": {
+          "state": "pending"
+        },
+        "WF-03": {
+          "state": "pending"
+        },
+        "WF-04": {
+          "state": "pending"
         }
       }
     },
@@ -3407,6 +3416,51 @@
         "evidence": "~/code/acu-release/pr96 rel-0.2.141 first source-checks log, commit fb4602e",
         "fixed_in_introspect": "release.sh now deletes the previous report before running and fails loudly unless the PR branch on origin-cursor equals HEAD (a -q push had silently failed because the branch tracked main)"
       }
+    },
+    {
+      "id": "WF-02",
+      "title": "Release showed the previous run's failure as the new run's",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "Second 0.2.141 release attempt reported the first attempt's source-checks failure (same log, commit fb4602e instead of 75e2ac4).",
+      "recommendation": "release.sh deletes this version's report and logs before starting.",
+      "verification": "Fixed in Introspect: a temp dir with rel-9.9.json, rel-9.9.log, rel-9.9-x.log and rel-9.9.wrap.log kept only the caller's wrap log after the new cleanup line ran.",
+      "details": {
+        "fixed_in": "Introspect after PR #98 verify (2026-11-12)"
+      },
+      "verification_refs": [
+        "~/code/acu-release/pr96/release.sh line 5"
+      ]
+    },
+    {
+      "id": "WF-03",
+      "title": "Push to the PR branch failed silently",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "git push -q after the tracker commit pushed nothing because the branch tracked origin-cursor/main; PR #98 kept showing 75e2ac4 until checked by hand.",
+      "recommendation": "Push HEAD to the branch by name and fail unless the remote ref equals HEAD; set the branch upstream to its own PR branch.",
+      "verification": "Fixed in Introspect: release.sh pushes HEAD:<branch> and exits 'push failed' unless ls-remote equals HEAD; the same check confirmed samantha-introspect pushed for PR #100.",
+      "details": {
+        "fixed_in": "Introspect after PR #98 verify (2026-11-12)"
+      },
+      "verification_refs": [
+        "~/code/acu-release/pr96/release.sh lines 6-8"
+      ]
+    },
+    {
+      "id": "WF-04",
+      "title": "Merged work left a worktree and branch behind",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "After PR #99 merged, worktree obs20-usage and branch codex/obs20-usage-binding were still present.",
+      "recommendation": "Remove a task worktree and branch once its PR merges.",
+      "verification": "Fixed in Introspect: worktree removed and branch deleted (was 4a9212e).",
+      "details": {
+        "fixed_in": "Introspect after PR #98 verify (2026-11-12)"
+      },
+      "verification_refs": [
+        "git worktree list"
+      ]
     }
   ]
 }
