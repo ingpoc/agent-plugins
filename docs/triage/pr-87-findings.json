@@ -3572,13 +3572,13 @@
       "title": "tool_reported verified_success when the turn had not actually succeeded",
       "source": "Agent reported",
       "status": "failing",
-      "observed": "Session 374280f6 logged task_outcome verified_success at 01:06:00 IST right after she said she could not identify the repo; at 01:06:25 after ledger_task returned no decisions; and at 01:09:35 after cua_state only showed the Finder folder, not a running app. expected_outcome on later outcomes was often 'unknown'.",
+      "observed": "Session 374280f6 logged task_outcome verified_success at 01:06:00 IST right after she said she could not identify the repo; at 01:06:25 after ledger_task returned no decisions; and at 01:09:35 after cua_state only showed the Finder folder, not a running app. Recurred in session 91c0b348 at 02:17:45 IST: the local-commit turn ended with confirm_risky {ok:true, approved:false} after a 120s timeout, she said the commit was not created, and task_outcome was still verified_success. expected_outcome on later outcomes was often 'unknown'.",
       "recommendation": "Do not mark verified_success from the last tool's ok=true when the user-facing result is a failure or an incomplete task.",
       "details": {
         "Expected": "verified_success only when the user's request was actually completed.",
-        "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:06:00, 01:06:25, 01:09:35 IST",
-        "Session": "374280f6",
-        "Root cause": "live_session._task_outcome returns verified_success when the response status is completed and the last tool result has ok=true. A successful ledger lookup with no decisions, or a successful Finder state read, therefore marks the whole task successful even when the spoken reply admits failure or the app was never opened.",
+        "Build and time": "ACU 0.2.141+add24e6e826e; first seen 2026-11-14 01:06:00, 01:06:25, 01:09:35 IST (374280f6); recurred 02:17:45 IST (91c0b348).",
+        "Session": "374280f6; recurred 91c0b348 run 53aec28f844a4dd598c19175aa545fb6",
+        "Root cause": "live_session._task_outcome returns verified_success when the response status is completed and the last tool result has ok=true. confirm_risky returns ok=true even when approved=false, so a declined or timed-out confirm still marks the whole task successful.",
         "Where to look": "runtime/voice-cua/python/voice_cua/live_session.py — _task_outcome() and _note_response_done() around the log_task_outcome call.",
         "Evidence class": "tool_reported",
         "Related gap": "observability_tasks still listed several of these runs as outcome unknown",
@@ -3623,6 +3623,118 @@
         "Provenance": "diagnose of col-7ed98c0042f27adc plus activity-log island_layout and island_error_raw events"
       },
       "evidence": []
+    },
+    {
+      "id": "AGENT-20",
+      "title": "Typed session text API gives up at 120 seconds while Samantha is still working",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "On 14 Nov 2026 IST, session 91c0b348, almost every real build turn exceeded the /api/session/text cap: turn 2 (branch + npm ls) finished at ~198s; turn 4 (npm ci + tests) at ~382s; turn 5 (start API on 8788) at ~147s; turn 6 (health-version feature) at ~504s; turn 7 (commit) at ~375s. Each POST returned HTTP 503 {ok:false, error:'timeout', reply:''} at 120s, then she kept using tools and eventually spoke. ACU 0.2.141+add24e6e826e.",
+      "recommendation": "Raise or remove the 120s hard cap for tool-using typed turns, and do not return timeout while tools are still running; keep the waiter until response_done or an explicit stop.",
+      "details": {
+        "Expected": "A typed turn that needs several Terminal or editor actions should return the final reply, not a 120s timeout with an empty reply, while Samantha continues working.",
+        "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:41–02:17 IST",
+        "Session": "91c0b348; runs include fb5f522cb31e4d5b89cc2b814adc673f, 0c53498eb7dd4d2d97ac1aeceb2eed35, 6f86044bb27d4055bbe4e1e3144ceb9c, 53aec28f844a4dd598c19175aa545fb6",
+        "Root cause": "gateway.py caps the wait at min(timeout, 120.0). live_session.send_text_and_wait returns {ok:false, error:'timeout'} when the waiter event does not fire in that window, but the Live response and tools keep running.",
+        "Where to look": "runtime/voice-cua/python/voice_cua/gateway.py (/api/session/text, min(timeout, 120.0)) and live_session.py send_text_and_wait (waiter event, 240-char reply slice).",
+        "Provenance": "Typed POSTs to 127.0.0.1:8766/api/session/text; voice.log response_done timestamps; activity log tool timelines."
+      }
+    },
+    {
+      "id": "AGENT-21",
+      "title": "Samantha has no shell or file-write tool, so coding work is only through Terminal and TextEdit cua_act",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "During the 14 Nov 2026 IST Likeminded build session (91c0b348), every install, test, edit, and git step was done by cua_act keystrokes in Terminal or TextEdit. Turn 1 failed entirely ('Terminal input failed'). Later turns took 2–8 minutes for npm ci, a small server.js edit, and a local commit that never landed. She opened TextEdit to change files and Comet to show /health. There is no shell, write_file, or editor-integration tool.",
+      "recommendation": "Add a bounded local shell and file-write path (or an editor/terminal tool that is reliable), and keep cua_act as a fallback, so 'build by talking' is not one keystroke at a time.",
+      "details": {
+        "Expected": "A developer-assistant session can install deps, edit a file, run tests, and commit without driving Terminal and TextEdit as a GUI.",
+        "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:39–02:17 IST",
+        "Session": "91c0b348, worktree ~/code/worktrees/likeminded-samantha",
+        "Root cause": "tools.py tool_definitions exposes cua_state, cua_act, system_volume, more_tools (secrets/workflows/ledger only), show_details, comet_*, and ledger_task. more_tools cannot load a shell.",
+        "Where to look": "runtime/voice-cua/python/voice_cua/tools.py (tool_definitions, _lazy_tools, TOOL_GROUPS, _more_tools) and the compact CUA backend used by cua_act.",
+        "Provenance": "Activity-log tool names for every turn; worktree diffs made via TextEdit; turn 1 spoken failure."
+      }
+    },
+    {
+      "id": "AGENT-22",
+      "title": "Terminal and TextEdit cua_act frequently fail with expect_unverified, action_failed, stale_id, and retry_cap",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "Session 91c0b348, 14 Nov 2026 IST: turn 1 had app_not_running then stale_id, expect_unverified, and action_failed on Terminal, and she gave up. Turn 2 (success after ~3 min) had 20 cua_act starts, 6 action_failed, 5 expect_unverified, 1 retry_cap, 8 ok. Every later turn repeated expect_unverified and action_failed; turn 4 and 6 also hit retry_cap; turns 5–7 had observation_incomplete when reading command output; turn 6 had expect_unverified on TextEdit too. She often recovered after many retries.",
+      "recommendation": "Make Terminal typing and expect-verification reliable (stable targets after the shell updates, complete output observations), and treat retry_cap as a signal to change strategy rather than more of the same keystroke steps.",
+      "details": {
+        "Expected": "A command typed into an already-open Terminal should verify and return output without a chain of expect_unverified, action_failed, stale_id, and retry_cap errors.",
+        "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:39–02:17 IST",
+        "Session": "91c0b348",
+        "Root cause": "cua_act expect matches against AX that lags or changes after keystrokes (stale_id, expect_unverified). Output reading is observation_incomplete. After several failures the step hits retry_cap. No shell tool means she cannot bypass this.",
+        "Where to look": "runtime/voice-cua/python/voice_cua/tools.py (_note_failure, _retry_capped, cua_act dispatch) and skills/macos-cua/scripts/compact_backend.py (expect verification, Terminal AX).",
+        "Provenance": "Per-turn activity-log tool_error error_type counts; spoken 'Terminal input failed' at 01:40:16 IST."
+      }
+    },
+    {
+      "id": "AGENT-23",
+      "title": "cua_act logging crashes with a typed_text keyword conflict",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "At 02:13:08 and 02:13:24 IST on 14 Nov 2026, session 91c0b348, two cua_act calls on TextEdit (call_c0P4ngEHfSZVXp3ViZAcl54y and call_U1ve1a66OpTqXbitkADHxuB9, run 53aec28f844a4dd598c19175aa545fb6) failed with error_type TypeError: voice_cua.activity_log.log_event() got multiple values for keyword argument 'typed_text'. Each call logged the TypeError twice. This was during the local-commit turn while she was using TextEdit.",
+      "recommendation": "Pass typed_text only once into log_event — merge it into fields or drop the duplicate keyword — so a TextEdit or Terminal type step cannot fail in the logger.",
+      "details": {
+        "Expected": "Logging a cua_act that includes typed text must not raise, and must not be reported to the model as a tool failure.",
+        "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 02:13:08 and 02:13:24 IST",
+        "Session": "91c0b348, run 53aec28f844a4dd598c19175aa545fb6, step_refs ceb277cf5f794fa18edf59510acae167 and 6d21ebf645f24278a105ca41eb99bb55",
+        "Root cause": "A cua_act tool_error/tool_result path calls log_event with a typed_text keyword while the assembled fields dict already contains typed_text, so Python raises TypeError. The exception is then recorded as the tool error.",
+        "Where to look": "runtime/voice-cua/python/voice_cua/activity_log.py (log_event, and the tool-result enrichment that sets fields['typed_text'] around the _typed_text helpers) and the cua_act logging call in tools.py or cua_bridge.py.",
+        "Provenance": "activity-log tool_error events with the TypeError string; no secrets in the logged error."
+      }
+    },
+    {
+      "id": "AGENT-24",
+      "title": "A confirm_risky timeout is reported as the user saying no",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "At 02:15:25 IST on 14 Nov 2026, session 91c0b348, git commit -m in Terminal was gated as needs_confirmation. confirm_risky showed an island prompt to create a local commit 'fix: use package health version' with the three staged files, no push. After 120007ms with no island answer, confirm_risky returned {ok:true, approved:false, hint:'User said no: do not retry; tell the user.'}. Nobody declined. She told the user confirmation was declined and left the files staged. The asking typed turn had already HTTP-timed-out at 120s.",
+      "recommendation": "Treat a confirm timeout as expired or unanswered, not as a decline; say so to the model; and give a typed-session client a way to approve. Align the confirm wait with the text-turn wait so they do not expire together.",
+      "details": {
+        "Expected": "If the operator does not answer an island confirm in time, the result should be a timeout, not 'User said no', and a typed turn that asked for the commit should still be able to approve it.",
+        "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 02:15:25–02:17:45 IST",
+        "Session": "91c0b348, run 53aec28f844a4dd598c19175aa545fb6, confirm_id 4743965f-8590-4a25-84d1-bab30ac327da, duration_ms 120007",
+        "Root cause": "risk_gate._confirm sets approved=bool(ask(...)). island_confirm/request_confirm returns False on timeout, and the False branch always returns the hint 'User said no: do not retry; tell the user.'",
+        "Where to look": "runtime/voice-cua/python/voice_cua/risk_gate.py (_confirm, the approved False hint), tools.py (confirm_risky, island_confirm), island_facade.py and island_state.py (request_confirm timeout).",
+        "Provenance": "activity-log confirm_request, tool_result confirm_risky (approved false, 120007ms), assistant_reply at 02:17:45 IST; files still staged."
+      }
+    },
+    {
+      "id": "OBS-27",
+      "title": "Typed turns are not written as You: lines in voice.log, except Stop",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "For session 91c0b348 on 14 Nov 2026 IST, seven typed POST /api/session/text turns from 01:39:15 to 02:11:27 left no 'You:' line in ~/.cache/macos-cua/voice.log. The only 'You:' after 01:39 is 'You: Stop.' at 01:48:58, from the cancel path. Assistant replies and response_done are logged. The session transcript in voice.log therefore cannot be used alone to reconstruct what was asked. user_request events in the activity log do have the text.",
+      "recommendation": "Log each typed send_text the same way as a spoken transcript ('You:' in voice.log and a user_transcript event), including after a Stop, so the session transcript is complete.",
+      "details": {
+        "Expected": "Every typed turn appears as a You: line in voice.log, next to Samantha: replies, so the transcript can be read without the activity log.",
+        "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:39:15–02:17:45 IST",
+        "Session": "91c0b348",
+        "Root cause": "voice.log 'You:' appears to be written from the microphone-transcription / spoken path (and from the Stop cancel send_text). The regular /api/session/text path does not append a You: line.",
+        "Where to look": "runtime/voice-cua/python/voice_cua/live_session.py (send_text and send_text_and_wait) and providers.py (_on_heard / user_transcript). Compare the Stop cancel path, which did log You:.",
+        "Provenance": "voice.log from 01:39 IST onward vs activity-log user_request timestamps."
+      }
+    },
+    {
+      "id": "OBS-28",
+      "title": "Typed-turn replies are truncated to 240 characters",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "On 14 Nov 2026 IST, session 91c0b348, /api/session/text and activity-log assistant_reply (source=backend) stored only 240 characters. The install/test reply was cut mid-word: 'npm run test:auth passed: 18 tests, 0 failur'. The health-feature reply was cut at 'matching `pa'. live_voice follow-up lines were shorter summaries and did not restore the missing words. Independent check: npm run test:health later passed 2/2, so the cut text was not a model failure.",
+      "recommendation": "Return and log the full assistant reply for a typed turn, or a documented higher cap, and do not slice at 240 characters.",
+      "details": {
+        "Expected": "The typed-turn HTTP body and the activity-log assistant_reply contain the full spoken/backend text, including test counts.",
+        "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:55:58 and 02:10:40 IST",
+        "Session": "91c0b348",
+        "Root cause": "live_session.send_text_and_wait returns str(waiter['reply'])[:240]. The backend assistant_reply in the activity log is similarly sliced, so even transcript review cannot recover the tail.",
+        "Where to look": "runtime/voice-cua/python/voice_cua/live_session.py send_text_and_wait (the [:240] slices on ok, error, and timeout paths) and the assistant_reply logger.",
+        "Provenance": "HTTP bodies and activity-log assistant_reply LEN 240; voice.log first spoken sentence also matches the slice, with a shorter live_voice follow-up."
+      }
     }
   ]
 }
