@@ -3470,12 +3470,12 @@
       "details": {
         "Expected": "A start that is stopped within a second should not wait 45s and then log gateway_health failure.",
         "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:15:38 to 01:16:24 IST",
-        "Session": "bd4abacd",
+        "Session": "bd4abacd (supervisor only; no user or assistant turns)",
         "Observability issue": "col-97ca2e1ef5264965",
         "Error": "startup/gateway_health: timeout 45s",
-        "Log": "samantha-activity.jsonl startup phases supervisor_begin, process_exit at 01:15:39 IST, then gateway_health fail",
-        "Provenance": "developer-observability collect 2026-11-13T19:48:18Z plus read-only activity log",
-        "Current state": "Nothing is listening on 127.0.0.1:8766; Samantha appears off"
+        "Current state": "Nothing is listening on 127.0.0.1:8766; Samantha appears off. CUAService is still running.",
+        "Root cause": "start() was still in waitForGatewayHealth(timeout: 45) when stop() set stopping=true and process=nil at 01:15:39 IST. The wait loop only returns early on `if let proc = process, !proc.isRunning`, so a nil process is skipped and it keeps polling /health until the 45s deadline, after which start() logs timeout 45s.",
+        "Where to look": "plugins/agent-computer-use/skills/macos-cua/service/Sources/CUAService/VoiceSupervisor.swift — start(), stop(), and waitForGatewayHealth(timeout:). stop() sets stopping, but the wait loop does not check it."
       },
       "evidence": []
     },
@@ -3487,14 +3487,14 @@
       "observed": "On 14 Nov 2026 at 01:10:10–01:10:20 IST, run 07e85c58fe8e4bfe82324001f7ef9dcd (observability run_ref 176df365d4f96103cd46f9c0, session 374280f6, ACU 0.2.141+add24e6e826e) failed cua_state with 'App is not running' for com.likeminded.app, then retried cua_act with application names 'Likeminded' and 'com.likeminded.app'; both returned app_not_found. The island showed 'Something went wrong'. Observability col-9c0d43c3913c2f4b grouped this as 1 failure plus 2 downstream retries. The task outcome stayed unverified.",
       "recommendation": "Treat app_not_running as a terminal condition for that target, and never pass a bundle ID to the application-name lookup. Tell the user the app is not running or not installed instead of retrying and showing a generic island error.",
       "details": {
-        "Expected": "If the app is not running or not installed, stop after cua_state and explain that, without a bundle-ID name retry.",
+        "Expected": "If the app is not running, stop after cua_state and explain that, without a bundle-ID name retry.",
         "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:10:10 to 01:10:20 IST",
         "Run": "07e85c58fe8e4bfe82324001f7ef9dcd / run_ref 176df365d4f96103cd46f9c0",
         "Session": "374280f6",
         "Observability issue": "col-9c0d43c3913c2f4b",
         "Errors": "cua_state app_not_running; cua_act app_not_found 'Likeminded'; cua_act app_not_found 'com.likeminded.app'",
-        "Island": "shown: Something went wrong, coinciding island_layout status=error on supervisor session bfee12ae",
-        "Provenance": "developer-observability task 176df365d4f96103cd46f9c0 and activity log tool_error lines"
+        "Root cause": "Guru asked to 'test the like-minded app' after Finder already showed the Like-minded-app folder (app not running). Samantha chose cua_state(com.likeminded.app) → app_not_running, then cua_act open 'Likeminded', then open 'com.likeminded.app'. app_not_running is not in FAIL_HINTS, so _note_failure adds the default retryable hint 'Try one different approach, then tell the user.' _show_app_window runs `/usr/bin/open -a <app>`, which fails for a bundle ID.",
+        "Where to look": "runtime/voice-cua/python/voice_cua/tools.py — FAIL_HINTS and _note_failure(); skills/macos-cua/scripts/compact_backend.py — _show_app_window() and the cua_act open/reveal path."
       },
       "evidence": []
     },
@@ -3509,11 +3509,106 @@
         "Expected": "Spoken turns should reach playback in under 10 seconds in normal conditions.",
         "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:02:36 and 01:07:22 IST",
         "Session": "374280f6",
-        "Observability issue": "col-76a7411cce3a3654",
-        "Related": "Recurrence of verified_fixed OBS-01",
-        "First turn": "run_ref 5e63a8d0866195a8dc0e717e, speech_to_playback 21496 ms, voice_latency step 21496 ms, turn_latency 10219 ms",
-        "Second turn": "15137 ms with tools comet_act and ledger_task; 0 tool errors on that turn",
-        "Provenance": "developer-observability diagnose of col-76a7411cce3a3654 and task 5e63a8d0866195a8dc0e717e"
+        "Observability issue": "col-76a7411cce3a3654; recurrence of verified_fixed OBS-01",
+        "First turn": "run_ref 5e63a8d0866195a8dc0e717e, no tools, text_input",
+        "Second turn": "15137 ms with comet_act and ledger_task; 0 tool errors on that turn",
+        "Root cause": "Turn 1 was a typed request at 01:02:33 IST ('Walk the checkout flow…'). Samantha said 'On it.', then live_escalate gpt-6-luna → gpt-6.1-sol at 01:02:39, and asked which app to test at 01:02:47 (about 14s later). The 21496 ms speech_to_playback may be inflated for a typed turn. Turn 24: ledger_task returned in 48 ms at 01:07:06 after 'remote clod', a duplicate lookup ran at 01:07:21, and speech started at 01:07:27 (15137 ms).",
+        "Where to look": "runtime/voice-cua/python/voice_cua/live_session.py — live_escalate / _note_response_done(); runtime/voice-cua/python/voice_cua/audio_io.py — OutputPlayer._output_callback speech_to_playback_ms (timing_marks from speech_at)."
+      },
+      "evidence": []
+    },
+    {
+      "id": "AGENT-18",
+      "title": "Samantha asked for the app name after already hearing 'Use like minded app'",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "At 01:05:18 IST session 374280f6 transcribed 'Use like minded app' (microphone_transcription). At 01:05:22 IST she replied 'I didn’t catch the app name—could you repeat it or spell it out?' Guru had to repeat 'It's like minded' at 01:05:33 IST before she looked it up.",
+      "recommendation": "Ground the spoken reply on the completed user_transcript; do not ask the user to repeat a name that was just transcribed.",
+      "details": {
+        "Expected": "After a clear transcript of the app name, proceed with that app instead of asking to repeat it.",
+        "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:05:18 to 01:05:27 IST",
+        "Session": "374280f6, run 07e85c58fe8e4bfe82324001f7ef9dcd",
+        "Snippet": "User: 'Use like minded app'. Reply: 'I didn’t catch the app name—could you repeat it or spell it out?'",
+        "Root cause": "The user_transcript was logged 4s before the reply, so the words were available. The live model still treated the name as unheard, possibly because an earlier typed checkout prompt was still in context, or the reply was not grounded on the completed transcript.",
+        "Where to look": "runtime/voice-cua/python/voice_cua/live_session.py — the input_audio_transcription.completed handler and _note_user_turn(); check that the completed transcript is in the model context before the next response is spoken.",
+        "Provenance": "Read-only samantha-activity.jsonl plus voice.log You: lines",
+        "Related": "Leads into AGENT-17 after Guru repeated the name"
+      },
+      "evidence": []
+    },
+    {
+      "id": "AGENT-19",
+      "title": "Samantha missed the local clone path and did not treat batched-change-list as the plugin",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "At 01:07:05 IST Guru said the app was 'already cloned in the apps folder inside remote clod' (ASR of remote claude). She asked what 'remote clod' meant and did not inspect the local folder until 01:09:25, when he asked if she could see Finder. At 01:10:01 he said 'use batch change list'; at 01:10:45 she said she does not have a 'Batch Change List' tool.",
+      "recommendation": "Map folder hints such as remote claude/apps to the local checkout, and treat 'batch change list' as the batched-change-list plugin/viewer, not an app to launch.",
+      "details": {
+        "Expected": "Use the local clone when the user names the apps folder, and use the batched-change-list plugin when asked.",
+        "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:07:05 to 01:10:45 IST",
+        "Session": "374280f6, run 07e85c58fe8e4bfe82324001f7ef9dcd",
+        "Snippets": "'cloned in the apps folder inside remote clod'; later 'use batch change list'; reply 'I don’t have a “Batch Change List” tool.'",
+        "Root cause": "ASR heard 'remote clod' for 'remote claude'. She asked for a spelling instead of trying the obvious local path (Documents/remote-claude/…/apps). She also treated batched-change-list as a missing launchable tool, not the already-installed plugin/viewer.",
+        "Where to look": "runtime/voice-cua/python/voice_cua/live_session.py (reply grounding and tool choice) and the Samantha tool list / plugin catalog the live session exposes, including batched-change-list.",
+        "Later Finder": "At 01:09:28 cua_state(Finder) correctly saw AXWindow 'Like-minded-app' and she told him the app was not running.",
+        "Provenance": "Read-only activity log user_transcript and assistant_reply events"
+      },
+      "evidence": []
+    },
+    {
+      "id": "OBS-24",
+      "title": "tool_reported verified_success when the turn had not actually succeeded",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "Session 374280f6 logged task_outcome verified_success at 01:06:00 IST right after she said she could not identify the repo; at 01:06:25 after ledger_task returned no decisions; and at 01:09:35 after cua_state only showed the Finder folder, not a running app. expected_outcome on later outcomes was often 'unknown'.",
+      "recommendation": "Do not mark verified_success from the last tool's ok=true when the user-facing result is a failure or an incomplete task.",
+      "details": {
+        "Expected": "verified_success only when the user's request was actually completed.",
+        "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:06:00, 01:06:25, 01:09:35 IST",
+        "Session": "374280f6",
+        "Root cause": "live_session._task_outcome returns verified_success when the response status is completed and the last tool result has ok=true. A successful ledger lookup with no decisions, or a successful Finder state read, therefore marks the whole task successful even when the spoken reply admits failure or the app was never opened.",
+        "Where to look": "runtime/voice-cua/python/voice_cua/live_session.py — _task_outcome() and _note_response_done() around the log_task_outcome call.",
+        "Evidence class": "tool_reported",
+        "Related gap": "observability_tasks still listed several of these runs as outcome unknown",
+        "Provenance": "activity log task_outcome events alongside assistant_reply text"
+      },
+      "evidence": []
+    },
+    {
+      "id": "OBS-25",
+      "title": "Each spoken utterance fragment starts a new task run_id",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "In session 374280f6, 15 short microphone utterances such as 'So', 'My Git', and 'Yes. So' each minted a new run_id and showed up in observability_tasks as duration 0, step_count 1, outcome unknown. The long task run 07e85c58… continued in parallel.",
+      "recommendation": "Attach follow-on transcripts to the active task run, and do not create a new run_id for a mid-task fragment or backchannel.",
+      "details": {
+        "Expected": "Utterances in one request should stay on one run_id so tasks and outcomes line up.",
+        "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:05:33 to 01:10:01 IST",
+        "Session": "374280f6",
+        "Root cause": "_note_user_turn() sets task_request_id = request_id or uuid.uuid4().hex for every user turn. The completed-transcription handler calls it without a request_id, so each final utterance becomes a new task run even when a parent run is already active.",
+        "Where to look": "runtime/voice-cua/python/voice_cua/live_session.py — _note_user_turn() and the conversation.item.input_audio_transcription.completed handler.",
+        "Observability effect": "15 empty tasks in the window; many events on the voice session also lack run_id.",
+        "Provenance": "observability_tasks window list plus activity-log user_transcript run_ids",
+        "Related": "Also explains some outcome-unknown rows in the task list"
+      },
+      "evidence": []
+    },
+    {
+      "id": "OBS-26",
+      "title": "Island error-state snapshots are ranked as island_layout failures",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "The top active failure was 'island_layout failed 318x' (col-7ed98c0042f27adc), including 8 events in this window, but first_error_line was unknown. The 8 snapshots were the island in status=error while it showed 'Can't hear you, check mic' or 'Something went wrong', attributed to supervisor sessions e30966a5 and bfee12ae, not the voice session.",
+      "recommendation": "Do not count error-state HUD snapshots as layout failures; attach them to the underlying mic or tool error, and keep first_error_line and session attribution.",
+      "details": {
+        "Expected": "island_layout failures should be real layout overflow or geometry bugs, not error-state HUDs.",
+        "Build and time": "ACU 0.2.141, 2026-11-14 00:57:07 and 01:10:10 to 01:10:21 IST",
+        "Sessions": "layout events on e30966a5 and bfee12ae; island_error_raw on b70e940d and 374280f6",
+        "Observability issue": "col-7ed98c0042f27adc (8 after on 0.2.141; 318 historical)",
+        "Root cause": "Collector treats island_layout events with status=error as app_error failures. Those events record the island in an error pill state and have no geometry overflow (voice_slot.contents=none, island visible). The error line is unknown, so diagnosis ranks them as the top failure.",
+        "Where to look": "plugins/developer-observability/runtime/collector — the island_layout / status=error grouping that builds col-7ed98c0042f27adc, and diagnose ranking of active failures.",
+        "Related": "The underlying user-visible errors are AGENT-04 (mic) and AGENT-17 (missing app).",
+        "Provenance": "diagnose of col-7ed98c0042f27adc plus activity-log island_layout and island_error_raw events"
       },
       "evidence": []
     }
