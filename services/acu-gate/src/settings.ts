@@ -15,7 +15,7 @@ export function matchesPreset(text: string, provider: "x" | "linkedin") {
     try {
       const url = new URL(candidate);
       return !url.username && !url.password && !url.port &&
-        ["ingpoc-agent-plugins.rpg-ramashram.chatgpt.site", "ingpoc-agent-plugins.nicewasp128.chatgpt.site"].includes(url.hostname) &&
+        ["acu-dynamic-island.netlify.app", "ingpoc-agent-plugins.rpg-ramashram.chatgpt.site", "ingpoc-agent-plugins.nicewasp128.chatgpt.site"].includes(url.hostname) &&
         url.search === `?ref=${ref}` && !url.hash;
     } catch { return false; }
   });

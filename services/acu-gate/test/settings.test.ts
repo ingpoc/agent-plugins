@@ -42,6 +42,18 @@ test("malformed launch overrides fail settings and config with provider-specific
 
 test("preset matching supports provider-specific references from both domains", () => {
   assert.equal(
+    matchesPreset("https://acu-dynamic-island.netlify.app/?ref=acu-x", "x"),
+    true,
+  );
+  assert.equal(
+    matchesPreset("https://acu-dynamic-island.netlify.app/?ref=acu-li", "linkedin"),
+    true,
+  );
+  assert.equal(
+    matchesPreset("https://acu-dynamic-island.netlify.app/?ref=acu-li", "x"),
+    false,
+  );
+  assert.equal(
     matchesPreset("https://ingpoc-agent-plugins.rpg-ramashram.chatgpt.site/?ref=acu-x", "x"),
     true,
   );

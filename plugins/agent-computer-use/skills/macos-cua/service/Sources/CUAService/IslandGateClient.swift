@@ -69,8 +69,8 @@ struct IslandGateConfig: Decodable {
 
 extension IslandGateConfig {
     static let bundled: IslandGateConfig = {
-        let xText = "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by @gurusharan https://ingpoc-agent-plugins.rpg-ramashram.chatgpt.site/?ref=acu-x #AgentComputerUse"
-        let linkedInText = "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by Gurusharan Gupta https://ingpoc-agent-plugins.rpg-ramashram.chatgpt.site/?ref=acu-li #AgentComputerUse"
+        let xText = "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by @gurusharan https://acu-dynamic-island.netlify.app/?ref=acu-x #AgentComputerUse"
+        let linkedInText = "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by Gurusharan Gupta https://acu-dynamic-island.netlify.app/?ref=acu-li #AgentComputerUse"
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_.!~*'()"))
         func encoded(_ value: String) -> String { value.addingPercentEncoding(withAllowedCharacters: allowed)! }
         return IslandGateConfig(
