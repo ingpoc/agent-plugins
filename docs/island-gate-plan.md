@@ -37,7 +37,7 @@ Final scope (Guru, 2026-10-31 20:04 and 20:07 IST): no X API credits or any paid
 5. A claim with follow (X only) + post confirmed flips to `unlocked`: unlock row, Mac binding, wall consent applied. The app picks it up on its next poll.
 
 ## Match rules
-- Preset (server config only, `services/acu-gate/config/preset.json`): X "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by @gurusharan https://ingpoc-agent-plugins.nicewasp128.chatgpt.site/?ref=acu-x #AgentComputerUse"; LinkedIn same with "Gurusharan Gupta" and `?ref=acu-li`.
+- Preset (server config only, `services/acu-gate/config/preset.json`): X "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by @gurusharan https://acu-dynamic-island.netlify.app/?ref=acu-x #AgentComputerUse"; LinkedIn same with "Gurusharan Gupta" and `?ref=acu-li`.
 - A post matches when its text contains `#AgentComputerUse` (case-insensitive) or the ref link.
 - X post must be authored by the claimed handle (oEmbed `author_url`), created no earlier than 24 h before the claim (Snowflake time), and each post URL is usable once.
 

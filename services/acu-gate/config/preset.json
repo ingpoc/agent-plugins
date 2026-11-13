@@ -1,12 +1,12 @@
 {
   "x": {
     "handle": "gurusharan",
-    "preset_text": "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by @gurusharan https://ingpoc-agent-plugins.rpg-ramashram.chatgpt.site/?ref=acu-x #AgentComputerUse",
+    "preset_text": "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by @gurusharan https://acu-dynamic-island.netlify.app/?ref=acu-x #AgentComputerUse",
     "launch_post_id": null
   },
   "linkedin": {
     "follow_url": "https://www.linkedin.com/in/gurusharangupta/",
-    "preset_text": "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by Gurusharan Gupta https://ingpoc-agent-plugins.rpg-ramashram.chatgpt.site/?ref=acu-li #AgentComputerUse",
+    "preset_text": "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by Gurusharan Gupta https://acu-dynamic-island.netlify.app/?ref=acu-li #AgentComputerUse",
     "launch_post_url": null
   },
   "linkedin_prefill_text": false,
@@ -14,6 +14,8 @@
   "match": {
     "hashtag": "#AgentComputerUse",
     "ref_links": [
+      "https://acu-dynamic-island.netlify.app/?ref=acu-x",
+      "https://acu-dynamic-island.netlify.app/?ref=acu-li",
       "https://ingpoc-agent-plugins.rpg-ramashram.chatgpt.site/?ref=acu-x",
       "https://ingpoc-agent-plugins.rpg-ramashram.chatgpt.site/?ref=acu-li",
       "https://ingpoc-agent-plugins.nicewasp128.chatgpt.site/?ref=acu-x",

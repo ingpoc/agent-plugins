@@ -40,6 +40,9 @@ test("launch config validates environment overrides and publishes repost targets
 });
 
 test("preset matching recognizes both provider domains and rejects cross-provider refs", () => {
+  assert.equal(matchesPreset("hello https://acu-dynamic-island.netlify.app/?ref=acu-x", "x"), true);
+  assert.equal(matchesPreset("hello https://acu-dynamic-island.netlify.app/?ref=acu-li", "linkedin"), true);
+  assert.equal(matchesPreset("https://acu-dynamic-island.netlify.app/?ref=acu-li", "x"), false);
   assert.equal(matchesPreset("hello https://ingpoc-agent-plugins.rpg-ramashram.chatgpt.site/?ref=acu-x", "x"), true);
   assert.equal(matchesPreset("hello https://ingpoc-agent-plugins.nicewasp128.chatgpt.site/?ref=acu-li", "linkedin"), true);
   assert.equal(matchesPreset("https://ingpoc-agent-plugins.rpg-ramashram.chatgpt.site/?ref=acu-li", "x"), false);
