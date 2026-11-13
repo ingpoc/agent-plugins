@@ -3459,6 +3459,63 @@
           "outcome": "fixed"
         }
       ]
+    },
+    {
+      "id": "AGENT-16",
+      "title": "Gateway health times out after the voice process has already stopped",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "On 14 Nov 2026 at 01:16:24 IST, session bd4abacd logged startup/gateway_health failure 'timeout 45s' (observability col-97ca2e1ef5264965, ACU 0.2.141). The supervisor had already stopped the voice process at 01:15:39 IST, about 45 seconds earlier. Port 8766 is not listening after that failed start; CUAService is still running.",
+      "recommendation": "Cancel the gateway health wait when the voice process exits, and do not record a 45s timeout as a startup failure after an intentional or racing stop.",
+      "details": {
+        "Expected": "A start that is stopped within a second should not wait 45s and then log gateway_health failure.",
+        "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:15:38 to 01:16:24 IST",
+        "Session": "bd4abacd",
+        "Observability issue": "col-97ca2e1ef5264965",
+        "Error": "startup/gateway_health: timeout 45s",
+        "Log": "samantha-activity.jsonl startup phases supervisor_begin, process_exit at 01:15:39 IST, then gateway_health fail",
+        "Provenance": "developer-observability collect 2026-11-13T19:48:18Z plus read-only activity log",
+        "Current state": "Nothing is listening on 127.0.0.1:8766; Samantha appears off"
+      },
+      "evidence": []
+    },
+    {
+      "id": "AGENT-17",
+      "title": "Samantha retries a missing app by passing its bundle ID as the application name",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "On 14 Nov 2026 at 01:10:10–01:10:20 IST, run 07e85c58fe8e4bfe82324001f7ef9dcd (observability run_ref 176df365d4f96103cd46f9c0, session 374280f6, ACU 0.2.141+add24e6e826e) failed cua_state with 'App is not running' for com.likeminded.app, then retried cua_act with application names 'Likeminded' and 'com.likeminded.app'; both returned app_not_found. The island showed 'Something went wrong'. Observability col-9c0d43c3913c2f4b grouped this as 1 failure plus 2 downstream retries. The task outcome stayed unverified.",
+      "recommendation": "Treat app_not_running as a terminal condition for that target, and never pass a bundle ID to the application-name lookup. Tell the user the app is not running or not installed instead of retrying and showing a generic island error.",
+      "details": {
+        "Expected": "If the app is not running or not installed, stop after cua_state and explain that, without a bundle-ID name retry.",
+        "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:10:10 to 01:10:20 IST",
+        "Run": "07e85c58fe8e4bfe82324001f7ef9dcd / run_ref 176df365d4f96103cd46f9c0",
+        "Session": "374280f6",
+        "Observability issue": "col-9c0d43c3913c2f4b",
+        "Errors": "cua_state app_not_running; cua_act app_not_found 'Likeminded'; cua_act app_not_found 'com.likeminded.app'",
+        "Island": "shown: Something went wrong, coinciding island_layout status=error on supervisor session bfee12ae",
+        "Provenance": "developer-observability task 176df365d4f96103cd46f9c0 and activity log tool_error lines"
+      },
+      "evidence": []
+    },
+    {
+      "id": "OBS-23",
+      "title": "Two voice turns on 0.2.141 took more than 10 seconds to reach playback",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "Session 374280f6 on ACU 0.2.141 had two turns over 10s (observability col-76a7411cce3a3654): turn 1 speech_to_playback 21496 ms at 01:02:36 IST (run_ref 5e63a8d0866195a8dc0e717e, no tools), and turn 24 15137 ms at 01:07:22 IST with comet_act and ledger_task. This is a recurrence of OBS-01, which is marked verified_fixed.",
+      "recommendation": "Re-measure speech-to-playback on the installed 0.2.141 build for a short spoken turn with no tools, and for a turn that uses Comet and Ledger, then fix the slow stage if it still exceeds 10s.",
+      "details": {
+        "Expected": "Spoken turns should reach playback in under 10 seconds in normal conditions.",
+        "Build and time": "ACU 0.2.141+add24e6e826e, 2026-11-14 01:02:36 and 01:07:22 IST",
+        "Session": "374280f6",
+        "Observability issue": "col-76a7411cce3a3654",
+        "Related": "Recurrence of verified_fixed OBS-01",
+        "First turn": "run_ref 5e63a8d0866195a8dc0e717e, speech_to_playback 21496 ms, voice_latency step 21496 ms, turn_latency 10219 ms",
+        "Second turn": "15137 ms with tools comet_act and ledger_task; 0 tool errors on that turn",
+        "Provenance": "developer-observability diagnose of col-76a7411cce3a3654 and task 5e63a8d0866195a8dc0e717e"
+      },
+      "evidence": []
     }
   ]
 }
