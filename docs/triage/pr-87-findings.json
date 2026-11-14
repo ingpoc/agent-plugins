@@ -2042,8 +2042,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-14T07:59:21Z",
-      "now": "2026-11-14T07:59:21Z — Collect and present are done. Planning the 0.1.13 fix so the page reads live installs at render time and keeps the workflow strip and timestamp current."
+      "updated_at": "2026-11-14T08:01:27Z",
+      "now": "2026-11-14T08:01:27Z — Planning 0.1.13 for three findings: live install versions, a workflow strip that stays current, and a guard so a fix cycle can't start with no finding in progress."
     },
     "rollover": {
       "source_pr": 105,
@@ -4120,14 +4120,36 @@
     },
     {
       "id": "PAGE-01",
-      "title": "The change-list page shows stale plugin versions and old workflow times",
+      "title": "The page shows stored plugin versions instead of the ones actually installed",
       "source": "User requested",
       "status": "in_progress",
-      "summary": "The page still shows last month's plugin versions and a workflow time from earlier in the day, even while work is happening now.",
-      "impact": "You can't tell what's actually installed or whether the list is being worked on, so the page looks finished or out of date when it isn't.",
-      "done_when": "The page always shows the versions that are installed now, and the workflow strip and timestamp move as soon as the tracker is updated.",
-      "observed": "On 14 Nov 2026, the PR #107 page showed agent-computer-use 0.2.121 (stored 8 Nov) while 0.2.142 is installed. It stayed on Report & roll over with Last reported 12:53 PM IST and a raw ISO timestamp next to Now, more than 30 minutes after live-details work had started.",
-      "recommendation": "At render time, read installed plugin versions from the live installs and use stored values only as a labelled fallback. Show Last reported and Now from the latest tracker change plus the render time, in IST, with no raw ISO as visible text. Keep the workflow strip current whenever the tracker is updated, and serve a fresh render on each page load."
+      "summary": "The installed-plugins box still says agent-computer-use 0.2.121, but 0.2.142 is what's installed.",
+      "impact": "You can't trust the page to tell you which build you're looking at, so checks and fixes can target the wrong version.",
+      "done_when": "The page shows the versions read from the installed copies, and uses the stored list only as a labelled fallback when a copy can't be found.",
+      "observed": "On 14 Nov 2026, the PR #107 page showed agent-computer-use 0.2.121 (stored 8 Nov) in the Installed plugins box, while ~/.agents/plugins/agent-computer-use/plugin.json and the Codex cache both report 0.2.142.",
+      "recommendation": "At render time, read installed plugin versions from the live installs (Codex cache, ~/.agents/plugins and skills, Cursor cache). Use the stored inventory only as a labelled fallback when a copy can't be found."
+    },
+    {
+      "id": "PAGE-02",
+      "title": "The workflow strip and Last reported time don't move while new work is happening",
+      "source": "User requested",
+      "status": "in_progress",
+      "summary": "The page stayed on Report & roll over with a Last reported time more than 30 minutes old while a fix was already running.",
+      "impact": "It looks as if work has finished or hasn't started, so you can't tell that a fix cycle is underway.",
+      "done_when": "Whenever the tracker is updated, the workflow strip and Last reported time show that latest activity, including during Plan & fix, Install, Verify and Report.",
+      "observed": "On 14 Nov 2026, the PR #107 page stayed on Report & roll over with Last reported 12:53 PM IST and a raw ISO timestamp next to Now, more than 30 minutes after live-details work had started. The strip only moved after the tracker was updated by hand.",
+      "recommendation": "At render time, Last reported and Now must reflect the newest tracker activity plus the render time, in IST, with no raw ISO as visible text. Every tracker write should advance the workflow timestamp, and the viewer should show the new stage as soon as the JSON changes."
+    },
+    {
+      "id": "TRACK-01",
+      "title": "A fix cycle can start without a tracked finding in progress",
+      "source": "User requested",
+      "status": "in_progress",
+      "summary": "Work on a fix can begin before that issue is logged on the change list, so the page doesn't show what's being fixed.",
+      "impact": "The agent can drift off the list, and you have no orderly record of what is in progress.",
+      "done_when": "A fix cycle cannot quietly start with no in-progress finding: the plugin refuses or flags it, and the skill tells the agent to log the finding first.",
+      "observed": "On 14 Nov 2026, 0.1.13 implementation work started in a new branch before a finding for that work was on the PR #107 change list. Guru asked that every issue being fixed be tracked and shown as in progress under Plan & fix.",
+      "recommendation": "Add a manage_findings guard that refuses or flags a fix-cycle stage (plan_fix, install, verify) when no finding is in progress, and state in SKILL.md that a fix cycle starts only after the finding is logged and set in progress."
     }
   ]
 }
