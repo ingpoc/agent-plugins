@@ -1,6 +1,6 @@
 # Plan and fix
 
-Group related findings by root cause. Record the work groups and dependency edges in `tracking.plan` with `bcl plan --plan PLAN.json` before Install, then run `bcl fix`. Groups accept `id`, `name` or `label`, `finding_ids`, `depends_on`, `reason`, `worktree`, Codex job/model/effort/duration fields, optional `phase` (`pending`, `fix`, `review`, `install`, `verify`, `done`, `blocked`), and `verify` (`command`, `method`, `summary`, `failure`, `status`). Store `verify.command` on each group at Plan so Verify can run it. Always set `duration_s` when a job has finished. Each group is a lane (fix → review → install → verify) and can be in a different phase from the others; the page shows that phase on the plan row, and the top timeline highlights the furthest phase any lane is in. Open Details for full methods, grouping reasons, file notes and IST time ranges. Never show raw ISO timestamps in the user view.
+Group related findings by root cause. Record the work groups and dependency edges in `tracking.plan` with `bcl plan --plan PLAN.json` before Install, then run `bcl fix`. Groups accept `id`, `name` or `label`, `finding_ids`, `depends_on`, `reason`, `worktree`, Codex job/model/effort/duration fields, optional `phase` (`pending`, `fix`, `review`, `install`, `verify`, `done`, `blocked`, `deferred`), and `verify` (`command`, `method`, `summary`, `failure`, `status`). Store `verify.command` on each group at Plan so Verify can run it. Always set `duration_s` when a job has finished. Each group is a lane (fix → review → install → verify) and can be in a different phase from the others; the page shows that phase on the plan row, and the top timeline highlights the furthest phase any lane is in. Open Details for full methods, grouping reasons, file notes and IST time ranges. Never show raw ISO timestamps in the user view.
 
 When the scope is agreed or already authorized, group related fixes into one coherent plan with affected files, acceptance checks, and dependencies. Use existing project gates and the smallest number of build/install cycles consistent with safe verification. Do not assume every issue will be fixed in one cycle.
 
@@ -19,11 +19,15 @@ Before fixing a group, `bcl fix` (or `set-activity`) marks the affected findings
 Do not fix and test one issue at a time.
 
 1. **Triage once.** Label every open issue `test-now` (the installed build can already show pass or fail), `code-fix`, `needs-user`, or `blocked`. Run all `test-now` checks in one live run before writing any code.
-2. **Fix in parallel.** Give each independent `code-fix` group to its own coding job on disjoint files, with the cheapest model and effort that fits it. Put coupled issues in one job. The brief names the files, the exact strings or behavior wanted, the targeted test commands (never a known-hanging full suite) and a report under 12 lines. Run the jobs together.
+2. **Fix in parallel.** Give each independent `code-fix` group to its own coding job on disjoint files, with the cheapest model and effort that fits it. Put coupled issues in one job. The brief names the files, the exact strings or behavior wanted, the targeted test commands (never a known-hanging full suite) and a report under 12 lines. Run the jobs together. A round runs only independent groups; cap parallel groups at about 3–4.
 3. **Review once, then install that lane.** Each group is its own lane: fix → review → install → verify. A group enters Install as soon as its review passes; do not hold a finished group until every group has finished Plan & fix. Use one review round per group; log leftover nits as new issues and do not start a second review.
 4. **Serialize builds and live verify.** Installs and builds share one queue; groups that finish close together share one build. Live verify is serialized too (one Mini, island, and Comet) and runs each group's stored `verify.command`. Mark `verified_fixed` as evidence lands. The gate counts those fixes immediately. The round ends when all lanes finish or block.
 5. **Automate what repeats.** Anything done twice becomes a script, and the removed or automated step is logged on the list.
 6. **Tell the owner of a tool when its output is wrong.** Send the exact run id, field and line; reinstall and re-run that same run to confirm.
+
+## Plan check
+
+A round runs only independent groups. At Plan, if a group would do better after another group's fix, move it to the next round and mark it `deferred` (not planned or failed). Cap parallel groups in a round at 3–4 by default.
 
 ## Round rules
 

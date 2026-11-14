@@ -651,6 +651,14 @@ setImmediate(async()=>{
         self.assertIn('class="grp queued"', page)
         self.assertIn('data-stage="install" class="wf-step current" aria-current="step"', page)
         self.assertNotIn('data-stage="verify" class="wf-step current"', page)
+        data['tracking']['plan']['groups'].append(
+            {'id':'D','name':'Next-round group','finding_ids':['ISSUE-02'],'status':'deferred','phase':'deferred','depends_on':['A']}
+        )
+        page = renderer.render(data, self.base)
+        self.assertIn('class="grp deferred"', page)
+        self.assertIn('>Deferred</span>', page)
+        self.assertNotIn('>Failed</span>', page)
+        self.assertIn('data-stage="install" class="wf-step current" aria-current="step"', page)
 
 
 

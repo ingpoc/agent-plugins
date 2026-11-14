@@ -6,6 +6,7 @@
 - Plan groups are lanes (fix → review → install → verify): a group enters Install when its review passes, one review round per group with leftover nits logged as new issues, and groups that finish close together share a serialized build. Live verify uses the `verify.command` stored at Plan. The plan row shows each group's phase; the top timeline highlights the furthest phase any lane is in.
 - An unmet Fixes gate no longer uses current-step emphasis; only the current stage (and a met gate) get that marker.
 - A pending group's leftover verify state does not advance its plan row or the top timeline; the timeline only moves with a lane that has actually entered Install or Verify.
+- A round runs only independent groups: dependents are marked deferred (not planned or failed) and moved to the next round, with a default cap of 3–4 parallel groups.
 
 ## 0.1.17
 

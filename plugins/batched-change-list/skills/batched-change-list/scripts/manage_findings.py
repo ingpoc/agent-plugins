@@ -942,9 +942,9 @@ def main(argv=None):
                         group.update(patch)
                         stamp_plan_group(group, datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
                         plan["round"] = RENDERER.rollover_round(tracking)
-                        if "status" in patch and patch["status"] not in {"pending", "running", "review", "install", "blocked", "done", "failed"}:
+                        if "status" in patch and patch["status"] not in {"pending", "running", "review", "install", "blocked", "done", "failed", "deferred"}:
                             raise ValueError("invalid plan group status")
-                        if "phase" in patch and patch["phase"] not in {"pending", "fix", "review", "install", "verify", "done", "blocked"}:
+                        if "phase" in patch and patch["phase"] not in {"pending", "fix", "review", "install", "verify", "done", "blocked", "deferred"}:
                             raise ValueError("invalid plan group phase")
                     continue
                 if action in ("set-stage", "set-activity"):

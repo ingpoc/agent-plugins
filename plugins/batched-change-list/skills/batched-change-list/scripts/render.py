@@ -121,9 +121,9 @@ def plan_duration(group, now):
     return f"{max(1, round(seconds / 60))} min"
 
 
-LANE_PHASES = ("pending", "fix", "review", "install", "verify", "done", "blocked")
+LANE_PHASES = ("pending", "fix", "review", "install", "verify", "done", "blocked", "deferred")
 PHASE_TO_STAGE = {"pending": "plan_fix", "fix": "plan_fix", "review": "plan_fix", "install": "install", "verify": "verify", "done": "verify", "blocked": "plan_fix"}
-PHASE_TO_STATE = {"pending": "queued", "fix": "running", "review": "review", "install": "install", "verify": "verifying", "done": "verified", "blocked": "failed"}
+PHASE_TO_STATE = {"pending": "queued", "fix": "running", "review": "review", "install": "install", "verify": "verifying", "done": "verified", "blocked": "failed", "deferred": "deferred"}
 
 
 def plan_phase(group):
@@ -136,6 +136,8 @@ def plan_phase(group):
     install = group.get("install", {}) if isinstance(group.get("install"), dict) else {}
     status = group.get("status", codex.get("status", "pending"))
     verify_status = verify.get("status", "pending")
+    if status == "deferred":
+        return "deferred"
     if verify_status in ("failed", "blocked") or status in ("failed", "blocked") or codex.get("status") in ("failed", "blocked"):
         return "blocked"
     if status in ("pending", "queued"):
@@ -169,8 +171,12 @@ def furthest_workflow_stage(active, plan):
     stages = [active]
     if isinstance(plan, dict):
         for group in plan.get("groups", []):
-            if isinstance(group, dict):
-                stages.append(PHASE_TO_STAGE[plan_phase(group)])
+            if not isinstance(group, dict):
+                continue
+            phase = plan_phase(group)
+            if phase == "deferred":
+                continue
+            stages.append(PHASE_TO_STAGE[phase])
     index = max(order.index(stage) for stage in stages if stage in order)
     return order[min(index, order.index("verify"))]
 
@@ -187,11 +193,11 @@ def render_plan(data, tracking, plan, round_number, now):
     if not matching:
         return f'<div class="plan-empty">No fix plan for Round {round_number} yet.</div>' if has_started else ""
     groups = [group for group in plan.get("groups", []) if isinstance(group, dict)]
-    counts = {state: sum(plan_status(group) == state for group in groups) for state in ("running", "review", "install", "fixed", "partial", "verifying", "verified", "failed", "queued")}
-    tally = " · ".join(f"{counts[key]} {label}" for key, label in (("running", "running"), ("review", "review"), ("install", "install"), ("fixed", "fixed"), ("partial", "partial"), ("failed", "failed"), ("verifying", "verifying"), ("verified", "verified"), ("queued", "planned")) if counts[key])
+    counts = {state: sum(plan_status(group) == state for group in groups) for state in ("running", "review", "install", "fixed", "partial", "verifying", "verified", "failed", "queued", "deferred")}
+    tally = " · ".join(f"{counts[key]} {label}" for key, label in (("running", "running"), ("review", "review"), ("install", "install"), ("fixed", "fixed"), ("partial", "partial"), ("failed", "failed"), ("verifying", "verifying"), ("verified", "verified"), ("queued", "planned"), ("deferred", "deferred")) if counts[key])
     findings = {item.get("id"): item for item in data.get("findings", [])}
     rows = []
-    labels = {"queued":"Planned", "running":"Fixing", "review":"Review", "install":"Install", "fixed":"Fixed", "partial":"Partial", "verifying":"Verifying", "verified":"Verified", "failed":"Failed"}
+    labels = {"queued":"Planned", "running":"Fixing", "review":"Review", "install":"Install", "fixed":"Fixed", "partial":"Partial", "verifying":"Verifying", "verified":"Verified", "failed":"Failed", "deferred":"Deferred"}
     for group in groups:
         codex = group.get("codex", {}) if isinstance(group.get("codex"), dict) else {}
         verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
