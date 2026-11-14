@@ -360,7 +360,7 @@ class Handler(BaseHTTPRequestHandler):
             if not self._authorize_typed_approval():
                 return
             approved = body["approved"]
-            ok = ISLAND.resolve_confirm(cid, approved, typed_authorized=True)
+            ok = ISLAND.resolve_confirm(cid, approved)
             self._json(200 if ok else 409, {"ok": ok, "confirm_id": cid, "approved": approved})
             return
         if path == "/api/confirm/request":

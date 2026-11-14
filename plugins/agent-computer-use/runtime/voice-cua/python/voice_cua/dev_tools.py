@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import fnmatch
+import glob
 import math
 import os
 import re
@@ -101,7 +102,7 @@ def _path_pattern(value: str, *, cwd: str, home: str) -> str:
         value = os.path.join(home, value[2:])
     elif not os.path.isabs(value):
         value = os.path.join(cwd, value)
-    return os.path.normpath(value)
+    return value
 
 
 def _resolved_path(value: str, *, cwd: str, home: str) -> str | None:
@@ -122,19 +123,70 @@ def _is_protected_path(path: str, *, home: str) -> bool:
             or bool(_SECRET_PATH.search(path)))
 
 
-def _protected_shell_word(word: str, *, cwd: str, home: str) -> bool:
+def _touches_protected_path(path: str, *, home: str) -> bool:
+    target = Path(path)
+    protected = (
+        Path(home).resolve() / ".cache" / "macos-cua" / "typed-approve.token",
+        Path(home).resolve() / ".cache" / "macos-cua" / "samantha-activity.jsonl",
+    )
+    return (_is_protected_path(path, home=home)
+            or any(target == item or target in item.parents for item in protected))
+
+
+def _shell_path_risk(word: str, *, cwd: str, worktree_root: str, home: str) -> str:
     value = word.split("=", 1)[-1] if "=" in word else word
-    if any(ch in value for ch in "*?[]{}") and re.search(
-        r"(?i)typed-approve|samantha-activity|\.env|config/\.secret|\.pem|id_", value,
-    ):
-        return True
     pattern = _path_pattern(value, cwd=cwd, home=home)
-    protected = Path(home).resolve() / ".cache" / "macos-cua" / "typed-approve.token"
-    activity_log = Path(home).resolve() / ".cache" / "macos-cua" / "samantha-activity.jsonl"
-    if any(fnmatch.fnmatchcase(str(path), pattern) for path in (protected, activity_log)):
-        return True
-    resolved = _resolved_path(value, cwd=cwd, home=home)
-    return resolved is not None and _is_protected_path(resolved, home=home)
+    protected = (
+        Path(home).resolve() / ".cache" / "macos-cua" / "typed-approve.token",
+        Path(home).resolve() / ".cache" / "macos-cua" / "samantha-activity.jsonl",
+    )
+    wildcard = min((value.find(ch) for ch in "*?[" if ch in value), default=-1)
+    if wildcard < 0:
+        expanded = value.replace("${HOME}", home).replace("$HOME", home)
+        if "$" in expanded or "`" in value:
+            return "approval"
+        try:
+            resolved = str(Path(pattern).resolve(strict=False))
+        except (OSError, RuntimeError):
+            return "approval"
+        return "hard_refuse" if _is_protected_path(resolved, home=home) else "safe"
+    else:
+        if re.search(r"(?i)typed-approve|samantha-activity|\.env|config/\.secret|\.pem|id_", value):
+            return "hard_refuse"
+        expanded = value.replace("${HOME}", home).replace("$HOME", home)
+        if "$" in expanded or "`" in expanded:
+            return "approval"
+        wildcard = min((pattern.find(ch) for ch in "*?[" if ch in pattern), default=-1)
+        prefix = pattern[:wildcard]
+        if not prefix.endswith(os.sep):
+            prefix = prefix[:prefix.rfind(os.sep)] or os.sep
+        else:
+            prefix = prefix.rstrip(os.sep) or os.sep
+        try:
+            resolved_prefix = str(Path(prefix).resolve(strict=False))
+        except (OSError, RuntimeError):
+            return "approval"
+        if _touches_protected_path(resolved_prefix, home=home):
+            return "hard_refuse"
+        resolved_pattern = os.path.join(resolved_prefix, pattern[len(prefix):].lstrip(os.sep))
+        if any(fnmatch.fnmatchcase(str(path), resolved_pattern) for path in protected):
+            return "hard_refuse"
+        if not _inside(resolved_prefix, os.path.realpath(worktree_root)):
+            return "approval"
+        try:
+            matches = glob.glob(pattern, recursive=True)
+        except (OSError, ValueError):
+            return "approval"
+        for match in matches:
+            try:
+                resolved_match = str(Path(match).resolve(strict=False))
+            except (OSError, RuntimeError):
+                return "approval"
+            if _touches_protected_path(resolved_match, home=home):
+                return "hard_refuse"
+            if not _inside(resolved_match, os.path.realpath(worktree_root)):
+                return "approval"
+        return "safe"
 
 
 def _recursive_rm_root(words: list[str], *, cwd: str, worktree_root: str, home: str) -> bool:
@@ -171,7 +223,19 @@ def _recursive_rm_root(words: list[str], *, cwd: str, worktree_root: str, home: 
 def _has_control_syntax(segments: list[str]) -> bool:
     for segment in segments:
         words = _words(segment)
-        if words and (words[0] in _SHELL_CONTROL or any(any(ch in word for ch in "{}()") for word in words)):
+        effective, _ = _unwrap_command(words)
+        words = effective or words
+        xargs_replacements: set[int] = set()
+        if words and os.path.basename(words[0]) == "xargs":
+            for i, word in enumerate(words[1:], 1):
+                if word in {"-I", "--replace"} and i + 1 < len(words):
+                    xargs_replacements.add(i + 1)
+                elif word.startswith("-I") and len(word) > 2 or word.startswith("--replace="):
+                    xargs_replacements.add(i)
+        if words and (words[0] in _SHELL_CONTROL or any(
+            i not in xargs_replacements and any(ch in word for ch in "{}()")
+            for i, word in enumerate(words)
+        )):
             return True
     return False
 
@@ -236,15 +300,129 @@ def _git_subcommand(words: list[str]) -> str:
     return ""
 
 
-def _effective_words(words: list[str]) -> list[str]:
-    i = 0
-    while i < len(words) and os.path.basename(words[i]) in {"command", "builtin", "exec"}:
-        i += 1
-    if i < len(words) and os.path.basename(words[i]) == "env":
-        i += 1
-        while i < len(words) and (words[i].startswith("-") or re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[i])):
+def _unwrap_command(words: list[str]) -> tuple[list[str], str]:
+    wrappers = {"builtin", "caffeinate", "command", "env", "exec", "gtimeout", "nice", "nohup",
+                "stdbuf", "time", "timeout", "xargs"}
+    current = words
+    while current:
+        name = os.path.basename(current[0])
+        if name == "sudo" or name not in wrappers:
+            return current, ""
+        args = current[1:]
+        i = 0
+        if name == "env":
+            while i < len(args) and args[i].startswith("-"):
+                option = args[i]
+                if option == "--":
+                    i += 1
+                    break
+                if option in {"-i", "--ignore-environment"}:
+                    i += 1
+                elif option in {"-u", "--unset"}:
+                    if i + 1 >= len(args):
+                        return current, "env wrapper is missing an option value"
+                    i += 2
+                elif ((option.startswith("-u") and len(option) > 2)
+                      or (option.startswith("--unset=") and len(option) > len("--unset="))):
+                    i += 1
+                else:
+                    return current, "unsupported env wrapper option"
+            while i < len(args) and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", args[i]):
+                if "$" in args[i] or "`" in args[i]:
+                    return current, "dynamic env assignment"
+                i += 1
+        elif name in {"timeout", "gtimeout"}:
+            while i < len(args) and args[i].startswith("-"):
+                option = args[i]
+                if option == "--":
+                    i += 1
+                    break
+                if option in {"--foreground", "--preserve-status", "--verbose", "-v"}:
+                    i += 1
+                elif option in {"-k", "--kill-after", "-s", "--signal"}:
+                    if i + 1 >= len(args):
+                        return current, "timeout wrapper is missing an option value"
+                    i += 2
+                elif option.startswith("--kill-after=") or option.startswith("--signal="):
+                    i += 1
+                else:
+                    return current, "unsupported timeout wrapper option"
+            if i >= len(args):
+                return current, "timeout wrapper is missing its duration and command"
             i += 1
-    return words[i:]
+        elif name == "xargs":
+            value_options = {"-a", "-d", "-E", "-I", "-L", "-n", "-P", "-s",
+                             "--arg-file", "--delimiter", "--eof", "--replace", "--max-lines",
+                             "--max-args", "--max-procs", "--max-chars"}
+            flags = {"-0", "--null", "-r", "--no-run-if-empty", "-t", "--verbose", "-x", "--exit",
+                     "--show-limits"}
+            while i < len(args) and args[i].startswith("-"):
+                option = args[i]
+                if option == "--":
+                    i += 1
+                    break
+                if option in flags:
+                    i += 1
+                elif option in value_options:
+                    if i + 1 >= len(args):
+                        return current, "xargs wrapper is missing an option value"
+                    i += 2
+                elif any(option.startswith(value + "=") for value in value_options if value.startswith("--")):
+                    i += 1
+                elif any(option.startswith(value) and option != value for value in ("-I", "-L", "-n", "-P", "-s")):
+                    i += 1
+                else:
+                    return current, "unsupported xargs wrapper option"
+        else:
+            while i < len(args) and args[i].startswith("-"):
+                option = args[i]
+                if option == "--":
+                    i += 1
+                    break
+                if name == "command" and option in {"-p", "-v", "-V"}:
+                    i += 1
+                elif name == "builtin":
+                    return current, "unsupported builtin wrapper option"
+                elif name == "exec" and option in {"-c", "-l", "-p"}:
+                    i += 1
+                elif name == "exec" and option == "-a":
+                    if i + 1 >= len(args):
+                        return current, "exec wrapper is missing an option value"
+                    i += 2
+                elif name == "nice" and option in {"-n", "--adjustment"}:
+                    if i + 1 >= len(args):
+                        return current, "nice wrapper is missing an option value"
+                    i += 2
+                elif name == "nice" and (re.fullmatch(r"-n[+-]?\d+", option)
+                                          or re.fullmatch(r"-[+-]?\d+", option)
+                                          or (option.startswith("--adjustment=")
+                                              and len(option) > len("--adjustment="))):
+                    i += 1
+                elif name == "time" and option == "-p":
+                    i += 1
+                elif name == "caffeinate" and re.fullmatch(r"-[dismu]+", option):
+                    i += 1
+                elif name == "caffeinate" and option in {"-t", "-w"}:
+                    if i + 1 >= len(args):
+                        return current, "caffeinate wrapper is missing an option value"
+                    i += 2
+                elif name == "caffeinate" and re.fullmatch(r"-[tw].+", option):
+                    i += 1
+                elif name == "stdbuf" and option in {"-i", "-o", "-e", "--input", "--output", "--error"}:
+                    if i + 1 >= len(args):
+                        return current, "stdbuf wrapper is missing an option value"
+                    i += 2
+                elif name == "stdbuf" and (option.startswith("--input=") or option.startswith("--output=")
+                                            or option.startswith("--error=") or re.fullmatch(r"-[ioe].+", option)):
+                    i += 1
+                elif name == "nohup":
+                    return current, "unsupported nohup wrapper option"
+                else:
+                    return current, f"unsupported {name} wrapper option"
+        if i >= len(args):
+            return current, f"{name} wrapper is missing a command"
+        current = args[i:]
+    return current, "wrapper is missing a command"
 
 
 def classify_shell_command(
@@ -253,7 +431,10 @@ def classify_shell_command(
     """Pure shell risk classifier: returns (safe|approval|hard_refuse, reason)."""
     if any(re.search(rf"(?<!\d){port}(?!\d)", command) for port in TURN_PORTS):
         return "hard_refuse", "protected gateway port"
-    if re.search(r"(?i)api/confirm|typed-approve\.token", command):
+    # This guardrail cannot stop a repository script from calling localhost directly.
+    if re.search(r"(?i)api/(?:confirm|session/approve)|typed-approve", command) or re.search(
+        r"(?i)\bhttps?://(?:localhost|127\.0\.0\.1)(?::\d+)?(?:/|(?=\s|$))", command,
+    ):
         return "hard_refuse", "protected confirmation endpoint or token file"
     if re.search(r"(?i)\.cache/macos-cua/samantha-activity\.jsonl", command):
         return "hard_refuse", "protected activity log"
@@ -266,29 +447,48 @@ def classify_shell_command(
 
     segments = _shell_segments(command)
     control_syntax = _has_control_syntax(segments)
+    wrapper_errors: list[str] = []
+    path_approval = False
     for segment in segments:
         words = _words(segment)
+        if not words:
+            wrapper_errors.append("shell quoting could not be parsed")
+            continue
         if any(os.path.basename(word) == "security" or _SECRET_PATH.search(word) for word in words):
             return "hard_refuse", "secret file or Keychain access"
-        if any(_protected_shell_word(word, cwd=cwd, home=home) for word in words):
+        path_risks = [_shell_path_risk(word, cwd=cwd, worktree_root=worktree_root, home=home) for word in words]
+        if "hard_refuse" in path_risks:
             return "hard_refuse", "protected secret path"
+        path_approval |= "approval" in path_risks
         if any(os.path.basename(word) == "sudo" for word in words):
             return "hard_refuse", "sudo is refused"
-        effective = _effective_words(words)
+        effective, wrapper_error = _unwrap_command(words)
+        if wrapper_error:
+            wrapper_errors.append(wrapper_error)
         if effective and os.path.basename(effective[0]) == "git" and _git_subcommand(effective) == "push":
             if any(word in {"--force", "--force-with-lease"} or
                    re.fullmatch(r"-[A-Za-z]*f[A-Za-z]*", word) for word in effective[1:]):
                 return "hard_refuse", "force push is refused"
         candidates = [effective]
-        if control_syntax:
+        if control_syntax or wrapper_error:
             candidates.extend(words[i:] for i, word in enumerate(words) if os.path.basename(word) == "rm")
+            candidates.extend(words[i:] for i, word in enumerate(words) if os.path.basename(word) == "git")
         if any(_recursive_rm_root(candidate, cwd=cwd, worktree_root=worktree_root, home=home)
                for candidate in candidates):
             return "hard_refuse", "recursive removal of a protected root"
+        for candidate in candidates:
+            if candidate and os.path.basename(candidate[0]) == "git" and _git_subcommand(candidate) == "push":
+                if any(word in {"--force", "--force-with-lease"} or
+                       re.fullmatch(r"-[A-Za-z]*f[A-Za-z]*", word) for word in candidate[1:]):
+                    return "hard_refuse", "force push is refused"
 
     approval = ""
     if control_syntax:
         approval = "unsupported shell control syntax"
+    elif wrapper_errors:
+        approval = wrapper_errors[0]
+    elif path_approval:
+        approval = "glob path outside the worktree or ambiguous"
     elif "\n" in command or "\r" in command:
         approval = "multiline shell command"
     elif "$(" in command or "`" in command or re.search(r"[<>]\(", command):
@@ -301,21 +501,16 @@ def classify_shell_command(
             if not words:
                 continue
             head = words[0]
-            effective = _effective_words(words)
+            effective, wrapper_error = _unwrap_command(words)
+            if wrapper_error:
+                approval = wrapper_error
+                break
             if not effective:
                 continue
             executable = effective[0]
             name = os.path.basename(executable)
             if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", head) or "$" in head:
                 approval = "variable in command head"
-                break
-            if os.path.basename(head) == "env" and any(
-                "$" in word or re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", word) for word in words[1:]
-            ):
-                approval = "variable in command head"
-                break
-            if os.path.basename(head) == "env" and "-S" in words[1:]:
-                approval = "env string execution"
                 break
             if name in {"eval", "source", "."}:
                 approval = "dynamic shell evaluation"
@@ -557,11 +752,16 @@ def _terminate_group(proc: subprocess.Popen[Any], *, grace_s: float = 1.0) -> tu
 
 def _process_targets(command: str) -> set[int] | None:
     targets: set[int] = set()
+    controlled = {"kill", "pkill", "killall", "launchctl"}
     for segment in _shell_segments(command):
         words = _words(segment)
         if not words:
             continue
-        effective = _effective_words(words)
+        effective, wrapper_error = _unwrap_command(words)
+        if wrapper_error:
+            if any(os.path.basename(word) in controlled for word in words):
+                return None
+            continue
         if not effective:
             continue
         name = os.path.basename(effective[0])
@@ -612,8 +812,17 @@ def _process_targets(command: str) -> set[int] | None:
 
 
 def _protect_process_control(command: str) -> dict[str, Any] | None:
-    names = {os.path.basename(effective[0]) for segment in _shell_segments(command)
-             if (words := _words(segment)) and (effective := _effective_words(words))}
+    controlled = {"kill", "pkill", "killall", "launchctl"}
+    names: set[str] = set()
+    for segment in _shell_segments(command):
+        words = _words(segment)
+        if not words:
+            continue
+        effective, wrapper_error = _unwrap_command(words)
+        if wrapper_error and any(os.path.basename(word) in controlled for word in words):
+            return _hard_refusal("process target cannot be verified safely")
+        if effective:
+            names.add(os.path.basename(effective[0]))
     if not names.intersection({"kill", "pkill", "killall", "launchctl"}):
         return None
     if "launchctl" in names and _process_targets(command) is None:

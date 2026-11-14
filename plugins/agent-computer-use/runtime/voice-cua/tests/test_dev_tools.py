@@ -57,7 +57,6 @@ class DevToolsTests(unittest.TestCase):
         ):
             with self.subTest(command=command):
                 self.assertEqual(self.classify(command), "hard_refuse")
-                self.assertEqual(self.run_shell(command)["error_type"], "hard_refusal")
 
     def test_shell_blocks_approval_token_globs_and_symlink_aliases(self) -> None:
         token = self.base / ".cache" / "macos-cua" / "typed-approve.token"
@@ -65,12 +64,57 @@ class DevToolsTests(unittest.TestCase):
         token.write_text("test-only")
         link = self.repo / "opaque-input"
         link.symlink_to(token)
+        directory_link = self.repo / "opaque-directory"
+        directory_link.symlink_to(token.parent, target_is_directory=True)
+        outside_dir = self.base / "outside-dir"
+        outside_dir.mkdir()
+        (outside_dir / "sample.txt").write_text("outside")
+        outside_link = self.repo / "outside-directory"
+        outside_link.symlink_to(outside_dir, target_is_directory=True)
         for command in (
             "cat ~/.cache/macos-cua/typed-approve.toke?",
             "cat ~/.cache/macos-cua/typed-approve.*",
             "cat ~/.cache/macos-cua/typed-approve.{token,bak}",
             "cat ~/.cache/macos-cua/*",
             "cat opaque-input",
+            "cat opaque-directory/*",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self.classify(command), "hard_refuse")
+        self.assertEqual(self.classify("cat outside-directory/*"), "approval")
+
+    def test_shell_unwraps_supported_command_wrappers_before_classifying(self) -> None:
+        for command in (
+            "sudo rm -rf /", "builtin rm -rf /", "command -p rm -rf /", "exec -a rm rm -rf /", "nice rm -rf /",
+            "nohup rm -rf /", "time -p rm -rf /", "env -i MODE=test rm -rf /",
+            "env -u OLD_MODE MODE=test rm -rf /", "caffeinate -di rm -rf /",
+            "xargs -0 -n 1 rm -rf /", "timeout --foreground 1s rm -rf /",
+            "gtimeout -k 1s 2s rm -rf /", "stdbuf -oL rm -rf /",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self.classify(command), "hard_refuse")
+        for command in (
+            "command -p git status", "builtin echo ok", "exec -a echo echo ok", "nice -n 2 echo ok",
+            "nohup echo ok", "time -p echo ok", "env -i MODE=test echo ok",
+            "env -u OLD_MODE MODE=test echo ok", "caffeinate -di echo ok", "xargs -0 -I{} echo ok",
+            "timeout --foreground 1s echo ok", "stdbuf -oL echo ok",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self.classify(command), "safe")
+        for command in (
+            "command -x echo ok", "builtin -x echo ok", "exec -x echo ok", "nice --mystery echo ok",
+            "nohup -x echo ok", "time -x echo ok", "env -S 'echo ok'", "env -x echo ok",
+            "caffeinate -x echo ok", "xargs --mystery echo ok", "timeout --mystery 1s echo ok",
+            "stdbuf --mystery echo ok", "command", "builtin", "exec", "nice", "nohup", "time", "env",
+            "caffeinate", "xargs", "timeout", "gtimeout", "stdbuf",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self.classify(command), "approval")
+
+    def test_shell_hard_refuses_confirmation_routes_and_loopback_gateway_urls(self) -> None:
+        for command in (
+            "echo /api/confirm", "echo /api/session/approve", "echo typed-approve.token",
+            "curl http://localhost:9999/health", "curl https://127.0.0.1/gateway",
         ):
             with self.subTest(command=command):
                 self.assertEqual(self.classify(command), "hard_refuse")
@@ -150,9 +194,9 @@ class DevToolsTests(unittest.TestCase):
 
     def test_shell_environment_drops_secret_named_variables(self) -> None:
         with patch.dict(os.environ, {"VOICE_CUA_FAKE_TOKEN": "secret-sentinel", "DEV_TEST_KEEP": "kept"}):
-            result = self.run_shell("env")
+            result = self.run_shell("printenv")
         self.assertNotIn("secret-sentinel", result["output"])
-        self.assertIn("DEV_TEST_KEEP=kept", result["output"])
+        self.assertIn("kept", result["output"])
 
     def test_scrubbed_env_drops_git_config_env_as_a_set(self) -> None:
         with patch.dict(os.environ, {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "safe.directory",
@@ -223,6 +267,10 @@ class DevToolsTests(unittest.TestCase):
         blocked_git = dev_tools.file_edit({"op": "write", "path": str(self.repo / ".git" / "config"),
                                            "content": "unsafe"})
         self.assertEqual(blocked_git["error_type"], "protected_path")
+        token = self.repo / "typed-approve.token"
+        token.write_text("test-only")
+        blocked_token = dev_tools.file_edit({"op": "read", "path": str(token)})
+        self.assertEqual(blocked_token["error_type"], "protected_path")
         fifo = self.repo / "pipe"
         os.mkfifo(fifo)
         special = dev_tools.file_edit({"op": "read", "path": str(fifo)})

@@ -227,14 +227,12 @@ class IslandBus:
             return "timed_out"
         return "approved" if result else "denied"
 
-    def resolve_confirm(self, confirm_id: str, approved: bool, *, typed_authorized: bool = False) -> bool:
+    def resolve_confirm(self, confirm_id: str, approved: bool) -> bool:
         if not isinstance(confirm_id, str) or type(approved) is not bool:
             return False
         with self._lock:
             event = self._confirms.get(confirm_id)
             if event is None or confirm_id in self._confirm_results:
-                return False
-            if self._confirm_turn_ids.get(confirm_id) and not typed_authorized:
                 return False
             self._confirm_results[confirm_id] = approved
             self._confirms.pop(confirm_id, None)

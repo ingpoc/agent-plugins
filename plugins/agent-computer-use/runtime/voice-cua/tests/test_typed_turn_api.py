@@ -113,9 +113,6 @@ class TypedTurnAPITests(unittest.TestCase):
             while bus.pending_confirm() is None and time.monotonic() < deadline:
                 time.sleep(0.01)
             self.assertEqual(self.request("GET", "/api/confirm/pending")[0], 403)
-            self.assertEqual(self.request("POST", "/api/confirm", {
-                "confirm_id": "c-typed", "approved": True,
-            })[0], 409)
             headers = {"X-Voice-CUA-Approve": token}
             self.assertEqual(self.request("GET", "/api/confirm/pending", headers=headers), (200, {
                 "confirm_id": "c-typed", "prompt": "Run the approved command?",
@@ -144,6 +141,32 @@ class TypedTurnAPITests(unittest.TestCase):
             self.assertEqual((code, body["ok"]), (200, True))
             island_thread.join(timeout=1)
             self.assertEqual(island_result.get("outcome"), "approved")
+
+    def test_island_buttons_can_allow_or_deny_typed_confirmations(self) -> None:
+        bus = IslandBus()
+        with patch.object(gateway, "ISLAND", bus):
+            for confirm_id, approved, expected in (
+                ("c-typed-allow", True, "approved"),
+                ("c-typed-deny", False, "denied"),
+            ):
+                with self.subTest(approved=approved):
+                    result = {}
+                    thread = threading.Thread(
+                        target=lambda cid=confirm_id: result.setdefault("outcome", bus.request_confirm(
+                            cid, "Run the typed command?", timeout=2, origin_turn_id="turn-a",
+                        )),
+                        daemon=True,
+                    )
+                    thread.start()
+                    deadline = time.monotonic() + 1
+                    while bus.pending_confirm() is None and time.monotonic() < deadline:
+                        time.sleep(0.01)
+                    code, body = self.request("POST", "/api/confirm", {
+                        "confirm_id": confirm_id, "approved": approved,
+                    })
+                    self.assertEqual((code, body["ok"]), (200, True))
+                    thread.join(timeout=1)
+                    self.assertEqual(result.get("outcome"), expected)
 
     def test_legacy_confirm_requires_boolean(self) -> None:
         with patch.object(gateway.ISLAND, "resolve_confirm", return_value=True) as resolve:
@@ -178,7 +201,7 @@ class TypedTurnAPITests(unittest.TestCase):
                     }, {"X-Voice-CUA-Approve": token})
                     self.assertEqual((code, body["ok"]), (409, False))
                 self.assertEqual(resolve.call_count, 2)
-                self.assertTrue(resolve.call_args_list[0].kwargs["typed_authorized"])
+                self.assertEqual(resolve.call_args_list[0].kwargs, {})
                 gateway._delete_approve_token()
                 self.assertFalse(path.exists())
 
@@ -370,7 +393,7 @@ class SessionHubTurnTests(unittest.TestCase):
             })
             self.assertIsNone(session_hub.get_turn("turn-b")["pending_confirm"])
             self.assertIsNone(session_hub.get_turn("turn-done")["pending_confirm"])
-        self.assertTrue(bus.resolve_confirm("confirm-a", False, typed_authorized=True))
+        self.assertTrue(bus.resolve_confirm("confirm-a", False))
         worker.join(timeout=1)
         self.assertEqual(result.get("outcome"), "denied")
 
