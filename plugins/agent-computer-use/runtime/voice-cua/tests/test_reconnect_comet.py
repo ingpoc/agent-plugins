@@ -1146,6 +1146,8 @@ class CometLeaseTests(unittest.TestCase):
         self.assertIn("Greetings, small talk", SYSTEM_INSTRUCTIONS)
         self.assertIn("Never\n  call a tool or touch any app", SYSTEM_INSTRUCTIONS)
         self.assertIn("Do not end replies with offers", SYSTEM_INSTRUCTIONS)
+        self.assertIn("use file_edit for reads and edits", SYSTEM_INSTRUCTIONS)
+        self.assertIn("If an app lookup says the app was not found or is not installed", SYSTEM_INSTRUCTIONS)
 
     def test_comet_begin_island_label_shows_site(self) -> None:
         from voice_cua.tools import comet_begin_label

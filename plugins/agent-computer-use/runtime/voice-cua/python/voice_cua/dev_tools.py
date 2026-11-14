@@ -287,13 +287,26 @@ def _redirect_targets(segment: str) -> list[str]:
     return targets
 
 
-def _inline_read_only(words: list[str], *, flag: str, language: str) -> bool:
+def _inline_read_only(words: list[str], *, flag: str, language: str,
+                      cwd: str, worktree_root: str, home: str) -> bool:
     try:
         code = words[next(i for i, word in enumerate(words[1:], 1) if word == flag or word.startswith(flag)) + 1]
     except (StopIteration, IndexError):
         return False
     if language == "node":
-        return bool(re.fullmatch(r'''console\.log\((?:[0-9\s+*/().,-]|'[^'\\]*'|"[^"\\]*")*\);?''', code))
+        if re.fullmatch(r'''console\.log\((?:[0-9\s+*/().,-]|'[^'\\]*'|"[^"\\]*")*\);?''', code):
+            return True
+        code = code.replace("'", "").replace('"', "")
+        manifest = re.fullmatch(
+            r"console\.log\(require\(([A-Za-z0-9_./-]+\.json)\)\.(?:version|scripts)\);?", code,
+        )
+        if not manifest:
+            return False
+        path = manifest.group(1)
+        if Path(path).is_absolute() or ".." in Path(path).parts:
+            return False
+        resolved = _resolved_path(path, cwd=cwd, home=home)
+        return bool(resolved and _inside(resolved, os.path.realpath(worktree_root)))
     try:
         tree = ast.parse(code, mode="eval")
     except SyntaxError:
@@ -474,9 +487,11 @@ def classify_shell_command(
             inline_name = os.path.basename(inline[0])
             if ((inline_name in {"python", "python3", "python2", "pypy", "pypy3"}
                  and any(word.startswith("-c") for word in inline[1:])
-                 and _inline_read_only(inline, flag="-c", language="python"))
+                 and _inline_read_only(inline, flag="-c", language="python", cwd=cwd,
+                                       worktree_root=worktree_root, home=home))
                     or (inline_name == "node" and any(word.startswith("-e") for word in inline[1:])
-                        and _inline_read_only(inline, flag="-e", language="node"))):
+                        and _inline_read_only(inline, flag="-e", language="node", cwd=cwd,
+                                              worktree_root=worktree_root, home=home))):
                 control_syntax = False
     wrapper_errors: list[str] = []
     path_approval = False
@@ -553,7 +568,8 @@ def classify_shell_command(
                 break
             if name in {"python", "python3", "python2", "pypy", "pypy3"} and any(
                 re.fullmatch(r"-c[A-Za-z]*", word) for word in effective[1:]
-            ) and not _inline_read_only(effective, flag="-c", language="python"):
+            ) and not _inline_read_only(effective, flag="-c", language="python", cwd=cwd,
+                                        worktree_root=worktree_root, home=home):
                 approval = "inline Python may modify files"
                 break
             if name in {"python", "python3", "python2", "pypy", "pypy3"} and any(
@@ -563,7 +579,8 @@ def classify_shell_command(
                 approval = "package install"
                 break
             if name == "node" and any(re.fullmatch(r"-e[A-Za-z]*", word) for word in effective[1:]) and not (
-                _inline_read_only(effective, flag="-e", language="node")
+                _inline_read_only(effective, flag="-e", language="node", cwd=cwd,
+                                  worktree_root=worktree_root, home=home)
             ):
                 approval = "inline Node may modify files"
                 break

@@ -54,6 +54,8 @@ LIVE_SAMPLE_RATE = int(os.environ.get("VOICE_CUA_SAMPLE_RATE", "24000"))
 # then starts a second delegation for the same request within a fraction of a second. The
 # first recovery answer waits this long; a newer response for the same turn supersedes it.
 RECOVERY_SETTLE_S = 2.0
+# shortcut: 130s after confirm two, derive from confirm timeout if that changes.
+SECOND_CONFIRM_SETTLE_S = 130.0
 _TASK_ACTION_EVIDENCE = {
     "cua_act": "app_readback",
     "comet_act": "browser_inventory",
@@ -614,7 +616,7 @@ class LiveSession:
         self._reconnect_context = {
             "repo": os.path.basename(os.getcwd()),
             "branch": self._current_branch(),
-            "task": self._task_expected_outcomes.get(self._last_task_run_id, ""),
+            "task": self._task_expected_outcomes.get(self._last_task_run_id, "") or self._last_user_text,
             "last_result": self._last_assistant_reply or str(last_results[-1] if last_results else "")[:1200],
         }
         keep = (self._drop_plan or {}).get("request_id") or ""
@@ -845,8 +847,8 @@ class LiveSession:
     @staticmethod
     def reconnect_note(*, comet_active: bool) -> str:
         note = (
-            "The realtime connection was re-established; earlier turns are not in "
-            "this conversation. Continue the user's current task if one is pending."
+            "The realtime connection was re-established. Continue any pending task from the conversation history. "
+            "If earlier turns are absent, use the attached context summary and do not ask the user to restate it."
         )
         if comet_active:
             note += (
@@ -1038,6 +1040,16 @@ class LiveSession:
             explicit_run_id = self._request_id(response)
             request_id = explicit_run_id
             run_ref_source = "response_metadata" if explicit_run_id else ""
+            with self._response_lock:
+                typed_turn_id = self._typed_turn_ids_by_request.get(request_id, "") if request_id else ""
+                if (not typed_turn_id and request_id not in self._text_waiters
+                        and request_id not in self._task_runs):
+                    typed_waiters = [(key, waiter) for key, waiter in self._text_waiters.items()
+                                     if waiter.get("typed_turn_id") and not waiter["event"].is_set()]
+                    if len(typed_waiters) == 1:
+                        request_id, waiter = typed_waiters[0]
+                        typed_turn_id = waiter["typed_turn_id"]
+                        run_ref_source = "typed_waiter_fallback"
             metadata = response.get("metadata") or {}
             request_step_ref = (str(metadata.get("voice_cua_request_step_ref") or "")
                                 if isinstance(metadata, dict) else "")
@@ -1054,10 +1066,12 @@ class LiveSession:
                     if len(self._response_started) > 256:  # never grow without bound
                         self._response_started.clear()
                         self._spoken_stop_response_ids.clear()
-                    self._response_started[response_id] = time.monotonic()
+                    response_started = time.monotonic()
+                    self._response_started[response_id] = response_started
                     for waiter in self._text_waiters.values():
-                        if not waiter["event"].is_set():
-                            waiter["last_progress"] = self._response_started[response_id]
+                        if (typed_turn_id and waiter.get("typed_turn_id") == typed_turn_id
+                                and not waiter["event"].is_set()):
+                            waiter["last_progress"] = response_started
                     if request_id:
                         turn = getattr(self, "_turn_latency", None)
                         if not isinstance(turn, dict) or turn.get("run_id") != request_id:
@@ -1072,16 +1086,10 @@ class LiveSession:
                     if request_id:
                         self._response_request_ids[response_id] = request_id
                         self._response_task_run_ids[response_id] = request_id
-                        typed_turn_id = self._typed_turn_ids_by_request.get(request_id)
-                        if typed_turn_id:
-                            self._response_typed_turn_ids[response_id] = typed_turn_id
                         self._task_runs.setdefault(request_id, [])
                         self._cancel_settle(request_id)
-                    else:
-                        typed_waiters = [waiter for waiter in self._text_waiters.values()
-                                         if waiter.get("typed_turn_id") and not waiter["event"].is_set()]
-                        if len(typed_waiters) == 1:
-                            self._response_typed_turn_ids[response_id] = typed_waiters[0]["typed_turn_id"]
+                    if typed_turn_id:
+                        self._response_typed_turn_ids[response_id] = typed_turn_id
                     self._cancelled_response_ids.discard(response_id)
                 self._response_condition.notify_all()
             log_event("model_response_start", run_id=request_id or None,
@@ -1440,6 +1448,12 @@ class LiveSession:
             task_run_id = (self._response_task_run_ids.get(response_id)
                            or (request_id if request_id in self._task_runs else ""))
             typed_turn_id = self._response_typed_turn_ids.get(response_id, "")
+            if name == "confirm_risky" and typed_turn_id:
+                waiter = next((waiter for waiter in self._text_waiters.values()
+                               if waiter.get("typed_turn_id") == typed_turn_id
+                               and not waiter["event"].is_set()), None)
+                if waiter and waiter.get("unanswered_confirms", 0) >= 1:
+                    waiter.setdefault("confirm_deadline", time.monotonic() + SECOND_CONFIRM_SETTLE_S)
             tool_step_ref = new_step_ref()
             response_step_ref = self._response_step_refs.get(response_id, "")
             request_step_ref = self._task_request_step_refs.get(task_run_id, "") if task_run_id else ""
@@ -1552,6 +1566,17 @@ class LiveSession:
                         self._task_last_step_refs[task_run_id] = tool_step_ref
                 for bad in ("value", "secret", "password", "api_key", "token"):
                     result.pop(bad, None)
+                if name == "confirm_risky" and typed_turn_id:
+                    with self._response_lock:
+                        waiter = next((waiter for waiter in self._text_waiters.values()
+                                       if waiter.get("typed_turn_id") == typed_turn_id
+                                       and not waiter["event"].is_set()), None)
+                        if waiter:
+                            if result.get("timed_out") is True or result.get("error_type") == "confirm_timed_out":
+                                waiter["unanswered_confirms"] = waiter.get("unanswered_confirms", 0) + 1
+                            elif result.get("approved") is True or result.get("error_type") == "user_denied":
+                                waiter["unanswered_confirms"] = 0
+                                waiter.pop("confirm_deadline", None)
                 self._record_task_result(task_run_id, name, result)
                 rkind, rtitle, rdetail = summarize_result(name, result, fallback=detail)
                 if not (rkind == "error" and errors_published() > errors_before):
@@ -1966,7 +1991,8 @@ class LiveSession:
                 return {"ok": False, "error": "timeout waiting for another text request"}
         request_id = uuid.uuid4().hex
         waiter = {"event": threading.Event(), "reply": "", "error": "",
-                  "typed_turn_id": typed_turn_id, "last_progress": time.monotonic()}
+                  "typed_turn_id": typed_turn_id, "last_progress": time.monotonic(),
+                  "unanswered_confirms": 0}
         try:
             if cancel_event is not None and cancel_event.is_set():
                 return {"ok": False, "error": "session disconnected", "error_type": "session_disconnected"}
@@ -1987,7 +2013,11 @@ class LiveSession:
                                                      if deadline is not None else 0.1)):
                 if cancel_event is not None and cancel_event.is_set():
                     return {"ok": False, "error": "session disconnected", "error_type": "session_disconnected"}
-                if time.monotonic() - waiter["last_progress"] >= 300:
+                now = time.monotonic()
+                if now >= waiter.get("confirm_deadline", float("inf")):
+                    return {"ok": False, "error": "no progress after a second unanswered confirm",
+                            "reply": str(waiter["reply"])}
+                if now - waiter["last_progress"] >= 300:
                     return {"ok": False, "error": "no progress for 300 seconds", "reply": str(waiter["reply"])}
                 if deadline is not None and time.monotonic() >= deadline:
                     return {"ok": False, "error": "timeout", "reply": str(waiter["reply"])}
@@ -2073,18 +2103,14 @@ class LiveSession:
             return
         response_id = str(response.get("id") or "")
         request_id = self._request_id(response) or self._request_for_response(response_id)
-        if not request_id:
-            typed_turn_id = self._response_typed_turn_ids.get(response_id, "")
-            with self._response_lock:
-                matches = [key for key, waiter in self._text_waiters.items()
-                           if typed_turn_id and waiter.get("typed_turn_id") == typed_turn_id
-                           and not waiter["event"].is_set()]
-                if not matches:
-                    matches = [key for key, waiter in self._text_waiters.items()
-                               if waiter.get("typed_turn_id") and not waiter["event"].is_set()]
-            if len(matches) == 1:
-                request_id = matches[0]
         with self._response_lock:
+            if request_id not in self._text_waiters and request_id not in self._task_runs:
+                typed_turn_id = self._response_typed_turn_ids.get(response_id, "")
+                matches = [key for key, waiter in self._text_waiters.items()
+                           if waiter.get("typed_turn_id") and not waiter["event"].is_set()
+                           and (not typed_turn_id or waiter.get("typed_turn_id") == typed_turn_id)]
+                if len(matches) == 1:
+                    request_id = matches[0]
             task_run_id = (self._response_task_run_ids.get(response_id)
                            or (request_id if request_id in self._task_runs else ""))
             task_settling = bool(task_run_id and task_run_id in self._task_runs)

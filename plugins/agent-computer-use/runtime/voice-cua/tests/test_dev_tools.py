@@ -152,11 +152,20 @@ class DevToolsTests(unittest.TestCase):
         self.assertEqual(self.classify("echo ok > parent-link/new.txt"), "approval")
         self.assertEqual(self.classify("echo ok > $HOME/out.txt"), "approval")
         self.assertEqual(self.classify("echo ok > out.txt"), "safe")
+        self.assertEqual(self.classify("echo ok >/dev/null"), "safe")
+        self.assertEqual(self.classify("echo ok 2>&1"), "safe")
         self.assertEqual(self.classify("echo ok >/dev/null 2>&1"), "safe")
         self.assertEqual(self.classify("find . -type f"), "safe")
+        self.assertEqual(self.classify("ls -la && git branch --show-current && find . -type f 2>/dev/null | head"), "safe")
         self.assertEqual(self.classify("find . -type f -delete"), "approval")
         self.assertEqual(self.classify("find . -exec echo {} \\;"), "approval")
         self.assertEqual(self.classify("find . -ok echo {} \\;"), "approval")
+
+    def test_node_can_print_manifest_version_or_scripts_from_the_worktree(self) -> None:
+        (self.repo / "package.json").write_text('{"version":"1.2.3","scripts":{"test":"unit"}}')
+        self.assertEqual(self.classify('node -e "console.log(require(\'./package.json\').version)"'), "safe")
+        self.assertEqual(self.classify('node -e "console.log(require(\'./package.json\').scripts)"'), "safe")
+        self.assertEqual(self.classify('node -e "console.log(require(\'../outside.json\').version)"'), "approval")
 
     def test_shell_classifier_requires_approval_for_risky_segments(self) -> None:
         commands = (
