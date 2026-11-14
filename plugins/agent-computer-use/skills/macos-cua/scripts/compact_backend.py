@@ -300,6 +300,31 @@ class CUABackend:
                     self._normalize_step_result(item)
                     for item in (raw_results if isinstance(raw_results, list) else [])
                 ]
+                if (
+                    len(native_steps) == 1
+                    and native_steps[0].get("method") == "type_text"
+                    and len(results) == 1
+                    and results[0].get("ok") is not True
+                ):
+                    failure = results[0]
+                    failure_text = " ".join(
+                        str(failure.get(key) or "").lower()
+                        for key in ("error", "error_type", "message", "reason")
+                    )
+                    if (
+                        failure.get("dispatched") is False
+                        and plan.get("dispatched") is not True
+                        and plan_window is not None
+                        and any(token in failure_text for token in ("stale", "detached", "out of range"))
+                    ):
+                        current = self._get_app_state(
+                            client, app, includeElements=True, disableDiff=True
+                        )
+                        if observed_window_id(current) == plan_window:
+                            before = after = current
+                            results = [self._normalize_step_result(client.type_text(
+                                app, **native_steps[0]["params"], window_id=plan_window
+                            ))]
             else:
                 before = self._get_app_state(
                     client, app, disableDiff=True, includeScreenshot=False, includeElements=True
