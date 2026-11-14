@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "collect",
-      "updated_at": "2026-11-14T11:55:42Z",
-      "now": "2026-11-14T11:55:42Z — Started collection"
+      "stage": "present",
+      "updated_at": "2026-11-14T12:29:17Z",
+      "now": "2026-11-14T12:29:17Z — Started collection"
     },
     "rollover": {
       "source_pr": 107,
@@ -2333,7 +2333,8 @@
       }
     ],
     "stages_reached": [
-      "collect"
+      "collect",
+      "present"
     ]
   },
   "findings": [
