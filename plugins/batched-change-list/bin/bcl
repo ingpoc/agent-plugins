@@ -38,8 +38,9 @@ def main():
     parser.add_argument("--progress", type=Path); parser.add_argument("--now")
     parser.add_argument("--ids", action="append", default=[]); parser.add_argument("--plan", type=Path)
     parser.add_argument("--result"); parser.add_argument("--issues", type=Path)
-    parser.add_argument("--repo", type=Path); parser.add_argument("stage")
-    args = parser.parse_args()
+    parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
+    parser.add_argument("stage")
+    args, command_args = parser.parse_known_args()
     if args.stage == "install-hooks":
         install_hooks(args.repo or Path.cwd()); return
     if not args.data or not args.render:
@@ -75,6 +76,10 @@ def main():
     elif stage == "report": operations = [{"action":"set-stage","stage":"report_rollover"}]
     else: parser.error("unknown stage")
     run(args, operations)
+    if args.then_command:
+        subprocess.run(args.then_command, shell=True, check=True)
+    elif command_args:
+        subprocess.run(command_args, check=True)
     if args.progress:
         args.progress.parent.mkdir(parents=True, exist_ok=True)
         with args.progress.open("a") as out: out.write(f"{stamp} {stage}\n")

@@ -37,6 +37,23 @@ class BclTests(unittest.TestCase):
         self.assertNotEqual(self.bcl("verify", "--ids", "ISSUE-01").returncode, 0)
         self.assertNotEqual(self.bcl("report").returncode, 0)
 
+    def test_install_then_updates_and_renders_before_command(self):
+        tracker = json.loads(self.data.read_text())
+        tracker["findings"][0]["status"] = "in_progress"
+        tracker["tracking"] = {"plan": {"cycle": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "running"}]}}
+        self.data.write_text(json.dumps(tracker))
+        stub = self.root / "check_stage.py"
+        stub.write_text(
+            "import json, sys\n"
+            "from pathlib import Path\n"
+            "data, page = map(Path, sys.argv[1:])\n"
+            "assert json.loads(data.read_text())['tracking']['workflow']['stage'] == 'install'\n"
+            "assert '<li data-stage=\\\"install\\\" class=\\\"workflow-step active\\\" aria-current=\\\"step\\\">' in page.read_text()\n"
+        )
+        command = f'"{sys.executable}" "{stub}" "{self.data}" "{self.page}"'
+        result = self.bcl("install", "--ids", "ISSUE-01", "--then", command)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def git(self, *args):
         return subprocess.run(["git", "-C", str(self.root), *args], capture_output=True, text=True)
 

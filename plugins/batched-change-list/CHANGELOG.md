@@ -2,6 +2,7 @@
 
 ## 0.1.16
 
+- `bcl fix`, `install`, and `verify` update and render the stage before running an optional command; Codex handoffs now require the page update at the start of each stage.
 - Added recorded execution plans with deterministic lane diagrams and current-cycle Install / Install-before-Verify guards.
 - Added the `bcl` stage command and idempotent repository `bcl install-hooks` backstop that chains existing hooks and checks rendered triage freshness.
 

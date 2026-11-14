@@ -22,6 +22,8 @@ Before declaring a fix complete, see [prove it works](principles.md#prove-it-wor
 
 Before fixing a group, use `set-activity` in one `batch --render` with its stage, affected IDs, and a concise `now` description. It marks those findings `in_progress` and displays one timestamped `Now` line below the stage bar. If an affected finding is closed, include `"reopen":true` to reopen it explicitly. The navigation shows a working spinner on each `in_progress` item. The page is the user's only view of progress, so update it as each step starts. Move an item off `in_progress` only to `verified_fixed` with evidence, or back to `failing` or `blocked` with the reason.
 
+Codex handoff: at the start of each stage change, before doing that stage's work, run `bcl --data FINDINGS.json --render PAGE.html <stage>` for `plan`, `fix`, `install`, `verify`, `introspect`, or `report`.
+
 After each coherent test or verification batch, update the authoritative findings and regenerate the view; reconcile per-item status, navigation badges, counts, build/head and evidence together. Consolidate related report-only edits into one commit after the batch. Preserve unresolved findings for the next pass. An authorized PR is created or updated before installing when project policy requires an open PR head; install that exact head and verify its identity. Do not merge, publish, install, send messages, or run intrusive tests unless authorized by the user or applicable instructions.
 
 Record issues found, fix/build/install/verification cycles actually run, and available wall time or token evidence. Report measured savings only with a comparable baseline and equal or better outcomes; otherwise describe batching as a potential saving, not a proven one.
