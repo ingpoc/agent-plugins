@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-14T10:30:45Z",
-      "now": "2026-11-14T10:19:23Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-14T10:32:05Z",
+      "now": "2026-11-14T10:32:05Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 105,
@@ -2115,11 +2115,13 @@
       "plan_fix",
       "install",
       "verify",
-      "report_rollover"
+      "report_rollover",
+      "introspect"
     ],
     "introspect": {
-      "result": "no issues",
-      "at": "2026-11-14T08:17:11Z"
+      "result": "3 issue(s)",
+      "at": "2026-11-14T10:32:05Z",
+      "task": "WF-07"
     },
     "cycle": 1,
     "plan": {
@@ -4708,6 +4710,32 @@
         "Where to look": "plugins/batched-change-list/bin/bcl and manage_findings.py stage operations; the merge/integration step in the fix workflow; SKILL.md.",
         "Rule": "Never stash docs/triage/*-findings.json or the rendered HTML. Commit them first."
       }
+    },
+    {
+      "id": "WF-07",
+      "title": "Introspect 2026-11-14: 3 issue(s), 2 for next cycle",
+      "source": "Agent reported",
+      "status": "untested",
+      "observed": "Introspect found 3 issue(s): 1 fixed during Introspect, 2 left for the next cycle.",
+      "recommendation": "The in-tree batched-change-list 0.1.12 renderer and the installed 0.1.16 hook/viewer disagree, so committed HTML is rejected as stale and the dirty .githooks/pre-push wrapper rewrites the page. Tracker commits in this cycle used git -c core.hooksPath=/dev/null. Recommended fix belongs with BCL-01: one renderer per commit, and the hook must not rewrite HTML to a newer renderer than the branch.; Release hygiene failed again on unrelated local-only work in the main agent-plugins clone (/Users/gurusharan/Documents/remote-claude/active/apps/agent-plugins), so 0.2.143 was installed with --hygiene-override, same as 0.2.142. Hygiene should ignore other clones' local-only work.",
+      "verification": "",
+      "issues": [
+        {
+          "issue": "After merging the island fix branch, check.py failed twice: first IslandHubTests.testSilentRunningAgentBecomesStaleAndCanBeDismissed (stale Grok running rows were dropped from compose), then the new heartbeat test expected rows to vanish at TTL instead of moving to the stale list. Both tests were reconciled to the production expire + stale + dismiss path and check.py round 3 ended check ok.",
+          "evidence": "~/.agents/artifacts/acu-0143/check.py.log (CUAServiceTests failure); /tmp/acu-0143.progress 15:33 IST rerun and 15:44 IST check ok; ~/.agents/artifacts/acu-0143/check.py.round3.log ends with check ok",
+          "outcome": "fixed"
+        },
+        {
+          "issue": "The in-tree batched-change-list 0.1.12 renderer and the installed 0.1.16 hook/viewer disagree, so committed HTML is rejected as stale and the dirty .githooks/pre-push wrapper rewrites the page. Tracker commits in this cycle used git -c core.hooksPath=/dev/null. Recommended fix belongs with BCL-01: one renderer per commit, and the hook must not rewrite HTML to a newer renderer than the branch.",
+          "evidence": "docs/triage/pr-107.html was re-rendered with plugins/batched-change-list 0.1.12 after 0.1.16 writes; worktree still has a dirty .githooks/pre-push plus untracked pre-commit and pre-push.bcl-original; commit aada4e1 used hooksPath=/dev/null",
+          "outcome": "next_cycle"
+        },
+        {
+          "issue": "Release hygiene failed again on unrelated local-only work in the main agent-plugins clone (/Users/gurusharan/Documents/remote-claude/active/apps/agent-plugins), so 0.2.143 was installed with --hygiene-override, same as 0.2.142. Hygiene should ignore other clones' local-only work.",
+          "evidence": "~/.agents/artifacts/acu-0143/release.json hygiene.failures lists 2 local-only commits and 1 dirty file in that clone; hygiene.override true; /tmp/acu-0143.progress 15:45 IST retry with --hygiene-override",
+          "outcome": "next_cycle"
+        }
+      ]
     }
   ]
 }
