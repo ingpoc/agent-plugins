@@ -2,10 +2,10 @@
   "title": "Samantha issues and recommended fixes",
   "tracking": {
     "pull_request": {
-      "label": "PR #105 · Roll-over (draft); previous list was PR #98",
-      "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/105"
+      "label": "PR #107",
+      "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/107"
     },
-    "worktree": "samantha-pr96-rollover",
+    "worktree": "samantha-pr107-rollover",
     "verification_history": [
       {
         "id": "acu-0.2.97-install-20261106-0544z",
@@ -1798,6 +1798,235 @@
         "install_evidence": "Installed version observed at this time; installer reported exact PR head e79d864 and MCP probe passed. Observation time is not installation time.",
         "status": "complete",
         "checks": {}
+      },
+      {
+        "id": "pr105-0142-8a8b3a8",
+        "build": "0.2.142 (build 827)",
+        "revision": "8a8b3a8",
+        "installed_at": "2026-11-14T12:05:10+05:30",
+        "install_evidence": "~/.agents/artifacts/pr105-acu-0142-8a8b3a8.json: source-checks, build-install, sync-installed, signature, live-client/cursor/fd, microphone all ok; /health version 0.2.142",
+        "status": "interrupted",
+        "checks": {
+          "USER-02": {
+            "state": "pending"
+          },
+          "USER-03": {
+            "state": "pending"
+          },
+          "AGENT-02": {
+            "state": "pending"
+          },
+          "OBS-01": {
+            "state": "pending"
+          },
+          "OBS-02": {
+            "state": "pending"
+          },
+          "OBS-03": {
+            "state": "pending"
+          },
+          "OBS-04": {
+            "state": "pending"
+          },
+          "OBS-06": {
+            "state": "pending"
+          },
+          "OBS-10": {
+            "state": "pending"
+          },
+          "AGENT-03": {
+            "state": "pending"
+          },
+          "AGENT-04": {
+            "state": "pending"
+          },
+          "OBS-12": {
+            "state": "pending"
+          },
+          "OBS-13": {
+            "state": "pending"
+          },
+          "OBS-14": {
+            "state": "pending"
+          },
+          "OBS-15": {
+            "state": "pending"
+          },
+          "OBS-16": {
+            "state": "pending"
+          },
+          "OBS-17": {
+            "state": "pending"
+          },
+          "AGENT-07": {
+            "state": "pending"
+          },
+          "USER-06": {
+            "state": "pending"
+          },
+          "OBS-18": {
+            "state": "pending"
+          },
+          "OBS-19": {
+            "state": "pending"
+          },
+          "AGENT-09": {
+            "state": "pending"
+          },
+          "AGENT-10": {
+            "state": "pending"
+          },
+          "OBS-20": {
+            "state": "pending"
+          },
+          "DEVOBS-01": {
+            "state": "pending"
+          },
+          "DEVOBS-02": {
+            "state": "pending"
+          },
+          "DEVOBS-03": {
+            "state": "pending"
+          },
+          "DEVOBS-04": {
+            "state": "pending"
+          },
+          "AGENT-11": {
+            "state": "pending"
+          },
+          "USER-07": {
+            "state": "pending"
+          },
+          "OBS-21": {
+            "state": "pending"
+          },
+          "AGENT-12": {
+            "state": "pending"
+          },
+          "OBS-22": {
+            "state": "pending"
+          },
+          "AGENT-13": {
+            "state": "pending"
+          },
+          "AGENT-14": {
+            "state": "pending"
+          },
+          "AGENT-15": {
+            "state": "pending"
+          },
+          "WF-05": {
+            "state": "pending"
+          },
+          "WF-01": {
+            "state": "pending"
+          },
+          "AGENT-16": {
+            "state": "pending"
+          },
+          "AGENT-17": {
+            "state": "pending"
+          },
+          "OBS-23": {
+            "state": "pending"
+          },
+          "AGENT-18": {
+            "state": "pending"
+          },
+          "AGENT-19": {
+            "state": "pending"
+          },
+          "OBS-24": {
+            "state": "fixed",
+            "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
+            "observed_at": "2026-11-14T12:31:24+05:30",
+            "started_at": "2026-11-14T07:03:20Z",
+            "updated_at": "2026-11-14T07:03:20Z",
+            "evidence": "task_outcome unverified for the timed-out confirm turns (12:12:41, 12:15:42) and for approval-pending turns; verified_success only on turns whose tools succeeded (12:31:32, 12:31:49, 12:32:10).",
+            "finished_at": "2026-11-14T07:03:54Z"
+          },
+          "OBS-25": {
+            "state": "pending"
+          },
+          "OBS-26": {
+            "state": "pending"
+          },
+          "AGENT-20": {
+            "state": "fixed",
+            "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
+            "observed_at": "2026-11-14T12:31:24+05:30",
+            "started_at": "2026-11-14T07:03:20Z",
+            "updated_at": "2026-11-14T07:03:20Z",
+            "evidence": "Typed turns now return a turn_id and settle by poll: 12:10:32 turn ran 128,719 ms (past the old 120 s cap) and delivered its full reply; clean turns 876442d2/407e2b68/a63be7ad settled in 8.3/9.7/10.4 s with replies. Live run also found and fixed (8a8b3a8) Grok Voice dropping response metadata, which kept typed turns from ever settling. Unsettled turn after a 2nd timeout tracked as AGENT-26.",
+            "finished_at": "2026-11-14T07:03:54Z"
+          },
+          "AGENT-21": {
+            "state": "fixed",
+            "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
+            "observed_at": "2026-11-14T12:31:24+05:30",
+            "started_at": "2026-11-14T07:03:20Z",
+            "updated_at": "2026-11-14T07:03:20Z",
+            "evidence": "12:31-12:32 IST: shell_run node --test health.test.js exit 0 in 767 ms; file_edit read+patch added the comment line (3 ms); shell_run rerun exit 0; shell_run git add+commit exit 0 -> commit 7c6c9b5. No Terminal/TextEdit cua_act used.",
+            "finished_at": "2026-11-14T07:03:54Z"
+          },
+          "AGENT-22": {
+            "state": "pending"
+          },
+          "AGENT-23": {
+            "state": "inconclusive",
+            "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
+            "observed_at": "2026-11-14T12:31:24+05:30",
+            "started_at": "2026-11-14T07:03:20Z",
+            "updated_at": "2026-11-14T07:03:20Z",
+            "evidence": "Fixed in code with regression tests for the cancel/confirm branches; no cua_act type step ran in the retest, so not exercised live.",
+            "finished_at": "2026-11-14T07:03:54Z"
+          },
+          "AGENT-24": {
+            "state": "fixed",
+            "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
+            "observed_at": "2026-11-14T12:31:24+05:30",
+            "started_at": "2026-11-14T07:03:20Z",
+            "updated_at": "2026-11-14T07:03:20Z",
+            "evidence": "12:12:39 confirm_answer reason=timed_out, reply 'The confirmation timed out, so nothing ran.'; 12:15:40 timed_out, reply 'That confirm timed out too.'. Typed path POST /api/session/approve approved 4 confirms (12:13:00, 12:13:21, 12:32:05 ...), commit landed.",
+            "finished_at": "2026-11-14T07:03:54Z"
+          },
+          "OBS-27": {
+            "state": "fixed",
+            "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
+            "observed_at": "2026-11-14T12:31:24+05:30",
+            "started_at": "2026-11-14T07:03:20Z",
+            "updated_at": "2026-11-14T07:03:20Z",
+            "evidence": "Helper stdout (the stream the app writes to voice.log) shows 'You: <typed text>' for each typed turn, e.g. 'You: OK, go ahead and run the health test.' Standalone --no-audio helper, so voice.log itself was not the file read.",
+            "finished_at": "2026-11-14T07:03:54Z"
+          },
+          "OBS-28": {
+            "state": "inconclusive",
+            "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
+            "observed_at": "2026-11-14T12:31:24+05:30",
+            "started_at": "2026-11-14T07:03:20Z",
+            "updated_at": "2026-11-14T07:03:20Z",
+            "evidence": "[:240] slices removed (tests); every live reply was under 240 chars (longest ~200), so the cut was not exercised live.",
+            "finished_at": "2026-11-14T07:03:54Z"
+          },
+          "AGENT-25": {
+            "state": "pending"
+          },
+          "AGENT-26": {
+            "state": "pending"
+          },
+          "AGENT-27": {
+            "state": "pending"
+          },
+          "AGENT-28": {
+            "state": "pending"
+          },
+          "AGENT-29": {
+            "state": "pending"
+          },
+          "WF-06": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -1813,20 +2042,28 @@
     },
     "workflow": {
       "stage": "report_rollover",
-      "updated_at": "2026-11-14T07:05:34Z",
-      "now": "2026-11-14T07:05:34Z — Fix cycle reported: 5 verified_fixed, 2 untested, 5 new (AGENT-25..29); Her score 7/12"
+      "updated_at": "2026-11-14T07:23:09Z",
+      "now": "2026-11-14T07:23:09Z — 2026-11-14T12:53:09+0530"
     },
     "rollover": {
-      "source_pr": 98,
+      "source_pr": 105,
       "unresolved_ids": [
         "AGENT-16",
         "AGENT-17",
         "OBS-23",
         "AGENT-18",
         "AGENT-19",
-        "OBS-24",
         "OBS-25",
-        "OBS-26"
+        "OBS-26",
+        "AGENT-22",
+        "AGENT-23",
+        "OBS-28",
+        "AGENT-25",
+        "AGENT-26",
+        "AGENT-27",
+        "AGENT-28",
+        "AGENT-29",
+        "WF-06"
       ],
       "excluded_ids": [
         "AGENT-02",
@@ -1840,6 +2077,9 @@
         "AGENT-13",
         "AGENT-14",
         "AGENT-15",
+        "AGENT-20",
+        "AGENT-21",
+        "AGENT-24",
         "DEVOBS-01",
         "DEVOBS-02",
         "DEVOBS-03",
@@ -1861,6 +2101,8 @@
         "OBS-20",
         "OBS-21",
         "OBS-22",
+        "OBS-24",
+        "OBS-27",
         "USER-02",
         "USER-03",
         "USER-06",
@@ -1868,246 +2110,6 @@
         "WF-01",
         "WF-05"
       ]
-    },
-    "stages_reached": [
-      "plan_fix",
-      "install",
-      "verify",
-      "report_rollover"
-    ],
-    "verification_run": {
-      "id": "pr105-0142-8a8b3a8",
-      "build": "0.2.142 (build 827)",
-      "revision": "8a8b3a8",
-      "installed_at": "2026-11-14T12:05:10+05:30",
-      "install_evidence": "~/.agents/artifacts/pr105-acu-0142-8a8b3a8.json: source-checks, build-install, sync-installed, signature, live-client/cursor/fd, microphone all ok; /health version 0.2.142",
-      "status": "active",
-      "checks": {
-        "USER-02": {
-          "state": "pending"
-        },
-        "USER-03": {
-          "state": "pending"
-        },
-        "AGENT-02": {
-          "state": "pending"
-        },
-        "OBS-01": {
-          "state": "pending"
-        },
-        "OBS-02": {
-          "state": "pending"
-        },
-        "OBS-03": {
-          "state": "pending"
-        },
-        "OBS-04": {
-          "state": "pending"
-        },
-        "OBS-06": {
-          "state": "pending"
-        },
-        "OBS-10": {
-          "state": "pending"
-        },
-        "AGENT-03": {
-          "state": "pending"
-        },
-        "AGENT-04": {
-          "state": "pending"
-        },
-        "OBS-12": {
-          "state": "pending"
-        },
-        "OBS-13": {
-          "state": "pending"
-        },
-        "OBS-14": {
-          "state": "pending"
-        },
-        "OBS-15": {
-          "state": "pending"
-        },
-        "OBS-16": {
-          "state": "pending"
-        },
-        "OBS-17": {
-          "state": "pending"
-        },
-        "AGENT-07": {
-          "state": "pending"
-        },
-        "USER-06": {
-          "state": "pending"
-        },
-        "OBS-18": {
-          "state": "pending"
-        },
-        "OBS-19": {
-          "state": "pending"
-        },
-        "AGENT-09": {
-          "state": "pending"
-        },
-        "AGENT-10": {
-          "state": "pending"
-        },
-        "OBS-20": {
-          "state": "pending"
-        },
-        "DEVOBS-01": {
-          "state": "pending"
-        },
-        "DEVOBS-02": {
-          "state": "pending"
-        },
-        "DEVOBS-03": {
-          "state": "pending"
-        },
-        "DEVOBS-04": {
-          "state": "pending"
-        },
-        "AGENT-11": {
-          "state": "pending"
-        },
-        "USER-07": {
-          "state": "pending"
-        },
-        "OBS-21": {
-          "state": "pending"
-        },
-        "AGENT-12": {
-          "state": "pending"
-        },
-        "OBS-22": {
-          "state": "pending"
-        },
-        "AGENT-13": {
-          "state": "pending"
-        },
-        "AGENT-14": {
-          "state": "pending"
-        },
-        "AGENT-15": {
-          "state": "pending"
-        },
-        "WF-05": {
-          "state": "pending"
-        },
-        "WF-01": {
-          "state": "pending"
-        },
-        "AGENT-16": {
-          "state": "pending"
-        },
-        "AGENT-17": {
-          "state": "pending"
-        },
-        "OBS-23": {
-          "state": "pending"
-        },
-        "AGENT-18": {
-          "state": "pending"
-        },
-        "AGENT-19": {
-          "state": "pending"
-        },
-        "OBS-24": {
-          "state": "fixed",
-          "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
-          "observed_at": "2026-11-14T12:31:24+05:30",
-          "started_at": "2026-11-14T07:03:20Z",
-          "updated_at": "2026-11-14T07:03:20Z",
-          "evidence": "task_outcome unverified for the timed-out confirm turns (12:12:41, 12:15:42) and for approval-pending turns; verified_success only on turns whose tools succeeded (12:31:32, 12:31:49, 12:32:10).",
-          "finished_at": "2026-11-14T07:03:54Z"
-        },
-        "OBS-25": {
-          "state": "pending"
-        },
-        "OBS-26": {
-          "state": "pending"
-        },
-        "AGENT-20": {
-          "state": "fixed",
-          "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
-          "observed_at": "2026-11-14T12:31:24+05:30",
-          "started_at": "2026-11-14T07:03:20Z",
-          "updated_at": "2026-11-14T07:03:20Z",
-          "evidence": "Typed turns now return a turn_id and settle by poll: 12:10:32 turn ran 128,719 ms (past the old 120 s cap) and delivered its full reply; clean turns 876442d2/407e2b68/a63be7ad settled in 8.3/9.7/10.4 s with replies. Live run also found and fixed (8a8b3a8) Grok Voice dropping response metadata, which kept typed turns from ever settling. Unsettled turn after a 2nd timeout tracked as AGENT-26.",
-          "finished_at": "2026-11-14T07:03:54Z"
-        },
-        "AGENT-21": {
-          "state": "fixed",
-          "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
-          "observed_at": "2026-11-14T12:31:24+05:30",
-          "started_at": "2026-11-14T07:03:20Z",
-          "updated_at": "2026-11-14T07:03:20Z",
-          "evidence": "12:31-12:32 IST: shell_run node --test health.test.js exit 0 in 767 ms; file_edit read+patch added the comment line (3 ms); shell_run rerun exit 0; shell_run git add+commit exit 0 -> commit 7c6c9b5. No Terminal/TextEdit cua_act used.",
-          "finished_at": "2026-11-14T07:03:54Z"
-        },
-        "AGENT-22": {
-          "state": "pending"
-        },
-        "AGENT-23": {
-          "state": "inconclusive",
-          "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
-          "observed_at": "2026-11-14T12:31:24+05:30",
-          "started_at": "2026-11-14T07:03:20Z",
-          "updated_at": "2026-11-14T07:03:20Z",
-          "evidence": "Fixed in code with regression tests for the cancel/confirm branches; no cua_act type step ran in the retest, so not exercised live.",
-          "finished_at": "2026-11-14T07:03:54Z"
-        },
-        "AGENT-24": {
-          "state": "fixed",
-          "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
-          "observed_at": "2026-11-14T12:31:24+05:30",
-          "started_at": "2026-11-14T07:03:20Z",
-          "updated_at": "2026-11-14T07:03:20Z",
-          "evidence": "12:12:39 confirm_answer reason=timed_out, reply 'The confirmation timed out, so nothing ran.'; 12:15:40 timed_out, reply 'That confirm timed out too.'. Typed path POST /api/session/approve approved 4 confirms (12:13:00, 12:13:21, 12:32:05 ...), commit landed.",
-          "finished_at": "2026-11-14T07:03:54Z"
-        },
-        "OBS-27": {
-          "state": "fixed",
-          "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
-          "observed_at": "2026-11-14T12:31:24+05:30",
-          "started_at": "2026-11-14T07:03:20Z",
-          "updated_at": "2026-11-14T07:03:20Z",
-          "evidence": "Helper stdout (the stream the app writes to voice.log) shows 'You: <typed text>' for each typed turn, e.g. 'You: OK, go ahead and run the health test.' Standalone --no-audio helper, so voice.log itself was not the file read.",
-          "finished_at": "2026-11-14T07:03:54Z"
-        },
-        "OBS-28": {
-          "state": "inconclusive",
-          "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
-          "observed_at": "2026-11-14T12:31:24+05:30",
-          "started_at": "2026-11-14T07:03:20Z",
-          "updated_at": "2026-11-14T07:03:20Z",
-          "evidence": "[:240] slices removed (tests); every live reply was under 240 chars (longest ~200), so the cut was not exercised live.",
-          "finished_at": "2026-11-14T07:03:54Z"
-        },
-        "AGENT-25": {
-          "state": "pending"
-        },
-        "AGENT-26": {
-          "state": "pending"
-        },
-        "AGENT-27": {
-          "state": "pending"
-        },
-        "AGENT-28": {
-          "state": "pending"
-        },
-        "AGENT-29": {
-          "state": "pending"
-        },
-        "WF-06": {
-          "state": "pending"
-        }
-      }
-    },
-    "introspect": {
-      "result": "5 issue(s)",
-      "at": "2026-11-14T07:05:34Z",
-      "task": "WF-06"
     }
   },
   "findings": [
