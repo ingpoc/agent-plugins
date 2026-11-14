@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-14T12:31:15Z",
+      "updated_at": "2026-11-14T12:35:22Z",
       "now": "2026-11-14T12:29:53Z — Fix in progress"
     },
     "rollover": {
@@ -2166,12 +2166,16 @@
           "depends_on": [],
           "reason": "Rollover, merge-done, and collect viewer switching were done by hand and left the wrong status on the page. Status accuracy is first.",
           "worktree": "bcl-110-status",
-          "status": "pending",
+          "status": "running",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
             "service_tier": "priority",
-            "status": "pending"
+            "status": "running",
+            "started_at": "2026-11-14T12:34:59Z",
+            "session_id": "01a1da0d-76b4-7fc3-b94f-542c7e1fe05a",
+            "pid": "58033",
+            "updated_at": "2026-11-14T12:35:22Z"
           },
           "verify": {
             "method": "Unit tests plus scripted bcl runs: rollover writes only the new list and resets carried in_progress items to untested; merged records the merge commit and time and sets Merged/Done on the old list; collect reuses port 53366 when this list already owns it, does not move the viewer on rollover, and does not fail a findings batch only because a capture file is missing.",
@@ -2194,12 +2198,16 @@
           "depends_on": [],
           "reason": "Confirm settle, reconnect context, read-only shell approval, and heard app-name handling share live_session, providers, session_hub, and dev_tools.",
           "worktree": "acu-110-session",
-          "status": "pending",
+          "status": "running",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
             "service_tier": "priority",
-            "status": "pending"
+            "status": "running",
+            "started_at": "2026-11-14T12:34:59Z",
+            "session_id": "01a1da0d-76b6-72d3-9ad0-e2bd4074e9da",
+            "pid": "58037",
+            "updated_at": "2026-11-14T12:35:22Z"
           },
           "verify": {
             "method": "Typed turns via POST 127.0.0.1:8766/api/session/text (never 8765): a second unanswered confirm must settle the turn; after a reconnect the earlier context is used; a read-only shell command does not raise confirm_risky; a known app name is not asked again after a lookup miss. Record transcript evidence under ~/.agents/artifacts/bcl-110/.",
@@ -2220,12 +2228,16 @@
           "depends_on": [],
           "reason": "Terminal/TextEdit cua_act retries and the typed_text log_event keyword crash share the tool dispatch and activity log.",
           "worktree": "acu-110-tools",
-          "status": "pending",
+          "status": "running",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
             "service_tier": "priority",
-            "status": "pending"
+            "status": "running",
+            "started_at": "2026-11-14T12:34:59Z",
+            "session_id": "01a1da0d-76b7-74a0-906d-db269164dcaa",
+            "pid": "58041",
+            "updated_at": "2026-11-14T12:35:22Z"
           },
           "verify": {
             "method": "Regression tests for the typed_text log_event path, plus a live Terminal or TextEdit type step that must not raise TypeError and must not loop on expect_unverified/action_failed/retry_cap. Evidence in ~/.agents/artifacts/bcl-110/.",
@@ -2245,12 +2257,16 @@
           "depends_on": [],
           "reason": "IslandCodexThreads reads model and effort but not service_tier, so a priority/Fast Luna job looks like a normal run.",
           "worktree": "acu-110-island",
-          "status": "pending",
+          "status": "running",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
             "service_tier": "priority",
-            "status": "pending"
+            "status": "running",
+            "started_at": "2026-11-14T12:34:59Z",
+            "session_id": "01a1da0d-76b4-7792-b51c-425253c6a193",
+            "pid": "58045",
+            "updated_at": "2026-11-14T12:35:22Z"
           },
           "verify": {
             "method": "Live island screenshots: a gpt-6-luna job with service_tier=priority shows a Fast label; a normal/default-tier job does not. Evidence in ~/.agents/artifacts/bcl-110/.",
@@ -2270,12 +2286,16 @@
           "depends_on": [],
           "reason": "The ACU hygiene gate reports local-only work from other clones and forces --hygiene-override on every install.",
           "worktree": "acu-110-hygiene",
-          "status": "pending",
+          "status": "running",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
             "service_tier": "priority",
-            "status": "pending"
+            "status": "running",
+            "started_at": "2026-11-14T12:34:59Z",
+            "session_id": "01a1da0d-76b2-74b0-ae70-dd4a2ab72a70",
+            "pid": "58049",
+            "updated_at": "2026-11-14T12:35:22Z"
           },
           "verify": {
             "method": "Unit tests that dirty or local-only work in a different clone is ignored, and only problems in the clone under release are reported.",
