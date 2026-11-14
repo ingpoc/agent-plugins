@@ -71,7 +71,12 @@ def rollover_cycle(tracking):
 
 
 def rollover_round(tracking):
-    round_number = tracking.get("round", 1)
+    round_number = tracking.get("round")
+    if round_number is None:
+        plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
+        round_number = plan.get("round", 1)
+        if round_number is None:
+            round_number = 1
     if type(round_number) is not int or round_number < 1:
         raise ValueError("tracking.round must be a positive integer")
     history = tracking.get("round_history", [])
@@ -119,12 +124,16 @@ def plan_status(group):
     verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
     status = group.get("status", codex.get("status", "pending"))
     verify_status = verify.get("status", "pending")
-    if status in ("failed", "blocked") or codex.get("status") in ("failed", "blocked") or verify_status in ("failed", "blocked"):
+    if verify_status == "partial":
+        return "partial"
+    if verify_status in ("failed", "blocked") or status in ("failed", "blocked") or codex.get("status") in ("failed", "blocked"):
         return "failed"
     if verify_status == "running":
         return "verifying"
+    if verify_status in ("done", "complete", "verified"):
+        return "verified"
     if status in ("done", "fixed"):
-        return "verified" if verify_status in ("done", "complete", "verified") else "fixed"
+        return "fixed"
     if status == "running" or codex.get("status") == "running":
         return "running"
     return "queued"
@@ -142,11 +151,11 @@ def render_plan(data, tracking, plan, round_number, now):
     if not matching:
         return f'<div class="plan-empty">No fix plan for Round {round_number} yet.</div>' if has_started else ""
     groups = [group for group in plan.get("groups", []) if isinstance(group, dict)]
-    counts = {state: sum(plan_status(group) == state for group in groups) for state in ("running", "fixed", "verifying", "verified", "failed", "queued")}
-    tally = " · ".join(f"{counts[key]} {label}" for key, label in (("running", "running"), ("fixed", "fixed"), ("failed", "failed"), ("verifying", "verifying"), ("verified", "verified"), ("queued", "planned")) if counts[key])
+    counts = {state: sum(plan_status(group) == state for group in groups) for state in ("running", "fixed", "partial", "verifying", "verified", "failed", "queued")}
+    tally = " · ".join(f"{counts[key]} {label}" for key, label in (("running", "running"), ("fixed", "fixed"), ("partial", "partial"), ("failed", "failed"), ("verifying", "verifying"), ("verified", "verified"), ("queued", "planned")) if counts[key])
     findings = {item.get("id"): item for item in data.get("findings", [])}
     rows = []
-    labels = {"queued":"Planned", "running":"Fixing", "fixed":"Fixed", "verifying":"Verifying", "verified":"Verified", "failed":"Failed"}
+    labels = {"queued":"Planned", "running":"Fixing", "fixed":"Fixed", "partial":"Partial", "verifying":"Verifying", "verified":"Verified", "failed":"Failed"}
     for group in groups:
         codex = group.get("codex", {}) if isinstance(group.get("codex"), dict) else {}
         verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}

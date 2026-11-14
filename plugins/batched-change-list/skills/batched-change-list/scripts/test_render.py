@@ -506,5 +506,23 @@ setImmediate(async()=>{
 
 
 
+
+    def test_plan_round_fallback_and_partial_verify_status(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-14T09:00:00Z'},
+                            'plan': {'round': 2, 'groups': [
+                                {'id':'AC','finding_ids':['ISSUE-01','ISSUE-02'],'status':'done','verify':{'status':'partial','method':'Live check'}},
+                                {'id':'E','finding_ids':['ISSUE-01'],'status':'done','verify':{'status':'verified','method':'Query'}},
+                            ]}}
+        page = renderer.render(data, self.base)
+        self.assertIn('Round 2', page)
+        self.assertIn('class="grp partial"', page)
+        self.assertIn('Partial', page)
+        self.assertIn('class="grp verified"', page)
+        self.assertIn('Verified', page)
+        self.assertNotIn('No fix plan', page)
+
+
+
 if __name__ == "__main__":
     unittest.main()
