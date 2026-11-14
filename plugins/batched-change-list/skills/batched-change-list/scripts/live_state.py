@@ -1,5 +1,5 @@
 """Live tracker registry and per-list viewer lifecycle."""
-import hashlib, json, os, re, signal, socket, subprocess, sys
+import hashlib, json, os, re, signal, socket, subprocess, sys, time
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -127,6 +127,14 @@ def _port_is_free(port):
             return False
     return True
 
+def _wait_for_port(port):
+    deadline = time.monotonic() + 1
+    while not _port_is_free(port):
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+    return True
+
 def locate(path, adopt=False, render_path=None):
     path = Path(path).resolve()
     if path.is_relative_to(STATE.resolve()):
@@ -163,12 +171,14 @@ def ensure_viewer(key, record, live, plugin_version):
         try: os.kill(int(old["pid"]), 0); running = True
         except OSError: pass
     owns_old = bool(old.get("data")) and Path(old["data"]).resolve() == Path(live).resolve()
+    old_port = int(old.get("port", 0) or 0)
     if running and owns_old and old.get("version") == plugin_version: return old
     if running and owns_old:
         os.kill(int(old["pid"]), signal.SIGTERM)
+        if old_port:
+            _wait_for_port(old_port)
     reserved = _reserved_ports(state)
     candidates = []
-    old_port = int(old.get("port", 0) or 0)
     if owns_old and old_port:
         candidates.append(old_port)
     if 53366 not in reserved:

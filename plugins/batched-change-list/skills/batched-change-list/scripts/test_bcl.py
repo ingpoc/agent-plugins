@@ -325,4 +325,37 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(binds, [("127.0.0.1", 53366)])
         self.assertEqual(popen.call_args.args[0][popen.call_args.args[0].index("--port") + 1], "53366")
 
+    def test_outdated_running_viewer_releases_owned_default_port_before_restart(self):
+        records = json.loads((self.state / "registry.json").read_text())
+        key, record = next(iter(records.items()))
+        live = Path(record["live"]).resolve()
+        viewer_path = self.viewer_state_path(live)
+        current = json.loads(viewer_path.read_text())
+        self.extra_pids.add(int(current["pid"]))
+        viewer_path.write_text(json.dumps({"port":53366, "pid":12345, "version":"old", "data":str(live)}))
+        (self.state / "viewers" / "other-list.json").unlink()
+        signals, probes, binds = [], [], []
+
+        class FakeSocket:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def bind(self, address): binds.append(address)
+            def getsockname(self): return ("127.0.0.1", 54444)
+
+        def fake_kill(pid, sig): signals.append((pid, sig))
+        def port_is_free(port):
+            probes.append(port)
+            return len(probes) > 1
+
+        with patch.object(live_state, "STATE", self.state), patch.object(live_state.os, "kill", fake_kill), \
+             patch.object(live_state, "_port_is_free", side_effect=port_is_free), \
+             patch.object(live_state.socket, "socket", FakeSocket), \
+             patch.object(live_state.subprocess, "Popen", return_value=SimpleNamespace(pid=87005)):
+            value = live_state.ensure_viewer(key, record, live, "0.1.17")
+
+        self.assertEqual(signals, [(12345, 0), (12345, signal.SIGTERM)])
+        self.assertEqual(probes, [53366, 53366, 53366])
+        self.assertEqual(value["port"], 53366)
+        self.assertEqual(binds, [])
+
 if __name__ == "__main__": unittest.main()
