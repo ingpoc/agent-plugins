@@ -1,0 +1,11 @@
+# Collect
+
+Run `bcl start` to record Collect. Identify the product, installed build or revision, test scope, reference or expected behavior, and what the user has authorized. Preserve existing work, user priorities, authorizations, issue IDs, evidence, and verification history. Test the real artifact using the appropriate project and platform tools.
+
+Record each finding once with an ID, affected state, expected and actual behavior, severity, status, and concrete evidence. Attach screenshots, logs, reproduction steps, or links when available. Mark missing evidence, uncertainty, and untested paths explicitly; observability events are supporting evidence, not proof of cause. Keep unrelated work separate.
+
+Add feedback as it arrives without starting a fix for every item. If the user is actively testing, give a short ready-to-run test card with the exact prompt or actions, expected result, and what to report back. Record the app/build and a timestamp or run/session reference when available; attribute telemetry to that test only when evidence links them, otherwise label it as an unlinked lead. Fix urgent security, data-loss, or blocking issues promptly; do not delay explicitly requested work for batching.
+
+Collect what the agent can verify itself before asking the user to test. Refresh the relevant observability snapshot, include agent-observed failures, and group related telemetry leads with stable IDs and provenance. Link evidence to an existing issue where it describes the same problem; do not count records as separate bugs. Keep unlinked leads explicitly unconfirmed. Before a build or install, identify the required PR, release gate, installed path, and acceptance checks so one authorized cycle covers the batch.
+
+Write `summary`, `impact`, and `done_when` in plain words for a non-technical reader. Put commands, SHAs, counts, timestamps, and log quotes in `observed` or `details`. Collect stays open; findings added at any time join the next Plan & fix. After Collect, move to [Present](present.md).
