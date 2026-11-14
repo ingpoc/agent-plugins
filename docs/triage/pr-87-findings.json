@@ -2041,8 +2041,8 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-14T10:50:36+00:00"
+      "stage": "report_rollover",
+      "updated_at": "2026-11-14T11:20:27Z"
     },
     "rollover": {
       "source_pr": 105,
@@ -2108,6 +2108,17 @@
         "USER-07",
         "WF-01",
         "WF-05"
+      ],
+      "forced_gate_overrides": [
+        {
+          "cycle": 1,
+          "action": "set-stage",
+          "forced_at": "2026-11-14T11:20:27Z",
+          "verified_fixed": 8,
+          "threshold": 15,
+          "reason": "Guru approved rollover at 18 verified fixes (all count), 2026-11-14 16:48 IST",
+          "all_verified_fixed": 18
+        }
       ]
     },
     "stages_reached": [
