@@ -10,7 +10,7 @@ final class IslandCodexThreadsTests: XCTestCase {
     func testRolloutStateAndTimeouts() {
         let lines = """
         {"type":"response_item","payload":{"type":"task_complete"}}
-        {"type":"turn_context","payload":{"model":"gpt-6-luna","effort":"low","service_tier":"priority"}}
+        {"type":"turn_context","payload":{"model":"gpt-6-luna","effort":"low","thread_settings":{"service_tier":"priority"}}}
         {"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":3100000},"last_token_usage":{"total_tokens":620},"model_context_window":1000}}}
         {"type":"event_msg","payload":{"type":"task_started"}}
         """
@@ -94,6 +94,15 @@ final class IslandCodexThreadsTests: XCTestCase {
                        "Luna · high · Fast · 1m")
         for tier in ["default", "normal"] {
             thread.serviceTier = tier
+            XCTAssertEqual(IslandCodexThreads.rows(records: [thread], hosts: [host], now: now).first?.local_detail,
+                           "Luna · high · 1m")
+        }
+        thread.serviceTier = nil
+        thread.rollout.serviceTier = "priority"
+        XCTAssertEqual(IslandCodexThreads.rows(records: [thread], hosts: [host], now: now).first?.local_detail,
+                       "Luna · high · Fast · 1m")
+        for tier in ["default", "normal"] {
+            thread.rollout.serviceTier = tier
             XCTAssertEqual(IslandCodexThreads.rows(records: [thread], hosts: [host], now: now).first?.local_detail,
                            "Luna · high · 1m")
         }
