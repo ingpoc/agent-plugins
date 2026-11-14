@@ -225,7 +225,8 @@ def main():
         sys.stdout.write(result.stdout)
         return
     if args.stage == "merged":
-        repo = record.get("repo", "")
+        url = tracking.get("pull_request", {}).get("url", "")
+        repo = live_state.repo_id(record.get("home", ""), _provider(url)) if url else record.get("repo", "")
         try:
             provider, url, commit, merged_at, branch = _merged_details(args, tracking, repo)
         except ValueError as error:

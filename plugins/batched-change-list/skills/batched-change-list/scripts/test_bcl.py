@@ -64,6 +64,13 @@ elif args[:2] != ['pr', 'edit']:
                     except OSError: pass
         self.addCleanup(cleanup_viewer)
 
+    def test_repo_id_uses_cursor_origin_over_github_mirror(self):
+        self.git(self.home, "remote", "add", "origin", "https://origin.cursor.com/gurusharan/agent-plugins")
+        self.assertEqual(live_state.repo_id(self.home), "example/project")
+        self.assertEqual(live_state.repo_id(self.home, "origin"), "gurusharan/agent-plugins")
+        self.assertEqual(bcl_entrypoint._provider("https://github.com/ingpoc/agent-plugins/pull/110"), "gh")
+        self.assertEqual(bcl_entrypoint._provider("https://cursor.com/codebase/gurusharan/agent-plugins/pull/110"), "origin")
+
     def git(self, cwd, *args): return subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True)
     def call(self, stage, *args, cwd=None):
         data, extra = (args[0], args[1:]) if args and isinstance(args[0], Path) else (self.data, args)

@@ -13,14 +13,16 @@ def safe_component(value):
 def git(path, *args):
     return subprocess.check_output(["git", "-C", str(path), *args], text=True).strip()
 
-def repo_id(path):
+def repo_id(path, provider="gh"):
     root = git(path, "rev-parse", "--show-toplevel")
     remotes = git(root, "remote", "-v").splitlines()
-    for wanted in ("github", "origin"):
+    for wanted in (("origin", "github") if provider == "origin" else ("github", "origin")):
         for line in remotes:
             name, url, *_ = line.split()
             if name == wanted:
-                match = re.search(r"(?:github\.com[:/])([^/]+/[^/.]+)", url)
+                match = (re.search(r"/codebase/([^/]+/[^/.]+)", url) or
+                         re.search(r"(?:origin\.cursor\.com[:/])([^/]+/[^/.]+)", url)) if provider == "origin" else None
+                match = match or re.search(r"(?:github\.com[:/])([^/]+/[^/.]+)", url)
                 if match: return match.group(1).lower()
     common = Path(git(root, "rev-parse", "--git-common-dir"))
     common = (common if common.is_absolute() else root / common).resolve()
