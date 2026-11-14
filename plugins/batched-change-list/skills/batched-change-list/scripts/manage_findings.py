@@ -490,12 +490,21 @@ def live_write(path, original, content):
             raise
 
 
-def write(path, original, store, findings, validate=True):
+def touch_workflow(document):
+    tracking = document.get("tracking")
+    workflow = tracking.get("workflow") if isinstance(tracking, dict) else None
+    if isinstance(workflow, dict):
+        workflow["updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def write(path, original, store, findings, validate=True, touch=True):
     if store["kind"] == "json":
         document = store["document"]
         document[store["collection"]] = findings
         if validate and store["collection"] == "findings":
             RENDERER.render(document, path.parent)
+        if touch:
+            touch_workflow(document)
         content = (json.dumps(document, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     else:
         data = json.dumps(findings, ensure_ascii=True, separators=(",", ":")).replace("<", "\\u003c")
@@ -622,6 +631,7 @@ def main(argv=None):
             if args.render and (args.render.resolve() == path.resolve() or args.render.resolve() == RENDERER.TEMPLATE.resolve()):
                 raise ValueError("render output must differ from input and template")
             compact_document(store["document"])
+            touch_workflow(store["document"])
             inventory = RENDERER.load_inventory(args.inventory) if args.inventory else None
             rendered = RENDERER.render(store["document"], path.parent, inventory) if args.render else None
             content = (json.dumps(store["document"], ensure_ascii=False, indent=2) + "\n").encode("utf-8")
@@ -705,6 +715,8 @@ def main(argv=None):
                     tracking = store["document"].setdefault("tracking", {})
                     if target == "report_rollover" and "install" in tracking.get("stages_reached", []) and not tracking.get("introspect"):
                         raise ValueError("full cycle (reached install): record {\"action\":\"introspect\",\"result\":\"no issues\"} or its findings before report_rollover")
+                    if target in ("plan_fix", "install", "verify") and action == "set-stage" and not any(item.get("status") == "in_progress" for item in findings):
+                        raise ValueError(f"{target} requires at least one finding with status in_progress; log the finding and set it in progress first")
                     if target in RENDERER.WORKFLOW_STAGES and target not in tracking.setdefault("stages_reached", []):
                         tracking["stages_reached"].append(target)
                 if action == "set-stage":
@@ -727,6 +739,8 @@ def main(argv=None):
                         raise ValueError(f"set-activity cannot reopen closed findings {', '.join(closed)}; pass \"reopen\": true")
                     for item in affected:
                         item["status"] = "in_progress"
+                    if stage in ("plan_fix", "install", "verify") and (not ids or not any(item.get("status") == "in_progress" for item in findings)):
+                        raise ValueError(f"set-activity for {stage} requires a nonempty ID list and an in_progress finding; log a finding and set it in progress first")
                     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                     store["document"].setdefault("tracking", {})["workflow"] = {
                         "stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
@@ -810,10 +824,11 @@ def main(argv=None):
             store["document"]["findings"] = findings
             if args.render and (args.render.resolve() == path.resolve() or args.render.resolve() == RENDERER.TEMPLATE.resolve()):
                 raise ValueError("render output must differ from input and template")
+            touch_workflow(store["document"])
             inventory = RENDERER.load_inventory(args.inventory) if args.inventory else None
             rendered = RENDERER.render(store["document"], path.parent, inventory)
             html_original = args.render.read_bytes() if args.render and args.render.exists() else None
-            write(path, original, store, findings, validate=False)
+            write(path, original, store, findings, validate=False, touch=False)
             if args.render:
                 try:
                     run = store["document"].get("tracking", {}).get("verification_run")

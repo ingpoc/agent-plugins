@@ -45,6 +45,8 @@ class ManageFindingsTests(unittest.TestCase):
         ops, page = self.root / 'phase.json', self.root / 'report.html'
         for stage in ('collect', 'present', 'plan_fix', 'install', 'verify', 'introspect', 'report_rollover', None):
             pre = [{'action':'introspect','result':'no issues'}] if stage == 'report_rollover' else []
+            if stage in ('plan_fix', 'install', 'verify'):
+                pre.append({'action':'set-activity','stage':stage,'ids':['ISSUE-01'],'now':'Starting the checked stage'})
             ops.write_text(json.dumps(pre + [{'action':'set-stage','stage':stage}]))
             result = self.cli('batch', self.data, ops, '--render', page)
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -52,23 +54,65 @@ class ManageFindingsTests(unittest.TestCase):
             self.assertEqual(doc['tracking']['workflow']['stage'], stage)
             self.assertEqual(page.read_text().count('aria-current="step"'), 0 if stage is None else 1)
 
-    def test_workflow_stage_updates_and_clears_without_changing_findings(self):
+    def test_workflow_stage_guard_and_clear(self):
         ops, page = self.root / 'stage.json', self.root / 'stage.html'
-        original = json.loads(self.data.read_text())['findings']
-        def run(stage):
-            ops.write_text(json.dumps([{'action':'set-stage','stage':stage}]))
+        def run(*operations):
+            ops.write_text(json.dumps(list(operations)))
             return self.cli('batch', self.data, ops, '--render', page)
-        result = run('plan_fix')
+        before = self.data.read_bytes()
+        result = run({'action':'set-stage','stage':'plan_fix'})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('in_progress', result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+        result = run({'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Starting a fix cycle'})
         self.assertEqual(result.returncode, 0, result.stderr)
         data = json.loads(self.data.read_text())
-        self.assertEqual(data['findings'], original)
+        self.assertEqual(data['findings'][0]['status'], 'in_progress')
         self.assertEqual(data['tracking']['workflow']['stage'], 'plan_fix')
         self.assertIn('aria-current="step"><span>3</span>Plan &amp; fix', page.read_text())
         before = self.data.read_bytes()
-        self.assertNotEqual(run('made-up').returncode, 0)
+        self.assertNotEqual(run({'action':'set-stage','stage':'made-up'}).returncode, 0)
         self.assertEqual(self.data.read_bytes(), before)
-        self.assertEqual(run(None).returncode, 0)
+        self.assertEqual(run({'action':'set-stage','stage':None}).returncode, 0)
         self.assertNotIn('aria-current="step"', page.read_text())
+
+    def test_fix_stages_reject_empty_activity_or_unstarted_tracker(self):
+        for stage in ('plan_fix', 'install', 'verify'):
+            for operation in (
+                {'action':'set-stage','stage':stage},
+                {'action':'set-activity','stage':stage,'ids':[],'now':'Starting work'},
+            ):
+                before = self.data.read_bytes()
+                operations = self.root / 'guard.json'
+                operations.write_text(json.dumps([operation]))
+                result = self.cli('batch', self.data, operations, '--render', self.root / 'guard.html')
+                self.assertNotEqual(result.returncode, 0, (stage, operation))
+                self.assertIn('in_progress', result.stderr)
+                self.assertEqual(self.data.read_bytes(), before)
+        operations = self.root / 'guard.json'
+        operations.write_text(json.dumps([{'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Starting verification'}]))
+        result = self.cli('batch', self.data, operations, '--render', self.root / 'guard.html')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(self.data.read_text())['findings'][0]['status'], 'in_progress')
+        before = self.data.read_bytes()
+        operations.write_text(json.dumps([{'action':'set-activity','stage':'install','ids':[],'now':'No selected finding'}]))
+        empty = self.cli('batch', self.data, operations, '--render', self.root / 'empty.html')
+        self.assertNotEqual(empty.returncode, 0)
+        self.assertIn('nonempty ID list', empty.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
+    def test_finding_write_advances_workflow_updated_at(self):
+        document = json.loads(self.data.read_text())
+        document['tracking'] = {'workflow': {'stage':'collect','updated_at':'2020-01-01T00:00:00Z','now':'Last activity'}}
+        self.data.write_text(json.dumps(document))
+        entry = self.root / 'entry.json'
+        entry.write_text(json.dumps({'id':'ISSUE-03','title':'A saved finding','source':'User reported',
+            'status':'untested','observed':'The issue is visible.','recommendation':'Review the issue.'}))
+        result = self.cli('add', self.data, entry)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        written = json.loads(self.data.read_text())
+        self.assertEqual(written['tracking']['workflow']['stage'], 'collect')
+        self.assertGreater(written['tracking']['workflow']['updated_at'], '2020-01-01T00:00:00Z')
 
     def test_audit_flags_stale_and_duplicate_without_writing(self):
         self.document.setdefault('tracking', {})['verification_run'] = {'build':'ACU 0.2.120'}
@@ -171,7 +215,7 @@ class ManageFindingsTests(unittest.TestCase):
             ops = self.root / 'gate.json'
             ops.write_text(json.dumps(list(items)))
             return self.cli('batch', self.data, ops, '--render', page)
-        self.assertEqual(batch({'action':'set-stage','stage':'verify'}, {'action':'set-stage','stage':'report_rollover'}).returncode, 0)
+        self.assertEqual(batch({'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Starting verification'}, {'action':'set-stage','stage':'report_rollover'}).returncode, 0)
         self.assertEqual(batch({'action':'set-stage','stage':'install'}).returncode, 0)
         blocked = batch({'action':'set-stage','stage':'report_rollover'})
         self.assertNotEqual(blocked.returncode, 0)
