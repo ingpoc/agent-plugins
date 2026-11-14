@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-14T13:41:03Z",
-      "now": "2026-11-14T12:29:53Z — Fix in progress"
+      "stage": "install",
+      "updated_at": "2026-11-14T14:11:36Z",
+      "now": "2026-11-14T14:11:36Z — Install in progress"
     },
     "rollover": {
       "source_pr": 107,
@@ -2183,8 +2183,10 @@
             "summary": "Unit tests; live viewer port reuse",
             "fixed": 0,
             "failed": 0,
-            "total": 5
-          }
+            "total": 5,
+            "command": "python3 -m unittest discover -s /Users/gurusharan/code/worktrees/agent-plugins/samantha-pr110-rollover/plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py' && python3 /tmp/bcl-110-verify-status.py"
+          },
+          "phase": "install"
         },
         {
           "id": "SESSION",
@@ -2215,8 +2217,10 @@
             "summary": "Typed confirm, reconnect, shell, app-name",
             "fixed": 0,
             "failed": 0,
-            "total": 4
-          }
+            "total": 4,
+            "command": "python3 /tmp/bcl-110-verify-session.py"
+          },
+          "phase": "install"
         },
         {
           "id": "TOOLS",
@@ -2245,8 +2249,10 @@
             "summary": "Terminal type and typed_text log tests",
             "fixed": 0,
             "failed": 0,
-            "total": 2
-          }
+            "total": 2,
+            "command": "cd /Users/gurusharan/.agents/plugins/agent-computer-use/skills/macos-cua && python3 -m unittest -q tests.test_compact_mcp && python3 /tmp/bcl-110-verify-tools.py"
+          },
+          "phase": "install"
         },
         {
           "id": "ISLAND",
@@ -2274,8 +2280,10 @@
             "summary": "Island Fast-label screenshots for both tiers",
             "fixed": 0,
             "failed": 0,
-            "total": 1
-          }
+            "total": 1,
+            "command": "python3 /tmp/bcl-110-verify-island.py"
+          },
+          "phase": "install"
         },
         {
           "id": "HYGIENE",
@@ -2303,8 +2311,10 @@
             "summary": "Hygiene unit test ignores other clones",
             "fixed": 0,
             "failed": 0,
-            "total": 1
-          }
+            "total": 1,
+            "command": "cd /Users/gurusharan/.agents/plugins/agent-computer-use/skills/macos-cua && python3 -m unittest -q tests.test_gate_hygiene"
+          },
+          "phase": "install"
         },
         {
           "id": "PAGE",
@@ -2317,7 +2327,7 @@
           ],
           "reason": "The Fixes gate ring and heavy label still look current while Collect is the current step. render.py may also change in STATUS for the Merged/Done state, so this waits.",
           "worktree": "bcl-110-page",
-          "status": "running",
+          "status": "done",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
@@ -2326,7 +2336,7 @@
             "started_at": "2026-11-14T13:40:40Z",
             "session_id": "01a1da49-ec6c-7132-8790-e1021652a455",
             "pid": "66311",
-            "updated_at": "2026-11-14T13:41:03Z"
+            "updated_at": "2026-11-14T14:11:15Z"
           },
           "verify": {
             "method": "Render the Collect page with the gate unmet and confirm the Fixes node does not use current-step emphasis; the current stage and a met gate still get their markers.",
@@ -2334,8 +2344,10 @@
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1
-          }
+            "total": 1,
+            "command": "python3 /tmp/bcl-110-verify-page.py"
+          },
+          "phase": "install"
         },
         {
           "id": "CMDS",
@@ -2349,7 +2361,7 @@
           ],
           "reason": "After-merge sync and local plugin install are still hand steps, and they share the bcl entrypoint with STATUS commands.",
           "worktree": "bcl-110-cmds",
-          "status": "running",
+          "status": "review",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
@@ -2358,7 +2370,7 @@
             "started_at": "2026-11-14T13:40:40Z",
             "session_id": "01a1da49-ec6c-71e0-8b72-61b832364608",
             "pid": "66316",
-            "updated_at": "2026-11-14T13:41:03Z"
+            "updated_at": "2026-11-14T14:11:15Z"
           },
           "verify": {
             "method": "Unit tests: bcl sync-main merges main, handles deleted skill refs, re-renders HTML and stashes only hook dirt; bcl install-local installs to ~/.agents, Codex cache and Cursor cache, trashes old copies, and checks the sha against the merge.",
@@ -2367,7 +2379,8 @@
             "fixed": 0,
             "failed": 0,
             "total": 2
-          }
+          },
+          "phase": "review"
         },
         {
           "id": "CORE",
@@ -2468,7 +2481,8 @@
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ]
   },
   "findings": [
@@ -5050,7 +5064,7 @@
       "id": "PAGE-05",
       "title": "The Fixes gate looks like the current step while the list is still at Collect",
       "source": "User requested",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "On a new list that is still at Collect, the Fixes gate node is visually highlighted as if it were the current step.",
       "impact": "The workflow strip is misleading: it looks like the list is at the gate instead of at the start of Collect.",
       "done_when": "Only the actual current stage is highlighted as Now. While the list is at Collect, Collect is the current step and the Fixes gate reads as an upcoming (or met) marker, not the current step.",
@@ -5168,6 +5182,17 @@
       "details": {
         "Evidence": "0.1.17 hand install to ~/.agents, Codex cache, Cursor cache; Guru 17:20 IST"
       }
+    },
+    {
+      "id": "FLOW-02",
+      "title": "Plan & fix holds verified-ready groups until all groups finish",
+      "source": "User requested",
+      "status": "in_progress",
+      "summary": "Finished groups wait in Plan & fix until every group is done, instead of moving to Install and Verify on their own.",
+      "impact": "Ready fixes sit uninstalled, the page looks like the whole list is still in Plan & fix, and later groups block the ones that could already be checked.",
+      "done_when": "Each group is a lane that enters Install as soon as its review passes, uses one review round, stores its verify command at Plan, shares a serialized build with groups that finish close together, and is live-verified without waiting for other lanes. The plan row shows each group's phase, the timeline highlights the furthest phase, and this round itself ran that way.",
+      "observed": "On 14 Nov 2026 at 7:29 PM IST Guru said finished groups were being held until all of Plan & fix completed. At 7:31 PM IST the design was set: each group is a lane (fix, review, install, verify); a group enters Install when its review passes; installs and builds share one queue and batch when groups finish close together; live verify is serialized on the Mini, island, and Comet; verify commands are stored per group at Plan; the gate counts verified fixes as they land; the round ends when all lanes finish or block; the plan row shows each group's phase and the timeline highlights the furthest phase. At 7:35 PM IST Guru confirmed there is no fixed time cap.",
+      "recommendation": "Record per-group lanes in the bcl skill and on the page. Install and verify a group when its review passes. Use one review round and log leftover nits as new issues. Store verify.command at Plan and run that command. Serialize builds and live verify, batching groups that finish close together. Mark FLOW-02 fixed only after a round runs this way with evidence."
     }
   ]
 }
