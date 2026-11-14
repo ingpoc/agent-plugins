@@ -928,32 +928,36 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operati
         task_fields["selected_id"] = ledger_decision_id
     else:
         ledger_decision_id = None
-    log_event(
-        "tool_result" if ok else "tool_error",
+    event_fields = {
         **_current_tool_ids(),
-        tool=name,
-        app=app or None,
-        ledger_operation=(operation if operation in ("lookup", "capture", "recall", "preference") else "unknown") if ledger else None,
-        ledger_error_category=category,
-        ok=ok,
-        verified=result.get("verified") if not ledger and "verified" in result else None,
-        dispatched=result.get("dispatched") if not ledger and "dispatched" in result else None,
-        completion=result.get("completion") if not ledger else None,
-        error=_diagnostic_text(err, limit=240) if err and not ledger else None,
-        error_type=(error_type or None) if not ledger else (error_type if error_type in {"ledger_invalid_argument", "ledger_unavailable", "ledger_outcome_unknown"} else ("other" if not ok else None)),
-        hint=(_diagnostic_text(str(result.get("hint") or ""), limit=160) or None) if not ledger else None,
-        failed_step=(result.get("failure") or {}).get("failed_step") if not ledger and isinstance(result.get("failure"), dict) else None,
-        error_details=diagnostic,
-        ledger_result_status=ledger_status if ledger else None,
-        ledger_decision_count=decision_count if ledger else None,
-        ledger_result_detail=ledger_detail,
-        ledger_detail_truncated=ledger_truncated,
-        duration_ms=duration_ms,
-        result=logged_result,
-        arguments=arguments,
+        "tool": name,
+        "app": app or None,
+        "ledger_operation": (operation if operation in ("lookup", "capture", "recall", "preference") else "unknown") if ledger else None,
+        "ledger_error_category": category,
+        "ok": ok,
+        "verified": result.get("verified") if not ledger and "verified" in result else None,
+        "dispatched": result.get("dispatched") if not ledger and "dispatched" in result else None,
+        "completion": result.get("completion") if not ledger else None,
+        "error": _diagnostic_text(err, limit=240) if err and not ledger else None,
+        "error_type": (error_type or None) if not ledger else (error_type if error_type in {"ledger_invalid_argument", "ledger_unavailable", "ledger_outcome_unknown"} else ("other" if not ok else None)),
+        "hint": (_diagnostic_text(str(result.get("hint") or ""), limit=160) or None) if not ledger else None,
+        "failed_step": (result.get("failure") or {}).get("failed_step") if not ledger and isinstance(result.get("failure"), dict) else None,
+        "error_details": diagnostic,
+        "ledger_result_status": ledger_status if ledger else None,
+        "ledger_decision_count": decision_count if ledger else None,
+        "ledger_result_detail": ledger_detail,
+        "ledger_detail_truncated": ledger_truncated,
+        "duration_ms": duration_ms,
+        "result": logged_result,
+        "arguments": arguments,
         **result_size(result),
         **task_fields,
-    )
+    }
+    try:
+        log_event("tool_result" if ok else "tool_error", **event_fields)
+    except Exception:
+        # Logging must never turn a completed typing action into a failed tool call.
+        pass
     if ledger_decision_id:
         step_action = {key: arguments[key] for key in ("steps", "actions", "op", "type", "label", "target")
                        if key in arguments}

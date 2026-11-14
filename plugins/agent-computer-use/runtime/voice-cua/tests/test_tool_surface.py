@@ -280,6 +280,17 @@ class RiskGateTests(_Fresh):
 
 
 class RetryCapTests(_Fresh):
+    def test_app_not_running_is_terminal_for_the_target(self) -> None:
+        self.backend.act.return_value = {"ok": False, "error_type": "app_not_running", "error": "App is not running"}
+        args = {"app": "com.example.App", "op": "type_text", "text": "hello", "expect": "hello"}
+        first = tools.dispatch("cua_act", args)
+        second = tools.dispatch("cua_act", args)
+        self.assertEqual(first["error_type"], "app_not_running")
+        self.assertFalse(first["retryable"])
+        self.assertEqual(second["error_type"], "app_not_running")
+        self.assertIn("application name", second["hint"])
+        self.backend.act.assert_called_once()
+
     def test_ledger_signal_is_telemetry_only_for_native_dispatch(self) -> None:
         args = {"app": "Notes", "op": "click", "label": "Preference",
                 "ledger_decision_id": "dec_123456"}

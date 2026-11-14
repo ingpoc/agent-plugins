@@ -17,6 +17,15 @@ from voice_cua import activity_log  # noqa: E402
 
 
 class ActivityAudit(unittest.TestCase):
+    def test_typing_succeeds_when_result_logging_raises(self):
+        from voice_cua import activity_log
+
+        with patch.object(activity_log, "log_event", side_effect=TypeError("duplicate typed_text")):
+            activity_log.log_tool_result(
+                "cua_act", {"ok": True}, app="TextEdit",
+                arguments={"app": "TextEdit", "op": "type_text", "text": "hello"},
+            )
+
     def test_tool_rows_carry_arguments_and_failed_step(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             log = Path(tmp) / "a.jsonl"
