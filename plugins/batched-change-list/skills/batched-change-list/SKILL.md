@@ -10,6 +10,8 @@ Use the existing findings JSON as the sole tracker; HTML is its rendered view. P
 
 The page is the user's only view of progress. As each phase or issue group starts, use `set-activity` to set its stage, mark affected IDs `in_progress`, and write one timestamped `Now` line. Clear the stage with `set-stage` and `null` on pause or finish; do not repeat `Current step` details on findings. Use [tracker operations](references/tracker-operations.md) for exact commands and recovery.
 
+When adding a finding, write `summary`, `impact`, and `done_when` in plain words for a non-technical reader. Put commands, SHAs, counts, timestamps, and log quotes in `observed` or `details`; the manager warns when a summary looks like log text or is missing.
+
 For substantial batches, use the native plan tool if available, grouping collect, plan/fix, install/verify, introspect and report/rollover; otherwise keep a compact in-context plan. Record individual outcomes in the tracker.
 
 1. **Collect** (`collect`). Identify product, build, scope and expected behavior; exercise accessible checks and record each finding once. Use `scripts/manage_findings.py` and load [tracker operations](references/tracker-operations.md) when reading or changing records. For feedback, screenshots, telemetry and user test cards, load [collection and reporting](references/collection-and-reporting.md).

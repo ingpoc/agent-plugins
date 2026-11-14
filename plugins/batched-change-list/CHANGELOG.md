@@ -1,5 +1,10 @@
 # Changelog: batched-change-list
 
+## 0.1.10
+
+- Add plain-language finding summaries, impact and completion checks; show issue details in a readable hierarchy with one collapsed Evidence section.
+- Warn when summaries are missing or look like logs; preserve detailed observations and verification evidence.
+
 ## 0.1.9
 
 - `add` refuses `WF-` ids: the only way to create an Introspect task is the single `introspect` call, so one Introspect always means one task.
