@@ -6,6 +6,7 @@ import hashlib
 import fnmatch
 import glob
 import math
+import ast
 import os
 import re
 import shlex
@@ -286,6 +287,25 @@ def _redirect_targets(segment: str) -> list[str]:
     return targets
 
 
+def _inline_read_only(words: list[str], *, flag: str, language: str) -> bool:
+    try:
+        code = words[next(i for i, word in enumerate(words[1:], 1) if word == flag or word.startswith(flag)) + 1]
+    except (StopIteration, IndexError):
+        return False
+    if language == "node":
+        return bool(re.fullmatch(r'''console\.log\((?:[0-9\s+*/().,-]|'[^'\\]*'|"[^"\\]*")*\);?''', code))
+    try:
+        tree = ast.parse(code, mode="eval")
+    except SyntaxError:
+        return False
+    allowed = (ast.Expression, ast.Call, ast.Name, ast.Constant, ast.BinOp, ast.UnaryOp,
+               ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow,
+               ast.USub, ast.UAdd, ast.Load)
+    return all(isinstance(node, allowed) for node in ast.walk(tree)) and all(
+        not isinstance(node, ast.Call) or isinstance(node.func, ast.Name) and node.func.id == "print"
+        for node in ast.walk(tree))
+
+
 def _git_subcommand(words: list[str]) -> str:
     i = 1
     takes_value = {"-C", "--git-dir", "--work-tree", "--namespace", "--super-prefix"}
@@ -447,6 +467,17 @@ def classify_shell_command(
 
     segments = _shell_segments(command)
     control_syntax = _has_control_syntax(segments)
+    if len(segments) == 1:
+        inline_words = _words(segments[0])
+        inline, _ = _unwrap_command(inline_words)
+        if inline:
+            inline_name = os.path.basename(inline[0])
+            if ((inline_name in {"python", "python3", "python2", "pypy", "pypy3"}
+                 and any(word.startswith("-c") for word in inline[1:])
+                 and _inline_read_only(inline, flag="-c", language="python"))
+                    or (inline_name == "node" and any(word.startswith("-e") for word in inline[1:])
+                        and _inline_read_only(inline, flag="-e", language="node"))):
+                control_syntax = False
     wrapper_errors: list[str] = []
     path_approval = False
     for segment in segments:
@@ -522,8 +553,8 @@ def classify_shell_command(
                 break
             if name in {"python", "python3", "python2", "pypy", "pypy3"} and any(
                 re.fullmatch(r"-c[A-Za-z]*", word) for word in effective[1:]
-            ):
-                approval = "inline Python"
+            ) and not _inline_read_only(effective, flag="-c", language="python"):
+                approval = "inline Python may modify files"
                 break
             if name in {"python", "python3", "python2", "pypy", "pypy3"} and any(
                 effective[i:i + 2] == ["-m", "pip"] and effective[i + 2:i + 3] == ["install"]
@@ -531,8 +562,10 @@ def classify_shell_command(
             ):
                 approval = "package install"
                 break
-            if name == "node" and any(re.fullmatch(r"-e[A-Za-z]*", word) for word in effective[1:]):
-                approval = "inline Node"
+            if name == "node" and any(re.fullmatch(r"-e[A-Za-z]*", word) for word in effective[1:]) and not (
+                _inline_read_only(effective, flag="-e", language="node")
+            ):
+                approval = "inline Node may modify files"
                 break
             if executable.startswith("/"):
                 parent = os.path.dirname(os.path.normpath(executable))
@@ -570,6 +603,10 @@ def classify_shell_command(
             if name in {"rm", "mv", "chmod", "kill", "pkill", "killall", "launchctl"}:
                 approval = name
                 break
+            if name == "find" and any(word in {"-exec", "-execdir", "-ok", "-okdir", "-delete"}
+                                       for word in effective[1:]):
+                approval = "find can modify files or execute commands"
+                break
             if name == "brew" and any(word == "install" for word in effective[1:]):
                 approval = "brew install"
                 break
@@ -587,6 +624,8 @@ def classify_shell_command(
                 approval = "network publish"
                 break
             for target in _redirect_targets(segment):
+                if target == "/dev/null":
+                    continue
                 resolved = _resolved_path(target, cwd=cwd, home=home)
                 if resolved is None or not _inside(resolved, os.path.realpath(worktree_root)):
                     approval = "redirect outside the worktree"
