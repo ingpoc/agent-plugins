@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-14T16:57:19Z",
-      "now": "2026-11-14T16:55:59Z — Plan recorded"
+      "stage": "introspect",
+      "updated_at": "2026-11-14T17:10:56Z",
+      "now": "2026-11-14T17:10:56Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 110,
@@ -2118,7 +2118,8 @@
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix"
+      "plan_fix",
+      "introspect"
     ],
     "plan": {
       "round": 1,
@@ -2336,7 +2337,33 @@
           "updated_at": "2026-11-14T16:55:59Z"
         }
       ],
-      "cycle": 3
+      "cycle": 3,
+      "status": "closed"
+    },
+    "introspect": {
+      "result": "Introspect recorded",
+      "at": "2026-11-14T17:10:56Z",
+      "task": "WF-07",
+      "sections": {
+        "delete": {
+          "none": "Round 1 did not leave unused product files on the #111 branch; the Her-score helper and transcripts live under ~/.agents/artifacts/bcl-111/session, not on the PR."
+        },
+        "simplify": {
+          "none": "PAGE-08 and PLAN-03 each landed in one commit; no failed retry or second review justified further simplification."
+        },
+        "optimize": {
+          "none": "No retry or wrong-result path in this round pointed to a product optimization that was not already logged (AGENT-26, AGENT-27) or already pushed (triage render pairing in check.py)."
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "Pre-push compared pr-110.html to a leftover pr-87-findings.json because the check used the PR URL inside every findings file",
+              "evidence": "git push of 4e74eee7 failed: docs/triage/pr-110.html differs from a fresh render of pr-87-findings.json. pr-87-findings.json still has tracking.pull_request.url for #110. Fixed in 2627fd9a: triage_render_pairs skips a findings file when the filename pr-N and URL pull/M disagree. test_check_triage_renders.py covers the mismatch. Push of 2627fd9a passed hooks at 22:29 IST on 14 Nov 2026.",
+              "outcome": "fixed inline"
+            }
+          ]
+        }
+      }
     }
   },
   "findings": [
@@ -2568,20 +2595,20 @@
       },
       "verification_evidence": [
         {
-          "check": "Her spec score",
-          "outcome": "fail",
-          "build": "0.2.142 (build 827, 8a8b3a8)",
-          "session": "e4355832",
-          "timestamp": "2026-11-14T12:32:10+05:30",
-          "reference": "7/12 on 0.2.142 retest: acts directly 2, conversation 1, remembers 1, initiative 1, warm+brief 2, many jobs 0 (baseline 1/12)."
-        },
-        {
           "check": "Her spec re-score",
           "outcome": "reviewed",
           "build": "ACU 0.2.143",
           "session": "acu-0143-verify",
           "timestamp": "2026-11-14T10:30:44Z",
           "reference": "6/12 on typed 0.2.143 turns T1–T6; not 12/12"
+        },
+        {
+          "check": "Her spec re-score",
+          "outcome": "fail",
+          "build": "ACU 0.2.147",
+          "session": "9463464a",
+          "timestamp": "2026-11-14T22:36:53+05:30",
+          "reference": "10/12 on typed 0.2.147 session 9463464a (corrected from an initial 8/12 auto-score that missed tool events). acts directly 2 (T2b shell_run python3=323, T4 file_edit read plugin.json=0.1.18), conversation 1 (T2 confirm timeout gap ~2 min; spoken not tested, no mic), remembers 2 (T3 path+ticket, T7 Guru+AGENT-25), initiative 1 (T5 created her-check.txt and suggested a next step, but T2 treated confirm timeout as still needing OK), warm and brief 2, many jobs 2 (T6 started job 2f1bc7bb in 7.3s, T7 during, T8 her-job.txt=job-done). Evidence: ~/.agents/artifacts/bcl-111/session/her-score.json and turns/T1-T8.json. Remaining points logged as AGENT-26 and AGENT-27. AGENT-25 stays open; not 12/12."
         }
       ],
       "summary": "Samantha should feel like the assistant in the film Her: warm, brief, and able to get real work done just by talking.",
@@ -2659,6 +2686,77 @@
         "/tmp/pr111-planned.html",
         "plugins/batched-change-list/skills/batched-change-list/scripts/test_render.py::test_fresh_rollover_collect_leaves_loop_steps_empty_and_can_go_stale",
         "commit 4e74eee7"
+      ]
+    },
+    {
+      "id": "AGENT-26",
+      "title": "Safe local shell commands are classified as confirm_risky",
+      "source": "Agent reported",
+      "status": "failing",
+      "priority": "high",
+      "summary": "Harmless local commands, such as echo arithmetic or writing under ~/.agents/artifacts, stop for a risky-confirm instead of just running.",
+      "impact": "Simple work stalls until someone approves, and a missed approval can leave the turn with no result.",
+      "done_when": "Safe local commands (echo/python arithmetic, reads, and writes under the user's artifact or temp paths) run without a risky-confirm. Genuinely risky commands still ask.",
+      "recommendation": "Tighten confirm_risky so safe local shell and file tools in known artifact/temp/worktree paths do not require confirmation. Keep confirmation for destructive, network, or out-of-tree writes.",
+      "observed": "Live typed session 9463464a on ACU 0.2.147 at 22:32-22:36 IST on 14 Nov 2026 (AGENT-25 Her retest, --no-audio). T2: shell_run echo $((17 * 19)) in the samantha-pr111-rollover worktree raised confirm_risky ('Run shell command: echo $((17 * 19))...') and the confirm timed out, so she never returned 323. T5 (create her-check.txt under ~/.agents/artifacts/bcl-111/session/work) and T6 (background sleep then append her-job.txt in that same folder) also raised confirm_risky; those two were approved via POST /api/session/approve and then succeeded. T2b python3 -c 'print(17 * 19)' ran without a confirm. Transcripts: ~/.agents/artifacts/bcl-111/session/turns and samantha-activity.jsonl.",
+      "details": {
+        "Kind": "Product, acts-directly",
+        "Session": "9463464a",
+        "Build": "0.2.147",
+        "Where to look": "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua (confirm_risky / shell_run policy)"
+      }
+    },
+    {
+      "id": "AGENT-27",
+      "title": "A confirmation timeout is treated as a stall, not as 'timeout is never a no'",
+      "source": "Agent reported",
+      "status": "failing",
+      "priority": "high",
+      "summary": "When a risky-confirm times out, Samantha says it still needs your OK and stops, instead of moving the job forward.",
+      "impact": "A missed or slow approval freezes the conversation for minutes and leaves the task undone.",
+      "done_when": "If a confirmation times out, she does not treat that as a no. She either retries the safe work, or gives one light prompt and stays ready to continue, without a long silence.",
+      "recommendation": "On confirm timeout, do not tell the user the action still requires OK as if they refused. Follow the Her spec: a timeout is never a no. Complete clearly safe work, or re-ask once without stalling the turn for the full confirm window.",
+      "observed": "Same session 9463464a, T2, 14 Nov 2026 ~22:32-22:34 IST. After confirm_risky for echo $((17 * 19)) timed out, she replied: 'The confirmation timed out, Guru, so it still needs your OK to run.' The turn left a roughly two-minute gap (helper response_done step_ms=123696). She did not compute 323 until T2b was asked again. Her spec trait 4: 'a timeout is never a no'; 0 = stalls, or 'user said no' on a timeout.",
+      "details": {
+        "Kind": "Product, initiative with consent",
+        "Session": "9463464a",
+        "Build": "0.2.147",
+        "Where to look": "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua (confirm timeout handling)"
+      }
+    },
+    {
+      "id": "WF-07",
+      "title": "Introspect 2026-11-14: Introspect recorded",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "Introspect recorded",
+      "recommendation": "None; all items were fixed inline or none.",
+      "verification": "Inline items were done during Introspect.",
+      "details": {
+        "fixed_in": "Introspect"
+      },
+      "sections": {
+        "delete": {
+          "none": "Round 1 did not leave unused product files on the #111 branch; the Her-score helper and transcripts live under ~/.agents/artifacts/bcl-111/session, not on the PR."
+        },
+        "simplify": {
+          "none": "PAGE-08 and PLAN-03 each landed in one commit; no failed retry or second review justified further simplification."
+        },
+        "optimize": {
+          "none": "No retry or wrong-result path in this round pointed to a product optimization that was not already logged (AGENT-26, AGENT-27) or already pushed (triage render pairing in check.py)."
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "Pre-push compared pr-110.html to a leftover pr-87-findings.json because the check used the PR URL inside every findings file",
+              "evidence": "git push of 4e74eee7 failed: docs/triage/pr-110.html differs from a fresh render of pr-87-findings.json. pr-87-findings.json still has tracking.pull_request.url for #110. Fixed in 2627fd9a: triage_render_pairs skips a findings file when the filename pr-N and URL pull/M disagree. test_check_triage_renders.py covers the mismatch. Push of 2627fd9a passed hooks at 22:29 IST on 14 Nov 2026.",
+              "outcome": "fixed inline"
+            }
+          ]
+        }
+      },
+      "verification_refs": [
+        "Introspect"
       ]
     }
   ]
