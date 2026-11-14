@@ -15,6 +15,38 @@ spec.loader.exec_module(server_module)
 
 
 class ServerTests(unittest.TestCase):
+    def test_live_source_resolves_capture_from_registered_report_base(self):
+        example = Path(__file__).parents[1] / 'examples/findings.json'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = root / 'state'
+            live = state / 'example-project' / '110.json'
+            live.parent.mkdir(parents=True)
+            home = root / 'project'
+            base = home / 'docs/triage'
+            capture = base / 'captures/proof.png'
+            capture.parent.mkdir(parents=True)
+            capture.write_bytes(b'proof')
+            document = json.loads(example.read_text())
+            document['findings'][0]['evidence'] = [{'src':'captures/proof.png','alt':'proof','caption':'proof'}]
+            live.write_text(json.dumps(document))
+            record = {'live':str(live),'home':str(home),'snapshot':'docs/triage/110-findings.json',
+                      'html':'docs/triage/110.html','repo':'example/project','id':'110'}
+            state.mkdir(exist_ok=True)
+            (state / 'registry.json').write_text(json.dumps({'example/project/110':record}))
+            page = base / '110.html'
+            with patch.object(server_module.live_state, 'STATE', state):
+                with HTTPServer(('127.0.0.1', 0), server_module.handler_for(page, live)) as server:
+                    thread = threading.Thread(target=server.serve_forever, daemon=True)
+                    thread.start()
+                    try:
+                        with urlopen(f'http://127.0.0.1:{server.server_port}/') as response:
+                            content = response.read().decode()
+                        self.assertIn('data:image/png;base64,cHJvb2Y=', content)
+                    finally:
+                        server.shutdown()
+                        thread.join()
+
     def test_refresh_and_reject_other_paths(self):
         with tempfile.TemporaryDirectory() as directory:
             page = Path(directory) / 'report.html'

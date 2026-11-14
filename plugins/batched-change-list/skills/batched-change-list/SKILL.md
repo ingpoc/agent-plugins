@@ -6,7 +6,7 @@ description: Use when collecting related product findings for a reviewable chang
 
 > **Self-validate after edits.** Run `python3 -m unittest discover -s scripts -p 'test_*.py'` from this skill directory.
 
-Adopt the in-repo tracker once with `bcl --data FINDINGS.json adopt`. The live file under `$BCL_STATE_DIR` (default `~/.agents/state/batched-change-list`) is authoritative; HTML is its rendered view. Run `bcl --data FINDINGS.json <stage>` at each step. Stages write the live copy, then snapshot and commit JSON and HTML in the home worktree with a `Change list:` commit. `bcl merge` only checks snapshot freshness and never merges branches. The per-list viewer starts or restarts automatically. Recovery and lower-level commands: [tracker.md](references/tracker.md). Viewer details: [viewer.md](references/viewer.md). Run `bcl install-hooks` for repository freshness checks.
+Adopt the in-repo tracker once with `bcl --data FINDINGS.json adopt`. The live file under `$BCL_STATE_DIR` (default `~/.agents/state/batched-change-list`) is authoritative; HTML is its rendered view. Run `bcl --data FINDINGS.json <stage>` at each step. Stages write the live copy, then snapshot and commit JSON and HTML in the home worktree with a `Change list:` commit. `bcl merge` only checks snapshot freshness and never merges branches. `bcl merged` records an already completed merge and marks the list Merged / Done. `bcl rollover --new-pr N --worktree NAME` writes a separate next-list file; that list's viewer starts only when `bcl start` begins its Collect stage. The per-list viewer starts or restarts automatically for other adopted-list commands. Recovery and lower-level commands: [tracker.md](references/tracker.md). Viewer details: [viewer.md](references/viewer.md). Run `bcl install-hooks` for repository freshness checks.
 
 When adding a finding, write `summary`, `impact`, and `done_when` in plain words. Put commands, SHAs, counts, timestamps, and log quotes in `observed` or `details`.
 
@@ -21,6 +21,6 @@ Collect and Present run once; then loop Plan & fix → Install → Verify → (f
 | Verify | `bcl verify` | [verify.md](references/verify.md) | After Install |
 | Introspect | `bcl introspect --sections SECTIONS.json` | [introspect.md](references/introspect.md) | After a full cycle only |
 | Gate | (checked before `bcl report`) | [gate.md](references/gate.md) | After Introspect, or when checking rollover |
-| Report & roll over | `bcl report` | [report-rollover.md](references/report-rollover.md) | When the gate is met |
+| Report & roll over | `bcl report`, then `bcl merged` after the PR merges | [report-rollover.md](references/report-rollover.md) | When the gate is met |
 
 Shared references: [tracker.md](references/tracker.md), [viewer.md](references/viewer.md).
