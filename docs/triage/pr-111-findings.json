@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "collect",
-      "updated_at": "2026-11-14T16:16:19Z",
-      "now": "2026-11-14T16:16:19Z — Started collection"
+      "stage": "present",
+      "updated_at": "2026-11-14T16:55:59Z",
+      "now": "2026-11-14T16:55:59Z — Started collection"
     },
     "rollover": {
       "source_pr": 110,
@@ -2116,7 +2116,8 @@
       }
     ],
     "stages_reached": [
-      "collect"
+      "collect",
+      "present"
     ]
   },
   "findings": [
@@ -2411,6 +2412,23 @@
       "impact": "These steps cost time on every fix cycle and can hide problems from automatic checks.",
       "done_when": "The leftover process issues are fixed and the next review comes back clean.",
       "carried_from": 110
+    },
+    {
+      "id": "PAGE-08",
+      "title": "Fresh Collect shows stale clock without a Stale tag, and ticks later workflow steps",
+      "source": "User reported",
+      "status": "failing",
+      "priority": "high",
+      "summary": "On a new list at Collect, the clock can sit more than ten minutes old with no Stale tag, and Plan & fix, Install, Verify and Introspect look finished even though this round has not started.",
+      "impact": "You cannot tell whether the list is actually moving: a stale page looks current, and later steps look done before anything has been planned.",
+      "done_when": "The Stale tag appears once the clock is older than stale_after_min, even with no active lanes. After a rollover, round 1 at Collect shows every loop step empty. A step is ticked only when this list's own stage history records it as completed in the current round. Running bcl plan updates the clock and moves the timeline to Plan & fix immediately.",
+      "recommendation": "Show Stale from stale_after_min alone. Derive loop-step ticks from this list's current-round stages_reached, not from empty lane positions. Have bcl plan set workflow.stage to plan_fix and refresh updated_at as soon as it runs.",
+      "observed": "Guru's 10:20 PM IST screenshot of #111 (14 Nov 2026) showed Updated 9:46 PM IST · 33 min ago with no Stale tag, while the list was still at Collect in round 1 with no plan. The live :53366 page at the same time had data-active-lanes=false, so formatPageTimes kept the Stale tag hidden, and Plan & fix, Install, Verify and Introspect were class=wf-step done. render_workflow treated no lanes as every loop step already finished; this was not carried #110 history (stages_reached on #111 was only collect). bcl plan also required set-activity ids and would not move the stage or clock by itself.",
+      "details": {
+        "Priority": "high",
+        "Kind": "Status accuracy",
+        "Where to look": "plugins/batched-change-list/skills/batched-change-list/scripts/render.py, templates/change-list.html, bin/bcl, scripts/manage_findings.py"
+      }
     }
   ]
 }
