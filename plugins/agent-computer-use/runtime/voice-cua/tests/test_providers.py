@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -100,6 +101,18 @@ class XAITests(unittest.TestCase):
             "type": "message", "role": "system", "content": [{"type": "input_text", "text": "reconnected"}]}})
         self.assertEqual(out["item"]["role"], "user")
         self.assertIn("[system note] reconnected", out["item"]["content"][0]["text"])
+
+    def test_session_resumption_reuses_the_server_conversation(self) -> None:
+        p = XAIProvider("grok-voice-latest")
+        (update,) = p.outbound(UPDATE)
+        self.assertEqual(update["session"]["resumption"], {"enabled": True})
+        p.inbound({"type": "conversation.created", "conversation": {"id": "conversation/1"}})
+        p.reset()
+        self.assertEqual(p.url(), "wss://api.x.ai/v1/realtime?model=grok-voice-latest&conversation_id=conversation%2F1")
+
+    def test_live_prompt_uses_completed_transcripts_and_reports_app_misses(self) -> None:
+        self.assertIn("Treat a completed user transcript as authoritative", providers.LIVE_INSTRUCTIONS)
+        self.assertIn("ask only to confirm its path or installation", providers.LIVE_INSTRUCTIONS)
 
     def test_missing_key_is_reported_not_read(self) -> None:
         with patch.dict(os.environ, {"XAI_API_KEY": ""}), \
@@ -459,6 +472,193 @@ class LiveSessionLoopTests(_Rows):
         s._send(build_session_update(text_only=True))
         self.assertEqual(s.ws.events[0]["type"], "session.start")
         self.assertEqual(self.rows("session_update")[0]["provider"], "openai-live")
+
+    def test_reconnect_summary_keeps_last_completed_task_and_result(self) -> None:
+        s = live_session()
+        s._last_task_run_id = "completed-run"
+        s._last_user_text = "Open Calendar"
+        s._last_assistant_reply = "Calendar is open."
+        s._prepare_reconnect()
+        self.assertEqual(s._reconnect_context["repo"], os.path.basename(os.getcwd()))
+        self.assertTrue(s._reconnect_context["branch"])
+        self.assertEqual(s._reconnect_context["task"], "Open Calendar")
+        self.assertEqual(s._reconnect_context["last_result"], "Calendar is open.")
+        self.assertIn("do not ask the user to restate it", s.reconnect_note(comet_active=False))
+
+    def test_reconnect_replays_accumulated_turns_without_server_history(self) -> None:
+        s = live_session()
+        with patch("voice_cua.tools.note_user_turn"):
+            first = s._note_user_turn("Remember marker EARLY-TASK-110", request_id="1" * 32)
+            s._note_response_done({
+                "id": "response-1", "status": "completed",
+                "metadata": {"voice_cua_request_id": first},
+                "output": [{"type": "message", "content": [{"type": "output_text", "text": "Marker recorded."}]}],
+            })
+            second = s._note_user_turn("Check the current branch", request_id="2" * 32)
+            s._note_response_done({
+                "id": "response-2", "status": "completed",
+                "metadata": {"voice_cua_request_id": second},
+                "output": [{"type": "message", "content": [{"type": "output_text", "text": "Branch checked."}]}],
+            })
+
+        self.assertEqual(s.provider.history, [])
+        s._prepare_reconnect()
+        s._conn_epoch = 1
+        notes = []
+        with patch.object(s, "_send"), patch.object(s, "_send_system_note", side_effect=notes.append), \
+                patch("voice_cua.live_session.comet_is_active", return_value=False), \
+                patch("voice_cua.live_session.island_publish"):
+            s._on_open(s.ws)
+
+        self.assertEqual(len(notes), 1)
+        self.assertIn("EARLY-TASK-110", notes[0])
+        self.assertIn("Check the current branch => Branch checked.", notes[0])
+
+    def test_late_retired_turn_response_cannot_bind_or_settle_new_turn(self) -> None:
+        s = live_session()
+        old_waiter = {"event": threading.Event(), "reply": "", "error": "", "typed_turn_id": "typed-old"}
+        with s._response_lock:
+            s._text_waiters["old-request"] = old_waiter
+            s._typed_turn_ids_by_request["old-request"] = "typed-old"
+            s._response_request_ids["old-response"] = "old-request"
+            s._response_task_run_ids["old-response"] = "old-request"
+        s._finish_response("old-response")
+        s._retire_text_waiter("old-request")
+
+        new_waiter = {"event": threading.Event(), "reply": "", "error": "", "typed_turn_id": "typed-new"}
+        with s._response_lock:
+            s._text_waiters["new-request"] = new_waiter
+            s._typed_turn_ids_by_request["new-request"] = "typed-new"
+        self.assertIn("old-request", s._retired_request_ids)
+        self.assertIn("old-response", s._retired_response_ids)
+
+        s._on_message(s.ws, json.dumps({"type": "response.created", "response": {
+            "id": "late-response", "metadata": {"voice_cua_request_id": "old-request"},
+        }}))
+        s._on_message(s.ws, json.dumps({"type": "response.done", "response": {
+            "id": "old-response", "status": "completed",
+            "output": [{"type": "message", "content": [{"type": "output_text", "text": "Old reply."}]}],
+        }}))
+
+        self.assertNotIn("late-response", s._response_typed_turn_ids)
+        self.assertFalse(new_waiter["event"].is_set())
+        self.assertEqual(new_waiter["reply"], "")
+
+    def test_broken_request_id_binds_typed_confirm_and_final_response(self) -> None:
+        from contextlib import nullcontext
+
+        s = live_session()
+        s.provider = XAIProvider("grok-voice-latest")
+        s.provider.bind(s._send_wire)
+        waiter = {"event": threading.Event(), "reply": "", "error": "", "typed_turn_id": "typed-1",
+                  "last_progress": time.monotonic(), "unanswered_confirms": 0}
+        request_id = "a" * 32
+        with s._response_lock:
+            s._text_waiters[request_id] = waiter
+            s._typed_turn_ids_by_request[request_id] = "typed-1"
+            s._task_runs[request_id] = []
+            s._task_expected_outcomes[request_id] = "Confirm build"
+            s._task_started_at[request_id] = time.monotonic()
+        s._on_message(s.ws, json.dumps({"type": "response.created", "response": {
+            "id": "response-1", "metadata": {"voice_cua_request_id": "broken-request"},
+        }}))
+        self.assertEqual(s._response_typed_turn_ids["response-1"], "typed-1")
+
+        contexts = []
+        dispatched = threading.Event()
+
+        def capture_context(**kwargs):
+            contexts.append(kwargs)
+            return nullcontext()
+
+        def fake_dispatch(_name, _arguments):
+            dispatched.set()
+            return {"ok": True}
+
+        with patch("voice_cua.live_session.tool_context", side_effect=capture_context), \
+                patch("voice_cua.live_session.dispatch", side_effect=fake_dispatch), \
+                patch("voice_cua.live_session.plugin_island.tool_started"), \
+                patch("voice_cua.live_session.island_publish"), \
+                patch.object(s, "_wait_for_responses_idle", return_value=True):
+            s._run_tool("confirm-call", "confirm_risky", "{}", response_id="response-1")
+            self.assertTrue(dispatched.wait(1))
+
+        self.assertEqual(contexts[0]["typed_turn_id"], "typed-1")
+        s._on_message(s.ws, json.dumps({"type": "response.done", "response": {
+            "id": "response-1", "status": "completed",
+            "metadata": {"voice_cua_request_id": "broken-request"},
+            "output": [{"type": "message", "content": [{"type": "output_text", "text": "That confirm timed out too."}]}],
+        }}))
+        self.assertTrue(waiter["event"].is_set())
+        self.assertEqual(waiter["reply"], "That confirm timed out too.")
+
+    def test_final_response_falls_back_to_one_open_typed_waiter(self) -> None:
+        s = live_session()
+        waiter = {"event": threading.Event(), "reply": "", "error": "", "typed_turn_id": "typed-1"}
+        with s._response_lock:
+            s._text_waiters["typed-request"] = waiter
+        s._note_response_done({
+            "id": "orphaned-response", "status": "completed",
+            "metadata": {"voice_cua_request_id": "missing-request"},
+            "output": [{"type": "message", "content": [
+                {"type": "output_text", "text": "The typed turn is settled."},
+            ]}],
+        })
+        self.assertTrue(waiter["event"].is_set())
+        self.assertEqual(waiter["reply"], "The typed turn is settled.")
+
+        ambiguous = live_session()
+        waiters = [{"event": threading.Event(), "reply": "", "error": "", "typed_turn_id": turn_id}
+                   for turn_id in ("typed-2", "typed-3")]
+        with ambiguous._response_lock:
+            ambiguous._text_waiters.update({f"request-{i}": item for i, item in enumerate(waiters)})
+        ambiguous._note_response_done({
+            "id": "ambiguous-response", "status": "completed",
+            "metadata": {"voice_cua_request_id": "missing-request"},
+            "output": [{"type": "message", "content": [{"type": "output_text", "text": "Ambiguous."}]}],
+        })
+        self.assertTrue(all(not item["event"].is_set() for item in waiters))
+
+    def test_second_unanswered_confirm_releases_typed_text_lock(self) -> None:
+        from contextlib import nullcontext
+
+        s = live_session()
+        sent = threading.Event()
+        output = {}
+        timed_out = {"ok": False, "timed_out": True, "error_type": "confirm_timed_out"}
+
+        with patch("voice_cua.live_session.SECOND_CONFIRM_SETTLE_S", 0.25), \
+                patch.object(s, "send_text", side_effect=lambda *_args, **_kwargs: sent.set()), \
+                patch("voice_cua.live_session.dispatch", side_effect=[timed_out, timed_out]), \
+                patch("voice_cua.live_session.tool_context", side_effect=lambda **_kwargs: nullcontext()), \
+                patch("voice_cua.live_session.plugin_island.tool_started"), \
+                patch("voice_cua.live_session.island_publish"), \
+                patch.object(s, "_wait_for_responses_idle", return_value=True):
+            turn = threading.Thread(target=lambda: output.setdefault(
+                "result", s.send_text_and_wait("Yes", timeout=None, typed_turn_id="typed-2"),
+            ), daemon=True)
+            turn.start()
+            self.assertTrue(sent.wait(1))
+            with s._response_lock:
+                request_id = next(iter(s._text_waiters))
+                s._response_typed_turn_ids["confirm-1"] = "typed-2"
+                s._response_typed_turn_ids["confirm-2"] = "typed-2"
+
+            s._run_tool("confirm-1", "confirm_risky", "{}", response_id="confirm-1")
+            deadline = time.monotonic() + 1
+            while time.monotonic() < deadline:
+                with s._response_lock:
+                    if s._text_waiters[request_id]["unanswered_confirms"] == 1:
+                        break
+                time.sleep(0.01)
+            with s._response_lock:
+                self.assertEqual(s._text_waiters[request_id]["unanswered_confirms"], 1)
+            s._run_tool("confirm-2", "confirm_risky", "{}", response_id="confirm-2")
+            turn.join(1)
+            self.assertFalse(turn.is_alive())
+
+        self.assertIn("second unanswered confirm", output["result"]["error"])
+        self.assertFalse(s._text_request_lock.locked())
 
     def test_risky_backend_call_is_gated_and_loads_confirm(self) -> None:
         s = live_session()
