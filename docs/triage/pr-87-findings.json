@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-14T14:53:07Z",
-      "now": "2026-11-14T14:53:07Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-14T14:58:05Z",
+      "now": "2026-11-14T14:58:05Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 107,
@@ -2151,202 +2151,124 @@
     },
     "cycle": 2,
     "plan": {
-      "round": 1,
+      "round": 2,
       "groups": [
         {
-          "id": "STATUS",
-          "name": "Status accuracy",
+          "id": "PAGE",
+          "name": "Status-v2 page and merged display",
           "finding_ids": [
-            "PAGE-04",
-            "PAGE-06",
-            "AUTO-01",
-            "AUTO-02",
-            "AUTO-03"
+            "PAGE-07",
+            "PAGE-06"
           ],
           "depends_on": [],
-          "reason": "Rollover, merge-done, and collect viewer switching were done by hand and left the wrong status on the page. Status accuracy is first.",
-          "worktree": "bcl-110-status",
-          "status": "done",
+          "reason": "PAGE-07 and PAGE-06 share render.py and change-list.html, so they are one lane. Implement status-v2 (lanes per phase, no single Now, one Updated clock, derived issue copy, parked line, merge commit and merge time on a merged list).",
+          "worktree": "bcl-110-r3-page",
+          "status": "pending",
+          "phase": "fix",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_render.py",
+            "plugins/batched-change-list/skills/batched-change-list/templates/change-list.html",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py"
+          ],
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
-            "service_tier": "priority",
-            "status": "done",
-            "started_at": "2026-11-14T12:34:37Z",
-            "ended_at": "2026-11-14T13:36:31Z",
-            "duration_s": 3714,
-            "session_id": "01a1da0d-76b4-7fc3-b94f-542c7e1fe05a",
-            "commit": "3bc672e2"
+            "service_tier": "priority"
           },
           "verify": {
-            "status": "partial",
-            "summary": "Unit tests; live viewer port reuse",
-            "fixed": 2,
+            "command": "python3 -m unittest scripts.test_render -q && python3 /Users/gurusharan/.agents/artifacts/bcl-110/page07/verify-live.py",
+            "summary": "Tests plus live 1x 2x captures",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
-            "total": 5,
-            "command": "python3 -m unittest discover -s /Users/gurusharan/code/worktrees/agent-plugins/samantha-pr110-rollover/plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py' && python3 /tmp/bcl-110-verify-status.py"
-          },
-          "phase": "install"
-        },
-        {
-          "id": "SESSION",
-          "name": "Typed session and shell gate",
-          "finding_ids": [
-            "AGENT-26",
-            "AGENT-29",
-            "AGENT-27",
-            "AGENT-18"
-          ],
-          "depends_on": [],
-          "reason": "Confirm settle, reconnect context, read-only shell approval, and heard app-name handling share live_session, providers, session_hub, and dev_tools.",
-          "worktree": "acu-110-session",
-          "status": "done",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "max",
-            "service_tier": "priority",
-            "status": "done",
-            "started_at": "2026-11-14T12:34:37Z",
-            "ended_at": "2026-11-14T13:36:31Z",
-            "duration_s": 3714,
-            "session_id": "01a1da0d-76b6-72d3-9ad0-e2bd4074e9da",
-            "commit": "3dcf9a79"
-          },
-          "verify": {
-            "status": "partial",
-            "summary": "Three typed checks passed; reconnect open",
-            "fixed": 3,
-            "failed": 0,
-            "total": 4,
-            "command": "python3 /tmp/bcl-110-verify-session.py"
-          },
-          "phase": "verify"
-        },
-        {
-          "id": "TOOLS",
-          "name": "cua_act typing",
-          "finding_ids": [
-            "AGENT-22",
-            "AGENT-23"
-          ],
-          "depends_on": [],
-          "reason": "Terminal/TextEdit cua_act retries and the typed_text log_event keyword crash share the tool dispatch and activity log.",
-          "worktree": "acu-110-tools",
-          "status": "done",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "max",
-            "service_tier": "priority",
-            "status": "done",
-            "started_at": "2026-11-14T12:34:37Z",
-            "ended_at": "2026-11-14T13:07:00Z",
-            "duration_s": 1943,
-            "session_id": "01a1da0d-76b7-74a0-906d-db269164dcaa",
-            "commit": "40e6763"
-          },
-          "verify": {
-            "status": "verified",
-            "summary": "typed_text log ok; live type still stale",
-            "fixed": 2,
-            "failed": 0,
-            "total": 2,
-            "command": "python3 /tmp/bcl-110-verify-tools.py"
-          },
-          "phase": "verify"
+            "total": 2
+          }
         },
         {
           "id": "ISLAND",
-          "name": "Island Fast label",
+          "name": "Island Fast label from event_msg",
           "finding_ids": [
             "ISLAND-03"
           ],
           "depends_on": [],
-          "reason": "IslandCodexThreads reads model and effort but not service_tier, so a priority/Fast Luna job looks like a normal run.",
-          "worktree": "acu-110-island",
-          "status": "done",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "max",
-            "service_tier": "priority",
-            "status": "done",
-            "started_at": "2026-11-14T12:34:37Z",
-            "ended_at": "2026-11-14T12:52:59Z",
-            "duration_s": 1102,
-            "session_id": "01a1da0d-76b4-7792-b51c-425253c6a193",
-            "commit": "fd6fffd"
-          },
-          "verify": {
-            "status": "pending",
-            "summary": "Island Fast-label screenshots for both tiers",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1,
-            "command": "python3 /tmp/bcl-110-verify-island.py"
-          },
-          "phase": "install"
-        },
-        {
-          "id": "HYGIENE",
-          "name": "Release hygiene clones",
-          "finding_ids": [
-            "HYG-01"
+          "reason": "Read service_tier from event_msg thread_settings as well as turn_context so a priority Codex job shows Fast.",
+          "worktree": "bcl-110-r3-island",
+          "status": "pending",
+          "phase": "fix",
+          "files": [
+            "plugins/agent-computer-use/skills/macos-cua/service/Sources/CUAService/IslandCodexThreads.swift"
           ],
-          "depends_on": [],
-          "reason": "The ACU hygiene gate reports local-only work from other clones and forces --hygiene-override on every install.",
-          "worktree": "acu-110-hygiene",
-          "status": "done",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "max",
-            "service_tier": "priority",
-            "status": "done",
-            "started_at": "2026-11-14T12:34:37Z",
-            "ended_at": "2026-11-14T13:10:01Z",
-            "duration_s": 2124,
-            "session_id": "01a1da0d-76b2-74b0-ae70-dd4a2ab72a70",
-            "commit": "81f9d56"
-          },
-          "verify": {
-            "status": "verified",
-            "summary": "Hygiene test ignores other clones",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "command": "cd /Users/gurusharan/code/worktrees/agent-plugins/samantha-pr110-rollover/plugins/agent-computer-use/skills/macos-cua && python3 -m unittest -q tests.test_gate_hygiene"
-          },
-          "phase": "done"
-        },
-        {
-          "id": "PAGE",
-          "name": "Gate current-step styling",
-          "finding_ids": [
-            "PAGE-05"
-          ],
-          "depends_on": [
-            "STATUS"
-          ],
-          "reason": "The Fixes gate ring and heavy label still look current while Collect is the current step. render.py may also change in STATUS for the Merged/Done state, so this waits.",
-          "worktree": "bcl-110-page",
-          "status": "done",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "service_tier": "priority",
-            "status": "running",
-            "started_at": "2026-11-14T13:40:40Z",
-            "session_id": "01a1da49-ec6c-7132-8790-e1021652a455",
-            "pid": "66311",
-            "updated_at": "2026-11-14T14:29:56Z"
+            "service_tier": "priority"
           },
           "verify": {
-            "status": "verified",
-            "summary": "Gate node is not styled current",
-            "fixed": 1,
+            "command": "python3 /Users/gurusharan/.agents/artifacts/bcl-110/island/verify-island03.py",
+            "summary": "Fast vs normal island screenshots",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
-            "total": 1,
-            "command": "python3 /tmp/bcl-110-verify-page.py"
+            "total": 1
+          }
+        },
+        {
+          "id": "SESSION",
+          "name": "Idle close and reconnect context",
+          "finding_ids": [
+            "AGENT-29"
+          ],
+          "depends_on": [],
+          "reason": "Idle close did not fire after typed turns; after reconnect she must still know project, task, and last result.",
+          "worktree": "bcl-110-r3-session",
+          "status": "pending",
+          "phase": "fix",
+          "files": [
+            "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua/live_session.py"
+          ],
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "service_tier": "priority"
           },
-          "phase": "done"
+          "verify": {
+            "command": "python3 /Users/gurusharan/.agents/artifacts/bcl-110/session/verify-agent29.py",
+            "summary": "Idle close then reconnect memory",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          }
+        },
+        {
+          "id": "MERGED",
+          "name": "Origin repo mapping for bcl merged",
+          "finding_ids": [
+            "AUTO-02"
+          ],
+          "depends_on": [],
+          "reason": "Independent of the page render path. Map cursor.com / git remotes to the Origin repo gurusharan/agent-plugins so retarget can run.",
+          "worktree": "bcl-110-r3-merged",
+          "status": "pending",
+          "phase": "fix",
+          "files": [
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
+          ],
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "service_tier": "priority"
+          },
+          "verify": {
+            "command": "python3 -m unittest scripts.test_bcl -q && python3 /Users/gurusharan/.agents/artifacts/bcl-110/merged/verify-auto02.py",
+            "summary": "Tests plus Origin retarget evidence",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          }
         },
         {
           "id": "CMDS",
@@ -2355,90 +2277,62 @@
             "AUTO-04",
             "AUTO-05"
           ],
-          "depends_on": [
-            "STATUS"
-          ],
-          "reason": "After-merge sync and local plugin install are still hand steps, and they share the bcl entrypoint with STATUS commands.",
+          "depends_on": [],
+          "reason": "Held this round: Terra request-changes P1s from 20:15 IST. Deferred, not failed.",
           "worktree": "bcl-110-cmds",
-          "status": "review",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "max",
-            "service_tier": "priority",
-            "status": "running",
-            "started_at": "2026-11-14T13:40:40Z",
-            "session_id": "01a1da49-ec6c-71e0-8b72-61b832364608",
-            "pid": "66316",
-            "updated_at": "2026-11-14T14:11:15Z"
-          },
+          "status": "pending",
+          "phase": "deferred",
+          "codex": {},
           "verify": {
-            "method": "Unit tests: bcl sync-main merges main, handles deleted skill refs, re-renders HTML and stashes only hook dirt; bcl install-local installs to ~/.agents, Codex cache and Cursor cache, trashes old copies, and checks the sha against the merge.",
-            "summary": "Sync-main and install-local command tests",
+            "summary": "Held for later CMDS P1s",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 2
-          },
-          "phase": "review"
+          }
         },
         {
           "id": "CORE",
-          "name": "Merge guard, verify, introspect",
+          "name": "Merge guard and introspect draft",
           "finding_ids": [
             "BCL-01",
             "BCL-02",
             "BCL-03"
           ],
-          "depends_on": [
-            "STATUS"
-          ],
-          "reason": "Depends on STATUS/CMDS; deferred to the next round so this round stays independent.",
-          "worktree": "bcl-110-core",
-          "status": "deferred",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "max",
-            "service_tier": "priority",
-            "status": "pending"
-          },
+          "depends_on": [],
+          "reason": "Held this round; depends on later STATUS/CMDS work. Deferred, not failed.",
+          "worktree": "",
+          "status": "pending",
+          "phase": "deferred",
+          "codex": {},
           "verify": {
-            "method": "Unit tests: bcl merge refuses unsnapshotted live changes and never stashes the tracker; bcl verify runs each group's stored command and updates group verify state; bcl introspect drafts delete/simplify/optimize/automate from the run log and still requires the four sections and confirmation.",
-            "summary": "Merge guard, stored verify, introspect draft",
+            "summary": "Deferred to a later round",
             "status": "partial",
             "fixed": 0,
             "failed": 1,
             "total": 3
-          },
-          "phase": "deferred"
+          }
         },
         {
           "id": "PLANC",
-          "name": "Plan group cap check",
+          "name": "Plan cap and Luna-max split",
           "finding_ids": [
             "PLAN-03",
             "PLAN-02"
           ],
-          "depends_on": [
-            "CORE"
-          ],
-          "reason": "Depends on CORE (and so on STATUS/CMDS); deferred to the next round.",
-          "worktree": "bcl-110-planc",
-          "status": "deferred",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "max",
-            "service_tier": "priority",
-            "status": "pending"
-          },
+          "depends_on": [],
+          "reason": "Held this round; deferred, not failed.",
+          "worktree": "",
+          "status": "pending",
+          "phase": "deferred",
+          "codex": {},
           "verify": {
-            "method": "plan-fix.md states the about-4-issues cap and no longer points at fix-and-verify.md. bcl plan rejects or splits groups over the cap and flags a single heavy Luna-max job that should be medium jobs.",
-            "summary": "Plan cap and Luna-max split check",
+            "summary": "Deferred to a later round",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 2
-          },
-          "phase": "deferred"
+          }
         },
         {
           "id": "VOICE",
@@ -2447,38 +2341,34 @@
             "OBS-23",
             "OBS-25"
           ],
-          "depends_on": [
-            "SESSION"
-          ],
-          "reason": "Depends on SESSION; deferred to the next round. Mic-blocked spoken checks stay blocked.",
-          "worktree": "acu-110-voice",
-          "status": "deferred",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "max",
-            "service_tier": "priority",
-            "status": "pending"
-          },
+          "depends_on": [],
+          "reason": "Held this round; needs a mic and benefits from AGENT-29 first. Deferred, not failed.",
+          "worktree": "",
+          "status": "pending",
+          "phase": "deferred",
+          "codex": {},
           "verify": {
-            "method": "Code may land after SESSION, but live verify is blocked: no input device (text only) and island_error_raw Can't hear you, check mic. Do not use typed turns as a substitute. Mark skipped/blocked until a mic is available.",
-            "summary": "Spoken latency and run_id need mic",
+            "summary": "Deferred until a mic is available",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 2
-          },
-          "phase": "deferred"
+          }
         }
       ],
-      "cycle": 2,
-      "status": "closed"
+      "cycle": 2
     },
-    "round": 1,
+    "round": 2,
     "round_history": [
       {
         "round": 2,
         "fixed": 61,
         "ended_at": "2026-11-14T11:22:03Z"
+      },
+      {
+        "round": 1,
+        "fixed": 11,
+        "ended_at": "2026-11-14T14:58:05Z"
       }
     ],
     "stages_reached": [
@@ -5312,7 +5202,7 @@
       "id": "PAGE-07",
       "title": "The page's status language, counts, and clocks do not match the status-v2 spec",
       "source": "User requested",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "The page still uses one Now marker, mixes up failed and parked work, and treats carried issues as in progress, so you cannot tell each lane's real phase or which counts are current.",
       "impact": "Status accuracy is hard to trust: blocked work looks like a failure, parked groups look like planned work, carried issues look in progress, and a single Now hides how many lanes are in each step.",
