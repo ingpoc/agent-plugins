@@ -1,3 +1,7 @@
+## 0.2.147
+
+- Run the GPT-Live idle-close watchdog on Grok Voice as well, so a typed text session actually closes after VOICE_CUA_LIVE_IDLE_CLOSE_S.
+
 ## 0.2.146
 
 - Island Fast label reads `service_tier` from `event_msg` as well as `turn_context`.

@@ -487,7 +487,7 @@ class LiveSession:
         # readiness instead of being told no session exists.
         register(self)
         self._schedule_planned_reconnect()
-        if getattr(self.provider, "manages_barge_in", False) and not getattr(self, "_watchdog_started", False):
+        if not getattr(self, "_watchdog_started", False):
             self._watchdog_started = True
             threading.Thread(target=self._idle_watchdog, name="live-idle", daemon=True).start()
             threading.Thread(target=self._silence_keepalive, name="live-keepalive", daemon=True).start()
@@ -1892,7 +1892,7 @@ class LiveSession:
             if self._audio:
                 self._audio.flush_timings(run_id=self._current_run_id(),
                                           causal_ref=self._current_response_step_ref())
-            if not getattr(self.provider, "manages_barge_in", False) or self.LIVE_IDLE_CLOSE_SECONDS <= 0:
+            if self.LIVE_IDLE_CLOSE_SECONDS <= 0:
                 continue
             if self._dormant.is_set() or self.ws is None or not self._session_ready.is_set():
                 continue
