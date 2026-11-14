@@ -222,7 +222,7 @@ def render_workflow(active, fixed, threshold, gate_met, round_number):
         current = ' aria-current="step"' if state == "current" else ""
         suffix = '<span class="sr">, done</span>' if state == "done" else ""
         tag = '<span class="wf-now-tag">Now</span>' if state == "current" else ""
-        classes = f"wf-step {state}" + (" wf-gate" if key == "gate" else "")
+        classes = f"wf-step {state}" + (" wf-gate" if key == "gate" and state != "upcoming" else "")
         if key == "gate":
             accessible = f"Fixes {fixed} of {threshold}, gate {'met' if gate_met else 'not met'}"
             if gate_met:

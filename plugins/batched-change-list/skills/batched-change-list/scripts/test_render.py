@@ -13,6 +13,22 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_upcoming_gate_does_not_look_current_but_met_gate_keeps_marker(self):
+        self.data['tracking'] = {'workflow': {'stage':'collect','updated_at':'2026-11-14T07:00:00Z'},
+                                 'rollover_threshold': 1000}
+        page = renderer.render(self.data, self.base)
+        self.assertIn('data-stage="collect" class="wf-step current" aria-current="step"', page)
+        self.assertIn('data-stage="gate" class="wf-step upcoming"', page)
+        self.assertNotIn('data-stage="gate" class="wf-step upcoming wf-gate"', page)
+
+        self.data['findings'][0]['status'] = 'verified_fixed'
+        self.data['findings'][0]['verification'] = 'Verified on the installed build.'
+        self.data['findings'][0]['verification_refs'] = ['Example receipt']
+        self.data['tracking']['rollover_threshold'] = 1
+        page = renderer.render(self.data, self.base)
+        self.assertIn('data-stage="collect" class="wf-step current" aria-current="step"', page)
+        self.assertIn('data-stage="gate" class="wf-step done wf-gate"', page)
+
     def test_merged_is_terminal_and_report_rollover_is_not_current(self):
         self.data['tracking'] = {'workflow': {'stage':'merged','updated_at':'2026-11-14T12:00:00Z'}}
         page = renderer.render(self.data, self.base)
