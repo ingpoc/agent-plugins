@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -80,7 +81,10 @@ class ManageFindingsTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             doc = json.loads(self.data.read_text())
             self.assertEqual(doc['tracking']['workflow']['stage'], stage)
-            self.assertEqual(page.read_text().count('aria-current="step"'), 0 if stage is None else 1)
+            html = page.read_text()
+            current_steps = 1 if stage in ('collect', 'present', 'report_rollover') else 0
+            self.assertEqual(html.count('aria-current="step"'), current_steps)
+            self.assertNotIn('class="workflow-now"', html)
 
     def test_workflow_stage_guard_and_clear(self):
         ops, page = self.root / 'stage.json', self.root / 'stage.html'
@@ -97,7 +101,10 @@ class ManageFindingsTests(unittest.TestCase):
         data = json.loads(self.data.read_text())
         self.assertEqual(data['findings'][0]['status'], 'in_progress')
         self.assertEqual(data['tracking']['workflow']['stage'], 'plan_fix')
-        self.assertIn('class="wf-step current" aria-current="step"><span class="wf-dot">', page.read_text())
+        html = page.read_text()
+        self.assertIn('class="fresh">Updated', html)
+        self.assertNotIn('class="workflow-now"', html)
+        self.assertIn('Plan &amp; fix', html)
         plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
         self.assertEqual(run(plan).returncode, 0)
         self.assertEqual(run({'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'}).returncode, 0)
@@ -235,31 +242,19 @@ class ManageFindingsTests(unittest.TestCase):
         activity = doc['tracking']['workflow']['now']
         self.assertRegex(activity, r'^\d{4}-\d\d-\d\dT.*Z — Inspecting the shared root cause$')
         html = page.read_text()
-        self.assertIn('class="workflow-now"', html)
+        self.assertIn('class="fresh">Updated', html)
+        self.assertNotIn('class="workflow-now"', html)
         self.assertNotIn('id="verification-progress"', html)
 
-    def test_rollover_excludes_fixed_lists_rest_and_updates_header(self):
-        document = json.loads(self.data.read_text())
-        document['findings'][0].update(status='verified_fixed', verification='Verified on the installed build.', verification_refs=['receipt'])
-        document['findings'][1]['status'] = 'untested'
-        self.data.write_text(json.dumps(document))
-        operations, page = self.root / 'rollover.json', self.root / 'rollover.html'
+    def test_batch_rollover_requires_adopted_live_list_and_preserves_source(self):
+        original = self.data.read_bytes()
+        operations = self.root / 'rollover.json'
         operations.write_text(json.dumps([{'action':'rollover','source_pr':96,'worktree':'next-wt',
             'pull_request':{'label':'PR #98','url':'https://example.test/pull/98'}}]))
-        self.assertNotEqual(self.cli('batch', self.data, operations).returncode, 0)
-        blocked = self.cli('batch', self.data, operations, '--render', page)
-        self.assertNotEqual(blocked.returncode, 0)
-        self.assertIn('--force', blocked.stderr)
-        result = self.cli('batch', self.data, operations, '--render', page, '--force')
-        self.assertEqual(result.returncode, 0, result.stderr)
-        tracking = json.loads(self.data.read_text())['tracking']
-        self.assertIn('ISSUE-01', tracking['rollover']['excluded_ids'])
-        self.assertNotIn('ISSUE-01', tracking['rollover']['unresolved_ids'])
-        self.assertEqual((tracking['pull_request']['label'], tracking['worktree']), ('PR #98', 'next-wt'))
-        self.assertEqual(tracking['workflow']['stage'], 'collect')
-        self.assertEqual(tracking['cycle'], 2)
-        self.assertEqual(tracking['rollover']['forced_gate_overrides'][0]['action'], 'rollover')
-        self.assertIn('PR #98', page.read_text())
+        result = self.cli('batch', self.data, operations, '--force')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('adopted live tracker', result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
 
     def test_report_rollover_gate_and_force_logging(self):
         page, operations = self.root / 'report-gate.html', self.root / 'report-gate.json'
@@ -307,17 +302,21 @@ class ManageFindingsTests(unittest.TestCase):
         blocked = batch({'action':'set-stage','stage':'report_rollover'})
         self.assertNotEqual(blocked.returncode, 0)
         self.assertIn('gate not met', blocked.stderr)
-        self.assertNotEqual(batch({'action':'rollover','source_pr':1,'worktree':'w','pull_request':{'label':'PR #2','url':'https://example.test/pull/2'}}).returncode, 0)
+        original = self.data.read_bytes()
+        rollover = batch({'action':'rollover','source_pr':1,'worktree':'w','pull_request':{'label':'PR #2','url':'https://example.test/pull/2'}})
+        self.assertNotEqual(rollover.returncode, 0)
+        self.assertIn('adopted live tracker', rollover.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
         self.assertNotEqual(batch({'action':'introspect','sections':{'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}},'result':'two\nlines'}).returncode, 0)
         self.assertEqual(batch({'action':'start-verification','run':{'id':'r1','build':'b1','revision':'abc','installed_at':'2026-11-12T10:00:00+05:30','install_evidence':'log'}}).returncode, 0)
         result = batch({'action':'introspect','sections':{'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}},'result':'no issues'}, {'action':'set-stage','stage':'report_rollover'}, force=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(self.data.read_text())['tracking']['introspect']['result'], 'no issues')
-        self.assertEqual(batch({'action':'rollover','source_pr':1,'worktree':'w','pull_request':{'label':'PR #2','url':'https://example.test/pull/2'}}, force=True).returncode, 0)
-        tracking = json.loads(self.data.read_text())['tracking']
-        self.assertNotIn('introspect', tracking)
-        self.assertNotIn('stages_reached', tracking)
-        self.assertNotIn('verification_run', tracking)
+        original = self.data.read_bytes()
+        result = batch({'action':'rollover','source_pr':1,'worktree':'w','pull_request':{'label':'PR #2','url':'https://example.test/pull/2'}}, force=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('adopted live tracker', result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
 
     def test_introspect_requires_four_sections_and_creates_one_verified_task(self):
         page, ops = self.root / 'one.html', self.root / 'one.json'
@@ -666,13 +665,55 @@ class ManageFindingsTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        self.state = self.root / "state"
         self.data = self.root / "findings.json"
         self.document = json.loads(EXAMPLE.read_text(encoding="utf-8"))
         self.data.write_text(json.dumps(self.document), encoding="utf-8")
 
-    def cli(self, *args):
+    def cli(self, *args, env=None):
         return subprocess.run([sys.executable, str(SCRIPT), *map(str, args)],
-                              text=True, capture_output=True)
+                              text=True, capture_output=True,
+                              env={**os.environ, "BCL_STATE_DIR": str(self.state), **(env or {})})
+
+    def test_add_update_and_batch_use_report_capture_base_and_warn_when_missing(self):
+        home = self.root / "project"
+        base = home / "docs/triage"
+        capture = base / "captures/proof.png"
+        capture.parent.mkdir(parents=True)
+        capture.write_bytes(b"not a real image; render only embeds bytes")
+        self.state.mkdir()
+        live = self.state / "example-project" / "110.json"
+        live.parent.mkdir()
+        document = json.loads(EXAMPLE.read_text(encoding="utf-8"))
+        document["findings"][0]["evidence"] = [{"src": "captures/proof.png", "alt": "proof", "caption": "proof"}]
+        live.write_text(json.dumps(document), encoding="utf-8")
+        snapshot = base / "110-findings.json"
+        snapshot.parent.mkdir(parents=True, exist_ok=True)
+        registry = {"example/project/110": {"live": str(live), "home": str(home),
+                    "snapshot": str(snapshot.relative_to(home)), "html": "docs/triage/110.html",
+                    "repo": "example/project", "id": "110"}}
+        (self.state / "registry.json").write_text(json.dumps(registry))
+        patch = self.root / "patch.json"
+        patch.write_text(json.dumps({"status": "in_progress"}))
+        updated = self.cli("update", live, "ISSUE-01", patch)
+        self.assertEqual(updated.returncode, 0, updated.stderr)
+        self.assertEqual(json.loads(live.read_text())["findings"][0]["status"], "in_progress")
+
+        capture.unlink()
+        added = self.root / "new-finding.json"
+        added.write_text(json.dumps({"id": "ISSUE-03", "title": "New", "evidence": [
+            {"src": "captures/missing.png", "alt": "missing", "caption": "missing"}]}))
+        add_result = self.cli("add", live, added)
+        self.assertEqual(add_result.returncode, 0, add_result.stderr)
+        self.assertIn("missing report capture", add_result.stderr)
+
+        operations = self.root / "ops.json"
+        operations.write_text(json.dumps([{"action": "set-activity", "stage": "collect", "ids": [], "now": "Collecting"}]))
+        page = base / "110.html"
+        batch = self.cli("batch", live, operations, "--render", page)
+        self.assertEqual(batch.returncode, 0, batch.stderr)
+        self.assertIn("missing report capture", batch.stderr)
+        self.assertFalse(page.exists())
 
     def test_list_and_get_return_only_requested_records(self):
         listing = self.cli("list", self.data)

@@ -1,6 +1,7 @@
 import copy
 import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 import shutil
@@ -13,6 +14,46 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_gate_uses_verified_count_and_never_shows_a_now_line(self):
+        self.data['tracking'] = {'workflow': {'stage':'collect','updated_at':'2026-11-14T07:00:00Z'},
+                                 'rollover_threshold': 1000}
+        page = renderer.render(self.data, self.base)
+        self.assertIn('data-stage="collect" class="wf-step current" aria-current="step"', page)
+        self.assertIn('Updated <time datetime=', page)
+        self.assertNotIn('workflow-now', page)
+        self.assertNotIn('wf-now-tag', page)
+        self.assertIn('.wf-step.current .wf-dot i{width:14px;height:14px;border:2.5px solid var(--active);', page)
+        gate_node = page.split('data-stage="gate"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('class="wf-step upcoming wf-gate"', gate_node)
+        self.assertIn('<svg width="22" height="22" viewBox="0 0 22 22"', gate_node)
+        self.assertIn('stroke="var(--sage-line)" stroke-width="3"', gate_node)
+        self.assertNotIn('var(--amber)', gate_node)
+        self.assertIn('Fixes <b>1/1000</b> verified<small>0 in progress</small>', gate_node)
+
+        self.data['findings'][0]['status'] = 'verified_fixed'
+        self.data['findings'][0]['verification'] = 'Verified on the installed build.'
+        self.data['findings'][0]['verification_refs'] = ['Example receipt']
+        self.data['tracking']['rollover_threshold'] = 1
+        page = renderer.render(self.data, self.base)
+        self.assertIn('data-stage="collect" class="wf-step current" aria-current="step"', page)
+        gate_node = page.split('data-stage="gate"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('class="wf-step done wf-gate"', gate_node)
+        self.assertIn('<svg width="22" height="22" viewBox="0 0 22 22"', gate_node)
+        self.assertIn('stroke-width="3"', gate_node)
+
+    def test_merged_page_shows_commit_and_ist_time(self):
+        sha = 'a' * 40
+        self.data['tracking'] = {'workflow': {'stage':'merged','updated_at':'2026-11-14T11:44:49Z'},
+                                 'merged': {'commit_sha':sha,'merged_at':'2026-11-14T11:44:49Z'}}
+        page = renderer.render(self.data, self.base)
+        self.assertIn('Merged / Done', page)
+        self.assertIn('data-stage="merged" class="wf-step done"', page)
+        self.assertNotIn('data-stage="report_rollover" class="wf-step current"', page)
+        self.assertNotIn('aria-current="step"', page)
+        self.assertIn(sha, page)
+        self.assertIn('5:14:49 PM IST', page)
+        self.assertIn('Merge commit', page)
+
     def test_recorded_plan_renders_deterministic_lanes_and_shared_merge(self):
         self.data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}, 'plan': {'cycle': 1, 'round': 1, 'groups': [
             {'id':'A','finding_ids':['ISSUE-01'],'reason':'Shared cause','depends_on':[],'status':'running',
@@ -21,61 +62,72 @@ class RenderTests(unittest.TestCase):
             {'id':'B','finding_ids':['ISSUE-02'],'depends_on':['A'],'status':'pending'}]}}
         page = renderer.render(self.data, self.base)
         self.assertEqual(page, renderer.render(self.data, self.base))
-        self.assertNotIn('setInterval(formatPageTimes', page)
-        for marker in ('class="wf"', 'class="wf-band gate-pending"', 'class="wf-loop"', 'wf-gate', 'class="grp running"', 'class="tail"', 'after A', 'href="#ISSUE-01"', 'title="'):
+        for marker in ('class="wf"', 'class="wf-band gate-pending"', 'class="wf-loop"', 'wf-gate', 'class="grp running"', 'class="grp planned"', 'after A', 'href="#ISSUE-01"', 'title="'):
             self.assertIn(marker, page)
-        self.assertIn('<details class="plan" id="round-plan" data-plan-key="round">', page)
-        self.assertNotIn('id="round-plan" open', page)
-        self.assertNotIn('id="round-plan" open=', page)
-        self.assertIn('<summary class="plan-head"><strong>Round 1</strong> · 2 groups in parallel · 1 running · 1 planned</summary>', page)
-        self.assertLess(page.index('</summary>'), page.index('class="plan-rows"'))
-        self.assertLess(page.index('class="plan-rows"'), page.index('class="tail"'))
-        self.assertIn("localStorage.getItem(key)==='1'", page)
-        self.assertIn('change-list-plan-open:', page)
-        self.assertNotIn('plan-merge', page)
+        self.assertIn('<div class="plan-head"><span><strong>Round 1</strong> · 2 lanes · each installs and verifies when ready</span></div>', page)
+        self.assertLess(page.index('class="plan-head"'), page.index('class="plan-rows"'))
+        self.assertNotIn('class="tail"', page)
+        self.assertNotIn('round-plan', page)
         self.assertIn('Fixing', page)
         self.assertIn('Planned', page)
         self.assertIn('No fix plan for Round 1 yet.', renderer.render({**self.data, 'tracking':{'workflow':{'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}}}, self.base))
         self.assertNotIn('class="plan-rows"', renderer.render({**self.data, 'tracking':{}}, self.base))
 
-    @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
-    def test_plan_open_state_is_kept_in_local_storage(self):
-        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
-        start = template.index("(function(){const plan=document.getElementById('round-plan')")
-        end = template.index("})();", start) + 5
-        hook = template[start:end]
-        program = """
-const store={};
-const localStorage={getItem(k){return Object.prototype.hasOwnProperty.call(store,k)?store[k]:null},setItem(k,v){store[k]=String(v)}};
-const listeners={};
-const plan={open:false,getAttribute(name){return name==='data-plan-key'?'110':null},addEventListener(type,fn){listeners[type]=fn}};
-const document={getElementById(id){return id==='round-plan'?plan:null}};
-""" + hook + """
-if(plan.open)process.exit(1);
-listeners.toggle();
-if(store['change-list-plan-open:110']!=='0')process.exit(2);
-plan.open=true;
-listeners.toggle();
-if(store['change-list-plan-open:110']!=='1')process.exit(3);
-plan.open=false;
-""" + hook + """
-if(!plan.open)process.exit(4);
-"""
-        subprocess.run(['node', '-e', program], check=True)
+    def test_status_v2_renders_stale_clock_parked_copy_and_phase_tracks(self):
+        data = copy.deepcopy(self.data)
+        extra = copy.deepcopy(data['findings'][0])
+        extra.update(id='ISSUE-03', title='Carried parked issue', status='failing', carried_from=1)
+        data['findings'][0]['status'] = 'in_progress'
+        data['findings'][0]['carried_from'] = 2
+        data['findings'][1]['status'] = 'untested'
+        data['findings'].append(extra)
+        data['tracking'] = {
+            'round': 1,
+            'workflow': {'stage':'verify','updated_at':'2026-11-14T11:00:00Z',
+                         'now':'2026-11-14T11:13:00Z — Build review'},
+            'plan': {'round':1,'groups':[
+                {'id':'INSTALL','name':'Renderer','finding_ids':['ISSUE-01'],'status':'installing',
+                 'phase':'install','build':'BCL 0.1.18','codex':{'model':'gpt-6-luna','effort':'max','fast':True}},
+                {'id':'VOICE','name':'Voice meter','finding_ids':['ISSUE-02'],'status':'blocked',
+                 'phase':'verify','blocked_reason':'no mic · needs Guru'},
+                {'id':'CORE','name':'Core lease','finding_ids':['ISSUE-03'],'status':'parked','parked_to':2},
+            ]}}
+        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:13:00Z'))
+        self.assertIn('Updated <time datetime=', page)
+        self.assertIn('4:30 PM IST', page)
+        self.assertIn('13 min ago', page)
+        self.assertIn('class="tag-stale"', page)
+        self.assertIn('data-active-lanes="true"', page)
+        self.assertIn('2 lanes · each installs and verifies when ready', page)
+        self.assertIn('<b>1</b> installing', page)
+        self.assertIn('<b>1</b> blocked', page)
+        self.assertIn('Parked for Round 2', page)
+        self.assertIn('CORE · 1', page)
+        self.assertIn('aria-label="Phase 3 of 5: Install"', page)
+        self.assertIn('aria-label="Phase 4 of 5: Verify, blocked"', page)
+        self.assertIn('In install · INSTALL', page)
+        self.assertIn('Blocked · no mic · needs Guru', page)
+        self.assertIn('Parked → Round 2', page)
+        self.assertIn('CARRIED', page)
+        self.assertIn('Fixes <b>0/15</b> verified<small>1 in progress</small>', page)
+        self.assertIn('Round closes when every lane is <b>verified, blocked or parked</b> → Introspect → gate.', page)
+        self.assertNotIn('Working on it', page)
+        self.assertNotIn('workflow-now', page)
+        self.assertIn('setInterval(formatPageTimes,60000)', page)
 
     def test_compact_plan_labels_duration_status_details_and_fallbacks(self):
         data = copy.deepcopy(self.data)
         data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}, 'plan': {'round': 1, 'groups': [
             {'id':'A','name':'Render label','finding_ids':['ISSUE-01'],'status':'done','codex':{'model':'gpt-6-luna','effort':'medium','service_tier':'priority','duration_s':300,'started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z'},'verify':{'status':'pending','method':'Run the focused test and inspect the live page carefully'}},
             {'id':'B','finding_ids':['ISSUE-02'],'status':'done','verify':{'status':'done','method':'Verified on runtime'}},
-            {'id':'C','finding_ids':['ISSUE-01'],'status':'running','verify':{'status':'running','method':'Verify running'}},
+            {'id':'C','finding_ids':['ISSUE-01'],'status':'verifying','verify':{'status':'running','method':'Verify running'}},
             {'id':'D','finding_ids':['ISSUE-02'],'status':'blocked','verify':{'status':'pending','failure':'Codex job failed tests did not pass','method':'Blocked'}}]}}
         page = renderer.render(data, self.base)
-        row = page.split('<details class="grp fixed">', 1)[1].split('</details>', 1)[0]
+        row = page.split('<details class="grp installing">', 1)[1].split('</details>', 1)[0]
         self.assertIn('5 min', row); self.assertIn('Luna medium Fast', row)
-        self.assertIn('Render label', row); self.assertIn('Fixed', row)
+        self.assertIn('Render label', row); self.assertIn('Install', row)
         self.assertIn('Run the focused test and inspect the live page carefully', page)
-        self.assertIn('Failed', page); self.assertIn('Codex job failed tests did not pass', page)
+        self.assertIn('Blocked', page); self.assertIn('Codex job failed tests did not pass', page)
         self.assertIn('Verifying', page); self.assertIn('Verified', page)
         self.assertIn('2:30 PM IST – 2:35 PM IST', page)
         self.assertNotRegex(row, r'20\d\d-\d\d-\d\dT')
@@ -228,16 +280,21 @@ setImmediate(async()=>{
         self.assertNotIn('Inventory supplied at render time', page)
         self.assertNotIn('Live, read from installed copies at render time', page)
 
-    def test_workflow_times_render_localization_hooks_and_now_line(self):
+    def test_workflow_times_show_one_updated_clock_and_tick_in_browser(self):
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
         data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-10T10:00:00Z',
-                                         'now':'2026-11-10T10:00:00Z — Checking the installed build'}}
+                                         'now':'2026-11-10T11:00:00Z — Checking the installed build'}}
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertEqual(page.count('<time datetime='), 2)
-        self.assertIn('class="workflow-now"', page)
-        self.assertIn('Last reported', page)
+        self.assertEqual(page.count('<time datetime='), 1)
+        self.assertIn('Updated <time datetime=', page)
+        self.assertIn('3:30 PM IST', page)
+        self.assertIn('1 hr ago', page)
+        self.assertNotIn('workflow-now', page)
+        self.assertNotIn('Last reported', page)
         self.assertNotIn('Intl.RelativeTimeFormat', page)
-        self.assertNotIn('setInterval(formatPageTimes', page)
+        self.assertIn('setInterval(formatPageTimes,60000)', page)
+        data['tracking']['workflow']['now'] = '2026-11-12T10:00:00Z — Checking the installed build'
+        self.assertIn('2 days ago', renderer.render(data, Path(__file__).parents[1]))
 
     def test_workflow_strip_shows_gate_loop_round_and_report_last_deterministically(self):
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
@@ -251,16 +308,17 @@ setImmediate(async()=>{
             item['id'] = f'ISSUE-{index + 3:02d}'
             data['findings'].append(item)
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes 7 of 15', page)
+        self.assertIn('Fixes <b>7/15</b> verified', page)
         self.assertIn('Round 3', page)
-        self.assertIn('under 15 fixes', page)
+        self.assertIn('under 15 verified', page)
         self.assertIn('class="wf-band gate-met"', page)
         self.assertIn('class="wf-step done wf-gate"', page)
         self.assertIn('class="wf-exit"', page)
         self.assertIn('gate-met .wf-loop', page)
         timeline = page
-        stages = ['collect','present','plan_fix','install','verify','introspect','gate','report_rollover']
-        positions = [timeline.index(f'data-stage="{stage}"') for stage in stages]
+        stages = ['>Collect<','>Present<','>Plan &amp; fix<','>Install<','>Verify<',
+                  '>Introspect<','Fixes <b>7/15</b> verified','>Report &amp; roll over<']
+        positions = [timeline.index(stage) for stage in stages]
         self.assertEqual(positions, sorted(positions))
         self.assertEqual(page.count('aria-label="Workflow progress"'), 1)
         self.assertEqual(renderer.render(data, Path(__file__).parents[1]), page)
@@ -383,7 +441,7 @@ setImmediate(async()=>{
         subprocess.run(['node', '-e', program], check=True)
 
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
-    def test_in_progress_issue_sorts_after_checking_and_shows_working(self):
+    def test_in_progress_issue_sorts_after_checking_without_working_copy(self):
         template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
         sort = next(line for line in template.splitlines() if line.startswith('const findings='))
         program = """const items=[{id:'A',status:'failing'},{id:'B',status:'in_progress',check:{state:'not_fixed'}},
@@ -391,8 +449,8 @@ setImmediate(async()=>{
           const document={getElementById:()=>({textContent:JSON.stringify(items)})};\n"""
         program += sort + "\nif(findings.map(x=>x.id).join('')!=='CBAD')process.exit(1);"
         subprocess.run(['node', '-e', program], check=True)
-        self.assertIn("const working=item.status==='in_progress'", template)
-        self.assertIn("if(!working&&run?.status==='active'&&item.check)", template)
+        self.assertIn("Number(b.status==='in_progress')", sort)
+        self.assertNotIn('Working on it', template)
 
     def test_invalid_ids_status_and_missing_proof_fail(self):
         for mutation in ("duplicate", "status", "proof"):
@@ -446,7 +504,7 @@ setImmediate(async()=>{
         page = renderer.render(self.data, self.base)
         self.assertIn('Checking this install', page)
         self.assertIn('prefers-reduced-motion:reduce', page)
-        self.assertIn("item.status==='verified_fixed'", page)
+        self.assertIn("Number(a.status==='verified_fixed')", page)
         self.assertIn('"state": "pending"', page)
         self.data['tracking']['verification_run']['checks'].pop('ISSUE-02')
         with self.assertRaises(ValueError):
@@ -499,15 +557,16 @@ setImmediate(async()=>{
         self.assertNotIn('pstack', page)
         self.assertNotIn('batched-change-list 0.1.0', page)
 
-    def test_now_argument_formats_both_workflow_times_in_ist(self):
+    def test_now_argument_formats_updated_time_and_relative_age_in_ist(self):
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
         data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-14T07:00:00Z',
             'now':'2026-11-14T07:30:00Z — 2026-11-14T07:35:00Z'}}
         now = renderer.datetime.fromisoformat('2026-11-14T07:55:00+00:00')
         page = renderer.render(data, Path(__file__).parents[1], now=now)
-        self.assertIn('Last reported <time datetime="2026-11-14T12:30:00+05:30"', page)
-        self.assertIn('Nov 14, 2026, 12:30 PM IST (55 minutes ago)</time>', page)
-        self.assertIn('<strong>Now</strong> <time datetime="2026-11-14T07:55:00+00:00">1:25 PM IST</time>', page)
+        self.assertIn('Updated <time datetime="2026-11-14T07:00:00+00:00"', page)
+        self.assertIn('12:30 PM IST</time> · <span data-relative-time>55 min ago</span>', page)
+        self.assertNotIn('1:25 PM IST', page)
+        self.assertNotIn('workflow-now', page)
         self.assertNotIn('2026-11-14T07:35:00Z', page)
         self.assertEqual(renderer.render(data, Path(__file__).parents[1]), renderer.render(data, Path(__file__).parents[1]))
         with tempfile.TemporaryDirectory() as directory:
@@ -516,7 +575,8 @@ setImmediate(async()=>{
             source.write_text(json.dumps(data))
             subprocess.run(['python3', str(Path(__file__).with_name('render.py')), str(source), str(output),
                             '--now', '2026-11-14T07:55:00Z'], check=True, capture_output=True, text=True)
-            self.assertIn('1:25 PM IST', output.read_text())
+            self.assertIn('12:30 PM IST', output.read_text())
+            self.assertNotIn('1:25 PM IST', output.read_text())
 
 
 
@@ -537,13 +597,13 @@ setImmediate(async()=>{
             + [item('AGENT-18', 'untested'), item('WF-07', 'verified_fixed')]
         )
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes 18 of 15', page)
+        self.assertIn('Fixes <b>18/15</b> verified', page)
         self.assertIn('class="wf-band gate-met"', page)
         self.assertNotIn('class="wf-band gate-pending"', page)
         # 14 VF with an open page-tool finding stays short of the threshold and is not met.
         data['findings'] = [item(f'AGENT-{i:02d}') for i in range(1, 15)] + [item('PAGE-01', 'untested')]
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes 14 of 15', page)
+        self.assertIn('Fixes <b>14/15</b> verified', page)
         self.assertIn('class="wf-band gate-pending"', page)
         self.assertNotIn('class="wf-band gate-met"', page)
         # 15 product VF with leftover open page-tool and WF items: still met at the threshold.
@@ -552,13 +612,13 @@ setImmediate(async()=>{
             + [item('PAGE-01', 'untested'), item('BCL-01', 'failing'), item('WF-07', 'untested')]
         )
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes 15 of 15', page)
+        self.assertIn('Fixes <b>15/15</b> verified', page)
         self.assertIn('class="wf-band gate-met"', page)
         self.assertNotIn('class="wf-band gate-pending"', page)
         # 16 of 15 with an extra open product finding is still met.
         data['findings'] = [item(f'ISSUE-{i:02d}') for i in range(1, 17)] + [item('ISSUE-99', 'untested')]
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes 16 of 15', page)
+        self.assertIn('Fixes <b>16/15</b> verified', page)
         self.assertIn('class="wf-band gate-met"', page)
 
 
@@ -573,14 +633,106 @@ setImmediate(async()=>{
                             ]}}
         page = renderer.render(data, self.base)
         self.assertIn('Round 2', page)
-        self.assertIn('<summary class="plan-head"><strong>Round 2</strong> · 2 groups in parallel · 1 partial · 1 verified</summary>', page)
-        self.assertIn('<details class="plan" id="round-plan"', page)
-        self.assertNotIn('id="round-plan" open', page)
-        self.assertIn('class="grp partial"', page)
-        self.assertIn('Partial', page)
+        plan_head = page.split('<div class="plan-head">', 1)[1].split('</div>', 1)[0]
+        self.assertIn('<strong>Round 2</strong> · 1 lanes · each installs and verifies when ready', plan_head)
+        self.assertIn('<b>1</b> verifying', plan_head)
+        self.assertIn('class="grp verifying"', page)
+        self.assertIn('Verifying', page)
         self.assertIn('class="grp verified"', page)
         self.assertIn('Verified', page)
         self.assertNotIn('No fix plan', page)
+
+
+    def test_failed_lane_status_and_legacy_done_alias(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'plan': {'round': 1, 'groups': [
+            {'id':'F','finding_ids':['ISSUE-01'],'status':'failed','phase':'verify'},
+            {'id':'D','finding_ids':['ISSUE-02'],'status':'done','verify':{'status':'failed'}},
+        ]}}
+        page = renderer.render(data, self.base)
+        self.assertIn('class="grp failed"', page)
+        self.assertIn('Phase 4 of 5: Verify, failed', page)
+        self.assertIn('Fix failed · F', page)
+        self.assertIn('Fix failed · D', page)
+        data['tracking']['plan']['groups'][0]['status'] = 'unknown'
+        with self.assertRaisesRegex(ValueError, 'invalid status'):
+            renderer.render(data, self.base)
+
+
+    def test_lane_phase_comes_from_status_and_large_chips_show_one_count(self):
+        group = {'id':'A','status':'installing','phase':'fix','finding_ids':['ISSUE-01']}
+        self.assertEqual(renderer.plan_phase(group), 'install')
+        track = renderer.row_phase_track(group, 'installing')
+        self.assertIn('Phase 3 of 5: Install', track)
+        workflow = renderer.render_workflow('plan_fix',
+            [{**group, 'id':f'G{i}'} for i in range(6)], 0, 15, False, 0, 1)
+        self.assertIn('aria-label="6 lanes"', workflow)
+        self.assertIn('<span class="lc-more">6</span></span>', workflow)
+        self.assertNotIn('<span class="lc-more">6</span>6</span>', workflow)
+
+
+    def test_status_only_plan_update_clears_stale_phase(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'round':1,'plan':{'round':1,'groups':[
+            {'id':'A','finding_ids':['ISSUE-01'],'status':'blocked','phase':'fix','blocked_reason':'no mic'}]}}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, operations, page = root / 'findings.json', root / 'operations.json', root / 'page.html'
+            source.write_text(json.dumps(data))
+            operations.write_text(json.dumps([{'action':'update-plan-group','id':'A','patch':{'status':'installing'}}]))
+            result = subprocess.run([sys.executable, str(Path(__file__).with_name('manage_findings.py')),
+                                     'batch', str(source), str(operations), '--render', str(page)],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            group = json.loads(source.read_text())['tracking']['plan']['groups'][0]
+            self.assertEqual(group['status'], 'installing')
+            self.assertNotIn('phase', group)
+
+
+    def test_plan_rows_follow_lane_phase_and_legacy_status_aliases(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}, 'plan': {'round': 1, 'groups': [
+            {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'installing','phase':'install','verify':{'status':'pending','method':'Unit tests'}},
+            {'id':'B','name':'Still fixing','finding_ids':['ISSUE-02'],'status':'running','phase':'fix','codex':{'status':'running','model':'gpt-6-luna'}}]}}
+        page = renderer.render(data, self.base)
+        self.assertIn('class="grp installing"', page)
+        self.assertIn('>Installing</span>', page)
+        self.assertIn('class="grp running"', page)
+        self.assertIn('Phase 3 of 5: Install', page)
+        self.assertIn('data-stage="gate"', page)
+        self.assertNotIn('data-stage="install"', page)
+        self.assertIn('class="wf-step busy"', page)
+        data['tracking']['plan']['groups'][0]['status'] = 'verified'
+        data['tracking']['plan']['groups'][0].pop('phase')
+        data['tracking']['plan']['groups'][0]['verify'] = {'status':'verified','method':'Unit tests'}
+        page = renderer.render(data, self.base)
+        self.assertIn('class="grp verified"', page)
+        self.assertIn('Phase 4 of 5: Verify', page)
+        self.assertIn('class="wf-step done"', page)
+        data['tracking']['plan']['groups'][0].update(status='review', phase='review', verify={'status':'pending'})
+        page = renderer.render(data, self.base)
+        self.assertIn('class="grp review"', page)
+        self.assertIn('>In review</span>', page)
+        self.assertIn('Phase 2 of 5: Plan &amp; fix', page)
+        data['tracking']['workflow']['stage'] = 'install'
+        data['tracking']['plan']['groups'] = [
+            {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'done','phase':'install','verify':{'status':'pending'}},
+            {'id':'C','name':'Later group','finding_ids':['ISSUE-02'],'status':'pending','verify':{'status':'partial','fixed':0,'failed':1,'total':3}},
+        ]
+        page = renderer.render(data, self.base)
+        self.assertIn('class="grp installing"', page)
+        self.assertIn('class="grp planned"', page)
+        self.assertNotIn('data-stage="install" class="wf-step current"', page)
+        self.assertNotIn('data-stage="verify" class="wf-step current"', page)
+        data['tracking']['plan']['groups'].append(
+            {'id':'D','name':'Next-round group','finding_ids':['ISSUE-02'],'status':'deferred','phase':'deferred','depends_on':['A']}
+        )
+        page = renderer.render(data, self.base)
+        self.assertNotIn('class="grp parked"', page)
+        self.assertIn('Parked for Round 2', page)
+        self.assertIn('D · 1', page)
+        self.assertNotIn('>Failed</span>', page)
+
 
 
 

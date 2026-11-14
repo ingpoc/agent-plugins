@@ -224,8 +224,8 @@ final class InputActions: @unchecked Sendable {
         }
         // The focused text role in THIS window wins over any other text area.
         // A search field must not lose to the document editor (Codex r11).
-        // If the focused field rejects AX insert, refuse — never spill into
-        // a sibling writable area (Codex r11 confirm major 1).
+        // If AX insert fails, HID stays on this focused element; never spill
+        // into a sibling writable area (Codex r11 confirm major 1).
         let focusedIsArea = focused.map { axRole($0) == "AXTextArea" } ?? false
         if let focused {
             let facts = focusedFacts(focused)
@@ -235,13 +235,8 @@ final class InputActions: @unchecked Sendable {
                     "focused_is_area": focusedIsArea,
                 ], facts)
             }
-            return addingFocusedFacts([
-                "ok": false,
-                "error": "type_focused_insert_failed",
-                "method": "refused",
-                "windowId": Int(resolved.windowID),
-                "hint": "focused field rejected AX insert; refusing sibling fallthrough",
-            ], facts)
+            if let refuse = hidRefusal() { return refuse }
+            return addingFocusedFacts(hidTypeResult(text, resolved: resolved), facts)
         }
         for (el, _) in areas {
             let facts = focusedFacts(el)

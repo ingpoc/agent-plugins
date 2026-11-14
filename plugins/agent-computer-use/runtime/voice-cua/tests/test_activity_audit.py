@@ -278,8 +278,9 @@ class ActivityAudit(unittest.TestCase):
             raw = log.read_text()
         self.assertNotIn(sentinel, raw)
 
-    def test_cancel_and_confirmation_rows_do_not_duplicate_typed_redaction_fields(self) -> None:
+    def test_cancel_confirmation_and_textedit_rows_do_not_duplicate_typed_text(self) -> None:
         rows = []
+        textedit_args = {"app": "TextEdit", "steps": [{"op": "type_text", "text": "textedit-sentinel"}]}
         cases = (
             ({"app": "Login", "steps": [{"op": "type_text", "label": "Password",
                                                "text": "secure-sentinel"}]},
@@ -287,15 +288,20 @@ class ActivityAudit(unittest.TestCase):
             ({"app": "Unknown", "steps": [{"op": "type_text", "text": "unknown-sentinel"}]},
              {"ok": False, "needs_confirmation": True, "error_type": "needs_confirmation"},
              "tool_needs_confirmation"),
+            (textedit_args, {"ok": True, "verified": True}, "tool_result"),
+            (textedit_args, {"ok": False, "error_type": "action_failed"}, "tool_error"),
         )
         with patch.object(activity_log, "_append_row", side_effect=rows.append), \
              activity_log.tool_context(run_id="1234567890abcdef1234567890abcdef"):
             for args, result, _kind in cases:
                 activity_log.log_tool_result("cua_act", result, arguments=args)
         self.assertEqual([row["kind"] for row in rows], [case[2] for case in cases])
-        self.assertEqual([row["typed_text"] for row in rows], ["[redacted]", "[redacted]"])
+        self.assertEqual([row["typed_text"] for row in rows], ["[redacted]"] * 4)
         self.assertEqual([row["typed_text_redacted_reason"] for row in rows],
-                         ["secure_target", "security_unknown"])
+                         ["secure_target", "security_unknown", "security_unknown", "security_unknown"])
+        self.assertEqual([row["typed_text_length"] for row in rows],
+                         [len("secure-sentinel"), len("unknown-sentinel"),
+                          len("textedit-sentinel"), len("textedit-sentinel")])
 
     def test_dev_tool_rows_log_metadata_only(self) -> None:
         command_secret = "COMMAND_PRIVATE_SENTINEL"

@@ -32,6 +32,7 @@ import os
 import re
 import threading
 import time
+from urllib.parse import urlencode
 import uuid
 from typing import Any, Callable
 
@@ -144,6 +145,9 @@ LIVE_INSTRUCTIONS = (
     "short sentences. Say what was done, not what could be done. Never end with offers like 'anything else?'.\n"
     "Backchannel policy: Brief acknowledgments only ('On it.'). Greetings, small talk and 'can you hear me' "
     "get a short spoken reply and no delegation.\n"
+    "Treat a completed user transcript as authoritative: act on its clearly transcribed app or site name, even if "
+    "the audio seemed unclear. If an app lookup says it was not found or is not installed, say that and ask only "
+    "to confirm its path or installation; do not ask the user to repeat the name.\n"
     "Honor exact output-format requests without adding a greeting or acknowledgment.\n"
     "Interruption policy: Stop speaking when interrupted and listen. If the user changes or cancels the "
     "request, delegate the change; never say work was cancelled until the backend confirms it. If a "
@@ -229,9 +233,15 @@ class XAIProvider(VoiceProvider):
         self._meta_lock = threading.Lock()
         self._pending_meta: list[tuple[dict[str, Any] | None, float]] = []
         self._response_meta: dict[str, dict[str, Any]] = {}
+        self.conversation_id = ""
 
     def url(self) -> str:
-        return f"wss://api.x.ai/v1/realtime?model={self.model}"
+        with self._meta_lock:
+            conversation_id = self.conversation_id
+        query = {"model": self.model}
+        if conversation_id:
+            query["conversation_id"] = conversation_id
+        return f"wss://api.x.ai/v1/realtime?{urlencode(query)}"
 
     def resolve_key(self) -> str:
         from voice_cua.auth import resolve_xai_api_key
@@ -240,7 +250,7 @@ class XAIProvider(VoiceProvider):
 
     @staticmethod
     def _session(session: dict[str, Any]) -> dict[str, Any]:
-        out: dict[str, Any] = {}
+        out: dict[str, Any] = {"resumption": {"enabled": True}}
         for key in ("instructions", "tools"):
             if key in session:
                 out[key] = session[key]
@@ -286,6 +296,13 @@ class XAIProvider(VoiceProvider):
 
     def inbound(self, event: dict[str, Any]) -> list[dict[str, Any]]:
         et = event.get("type")
+        if et == "conversation.created":
+            conversation = event.get("conversation")
+            conversation_id = str(conversation.get("id") or "").strip() if isinstance(conversation, dict) else ""
+            if conversation_id and len(conversation_id) <= 256:
+                with self._meta_lock:
+                    self.conversation_id = conversation_id
+            return [event]
         if et not in {"response.created", "response.done"}:
             return [event]
         response = event.get("response")

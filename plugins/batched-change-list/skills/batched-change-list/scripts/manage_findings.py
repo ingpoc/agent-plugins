@@ -12,6 +12,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import live_state
+
 RENDERER_PATH = Path(__file__).with_name("render.py")
 SPEC = importlib.util.spec_from_file_location("change_list_renderer", RENDERER_PATH)
 RENDERER = importlib.util.module_from_spec(SPEC)
@@ -19,6 +21,7 @@ SPEC.loader.exec_module(RENDERER)
 
 
 def stamp_plan_group(group, now):
+    group["updated_at"] = now
     codex = group.get("codex")
     verify = group.get("verify")
     if isinstance(codex, dict):
@@ -205,6 +208,35 @@ def validate_record(record):
                 raise ValueError()
         except ValueError:
             raise ValueError("evidence timestamp must be ISO 8601 with timezone or unknown") from None
+
+
+def validate_plan_group_fields(group, round_number):
+    status = group.get("status")
+    valid_statuses = RENDERER.PLAN_STATUSES | set(RENDERER.PLAN_STATUS_ALIASES) | {"done"}
+    if status not in valid_statuses:
+        raise ValueError(f"plan group {group.get('id')} has invalid status")
+    valid_phases = RENDERER.PLAN_PHASES | set(RENDERER.PLAN_PHASE_ALIASES) | {"blocked", "deferred"}
+    if "phase" in group and group["phase"] not in valid_phases:
+        raise ValueError(f"plan group {group.get('id')} has invalid phase")
+    if status in ("blocked", "failed") and group.get("phase") not in RENDERER.PLAN_PHASES:
+        raise ValueError(f"plan group {group.get('id')} requires a phase when {status}")
+    reason = group.get("blocked_reason")
+    if reason is not None and (not isinstance(reason, str) or len(reason.split()) > 6):
+        raise ValueError(f"plan group {group.get('id')} blocked_reason must be at most 6 words")
+    if status == "blocked" and not reason:
+        raise ValueError(f"plan group {group.get('id')} requires blocked_reason")
+    if status == "deferred" and group.get("parked_to") is None:
+        group["parked_to"] = round_number + 1
+    parked_to = group.get("parked_to")
+    if parked_to is not None and (type(parked_to) is not int or parked_to < 1):
+        raise ValueError(f"plan group {group.get('id')} parked_to must be a positive round number")
+    if status == "parked" and parked_to is None:
+        raise ValueError(f"plan group {group.get('id')} requires parked_to")
+    for field in ("build", "updated_at"):
+        if field in group and not isinstance(group[field], str):
+            raise ValueError(f"plan group {group.get('id')} {field} must be a string")
+    if group.get("updated_at") and RENDERER.parse_instant(group["updated_at"]) is None:
+        raise ValueError(f"plan group {group.get('id')} updated_at must be an ISO 8601 timestamp")
 
 
 def normalized_text(value):
@@ -604,12 +636,105 @@ def require_rollover_gate(findings, tracking, force, action):
                    "verified_fixed": fixed, "threshold": threshold})
 
 
+def validate_merged_record(merged):
+    if not isinstance(merged, dict):
+        raise ValueError("merged stage requires merge metadata")
+    commit = merged.get("commit_sha")
+    if not isinstance(commit, str) or not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", commit, re.I):
+        raise ValueError("merged.commit_sha must be a full Git commit SHA")
+    merged_at = merged.get("merged_at")
+    if not isinstance(merged_at, str):
+        raise ValueError("merged.merged_at must be an ISO 8601 timestamp with timezone")
+    validate_record({"check":"merge", "outcome":"merged", "build":"unknown", "session":"merge",
+                     "timestamp":merged_at, "reference":"merge"})
+    stacked = merged.get("stacked_prs")
+    if not isinstance(stacked, dict) or stacked.get("status") not in ("complete", "pending", "partial"):
+        raise ValueError("merged.stacked_prs requires status complete, pending or partial")
+    return merged
+
+
+def prepare_rollover(document, operation, force=False):
+    findings = document.get("findings")
+    tracking = document.setdefault("tracking", {})
+    pr, worktree = operation.get("pull_request"), operation.get("worktree")
+    if not isinstance(pr, dict) or not pr.get("label") or not pr.get("url") or not isinstance(worktree, str) or not worktree.strip():
+        raise ValueError("rollover requires pull_request {label,url} and worktree")
+    if "install" in tracking.get("stages_reached", []) and not tracking.get("introspect"):
+        raise ValueError("full cycle (reached install): record introspect with --sections before rollover")
+    require_rollover_gate(findings, tracking, force, "rollover")
+    rollover = tracking.setdefault("rollover", {})
+    if not isinstance(rollover, dict):
+        raise ValueError("tracking.rollover must be an object")
+    excluded = rollover.get("excluded_ids", [])
+    if not isinstance(excluded, list) or any(not isinstance(identifier, str) for identifier in excluded):
+        raise ValueError("tracking.rollover.excluded_ids must be an array of finding IDs")
+    fixed = [item["id"] for item in findings if item.get("status") == "verified_fixed"]
+    source_pr = operation.get("source_pr")
+    if source_pr is None:
+        match = re.search(r"/pull/(\d+)", str(tracking.get("pull_request", {}).get("url", "")))
+        source_pr = int(match.group(1)) if match else rollover.get("source_pr")
+    rollover["source_pr"] = source_pr
+    rollover["excluded_ids"] = sorted(set(excluded) | set(fixed))
+    rollover["unresolved_ids"] = [item["id"] for item in findings if item.get("status") not in CLOSED_STATUSES]
+    if tracking.get("merged"):
+        rollover["source_merge"] = tracking.pop("merged")
+    tracking["pull_request"], tracking["worktree"] = {"label": pr["label"], "url": pr["url"]}, worktree.strip()
+    timestamp = operation.get("now") or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    validate_record({"check":"rollover", "outcome":"started", "build":"unknown", "session":"rollover",
+                     "timestamp":timestamp, "reference":"rollover"})
+    round_number = RENDERER.rollover_round(tracking)
+    tracking.setdefault("round_history", []).append({"round": round_number, "fixed": len(fixed), "ended_at": timestamp})
+    tracking["round"] = 1
+    tracking["cycle"] = RENDERER.rollover_cycle(tracking) + 1
+    tracking["workflow"] = {"stage":"collect", "updated_at":timestamp}
+    run = tracking.pop("verification_run", None)
+    if isinstance(run, dict):
+        tracking.setdefault("verification_history", []).append({**run, "status":"interrupted" if run.get("status") == "active" else run.get("status")})
+    tracking.pop("stages_reached", None)
+    tracking.pop("introspect", None)
+    for item in findings:
+        if item.get("status") == "in_progress":
+            item["status"] = "untested"
+    return document
+
+
+def rollover_live(path, operation, force=False):
+    path = Path(path).resolve()
+    if not path.is_relative_to(live_state.STATE.resolve()):
+        raise ValueError("rollover requires an adopted live tracker; run bcl adopt first")
+    record = next((record for record in live_state.registry().values()
+                   if Path(record["live"]).resolve() == path), None)
+    if not record:
+        raise ValueError("rollover requires an adopted live tracker; run bcl adopt first")
+    live = path
+    if path != live and path.read_bytes() != live.read_bytes():
+        raise ValueError(f"in-repo tracker differs from live state; live file: {live}")
+    document = prepare_rollover(json.loads(live.read_text(encoding="utf-8")), operation, force)
+    return live_state.register_rollover(record, live, document)[2]
+
+
+def missing_report_file(error, base):
+    filename = Path(error.filename or "")
+    return filename.is_absolute() and filename.resolve().is_relative_to(Path(base).resolve())
+
+
+def warn_missing_report_file(error, base):
+    filename = Path(error.filename).resolve()
+    print(f"warning: missing report capture {filename.relative_to(Path(base).resolve())}; tracker update saved and page render skipped", file=sys.stderr)
+
+
 def write(path, original, store, findings, validate=True, touch=True):
     if store["kind"] == "json":
         document = store["document"]
         document[store["collection"]] = findings
         if validate and store["collection"] == "findings":
-            RENDERER.render(document, path.parent)
+            base = live_state.evidence_base(path)
+            try:
+                RENDERER.render(document, base)
+            except FileNotFoundError as error:
+                if not missing_report_file(error, base):
+                    raise
+                warn_missing_report_file(error, base)
         if touch:
             touch_workflow(document)
         content = (json.dumps(document, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
@@ -772,10 +897,14 @@ def main(argv=None):
             operations = read_json(args.operations)
             if not isinstance(operations, list) or not operations:
                 raise ValueError("batch requires a nonempty operations array")
+            if any(isinstance(op, dict) and op.get("action") == "rollover" for op in operations):
+                if len(operations) != 1 or not isinstance(operations[0], dict):
+                    raise ValueError("rollover must be the only batch operation")
+                new_live = rollover_live(path, operations[0], args.force)
+                print(f"Created new live list {new_live}; the current viewer stays on the old list until bcl start begins Collect")
+                return 0
             existing_run = store["document"].get("tracking", {}).get("verification_run")
             run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "set-stage", "set-activity", "set-plan", "update-plan-group"}
-            if (existing_run or any(isinstance(op, dict) and op.get("action") == "rollover" for op in operations)) and not args.render:
-                raise ValueError("rollover requires --render so the page stays current")
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()
@@ -795,7 +924,7 @@ def main(argv=None):
                         if len(ids) != len(groups) or any(not isinstance(i, str) or not i.strip() for i in ids) or len(ids) != len(set(ids)):
                             raise ValueError("plan groups require unique nonempty ids")
                         finding_ids = {item["id"] for item in findings}
-                        states = {"pending", "running", "blocked", "done", "failed"}
+                        states = RENDERER.PLAN_STATUSES | set(RENDERER.PLAN_STATUS_ALIASES) | {"done"}
                         for key in ("merge", "build", "verify"):
                             if key in plan and not isinstance(plan[key], dict):
                                 raise ValueError(f"plan.{key} must be an object")
@@ -815,6 +944,7 @@ def main(argv=None):
                                 raise ValueError(f"plan group {group['id']} verify.summary must be at most 10 words")
                             if not isinstance(group.get("depends_on", []), list) or any(not isinstance(i, str) or i not in ids for i in group.get("depends_on", [])):
                                 raise ValueError(f"plan group {group['id']} has invalid dependencies")
+                            validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
                         plan["cycle"] = cycle
                         plan["round"] = RENDERER.rollover_round(tracking)
                         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -826,7 +956,7 @@ def main(argv=None):
                             raise ValueError("update-plan-group requires a plan for the current cycle")
                         group = next((g for g in plan.get("groups", []) if g.get("id") == operation.get("id")), None)
                         patch = operation.get("patch")
-                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes"}:
+                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at"}:
                             raise ValueError("update-plan-group requires id and a valid group patch")
                         if any(key in patch and not isinstance(patch[key], str) for key in ("label", "verify_summary", "name", "worktree", "reason")):
                             raise ValueError("label, name, verify_summary, worktree and reason must be strings")
@@ -841,10 +971,11 @@ def main(argv=None):
                         if "verify" in patch and patch["verify"].get("summary") is not None and (not isinstance(patch["verify"]["summary"], str) or len(patch["verify"]["summary"].split()) > 10):
                             raise ValueError("verify.summary must be at most 10 words")
                         group.update(patch)
+                        if "status" in patch and "phase" not in patch and patch["status"] not in ("blocked", "failed"):
+                            group.pop("phase", None)
+                        validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
                         stamp_plan_group(group, datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
                         plan["round"] = RENDERER.rollover_round(tracking)
-                        if "status" in patch and patch["status"] not in {"pending", "running", "blocked", "done", "failed"}:
-                            raise ValueError("invalid plan group status")
                     continue
                 if action in ("set-stage", "set-activity"):
                     target = operation.get("stage")
@@ -903,6 +1034,8 @@ def main(argv=None):
                     target = "report_rollover" if action == "rollover" else operation.get("stage")
                     tracking = store["document"].setdefault("tracking", {})
                     previous_stage = tracking.get("workflow", {}).get("stage")
+                    if previous_stage == "merged" and target != "merged":
+                        raise ValueError("merged is terminal; start a new list with bcl rollover")
                     if target == "report_rollover" and "install" in tracking.get("stages_reached", []) and not tracking.get("introspect"):
                         raise ValueError("full cycle (reached install): record introspect with --sections before report_rollover")
                     if target == "report_rollover" and action != "set-activity":
@@ -915,12 +1048,31 @@ def main(argv=None):
                     stage = operation.get("stage")
                     if stage not in (*RENDERER.WORKFLOW_STAGES, None) or "stage" not in operation:
                         raise ValueError("set-stage requires a valid stage or null")
-                    store["document"].setdefault("tracking", {})["workflow"] = {"stage": stage, "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+                    tracking = store["document"].setdefault("tracking", {})
+                    current_workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
+                    stale_after = operation.get("stale_after_min", current_workflow.get("stale_after_min"))
+                    if stale_after is not None and (type(stale_after) is not int or stale_after < 1):
+                        raise ValueError("stale_after_min must be a positive integer")
+                    if stage == "merged":
+                        merged = validate_merged_record(operation.get("merged"))
+                        tracking["merged"] = copy.deepcopy(merged)
+                        updated_at = merged["merged_at"]
+                    else:
+                        updated_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                    tracking["workflow"] = {"stage": stage, "updated_at": updated_at}
+                    if stale_after is not None:
+                        tracking["workflow"]["stale_after_min"] = stale_after
                     continue
                 if action == "set-activity":
                     stage, ids, activity = operation.get("stage"), operation.get("ids"), operation.get("now")
                     if stage not in RENDERER.WORKFLOW_STAGES:
                         raise ValueError("set-activity requires a valid stage")
+                    current_workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
+                    stale_after = operation.get("stale_after_min", current_workflow.get("stale_after_min"))
+                    if stale_after is not None and (type(stale_after) is not int or stale_after < 1):
+                        raise ValueError("stale_after_min must be a positive integer")
+                    if stage == "merged":
+                        raise ValueError("use set-stage with merge metadata to mark a list merged")
                     if not isinstance(ids, list) or any(not isinstance(identifier, str) or not identifier.strip() for identifier in ids) or len(ids) != len(set(ids)):
                         raise ValueError("set-activity ids must be a list of unique finding IDs")
                     if not isinstance(activity, str) or not activity.strip() or "\n" in activity or "\r" in activity:
@@ -944,34 +1096,8 @@ def main(argv=None):
                         tracking["round"] = round_number + 1
                         if isinstance(tracking.get("plan"), dict): tracking["plan"]["round"] = round_number + 1
                     tracking["workflow"] = {"stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
-                    continue
-                if action == "rollover":
-                    # One step at merge time: exclude every verified_fixed finding, list the rest as carried over,
-                    # point the page header at the new PR and worktree, and set the stage (was five manual edits).
-                    pr, worktree = operation.get("pull_request"), operation.get("worktree")
-                    if not isinstance(pr, dict) or not pr.get("label") or not pr.get("url") or not isinstance(worktree, str) or not worktree.strip():
-                        raise ValueError("rollover requires pull_request {label,url} and worktree")
-                    tracking = store["document"].setdefault("tracking", {})
-                    fixed = [item["id"] for item in findings if item.get("status") == "verified_fixed"]
-                    rollover = tracking.setdefault("rollover", {})
-                    if not isinstance(rollover, dict):
-                        raise ValueError("tracking.rollover must be an object")
-                    rollover["source_pr"] = operation.get("source_pr", rollover.get("source_pr"))
-                    rollover["excluded_ids"] = sorted(set(rollover.get("excluded_ids", [])) | set(fixed))
-                    rollover["unresolved_ids"] = [item["id"] for item in findings if item.get("status") not in CLOSED_STATUSES]
-                    tracking["pull_request"], tracking["worktree"] = {"label": pr["label"], "url": pr["url"]}, worktree.strip()
-                    timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-                    note = str(operation.get("now") or f"Rolled over to {pr['label']}").strip().splitlines()[0]
-                    round_number = RENDERER.rollover_round(tracking)
-                    tracking.setdefault("round_history", []).append({"round": round_number, "fixed": len(fixed), "ended_at": timestamp})
-                    tracking["round"] = 1
-                    tracking["cycle"] = RENDERER.rollover_cycle(tracking) + 1
-                    tracking["workflow"] = {"stage": "collect", "updated_at": timestamp, "now": f"{timestamp} — {note}"}
-                    run = tracking.pop("verification_run", None)  # a run never carries into the next PR's list
-                    if isinstance(run, dict):
-                        tracking.setdefault("verification_history", []).append({**run, "status": "interrupted" if run.get("status") == "active" else run.get("status")})
-                    tracking.pop("stages_reached", None)  # a new cycle starts after rollover
-                    tracking.pop("introspect", None)
+                    if stale_after is not None:
+                        tracking["workflow"]["stale_after_min"] = stale_after
                     continue
                 if action in run_actions:
                     if action == "finish-check" and operation.get("id") in started_checks:
@@ -1003,6 +1129,10 @@ def main(argv=None):
                         raise ValueError("patch must be a JSON object")
                     if "check" in patch or "check_history" in patch:
                         raise ValueError("use verification actions to update check progress")
+                    carried_from = patch.get("carried_from")
+                    if "carried_from" in patch and carried_from is not None and not (
+                            type(carried_from) is int and carried_from > 0 or isinstance(carried_from, str) and carried_from.strip()):
+                        raise ValueError("carried_from must be a positive round number or nonempty cycle")
                     updated = merge_patch(dict(findings[index]), patch)
                     warn_summary(updated)
                     validate_detail_limits(updated)
@@ -1033,10 +1163,17 @@ def main(argv=None):
                 raise ValueError("render output must differ from input and template")
             touch_workflow(store["document"])
             inventory = RENDERER.load_inventory(args.inventory) if args.inventory else None
-            rendered = RENDERER.render(store["document"], args.base or path.parent, inventory)
+            base = args.base or live_state.evidence_base(path)
+            try:
+                rendered = RENDERER.render(store["document"], base, inventory)
+            except FileNotFoundError as error:
+                if not missing_report_file(error, base):
+                    raise
+                warn_missing_report_file(error, base)
+                rendered = None
             html_original = args.render.read_bytes() if args.render and args.render.exists() else None
             write(path, original, store, findings, validate=False, touch=False)
-            if args.render:
+            if args.render and rendered is not None:
                 try:
                     run = store["document"].get("tracking", {}).get("verification_run")
                     (live_write if run else atomic_write)(args.render, html_original, rendered.encode("utf-8"))

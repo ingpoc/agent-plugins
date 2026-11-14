@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Stage-oriented entrypoint for batched-change-list."""
-import argparse, json, subprocess, sys
+import argparse, json, re, shutil, subprocess, sys
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 HERE = Path(__file__).resolve().parents[1]
 SKILL = HERE / "skills/batched-change-list"
@@ -10,6 +11,134 @@ SCRIPTS = SKILL / "scripts"
 MANAGE = SCRIPTS / "manage_findings.py"
 sys.path.insert(0, str(SCRIPTS))
 import live_state
+import manage_findings
+
+def _provider(url):
+    return "gh" if (urlsplit(url).hostname or "").lower() == "github.com" else "origin"
+
+def _pull_request_data(provider, url, repo):
+    executable = shutil.which(provider)
+    if not executable:
+        return None, f"{provider} CLI is unavailable"
+    fields = ("mergeCommit,mergedAt,headRefName,state",) if provider == "gh" else (
+        "mergeCommit,mergedAt,headRefName,status", "mergeCommit,mergedAt,head,status",
+        "merge_commit,merged_at,head_branch,status")
+    for selected in fields:
+        command = [executable, "pr", "view", url]
+        if repo and not repo.startswith("local/"):
+            command.extend(["--repo", repo])
+        command.extend(["--json", selected])
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode:
+            continue
+        try:
+            data = json.loads(result.stdout)
+            if isinstance(data, dict) and isinstance(data.get("pullRequest"), dict):
+                data = data["pullRequest"]
+            if not isinstance(data, dict):
+                continue
+            return data, None
+        except json.JSONDecodeError:
+            continue
+    return None, f"{provider} could not return merge metadata"
+
+def _value(data, *keys):
+    for key in keys:
+        value = data.get(key)
+        if value is not None:
+            return value
+    return None
+
+def _merge_commit(value):
+    if isinstance(value, dict):
+        value = _value(value, "oid", "sha", "hash")
+    return value if isinstance(value, str) else None
+
+def _branch_name(value):
+    if isinstance(value, dict):
+        value = _value(value, "ref", "name", "branch")
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+def _merged_details(args, tracking, repo):
+    pr = tracking.get("pull_request", {})
+    url = pr.get("url") if isinstance(pr, dict) else None
+    if not isinstance(url, str) or not url:
+        raise ValueError("bcl merged requires tracking.pull_request.url")
+    provider = _provider(url)
+    data, problem = (None, None)
+    if not (args.merge_commit and args.merged_at and args.base_branch):
+        data, problem = _pull_request_data(provider, url, repo)
+    if data:
+        state = str(_value(data, "state", "status") or "").lower()
+        api_time = _value(data, "mergedAt", "merged_at")
+        api_commit = _merge_commit(_value(data, "mergeCommit", "merge_commit"))
+        if state in ("open", "draft") or (state in ("closed", "closed_unmerged") and not api_time):
+            raise ValueError("pull request is not merged; bcl merged only records an already merged pull request")
+    else:
+        api_time = api_commit = None
+    commit = args.merge_commit or api_commit
+    merged_at = args.merged_at or api_time
+    branch = args.base_branch or (_branch_name(_value(data, "headRefName", "head_branch", "head")) if data else None)
+    if not commit or not merged_at:
+        detail = problem or "merge metadata was not returned"
+        raise ValueError(f"cannot confirm merge metadata ({detail}); pass --merge-commit SHA and --merged-at ISO-8601")
+    manage_findings.validate_merged_record({"commit_sha":commit, "merged_at":merged_at,
+                                            "stacked_prs":{"status":"pending"}})
+    return provider, url, commit, merged_at, branch
+
+def _retarget_stacked(provider, repo, branch, pull_number):
+    target = "main"
+    todo = f"list open PRs based on {branch or '<unknown branch>'} and retarget them to {target}"
+    if not branch:
+        return {"status":"pending", "base_branch":None, "target_branch":target,
+                "retargeted_prs":[], "pending_prs":[], "todo":todo}
+    if branch == target:
+        return {"status":"complete", "base_branch":branch, "target_branch":target,
+                "retargeted_prs":[], "pending_prs":[], "todo":""}
+    executable = shutil.which(provider)
+    if not executable or not repo or repo.startswith("local/"):
+        return {"status":"pending", "base_branch":branch, "target_branch":target,
+                "retargeted_prs":[], "pending_prs":[], "todo":todo}
+    if provider == "gh":
+        command = [executable, "pr", "list", "--repo", repo, "--state", "open", "--base", branch,
+                   "--limit", "1000", "--json", "number"]
+    else:
+        command = [executable, "pr", "list", "--repo", repo, "--state", "open", "--base", branch,
+                   "--limit", "1000", "--json", "number"]
+    result = subprocess.run(command, capture_output=True, text=True)
+    try:
+        prs = json.loads(result.stdout) if result.returncode == 0 else None
+    except json.JSONDecodeError:
+        prs = None
+    if not isinstance(prs, list):
+        return {"status":"pending", "base_branch":branch, "target_branch":target,
+                "retargeted_prs":[], "pending_prs":[], "todo":todo}
+    retargeted, pending = [], []
+    for pr in prs:
+        number = pr.get("number") if isinstance(pr, dict) else None
+        if str(number) == str(pull_number):
+            continue
+        if not isinstance(number, (int, str)) or not str(number).isdigit():
+            pending.append(str(number or "unknown")); continue
+        command = [executable, "pr", "edit", str(number)]
+        command.extend(["--repo", repo, "--base", target])
+        edited = subprocess.run(command, capture_output=True, text=True)
+        (retargeted if edited.returncode == 0 else pending).append(int(number))
+    status = "complete" if not pending else "partial" if retargeted else "pending"
+    return {"status":status, "base_branch":branch, "target_branch":target,
+            "retargeted_prs":retargeted, "pending_prs":pending, "todo":todo if pending else ""}
+
+def _new_pr_url(old_url, number, explicit):
+    if explicit:
+        url = explicit
+    else:
+        url, count = re.subn(r"(/pull/)\d+(?=$|[?#])", rf"\g<1>{number}", old_url, count=1)
+        if not count:
+            raise ValueError("cannot derive the new PR URL; pass --new-url")
+    match = re.search(r"/pull/(\d+)(?=$|[?#])", url)
+    if not match or int(match.group(1)) != number:
+        raise ValueError("--new-url must contain the --new-pr number in its /pull/N path")
+    return url
 
 def main():
     parser = argparse.ArgumentParser()
@@ -18,6 +147,9 @@ def main():
     parser.add_argument("--ids", action="append", default=[]); parser.add_argument("--plan", type=Path)
     parser.add_argument("--result"); parser.add_argument("--issues", type=Path); parser.add_argument("--sections", type=Path)
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
+    parser.add_argument("--new-pr", type=int); parser.add_argument("--new-url"); parser.add_argument("--worktree")
+    parser.add_argument("--merge-commit"); parser.add_argument("--merged-at"); parser.add_argument("--base-branch")
+    parser.add_argument("--force", action="store_true")
     parser.add_argument("stage"); args, command_args = parser.parse_known_args()
     if args.stage == "adopt" and not args.data and command_args: args.data = Path(command_args.pop(0))
     if args.stage == "install-hooks":
@@ -44,7 +176,7 @@ def main():
         import render
         report, base = live_state.report_paths(record, live)
         report.write_text(render.render(json.loads(live.read_text()), base))
-    if record:
+    if record and not record.get("rollover_pending"):
         live_state.ensure_viewer(key, record, live, plugin_version)
     if args.stage == "adopt":
         if not record: parser.error("could not register tracker")
@@ -57,11 +189,14 @@ def main():
         parser.error(f"in-repo tracker differs from live state; live file: {live}")
     data = json.loads(live.read_text())
     tracking = data.get("tracking", {}); stages = tracking.get("stages_reached", [])
+    begins_collect = args.stage == "start" and ("collect" not in stages or record.get("rollover_pending"))
     stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     if args.stage == "status":
         import render
         fixed, threshold, met = render.rollover_gate(data.get("findings", []), tracking)
         print(json.dumps({"adopted": True, "live": str(live), "stage": tracking.get("workflow", {}).get("stage"), "cycle": tracking.get("cycle", 1), "gate": {"fixed": fixed, "threshold": threshold, "met": met}, "plan": [{"id": g.get("id"), "status": g.get("status")} for g in tracking.get("plan", {}).get("groups", [])]}, indent=2)); return
+    if record.get("rollover_pending") and (args.stage != "start" or not begins_collect):
+        parser.error("run bcl start to begin Collect before using the new list")
     if args.stage == "merge":
         home = Path(record["home"])
         if live.with_suffix(".unsnapshotted").exists(): parser.error(f"live tracker has unsnapshotted changes: {live}")
@@ -70,9 +205,48 @@ def main():
         if live.read_bytes() != committed:
             parser.error(f"live tracker has unsnapshotted changes: {live}")
         return
+    if args.stage == "rollover":
+        if not args.new_pr or args.new_pr < 1 or not args.worktree:
+            parser.error("rollover requires --new-pr N and --worktree NAME")
+        old_pr = tracking.get("pull_request", {})
+        old_url = old_pr.get("url") if isinstance(old_pr, dict) else None
+        if not isinstance(old_url, str): parser.error("rollover requires tracking.pull_request.url")
+        try:
+            new_url = _new_pr_url(old_url, args.new_pr, args.new_url)
+        except ValueError as error:
+            parser.error(str(error))
+        operation = {"action":"rollover", "pull_request":{"label":f"PR #{args.new_pr}", "url":new_url},
+                     "worktree":args.worktree}
+        if args.now: operation["now"] = args.now
+        command = [sys.executable, str(MANAGE), "batch", str(live), "-"]
+        if args.force: command.append("--force")
+        result = subprocess.run(command, input=json.dumps([operation]), text=True, capture_output=True)
+        if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
+        sys.stdout.write(result.stdout)
+        return
+    if args.stage == "merged":
+        url = tracking.get("pull_request", {}).get("url", "")
+        repo = live_state.repo_id(record.get("home", ""), _provider(url)) if url else record.get("repo", "")
+        try:
+            provider, url, commit, merged_at, branch = _merged_details(args, tracking, repo)
+        except ValueError as error:
+            parser.error(str(error))
+        match = re.search(r"/pull/(\d+)", url)
+        stacked = _retarget_stacked(provider, repo, branch, match.group(1) if match else None)
+        merged = {"commit_sha":commit, "merged_at":merged_at, "stacked_prs":stacked}
+        report, base = live_state.report_paths(record, live)
+        command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
+        operation = {"action":"set-stage", "stage":"merged", "merged":merged}
+        result = subprocess.run(command, input=json.dumps([operation]), text=True, capture_output=True)
+        if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
+        live_state.snapshot(record, live)
+        if stacked["status"] != "complete":
+            print(f"TODO: {stacked['todo']}", file=sys.stderr)
+        print(f"Marked {tracking.get('pull_request', {}).get('label', 'pull request')} Merged / Done ({commit[:12]} at {merged_at})")
+        return
     stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     stage = args.stage
-    if stage == "start": operations = [{"action":"set-activity","stage":"present" if "collect" in stages else "collect","ids":args.ids,"now":"Started collection"}]
+    if stage == "start": operations = [{"action":"set-activity","stage":"collect" if record.get("rollover_pending") else "present" if "collect" in stages else "collect","ids":args.ids,"now":"Started collection"}]
     elif stage == "plan":
         plan = json.loads(args.plan.read_text()) if args.plan else tracking.get("plan")
         if not plan: parser.error("plan requires --plan or an existing tracking.plan")
@@ -93,6 +267,12 @@ def main():
     result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
     if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
     live_state.snapshot(record, live)
+    if record.get("rollover_pending") and begins_collect:
+        records = live_state.registry()
+        current = records[key]
+        current.pop("rollover_pending", None)
+        live_state.save_registry(records)
+        live_state.ensure_viewer(key, current, live, plugin_version)
     if args.then_command: subprocess.run(args.then_command, shell=True, check=True)
     elif command_args: subprocess.run(command_args, check=True)
     if args.progress:

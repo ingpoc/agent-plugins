@@ -1,6 +1,6 @@
 # Collect
 
-Run `bcl start` to record Collect. Identify the product, installed build or revision, test scope, reference or expected behavior, and what the user has authorized. Preserve existing work, user priorities, authorizations, issue IDs, evidence, and verification history. Test the real artifact using the appropriate project and platform tools.
+Run `bcl start` to record Collect. After a rollover, only this first `bcl start` begins Collect on the new list and points its viewer to that list; rollover itself keeps the old viewer in place. Carried findings that were `in_progress` start as `untested` so the page says work is underway only after it starts on this list. Identify the product, installed build or revision, test scope, reference or expected behavior, and what the user has authorized. Preserve existing work, user priorities, authorizations, issue IDs, evidence, and verification history. Test the real artifact using the appropriate project and platform tools.
 
 Record each finding once with an ID, affected state, expected and actual behavior, severity, status, and concrete evidence. Attach screenshots, logs, reproduction steps, or links when available. Mark missing evidence, uncertainty, and untested paths explicitly; observability events are supporting evidence, not proof of cause. Keep unrelated work separate.
 

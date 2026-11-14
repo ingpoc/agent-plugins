@@ -35,10 +35,11 @@ enum IslandCodexThreads {
                   let object = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
                   let type = object["type"] as? String,
                   let payload = object["payload"] as? [String: Any] else { continue }
+            let settings = payload["thread_settings"] as? [String: Any]
+            result.serviceTier = settings?["service_tier"] as? String ?? payload["service_tier"] as? String ?? result.serviceTier
             if type == "turn_context" {
                 result.model = payload["model"] as? String ?? result.model
                 result.effort = payload["effort"] as? String ?? result.effort
-                result.serviceTier = payload["service_tier"] as? String ?? result.serviceTier
             } else if type == "event_msg", let event = payload["type"] as? String {
                 if event.hasPrefix("hook_") || [payload["message"] as? String, payload["reason"] as? String].compactMap({ $0 }).contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("hook:") }) { continue }
                 switch event {
@@ -101,16 +102,20 @@ enum IslandCodexThreads {
         var isDesktopApp: Bool { executable.contains("/ChatGPT.app/") || executable.contains("/Codex.app/") }
     }
 
-    static func turnContext(_ tail: Data) -> (model: String?, effort: String?)? {
-        var latest: (String?, String?)?
-        let marker = Data("\"turn_context\"".utf8)
+    static func turnContext(_ tail: Data) -> (model: String?, effort: String?, serviceTier: String?)? {
+        var latest: (String?, String?, String?)?
         for line in tail.split(separator: 10) {
-            // Decode only turn_context records; other rollout lines (prompts, tool output) are never parsed.
-            guard line.range(of: marker) != nil,
+            // Decode only event and context records; other rollout lines are never parsed.
+            guard line.range(of: Data("\"event_msg\"".utf8)) != nil ||
+                    line.range(of: Data("\"turn_context\"".utf8)) != nil,
                   let object = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
-                  object["type"] as? String == "turn_context",
+                  let type = object["type"] as? String,
+                  type == "turn_context" || type == "event_msg",
                   let payload = object["payload"] as? [String: Any] else { continue }
-            latest = (payload["model"] as? String, payload["effort"] as? String)
+            let settings = payload["thread_settings"] as? [String: Any]
+            latest = (type == "turn_context" ? payload["model"] as? String : latest?.0,
+                      type == "turn_context" ? payload["effort"] as? String : latest?.1,
+                      settings?["service_tier"] as? String ?? payload["service_tier"] as? String ?? latest?.2)
         }
         return latest
     }

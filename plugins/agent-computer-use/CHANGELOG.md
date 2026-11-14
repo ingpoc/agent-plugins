@@ -1,4 +1,25 @@
+## 0.2.147
+
+- Run the GPT-Live idle-close watchdog on Grok Voice as well, so a typed text session actually closes after VOICE_CUA_LIVE_IDLE_CLOSE_S.
+
+## 0.2.146
+
+- Island Fast label reads `service_tier` from `event_msg` as well as `turn_context`.
+- GPT-Live idle close uses last user activity, so keepalive and server chatter no longer keep the session open.
+
+## 0.2.145
+
+- Typing: if the focused field in the pinned window rejects AX insert, fall back to HID on that same field instead of refusing the type. Sibling text areas are still excluded.
+
 # Changelog: agent-computer-use
+
+## 0.2.144
+
+- Samantha: typed turns settle after a second confirm, reconnects keep project and task context, and typed replies are no longer cut at 240 characters.
+- Samantha: follow-on words stay on the active task, read-only shell commands skip approval, and she uses a just-heard name or folder hint instead of asking again.
+- Samantha: a missing app is treated as not running rather than retried with a bundle ID; Terminal typing waits for fresh output and changes strategy after a retry cap; typing no longer fails because of logger conflicts.
+- Island: Fast mode is labelled when Codex runs at priority.
+- Hygiene checks resolve a release worktree to its owning clone and ignore local-only work in a different clone.
 
 ## 0.2.143
 
