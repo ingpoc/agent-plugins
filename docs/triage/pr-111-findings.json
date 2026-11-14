@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-14T16:55:59Z",
+      "updated_at": "2026-11-14T16:57:19Z",
       "now": "2026-11-14T16:55:59Z — Plan recorded"
     },
     "rollover": {
@@ -2130,8 +2130,8 @@
             "PAGE-08"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "fix",
+          "status": "verified",
+          "phase": "done",
           "reason": "First group. Status accuracy: show Stale after stale_after_min, tick loop steps only from this list's current-round stage history, and have bcl plan refresh the clock and move to Plan & fix.",
           "worktree": "samantha-pr111-rollover",
           "files": [
@@ -2149,15 +2149,13 @@
             "fast": true
           },
           "verify": {
-            "command": "python3 -m unittest scripts.test_render scripts.test_manage_findings -q && curl -s http://127.0.0.1:53366/",
+            "status": "verified",
             "summary": "Unit tests plus live :53366 page",
-            "method": "Run test_render and test_manage_findings, then curl the :53366 page for Stale, empty Collect loop ticks, and Plan & fix after bcl plan.",
-            "status": "failed",
-            "fixed": 0,
-            "failed": 1,
+            "fixed": 1,
+            "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-14T16:55:59Z"
+          "updated_at": "2026-11-14T16:57:19Z"
         },
         {
           "id": "AGENT",
@@ -2197,8 +2195,8 @@
             "PLAN-03"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "fix",
+          "status": "verified",
+          "phase": "done",
           "reason": "Independent one-file docs fix in plan-fix.md. PLAN-02 depends on this text landing, so it is deferred.",
           "worktree": "samantha-pr111-rollover",
           "files": [
@@ -2211,15 +2209,13 @@
             "fast": true
           },
           "verify": {
-            "command": "rg -n 'about 4 issues' plugins/batched-change-list/skills/batched-change-list/references/plan-fix.md",
+            "status": "verified",
             "summary": "plan-fix.md states the four-issue cap",
-            "method": "Confirm references/plan-fix.md tells agents to cap a parallel fix group at about 4 issues.",
-            "status": "pending",
-            "fixed": 0,
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-14T16:55:59Z"
+          "updated_at": "2026-11-14T16:57:19Z"
         },
         {
           "id": "VOICE",
@@ -2462,7 +2458,7 @@
       "id": "PLAN-03",
       "title": "Re-add the cap of about 4 issues per parallel fix group",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "verified_fixed",
       "summary": "The guidance to keep a parallel fix group to about 4 issues was lost and needs to be put back in the plan-and-fix instructions.",
       "impact": "Plans can again put too many issues in one job, which slows the round.",
       "done_when": "The plan-and-fix reference again tells agents to cap a parallel fix group at about 4 issues.",
@@ -2472,7 +2468,12 @@
         "Related": "PLAN-02",
         "Belongs in": "references/plan-fix.md"
       },
-      "carried_from": 110
+      "carried_from": 110,
+      "verification": "references/plan-fix.md now tells agents to cap a parallel fix group at about 4 issues, next to the 3-4 independent group cap.",
+      "verification_refs": [
+        "plugins/batched-change-list/skills/batched-change-list/references/plan-fix.md",
+        "commit after 4e74eee7"
+      ]
     },
     {
       "id": "OBS-23",
@@ -2640,7 +2641,7 @@
       "id": "PAGE-08",
       "title": "Fresh Collect shows stale clock without a Stale tag, and ticks later workflow steps",
       "source": "User reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "On a new list at Collect, the clock can sit more than ten minutes old with no Stale tag, and Plan & fix, Install, Verify and Introspect look finished even though this round has not started.",
       "impact": "You cannot tell whether the list is actually moving: a stale page looks current, and later steps look done before anything has been planned.",
@@ -2651,7 +2652,14 @@
         "Priority": "high",
         "Kind": "Status accuracy",
         "Where to look": "plugins/batched-change-list/skills/batched-change-list/scripts/render.py, templates/change-list.html, bin/bcl, scripts/manage_findings.py"
-      }
+      },
+      "verification": "Live :53366 on 14 Nov 2026: at Collect the page showed Updated 9:46 PM IST · 39 min ago with a visible Stale tag, and Plan & fix, Install, Verify and Introspect were upcoming, not ticked. After bcl plan, the clock moved to 10:25:59 PM IST (just now) and the timeline showed Plan & fix busy with later loop steps still empty. Unit test test_fresh_rollover_collect_leaves_loop_steps_empty_and_can_go_stale passed with the rest of the bcl suites (97 OK).",
+      "verification_refs": [
+        "/tmp/pr111-page08.html",
+        "/tmp/pr111-planned.html",
+        "plugins/batched-change-list/skills/batched-change-list/scripts/test_render.py::test_fresh_rollover_collect_leaves_loop_steps_empty_and_can_go_stale",
+        "commit 4e74eee7"
+      ]
     }
   ]
 }
