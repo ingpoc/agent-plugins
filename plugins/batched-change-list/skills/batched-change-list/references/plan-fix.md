@@ -24,3 +24,10 @@ Do not fix and test one issue at a time.
 4. **Serialize builds and live verify.** Installs and builds share one queue; groups that finish close together share one build. Live verify is serialized too (one Mini, island, and Comet) and runs each group's stored `verify.command`. Mark `verified_fixed` as evidence lands. The gate counts those fixes immediately. The round ends when all lanes finish or block.
 5. **Automate what repeats.** Anything done twice becomes a script, and the removed or automated step is logged on the list.
 6. **Tell the owner of a tool when its output is wrong.** Send the exact run id, field and line; reinstall and re-run that same run to confirm.
+
+## Round rules
+
+1. Process and workflow fixes must not outnumber product fixes in a round. Park new process issues for the next round unless they block the current one.
+2. Default Codex fix jobs to Luna medium. Use max only for hard groups. Briefs name exact file paths.
+3. Run tests and a diff check before Terra. Skip Terra for one-file fixes.
+4. Job reports are 10 lines or fewer. Re-read only the tracker parts that changed.
