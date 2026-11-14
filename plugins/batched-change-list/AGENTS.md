@@ -6,14 +6,14 @@ Collection routing: repo-root `AGENTS.md`. Client load path: [compatible-clients
 
 ## What ships
 
-Skills only. `skills/batched-change-list/` holds `SKILL.md`, four references, three stdlib Python scripts, one HTML template, an example tracker and their tests. There is no `mcp.json`, no `bin/`, no install script, no data directory and no network service except the optional loopback viewer on `127.0.0.1:53366`.
+`bin/bcl` is the stage entrypoint and `bin/bcl-hook` provides repository git-hook freshness checks. The skill folder holds `SKILL.md`, per-step references, stdlib Python scripts, one HTML template, an example tracker and their tests. There is no `mcp.json` or install script. `bcl` starts a per-list viewer on an available loopback port and records its port, pid, package version, data path and start time under `$BCL_STATE_DIR/viewers` (`~/.agents/state/batched-change-list` by default).
 
 Requires `python3` (standard library only). Nothing else to install or configure after the client loads the plugin.
 
 ## After the client has loaded this package
 
 1. Confirm the skill is listed: `batched-change-list`. If the client lists plugins but not their skills, its skill discovery is off; fix that in the client, not by copying this folder elsewhere.
-2. Put the tracker in the product under test, not in this plugin: for example `<project>/docs/change-list/findings.json` with the rendered `change-list.html` beside it (`skills/batched-change-list/examples/findings.json` is the shape). Commit both with the fixes they describe.
+2. Put the initial tracker in the product repo using `skills/batched-change-list/examples/findings.json` as the shape, then run `bcl --data <tracker.json> adopt`. The live tracker is outside git; successful stages snapshot JSON and HTML and commit them only in the adopting home worktree.
 3. Self-validate the package after any edit:
 
 ```sh
@@ -29,7 +29,7 @@ This package ships **no** standing authorization to merge. With nothing recorded
 
 An owner who wants the original hands-off rule records it in the product repository’s applicable agent instructions, for example its `AGENTS.md`:
 
-> Standing authorization: when at least 10 distinct findings in the current PR are `verified_fixed`, finish accessible verification, commit and push the verified-fix report, and merge to `main` after required checks and reviews pass. Verify the merge, then fast-forward the local `main` without overwriting local changes. Explicit instructions and project restrictions override this.
+> Standing authorization: when at least 15 distinct findings in the current PR are `verified_fixed`, finish accessible verification, commit and push the verified-fix report, and merge to `main` after required checks and reviews pass. Verify the merge, then fast-forward the local `main` without overwriting local changes. Explicit instructions and project restrictions override this.
 
 The skill checks the applicable product repository instructions for this policy. Add it only for a repository where an autonomous merge of a fix PR is acceptable; do not edit the installed plugin copy.
 
