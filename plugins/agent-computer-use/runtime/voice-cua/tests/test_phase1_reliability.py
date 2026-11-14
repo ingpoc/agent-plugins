@@ -117,15 +117,8 @@ class IdleCloseTests(unittest.TestCase):
         session._last_user_activity = 979.0
         session._on_message(None, json.dumps({"type": "response.created", "response": {"id": "resp_1"}}))
 
-        class StopAfterOneCheck:
-            calls = 0
-
-            def wait(self, timeout: float) -> bool:
-                self.calls += 1
-                return self.calls > 1
-
-        session._stop = StopAfterOneCheck()  # type: ignore[assignment]
         with patch("voice_cua.live_session.time.monotonic", return_value=1000.0), \
+                patch.object(session, "_stop_sleep", side_effect=[False, True]), \
                 patch.object(session, "_conversation_busy", return_value=False), \
                 patch.object(session, "_finalize_provider") as finalize:
             session._idle_watchdog()

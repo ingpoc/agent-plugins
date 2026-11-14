@@ -131,7 +131,7 @@ elif args[:2] != ['pr', 'edit']:
         tracker["tracking"]["plan"] = {"cycle": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "running"}]}
         live.write_text(json.dumps(tracker)); self.data.write_text(json.dumps(tracker))
         stub = self.root / "check_stage.py"
-        stub.write_text("import json, sys\nfrom pathlib import Path\ndata, page = map(Path, sys.argv[1:])\nassert json.loads(data.read_text())['tracking']['workflow']['stage'] == 'install'\nassert '<li data-stage=\\\"install\\\" class=\\\"wf-step current\\\" aria-current=\\\"step\\\">' in page.read_text()\n")
+        stub.write_text("import json, sys\nfrom pathlib import Path\ndata, page = map(Path, sys.argv[1:])\nhtml = page.read_text()\nassert json.loads(data.read_text())['tracking']['workflow']['stage'] == 'install'\nassert 'Install' in html\nassert 'class=\"workflow-now\"' not in html\n")
         command = f'"{sys.executable}" "{stub}" "{live}" "{self.page}"'
         result = self.call("install", live, "--ids", "ISSUE-01", "--then", command)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -208,7 +208,10 @@ elif args[:2] != ['pr', 'edit']:
         new_viewer = json.loads(self.viewer_state_path(new_live).read_text())
         self.assertEqual(Path(new_viewer["data"]).resolve(), new_live.resolve())
         self.assertEqual(json.loads(self.viewer_state_path(old_live).read_text()), old_viewer)
-        self.assertIn("Working on it", (self.home / registry["example/project/124"]["html"]).read_text())
+        new_html = (self.home / registry["example/project/124"]["html"]).read_text()
+        self.assertNotIn("Working on it", new_html)
+        self.assertNotIn('class="workflow-now"', new_html)
+        self.assertTrue("ISSUE-01" in new_html)
         self.assertEqual(self.page.read_bytes(), old_page)
 
     def test_merged_records_terminal_state_and_retargets_stacked_prs(self):

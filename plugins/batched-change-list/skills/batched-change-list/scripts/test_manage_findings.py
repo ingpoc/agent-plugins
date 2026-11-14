@@ -81,7 +81,10 @@ class ManageFindingsTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             doc = json.loads(self.data.read_text())
             self.assertEqual(doc['tracking']['workflow']['stage'], stage)
-            self.assertEqual(page.read_text().count('aria-current="step"'), 0 if stage is None else 1)
+            html = page.read_text()
+            current_steps = 1 if stage in ('collect', 'present', 'report_rollover') else 0
+            self.assertEqual(html.count('aria-current="step"'), current_steps)
+            self.assertNotIn('class="workflow-now"', html)
 
     def test_workflow_stage_guard_and_clear(self):
         ops, page = self.root / 'stage.json', self.root / 'stage.html'
@@ -98,7 +101,10 @@ class ManageFindingsTests(unittest.TestCase):
         data = json.loads(self.data.read_text())
         self.assertEqual(data['findings'][0]['status'], 'in_progress')
         self.assertEqual(data['tracking']['workflow']['stage'], 'plan_fix')
-        self.assertIn('class="wf-step current" aria-current="step"><span class="wf-dot">', page.read_text())
+        html = page.read_text()
+        self.assertIn('class="fresh">Updated', html)
+        self.assertNotIn('class="workflow-now"', html)
+        self.assertIn('Plan &amp; fix', html)
         plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
         self.assertEqual(run(plan).returncode, 0)
         self.assertEqual(run({'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'}).returncode, 0)
@@ -236,7 +242,8 @@ class ManageFindingsTests(unittest.TestCase):
         activity = doc['tracking']['workflow']['now']
         self.assertRegex(activity, r'^\d{4}-\d\d-\d\dT.*Z — Inspecting the shared root cause$')
         html = page.read_text()
-        self.assertIn('class="workflow-now"', html)
+        self.assertIn('class="fresh">Updated', html)
+        self.assertNotIn('class="workflow-now"', html)
         self.assertNotIn('id="verification-progress"', html)
 
     def test_batch_rollover_requires_adopted_live_list_and_preserves_source(self):

@@ -1865,6 +1865,16 @@ class LiveSession:
             pass
         return True
 
+    def _stop_sleep(self, seconds: float) -> bool:
+        """Sleep up to seconds or until stop is set. True if stopped."""
+        deadline = time.monotonic() + seconds
+        while not self._stop.is_set():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            time.sleep(min(0.05, remaining))
+        return True
+
     def _keepalive_due(self, now: float) -> bool:
         if self._dormant.is_set() or self.ws is None or not self._session_ready.is_set():
             return False
@@ -1876,7 +1886,7 @@ class LiveSession:
         rate = LIVE_SAMPLE_RATE
         chunk = base64.b64encode(b"\x00\x00" * int(rate * self.LIVE_KEEPALIVE_CHUNK_S)).decode()
         logged = False
-        while not self._stop.wait(timeout=self.LIVE_KEEPALIVE_CHUNK_S):
+        while not self._stop_sleep(self.LIVE_KEEPALIVE_CHUNK_S):
             if not self._keepalive_due(time.monotonic()):
                 logged = False
                 continue
@@ -1888,7 +1898,7 @@ class LiveSession:
 
     def _idle_watchdog(self) -> None:
         """Close a GPT-Live session after LIVE_IDLE_CLOSE_SECONDS without speech or work."""
-        while not self._stop.wait(timeout=5.0):
+        while not self._stop_sleep(5.0):
             if self._audio:
                 self._audio.flush_timings(run_id=self._current_run_id(),
                                           causal_ref=self._current_response_step_ref())
