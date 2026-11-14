@@ -41,7 +41,27 @@ class RenderTests(unittest.TestCase):
         self.assertIn('<svg width="22" height="22" viewBox="0 0 22 22"', gate_node)
         self.assertIn('stroke-width="3"', gate_node)
 
+
+    def test_fresh_rollover_collect_leaves_loop_steps_empty_and_can_go_stale(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {
+            'round': 1,
+            'stages_reached': ['collect'],
+            'workflow': {'stage': 'collect', 'updated_at': '2026-11-14T11:00:00Z'},
+        }
+        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+        band = page.split('class="wf-band-steps"', 1)[1].split('</ol>', 1)[0]
+        for label in ('Plan &amp; fix', 'Install', 'Verify', 'Introspect'):
+            self.assertIn(f'class="wf-step upcoming"><span class="wf-dot"><i></i></span><span class="wf-label">{label}</span>', band)
+        self.assertNotIn('class="wf-step done">', band)
+        self.assertIn('data-stage="collect" class="wf-step current" aria-current="step"', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale</span>', page)
+        self.assertNotIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
+        fresh = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:05:00Z'))
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', fresh)
+
     def test_merged_page_shows_commit_and_ist_time(self):
+
         sha = 'a' * 40
         self.data['tracking'] = {'workflow': {'stage':'merged','updated_at':'2026-11-14T11:44:49Z'},
                                  'merged': {'commit_sha':sha,'merged_at':'2026-11-14T11:44:49Z'}}

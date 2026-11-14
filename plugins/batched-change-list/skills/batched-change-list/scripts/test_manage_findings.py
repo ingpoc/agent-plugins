@@ -29,6 +29,11 @@ class ManageFindingsTests(unittest.TestCase):
             self.assertEqual(self.data.read_bytes(), before)
         plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','label':'Settings behavior','verify_summary':'Check the selected panel'}]}
         self.assertEqual(batch({'action':'set-plan','plan':plan}).returncode, 0)
+        planned = json.loads(self.data.read_text())['tracking']
+        self.assertEqual(planned['workflow']['stage'], 'plan_fix')
+        self.assertTrue(planned['workflow']['updated_at'].endswith('Z'))
+        self.assertIn('Plan recorded', planned['workflow']['now'])
+        self.assertIn('plan_fix', planned['stages_reached'])
         self.assertEqual(batch({'action':'set-plan','plan':plan}, {'action':'update-plan-group','id':'A','patch':{'status':'done','label':'Updated label','verify_summary':'Runtime check passed'}}).returncode, 0)
         group = json.loads(self.data.read_text())['tracking']['plan']['groups'][0]
         self.assertEqual((group['status'], group['label'], group['verify_summary']), ('done','Updated label','Runtime check passed'))
@@ -228,6 +233,12 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(tracking['round'], 2)
         self.assertEqual(tracking['round_history'][0]['round'], 1)
         self.assertEqual(tracking['plan']['round'], 2)
+        self.assertEqual(tracking['workflow']['stage'], 'plan_fix')
+        self.assertIn('plan_fix', tracking['stages_reached'])
+        self.assertNotIn('install', tracking['stages_reached'])
+        self.assertNotIn('verify', tracking['stages_reached'])
+        self.assertNotIn('introspect', tracking['stages_reached'])
+        self.assertNotIn('gate', tracking['stages_reached'])
         group = tracking['plan']['groups'][0]
         self.assertEqual((group['name'], group['worktree'], group['codex']['job_id'], group['codex']['duration_s']), ('Plain group','fix-a','job-1',300))
 

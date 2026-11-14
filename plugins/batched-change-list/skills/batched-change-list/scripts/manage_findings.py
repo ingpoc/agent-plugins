@@ -950,6 +950,13 @@ def main(argv=None):
                         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                         for group in groups: stamp_plan_group(group, stamp)
                         tracking["plan"] = plan
+                        current_workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
+                        workflow = {"stage": "plan_fix", "updated_at": stamp, "now": f"{stamp} — Plan recorded"}
+                        if current_workflow.get("stale_after_min") is not None:
+                            workflow["stale_after_min"] = current_workflow["stale_after_min"]
+                        tracking["workflow"] = workflow
+                        if "plan_fix" not in tracking.setdefault("stages_reached", []):
+                            tracking["stages_reached"].append("plan_fix")
                     else:
                         plan = tracking.get("plan")
                         if not isinstance(plan, dict) or plan.get("cycle", cycle) != cycle:
@@ -1095,6 +1102,10 @@ def main(argv=None):
                         history.append({"round": round_number, "fixed": RENDERER.rollover_gate(findings, tracking)[0], "ended_at": timestamp})
                         tracking["round"] = round_number + 1
                         if isinstance(tracking.get("plan"), dict): tracking["plan"]["round"] = round_number + 1
+                        loop = {"plan_fix", "install", "verify", "introspect", "gate"}
+                        tracking["stages_reached"] = [step for step in tracking.get("stages_reached", []) if step not in loop]
+                        if "plan_fix" not in tracking["stages_reached"]:
+                            tracking["stages_reached"].append("plan_fix")
                     tracking["workflow"] = {"stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
                     if stale_after is not None:
                         tracking["workflow"]["stale_after_min"] = stale_after

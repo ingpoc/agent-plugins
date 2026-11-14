@@ -356,9 +356,10 @@ def render_plan(data, tracking, plan, round_number, now):
             + render_issue_copy(data, lanes, round_number))
 
 
-def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, round_number):
+def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, round_number, reached=None):
     order = ["collect", "present", "plan_fix", "install", "verify", "introspect", "gate", "report_rollover", "merged"]
     active_index = order.index(active) if active in order else -1
+    reached = [step for step in (reached or []) if isinstance(step, str)]
 
     def simple_step(key, label):
         index = order.index(key)
@@ -388,7 +389,10 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
     steps = []
     for index, (key, label) in enumerate((("plan_fix", "Plan & fix"), ("install", "Install"), ("verify", "Verify"), ("introspect", "Introspect"))):
         count = positions.count(index)
-        state = "busy" if count else "done" if not any(position <= index for position in positions) else "upcoming"
+        past = active in order and order.index(active) > order.index(key)
+        # Empty lanes must not tick the band: a loop step is done only when this
+        # list's own stage history recorded it in the current round and we have moved past it.
+        state = "busy" if count or active == key else "done" if key in reached and past else "upcoming"
         step_lanes = [(group, status) for group, status, position in lanes if position == index]
         chips = []
         for status in ("planned", "running", "review", "installing", "verifying"):
@@ -793,13 +797,13 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     render_now = reference or reported
     lanes = lane_status_by_finding(data, groups, round_number)
     in_progress = sum(item.get("status") == "in_progress" for item in findings)
-    stale = bool(reported and reference and active_lanes and (reference - reported).total_seconds() > stale_after * 60)
-    stale_tag = f'<span class="tag-stale" title="No update for over {stale_after} minutes while lanes are active"{"" if stale else " hidden"}>Stale</span>'
+    stale = bool(reported and reference and (reference - reported).total_seconds() > stale_after * 60)
+    stale_tag = f'<span class="tag-stale" title="No update for over {stale_after} minutes"{"" if stale else " hidden"}>Stale</span>'
     relative_html = f'<span data-relative-time>{html.escape(relative)}</span>'
     merge_html = f'<span class="merge-meta" title="Merge commit"><span>Merge</span> <code>{html.escape(merge_commit)}</code></span>' if merge_commit else ""
     fresh_html = (f'<span class="fresh">Updated {time_html} · {relative_html}{merge_html}{stale_tag}</span>'
                   if time_html else '<span class="fresh">No update recorded</span>')
-    timeline_steps = render_workflow(active, groups, fixed_count, threshold, gate_met, in_progress, round_number)
+    timeline_steps = render_workflow(active, groups, fixed_count, threshold, gate_met, in_progress, round_number, tracking_data.get("stages_reached") or [])
     plan_view = render_plan(data, tracking_data, plan, round_number, render_now)
     viewer_html = (f'<p class="viewer-footer">reading {html.escape(str(viewer["path"]))}, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}</p>' if viewer else "")
     timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow</strong>{fresh_html}</div>'

@@ -250,7 +250,9 @@ def main():
     elif stage == "plan":
         plan = json.loads(args.plan.read_text()) if args.plan else tracking.get("plan")
         if not plan: parser.error("plan requires --plan or an existing tracking.plan")
-        operations = [{"action":"set-plan","plan":plan},{"action":"set-activity","stage":"plan_fix","ids":args.ids,"now":"Plan recorded"}]
+        operations = [{"action":"set-plan","plan":plan}]
+        if args.ids:
+            operations.append({"action":"set-activity","stage":"plan_fix","ids":args.ids,"now":"Plan recorded"})
     elif stage in ("fix", "install", "verify"):
         ids = args.ids or [x["id"] for x in data.get("findings", []) if x.get("status") == "in_progress"]
         operations = [{"action":"set-activity","stage":{"fix":"plan_fix","install":"install","verify":"verify"}[stage],"ids":ids,"now":f"{stage.title()} in progress"}]
