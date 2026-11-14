@@ -151,9 +151,8 @@ final class IslandHub {
         s.plugins.sort { ($0.plugin, $0.agent, $0.target_app ?? "") < ($1.plugin, $1.agent, $1.target_app ?? "") }
         let stale = entries.values.filter { isStale($0, now: now) && Self.canRetainStale($0.agent) }
             .sorted { $0.updated > $1.updated }
-        s.agents += stale.filter {
-            $0.agent.plugin == nil && !($0.source == .grokBot && $0.agent.status == "running")
-        }.map { e in
+        // Live grok running posts are merged into IslandGrokBotActivity.rows; stale ones still belong here.
+        s.agents += stale.filter { $0.agent.plugin == nil }.map { e in
             var a = e.agent
             a.status = "stale"
             a.needs_you = false
