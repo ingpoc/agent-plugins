@@ -1,3 +1,8 @@
+## 0.2.146
+
+- Island Fast label reads `service_tier` from `event_msg` as well as `turn_context`.
+- GPT-Live idle close uses last user activity, so keepalive and server chatter no longer keep the session open.
+
 ## 0.2.145
 
 - Typing: if the focused field in the pinned window rejects AX insert, fall back to HID on that same field instead of refusing the type. Sibling text areas are still excluded.

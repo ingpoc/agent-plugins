@@ -1897,7 +1897,7 @@ class LiveSession:
             if self._dormant.is_set() or self.ws is None or not self._session_ready.is_set():
                 continue
             busy = self._conversation_busy(time.monotonic())
-            quiet = time.monotonic() - max(self._last_activity, self._last_user_activity)
+            quiet = time.monotonic() - self._last_user_activity
             if (not busy and getattr(self.provider, "rotate_requested", False)
                     and quiet >= self.LIVE_ROTATE_QUIET_SECONDS and not getattr(self, "_restart_pending", False)):
                 # Context budget: restart seeded with recent utterances only (no fork) while quiet.
@@ -1907,7 +1907,7 @@ class LiveSession:
                 continue
             if busy or quiet < self.LIVE_IDLE_CLOSE_SECONDS:
                 continue
-            log_event("live_idle_close", idle_s=round(time.monotonic() - self._last_activity, 1))
+            log_event("live_idle_close", idle_s=round(quiet, 1))
             self._dormant.set()
             self._session_ready.clear()
             self._finalize_provider(timeout=3.0)

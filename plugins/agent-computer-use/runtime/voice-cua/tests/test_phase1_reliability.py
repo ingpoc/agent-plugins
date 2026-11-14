@@ -107,6 +107,33 @@ class RealtimeRemovedTests(unittest.TestCase):
         self.assertFalse(hasattr(gateway, "mint_client_secret"))
 
 
+class IdleCloseTests(unittest.TestCase):
+    def test_server_chatter_does_not_reset_idle_close_clock(self) -> None:
+        session = make_session()
+        session.provider.manages_barge_in = True
+        session.LIVE_IDLE_CLOSE_SECONDS = 20
+        session.LIVE_ROTATE_QUIET_SECONDS = 10_000
+        session._session_ready.set()
+        session._last_user_activity = 979.0
+        session._on_message(None, json.dumps({"type": "response.created", "response": {"id": "resp_1"}}))
+
+        class StopAfterOneCheck:
+            calls = 0
+
+            def wait(self, timeout: float) -> bool:
+                self.calls += 1
+                return self.calls > 1
+
+        session._stop = StopAfterOneCheck()  # type: ignore[assignment]
+        with patch("voice_cua.live_session.time.monotonic", return_value=1000.0), \
+                patch.object(session, "_conversation_busy", return_value=False), \
+                patch.object(session, "_finalize_provider") as finalize:
+            session._idle_watchdog()
+
+        finalize.assert_called_once_with(timeout=3.0)
+        self.assertIn({"type": "__closed__"}, session.ws.events)
+
+
 class GAEventTests(unittest.TestCase):
     """P1-2: speaking triggers on first GA output_audio.delta; Beta aliases gone."""
 
