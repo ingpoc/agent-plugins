@@ -897,8 +897,16 @@ class LiveSession:
     def _current_branch() -> str:
         import subprocess
         try:
-            return subprocess.run(["git", "branch", "--show-current"], check=True, capture_output=True,
-                                  text=True, timeout=1).stdout.strip()
+            current = subprocess.run(
+                ["git", "branch", "--show-current"],
+                check=True, capture_output=True, text=True, timeout=1,
+            ).stdout.strip()
+            if current:
+                return current
+            return subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                check=True, capture_output=True, text=True, timeout=1,
+            ).stdout.strip()
         except (OSError, subprocess.SubprocessError):
             return ""
 

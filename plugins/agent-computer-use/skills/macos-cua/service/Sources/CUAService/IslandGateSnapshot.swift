@@ -71,7 +71,7 @@ enum IslandGateFixtures {
         case "checking", "04-checking":
             state = .checking(claimID: "fixture-claim", since: Date(), follow: .confirmed, post: .pending)
         case "conflict": state = .conflict(deviceName: "Studio Mac", rebindAvailableAt: nil)
-        case "unlocked", "05-unlocked": state = .unlocked(account: account, verified: true, exp: ISO8601DateFormatter().date(from: "2026-11-14T12:00:00Z")!)
+        case "unlocked", "05-unlocked": state = .unlocked(account: account, verified: true, exp: Date().addingTimeInterval(86_400 * 14))
         case "pending-follow": state = .pendingFollow(account: account, since: Date())
         case "trial-3days", "trial-linkedin": state = .trial(account: account, ends: Date().addingTimeInterval(3 * 86_400))
         case "trial-prelaunch": state = .trial(account: account, ends: Date().addingTimeInterval(3 * 86_400))
