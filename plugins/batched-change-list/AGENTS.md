@@ -6,14 +6,14 @@ Collection routing: repo-root `AGENTS.md`. Client load path: [compatible-clients
 
 ## What ships
 
-`bin/bcl` is the stage entrypoint and `bin/bcl-hook` provides repository git-hook freshness checks. The skill folder holds `SKILL.md`, four references, three stdlib Python scripts, one HTML template, an example tracker and their tests. There is no `mcp.json`, install script, or data directory; the optional viewer listens on `127.0.0.1:53366`.
+`bin/bcl` is the stage entrypoint and `bin/bcl-hook` provides repository git-hook freshness checks. The skill folder holds `SKILL.md`, four references, stdlib Python scripts, one HTML template, an example tracker and their tests. There is no `mcp.json` or install script. `bcl` starts a per-list viewer on an available loopback port and records its port, pid, package version, data path and start time under `$BCL_STATE_DIR/viewers` (`~/.agents/state/batched-change-list` by default).
 
 Requires `python3` (standard library only). Nothing else to install or configure after the client loads the plugin.
 
 ## After the client has loaded this package
 
 1. Confirm the skill is listed: `batched-change-list`. If the client lists plugins but not their skills, its skill discovery is off; fix that in the client, not by copying this folder elsewhere.
-2. Put the tracker in the product under test, not in this plugin: for example `<project>/docs/change-list/findings.json` with the rendered `change-list.html` beside it (`skills/batched-change-list/examples/findings.json` is the shape). Commit both with the fixes they describe.
+2. Put the initial tracker in the product repo using `skills/batched-change-list/examples/findings.json` as the shape, then run `bcl --data <tracker.json> adopt`. The live tracker is outside git; successful stages snapshot JSON and HTML and commit them only in the adopting home worktree.
 3. Self-validate the package after any edit:
 
 ```sh

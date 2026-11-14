@@ -26,10 +26,11 @@ class ManageFindingsTests(unittest.TestCase):
             result = batch({'action':'set-plan','plan':plan})
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(self.data.read_bytes(), before)
-        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','label':'Settings behavior','verify_summary':'Check the selected panel'}]}
         self.assertEqual(batch({'action':'set-plan','plan':plan}).returncode, 0)
-        self.assertEqual(batch({'action':'set-plan','plan':plan}, {'action':'update-plan-group','id':'A','patch':{'status':'done'}}).returncode, 0)
-        self.assertEqual(json.loads(self.data.read_text())['tracking']['plan']['groups'][0]['status'], 'done')
+        self.assertEqual(batch({'action':'set-plan','plan':plan}, {'action':'update-plan-group','id':'A','patch':{'status':'done','label':'Updated label','verify_summary':'Runtime check passed'}}).returncode, 0)
+        group = json.loads(self.data.read_text())['tracking']['plan']['groups'][0]
+        self.assertEqual((group['status'], group['label'], group['verify_summary']), ('done','Updated label','Runtime check passed'))
 
     def test_recheck_preserves_previous_result_and_other_checks(self):
         ops, page = self.root / 'ops.json', self.root / 'page.html'

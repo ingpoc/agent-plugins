@@ -13,7 +13,7 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
-    def test_recorded_plan_renders_deterministic_lanes_and_shared_merge(self):
+    def test_recorded_plan_renders_deterministic_compact_rows(self):
         self.data['tracking'] = {'plan': {'cycle': 1, 'round': 1, 'groups': [
             {'id':'A','finding_ids':['ISSUE-01'],'reason':'Shared cause','depends_on':[],'status':'running',
              'codex':{'model':'gpt-6-luna','status':'running','started_at':'2026-11-14T09:00:00Z'},
@@ -21,12 +21,46 @@ class RenderTests(unittest.TestCase):
             {'id':'B','finding_ids':['ISSUE-02'],'depends_on':['A'],'status':'pending'}]}}
         page = renderer.render(self.data, self.base)
         self.assertEqual(page, renderer.render(self.data, self.base))
-        self.assertEqual(page.count('class="plan-box plan-merge"'), 1)
+        self.assertIn('Plan, round 1: 2 groups in parallel → 1 merge → 1 build → 1 verify', page)
+        self.assertNotIn('plan-merge', page)
         self.assertIn('Depends on A', page)
-        self.assertLess(page.index('Findings · running'), page.index('Codex · running'))
-        self.assertLess(page.index('Codex · running'), page.index('Verify · pending'))
+        self.assertIn('href="#ISSUE-01"', page)
+        self.assertIn('title="', page)
+        self.assertIn('Fixing', page)
+        self.assertIn('plan-status plan-planned', page)
+        self.assertIn('<details class="plan-details">', page)
         self.data['tracking'].pop('plan')
-        self.assertNotIn('class="plan-lanes"', renderer.render(self.data, self.base))
+        self.assertNotIn('class="plan-row"', renderer.render(self.data, self.base))
+
+    def test_compact_plan_labels_duration_status_details_and_fallbacks(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'plan': {'round': 1, 'groups': [
+            {'id':'A','finding_ids':['ISSUE-01'],'label':'Render label','verify_summary':'Render verify summary','status':'done','codex':{'model':'gpt-6-luna','effort':'medium','service_tier':'priority','duration_s':300,'started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z'},'verify':{'status':'pending','method':'Run the focused test and inspect the live page carefully'}},
+            {'id':'B','finding_ids':['ISSUE-02'],'status':'done','verify':{'status':'done','method':'Verified on runtime'}},
+            {'id':'C','finding_ids':['ISSUE-01'],'status':'running','verify':{'status':'running','method':'Verify running'}},
+            {'id':'D','finding_ids':['ISSUE-02'],'status':'blocked','verify':{'status':'pending','method':'Blocked'}}]}}
+        page = renderer.render(data, self.base)
+        row = page.split('<div class="plan-row">', 2)[1].split('<details class="plan-details">', 1)[0]
+        self.assertIn('5 min Luna Medium Fast', row)
+        self.assertIn('Fixed', row)
+        self.assertIn('Render label', page)
+        self.assertIn('Render verify summary', page)
+        self.assertNotIn('2026-11-14T09:00:00Z', row)
+        self.assertIn('2026-11-14T09:00:00Z', page.split('<details class="plan-details">', 1)[1])
+        self.assertIn('Run the focused test and inspect the live page', page)
+        self.assertIn('Verified', page)
+        self.assertIn('Verifying', page)
+        self.assertIn('Failed', page)
+        self.assertIn('title="', page)
+        self.assertIn('The selected item does not open', page)
+        self.assertIn('Verified on runtime', page)
+
+    def test_viewer_footer_is_opt_in_and_deterministic_without_metadata(self):
+        plain = renderer.render(self.data, self.base)
+        self.assertEqual(plain, renderer.render(self.data, self.base))
+        self.assertNotIn('<p class="viewer-footer">', plain)
+        live = renderer.render(self.data, self.base, viewer={'path':'/tmp/list.json','version':'0.1.17','started':'Nov 14, 2026, 3:00 PM IST'})
+        self.assertIn('reading /tmp/list.json, viewer 0.1.17, started Nov 14, 2026, 3:00 PM IST', live)
 
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
     def test_version_timeline_shows_status_and_evidence_together(self):

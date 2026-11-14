@@ -2,7 +2,7 @@
 
 ## Fix and verify
 
-Record the work groups and dependency edges in `tracking.plan` with `bcl plan` before Install. The tracker rejects Install without a nonempty plan for the active cycle and rejects Verify until Install is recorded in that cycle. Run `bcl fix`, `bcl install`, and `bcl verify` to keep stage bookkeeping and the rendered timeline in sync.
+Record the work groups and dependency edges in `tracking.plan` with `bcl plan` before Install. The page shows a compact row per group with issue chips, status, duration/model and a short verification summary; open Details for full methods, grouping reasons, file notes and raw times. The tracker rejects Install without a nonempty plan for the active cycle and rejects Verify until Install is recorded in that cycle. Run `bcl fix`, `bcl install`, and `bcl verify` to keep stage bookkeeping and the live timeline in sync.
 
 When the scope is agreed or already authorized, group related fixes into one coherent plan with affected files, acceptance checks, and dependencies. Use existing project gates and the smallest number of build/install cycles consistent with safe verification. Do not assume every issue will be fixed in one cycle.
 
@@ -22,7 +22,7 @@ Before declaring a fix complete, see [prove it works](principles.md#prove-it-wor
 
 Before fixing a group, use `set-activity` in one `batch --render` with its stage, affected IDs, and a concise `now` description. It marks those findings `in_progress` and displays one timestamped `Now` line below the stage bar. If an affected finding is closed, include `"reopen":true` to reopen it explicitly. The navigation shows a working spinner on each `in_progress` item. The page is the user's only view of progress, so update it as each step starts. Move an item off `in_progress` only to `verified_fixed` with evidence, or back to `failing` or `blocked` with the reason.
 
-Codex handoff: at the start of each stage change, before doing that stage's work, run `bcl --data FINDINGS.json --render PAGE.html <stage>` for `plan`, `fix`, `install`, `verify`, `introspect`, or `report`.
+Codex handoff: at the start of each stage change, before doing that stage's work, run `bcl --data FINDINGS.json <stage>` for `plan`, `fix`, `install`, `verify`, `introspect`, or `report`.
 
 After each coherent test or verification batch, update the authoritative findings and regenerate the view; reconcile per-item status, navigation badges, counts, build/head and evidence together. Consolidate related report-only edits into one commit after the batch. Preserve unresolved findings for the next pass. An authorized PR is created or updated before installing when project policy requires an open PR head; install that exact head and verify its identity. Do not merge, publish, install, send messages, or run intrusive tests unless authorized by the user or applicable instructions.
 

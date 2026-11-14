@@ -8,7 +8,7 @@ import mimetypes
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 from zoneinfo import ZoneInfo
 
 STATUSES = {"verified_fixed", "failing", "untested", "in_progress", "awaiting_user_test",
@@ -239,7 +239,7 @@ def render_tracking(tracking, inventory_override=None):
     return summary, build_card
 
 
-def render(data, base, inventory_override=None, now=None):
+def render(data, base, inventory_override=None, now=None, viewer=None):
     if not isinstance(data, dict):
         raise ValueError("document must be an object")
     title = required_text(data.get("title"), "title")
@@ -390,27 +390,45 @@ def render(data, base, inventory_override=None, now=None):
         steps.append(f'<li data-stage="{key}" class="{classes}"{current}><span>{index}</span>{html.escape(name)}{round_label}</li>')
     steps = "".join(steps)
     plan = tracking_data.get("plan") if isinstance(tracking_data, dict) else None
-    lanes = ""
+    plan_view = ""
     if isinstance(plan, dict) and plan.get("cycle", cycle) == cycle and isinstance(plan.get("groups"), list):
-        lane_rows = []
+        plan_rows = []
+        counts = {"pending": 0, "running": 0, "done": 0, "failed": 0}
         for group in plan["groups"]:
             if not isinstance(group, dict):
                 continue
             codex = group.get("codex", {}) if isinstance(group.get("codex"), dict) else {}
             verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
-            findings = ", ".join(html.escape(str(value)) for value in group.get("finding_ids", []))
-            cells = [("Findings", findings or "None", group.get("status")),
-                     ("Codex", codex.get("model", "Codex"), codex.get("status")),
-                     ("Verify", verify.get("method", "Verification"), verify.get("status"))]
-            boxes = "".join(f'<div class="plan-box"><strong>{label} · {html.escape(str(status or "pending"))}</strong><span>{html.escape(str(value))}</span>{f'<small>{html.escape(str(times))}</small>' if (times := " · ".join(str(x) for x in ((codex.get("started_at"), codex.get("ended_at"), codex.get("duration_s")) if label == "Codex" else (verify.get("started_at"), verify.get("ended_at"), verify.get("duration_s"))) if x is not None)) else ""}</div><span class="plan-arrow" aria-hidden="true">→</span>' for label, value, status in cells)
-            reason_text = group.get("reason") or ("Depends on " + ", ".join(group["depends_on"]) if group.get("depends_on") else "")
-            reason = f'<small class="plan-reason">{html.escape(str(reason_text))}</small>' if reason_text else ""
-            lane_rows.append(f'<div class="plan-lane"><strong class="plan-lane-id">{html.escape(str(group.get("id", "?")))}</strong>{boxes}{reason}</div>')
-        if lane_rows:
-            lanes = '<div class="plan-lanes" aria-label="Recorded execution plan"><div class="plan-groups">' + "".join(lane_rows) + '</div><div class="plan-box plan-merge"><strong>Merge</strong></div></div>'
+            status = group.get("status", codex.get("status", "pending")); verify_status = verify.get("status", "pending")
+            counts[status if status in counts else "pending"] += 1
+            shown = "Failed" if status in ("failed", "blocked") or codex.get("status") in ("failed", "blocked") or verify_status in ("failed", "blocked") else "Verified" if status == "done" and verify_status == "done" else "Verifying" if verify_status == "running" else "Fixed" if status == "done" else "Fixing" if status == "running" else "Planned"
+            ids = group.get("finding_ids", [])
+            titles = [next((f.get("title", "") for f in data.get("findings", []) if f.get("id") == issue_id), "") for issue_id in ids]
+            label = group.get("label") or " ".join((next((x for x in titles if x), "") or str(group.get("id", "Group"))).split()[:5])
+            chips = " ".join(f'<a class="plan-chip" title="{html.escape(title, quote=True)}" href="#{quote(str(issue_id), safe="")}">{html.escape(str(issue_id))}</a>' for issue_id, title in zip(ids, titles))
+            start, end = codex.get("started_at", group.get("started_at")), codex.get("ended_at", group.get("ended_at"))
+            seconds = codex.get("duration_s", group.get("duration_s", verify.get("duration_s")))
+            if seconds is None and start and end:
+                try: seconds = (datetime.fromisoformat(end.replace("Z", "+00:00")) - datetime.fromisoformat(start.replace("Z", "+00:00"))).total_seconds()
+                except ValueError: seconds = None
+            duration = f'{max(1, round(float(seconds) / 60))} min' if seconds is not None else ""
+            model = str(codex.get("model", "")); model = model.split("-")[-1].title() if model else ""
+            effort = str(codex.get("effort", "")).title(); tier = codex.get("service_tier", "")
+            model_text = " ".join(x for x in (model, effort, "Fast" if tier in ("priority", "fast", "Fast") else "") if x)
+            summary = group.get("verify_summary") or " ".join(str(verify.get("method", "")).split()[:10])
+            summary = " ".join(str(summary).split()[:10])
+            reason = group.get("reason") or ("Depends on " + ", ".join(group["depends_on"]) if group.get("depends_on") else "")
+            file_notes = group.get("file_notes", group.get("files", ""))
+            raw_times = " · ".join(str(x) for x in (start, end, seconds, verify.get("started_at"), verify.get("ended_at"), verify.get("duration_s")) if x is not None)
+            details = f'<details class="plan-details"><summary>Details</summary><p>{html.escape(str(verify.get("method", "")))}</p><p>{html.escape(str(reason))}</p><p>{html.escape(str(file_notes))}</p><p>{html.escape(str(raw_times))}</p></details>'
+            plan_rows.append(f'<div class="plan-row"><strong class="plan-label">{html.escape(str(label))}</strong><span class="plan-chips">{chips}</span><span class="plan-status plan-{shown.lower()}">{shown}</span><span class="plan-duration">{html.escape(duration)} {html.escape(model_text)}</span><span class="plan-verify">{html.escape(summary)}</span>{details}</div>')
+        if plan_rows:
+            summary = f'Plan, round {plan.get("round", 1)}: {len(plan_rows)} groups in parallel → 1 merge → 1 build → 1 verify · {counts["done"]} fixed, {counts["running"]} fixing'
+            plan_view = f'<div class="plan-view" aria-label="Recorded execution plan"><strong class="plan-summary">{html.escape(summary)}</strong><div class="plan-rows">{"".join(plan_rows)}</div></div>'
     loop_label = f"fewer than {threshold}"
+    viewer_html = (f'<p class="viewer-footer">reading {html.escape(str(viewer["path"]))}, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}</p>' if viewer else "")
     timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow</strong><span>{"Last reported " + time_html if time_html else "No active step reported"}</span></div>'
-                f'<ol>{steps}</ol><svg class="workflow-loop" role="img" aria-label="Fewer than {threshold} verified fixes returns to Plan and fix" viewBox="0 0 100 28" preserveAspectRatio="none"><defs><marker id="workflow-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 z"/></marker></defs><path class="workflow-loop-path" d="M90 0 C90 26 35 26 35 0" marker-end="url(#workflow-arrow)"/><text class="workflow-loop-label" x="62" y="26">{html.escape(loop_label)}</text></svg>{now_html}{lanes}</section>')
+                f'<ol>{steps}</ol><svg class="workflow-loop" role="img" aria-label="Fewer than {threshold} verified fixes returns to Plan and fix" viewBox="0 0 100 28" preserveAspectRatio="none"><defs><marker id="workflow-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 z"/></marker></defs><path class="workflow-loop-path" d="M90 0 C90 26 35 26 35 0" marker-end="url(#workflow-arrow)"/><text class="workflow-loop-label" x="62" y="26">{html.escape(loop_label)}</text></svg>{now_html}{plan_view}{viewer_html}</section>')
     serialized = json.dumps([item for item in output if item["id"] not in excluded], ensure_ascii=True).replace("<", "\\u003c")
     run_view = {key: run[key] for key in ("id", "build", "revision", "installed_at", "status")} if run else None
     replacements = {"{{TITLE}}": html.escape(title), "{{FINDINGS_JSON}}": serialized,
@@ -426,6 +444,7 @@ def main():
     parser.add_argument("input", type=Path, help="authoritative findings JSON")
     parser.add_argument("output", type=Path, help="output HTML")
     parser.add_argument("--inventory", type=Path, help="optional installed-plugin inventory JSON")
+    parser.add_argument("--viewer-metadata", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--now", help="explicit render time as ISO 8601")
     parser.add_argument("--live", action="store_true", help="discover installed plugins and use the current time")
     args = parser.parse_args()
@@ -435,7 +454,8 @@ def main():
         data = json.loads(args.input.read_text(encoding="utf-8"))
         current = datetime.fromisoformat(args.now.replace("Z", "+00:00")) if args.now else datetime.now(timezone.utc) if args.live else None
         inventory = load_inventory(args.inventory) if args.inventory else discover_installed_plugins(now=current) if args.live else None
-        result = render(data, args.input.resolve().parent, inventory, current)
+        viewer = json.loads(args.viewer_metadata.read_text()) if args.viewer_metadata else None
+        result = render(data, args.input.resolve().parent, inventory, current, viewer)
         args.output.write_text(result, encoding="utf-8")
     except (OSError, ValueError, json.JSONDecodeError) as error:
         parser.exit(2, f"render: {error}\n")

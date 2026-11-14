@@ -8,21 +8,21 @@ Portable [Agent Plugin](https://agent-plugins.org/specification). Install: [`AGE
 
 **Purpose.** Keeps one authoritative tracker for a batch of findings and one rendered view of it. The tracker records each issue once with status, evidence and verification history; the renderer produces a standalone HTML page with navigation, badges and embedded crops. The workflow phases (collect, present, plan/fix, install, verify, report/roll over) are written into the skill so a long QA cycle does not lose items, proof, or the user's priorities.
 
-**Requirements.** `python3` only, standard library. No MCP server, runtime dependency, data directory or credentials. The optional live viewer listens on `127.0.0.1:53366` and can be left off.
+**Requirements.** `python3` only, standard library. No MCP server, runtime dependency or credentials. The live tracker defaults to `~/.agents/state/batched-change-list`; set `BCL_STATE_DIR` to change it. `bcl` starts a per-list viewer on an available loopback port and records its port, pid, package version, live data path and start time in that state directory.
 
-**Workflow command.** Use `plugins/batched-change-list/bin/bcl --data FINDINGS.json --render PAGE.html <stage>` for `start`, `plan --plan PLAN.json`, `fix`, `install`, `verify`, `introspect`, `report` and `status`. It applies tracker actions, refreshes the page and can append progress with `--progress FILE`. Install requires a plan for the current cycle; Verify requires Install. Run `bcl install-hooks` in a repository to add idempotent pre-commit and pre-push freshness checks. Existing hooks are chained.
+**Workflow command.** Adopt the in-repo tracker once with `bcl --data FINDINGS.json adopt`, then use `bcl --data FINDINGS.json <stage>` for `start`, `plan --plan PLAN.json`, `fix`, `install`, `verify`, `introspect`, `report`, `status` and `merge`. Successful stages write the live tracker, snapshot JSON and HTML, and commit the snapshot only in the adopting home worktree. `bcl merge` checks freshness but never merges branches. Install requires a plan for the current cycle; Verify requires Install. Run `bcl install-hooks` in a repository to add idempotent pre-commit and pre-push freshness checks. Existing hooks are chained.
 
 **Install.**
 
 1. Install the `batched-change-list` plugin from this repository's marketplace.
 2. Confirm the client lists the `batched-change-list` skill.
-3. Point the tracker at the product under test, for example `<project>/docs/change-list/findings.json`, using [`examples/findings.json`](skills/batched-change-list/examples/findings.json) as the shape.
+3. Create the tracker in the product repo, then run `bcl --data <tracker.json> adopt`. The live copy is stored outside git; stage commands snapshot JSON and HTML into the adopting home worktree.
 
-**Configuration.** None. Commands take absolute paths to the findings JSON and the HTML output. The viewer port is fixed so that one owner can reuse an existing page; a conflict is reported, never overridden.
+**Configuration.** Set `BCL_STATE_DIR` only to change the live state location. `bcl merge` checks snapshot freshness and does not merge branches. Viewer state records its port, pid, package version, live data path and start time.
 
 **Network endpoints, permissions and credentials.** No outbound calls. The viewer binds loopback only and serves the generated page plus the evidence images embedded in it. Local evidence images are read from paths relative to the findings JSON.
 
-**Testing.** From `skills/batched-change-list`: `python3 -m unittest discover -s scripts -p 'test_*.py'` (70 tests: tracker mutations, renderer validation, viewer, `bcl` workflow and git hooks).
+**Testing.** From `skills/batched-change-list`: `python3 -m unittest discover -s scripts -p 'test_*.py'` (stdlib tests cover live tracker adoption, snapshots, viewer lifecycle, compact plan rendering and tracker mutations).
 
 **License.** MIT (repository root [`LICENSE`](../../LICENSE)).
 

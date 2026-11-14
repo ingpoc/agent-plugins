@@ -1,3 +1,9 @@
+## 0.1.17
+
+- Store adopted trackers outside git, snapshot stage changes only in the home worktree, and add a non-merging freshness guard.
+- Start and restart a per-list live viewer from `bcl`; show viewer metadata in its live page footer.
+- Replace plan lanes with compact, responsive group rows.
+
 # Changelog: batched-change-list
 
 ## 0.1.16

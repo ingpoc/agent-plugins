@@ -14,7 +14,7 @@ RENDERER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RENDERER)
 
 
-def response_state(page, data=None, inventory=None):
+def response_state(page, data=None, inventory=None, viewer_metadata=None):
     if data is None:
         content = page.read_bytes()
         return hashlib.sha256(content).hexdigest(), content
@@ -33,10 +33,12 @@ def response_state(page, data=None, inventory=None):
             {"versions": installed.get("versions", {}), "sources": installed.get("sources", {})},
             sort_keys=True, separators=(",", ":")).encode("utf-8")
     digest = hashlib.sha256(tracker_bytes + b"\0" + inventory_fingerprint + b"\0" + RENDERER.TEMPLATE.read_bytes()).hexdigest()
+    if viewer_metadata:
+        digest = hashlib.sha256((digest.encode() + viewer_metadata.read_bytes())).hexdigest()
     return digest, (document, installed, current)
 
 
-def handler_for(page, data=None, inventory=None):
+def handler_for(page, data=None, inventory=None, viewer_metadata=None, base=None):
     class Handler(BaseHTTPRequestHandler):
         def do_HEAD(self):
             self.respond(False)
@@ -49,9 +51,9 @@ def handler_for(page, data=None, inventory=None):
                 self.send_error(404)
                 return
             try:
-                fingerprint, state = response_state(page, data, inventory)
+                fingerprint, state = response_state(page, data, inventory, viewer_metadata)
                 content = (state if data is None else
-                           RENDERER.render(state[0], data.resolve().parent, state[1], state[2]).encode('utf-8')) if body else None
+                           RENDERER.render(state[0], base or data.resolve().parent, state[1], state[2], json.loads(viewer_metadata.read_text()) if viewer_metadata else None).encode('utf-8')) if body else None
             except (OSError, ValueError, UnicodeError, json.JSONDecodeError):
                 self.send_error(503, 'Report unavailable')
                 return
@@ -74,6 +76,8 @@ def main():
     parser.add_argument('--port', type=int, default=53366)
     parser.add_argument('--data', type=Path, help='authoritative tracker JSON to render on each request')
     parser.add_argument('--inventory', type=Path, help='optional installed-plugin inventory JSON')
+    parser.add_argument('--viewer-metadata', type=Path)
+    parser.add_argument('--base', type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.inventory and not args.data:
         parser.error('--inventory requires --data')
@@ -86,7 +90,9 @@ def main():
     inventory = args.inventory.resolve(strict=True) if args.inventory else None
     if inventory and (not inventory.is_file() or inventory.suffix.lower() != '.json'):
         parser.error('--inventory must be a JSON file')
-    with HTTPServer(('127.0.0.1', args.port), handler_for(page, data, inventory)) as server:
+    viewer_metadata = args.viewer_metadata.resolve(strict=True) if args.viewer_metadata else None
+    base = args.base.resolve(strict=True) if args.base else None
+    with HTTPServer(('127.0.0.1', args.port), handler_for(page, data, inventory, viewer_metadata, base)) as server:
         print(f'http://127.0.0.1:{server.server_port}/', flush=True)
         try:
             server.serve_forever()

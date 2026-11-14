@@ -581,6 +581,7 @@ def parser_for():
     batch.add_argument("data", type=Path)
     batch.add_argument("operations", help="JSON array path, or - for stdin")
     batch.add_argument("--render", type=Path, help="render the resulting authoritative JSON to this HTML file")
+    batch.add_argument("--base", type=Path, help="resolve relative evidence paths from this tracker snapshot directory")
     batch.add_argument("--inventory", type=Path, help="optional installed-plugin inventory JSON")
     batch.add_argument("--force", action="store_true", help="override the verified-fix rollover gate and record the override")
     batch.add_argument("--collection", default="findings")
@@ -712,6 +713,8 @@ def main(argv=None):
                                 raise ValueError(f"plan group {group['id']} references an unknown finding")
                             if group.get("status") not in states:
                                 raise ValueError(f"plan group {group['id']} has invalid status")
+                            if any(key in group and not isinstance(group[key], str) for key in ("label", "verify_summary")):
+                                raise ValueError(f"plan group {group['id']} label and verify_summary must be strings")
                             if not isinstance(group.get("depends_on", []), list) or any(not isinstance(i, str) or i not in ids for i in group.get("depends_on", [])):
                                 raise ValueError(f"plan group {group['id']} has invalid dependencies")
                         plan["cycle"] = cycle
@@ -722,8 +725,10 @@ def main(argv=None):
                             raise ValueError("update-plan-group requires a plan for the current cycle")
                         group = next((g for g in plan.get("groups", []) if g.get("id") == operation.get("id")), None)
                         patch = operation.get("patch")
-                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify"}:
-                            raise ValueError("update-plan-group requires id and a status/codex/verify patch")
+                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary"}:
+                            raise ValueError("update-plan-group requires id and a valid group patch")
+                        if any(key in patch and not isinstance(patch[key], str) for key in ("label", "verify_summary")):
+                            raise ValueError("label and verify_summary must be strings")
                         group.update(patch)
                         if "status" in patch and patch["status"] not in {"pending", "running", "blocked", "done", "failed"}:
                             raise ValueError("invalid plan group status")
@@ -895,7 +900,7 @@ def main(argv=None):
                 raise ValueError("render output must differ from input and template")
             touch_workflow(store["document"])
             inventory = RENDERER.load_inventory(args.inventory) if args.inventory else None
-            rendered = RENDERER.render(store["document"], path.parent, inventory)
+            rendered = RENDERER.render(store["document"], args.base or path.parent, inventory)
             html_original = args.render.read_bytes() if args.render and args.render.exists() else None
             write(path, original, store, findings, validate=False, touch=False)
             if args.render:
