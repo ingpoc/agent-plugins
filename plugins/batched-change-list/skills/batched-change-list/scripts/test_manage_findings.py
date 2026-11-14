@@ -65,7 +65,7 @@ class ManageFindingsTests(unittest.TestCase):
     def test_each_phase_updates_the_timeline_and_can_be_cleared(self):
         ops, page = self.root / 'phase.json', self.root / 'report.html'
         for stage in ('collect', 'present', 'plan_fix', 'install', 'verify', 'introspect', 'gate', 'report_rollover', None):
-            pre = [{'action':'introspect','result':'no issues'}] if stage == 'report_rollover' else []
+            pre = [{'action':'introspect','sections':{'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}},'result':'no issues'}] if stage == 'report_rollover' else []
             if stage in ('install', 'verify', 'report_rollover'):
                 pre.insert(0, {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}})
                 if stage in ('verify', 'report_rollover'):
@@ -302,15 +302,15 @@ class ManageFindingsTests(unittest.TestCase):
             return self.cli(*args)
         plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
         install = {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'}
-        self.assertEqual(batch(plan, install, {'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Starting verification'}, {'action':'introspect','result':'no issues'}, {'action':'set-stage','stage':'report_rollover'}, force=True).returncode, 0)
+        self.assertEqual(batch(plan, install, {'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Starting verification'}, {'action':'introspect','sections':{'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}},'result':'no issues'}, {'action':'set-stage','stage':'report_rollover'}, force=True).returncode, 0)
         self.assertEqual(batch(plan, {'action':'set-stage','stage':'install'}).returncode, 0)
         blocked = batch({'action':'set-stage','stage':'report_rollover'})
         self.assertNotEqual(blocked.returncode, 0)
         self.assertIn('gate not met', blocked.stderr)
         self.assertNotEqual(batch({'action':'rollover','source_pr':1,'worktree':'w','pull_request':{'label':'PR #2','url':'https://example.test/pull/2'}}).returncode, 0)
-        self.assertNotEqual(batch({'action':'introspect','result':'two\nlines'}).returncode, 0)
+        self.assertNotEqual(batch({'action':'introspect','sections':{'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}},'result':'two\nlines'}).returncode, 0)
         self.assertEqual(batch({'action':'start-verification','run':{'id':'r1','build':'b1','revision':'abc','installed_at':'2026-11-12T10:00:00+05:30','install_evidence':'log'}}).returncode, 0)
-        result = batch({'action':'introspect','result':'no issues'}, {'action':'set-stage','stage':'report_rollover'}, force=True)
+        result = batch({'action':'introspect','sections':{'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}},'result':'no issues'}, {'action':'set-stage','stage':'report_rollover'}, force=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(self.data.read_text())['tracking']['introspect']['result'], 'no issues')
         self.assertEqual(batch({'action':'rollover','source_pr':1,'worktree':'w','pull_request':{'label':'PR #2','url':'https://example.test/pull/2'}}, force=True).returncode, 0)
@@ -319,39 +319,83 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertNotIn('stages_reached', tracking)
         self.assertNotIn('verification_run', tracking)
 
-    def test_introspect_creates_one_task_listing_all_issues(self):
+    def test_introspect_requires_four_sections_and_creates_one_verified_task(self):
         page, ops = self.root / 'one.html', self.root / 'one.json'
         def batch(*items):
             ops.write_text(json.dumps(list(items)))
             return self.cli('batch', self.data, ops, '--render', page)
-        self.assertNotEqual(batch({'action':'introspect','issues':[{'issue':'x','evidence':'','outcome':'fixed'}]}).returncode, 0)
+        none = {'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}}
+        self.assertNotEqual(batch({'action':'introspect','result':'no issues'}).returncode, 0)
+        self.assertNotEqual(batch({'action':'introspect','issues':[{'issue':'x','evidence':'e','outcome':'fixed'}]}).returncode, 0)
+        self.assertNotEqual(batch({'action':'introspect','sections':none,'issues':[{'issue':'x','evidence':'e','outcome':'fixed'}]}).returncode, 0)
         self.assertNotEqual(batch({'action':'add','entry':{'id':'WF-09','title':'t','source':'Agent reported','status':'untested','observed':'o','recommendation':'r'}}).returncode, 0)
         before = len(json.loads(self.data.read_text())['findings'])
-        result = batch({'action':'introspect','issues':[
-            {'issue':'stale report shown','evidence':'rel.log','outcome':'fixed'},
-            {'issue':'runner mismatch','evidence':'gate.log','outcome':'next_cycle'}]})
+        # missing section
+        incomplete = dict(none); del incomplete['automate']
+        self.assertNotEqual(batch({'action':'introspect','sections':incomplete}).returncode, 0)
+        # linked issue must already exist
+        bad_link = dict(none)
+        bad_link['delete'] = {'items':[{'item':'fold merge guards','evidence':'log','outcome':'issue','issue_id':'BCL-99'}]}
+        self.assertNotEqual(batch({'action':'introspect','sections':bad_link}).returncode, 0)
+        add = batch({'action':'add','entry':{'id':'BCL-02','title':'Store verify command','source':'Agent reported','status':'untested','observed':'o','recommendation':'r'}})
+        self.assertEqual(add.returncode, 0, add.stderr)
+        sections = dict(none)
+        sections['delete'] = {'items':[{'item':'drop unused hook path','evidence':'hook.log','outcome':'fixed inline'}]}
+        sections['simplify'] = {'items':[{'item':'store the verify command','evidence':'plan.log','outcome':'issue','issue_id':'BCL-02'}]}
+        result = batch({'action':'introspect','sections':sections})
         self.assertEqual(result.returncode, 0, result.stderr)
         doc = json.loads(self.data.read_text())
-        self.assertEqual(len(doc['findings']), before + 1)
-        task = doc['findings'][-1]
-        self.assertEqual((task['id'], task['status'], doc['tracking']['introspect']['task']), ('WF-01', 'untested', 'WF-01'))
-        self.assertEqual([i['issue'] for i in task['issues']], ['stale report shown', 'runner mismatch'])
-        self.assertIn('Issues found', page.read_text())
-        self.assertIn('runner mismatch', task['recommendation'])
-        self.assertNotIn('stale report', task['recommendation'])
+        self.assertEqual(len(doc['findings']), before + 2)  # BCL-02 + WF-01
+        task = next(f for f in doc['findings'] if f['id']=='WF-01')
+        self.assertEqual((task['id'], task['status'], task['details']['fixed_in'], doc['tracking']['introspect']['task']), ('WF-01', 'verified_fixed', 'Introspect', 'WF-01'))
+        self.assertEqual(task['sections']['delete']['items'][0]['outcome'], 'fixed inline')
+        self.assertEqual(task['sections']['simplify']['items'][0]['issue_id'], 'BCL-02')
+        self.assertEqual(task.get('issues') or [], [])
+        self.assertIn('introspect-sections', page.read_text())
+        self.assertEqual(doc['tracking']['plan']['status'] if 'plan' in doc.get('tracking',{}) else 'closed', 'closed')
 
     def test_introspect_task_joins_an_active_verification_run(self):
         page, ops = self.root / 'run.html', self.root / 'run.json'
         def batch(*items):
             ops.write_text(json.dumps(list(items)))
             return self.cli('batch', self.data, ops, '--render', page)
+        none = {'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}}
         run = {'id':'r9','build':'b9','revision':'abc','installed_at':'2026-11-14T12:05:10+05:30','install_evidence':'log'}
         self.assertEqual(batch({'action':'start-verification','run':run}).returncode, 0)
-        result = batch({'action':'introspect','issues':[{'issue':'gate noise','evidence':'r.log','outcome':'next_cycle'}]})
+        result = batch({'action':'introspect','sections':none})
         self.assertEqual(result.returncode, 0, result.stderr)
         doc = json.loads(self.data.read_text())
         task = doc['tracking']['introspect']['task']
         self.assertEqual(doc['tracking']['verification_run']['checks'][task], {'state': 'pending'})
+        self.assertEqual(next(f for f in doc['findings'] if f['id']==task)['status'], 'verified_fixed')
+
+    def test_verify_and_status_writes_sync_plan_group_verify(self):
+        page, ops = self.root / 'sync.html', self.root / 'sync.json'
+        def batch(*items):
+            ops.write_text(json.dumps(list(items)))
+            return self.cli('batch', self.data, ops, '--render', page)
+        added = batch({'action':'add','entry':{'id':'ISSUE-03','title':'Third issue','source':'Agent reported','status':'untested','observed':'o','recommendation':'r'}})
+        self.assertEqual(added.returncode, 0, added.stderr)
+        plan = {'round':1,'groups':[
+            {'id':'E','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','verify':{'status':'pending'}},
+            {'id':'AC','finding_ids':['ISSUE-02','ISSUE-03'],'depends_on':[],'status':'pending','verify':{'status':'pending'}},
+        ]}
+        planned = batch({'action':'set-plan','plan':plan})
+        self.assertEqual(planned.returncode, 0, planned.stderr)
+        # One verified, one still open in AC; E fully verified
+        proof = {'status':'verified_fixed','verification':'Verified on the installed build.','verification_refs':['Example receipt']}
+        updated = batch({'action':'update','id':'ISSUE-01','patch':proof}, {'action':'update','id':'ISSUE-02','patch':proof})
+        self.assertEqual(updated.returncode, 0, updated.stderr)
+        groups = {g['id']: g for g in json.loads(self.data.read_text())['tracking']['plan']['groups']}
+        self.assertEqual(groups['E']['verify']['status'], 'verified')
+        self.assertEqual(groups['AC']['verify']['status'], 'partial')
+        self.assertEqual(groups['AC']['verify']['fixed'], 1)
+        self.assertEqual(groups['AC']['verify']['total'], 2)
+        self.assertEqual(batch({'action':'update','id':'ISSUE-03','patch':{'status':'failing'}}).returncode, 0)
+        groups = {g['id']: g for g in json.loads(self.data.read_text())['tracking']['plan']['groups']}
+        self.assertEqual(groups['AC']['verify']['status'], 'failed')
+        page_text = page.read_text()
+        self.assertTrue('Failed' in page_text or 'failed' in page_text or 'partial' in page_text)
 
     def test_set_activity_requires_reopen_for_closed_findings(self):
         operations, page = self.root / 'closed-activity.json', self.root / 'closed-activity.html'

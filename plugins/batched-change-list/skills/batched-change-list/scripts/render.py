@@ -226,6 +226,19 @@ def render_workflow(active, fixed, threshold, gate_met, round_number):
             f'<li class="wf-post"><ol>{post}</ol></li></ol>')
 
 
+# Tooling and process prefixes do not count toward the rollover gate and do not keep it open.
+GATE_EXCLUDE_PREFIXES = ("WF", "BCL", "PAGE", "TRACK", "FLOW", "PLAN", "RUN", "HOOK", "TEST")
+
+
+def gate_prefix(item_id):
+    return str(item_id or "").split("-", 1)[0]
+
+
+def counts_toward_gate(item, excluded, prefixes):
+    identifier = item.get("id")
+    return isinstance(identifier, str) and identifier not in excluded and gate_prefix(identifier) not in prefixes
+
+
 def rollover_gate(findings, tracking):
     threshold = tracking.get("rollover_threshold", DEFAULT_ROLLOVER_THRESHOLD)
     if type(threshold) is not int or threshold < 1:
@@ -237,8 +250,14 @@ def rollover_gate(findings, tracking):
     if not isinstance(excluded, list) or any(not isinstance(item_id, str) for item_id in excluded):
         raise ValueError("tracking.rollover.excluded_ids must be a list of finding IDs")
     excluded = set(excluded)
-    fixed = sum(item.get("status") == "verified_fixed" and item.get("id") not in excluded for item in findings)
-    has_open = any(item.get("status") not in ("verified_fixed", "closed") for item in findings)
+    prefixes = rollover.get("gate_exclude_prefixes", list(GATE_EXCLUDE_PREFIXES))
+    if not isinstance(prefixes, list) or any(not isinstance(item, str) or not item for item in prefixes):
+        raise ValueError("tracking.rollover.gate_exclude_prefixes must be a list of nonempty prefix strings")
+    prefixes = tuple(prefixes)
+    counted = [item for item in findings if counts_toward_gate(item, excluded, prefixes)]
+    fixed = sum(item.get("status") == "verified_fixed" for item in counted)
+    has_open = any(item.get("status") not in ("verified_fixed", "closed") for item in counted)
+    # A count at or above the threshold is always met; never render N of 15 as not met when N >= 15.
     return fixed, threshold, fixed >= threshold or not has_open
 
 

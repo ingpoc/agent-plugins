@@ -10,7 +10,7 @@ Portable [Agent Plugin](https://agent-plugins.org/specification). Install: [`AGE
 
 **Requirements.** `python3` only, standard library. No MCP server, runtime dependency or credentials. The live tracker defaults to `~/.agents/state/batched-change-list`; set `BCL_STATE_DIR` to change it. `bcl` starts a per-list viewer on an available loopback port and records its port, pid, package version, live data path and start time in that state directory.
 
-**Workflow command.** Adopt the in-repo tracker once with `bcl --data FINDINGS.json adopt`, then use `bcl --data FINDINGS.json <stage>` for `start`, `plan --plan PLAN.json`, `fix`, `install`, `verify`, `introspect`, `report`, `status` and `merge`. Successful stages write the live tracker, snapshot JSON and HTML, and commit the snapshot only in the adopting home worktree. `bcl merge` checks freshness but never merges branches. Install requires a plan for the current cycle; Verify requires Install. Run `bcl install-hooks` in a repository to add idempotent pre-commit and pre-push freshness checks. Existing hooks are chained.
+**Workflow command.** Adopt the in-repo tracker once with `bcl --data FINDINGS.json adopt`, then use `bcl --data FINDINGS.json <stage>` for `start`, `plan --plan PLAN.json`, `fix`, `install`, `verify`, `introspect --sections SECTIONS.json`, `report`, `status` and `merge`. Successful stages write the live tracker, snapshot JSON and HTML, and commit the snapshot only in the adopting home worktree. `bcl merge` checks freshness but never merges branches. Install requires a plan for the current cycle; Verify requires Install. Run `bcl install-hooks` in a repository to add idempotent pre-commit and pre-push freshness checks. Existing hooks are chained.
 
 **Install.**
 
@@ -48,7 +48,7 @@ Evidence: JSON mutations validate the whole file and write atomically; a failed 
 
 ### Context efficiency
 
-Evidence: `get --include-evidence` keeps screenshot bytes out of the default read, `list` stays compact, and the tracker is queried by ID instead of re-reading the report. The skill defers detail to four references that load per phase.
+Evidence: `get --include-evidence` keeps screenshot bytes out of the default read, `list` stays compact, and the tracker is queried by ID instead of re-reading the report. The skill defers detail to per-step references that load from the SKILL.md table.
 
 ### Speed
 

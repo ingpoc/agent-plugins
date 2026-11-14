@@ -604,6 +604,25 @@ def check_catalog_logos() -> list[str]:
     return errors
 
 
+
+def batched_change_list_skill_errors(root: Path) -> list[str]:
+    skill = root / "skills/batched-change-list/SKILL.md"
+    errors: list[str] = []
+    if not skill.is_file():
+        return [f"{root}: skills/batched-change-list/SKILL.md is required."]
+    text = skill.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    if len(lines) > 60:
+        errors.append(f"{skill}: SKILL.md has {len(lines)} lines; keep it at most 60.")
+    for label, target in re.findall(r"\[([^\]]+)\]\(([^)]+)\)", text):
+        if target.startswith("http"):
+            continue
+        path = (skill.parent / target).resolve()
+        if not path.is_file():
+            errors.append(f"{skill}: step link {target} is missing.")
+    return errors
+
+
 def validate_plugin(root: Path) -> list[str]:
     errors: list[str] = []
     manifest = root / "plugin.json"
@@ -650,6 +669,8 @@ def validate_plugin(root: Path) -> list[str]:
     errors.extend(cursor_package_errors(root, data))
     errors.extend(claude_package_errors(root, data))
     errors.extend(grok_package_errors(root, data))
+    if name == "batched-change-list":
+        errors.extend(batched_change_list_skill_errors(root))
     return errors
 
 

@@ -16,7 +16,7 @@ def main():
     parser.add_argument("--data", type=Path); parser.add_argument("--render", type=Path)
     parser.add_argument("--progress", type=Path); parser.add_argument("--now")
     parser.add_argument("--ids", action="append", default=[]); parser.add_argument("--plan", type=Path)
-    parser.add_argument("--result"); parser.add_argument("--issues", type=Path)
+    parser.add_argument("--result"); parser.add_argument("--issues", type=Path); parser.add_argument("--sections", type=Path)
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
     parser.add_argument("stage"); args, command_args = parser.parse_known_args()
     if args.stage == "adopt" and not args.data and command_args: args.data = Path(command_args.pop(0))
@@ -81,9 +81,9 @@ def main():
         ids = args.ids or [x["id"] for x in data.get("findings", []) if x.get("status") == "in_progress"]
         operations = [{"action":"set-activity","stage":{"fix":"plan_fix","install":"install","verify":"verify"}[stage],"ids":ids,"now":f"{stage.title()} in progress"}]
     elif stage == "introspect":
-        op = {"action":"introspect"}
-        if args.issues: op["issues"] = json.loads(args.issues.read_text())
-        else: op["result"] = args.result or "no issues"
+        if not args.sections: parser.error("introspect requires --sections FILE.json")
+        op = {"action":"introspect","sections": json.loads(args.sections.read_text())}
+        if args.result: op["result"] = args.result
         ids = args.ids or [x["id"] for x in data.get("findings", []) if x.get("status") == "in_progress"]
         operations = [op,{"action":"set-activity","stage":"introspect","ids":ids,"now":"Introspection recorded"}]
     elif stage == "report": operations = [{"action":"set-stage","stage":"report_rollover"}]

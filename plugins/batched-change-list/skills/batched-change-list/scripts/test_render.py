@@ -468,5 +468,43 @@ setImmediate(async()=>{
             self.assertIn('1:25 PM IST', output.read_text())
 
 
+
+    def test_gate_excludes_page_tool_prefixes_and_meets_at_threshold(self):
+        data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
+        data['tracking'] = {'workflow': {'stage':'gate','updated_at':'2026-11-14T07:00:00Z'},
+                            'cycle':2,'round':2,'rollover_threshold':15}
+        def item(identifier, status='verified_fixed'):
+            row = copy.deepcopy(data['findings'][0])
+            row.update(id=identifier, status=status, verification='Verified on the installed build.',
+                       verification_refs=['Example receipt'])
+            return row
+        # 8 product VF, 9 page-tool VF, leftover open product, plus a WF VF that must not count.
+        data['findings'] = (
+            [item(f'AGENT-{i:02d}') for i in range(1, 9)]
+            + [item('PAGE-01'), item('PAGE-02'), item('TRACK-01'), item('FLOW-01'),
+               item('PLAN-01'), item('RUN-01'), item('HOOK-01'), item('TEST-01'), item('BCL-01')]
+            + [item('AGENT-18', 'untested'), item('WF-07', 'verified_fixed')]
+        )
+        page = renderer.render(data, Path(__file__).parents[1])
+        self.assertIn('Fixes 8 of 15', page)
+        self.assertIn('class="wf-band gate-pending"', page)
+        self.assertNotIn('class="wf-band gate-met"', page)
+        # 15 product VF with leftover open page-tool and WF items: met, never "not met".
+        data['findings'] = (
+            [item(f'AGENT-{i:02d}') for i in range(1, 16)]
+            + [item('PAGE-01', 'untested'), item('BCL-01', 'failing'), item('WF-07', 'untested')]
+        )
+        page = renderer.render(data, Path(__file__).parents[1])
+        self.assertIn('Fixes 15 of 15', page)
+        self.assertIn('class="wf-band gate-met"', page)
+        self.assertNotIn('class="wf-band gate-pending"', page)
+        # 16 of 15 with an extra open product finding is still met.
+        data['findings'] = [item(f'ISSUE-{i:02d}') for i in range(1, 17)] + [item('ISSUE-99', 'untested')]
+        page = renderer.render(data, Path(__file__).parents[1])
+        self.assertIn('Fixes 16 of 15', page)
+        self.assertIn('class="wf-band gate-met"', page)
+
+
+
 if __name__ == "__main__":
     unittest.main()

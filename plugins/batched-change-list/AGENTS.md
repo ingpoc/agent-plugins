@@ -6,7 +6,7 @@ Collection routing: repo-root `AGENTS.md`. Client load path: [compatible-clients
 
 ## What ships
 
-`bin/bcl` is the stage entrypoint and `bin/bcl-hook` provides repository git-hook freshness checks. The skill folder holds `SKILL.md`, four references, stdlib Python scripts, one HTML template, an example tracker and their tests. There is no `mcp.json` or install script. `bcl` starts a per-list viewer on an available loopback port and records its port, pid, package version, data path and start time under `$BCL_STATE_DIR/viewers` (`~/.agents/state/batched-change-list` by default).
+`bin/bcl` is the stage entrypoint and `bin/bcl-hook` provides repository git-hook freshness checks. The skill folder holds `SKILL.md`, per-step references, stdlib Python scripts, one HTML template, an example tracker and their tests. There is no `mcp.json` or install script. `bcl` starts a per-list viewer on an available loopback port and records its port, pid, package version, data path and start time under `$BCL_STATE_DIR/viewers` (`~/.agents/state/batched-change-list` by default).
 
 Requires `python3` (standard library only). Nothing else to install or configure after the client loads the plugin.
 
@@ -29,7 +29,7 @@ This package ships **no** standing authorization to merge. With nothing recorded
 
 An owner who wants the original hands-off rule records it in the product repository’s applicable agent instructions, for example its `AGENTS.md`:
 
-> Standing authorization: when at least 10 distinct findings in the current PR are `verified_fixed`, finish accessible verification, commit and push the verified-fix report, and merge to `main` after required checks and reviews pass. Verify the merge, then fast-forward the local `main` without overwriting local changes. Explicit instructions and project restrictions override this.
+> Standing authorization: when at least 15 distinct product findings in the current PR are `verified_fixed`, finish accessible verification, commit and push the verified-fix report, and merge to `main` after required checks and reviews pass. Verify the merge, then fast-forward the local `main` without overwriting local changes. Explicit instructions and project restrictions override this.
 
 The skill checks the applicable product repository instructions for this policy. Add it only for a repository where an autonomous merge of a fix PR is acceptable; do not edit the installed plugin copy.
 

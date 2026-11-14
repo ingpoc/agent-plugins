@@ -48,7 +48,10 @@ class BclTests(unittest.TestCase):
         self.assertEqual(self.call("start").returncode, 0)
         plan = {"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"reason":"Same root cause","depends_on":[],"codex":{"model":"gpt-6-luna","effort":"medium","status":"running","started_at":"2026-11-14T09:00:00Z","duration_s":120},"verify":{"method":"Unit tests and a live page check","status":"pending"},"status":"running"}]}
         planfile = self.root / "plan.json"; planfile.write_text(json.dumps(plan))
-        for stage, extra in (("plan", ["--plan", str(planfile), "--ids", "ISSUE-01"]), ("fix", ["--ids", "ISSUE-01"]), ("install", ["--ids", "ISSUE-01"]), ("verify", ["--ids", "ISSUE-01"]), ("introspect", ["--result", "no issues"])):
+        sections = {"delete":{"none":"No deletions."},"simplify":{"none":"No simplifications."},"optimize":{"none":"No optimizations."},"automate":{"none":"No automations."}}
+        sectionfile = self.root / "sections.json"; sectionfile.write_text(json.dumps(sections))
+        self.assertNotEqual(self.call("introspect", "--result", "no issues").returncode, 0)
+        for stage, extra in (("plan", ["--plan", str(planfile), "--ids", "ISSUE-01"]), ("fix", ["--ids", "ISSUE-01"]), ("install", ["--ids", "ISSUE-01"]), ("verify", ["--ids", "ISSUE-01"]), ("introspect", ["--sections", str(sectionfile)])):
             result = self.call(stage, *extra); self.assertEqual(result.returncode, 0, result.stderr)
             if stage == "plan": self.assertIn('class="plan"', self.page.read_text())
         status = self.call("status")
@@ -56,6 +59,7 @@ class BclTests(unittest.TestCase):
         data = json.loads(self.data.read_text())
         self.assertEqual(data["tracking"]["stages_reached"], ["collect", "plan_fix", "install", "verify", "introspect"])
         self.assertEqual(data["tracking"]["plan"]["groups"][0]["id"], "A")
+        self.assertEqual(data["tracking"]["plan"]["status"], "closed")
         self.assertEqual(json.loads(status.stdout)["plan"][0]["status"], "running")
 
     def test_stage_guards_remain(self):

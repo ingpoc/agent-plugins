@@ -507,6 +507,77 @@ def live_write(path, original, content):
             raise
 
 
+
+INTROSPECT_SECTIONS = ("delete", "simplify", "optimize", "automate")
+
+
+def validate_introspect_sections(sections):
+    if not isinstance(sections, dict) or any(name not in sections for name in INTROSPECT_SECTIONS):
+        raise ValueError("introspect requires sections delete, simplify, optimize, automate")
+    cleaned = {}
+    for name in INTROSPECT_SECTIONS:
+        section = sections[name]
+        if not isinstance(section, dict):
+            raise ValueError(f"introspect section {name} must be an object")
+        if "none" in section:
+            reason = section.get("none")
+            if not isinstance(reason, str) or not reason.strip():
+                raise ValueError(f"introspect section {name} 'none' requires a reason")
+            if section.get("items"):
+                raise ValueError(f"introspect section {name} cannot have both none and items")
+            cleaned[name] = {"none": reason.strip()}
+            continue
+        items = section.get("items")
+        if not isinstance(items, list) or not items:
+            raise ValueError(f"introspect section {name} needs items or none plus a reason")
+        clean_items = []
+        for item in items:
+            if not isinstance(item, dict):
+                raise ValueError(f"introspect section {name} items must be objects")
+            text = item.get("item") or item.get("step")
+            evidence = item.get("evidence")
+            outcome = item.get("outcome")
+            if not isinstance(text, str) or not text.strip() or not isinstance(evidence, str) or not evidence.strip():
+                raise ValueError(f"introspect section {name} items require item and evidence")
+            if outcome == "fixed inline":
+                clean_items.append({"item": text.strip(), "evidence": evidence.strip(), "outcome": "fixed inline"})
+            elif outcome == "issue":
+                issue_id = item.get("issue_id")
+                if not isinstance(issue_id, str) or not issue_id.strip() or re.fullmatch(r"WF-\d+", issue_id.strip()):
+                    raise ValueError(f"introspect section {name} code items need a non-WF issue id")
+                clean_items.append({"item": text.strip(), "evidence": evidence.strip(), "outcome": "issue", "issue_id": issue_id.strip()})
+            else:
+                raise ValueError(f"introspect section {name} outcome must be 'fixed inline' or 'issue'")
+        cleaned[name] = {"items": clean_items}
+    return cleaned
+
+
+def sync_plan_verify(document):
+    findings = {item.get("id"): item for item in document.get("findings", []) if isinstance(item, dict)}
+    plan = document.get("tracking", {}).get("plan")
+    if not isinstance(plan, dict) or not isinstance(plan.get("groups"), list):
+        return
+    for group in plan["groups"]:
+        if not isinstance(group, dict):
+            continue
+        ids = group.get("finding_ids") or []
+        states = [(findings.get(identifier) or {}).get("status") for identifier in ids]
+        total = len(ids)
+        fixed = sum(state == "verified_fixed" for state in states)
+        failed = sum(state == "failing" for state in states)
+        open_count = sum(state not in ("verified_fixed", "failing", "closed") for state in states)
+        if total == 0 or (not fixed and not failed):
+            status = "pending"
+        elif fixed == total:
+            status = "verified"
+        elif failed and not open_count:
+            status = "failed"
+        else:
+            status = "partial"
+        verify = group.get("verify") if isinstance(group.get("verify"), dict) else {}
+        verify.update({"status": status, "fixed": fixed, "failed": failed, "total": total})
+        group["verify"] = verify
+
 def touch_workflow(document):
     tracking = document.get("tracking")
     if isinstance(tracking, dict):
@@ -784,47 +855,56 @@ def main(argv=None):
                     if target == "verify" and "install" not in tracking.get("stages_reached", []):
                         raise ValueError("verify requires install to be reached in the current cycle")
                 if action == "introspect":
-                    # One Introspect = one record and at most ONE WF- task listing every issue found, never a task per issue.
-                    issues = operation.get("issues", [])
-                    result = operation.get("result")
-                    if not isinstance(issues, list) or any(
-                            not isinstance(i, dict) or not all(isinstance(i.get(k), str) and i[k].strip() for k in ("issue", "evidence"))
-                            or i.get("outcome") not in ("fixed", "next_cycle") for i in issues):
-                        raise ValueError("introspect issues must be [{issue, evidence, outcome: fixed|next_cycle}]; no evidence, no issue")
-                    if not issues and (not isinstance(result, str) or not result.strip() or "\n" in result or "\r" in result):
-                        raise ValueError("introspect requires result: one nonempty line, e.g. \"no issues\"")
-                    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-                    record = {"result": (result or "").strip() or f"{len(issues)} issue(s)", "at": stamp}
+                    # One Introspect = one WF- task with four sections. Code follow-ups are separate non-WF issues.
+                    sections = validate_introspect_sections(operation.get("sections"))
+                    issues = operation.get("issues") or []
                     if issues:
-                        used = [int(f["id"][3:]) for f in findings if re.fullmatch(r"WF-\d+", str(f.get("id", "")))]
-                        task_id = f"WF-{max(used, default=0) + 1:02d}"
-                        clean = [{"issue": i["issue"].strip(), "evidence": i["evidence"].strip(), "outcome": i["outcome"]} for i in issues]
-                        pending = [i["issue"] for i in clean if i["outcome"] == "next_cycle"]
-                        task = {"id": task_id, "title": f"Introspect {stamp[:10]}: {len(issues)} issue(s), {len(pending)} for next cycle",
-                                "source": "Agent reported", "status": "untested" if pending else "verified_fixed",
-                                "observed": f"Introspect found {len(clean)} issue(s): {len(clean) - len(pending)} fixed during Introspect, {len(pending)} left for the next cycle.",
-                                "recommendation": "; ".join(pending) or "None; all fixed during Introspect.",
-                                "verification": "" if pending else "All issues fixed and checked during Introspect.",
-                                "issues": clean}
-                        if not pending:
-                            task["verification_refs"] = [i["evidence"].strip() for i in issues]
-                        validate_detail_limits(task)
-                        validate_ids(findings + [task])
-                        findings.append(task)
-                        run = store["document"].get("tracking", {}).get("verification_run", {})
-                        if isinstance(run, dict) and run.get("status") in ("active", "complete"):
-                            # Like add: a new task joins the open run as pending, or rendering rejects it.
-                            run["status"] = "active"
-                            run.setdefault("checks", {})[task_id] = {"state": "pending"}
-                        record["task"] = task_id
+                        raise ValueError("code follow-ups must be separate issues linked from sections; do not pass issues/next_cycle on introspect")
+                    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                    linked = [item["issue_id"] for section in sections.values() if "items" in section for item in section["items"] if item.get("outcome") == "issue"]
+                    finding_ids = {item.get("id") for item in findings}
+                    missing = [identifier for identifier in linked if identifier not in finding_ids]
+                    if missing:
+                        raise ValueError("introspect section links unknown issue ids: " + ", ".join(missing))
+                    all_none = all("none" in section for section in sections.values())
+                    result = operation.get("result")
+                    if result:
+                        summary = result.strip()
+                    elif all_none:
+                        summary = "Introspect: no issues"
+                    else:
+                        summary = "Introspect recorded"
+                    if result and (not isinstance(result, str) or "\n" in result or "\r" in result):
+                        raise ValueError("introspect result must be one nonempty line")
+                    used = [int(f["id"][3:]) for f in findings if re.fullmatch(r"WF-\d+", str(f.get("id", "")))]
+                    task_id = f"WF-{max(used, default=0) + 1:02d}"
+                    task = {"id": task_id, "title": f"Introspect {stamp[:10]}: {summary}",
+                            "source": "Agent reported", "status": "verified_fixed",
+                            "observed": summary,
+                            "recommendation": "Do the linked code issues: " + ", ".join(linked) if linked else "None; all items were fixed inline or none.",
+                            "verification": "Inline items were done during Introspect." if not all_none else "Clean cycle; every section is none with a reason.",
+                            "details": {"fixed_in": "Introspect"},
+                            "sections": sections}
+                    task["verification_refs"] = linked or ["Introspect"]
+                    validate_detail_limits(task)
+                    validate_ids(findings + [task])
+                    findings.append(task)
+                    run = store["document"].get("tracking", {}).get("verification_run", {})
+                    if isinstance(run, dict) and run.get("status") in ("active", "complete"):
+                        run["status"] = "active"
+                        run.setdefault("checks", {})[task_id] = {"state": "pending"}
+                    record = {"result": summary, "at": stamp, "task": task_id, "sections": sections}
                     store["document"].setdefault("tracking", {})["introspect"] = record
+                    plan = store["document"].setdefault("tracking", {}).get("plan")
+                    if isinstance(plan, dict):
+                        plan["status"] = "closed"
                     continue
                 if action in ("set-stage", "set-activity", "rollover"):
                     target = "report_rollover" if action == "rollover" else operation.get("stage")
                     tracking = store["document"].setdefault("tracking", {})
                     previous_stage = tracking.get("workflow", {}).get("stage")
                     if target == "report_rollover" and "install" in tracking.get("stages_reached", []) and not tracking.get("introspect"):
-                        raise ValueError("full cycle (reached install): record {\"action\":\"introspect\",\"result\":\"no issues\"} or its findings before report_rollover")
+                        raise ValueError("full cycle (reached install): record introspect with --sections before report_rollover")
                     if target == "report_rollover" and action != "set-activity":
                         require_rollover_gate(findings, tracking, args.force, action)
                     if target in ("plan_fix", "install", "verify") and action == "set-stage" and not any(item.get("status") == "in_progress" for item in findings):
@@ -905,7 +985,7 @@ def main(argv=None):
                     if not isinstance(item, dict):
                         raise ValueError("entry must be a JSON object")
                     if re.fullmatch(r"WF-\d+", str(item.get("id", ""))):
-                        raise ValueError("WF- tasks come only from one introspect call: {\"action\":\"introspect\",\"issues\":[...]} (one task per Introspect)")
+                        raise ValueError("WF- tasks come only from one introspect call with sections (one task per Introspect)")
                     warn_summary(item, adding=True)
                     validate_detail_limits(item)
                     trim_verification_evidence(item)
@@ -948,6 +1028,7 @@ def main(argv=None):
                     raise ValueError("unknown batch action")
             validate_ids(findings)
             store["document"]["findings"] = findings
+            sync_plan_verify(store["document"])
             if args.render and (args.render.resolve() == path.resolve() or args.render.resolve() == RENDERER.TEMPLATE.resolve()):
                 raise ValueError("render output must differ from input and template")
             touch_workflow(store["document"])
