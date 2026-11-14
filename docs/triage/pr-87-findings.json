@@ -2161,7 +2161,10 @@
           },
           "verify": {
             "method": "Typed Samantha turns via POST 127.0.0.1:8766/api/session/text; read the session transcript. Cover a second confirm (AGENT-26), a full-length reply (OBS-28), a known app name and folder hint (AGENT-18, AGENT-19), a read-only shell command (AGENT-27), and follow-up words staying on the same run (OBS-25). AGENT-29 is a reconnect/context unit plus a transcript check after a simulated idle reconnect.",
-            "status": "pending"
+            "status": "partial",
+            "fixed": 2,
+            "failed": 1,
+            "total": 7
           }
         },
         {
@@ -2194,7 +2197,10 @@
           },
           "verify": {
             "method": "Typed Samantha turns: ask for an app that is not running (AGENT-17 — she opens it or says it is not running, never retries with a bundle ID). A Terminal type step (AGENT-22, AGENT-23) must not crash the logger and should succeed or change strategy instead of repeating the same failing keystrokes.",
-            "status": "pending"
+            "status": "partial",
+            "fixed": 1,
+            "failed": 0,
+            "total": 3
           }
         },
         {
@@ -2228,7 +2234,10 @@
           },
           "verify": {
             "method": "Island screenshots: ISLAND-01 while a background job runs (agent stays visible); ISLAND-03 with a live short Luna Fast codex exec showing Fast, and a normal run without Fast. AGENT-28: POST /api/confirm without the token is rejected; the island Allow button still works. AGENT-16: start then immediately stop Samantha; the wait ends at once and no gateway_health timeout is recorded.",
-            "status": "pending"
+            "status": "partial",
+            "fixed": 3,
+            "failed": 1,
+            "total": 4
           }
         },
         {
@@ -2250,7 +2259,10 @@
           },
           "verify": {
             "method": "Observability query: island error-state HUD snapshots such as 'Can't hear you, check mic' are attached to the mic or tool error and are not ranked as island_layout failures.",
-            "status": "pending"
+            "status": "verified",
+            "fixed": 1,
+            "failed": 0,
+            "total": 1
           }
         },
         {
@@ -2276,12 +2288,16 @@
           },
           "verify": {
             "method": "After install: screenshot a live short Luna Fast detached codex exec on the island (ISLAND-02). Re-score AGENT-25 against the Her spec with transcript evidence. Measure OBS-23 speech-to-playback on a short spoken or typed-to-speech turn.",
-            "status": "pending"
+            "status": "partial",
+            "fixed": 1,
+            "failed": 0,
+            "total": 3
           }
         }
       ],
       "cycle": 1
-    }
+    },
+    "round": 2
   },
   "findings": [
     {
