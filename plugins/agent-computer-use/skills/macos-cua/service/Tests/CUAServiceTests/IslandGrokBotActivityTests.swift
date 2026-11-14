@@ -94,7 +94,12 @@ final class IslandGrokBotActivityTests: XCTestCase {
         XCTAssertEqual(Set(rows.map(\.id)), Set(["local:grok-bot:Agent Computer Use · Macos computer use", "grok:job-b"]))
         hub.updateGrokBotWorking([], now: start.addingTimeInterval(629))
         XCTAssertEqual(grokRows(at: start.addingTimeInterval(629)).map(\.id), ["grok:job-b"])
-        XCTAssertTrue(grokRows(at: start.addingTimeInterval(630)).isEmpty, "a heartbeat expires at its TTL")
+        hub.expire(now: start.addingTimeInterval(630))
+        let expired = grokRows(at: start.addingTimeInterval(630))
+        XCTAssertEqual(expired.map(\.id), ["grok:job-b"], "a silent heartbeat is retained as stale at its TTL")
+        XCTAssertEqual(expired.first?.status, "stale")
+        XCTAssertTrue(hub.dismissStale(id: expired[0].id, now: start.addingTimeInterval(630)))
+        XCTAssertTrue(grokRows(at: start.addingTimeInterval(630)).isEmpty)
         post("job-b", "clear", at: start.addingTimeInterval(631))
 
         post("job-c", "running", at: start.addingTimeInterval(640))
