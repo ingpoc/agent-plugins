@@ -21,6 +21,7 @@ SPEC.loader.exec_module(RENDERER)
 
 
 def stamp_plan_group(group, now):
+    group["updated_at"] = now
     codex = group.get("codex")
     verify = group.get("verify")
     if isinstance(codex, dict):
@@ -207,6 +208,35 @@ def validate_record(record):
                 raise ValueError()
         except ValueError:
             raise ValueError("evidence timestamp must be ISO 8601 with timezone or unknown") from None
+
+
+def validate_plan_group_fields(group, round_number):
+    status = group.get("status")
+    valid_statuses = RENDERER.PLAN_STATUSES | set(RENDERER.PLAN_STATUS_ALIASES) | {"done"}
+    if status not in valid_statuses:
+        raise ValueError(f"plan group {group.get('id')} has invalid status")
+    valid_phases = RENDERER.PLAN_PHASES | set(RENDERER.PLAN_PHASE_ALIASES) | {"blocked", "deferred"}
+    if "phase" in group and group["phase"] not in valid_phases:
+        raise ValueError(f"plan group {group.get('id')} has invalid phase")
+    if status in ("blocked", "failed") and group.get("phase") not in RENDERER.PLAN_PHASES:
+        raise ValueError(f"plan group {group.get('id')} requires a phase when {status}")
+    reason = group.get("blocked_reason")
+    if reason is not None and (not isinstance(reason, str) or len(reason.split()) > 6):
+        raise ValueError(f"plan group {group.get('id')} blocked_reason must be at most 6 words")
+    if status == "blocked" and not reason:
+        raise ValueError(f"plan group {group.get('id')} requires blocked_reason")
+    if status == "deferred" and group.get("parked_to") is None:
+        group["parked_to"] = round_number + 1
+    parked_to = group.get("parked_to")
+    if parked_to is not None and (type(parked_to) is not int or parked_to < 1):
+        raise ValueError(f"plan group {group.get('id')} parked_to must be a positive round number")
+    if status == "parked" and parked_to is None:
+        raise ValueError(f"plan group {group.get('id')} requires parked_to")
+    for field in ("build", "updated_at"):
+        if field in group and not isinstance(group[field], str):
+            raise ValueError(f"plan group {group.get('id')} {field} must be a string")
+    if group.get("updated_at") and RENDERER.parse_instant(group["updated_at"]) is None:
+        raise ValueError(f"plan group {group.get('id')} updated_at must be an ISO 8601 timestamp")
 
 
 def normalized_text(value):
@@ -894,7 +924,7 @@ def main(argv=None):
                         if len(ids) != len(groups) or any(not isinstance(i, str) or not i.strip() for i in ids) or len(ids) != len(set(ids)):
                             raise ValueError("plan groups require unique nonempty ids")
                         finding_ids = {item["id"] for item in findings}
-                        states = {"pending", "running", "blocked", "done", "failed"}
+                        states = RENDERER.PLAN_STATUSES | set(RENDERER.PLAN_STATUS_ALIASES) | {"done"}
                         for key in ("merge", "build", "verify"):
                             if key in plan and not isinstance(plan[key], dict):
                                 raise ValueError(f"plan.{key} must be an object")
@@ -914,6 +944,7 @@ def main(argv=None):
                                 raise ValueError(f"plan group {group['id']} verify.summary must be at most 10 words")
                             if not isinstance(group.get("depends_on", []), list) or any(not isinstance(i, str) or i not in ids for i in group.get("depends_on", [])):
                                 raise ValueError(f"plan group {group['id']} has invalid dependencies")
+                            validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
                         plan["cycle"] = cycle
                         plan["round"] = RENDERER.rollover_round(tracking)
                         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -925,7 +956,7 @@ def main(argv=None):
                             raise ValueError("update-plan-group requires a plan for the current cycle")
                         group = next((g for g in plan.get("groups", []) if g.get("id") == operation.get("id")), None)
                         patch = operation.get("patch")
-                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase"}:
+                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at"}:
                             raise ValueError("update-plan-group requires id and a valid group patch")
                         if any(key in patch and not isinstance(patch[key], str) for key in ("label", "verify_summary", "name", "worktree", "reason")):
                             raise ValueError("label, name, verify_summary, worktree and reason must be strings")
@@ -940,12 +971,11 @@ def main(argv=None):
                         if "verify" in patch and patch["verify"].get("summary") is not None and (not isinstance(patch["verify"]["summary"], str) or len(patch["verify"]["summary"].split()) > 10):
                             raise ValueError("verify.summary must be at most 10 words")
                         group.update(patch)
+                        if "status" in patch and "phase" not in patch and patch["status"] not in ("blocked", "failed"):
+                            group.pop("phase", None)
+                        validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
                         stamp_plan_group(group, datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
                         plan["round"] = RENDERER.rollover_round(tracking)
-                        if "status" in patch and patch["status"] not in {"pending", "running", "review", "install", "blocked", "done", "failed", "deferred"}:
-                            raise ValueError("invalid plan group status")
-                        if "phase" in patch and patch["phase"] not in {"pending", "fix", "review", "install", "verify", "done", "blocked", "deferred"}:
-                            raise ValueError("invalid plan group phase")
                     continue
                 if action in ("set-stage", "set-activity"):
                     target = operation.get("stage")
@@ -1019,6 +1049,10 @@ def main(argv=None):
                     if stage not in (*RENDERER.WORKFLOW_STAGES, None) or "stage" not in operation:
                         raise ValueError("set-stage requires a valid stage or null")
                     tracking = store["document"].setdefault("tracking", {})
+                    current_workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
+                    stale_after = operation.get("stale_after_min", current_workflow.get("stale_after_min"))
+                    if stale_after is not None and (type(stale_after) is not int or stale_after < 1):
+                        raise ValueError("stale_after_min must be a positive integer")
                     if stage == "merged":
                         merged = validate_merged_record(operation.get("merged"))
                         tracking["merged"] = copy.deepcopy(merged)
@@ -1026,11 +1060,17 @@ def main(argv=None):
                     else:
                         updated_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                     tracking["workflow"] = {"stage": stage, "updated_at": updated_at}
+                    if stale_after is not None:
+                        tracking["workflow"]["stale_after_min"] = stale_after
                     continue
                 if action == "set-activity":
                     stage, ids, activity = operation.get("stage"), operation.get("ids"), operation.get("now")
                     if stage not in RENDERER.WORKFLOW_STAGES:
                         raise ValueError("set-activity requires a valid stage")
+                    current_workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
+                    stale_after = operation.get("stale_after_min", current_workflow.get("stale_after_min"))
+                    if stale_after is not None and (type(stale_after) is not int or stale_after < 1):
+                        raise ValueError("stale_after_min must be a positive integer")
                     if stage == "merged":
                         raise ValueError("use set-stage with merge metadata to mark a list merged")
                     if not isinstance(ids, list) or any(not isinstance(identifier, str) or not identifier.strip() for identifier in ids) or len(ids) != len(set(ids)):
@@ -1056,6 +1096,8 @@ def main(argv=None):
                         tracking["round"] = round_number + 1
                         if isinstance(tracking.get("plan"), dict): tracking["plan"]["round"] = round_number + 1
                     tracking["workflow"] = {"stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
+                    if stale_after is not None:
+                        tracking["workflow"]["stale_after_min"] = stale_after
                     continue
                 if action in run_actions:
                     if action == "finish-check" and operation.get("id") in started_checks:
@@ -1087,6 +1129,10 @@ def main(argv=None):
                         raise ValueError("patch must be a JSON object")
                     if "check" in patch or "check_history" in patch:
                         raise ValueError("use verification actions to update check progress")
+                    carried_from = patch.get("carried_from")
+                    if "carried_from" in patch and carried_from is not None and not (
+                            type(carried_from) is int and carried_from > 0 or isinstance(carried_from, str) and carried_from.strip()):
+                        raise ValueError("carried_from must be a positive round number or nonempty cycle")
                     updated = merge_patch(dict(findings[index]), patch)
                     warn_summary(updated)
                     validate_detail_limits(updated)
