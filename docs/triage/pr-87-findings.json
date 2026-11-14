@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "report_rollover",
-      "updated_at": "2026-11-14T08:36:59Z",
-      "now": "2026-11-14T08:36:59Z — Live verify passed on 0.1.14: the page stayed still for 60s with a stable ETag, then reloaded once after a tracker write and kept #PAGE-03. Screenshot /workspace/bcl-ui/live-no-refresh.png. Skip Introspect (small follow-up). Not merging."
+      "stage": "plan_fix",
+      "updated_at": "2026-11-14T08:37:21Z",
+      "now": "2026-11-14T08:37:21Z — Planning the workflow loop on PR #109: keep the current strip, add a Fixes N of 15 gate after Introspect with a curved return arrow to Plan & fix, Report last, and a subtle round number."
     },
     "rollover": {
       "source_pr": 105,
@@ -4191,6 +4191,17 @@
         "/workspace/bcl-ui/live-no-refresh.png",
         "commit 977b400, draft PR #109"
       ]
+    },
+    {
+      "id": "FLOW-01",
+      "title": "The workflow strip does not show the fix loop, the 15-fix gate, or the current round",
+      "source": "User requested",
+      "status": "in_progress",
+      "summary": "After a cycle, the page does not show whether you should go back to Plan & fix or move on to Report & roll over, or which round you are on.",
+      "impact": "You cannot tell how close the list is to rolling over, or that new issues can still be added while a cycle is running.",
+      "done_when": "The existing step timeline stays as it is, with a gate after Introspect showing a counter like Fixes 7 of 15, a curved arrow back to Plan & fix labelled fewer than 15, Report & roll over at the end, and a subtle round number such as Round 3 near the gate. Collect stays a normal step that can still take new findings.",
+      "observed": "On 14 Nov 2026 Guru asked for the change-list workflow to be a loop: Collect, then Present once, then Plan & fix → Install → Verify → Introspect (skipped on small follow-ups), then a gate (verified fixed count at least 15, or no open findings left). If the gate is not met, go back to Plan & fix; if it is met, Report & roll over starts a new list at Collect. The current strip is a single line that ends at Report & roll over, the merge threshold is still 10, and there is no round number or return path.",
+      "recommendation": "Keep the current horizontal dots-and-lines strip: Collect, Present, Plan & fix, Install, Verify, Introspect. Insert a gate step after Introspect labelled with a counter such as Fixes 7 of 15. Draw a curved arrow from the gate back to Plan & fix labelled fewer than 15. Put Report & roll over last. Show the current cycle as a subtle Round N near the gate. No separate progress bar or extra sections. Record the cycle number in the tracker, default the gate to 15 (configurable; was 10), refuse Report & roll over before the gate unless --force (and log that), and update SKILL.md and tests. Collect stays open for new findings, which join at the next Plan & fix."
     }
   ]
 }
