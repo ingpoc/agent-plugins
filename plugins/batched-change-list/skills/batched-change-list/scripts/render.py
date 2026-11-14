@@ -227,6 +227,9 @@ def render_workflow(active, fixed, threshold, gate_met, round_number):
             accessible = f"Fixes {fixed} of {threshold}, gate {'met' if gate_met else 'not met'}"
             if gate_met:
                 icon = f'<svg width="22" height="22" viewBox="0 0 22 22" role="img" aria-label="{accessible}"><circle cx="11" cy="11" r="8.5" fill="var(--green)" stroke="var(--green)" stroke-width="3"/><path d="M7.2 11.2l2.6 2.6 5-5.4" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+            elif state == "upcoming":
+                amount = min(100, round(100 * fixed / threshold))
+                icon = f'<svg width="14" height="14" viewBox="0 0 14 14" role="img" aria-label="{accessible}"><circle cx="7" cy="7" r="5.5" fill="#fff" stroke="var(--amber-track)" stroke-width="2"/><circle cx="7" cy="7" r="5.5" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" pathLength="100" stroke-dasharray="{amount} 100" transform="rotate(-90 7 7)"/></svg>'
             else:
                 amount = min(100, round(100 * fixed / threshold))
                 icon = f'<svg width="22" height="22" viewBox="0 0 22 22" role="img" aria-label="{accessible}"><circle cx="11" cy="11" r="8.5" fill="#fff" stroke="var(--amber-track)" stroke-width="3"/><circle cx="11" cy="11" r="8.5" fill="none" stroke="var(--amber)" stroke-width="3" stroke-linecap="round" pathLength="100" stroke-dasharray="{amount} 100" transform="rotate(-90 11 11)"/></svg>'

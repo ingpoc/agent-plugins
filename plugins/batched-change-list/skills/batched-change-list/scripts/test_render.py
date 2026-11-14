@@ -18,8 +18,16 @@ class RenderTests(unittest.TestCase):
                                  'rollover_threshold': 1000}
         page = renderer.render(self.data, self.base)
         self.assertIn('data-stage="collect" class="wf-step current" aria-current="step"', page)
-        self.assertIn('data-stage="gate" class="wf-step upcoming"', page)
-        self.assertNotIn('data-stage="gate" class="wf-step upcoming wf-gate"', page)
+        current_node = page.split('data-stage="collect"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('<span class="wf-now-tag">Now</span>', current_node)
+        self.assertIn('.wf-step.current .wf-dot i{width:14px;height:14px;border:2.5px solid var(--active);', page)
+        gate_node = page.split('data-stage="gate"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('class="wf-step upcoming"', gate_node)
+        self.assertNotIn('wf-gate', gate_node)
+        self.assertIn('<svg width="14" height="14" viewBox="0 0 14 14"', gate_node)
+        self.assertIn('stroke-width="2"', gate_node)
+        self.assertNotIn('stroke-width="3"', gate_node)
+        self.assertNotIn('width="22"', gate_node)
 
         self.data['findings'][0]['status'] = 'verified_fixed'
         self.data['findings'][0]['verification'] = 'Verified on the installed build.'
@@ -27,7 +35,10 @@ class RenderTests(unittest.TestCase):
         self.data['tracking']['rollover_threshold'] = 1
         page = renderer.render(self.data, self.base)
         self.assertIn('data-stage="collect" class="wf-step current" aria-current="step"', page)
-        self.assertIn('data-stage="gate" class="wf-step done wf-gate"', page)
+        gate_node = page.split('data-stage="gate"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('class="wf-step done wf-gate"', gate_node)
+        self.assertIn('<svg width="22" height="22" viewBox="0 0 22 22"', gate_node)
+        self.assertIn('stroke-width="3"', gate_node)
 
     def test_merged_is_terminal_and_report_rollover_is_not_current(self):
         self.data['tracking'] = {'workflow': {'stage':'merged','updated_at':'2026-11-14T12:00:00Z'}}
