@@ -202,21 +202,25 @@ class ReleaseTests(unittest.TestCase):
 
 
 class HygieneGateTests(unittest.TestCase):
+    TARGET = str(release.owning_clone_root(release.ROOT))
+    OTHER = str(release.ROOT.parent / 'agent-plugins-other')
     ROWS = [
         {'check':'worktree-placement','status':'FAIL','items':[
             '/Users/u/Library/Caches/agent-plugins-origin-ci/wt',
             '/Users/u/code/wt/agent-plugins-old']},
         {'check':'local-only-work','status':'FAIL','items':[
-            '/Users/u/code/agent-plugins:codex/x: 2 local-only commit(s)',
-            '/Users/u/code/agent-plugins-site:main: 4 local-only commit(s)']},
+            f'{TARGET}:codex/x: 2 local-only commit(s)',
+            f'{OTHER}:main: 4 local-only commit(s)',
+            f'{OTHER}: 1 dirty file(s) remain in place']},
         {'check':'duplicate-clones','status':'PASS','items':['/Users/u/code/agent-plugins']},
         {'check':'worktree-age','status':'FAIL','items':['/Users/u/code/agent-plugins']},
     ]
 
-    def test_only_gated_fails_naming_an_agent_plugins_checkout_count(self):
+    def test_only_gated_fails_naming_the_release_checkout(self):
         found = release.hygiene_failures(self.ROWS)
         self.assertEqual(len(found),1)
-        self.assertIn('local-only-work: /Users/u/code/agent-plugins:codex/x',found[0])
+        self.assertIn(f'local-only-work: {self.TARGET}:codex/x',found[0])
+        self.assertNotIn(self.OTHER, found[0])
 
     def tool(self, directory, rows):
         tool = Path(directory)/'hygiene.py'
