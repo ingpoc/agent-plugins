@@ -393,7 +393,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(groups['AC']['verify']['total'], 2)
         self.assertEqual(batch({'action':'update','id':'ISSUE-03','patch':{'status':'failing'}}).returncode, 0)
         groups = {g['id']: g for g in json.loads(self.data.read_text())['tracking']['plan']['groups']}
-        self.assertEqual(groups['AC']['verify']['status'], 'failed')
+        self.assertEqual(groups['AC']['verify']['status'], 'partial')
         page_text = page.read_text()
         self.assertTrue('Failed' in page_text or 'failed' in page_text or 'partial' in page_text)
 

@@ -570,7 +570,7 @@ def sync_plan_verify(document):
             status = "pending"
         elif fixed == total:
             status = "verified"
-        elif failed and not open_count:
+        elif failed and not open_count and not fixed:
             status = "failed"
         else:
             status = "partial"
