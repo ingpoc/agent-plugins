@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-14T12:29:53Z",
+      "updated_at": "2026-11-14T12:31:15Z",
       "now": "2026-11-14T12:29:53Z — Fix in progress"
     },
     "rollover": {
@@ -3985,7 +3985,7 @@
       "id": "OBS-23",
       "title": "Two voice turns on 0.2.141 took more than 10 seconds to reach playback",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "blocked",
       "observed": "Session 374280f6 on ACU 0.2.141 had two turns over 10s (observability col-76a7411cce3a3654): turn 1 speech_to_playback 21496 ms at 01:02:36 IST (run_ref 5e63a8d0866195a8dc0e717e, no tools), and turn 24 15137 ms at 01:07:22 IST with comet_act and ledger_task. This is a recurrence of OBS-01, which is marked verified_fixed.",
       "recommendation": "Re-measure speech-to-playback on the installed 0.2.141 build for a short spoken turn with no tools, and for a turn that uses Comet and Ledger, then fix the slow stage if it still exceeds 10s.",
       "details": {
@@ -4129,7 +4129,7 @@
       "id": "OBS-25",
       "title": "Each spoken utterance fragment starts a new task run_id",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "blocked",
       "observed": "In session 374280f6, 15 short microphone utterances such as 'So', 'My Git', and 'Yes. So' each minted a new run_id and showed up in observability_tasks as duration 0, step_count 1, outcome unknown. The long task run 07e85c58… continued in parallel.",
       "recommendation": "Attach follow-on transcripts to the active task run, and do not create a new run_id for a mid-task fragment or backchannel.",
       "details": {
@@ -4420,7 +4420,7 @@
       "id": "AGENT-25",
       "title": "Samantha meets the Her (2013) spec: 6 traits, scored 0–2 each, target 12/12",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "untested",
       "observed": "Guru (10:58 IST, 14 Nov 2026) asked for the Her spec to be tracked. Samantha should feel like the OS in the film: a capable companion who gets real work done by talking. Every test run is scored on six traits, 0–2 each (12 total), every point backed by transcript evidence. Baseline from ACU's own read of the 14 Nov typed Likeminded session (0.2.141): 1/12 (acts directly 0, conversation 0, remembers 1, initiative 0, warm and brief 0, many jobs 0).",
       "recommendation": "Keep open. Each retest records a score here with record-evidence (per-trait line + transcript refs). Report as X/12, one line per trait; file each trait scored 0 as a finding traced Guru said -> Samantha decided -> step failed -> code area. verified_fixed only at 12/12 with transcript evidence.",
       "details": {
