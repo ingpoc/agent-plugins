@@ -58,6 +58,7 @@ final class IslandHub {
     private(set) var grokBotWorking: [(name: String, since: Date)] = []
     private var claudeDesktop = IslandClaudeDesktopActivity.Snapshot()
     private var grokBotAges: [String] = []
+    private var lastGrokBotRosterSnapshot: [String]?
     private var localHarnessScanAt = Date.distantPast
     private var localHarnessScanInFlight = false
     private(set) var approvals: [Pending] = []
@@ -121,7 +122,10 @@ final class IslandHub {
         s.samantha_on = samanthaActive  // CUAService's own session state; Samantha's posts can't set it
         let live = entries.values.filter { !isStale($0, now: now) }
             .sorted { $0.updated > $1.updated }
-        s.agents += live.filter { $0.agent.plugin == nil }.map { e in
+        let grokHeartbeats = live.filter { $0.source == .grokBot && $0.agent.plugin == nil && $0.agent.status == "running" }
+        s.agents += live.filter {
+            $0.agent.plugin == nil && !($0.source == .grokBot && $0.agent.status == "running")
+        }.map { e in
             var a = e.agent
             if a.status == "running", e.started != .distantPast { a.elapsed_s = max(0, now.timeIntervalSince(e.started)) }
             // Posted `meta` ("Grok 4.7 · high") gets the live age: "Grok 4.7 · high · 1m".
@@ -147,7 +151,9 @@ final class IslandHub {
         s.plugins.sort { ($0.plugin, $0.agent, $0.target_app ?? "") < ($1.plugin, $1.agent, $1.target_app ?? "") }
         let stale = entries.values.filter { isStale($0, now: now) && Self.canRetainStale($0.agent) }
             .sorted { $0.updated > $1.updated }
-        s.agents += stale.filter { $0.agent.plugin == nil }.map { e in
+        s.agents += stale.filter {
+            $0.agent.plugin == nil && !($0.source == .grokBot && $0.agent.status == "running")
+        }.map { e in
             var a = e.agent
             a.status = "stale"
             a.needs_you = false
@@ -158,7 +164,15 @@ final class IslandHub {
         }
         s.agents += localHarnesses
         if store.sourceEnabled(.claude) { s.agents += claudeDesktop.agents }
-        if store.sourceEnabled(.agentRoster) { s.agents += IslandGrokBotActivity.rows(grokBotWorking, now: now) }
+        let grokRows = IslandGrokBotActivity.rows(
+            store.sourceEnabled(.agentRoster) ? grokBotWorking : [], now: now, heartbeats: grokHeartbeats)
+        s.agents += grokRows
+        let snapshot = grokRows.map(\.id).sorted()
+        if snapshot != lastGrokBotRosterSnapshot {
+            lastGrokBotRosterSnapshot = snapshot
+            IslandEventLog.log("roster-snapshot", source: "grok-bot", kind: "activity",
+                               ["state": snapshot.isEmpty ? "idle" : "working", "status": "\(snapshot.count) active"])
+        }
         // Queued cards: approvals jump the queue (then arrival order); the first owns the pill,
         // all show as needs-you rows + count.
         let queue = queued.filter { !shownInline($0) }
