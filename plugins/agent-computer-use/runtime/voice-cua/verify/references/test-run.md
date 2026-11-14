@@ -4,6 +4,9 @@ Trigger: run or validate Samantha through prompts, investigate an incident, or a
 
 ## 1. Preflight and baseline
 
+If the microphone is unavailable, skip mic-dependent checks and record them as blocked or untested with that reason; continue the rest of the run.
+
+
 1. If the developer-observability MCP is configured, discover and select the Samantha project, query issues and inspect each target by full issue ID. Save the snapshot timestamp, issue ID, last-seen timestamp and count scope. Use the Kindle project's read-only owner doctor or skill for source details when available. If neither source is available, record that the telemetry baseline is unavailable; do not infer a fix from test-only evidence. Follow owner documentation rather than assuming a device mount is necessary for Mac findings.
 2. Verify installed identity with the entrypoint's runtime-contract command. Record the version/fingerprint. Never replace or restart another driver's session; ask the operator to finish an active test before installing.
 3. Record the activity-log byte offset, start time and eventual session ID. Logs are `~/.cache/macos-cua/samantha-activity.jsonl` and `voice.log`; keep private evidence outside the public repository in a timestamped task artifact directory.

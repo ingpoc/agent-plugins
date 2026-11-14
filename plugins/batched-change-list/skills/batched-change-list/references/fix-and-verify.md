@@ -4,6 +4,9 @@
 
 When the scope is agreed or already authorized, group related fixes into one coherent plan with affected files, acceptance checks, and dependencies. Use existing project gates and the smallest number of build/install cycles consistent with safe verification. Do not assume every issue will be fixed in one cycle.
 
+Cap a parallel fix group at about 4 issues. Split a larger set, or a single Luna-max job, into medium jobs rather than one long high-effort run.
+
+
 When debugging, follow [fix root causes](principles.md#fix-root-causes): reproduce, trace the first wrong decision or mishandled legitimate state, fix its owner, and check for the same fault elsewhere. When writing or changing tests, follow [test behavior, not implementation](principles.md#test-behavior-not-implementation). For ordering a multi-step batch, see [sequence verifiable units](principles.md#sequence-verifiable-units).
 
 The main agent owns the issue list, batch plan, integration, report, and final evidence review. Route each task to the cheapest model and effort that can do it. Delegate independent, bounded investigations or fixes when the expected benefit exceeds coordination and review costs; give each worker issue IDs, owned files, acceptance criteria, and focused checks. Keep small or tightly coupled work inline. Use one operator at a time for each shared tracker, app, browser session, or device. Escalate uncertain root causes, conflicting evidence, or expanding scope to the main agent. Review worker results before updating issue status; source tests do not replace installed verification.

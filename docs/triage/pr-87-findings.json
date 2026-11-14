@@ -2042,8 +2042,7 @@
     },
     "workflow": {
       "stage": "introspect",
-      "updated_at": "2026-11-14T10:32:05Z",
-      "now": "2026-11-14T10:32:05Z — Introspection recorded"
+      "updated_at": "2026-11-14T10:50:36+00:00"
     },
     "rollover": {
       "source_pr": 105,
@@ -4705,7 +4704,7 @@
       "impact": "You cannot trust the page during a merge: it shows an old stage, an old fix count, and none of the current plan lanes.",
       "done_when": "Each bcl stage commits the tracker itself, and a merge of fix branches is refused while the tracker is dirty, so the open page keeps showing the current stage, plan and gate.",
       "observed": "On 14 Nov 2026 at about 15:35 IST, the PR #107 viewer at http://127.0.0.1:53366/ still showed Verify from 14:28 IST and Fixes 5 of 15. The live tracker (Plan & fix, round 2 lanes, groups AC/B/D/E done) was in stash@{0} ('acu-0143 tracker mid-round') on worktree samantha-pr107-rollover after the ACU 0.2.143 fix-branch merge.",
-      "recommendation": "bcl should commit the tracker at each stage, and the merge step should refuse to run while the tracker is dirty. Never stash the tracker; commit it before any merge.",
+      "recommendation": "bcl should commit the tracker at each stage, and the merge step should refuse to run while the tracker is dirty. Never stash the tracker; commit it before any merge. 0.1.17 bcl merge is the intended guard: it should commit snapshots in the home worktree and refuse while the live tracker has unsnapshotted changes.",
       "details": {
         "Where to look": "plugins/batched-change-list/bin/bcl and manage_findings.py stage operations; the merge/integration step in the fix workflow; SKILL.md.",
         "Rule": "Never stash docs/triage/*-findings.json or the rendered HTML. Commit them first."
@@ -4713,29 +4712,135 @@
     },
     {
       "id": "WF-07",
-      "title": "Introspect 2026-11-14: 3 issue(s), 2 for next cycle",
+      "title": "Introspect 2026-11-14 (0.2.143 cycle): four sections, two inline fixes, five linked issues",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "Introspect reviewed the 0.2.143 cycle under delete, simplify, optimize, and automate. Inline work done now: stale tracker copies in the four acu-0143-* worktrees were moved to ~/.Trash/bcl-stale-acu-0143-20261114-1618/, cap-groups and mic-preflight notes were added to skill text, and the mid-merge island check.py failure was already reconciled this cycle. Code follow-ups are linked as BCL-01, BCL-02, BCL-03, HYG-01, and PLAN-02.",
+      "recommendation": "Do the linked code issues: BCL-01 (bcl merge commits and guards the tracker), BCL-02 (per-group stored verify commands), BCL-03 (auto-fill Introspect sections), HYG-01 (hygiene ignores other clones), PLAN-02 (split Luna-max jobs).",
+      "verification": "Inline items were done during Introspect and recorded with evidence. Code items are separate tracked issues, not next_cycle notes on this task.",
+      "issues": [],
+      "verification_refs": [
+        "~/.Trash/bcl-stale-acu-0143-20261114-1618/",
+        "plugins/batched-change-list/skills/batched-change-list/references/fix-and-verify.md",
+        "plugins/agent-computer-use/runtime/voice-cua/verify/SKILL.md",
+        "plugins/agent-computer-use/runtime/voice-cua/verify/references/test-run.md",
+        "~/.agents/artifacts/acu-0143/check.py.round3.log"
+      ],
+      "details": {
+        "fixed_in": "Introspect"
+      },
+      "sections": {
+        "delete": {
+          "items": [
+            {
+              "item": "Stale tracker copies in the four acu-0143-* fix worktrees",
+              "evidence": "Moved docs/triage/pr-87-findings.json and pr-107.html from acu-0143-island, acu-0143-obs, acu-0143-session, and acu-0143-tools to ~/.Trash/bcl-stale-acu-0143-20261114-1618/",
+              "outcome": "fixed inline"
+            },
+            {
+              "item": "The mid-merge island fix that forced a second check.py",
+              "evidence": "~/.agents/artifacts/acu-0143/check.py.log (CUAServiceTests failure); /tmp/acu-0143.progress 15:33 IST rerun and 15:44 IST check ok; ~/.agents/artifacts/acu-0143/check.py.round3.log ends with check ok. Tests were reconciled to the expire + stale + dismiss path this cycle.",
+              "outcome": "fixed inline"
+            }
+          ]
+        },
+        "simplify": {
+          "items": [
+            {
+              "item": "Added a skill note to cap parallel groups at about 4 issues and split Luna-max jobs",
+              "evidence": "plugins/batched-change-list/skills/batched-change-list/references/fix-and-verify.md now has the cap-groups / split Luna-max note.",
+              "outcome": "fixed inline"
+            },
+            {
+              "item": "Split heavy Luna-max jobs into medium jobs (plan check)",
+              "evidence": "The island Luna-max job in this cycle took about 25 min and 11M tokens. A plan check is still needed; tracked as PLAN-02.",
+              "outcome": "issue",
+              "issue_id": "PLAN-02"
+            }
+          ]
+        },
+        "optimize": {
+          "items": [
+            {
+              "item": "Added a mic preflight note to skip mic-dependent checks when the microphone is unavailable",
+              "evidence": "plugins/agent-computer-use/runtime/voice-cua/verify/SKILL.md and references/test-run.md now have the mic-preflight note.",
+              "outcome": "fixed inline"
+            },
+            {
+              "item": "Hygiene check should ignore other clones' local work",
+              "evidence": "~/.agents/artifacts/acu-0143/release.json hygiene.failures lists 2 local-only commits and 1 dirty file in /Users/gurusharan/Documents/remote-claude/active/apps/agent-plugins; 0.2.143 installed with --hygiene-override. Tracked as HYG-01.",
+              "outcome": "issue",
+              "issue_id": "HYG-01"
+            }
+          ]
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "bcl merge commits and guards the tracker",
+              "evidence": "On 14 Nov 2026 around 15:35 IST the live tracker was stashed to merge fix branches and the page reverted to the 14:28 IST snapshot. Folded into existing BCL-01.",
+              "outcome": "issue",
+              "issue_id": "BCL-01"
+            },
+            {
+              "item": "Per-group stored verify commands",
+              "evidence": "Group verify methods on the 0.2.143 plan were prose only, and lanes still said Verify pending after the run. Tracked as BCL-02.",
+              "outcome": "issue",
+              "issue_id": "BCL-02"
+            },
+            {
+              "item": "Introspect auto-fills the four sections from the run log",
+              "evidence": "The four sections for this Introspect were assembled by hand from progress logs and commits. Tracked as BCL-03.",
+              "outcome": "issue",
+              "issue_id": "BCL-03"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "BCL-02",
+      "title": "Store the verify command for each plan group",
       "source": "Agent reported",
       "status": "untested",
-      "observed": "Introspect found 3 issue(s): 1 fixed during Introspect, 2 left for the next cycle.",
-      "recommendation": "The in-tree batched-change-list 0.1.12 renderer and the installed 0.1.16 hook/viewer disagree, so committed HTML is rejected as stale and the dirty .githooks/pre-push wrapper rewrites the page. Tracker commits in this cycle used git -c core.hooksPath=/dev/null. Recommended fix belongs with BCL-01: one renderer per commit, and the hook must not rewrite HTML to a newer renderer than the branch.; Release hygiene failed again on unrelated local-only work in the main agent-plugins clone (/Users/gurusharan/Documents/remote-claude/active/apps/agent-plugins), so 0.2.143 was installed with --hygiene-override, same as 0.2.142. Hygiene should ignore other clones' local-only work.",
-      "verification": "",
-      "issues": [
-        {
-          "issue": "After merging the island fix branch, check.py failed twice: first IslandHubTests.testSilentRunningAgentBecomesStaleAndCanBeDismissed (stale Grok running rows were dropped from compose), then the new heartbeat test expected rows to vanish at TTL instead of moving to the stale list. Both tests were reconciled to the production expire + stale + dismiss path and check.py round 3 ended check ok.",
-          "evidence": "~/.agents/artifacts/acu-0143/check.py.log (CUAServiceTests failure); /tmp/acu-0143.progress 15:33 IST rerun and 15:44 IST check ok; ~/.agents/artifacts/acu-0143/check.py.round3.log ends with check ok",
-          "outcome": "fixed"
-        },
-        {
-          "issue": "The in-tree batched-change-list 0.1.12 renderer and the installed 0.1.16 hook/viewer disagree, so committed HTML is rejected as stale and the dirty .githooks/pre-push wrapper rewrites the page. Tracker commits in this cycle used git -c core.hooksPath=/dev/null. Recommended fix belongs with BCL-01: one renderer per commit, and the hook must not rewrite HTML to a newer renderer than the branch.",
-          "evidence": "docs/triage/pr-107.html was re-rendered with plugins/batched-change-list 0.1.12 after 0.1.16 writes; worktree still has a dirty .githooks/pre-push plus untracked pre-commit and pre-push.bcl-original; commit aada4e1 used hooksPath=/dev/null",
-          "outcome": "next_cycle"
-        },
-        {
-          "issue": "Release hygiene failed again on unrelated local-only work in the main agent-plugins clone (/Users/gurusharan/Documents/remote-claude/active/apps/agent-plugins), so 0.2.143 was installed with --hygiene-override, same as 0.2.142. Hygiene should ignore other clones' local-only work.",
-          "evidence": "~/.agents/artifacts/acu-0143/release.json hygiene.failures lists 2 local-only commits and 1 dirty file in that clone; hygiene.override true; /tmp/acu-0143.progress 15:45 IST retry with --hygiene-override",
-          "outcome": "next_cycle"
-        }
-      ]
+      "summary": "Each plan group should remember the exact command used to verify it, so the next verify pass can run that command instead of reconstructing it from notes.",
+      "impact": "Without a stored command, verify steps get improvised and the plan lanes cannot show what was actually run.",
+      "done_when": "Each group in the plan has a stored verify command, and verify uses that command.",
+      "observed": "Introspect of the 0.2.143 cycle on PR #107 found that group verify methods were long prose only. Operators had to rebuild typed-turn and screenshot commands by hand, and group verify status stayed pending after the run.",
+      "recommendation": "Add a per-group stored verify command (and optional counts) on tracking.plan.groups, and have bcl verify update the group verify state from those results."
+    },
+    {
+      "id": "BCL-03",
+      "title": "Introspect auto-fills the four sections from the run log",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "Introspect should draft the delete, simplify, optimize, and automate sections from the cycle's run log, so the agent only has to check and edit them.",
+      "impact": "Filling the four sections by hand is slow and easy to skip, so the review is missed or incomplete.",
+      "done_when": "bcl introspect can draft the four sections from the run log, and the agent can confirm or edit them before they are saved.",
+      "observed": "The 0.2.143 Introspect on PR #107 had to be assembled by hand from progress logs and commit messages after the run.",
+      "recommendation": "Teach bcl introspect to draft delete, simplify, optimize, and automate from the run log, still requiring evidence and a human confirmation step."
+    },
+    {
+      "id": "HYG-01",
+      "title": "Hygiene check should ignore other clones' local work",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "Release hygiene should ignore local-only commits and dirty files in other clones of the same repo, and only judge the clone being released.",
+      "impact": "A clean release is blocked, or needs a hygiene override, because another checkout on the same machine has unrelated local work.",
+      "done_when": "Hygiene on a release clone passes when the only failures are local-only work in a different clone.",
+      "observed": "ACU 0.2.143 was installed with --hygiene-override because hygiene.failures listed 2 local-only commits and 1 dirty file in /Users/gurusharan/Documents/remote-claude/active/apps/agent-plugins, not in the release worktree. The same override was needed for 0.2.142. Evidence: ~/.agents/artifacts/acu-0143/release.json and /tmp/acu-0143.progress at 15:45 IST.",
+      "recommendation": "Change the hygiene check so it ignores other clones' local-only work and reports only problems in the clone under release."
+    },
+    {
+      "id": "PLAN-02",
+      "title": "Split heavy Luna-max jobs into medium jobs (plan check)",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "The plan should catch a too-heavy group, especially a Luna-max job, and split it into medium jobs before it is launched.",
+      "impact": "One Luna-max island job in this cycle took about 25 minutes and about 11 million tokens, which delayed the rest of the parallel round.",
+      "done_when": "A plan check flags or splits a group that is too large or set to Luna max, preferring medium jobs of about 4 issues.",
+      "observed": "In the 0.2.143 parallel fix round on PR #107, the island group (ISLAND-01, ISLAND-03, AGENT-28) ran as a Luna-max Fast job and took about 25 minutes / 11M tokens, while the tools group finished in about 5 minutes and the session group in about 10.",
+      "recommendation": "Add a plan check that caps groups at about 4 issues and splits Luna-max work into medium jobs. The practice note is already in fix-and-verify.md."
     }
   ]
 }
