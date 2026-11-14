@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import fnmatch
 import math
 import os
 import re
@@ -26,6 +27,8 @@ MAX_TIMEOUT_S = 900.0
 TURN_PORTS = ("8765", "8787", "8766")
 _SECRET_ENV_PARTS = ("KEY", "TOKEN", "SECRET", "PASSWORD", "AUTH", "COOKIE")
 _STANDARD_BIN_DIRS = ("/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin", "/opt/homebrew/bin")
+_SHELL_CONTROL = {"if", "then", "else", "elif", "fi", "for", "while", "until", "do", "done",
+                  "case", "esac", "function", "{", "}", "(", ")", "()"}
 _SECRET_PATH = re.compile(
     r"(?i)(?:^|[/\s=])\.env[^/\s]*|(?:^|/)config/\.secret(?:/|$)|"
     r"(?:^|[/\s=])[^/\s]*\.pem(?:$|[/\s])|(?:^|[/\s=])id_[^/\s]+|"
@@ -88,28 +91,87 @@ def _literal_path(value: str, *, cwd: str, home: str) -> str | None:
     return os.path.normpath(value)
 
 
-def _rm_rf_root(words: list[str], *, cwd: str, worktree_root: str, home: str) -> bool:
+def _path_pattern(value: str, *, cwd: str, home: str) -> str:
+    home = os.path.realpath(home)
+    cwd = os.path.realpath(cwd)
+    value = value.replace("${HOME}", home).replace("$HOME", home)
+    if value == "~":
+        value = home
+    elif value.startswith("~/"):
+        value = os.path.join(home, value[2:])
+    elif not os.path.isabs(value):
+        value = os.path.join(cwd, value)
+    return os.path.normpath(value)
+
+
+def _resolved_path(value: str, *, cwd: str, home: str) -> str | None:
+    path = _literal_path(value, cwd=cwd, home=home)
+    if path is None:
+        return None
+    try:
+        return str(Path(path).resolve(strict=False))
+    except (OSError, RuntimeError):
+        return None
+
+
+def _is_protected_path(path: str, *, home: str) -> bool:
+    target = Path(path)
+    typed_token = Path(home) / ".cache" / "macos-cua" / "typed-approve.token"
+    activity_log = Path(home) / ".cache" / "macos-cua" / "samantha-activity.jsonl"
+    return (target == typed_token or target == activity_log or target.name == "typed-approve.token"
+            or bool(_SECRET_PATH.search(path)))
+
+
+def _protected_shell_word(word: str, *, cwd: str, home: str) -> bool:
+    value = word.split("=", 1)[-1] if "=" in word else word
+    if any(ch in value for ch in "*?[]{}") and re.search(
+        r"(?i)typed-approve|samantha-activity|\.env|config/\.secret|\.pem|id_", value,
+    ):
+        return True
+    pattern = _path_pattern(value, cwd=cwd, home=home)
+    protected = Path(home).resolve() / ".cache" / "macos-cua" / "typed-approve.token"
+    activity_log = Path(home).resolve() / ".cache" / "macos-cua" / "samantha-activity.jsonl"
+    if any(fnmatch.fnmatchcase(str(path), pattern) for path in (protected, activity_log)):
+        return True
+    resolved = _resolved_path(value, cwd=cwd, home=home)
+    return resolved is not None and _is_protected_path(resolved, home=home)
+
+
+def _recursive_rm_root(words: list[str], *, cwd: str, worktree_root: str, home: str) -> bool:
     if not words or os.path.basename(words[0]) != "rm":
         return False
-    recursive = force = False
+    recursive = False
     targets: list[str] = []
     options = True
     for word in words[1:]:
         if options and word == "--":
             options = False
         elif options and word.startswith("-"):
-            recursive |= word == "--recursive" or (not word.startswith("--") and "r" in word[1:])
-            force |= word == "--force" or (not word.startswith("--") and "f" in word[1:])
+            recursive |= word == "--recursive" or (not word.startswith("--") and bool(set(word[1:]) & {"r", "R"}))
         else:
             options = False
             targets.append(word)
-    if not (recursive and force):
+    if not recursive:
         return False
+    roots = {"/", os.path.realpath(home), os.path.realpath(worktree_root)}
     for target in targets:
-        path = _literal_path(target, cwd=cwd, home=home)
-        if path is None:
+        if re.match(r"^\$(?:HOME|\{HOME\})(?:/|$)", target):
+            expanded = target.replace("${HOME}", home).replace("$HOME", home)
+            try:
+                path = str(Path(expanded).resolve(strict=False))
+            except (OSError, RuntimeError):
+                path = None
+        else:
+            path = _resolved_path(target, cwd=cwd, home=home)
+        if path in roots:
             return True
-        if path in {"/", os.path.normpath(home), os.path.normpath(worktree_root)}:
+    return False
+
+
+def _has_control_syntax(segments: list[str]) -> bool:
+    for segment in segments:
+        words = _words(segment)
+        if words and (words[0] in _SHELL_CONTROL or any(any(ch in word for ch in "{}()") for word in words)):
             return True
     return False
 
@@ -203,10 +265,13 @@ def classify_shell_command(
         return "hard_refuse", "secret file or Keychain access"
 
     segments = _shell_segments(command)
+    control_syntax = _has_control_syntax(segments)
     for segment in segments:
         words = _words(segment)
         if any(os.path.basename(word) == "security" or _SECRET_PATH.search(word) for word in words):
             return "hard_refuse", "secret file or Keychain access"
+        if any(_protected_shell_word(word, cwd=cwd, home=home) for word in words):
+            return "hard_refuse", "protected secret path"
         if any(os.path.basename(word) == "sudo" for word in words):
             return "hard_refuse", "sudo is refused"
         effective = _effective_words(words)
@@ -214,11 +279,17 @@ def classify_shell_command(
             if any(word in {"--force", "--force-with-lease"} or
                    re.fullmatch(r"-[A-Za-z]*f[A-Za-z]*", word) for word in effective[1:]):
                 return "hard_refuse", "force push is refused"
-        if _rm_rf_root(effective, cwd=cwd, worktree_root=worktree_root, home=home):
+        candidates = [effective]
+        if control_syntax:
+            candidates.extend(words[i:] for i, word in enumerate(words) if os.path.basename(word) == "rm")
+        if any(_recursive_rm_root(candidate, cwd=cwd, worktree_root=worktree_root, home=home)
+               for candidate in candidates):
             return "hard_refuse", "recursive removal of a protected root"
 
     approval = ""
-    if "\n" in command or "\r" in command:
+    if control_syntax:
+        approval = "unsupported shell control syntax"
+    elif "\n" in command or "\r" in command:
         approval = "multiline shell command"
     elif "$(" in command or "`" in command or re.search(r"[<>]\(", command):
         approval = "command substitution"
@@ -321,8 +392,8 @@ def classify_shell_command(
                 approval = "network publish"
                 break
             for target in _redirect_targets(segment):
-                resolved = _literal_path(target, cwd=cwd, home=home)
-                if resolved is None or not _inside(resolved, worktree_root):
+                resolved = _resolved_path(target, cwd=cwd, home=home)
+                if resolved is None or not _inside(resolved, os.path.realpath(worktree_root)):
                     approval = "redirect outside the worktree"
                     break
             if approval:

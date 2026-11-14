@@ -334,6 +334,8 @@ class LiveSession:
         self._active_response_ids: set[str] = set()
         self._response_request_ids: dict[str, str] = {}
         self._response_task_run_ids: dict[str, str] = {}
+        self._response_typed_turn_ids: dict[str, str] = {}
+        self._typed_turn_ids_by_request: dict[str, str] = {}
         self._response_step_refs: dict[str, str] = {}
         self._response_cancellation_step_refs: dict[str, str] = {}
         self._task_runs: dict[str, list[dict[str, Any]]] = {}
@@ -1045,6 +1047,9 @@ class LiveSession:
                     if request_id:
                         self._response_request_ids[response_id] = request_id
                         self._response_task_run_ids[response_id] = request_id
+                        typed_turn_id = self._typed_turn_ids_by_request.get(request_id)
+                        if typed_turn_id:
+                            self._response_typed_turn_ids[response_id] = typed_turn_id
                         self._task_runs.setdefault(request_id, [])
                         self._cancel_settle(request_id)
                     self._cancelled_response_ids.discard(response_id)
@@ -1404,6 +1409,7 @@ class LiveSession:
                 return
             task_run_id = (self._response_task_run_ids.get(response_id)
                            or (request_id if request_id in self._task_runs else ""))
+            typed_turn_id = self._response_typed_turn_ids.get(response_id, "")
             tool_step_ref = new_step_ref()
             response_step_ref = self._response_step_refs.get(response_id, "")
             request_step_ref = self._task_request_step_refs.get(task_run_id, "") if task_run_id else ""
@@ -1446,7 +1452,8 @@ class LiveSession:
                 if cancelled:
                     with tool_context(call_id=call_id, response_id=response_id, run_id=task_run_id,
                                       step_ref=tool_step_ref, caused_by=caused_by + ([cancellation_step_ref]
-                                                                                   if cancellation_step_ref else [])):
+                                                                                   if cancellation_step_ref else []),
+                                      typed_turn_id=typed_turn_id):
                         result = {"ok": False, "cancelled": True, "outcome": "not_started",
                                   "error": "User cancelled before this tool started",
                                   "error_type": "user_cancelled", "retryable": False}
@@ -1471,7 +1478,8 @@ class LiveSession:
                 errors_before = errors_published()
                 with tool_context(call_id=call_id, response_id=response_id, run_id=task_run_id,
                                   step_ref=tool_step_ref, caused_by=caused_by,
-                                  cancellation_state="requested_before_tool_start" if cancellation_step_ref else ""):
+                                  cancellation_state="requested_before_tool_start" if cancellation_step_ref else "",
+                                  typed_turn_id=typed_turn_id):
                     try:
                         with self._response_lock:
                             cancelled = bool(task_run_id and task_run_id in self._cancel_requested_by_run)
@@ -1895,19 +1903,21 @@ class LiveSession:
         except Exception:  # noqa: BLE001 — telemetry never blocks shutdown
             pass
 
-    def send_text_and_wait(self, text: str, *, timeout: float = 90.0,
-                           cancel_event: threading.Event | None = None) -> dict[str, Any]:
+    def send_text_and_wait(self, text: str, *, timeout: float | None = 90.0,
+                           cancel_event: threading.Event | None = None,
+                           typed_turn_id: str = "") -> dict[str, Any]:
         if isinstance(timeout, bool):
             return {"ok": False, "error": "timeout must be finite and greater than zero",
                     "error_type": "invalid_timeout"}
-        try:
-            timeout = float(timeout)
-        except (TypeError, ValueError, OverflowError):
-            return {"ok": False, "error": "timeout must be finite and greater than zero",
-                    "error_type": "invalid_timeout"}
-        if not math.isfinite(timeout) or timeout <= 0:
-            return {"ok": False, "error": "timeout must be finite and greater than zero",
-                    "error_type": "invalid_timeout"}
+        if timeout is not None:
+            try:
+                timeout = float(timeout)
+            except (TypeError, ValueError, OverflowError):
+                return {"ok": False, "error": "timeout must be finite and greater than zero",
+                        "error_type": "invalid_timeout"}
+            if not math.isfinite(timeout) or timeout <= 0:
+                return {"ok": False, "error": "timeout must be finite and greater than zero",
+                        "error_type": "invalid_timeout"}
         if cancel_event is not None and cancel_event.is_set():
             return {"ok": False, "error": "session disconnected", "error_type": "session_disconnected"}
         started = time.monotonic()
@@ -1915,10 +1925,10 @@ class LiveSession:
             # A stop must not queue behind the request it is stopping.
             self.send_text(text)
             return {"ok": True, "reply": "", "stopped": True}
-        while not self._text_request_lock.acquire(timeout=min(0.1, max(0.0, timeout - (time.monotonic() - started)))):
+        while not self._text_request_lock.acquire(timeout=0.1):
             if cancel_event is not None and cancel_event.is_set():
                 return {"ok": False, "error": "session disconnected", "error_type": "session_disconnected"}
-            if time.monotonic() - started >= timeout:
+            if timeout is not None and time.monotonic() - started >= timeout:
                 return {"ok": False, "error": "timeout waiting for another text request"}
         request_id = uuid.uuid4().hex
         waiter = {"event": threading.Event(), "reply": "", "error": ""}
@@ -1928,18 +1938,21 @@ class LiveSession:
             if self._audio:
                 self._audio.pause_input()
                 self._send({"type": "input_audio_buffer.clear"})
-            remaining = max(0.0, timeout - (time.monotonic() - started))
+            remaining = max(0.0, timeout - (time.monotonic() - started)) if timeout is not None else 5.0
             if not self._wait_for_responses_idle(timeout=min(5.0, remaining)):
                 return {"ok": False, "error": "voice response still active; retry when Samantha is listening"}
             with self._response_lock:
                 self._text_waiters[request_id] = waiter
+                if typed_turn_id:
+                    self._typed_turn_ids_by_request[request_id] = typed_turn_id
             self.send_text(text, request_id=request_id)
-            remaining = max(0.0, timeout - (time.monotonic() - started))
-            deadline = time.monotonic() + remaining
-            while not waiter["event"].wait(timeout=min(0.1, max(0.0, deadline - time.monotonic()))):
+            deadline = (time.monotonic() + max(0.0, timeout - (time.monotonic() - started))
+                        if timeout is not None else None)
+            while not waiter["event"].wait(timeout=(min(0.1, max(0.0, deadline - time.monotonic()))
+                                                     if deadline is not None else 0.1)):
                 if cancel_event is not None and cancel_event.is_set():
                     return {"ok": False, "error": "session disconnected", "error_type": "session_disconnected"}
-                if time.monotonic() >= deadline:
+                if deadline is not None and time.monotonic() >= deadline:
                     return {"ok": False, "error": "timeout", "reply": str(waiter["reply"])}
             if waiter["error"]:
                 return {"ok": False, "error": str(waiter["error"])[:240], "reply": str(waiter["reply"])}
@@ -1947,6 +1960,7 @@ class LiveSession:
         finally:
             with self._response_lock:
                 self._text_waiters.pop(request_id, None)
+                self._typed_turn_ids_by_request.pop(request_id, None)
             if self._audio:
                 self._audio.resume_input()
             self._text_request_lock.release()
@@ -1996,6 +2010,7 @@ class LiveSession:
                 self._current_response_id = ""
             self._response_request_ids.pop(response_id, None)
             self._response_task_run_ids.pop(response_id, None)
+            self._response_typed_turn_ids.pop(response_id, None)
             self._response_step_refs.pop(response_id, None)
             self._response_cancellation_step_refs.pop(response_id, None)
             self._response_transcripts.pop(response_id, None)
@@ -2008,6 +2023,7 @@ class LiveSession:
                 return
             waiter["reply"] = reply
             waiter["error"] = error
+            self._typed_turn_ids_by_request.pop(request_id, None)
             waiter["event"].set()
 
     def _note_response_done(self, response: dict[str, Any]) -> None:

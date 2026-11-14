@@ -292,7 +292,7 @@ class tool_context:  # noqa: N801 — used as a context manager
     def __init__(self, *, call_id: str = "", response_id: str = "", run_id: str = "",
                  step_ref: str = "", caused_by: list[str] | tuple[str, ...] = (),
                  retry_of_step_ref: str = "", retry_of_run_ref: str = "",
-                 cancellation_state: str = "") -> None:
+                 cancellation_state: str = "", typed_turn_id: str = "") -> None:
         self._ids = {"call_id": call_id or None, "response_id": response_id or None}
         if isinstance(run_id, str) and re.fullmatch(r"[0-9a-f]{8,64}", run_id):
             self._ids["run_id"] = run_id
@@ -301,6 +301,7 @@ class tool_context:  # noqa: N801 — used as a context manager
             self._ids["run_ref_status"] = "unknown"
             self._ids["run_ref_gap"] = "tool_context_missing_run_id"
         self._ids["step_ref"] = step_ref or new_step_ref()
+        self._typed_turn_id = typed_turn_id
         refs = [ref for ref in caused_by if isinstance(ref, str) and ref]
         if refs:
             self._ids["caused_by"] = list(dict.fromkeys(refs))
@@ -310,14 +311,18 @@ class tool_context:  # noqa: N801 — used as a context manager
             if value:
                 self._ids[key] = value
         self._prev: dict[str, Any] | None = None
+        self._prev_typed_turn_id = ""
 
     def __enter__(self) -> "tool_context":
         self._prev = getattr(_tool_ctx, "ids", None)
+        self._prev_typed_turn_id = getattr(_tool_ctx, "typed_turn_id", "")
         _tool_ctx.ids = self._ids
+        _tool_ctx.typed_turn_id = self._typed_turn_id or self._prev_typed_turn_id
         return self
 
     def __exit__(self, *_exc: object) -> None:
         _tool_ctx.ids = self._prev
+        _tool_ctx.typed_turn_id = self._prev_typed_turn_id
 
 
 def _current_tool_ids() -> dict[str, Any]:
@@ -327,6 +332,10 @@ def _current_tool_ids() -> dict[str, Any]:
 def current_tool_ids() -> dict[str, Any]:
     """Current step identity for sibling ACU emitters such as retry tracking."""
     return _current_tool_ids()
+
+
+def current_typed_turn_id() -> str:
+    return getattr(_tool_ctx, "typed_turn_id", "")
 
 
 def update_tool_context(**fields: Any) -> None:

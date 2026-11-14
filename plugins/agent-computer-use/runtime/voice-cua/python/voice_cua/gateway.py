@@ -142,6 +142,15 @@ class Handler(BaseHTTPRequestHandler):
         self._json(403, {"ok": False, "error": "invalid voice control token"})
         return False
 
+    def _authorize_typed_approval(self) -> bool:
+        with _APPROVE_TOKEN_LOCK:
+            expected = _APPROVE_TOKEN or ""
+        supplied = self.headers.get("X-Voice-CUA-Approve", "")
+        if expected and hmac.compare_digest(supplied, expected):
+            return True
+        self._json(403, {"ok": False, "error": "typed approval unauthorized"})
+        return False
+
     def _read_json(self) -> dict[str, Any]:
         n = int(self.headers.get("Content-Length") or 0)
         if n <= 0:
@@ -189,6 +198,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, session_status())
             return
         if path == "/api/session/turn":
+            if not self._authorize_typed_approval():
+                return
             from voice_cua.session_hub import get_turn
 
             turn_id = (query.get("id") or [""])[0]
@@ -199,6 +210,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200 if turn else 404, turn or {"ok": False, "error": "unknown turn_id"})
             return
         if path == "/api/confirm/pending":
+            if not self._authorize_typed_approval():
+                return
             self._json(200, ISLAND.pending_confirm())
             return
         if path == "/api/island/state":
@@ -344,14 +357,10 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body.get("approved"), bool):
                 self._json(400, {"ok": False, "error": "approved must be a boolean"})
                 return
-            with _APPROVE_TOKEN_LOCK:
-                expected = _APPROVE_TOKEN or ""
-            supplied = self.headers.get("X-Voice-CUA-Approve", "")
-            if not expected or not hmac.compare_digest(supplied, expected):
-                self._json(403, {"ok": False, "error": "typed approval unauthorized"})
+            if not self._authorize_typed_approval():
                 return
             approved = body["approved"]
-            ok = ISLAND.resolve_confirm(cid, approved)
+            ok = ISLAND.resolve_confirm(cid, approved, typed_authorized=True)
             self._json(200 if ok else 409, {"ok": ok, "confirm_id": cid, "approved": approved})
             return
         if path == "/api/confirm/request":
@@ -370,7 +379,15 @@ class Handler(BaseHTTPRequestHandler):
             if not cid:
                 self._json(400, {"ok": False, "error": "confirm_id required"})
                 return
-            outcome = ISLAND.request_confirm(cid, prompt, timeout=timeout)
+            origin_turn_id = body.get("origin_turn_id")
+            if origin_turn_id is not None:
+                from voice_cua.session_hub import has_turn
+
+                if not isinstance(origin_turn_id, str) or not has_turn(origin_turn_id):
+                    self._json(409, {"ok": False, "error": "unknown originating turn"})
+                    return
+            outcome = ISLAND.request_confirm(cid, prompt, timeout=timeout,
+                                             origin_turn_id=origin_turn_id)
             ok = outcome != "error"
             self._json(200 if ok else 409, {
                 "ok": ok, "confirm_id": cid, "outcome": outcome,

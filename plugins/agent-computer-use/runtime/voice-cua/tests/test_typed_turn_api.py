@@ -22,6 +22,8 @@ sys.path.insert(0, str(ROOT / "python"))
 
 from voice_cua import gateway, island_facade, session_hub  # noqa: E402
 from voice_cua.gateway import Handler  # noqa: E402
+from voice_cua.island_state import IslandBus  # noqa: E402
+from voice_cua.activity_log import tool_context  # noqa: E402
 
 
 class TypedTurnAPITests(unittest.TestCase):
@@ -62,8 +64,14 @@ class TypedTurnAPITests(unittest.TestCase):
 
         turn = {"turn_id": "turn-1", "status": "done", "reply": "Done", "error": None,
                 "elapsed_ms": 45, "pending_confirm": {"confirm_id": "c-1", "prompt": "Confirm?"}}
-        with patch("voice_cua.session_hub.get_turn", return_value=turn):
-            code, body = self.request("GET", "/api/session/turn?id=turn-1")
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.object(gateway, "_approve_token_path", return_value=Path(tmp) / "typed-approve.token"):
+            gateway._create_approve_token()
+            self.addCleanup(gateway._delete_approve_token)
+            token_headers = {"X-Voice-CUA-Approve": gateway._APPROVE_TOKEN}
+            with patch("voice_cua.session_hub.get_turn", return_value=turn):
+                self.assertEqual(self.request("GET", "/api/session/turn?id=turn-1")[0], 403)
+                code, body = self.request("GET", "/api/session/turn?id=turn-1", headers=token_headers)
         self.assertEqual((code, body), (200, turn))
 
         with patch("voice_cua.session_hub.start_turn", return_value={
@@ -85,21 +93,63 @@ class TypedTurnAPITests(unittest.TestCase):
                 self.assertEqual(code, 400)
                 self.assertFalse(body["ok"])
 
-    def test_pending_confirm_endpoint_and_boolean_confirm_answers(self) -> None:
-        with patch.object(gateway.ISLAND, "pending_confirm", return_value={
-            "confirm_id": "c-1", "prompt": "Delete the draft?",
-        }):
-            self.assertEqual(self.request("GET", "/api/confirm/pending"), (200, {
-                "confirm_id": "c-1", "prompt": "Delete the draft?",
+    def test_typed_confirmation_reads_and_approval_require_token_but_island_buttons_still_work(self) -> None:
+        bus = IslandBus()
+        with tempfile.TemporaryDirectory() as tmp, patch.object(gateway, "ISLAND", bus), \
+                patch.object(gateway, "_approve_token_path", return_value=Path(tmp) / "typed-approve.token"):
+            gateway._create_approve_token()
+            token = gateway._APPROVE_TOKEN
+            self.addCleanup(gateway._delete_approve_token)
+            self.assertIsNotNone(token)
+            typed_result = {}
+            typed_thread = threading.Thread(
+                target=lambda: typed_result.setdefault("outcome", bus.request_confirm(
+                    "c-typed", "Run the approved command?", timeout=2, origin_turn_id="turn-a",
+                )),
+                daemon=True,
+            )
+            typed_thread.start()
+            deadline = time.monotonic() + 1
+            while bus.pending_confirm() is None and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertEqual(self.request("GET", "/api/confirm/pending")[0], 403)
+            self.assertEqual(self.request("POST", "/api/confirm", {
+                "confirm_id": "c-typed", "approved": True,
+            })[0], 409)
+            headers = {"X-Voice-CUA-Approve": token}
+            self.assertEqual(self.request("GET", "/api/confirm/pending", headers=headers), (200, {
+                "confirm_id": "c-typed", "prompt": "Run the approved command?",
             }))
+            code, body = self.request("POST", "/api/session/approve", {
+                "confirm_id": "c-typed", "approved": True,
+            }, headers)
+            self.assertEqual((code, body["ok"]), (200, True))
+            typed_thread.join(timeout=1)
+            self.assertEqual(typed_result.get("outcome"), "approved")
 
+            island_result = {}
+            island_thread = threading.Thread(
+                target=lambda: island_result.setdefault("outcome", bus.request_confirm(
+                    "c-island", "Allow from the Island?", timeout=2,
+                )),
+                daemon=True,
+            )
+            island_thread.start()
+            deadline = time.monotonic() + 1
+            while bus.pending_confirm() is None and time.monotonic() < deadline:
+                time.sleep(0.01)
+            code, body = self.request("POST", "/api/confirm", {
+                "confirm_id": "c-island", "approved": True,
+            })
+            self.assertEqual((code, body["ok"]), (200, True))
+            island_thread.join(timeout=1)
+            self.assertEqual(island_result.get("outcome"), "approved")
+
+    def test_legacy_confirm_requires_boolean(self) -> None:
         with patch.object(gateway.ISLAND, "resolve_confirm", return_value=True) as resolve:
-            code, body = self.request("POST", "/api/confirm", {"confirm_id": "c-1", "approved": "true"})
+            code, _ = self.request("POST", "/api/confirm", {"confirm_id": "c-1", "approved": "true"})
             self.assertEqual(code, 400)
             resolve.assert_not_called()
-            code, body = self.request("POST", "/api/confirm", {"confirm_id": "c-1", "approved": True})
-        self.assertEqual((code, body["ok"], body["approved"]), (200, True, True))
-        resolve.assert_called_once_with("c-1", True)
 
     def test_typed_approval_requires_per_process_token_and_rejects_duplicate_answer(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -128,6 +178,7 @@ class TypedTurnAPITests(unittest.TestCase):
                     }, {"X-Voice-CUA-Approve": token})
                     self.assertEqual((code, body["ok"]), (409, False))
                 self.assertEqual(resolve.call_count, 2)
+                self.assertTrue(resolve.call_args_list[0].kwargs["typed_authorized"])
                 gateway._delete_approve_token()
                 self.assertFalse(path.exists())
 
@@ -138,6 +189,35 @@ class TypedTurnAPITests(unittest.TestCase):
                     "confirm_id": "c-invalid", "prompt": "Confirm?", "timeout": timeout,
                 })
                 self.assertEqual(code, 400)
+
+    def test_remote_confirm_request_requires_a_known_origin_turn(self) -> None:
+        with patch.object(session_hub, "has_turn", side_effect=lambda turn_id: turn_id == "turn-known"), \
+                patch.object(gateway.ISLAND, "request_confirm", return_value="approved") as request:
+            code, body = self.request("POST", "/api/confirm/request", {
+                "confirm_id": "c-remote", "prompt": "Build?", "timeout": 1,
+                "origin_turn_id": "turn-unknown",
+            })
+            self.assertEqual(code, 409)
+            code, body = self.request("POST", "/api/confirm/request", {
+                "confirm_id": "c-remote", "prompt": "Build?", "timeout": 1,
+                "origin_turn_id": "turn-known",
+            })
+        self.assertEqual((code, body["outcome"]), (200, "approved"))
+        request.assert_called_once_with("c-remote", "Build?", timeout=1.0,
+                                        origin_turn_id="turn-known")
+
+    def test_island_facade_preserves_typed_turn_origin(self) -> None:
+        with tool_context(typed_turn_id="turn-local"), \
+                patch.object(island_facade, "use_remote", return_value=False), \
+                patch.object(island_facade.ISLAND, "request_confirm", return_value="approved") as local:
+            self.assertEqual(island_facade.island_confirm("c-local", "Build?", timeout=2), "approved")
+        local.assert_called_once_with("c-local", "Build?", timeout=2, origin_turn_id="turn-local")
+
+        with tool_context(typed_turn_id="turn-remote"), \
+                patch.object(island_facade, "use_remote", return_value=True), \
+                patch.object(island_facade, "_post", return_value={"ok": True, "approved": True}) as post:
+            self.assertEqual(island_facade.island_confirm("c-remote", "Build?", timeout=2), "approved")
+        self.assertEqual(post.call_args.args[1]["origin_turn_id"], "turn-remote")
 
     def test_remote_confirmation_timeout_is_distinct_from_transport_failure(self) -> None:
         with patch.object(island_facade, "use_remote", return_value=True), \
@@ -169,8 +249,9 @@ class SessionHubTurnTests(unittest.TestCase):
         )
         session._session_ready.set()
 
-        def send_text_and_wait(text, *, timeout, cancel_event):
-            received.update(text=text, timeout=timeout, cancel_event=cancel_event)
+        def send_text_and_wait(text, *, timeout, cancel_event, typed_turn_id):
+            received.update(text=text, timeout=timeout, cancel_event=cancel_event,
+                            typed_turn_id=typed_turn_id)
             called.set()
             release.wait(2)
             return {"ok": True, "reply": "r" * 300}
@@ -181,7 +262,8 @@ class SessionHubTurnTests(unittest.TestCase):
             self.assertEqual((result["ok"], result["error"], result["status"]),
                              (False, "still_running", "running"))
             self.assertTrue(called.wait(1))
-            self.assertEqual(received["timeout"], session_hub.TURN_LIFETIME_S)
+            self.assertIsNone(received["timeout"])
+            self.assertEqual(received["typed_turn_id"], result["turn_id"])
             self.assertFalse(received["cancel_event"].is_set())
             self.assertEqual(session_hub.get_turn(result["turn_id"])["status"], "running")
             release.set()
@@ -201,7 +283,7 @@ class SessionHubTurnTests(unittest.TestCase):
         )
         session._session_ready.set()
 
-        def send_text_and_wait(text, *, timeout, cancel_event):
+        def send_text_and_wait(text, *, timeout, cancel_event, typed_turn_id):
             called.set()
             release.wait(2)
             return {"ok": True, "reply": text}
@@ -231,7 +313,7 @@ class SessionHubTurnTests(unittest.TestCase):
             )
             session._session_ready.set()
 
-            def send_text_and_wait(text, *, timeout, cancel_event, i=index):
+            def send_text_and_wait(text, *, timeout, cancel_event, typed_turn_id, i=index):
                 called[i].set()
                 releases[i].wait(2)
                 return {"ok": True, "reply": text}
@@ -262,6 +344,35 @@ class SessionHubTurnTests(unittest.TestCase):
         self.assertNotIn("completed", session_hub._turns)
         self.assertEqual(len(session_hub._turns), session_hub.TURN_HISTORY)
         self.assertTrue(all(turn["status"] == "running" for turn in session_hub._turns.values()))
+
+    def test_confirmation_poll_is_bound_to_its_originating_turn(self) -> None:
+        bus = IslandBus()
+        for turn_id, status in (("turn-a", "running"), ("turn-b", "running"), ("turn-done", "done")):
+            session_hub._turns[turn_id] = {
+                "status": status, "ok": status == "done", "reply": "", "error": None,
+                "started_at": time.monotonic(), "elapsed_ms": 1 if status == "done" else None,
+                "event": threading.Event(), "cancel_event": threading.Event(), "_session": None,
+            }
+        result = {}
+        worker = threading.Thread(
+            target=lambda: result.setdefault("outcome", bus.request_confirm(
+                "confirm-a", "Run build?", timeout=2, origin_turn_id="turn-a",
+            )),
+            daemon=True,
+        )
+        worker.start()
+        deadline = time.monotonic() + 1
+        while bus.pending_confirm() is None and time.monotonic() < deadline:
+            time.sleep(0.01)
+        with patch("voice_cua.island_state.ISLAND", bus):
+            self.assertEqual(session_hub.get_turn("turn-a")["pending_confirm"], {
+                "confirm_id": "confirm-a", "prompt": "Run build?",
+            })
+            self.assertIsNone(session_hub.get_turn("turn-b")["pending_confirm"])
+            self.assertIsNone(session_hub.get_turn("turn-done")["pending_confirm"])
+        self.assertTrue(bus.resolve_confirm("confirm-a", False, typed_authorized=True))
+        worker.join(timeout=1)
+        self.assertEqual(result.get("outcome"), "denied")
 
 
 if __name__ == "__main__":

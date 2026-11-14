@@ -358,7 +358,7 @@ class ExpiryRestTests(unittest.TestCase):
             _dormant = threading.Event()
             _wake = threading.Event()
 
-            def send_text_and_wait(self, text, timeout, cancel_event=None):
+            def send_text_and_wait(self, text, timeout, cancel_event=None, typed_turn_id=""):
                 return {"ok": True, "reply": text}
 
         sess = Sess()

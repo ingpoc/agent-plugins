@@ -57,6 +57,57 @@ class DevToolsTests(unittest.TestCase):
         ):
             with self.subTest(command=command):
                 self.assertEqual(self.classify(command), "hard_refuse")
+                self.assertEqual(self.run_shell(command)["error_type"], "hard_refusal")
+
+    def test_shell_blocks_approval_token_globs_and_symlink_aliases(self) -> None:
+        token = self.base / ".cache" / "macos-cua" / "typed-approve.token"
+        token.parent.mkdir(parents=True)
+        token.write_text("test-only")
+        link = self.repo / "opaque-input"
+        link.symlink_to(token)
+        for command in (
+            "cat ~/.cache/macos-cua/typed-approve.toke?",
+            "cat ~/.cache/macos-cua/typed-approve.*",
+            "cat ~/.cache/macos-cua/typed-approve.{token,bak}",
+            "cat ~/.cache/macos-cua/*",
+            "cat opaque-input",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self.classify(command), "hard_refuse")
+                self.assertEqual(self.run_shell(command)["error_type"], "hard_refusal")
+
+    def test_shell_control_syntax_is_gated_and_recursive_rm_root_flags_are_refused(self) -> None:
+        for command in (
+            "rm -r /", "rm -R ~", "rm -rf /", "rm -Rf /", "rm -fr /", "rm --recursive /",
+            "rm -r $HOME", "rm -r $HOME/.",
+            f"rm -R {self.repo}", "if true; then rm -Rf /; fi",
+            "if rm -r /; then true; fi",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self.classify(command), "hard_refuse")
+        for command in ("rm -r build", "rm -Rf build", "rm -r ${HOME}/..", "rm -r ~/.."):
+            with self.subTest(command=command):
+                self.assertEqual(self.classify(command), "approval")
+        for command in (
+            "if true; then echo hi; fi", "for x in a; do echo hi; done", "while false; do echo hi; done",
+            "case x in x) echo hi;; esac", "function f() { echo hi; }", "{ echo hi; }", "(echo hi)",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self.classify(command), "approval")
+
+    def test_shell_redirect_resolves_symlink_targets_before_worktree_gate(self) -> None:
+        outside = self.base / "outside.txt"
+        outside.write_text("keep")
+        outside_dir = self.base / "outside-dir"
+        outside_dir.mkdir()
+        link = self.repo / "link"
+        link.symlink_to(outside)
+        parent_link = self.repo / "parent-link"
+        parent_link.symlink_to(outside_dir, target_is_directory=True)
+        self.assertEqual(self.classify("echo ok > link"), "approval")
+        self.assertEqual(self.classify("echo ok > parent-link/new.txt"), "approval")
+        self.assertEqual(self.classify("echo ok > $HOME/out.txt"), "approval")
+        self.assertEqual(self.classify("echo ok > out.txt"), "safe")
 
     def test_shell_classifier_requires_approval_for_risky_segments(self) -> None:
         commands = (

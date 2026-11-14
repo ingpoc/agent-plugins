@@ -19,7 +19,6 @@ _credential_lock = threading.Lock()
 _turn_lock = threading.Lock()
 _turns: OrderedDict[str, dict[str, Any]] = OrderedDict()
 TURN_WAIT_MAX_S = 1800.0
-TURN_LIFETIME_S = 1800.0
 TURN_HISTORY = 20
 
 
@@ -112,21 +111,26 @@ def _turn_payload(turn_id: str, turn: dict[str, Any], pending: dict[str, str] | 
     }
 
 
-def _pending_confirm() -> dict[str, str] | None:
+def _pending_confirm(turn_id: str) -> dict[str, str] | None:
     from voice_cua.island_state import ISLAND
 
-    return ISLAND.pending_confirm()
+    return ISLAND.pending_confirm(turn_id=turn_id)
 
 
 def get_turn(turn_id: str) -> dict[str, Any] | None:
-    pending = _pending_confirm()
     with _turn_lock:
         turn = _turns.get(turn_id)
         if turn is None:
             return None
-        payload = _turn_payload(turn_id, turn, pending)
+        payload = _turn_payload(turn_id, turn, None)
+    payload["pending_confirm"] = _pending_confirm(turn_id)
     payload.pop("ok", None)
     return payload
+
+
+def has_turn(turn_id: str) -> bool:
+    with _turn_lock:
+        return bool(turn_id and turn_id in _turns)
 
 
 def _run_turn(turn_id: str, text: str, session: LiveSession | None,
@@ -138,7 +142,8 @@ def _run_turn(turn_id: str, text: str, session: LiveSession | None,
         return
     try:
         if getattr(session, "_spoken_task_cancel", lambda _text: False)(text):
-            result = session.send_text_and_wait(text, timeout=TURN_LIFETIME_S, cancel_event=cancel_event)
+            result = session.send_text_and_wait(text, timeout=None, cancel_event=cancel_event,
+                                                typed_turn_id=turn_id)
         else:
             if not session._session_ready.is_set():
                 # A resting session wakes for text; a reconnect gets a short grace period.
@@ -161,7 +166,8 @@ def _run_turn(turn_id: str, text: str, session: LiveSession | None,
             if session._stop.is_set():
                 result = {"ok": False, "error": "session closed"}
             else:
-                result = session.send_text_and_wait(text, timeout=TURN_LIFETIME_S, cancel_event=cancel_event)
+                result = session.send_text_and_wait(text, timeout=None, cancel_event=cancel_event,
+                                                    typed_turn_id=turn_id)
         _settle_turn(turn_id, result, session=session)
     except Exception as exc:  # noqa: BLE001 — a turn error must settle its poll record
         _settle_turn(turn_id, {"ok": False, "error": str(exc)}, session=session)

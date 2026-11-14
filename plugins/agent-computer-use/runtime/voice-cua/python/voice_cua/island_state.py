@@ -56,6 +56,7 @@ class IslandBus:
         self._listeners: list[Callable[[IslandState], None]] = []
         self._confirms: dict[str, threading.Event] = {}
         self._confirm_results: dict[str, bool] = {}
+        self._confirm_turn_ids: dict[str, str] = {}
         self._seen_confirm_ids: set[str] = set()
         self._agent_decisions: dict[str, bool] = {}
 
@@ -171,14 +172,18 @@ class IslandBus:
                 pass
         return snap
 
-    def pending_confirm(self) -> dict[str, str] | None:
+    def pending_confirm(self, turn_id: str | None = None) -> dict[str, str] | None:
         with self._lock:
             confirm_id = self._state.confirm_id
             if not confirm_id or confirm_id not in self._confirms:
                 return None
+            origin_turn_id = self._confirm_turn_ids.get(confirm_id, "")
+            if turn_id is not None and origin_turn_id != turn_id:
+                return None
             return {"confirm_id": confirm_id, "prompt": self._state.confirm_prompt}
 
-    def request_confirm(self, confirm_id: str, prompt: str, timeout: float = 120.0) -> str:
+    def request_confirm(self, confirm_id: str, prompt: str, timeout: float = 120.0,
+                        *, origin_turn_id: str | None = None) -> str:
         """Block for an explicit answer and distinguish denial, timeout, and transport failure."""
         if (not isinstance(confirm_id, str) or not confirm_id or isinstance(timeout, bool)
                 or not isinstance(timeout, (int, float))):
@@ -189,12 +194,16 @@ class IslandBus:
             return "error"
         if not math.isfinite(timeout) or timeout <= 0:
             return "error"
+        if origin_turn_id is not None and (not isinstance(origin_turn_id, str) or not origin_turn_id):
+            return "error"
         event = threading.Event()
         with self._lock:
             if confirm_id in self._seen_confirm_ids:
                 return "error"
             self._seen_confirm_ids.add(confirm_id)
             self._confirms[confirm_id] = event
+            if origin_turn_id:
+                self._confirm_turn_ids[confirm_id] = origin_turn_id
         self.publish(
             "confirm",
             title="Confirm",
@@ -208,6 +217,7 @@ class IslandBus:
             answered = answered or confirm_id in self._confirm_results
             result = self._confirm_results.pop(confirm_id, False) if answered else False
             self._confirms.pop(confirm_id, None)
+            self._confirm_turn_ids.pop(confirm_id, None)
             timed_out = not answered
             stale = timed_out and getattr(self._state, "confirm_id", None) == confirm_id
         if stale:
@@ -217,12 +227,14 @@ class IslandBus:
             return "timed_out"
         return "approved" if result else "denied"
 
-    def resolve_confirm(self, confirm_id: str, approved: bool) -> bool:
+    def resolve_confirm(self, confirm_id: str, approved: bool, *, typed_authorized: bool = False) -> bool:
         if not isinstance(confirm_id, str) or type(approved) is not bool:
             return False
         with self._lock:
             event = self._confirms.get(confirm_id)
             if event is None or confirm_id in self._confirm_results:
+                return False
+            if self._confirm_turn_ids.get(confirm_id) and not typed_authorized:
                 return False
             self._confirm_results[confirm_id] = approved
             self._confirms.pop(confirm_id, None)
