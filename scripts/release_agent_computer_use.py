@@ -202,9 +202,16 @@ def voice_smoke(plugin, version):
 HYGIENE_GATES = ('worktree-placement','duplicate-clones','local-only-work')
 
 
+def owning_clone_root(worktree):
+    worktree = Path(worktree).resolve()
+    common_dir = Path(output(['git','rev-parse','--git-common-dir'],root=worktree))
+    return (common_dir if common_dir.is_absolute() else worktree/common_dir).resolve().parent
+
+
 def hygiene_failures(report_rows, root=ROOT):
-    """FAIL items from the placement/clone/local-only checks for this release checkout."""
-    root = Path(root).resolve()
+    """FAIL items from clone checks and placement checks for this release worktree."""
+    worktree = Path(root).resolve()
+    clone = owning_clone_root(worktree)
     found = []
     for row in report_rows:
         if row.get('check') not in HYGIENE_GATES or row.get('status') != 'FAIL':
@@ -213,12 +220,12 @@ def hygiene_failures(report_rows, root=ROOT):
             text = item if isinstance(item,str) else json.dumps(item)
             if row['check'] == 'duplicate-clones':
                 _, separator, clones = text.partition(' -> ')
-                matches = separator and f", {root}, " in f", {clones}, "
+                matches = separator and f", {clone}, " in f", {clones}, "
             elif row['check'] == 'local-only-work':
                 path = text.split(':',1)[0].strip()
-                matches = Path(path).expanduser().resolve() == root
+                matches = Path(path).expanduser().resolve() == clone
             else:
-                matches = Path(text.strip()).expanduser().resolve() == root
+                matches = Path(text.strip()).expanduser().resolve() == worktree
             if matches:
                 found.append(f"{row['check']}: {text[:200]}")
     return found

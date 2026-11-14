@@ -202,7 +202,7 @@ class ReleaseTests(unittest.TestCase):
 
 
 class HygieneGateTests(unittest.TestCase):
-    TARGET = str(release.ROOT)
+    TARGET = str(release.owning_clone_root(release.ROOT))
     OTHER = str(release.ROOT.parent / 'agent-plugins-other')
     ROWS = [
         {'check':'worktree-placement','status':'FAIL','items':[
