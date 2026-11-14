@@ -72,6 +72,48 @@ def _close(proc: subprocess.Popen) -> None:
 
 
 class CompactMcpDispatchTests(unittest.TestCase):
+    def test_stale_pinned_window_reresolves_before_typed_text_dispatch(self):
+        before = '[0] AXWindow "Terminal"\n[1] AXTextArea value=""'
+        after = before.replace('value=""', 'value="echo acutest"')
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                self.state_calls = 0
+                self.plan_windows = []
+                self.type_calls = []
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def __init__(self, outer):
+                        self.outer = outer
+
+                    def get_app_state(self, app, **kwargs):
+                        self.outer.state_calls += 1
+                        window_id = 11 if self.outer.state_calls == 1 else 22
+                        text = after if self.outer.state_calls >= 3 else before
+                        return {"windowId": window_id, "text": text}
+
+                    def execute_plan(self, app, steps, window_id=None):
+                        self.outer.plan_windows.append(window_id)
+                        return {
+                            "before": {"text": before},
+                            "after": {"text": before},
+                            "results": [{"ok": False, "error": "stale window id"}],
+                        }
+
+                    def type_text(self, app, text, **kwargs):
+                        self.outer.type_calls.append((text, kwargs.get("window_id")))
+                        return {"ok": True, "method": "type_text"}
+
+                return fn(Client(self))
+
+        backend = Backend()
+        result = backend.act("Terminal", {"text": "echo acutest", "expect": "echo acutest"})
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["verified"])
+        self.assertEqual(backend.plan_windows, [11])
+        self.assertEqual(backend.type_calls, [("echo acutest", 22)])
+
     def test_act_waits_for_terminal_ax_output_before_verifying_expect(self):
         class Backend(compact_mcp.CUABackend):
             def __init__(self):

@@ -300,6 +300,22 @@ class CUABackend:
                     self._normalize_step_result(item)
                     for item in (raw_results if isinstance(raw_results, list) else [])
                 ]
+                if (
+                    len(native_steps) == 1
+                    and native_steps[0].get("method") == "type_text"
+                    and len(results) == 1
+                    and results[0].get("ok") is not True
+                    and results[0].get("dispatched") is not True
+                ):
+                    failure_text = " ".join(
+                        str(results[0].get(key) or "").lower()
+                        for key in ("error", "error_type", "message", "reason")
+                    )
+                    if any(token in failure_text for token in ("stale", "detached", "out of range")):
+                        # The pinned target failed before dispatch; resolve the current window before typing.
+                        results = [self._normalize_step_result(
+                            self._dispatch(client, app, steps[0], after_new)
+                        )]
             else:
                 before = self._get_app_state(
                     client, app, disableDiff=True, includeScreenshot=False, includeElements=True
