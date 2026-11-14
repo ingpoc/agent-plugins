@@ -27,7 +27,7 @@ Do not fix and test one issue at a time.
 
 ## Plan check
 
-A round runs only independent groups. At Plan, if a group would do better after another group's fix, move it to the next round and mark it `deferred` (not planned or failed). Cap parallel groups in a round at 3–4 by default.
+A round runs only independent groups. At Plan, if a group would do better after another group's fix, move it to the next round and mark it `deferred` (not planned or failed). Cap parallel groups in a round at 3–4 by default. Cap a parallel fix group at about 4 issues.
 
 ## Round rules
 
