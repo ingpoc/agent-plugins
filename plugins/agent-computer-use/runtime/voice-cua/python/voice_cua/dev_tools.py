@@ -331,8 +331,10 @@ def classify_shell_command(
 
 
 def _scrubbed_env() -> dict[str, str]:
+    # GIT_CONFIG_COUNT/KEY_n/VALUE_n are one set: dropping KEY_n alone (it contains "KEY") breaks every git call.
     return {key: value for key, value in os.environ.items()
-            if not any(part in key.upper() for part in _SECRET_ENV_PARTS)}
+            if not key.upper().startswith("GIT_CONFIG_")
+            and not any(part in key.upper() for part in _SECRET_ENV_PARTS)}
 
 
 def _workspace_roots() -> tuple[Path, Path]:

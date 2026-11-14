@@ -103,6 +103,13 @@ class DevToolsTests(unittest.TestCase):
         self.assertNotIn("secret-sentinel", result["output"])
         self.assertIn("DEV_TEST_KEEP=kept", result["output"])
 
+    def test_scrubbed_env_drops_git_config_env_as_a_set(self) -> None:
+        with patch.dict(os.environ, {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "safe.directory",
+                                     "GIT_CONFIG_VALUE_0": "*"}):
+            env = dev_tools._scrubbed_env()
+            self.assertFalse(any(key.startswith("GIT_CONFIG_") for key in env))
+            self.assertEqual(self.run_shell("git rev-parse --is-inside-work-tree")["exit_code"], 0)
+
     def test_kill_of_protected_listener_is_hard_refused(self) -> None:
         with patch.object(dev_tools.GATE, "check", return_value=None), \
                 patch.object(dev_tools, "_protected_listener_pids", return_value={98765}):
