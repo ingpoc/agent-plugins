@@ -2041,9 +2041,8 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-14T15:56:12Z",
-      "now": "2026-11-14T15:56:12Z — Introspection recorded"
+      "stage": "report_rollover",
+      "updated_at": "2026-11-14T15:56:19Z"
     },
     "rollover": {
       "source_pr": 107,
@@ -2378,7 +2377,8 @@
       "present",
       "plan_fix",
       "install",
-      "introspect"
+      "introspect",
+      "report_rollover"
     ],
     "introspect": {
       "result": "Introspect recorded",
