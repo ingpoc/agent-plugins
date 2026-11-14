@@ -4084,6 +4084,36 @@
       "summary": "The last review of the fix process found a few slow or fragile steps in how fixes are built and checked.",
       "impact": "These steps cost time on every fix cycle and can hide problems from automatic checks.",
       "done_when": "The leftover process issues are fixed and the next review comes back clean."
+    },
+    {
+      "id": "ISLAND-01",
+      "title": "Grok Bot background work doesn't keep the agent on the island; it disappears between turns",
+      "source": "User reported",
+      "status": "failing",
+      "observed": "14 Nov 2026 13:08 and 13:10 IST (Guru, live): the Dynamic Island shows the 'Agent Computer Use · Macos computer use' pill while the parent agent is mid-turn, but shows 'No agents running' between turns while only its background subagents/executors run on the Mini (this executor was running the merge/install job at the time). The Grok Bot roster row comes only from IslandGrokBotActivity, which reads the Grok Bot app's accessibility tree: a sidebar row labelled '<name>, Working' or the '<name> is working' AXApplicationStatus live region. Both exist only while the open conversation streams a turn; background executors and subagents set neither, and island-events.jsonl has no roster snapshot to show it.",
+      "recommendation": "Add a background/busy source for Grok Bot: e.g. have local-exec jobs (executors, Codex exec launched by Grok Bot) post a start/heartbeat/end through bin/island-post (or a ~/.cache/macos-cua heartbeat file) and merge it with the AX turn signal in IslandGrokBotActivity.rows, keeping the row while any heartbeat is fresh. Also log roster snapshots so this can be verified.",
+      "details": {
+        "Where to look": "service/Sources/CUAService/IslandGrokBotActivity.swift (workingBots, rows, read/publish: AX-only signal); IslandHub.swift / IslandModel.swift roster merge; bin/island-post as the existing push path.",
+        "Signal today": "Turn-active only: sidebar ', Working' suffix and ' is working' status text (com.anysphere.sand AX tree)."
+      },
+      "summary": "The island shows Grok Bot only while it is replying to you. When it hands work to background helpers, the island says no agents are running even though work continues.",
+      "impact": "You can't tell from the island that work is still happening, so it looks finished or stuck when it isn't.",
+      "done_when": "While any Grok Bot background job runs, the island keeps showing the agent as working, and it clears when the last job ends."
+    },
+    {
+      "id": "ISLAND-02",
+      "title": "Confirm headless codex exec jobs appear on the island while they run",
+      "source": "User requested",
+      "status": "untested",
+      "observed": "Code and sqlite check (14 Nov 2026, 13:15 IST, no code changed): IslandCodexThreads.readDatabase reads every row of ~/.codex*/state_5.sqlite 'threads' WHERE archived = 0 (not only app threads). Today's Grok Bot exec jobs are there: 01a1d867… created 10:24:17 IST and 01a1d898-e571… created 11:17:41 IST, both source=exec, originator=acu_exec.grokbot, archived=0, agent_role and attached_thread_parent_id NULL, cwd not a probe path, so rows() keeps them and hostLabel maps acu_exec.* to 'terminal'. A row shows as running only while liveState finds a live process whose executable basename is 'codex' holding the rollout file open (lsof); the standalone binary .../bin/codex matches. No runtime proof exists: island-events.jsonl records clicks and controls but no roster snapshots, so there is no record that these two jobs were displayed.",
+      "recommendation": "Run one short detached codex exec with CODEX_INTERNAL_ORIGINATOR_OVERRIDE=acu_exec.grokbot and capture the island while it runs (screenshot + a roster snapshot). Add roster snapshot logging to island-events.jsonl so this is checkable after the fact.",
+      "details": {
+        "Where to look": "service/Sources/CUAService/IslandCodexThreads.swift (readDatabase WHERE archived = 0; rows filters parentID/role/isProbe; liveState needs lsof on a 'codex' process; hostLabel acu_exec -> terminal); IslandLocalHarnessScanner.codexProcesses.",
+        "Verdict from code": "Should pass (exec threads are read and kept); unproven live, so untested."
+      },
+      "summary": "Coding jobs that Grok Bot starts in the background should show on the island while they run. The code suggests they do, but it hasn't been confirmed on screen.",
+      "impact": "If they don't show, long coding jobs are invisible and you can't see what is running on the Mac.",
+      "done_when": "A background coding job appears on the island while it runs and disappears shortly after it ends, confirmed with a screenshot."
     }
   ]
 }
