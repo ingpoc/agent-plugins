@@ -1,5 +1,13 @@
 # Changelog: agent-computer-use
 
+## 0.2.143
+
+- Samantha: typed turns settle after a second confirm, reconnects keep project and task context, and typed replies are no longer cut at 240 characters.
+- Samantha: follow-on words stay on the active task, read-only shell commands skip approval, and she uses a just-heard name or folder hint instead of asking again.
+- Samantha: a missing app is treated as not running rather than retried with a bundle ID; Terminal typing waits for fresh output and changes strategy after a retry cap; typing no longer fails because of logger conflicts.
+- Island: background Grok Bot jobs keep the agent visible, Fast mode is labelled when Codex runs at priority, and `/api/confirm` requires the control token.
+- Stopping Samantha cancels the gateway health wait immediately and does not record a startup timeout.
+
 ## 0.2.142
 
 - Typed turns can run for up to 30 minutes, return pollable turn IDs, and receive a typed approval through the per-process confirm token.
