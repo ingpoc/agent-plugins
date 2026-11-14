@@ -138,6 +138,8 @@ def plan_phase(group):
     verify_status = verify.get("status", "pending")
     if verify_status in ("failed", "blocked") or status in ("failed", "blocked") or codex.get("status") in ("failed", "blocked"):
         return "blocked"
+    if status in ("pending", "queued"):
+        return "pending"
     if verify_status in ("running", "partial"):
         return "verify"
     if verify_status in ("done", "complete", "verified"):
@@ -155,7 +157,7 @@ def plan_phase(group):
 
 def plan_status(group):
     verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
-    if verify.get("status") == "partial":
+    if verify.get("status") == "partial" and plan_phase(group) in ("verify", "install", "done"):
         return "partial"
     return PHASE_TO_STATE[plan_phase(group)]
 

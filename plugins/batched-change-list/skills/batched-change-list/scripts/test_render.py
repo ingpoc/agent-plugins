@@ -641,6 +641,16 @@ setImmediate(async()=>{
         self.assertIn('class="grp review"', page)
         self.assertIn('>Review</span>', page)
         self.assertIn('data-stage="plan_fix" class="wf-step current" aria-current="step"', page)
+        data['tracking']['workflow']['stage'] = 'install'
+        data['tracking']['plan']['groups'] = [
+            {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'done','phase':'install','verify':{'status':'pending'}},
+            {'id':'C','name':'Later group','finding_ids':['ISSUE-02'],'status':'pending','verify':{'status':'partial','fixed':0,'failed':1,'total':3}},
+        ]
+        page = renderer.render(data, self.base)
+        self.assertIn('class="grp install"', page)
+        self.assertIn('class="grp queued"', page)
+        self.assertIn('data-stage="install" class="wf-step current" aria-current="step"', page)
+        self.assertNotIn('data-stage="verify" class="wf-step current"', page)
 
 
 
