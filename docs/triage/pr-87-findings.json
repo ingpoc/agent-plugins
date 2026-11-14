@@ -2,10 +2,10 @@
   "title": "Samantha issues and recommended fixes",
   "tracking": {
     "pull_request": {
-      "label": "PR #107",
-      "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/107"
+      "label": "PR #110",
+      "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/110"
     },
-    "worktree": "samantha-pr107-rollover",
+    "worktree": "samantha-pr110-rollover",
     "verification_history": [
       {
         "id": "acu-0.2.97-install-20261106-0544z",
@@ -2041,28 +2041,29 @@
       }
     },
     "workflow": {
-      "stage": "report_rollover",
-      "updated_at": "2026-11-14T11:20:27Z"
+      "stage": "collect",
+      "updated_at": "2026-11-14T11:22:03Z",
+      "now": "2026-11-14T11:22:03Z — Rolled over from PR #107; Guru approved at 18 verified fixes (all count), 2026-11-14 16:48 IST"
     },
     "rollover": {
-      "source_pr": 105,
+      "source_pr": 107,
       "unresolved_ids": [
-        "AGENT-16",
-        "AGENT-17",
         "OBS-23",
         "AGENT-18",
-        "AGENT-19",
         "OBS-25",
-        "OBS-26",
         "AGENT-22",
         "AGENT-23",
-        "OBS-28",
         "AGENT-25",
         "AGENT-26",
         "AGENT-27",
-        "AGENT-28",
         "AGENT-29",
-        "WF-06"
+        "WF-06",
+        "ISLAND-03",
+        "BCL-01",
+        "BCL-02",
+        "BCL-03",
+        "HYG-01",
+        "PLAN-02"
       ],
       "excluded_ids": [
         "AGENT-02",
@@ -2076,13 +2077,21 @@
         "AGENT-13",
         "AGENT-14",
         "AGENT-15",
+        "AGENT-16",
+        "AGENT-17",
+        "AGENT-19",
         "AGENT-20",
         "AGENT-21",
         "AGENT-24",
+        "AGENT-28",
         "DEVOBS-01",
         "DEVOBS-02",
         "DEVOBS-03",
         "DEVOBS-04",
+        "FLOW-01",
+        "HOOK-01",
+        "ISLAND-01",
+        "ISLAND-02",
         "OBS-01",
         "OBS-02",
         "OBS-03",
@@ -2101,13 +2110,23 @@
         "OBS-21",
         "OBS-22",
         "OBS-24",
+        "OBS-26",
         "OBS-27",
+        "OBS-28",
+        "PAGE-01",
+        "PAGE-02",
+        "PAGE-03",
+        "PLAN-01",
+        "RUN-01",
+        "TEST-01",
+        "TRACK-01",
         "USER-02",
         "USER-03",
         "USER-06",
         "USER-07",
         "WF-01",
-        "WF-05"
+        "WF-05",
+        "WF-07"
       ],
       "forced_gate_overrides": [
         {
@@ -2118,22 +2137,19 @@
           "threshold": 15,
           "reason": "Guru approved rollover at 18 verified fixes (all count), 2026-11-14 16:48 IST",
           "all_verified_fixed": 18
+        },
+        {
+          "cycle": 1,
+          "action": "rollover",
+          "forced_at": "2026-11-14T11:22:03Z",
+          "verified_fixed": 8,
+          "threshold": 15,
+          "reason": "Guru approved rollover at 18 verified fixes (all count), 2026-11-14 16:48 IST",
+          "all_verified_fixed": 18
         }
       ]
     },
-    "stages_reached": [
-      "plan_fix",
-      "install",
-      "verify",
-      "report_rollover",
-      "introspect"
-    ],
-    "introspect": {
-      "result": "3 issue(s)",
-      "at": "2026-11-14T10:32:05Z",
-      "task": "WF-07"
-    },
-    "cycle": 1,
+    "cycle": 2,
     "plan": {
       "round": 2,
       "updated_at": "2026-11-14T09:32:31Z",
@@ -2308,7 +2324,14 @@
       ],
       "cycle": 1
     },
-    "round": 2
+    "round": 1,
+    "round_history": [
+      {
+        "round": 2,
+        "fixed": 61,
+        "ended_at": "2026-11-14T11:22:03Z"
+      }
+    ]
   },
   "findings": [
     {
