@@ -7,10 +7,16 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = ROOT.parents[3]
 CONTRACT = json.loads((ROOT / "hardening-contract.json").read_text())
 _spec = importlib.util.spec_from_file_location("gate_cleanup", ROOT / "scripts" / "gate_cleanup.py")
 gate_cleanup = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gate_cleanup)
+_release_spec = importlib.util.spec_from_file_location(
+    "release_agent_computer_use", REPO_ROOT / "scripts" / "release_agent_computer_use.py"
+)
+release = importlib.util.module_from_spec(_release_spec)
+_release_spec.loader.exec_module(release)
 
 RETIRED = re.compile(r"\.local/bin/cua-driver")
 # Known legacy CUA_DRIVER defaults (driver_status still shells it); remove, never extend.
@@ -90,6 +96,43 @@ class GateCleanupTests(unittest.TestCase):
                                       run=lambda *a: {"ok": a[0] != "doctor", "failed": ["permissions"]})
         self.assertTrue(report["ok"])
         self.assertFalse(report["doctor"]["ok"])
+
+
+class ReleaseHygieneTests(unittest.TestCase):
+    def test_other_clone_local_only_commits_and_dirty_files_are_ignored(self):
+        with tempfile.TemporaryDirectory() as td:
+            release_clone = (Path(td) / "release" / "agent-plugins").resolve()
+            other_clone = (Path(td) / "other" / "agent-plugins").resolve()
+            report = [{
+                "check": "local-only-work",
+                "status": "FAIL",
+                "items": [
+                    f"{release_clone}:release-branch: 1 local-only commit(s), head abc",
+                    f"{release_clone}: 1 dirty file(s) remain in place",
+                    f"{other_clone}:other-branch: 2 local-only commit(s), head def",
+                    f"{other_clone}: 1 dirty file(s) remain in place",
+                ],
+            }, {
+                "check": "worktree-placement",
+                "status": "FAIL",
+                "items": [str(other_clone), str(release_clone)],
+            }, {
+                "check": "duplicate-clones",
+                "status": "FAIL",
+                "items": [
+                    f"https://example.invalid/repo -> {other_clone}",
+                    f"https://example.invalid/repo -> {release_clone}, {other_clone}",
+                ],
+            }]
+            findings = release.hygiene_failures(report, root=release_clone)
+            self.assertEqual(findings[:3], [
+                f"local-only-work: {release_clone}:release-branch: 1 local-only commit(s), head abc",
+                f"local-only-work: {release_clone}: 1 dirty file(s) remain in place",
+                f"worktree-placement: {release_clone}",
+            ])
+            duplicates = [finding for finding in findings if finding.startswith("duplicate-clones:")]
+            self.assertEqual(len(duplicates), 1)
+            self.assertIn(str(release_clone), duplicates[0])
 
 
 if __name__ == "__main__":

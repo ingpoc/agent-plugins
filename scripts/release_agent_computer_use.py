@@ -202,16 +202,24 @@ def voice_smoke(plugin, version):
 HYGIENE_GATES = ('worktree-placement','duplicate-clones','local-only-work')
 
 
-def hygiene_failures(report_rows):
-    """FAIL items of the placement/clone/local-only checks that name an agent-plugins checkout."""
+def hygiene_failures(report_rows, root=ROOT):
+    """FAIL items from the placement/clone/local-only checks for this release checkout."""
+    root = Path(root).resolve()
     found = []
     for row in report_rows:
         if row.get('check') not in HYGIENE_GATES or row.get('status') != 'FAIL':
             continue
         for item in row.get('items',[]):
             text = item if isinstance(item,str) else json.dumps(item)
-            path = Path(text.split(':',1)[0].strip())
-            if 'agent-plugins' in path.parts:
+            if row['check'] == 'duplicate-clones':
+                _, separator, clones = text.partition(' -> ')
+                matches = separator and f", {root}, " in f", {clones}, "
+            elif row['check'] == 'local-only-work':
+                path = text.split(':',1)[0].strip()
+                matches = Path(path).expanduser().resolve() == root
+            else:
+                matches = Path(text.strip()).expanduser().resolve() == root
+            if matches:
                 found.append(f"{row['check']}: {text[:200]}")
     return found
 
