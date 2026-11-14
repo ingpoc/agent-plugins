@@ -38,7 +38,8 @@ enum IslandCodexThreads {
             if type == "turn_context" {
                 result.model = payload["model"] as? String ?? result.model
                 result.effort = payload["effort"] as? String ?? result.effort
-                result.serviceTier = payload["service_tier"] as? String ?? result.serviceTier
+                let settings = payload["thread_settings"] as? [String: Any]
+                result.serviceTier = settings?["service_tier"] as? String ?? payload["service_tier"] as? String ?? result.serviceTier
             } else if type == "event_msg", let event = payload["type"] as? String {
                 if event.hasPrefix("hook_") || [payload["message"] as? String, payload["reason"] as? String].compactMap({ $0 }).contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("hook:") }) { continue }
                 switch event {
