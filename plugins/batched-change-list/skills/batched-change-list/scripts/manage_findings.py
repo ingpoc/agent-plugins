@@ -925,7 +925,7 @@ def main(argv=None):
                             raise ValueError("update-plan-group requires a plan for the current cycle")
                         group = next((g for g in plan.get("groups", []) if g.get("id") == operation.get("id")), None)
                         patch = operation.get("patch")
-                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes"}:
+                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase"}:
                             raise ValueError("update-plan-group requires id and a valid group patch")
                         if any(key in patch and not isinstance(patch[key], str) for key in ("label", "verify_summary", "name", "worktree", "reason")):
                             raise ValueError("label, name, verify_summary, worktree and reason must be strings")
@@ -942,8 +942,10 @@ def main(argv=None):
                         group.update(patch)
                         stamp_plan_group(group, datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
                         plan["round"] = RENDERER.rollover_round(tracking)
-                        if "status" in patch and patch["status"] not in {"pending", "running", "blocked", "done", "failed"}:
+                        if "status" in patch and patch["status"] not in {"pending", "running", "review", "install", "blocked", "done", "failed"}:
                             raise ValueError("invalid plan group status")
+                        if "phase" in patch and patch["phase"] not in {"pending", "fix", "review", "install", "verify", "done", "blocked"}:
+                            raise ValueError("invalid plan group phase")
                     continue
                 if action in ("set-stage", "set-activity"):
                     target = operation.get("stage")

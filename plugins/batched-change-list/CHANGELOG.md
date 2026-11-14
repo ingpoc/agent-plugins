@@ -1,8 +1,10 @@
-## Unreleased
+## 0.1.18
 
 - `bcl merged` records the merge commit and time, moves the workflow to Merged / Done, and retargets stacked open PRs to `main` when provider CLI access is available; otherwise it records and prints a TODO.
 - `bcl rollover` writes a separate live list without changing the old list or viewer, resets carried `in_progress` findings to `untested`, and defers the new viewer until `bcl start` begins Collect.
 - Viewer port selection reuses 53366 when free and unreserved (or already owned by the list); finding writes resolve captures from the report directory and can save status updates when a capture is missing.
+- Plan groups are lanes (fix → review → install → verify): a group enters Install when its review passes, one review round per group with leftover nits logged as new issues, and groups that finish close together share a serialized build. Live verify uses the `verify.command` stored at Plan. The plan row shows each group's phase; the top timeline highlights the furthest phase any lane is in.
+- An unmet Fixes gate no longer uses current-step emphasis; only the current stage (and a met gate) get that marker.
 
 ## 0.1.17
 

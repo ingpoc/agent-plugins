@@ -1,5 +1,13 @@
 # Changelog: agent-computer-use
 
+## 0.2.144
+
+- Samantha: typed turns settle after a second confirm, reconnects keep project and task context, and typed replies are no longer cut at 240 characters.
+- Samantha: follow-on words stay on the active task, read-only shell commands skip approval, and she uses a just-heard name or folder hint instead of asking again.
+- Samantha: a missing app is treated as not running rather than retried with a bundle ID; Terminal typing waits for fresh output and changes strategy after a retry cap; typing no longer fails because of logger conflicts.
+- Island: Fast mode is labelled when Codex runs at priority.
+- Hygiene checks resolve a release worktree to its owning clone and ignore local-only work in a different clone.
+
 ## 0.2.143
 
 - Samantha: typed turns settle after a second confirm, reconnects keep project and task context, and typed replies are no longer cut at 240 characters.

@@ -106,9 +106,9 @@ if(!plan.open)process.exit(4);
             {'id':'C','finding_ids':['ISSUE-01'],'status':'running','verify':{'status':'running','method':'Verify running'}},
             {'id':'D','finding_ids':['ISSUE-02'],'status':'blocked','verify':{'status':'pending','failure':'Codex job failed tests did not pass','method':'Blocked'}}]}}
         page = renderer.render(data, self.base)
-        row = page.split('<details class="grp fixed">', 1)[1].split('</details>', 1)[0]
+        row = page.split('<details class="grp install">', 1)[1].split('</details>', 1)[0]
         self.assertIn('5 min', row); self.assertIn('Luna medium Fast', row)
-        self.assertIn('Render label', row); self.assertIn('Fixed', row)
+        self.assertIn('Render label', row); self.assertIn('Install', row)
         self.assertIn('Run the focused test and inspect the live page carefully', page)
         self.assertIn('Failed', page); self.assertIn('Codex job failed tests did not pass', page)
         self.assertIn('Verifying', page); self.assertIn('Verified', page)
@@ -616,6 +616,32 @@ setImmediate(async()=>{
         self.assertIn('class="grp verified"', page)
         self.assertIn('Verified', page)
         self.assertNotIn('No fix plan', page)
+
+
+    def test_plan_rows_show_lane_phase_and_timeline_uses_furthest(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}, 'plan': {'round': 1, 'groups': [
+            {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'done','verify':{'status':'pending','method':'Unit tests'}},
+            {'id':'B','name':'Still fixing','finding_ids':['ISSUE-02'],'status':'running','codex':{'status':'running','model':'gpt-6-luna'}}]}}
+        page = renderer.render(data, self.base)
+        self.assertIn('class="grp install"', page)
+        self.assertIn('>Install</span>', page)
+        self.assertIn('class="grp running"', page)
+        self.assertIn('>Fixing</span>', page)
+        self.assertIn('data-stage="install" class="wf-step current" aria-current="step"', page)
+        self.assertIn('data-stage="plan_fix" class="wf-step done"', page)
+        self.assertNotIn('data-stage="plan_fix" class="wf-step current"', page)
+        data['tracking']['plan']['groups'][0]['verify'] = {'status':'verified','method':'Unit tests'}
+        page = renderer.render(data, self.base)
+        self.assertIn('class="grp verified"', page)
+        self.assertIn('data-stage="verify" class="wf-step current" aria-current="step"', page)
+        data['tracking']['plan']['groups'][0]['phase'] = 'review'
+        data['tracking']['plan']['groups'][0]['verify'] = {'status':'pending'}
+        page = renderer.render(data, self.base)
+        self.assertIn('class="grp review"', page)
+        self.assertIn('>Review</span>', page)
+        self.assertIn('data-stage="plan_fix" class="wf-step current" aria-current="step"', page)
+
 
 
 

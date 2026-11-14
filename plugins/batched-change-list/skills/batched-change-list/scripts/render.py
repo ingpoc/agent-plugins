@@ -121,24 +121,56 @@ def plan_duration(group, now):
     return f"{max(1, round(seconds / 60))} min"
 
 
-def plan_status(group):
+LANE_PHASES = ("pending", "fix", "review", "install", "verify", "done", "blocked")
+PHASE_TO_STAGE = {"pending": "plan_fix", "fix": "plan_fix", "review": "plan_fix", "install": "install", "verify": "verify", "done": "verify", "blocked": "plan_fix"}
+PHASE_TO_STATE = {"pending": "queued", "fix": "running", "review": "review", "install": "install", "verify": "verifying", "done": "verified", "blocked": "failed"}
+
+
+def plan_phase(group):
+    explicit = group.get("phase")
+    if explicit in LANE_PHASES:
+        return explicit
     codex = group.get("codex", {}) if isinstance(group.get("codex"), dict) else {}
     verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
+    review = group.get("review", {}) if isinstance(group.get("review"), dict) else {}
+    install = group.get("install", {}) if isinstance(group.get("install"), dict) else {}
     status = group.get("status", codex.get("status", "pending"))
     verify_status = verify.get("status", "pending")
-    if verify_status == "partial":
-        return "partial"
     if verify_status in ("failed", "blocked") or status in ("failed", "blocked") or codex.get("status") in ("failed", "blocked"):
-        return "failed"
-    if verify_status == "running":
-        return "verifying"
+        return "blocked"
+    if verify_status in ("running", "partial"):
+        return "verify"
     if verify_status in ("done", "complete", "verified"):
-        return "verified"
+        return "done"
+    if status == "install" or install.get("status") in ("running", "queued", "done"):
+        return "install"
+    if status == "review" or review.get("status") in ("running", "request-changes"):
+        return "review"
     if status in ("done", "fixed"):
-        return "fixed"
+        return "install"
     if status == "running" or codex.get("status") == "running":
-        return "running"
-    return "queued"
+        return "fix"
+    return "pending"
+
+
+def plan_status(group):
+    verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
+    if verify.get("status") == "partial":
+        return "partial"
+    return PHASE_TO_STATE[plan_phase(group)]
+
+
+def furthest_workflow_stage(active, plan):
+    order = ["collect", "present", "plan_fix", "install", "verify", "introspect", "gate", "report_rollover", "merged"]
+    if active not in ("plan_fix", "install", "verify"):
+        return active
+    stages = [active]
+    if isinstance(plan, dict):
+        for group in plan.get("groups", []):
+            if isinstance(group, dict):
+                stages.append(PHASE_TO_STAGE[plan_phase(group)])
+    index = max(order.index(stage) for stage in stages if stage in order)
+    return order[min(index, order.index("verify"))]
 
 
 def short_words(value, limit=10):
@@ -153,11 +185,11 @@ def render_plan(data, tracking, plan, round_number, now):
     if not matching:
         return f'<div class="plan-empty">No fix plan for Round {round_number} yet.</div>' if has_started else ""
     groups = [group for group in plan.get("groups", []) if isinstance(group, dict)]
-    counts = {state: sum(plan_status(group) == state for group in groups) for state in ("running", "fixed", "partial", "verifying", "verified", "failed", "queued")}
-    tally = " · ".join(f"{counts[key]} {label}" for key, label in (("running", "running"), ("fixed", "fixed"), ("partial", "partial"), ("failed", "failed"), ("verifying", "verifying"), ("verified", "verified"), ("queued", "planned")) if counts[key])
+    counts = {state: sum(plan_status(group) == state for group in groups) for state in ("running", "review", "install", "fixed", "partial", "verifying", "verified", "failed", "queued")}
+    tally = " · ".join(f"{counts[key]} {label}" for key, label in (("running", "running"), ("review", "review"), ("install", "install"), ("fixed", "fixed"), ("partial", "partial"), ("failed", "failed"), ("verifying", "verifying"), ("verified", "verified"), ("queued", "planned")) if counts[key])
     findings = {item.get("id"): item for item in data.get("findings", [])}
     rows = []
-    labels = {"queued":"Planned", "running":"Fixing", "fixed":"Fixed", "partial":"Partial", "verifying":"Verifying", "verified":"Verified", "failed":"Failed"}
+    labels = {"queued":"Planned", "running":"Fixing", "review":"Review", "install":"Install", "fixed":"Fixed", "partial":"Partial", "verifying":"Verifying", "verified":"Verified", "failed":"Failed"}
     for group in groups:
         codex = group.get("codex", {}) if isinstance(group.get("codex"), dict) else {}
         verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
@@ -589,7 +621,7 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     plan = tracking_data.get("plan") if isinstance(tracking_data, dict) else None
     round_number = rollover_round(tracking_data)
     render_now = now or parse_instant(workflow.get("updated_at")) if workflow else now
-    timeline_steps = render_workflow(active, fixed_count, threshold, gate_met, round_number)
+    timeline_steps = render_workflow(furthest_workflow_stage(active, plan), fixed_count, threshold, gate_met, round_number)
     plan_view = render_plan(data, tracking_data, plan, round_number, render_now)
     viewer_html = (f'<p class="viewer-footer">reading {html.escape(str(viewer["path"]))}, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}</p>' if viewer else "")
     timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow</strong><span>{"Last reported " + time_html if time_html else "No active step reported"}</span></div>'
