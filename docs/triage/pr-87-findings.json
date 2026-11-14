@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "present",
-      "updated_at": "2026-11-14T12:29:17Z",
-      "now": "2026-11-14T12:29:17Z — Started collection"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-14T12:29:53Z",
+      "now": "2026-11-14T12:29:53Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 107,
@@ -2151,178 +2151,283 @@
     },
     "cycle": 2,
     "plan": {
-      "round": 2,
-      "updated_at": "2026-11-14T09:32:31Z",
+      "round": 1,
       "groups": [
         {
-          "id": "AC",
+          "id": "STATUS",
+          "name": "Status accuracy",
           "finding_ids": [
-            "AGENT-26",
-            "AGENT-29",
-            "OBS-28",
-            "AGENT-18",
-            "AGENT-19",
-            "AGENT-27",
-            "OBS-25"
+            "PAGE-04",
+            "PAGE-06",
+            "AUTO-01",
+            "AUTO-02",
+            "AUTO-03"
           ],
-          "reason": "Python session and judgement in live_session.py, providers.py, session_hub.py, and dev_tools.py. OBS-25 is included here because it shares live_session.py; a parallel inline edit would conflict.",
-          "worktree": "acu-0143-session",
           "depends_on": [],
-          "status": "done",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "status": "done",
-            "started_at": "2026-11-14T09:33:22Z",
-            "ended_at": "2026-11-14T09:43:02Z",
-            "duration_s": 580,
-            "service_tier": "priority",
-            "session_id": "01a1d967-8467-7bc3-98cb-9b38a4ba6d4c",
-            "commit": "85399b0",
-            "usage": {
-              "input_tokens": 10251339,
-              "cached_input_tokens": 10114944,
-              "output_tokens": 31259,
-              "reasoning_output_tokens": 9081
-            }
-          },
-          "verify": {
-            "method": "Typed Samantha turns via POST 127.0.0.1:8766/api/session/text; read the session transcript. Cover a second confirm (AGENT-26), a full-length reply (OBS-28), a known app name and folder hint (AGENT-18, AGENT-19), a read-only shell command (AGENT-27), and follow-up words staying on the same run (OBS-25). AGENT-29 is a reconnect/context unit plus a transcript check after a simulated idle reconnect.",
-            "status": "partial",
-            "fixed": 2,
-            "failed": 1,
-            "total": 7
-          }
-        },
-        {
-          "id": "B",
-          "finding_ids": [
-            "AGENT-17",
-            "AGENT-22",
-            "AGENT-23"
-          ],
-          "reason": "Samantha tool dispatch and logging: app_not_running handling, cua_act retry strategy, and the typed_text log_event conflict.",
-          "worktree": "acu-0143-tools",
-          "depends_on": [],
-          "status": "done",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "status": "done",
-            "started_at": "2026-11-14T09:33:22Z",
-            "ended_at": "2026-11-14T09:38:33Z",
-            "duration_s": 311,
-            "service_tier": "priority",
-            "session_id": "01a1d967-8685-7480-ad01-53bc1228f19f",
-            "commit": "e14fea4",
-            "usage": {
-              "input_tokens": 3724026,
-              "cached_input_tokens": 3634432,
-              "output_tokens": 17540,
-              "reasoning_output_tokens": 5527
-            }
-          },
-          "verify": {
-            "method": "Typed Samantha turns: ask for an app that is not running (AGENT-17 — she opens it or says it is not running, never retries with a bundle ID). A Terminal type step (AGENT-22, AGENT-23) must not crash the logger and should succeed or change strategy instead of repeating the same failing keystrokes.",
-            "status": "partial",
-            "fixed": 1,
-            "failed": 0,
-            "total": 3
-          }
-        },
-        {
-          "id": "D",
-          "finding_ids": [
-            "ISLAND-01",
-            "ISLAND-03",
-            "AGENT-28",
-            "AGENT-16"
-          ],
-          "reason": "Swift CUAService work. AGENT-16 moved here from the Python group: waitForGatewayHealth lives in VoiceSupervisor.swift. AGENT-28 also touches gateway.py and island_state.py.",
-          "worktree": "acu-0143-island",
-          "depends_on": [],
-          "status": "done",
+          "reason": "Rollover, merge-done, and collect viewer switching were done by hand and left the wrong status on the page. Status accuracy is first.",
+          "worktree": "bcl-110-status",
+          "status": "pending",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
-            "status": "done",
-            "started_at": "2026-11-14T09:33:24Z",
-            "ended_at": "2026-11-14T09:57:57Z",
-            "duration_s": 1473,
             "service_tier": "priority",
-            "session_id": "01a1d967-8c01-7892-964e-3bb8966237b8",
-            "commit": "29c950b",
-            "usage": {
-              "input_tokens": 11261186,
-              "cached_input_tokens": 11035520,
-              "output_tokens": 108116,
-              "reasoning_output_tokens": 84875
-            }
+            "status": "pending"
           },
           "verify": {
-            "method": "Island screenshots: ISLAND-01 while a background job runs (agent stays visible); ISLAND-03 with a live short Luna Fast codex exec showing Fast, and a normal run without Fast. AGENT-28: POST /api/confirm without the token is rejected; the island Allow button still works. AGENT-16: start then immediately stop Samantha; the wait ends at once and no gateway_health timeout is recorded.",
-            "status": "partial",
-            "fixed": 3,
-            "failed": 1,
+            "method": "Unit tests plus scripted bcl runs: rollover writes only the new list and resets carried in_progress items to untested; merged records the merge commit and time and sets Merged/Done on the old list; collect reuses port 53366 when this list already owns it, does not move the viewer on rollover, and does not fail a findings batch only because a capture file is missing.",
+            "summary": "Rollover merge and collect viewer tests",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 5
+          }
+        },
+        {
+          "id": "SESSION",
+          "name": "Typed session and shell gate",
+          "finding_ids": [
+            "AGENT-26",
+            "AGENT-29",
+            "AGENT-27",
+            "AGENT-18"
+          ],
+          "depends_on": [],
+          "reason": "Confirm settle, reconnect context, read-only shell approval, and heard app-name handling share live_session, providers, session_hub, and dev_tools.",
+          "worktree": "acu-110-session",
+          "status": "pending",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "max",
+            "service_tier": "priority",
+            "status": "pending"
+          },
+          "verify": {
+            "method": "Typed turns via POST 127.0.0.1:8766/api/session/text (never 8765): a second unanswered confirm must settle the turn; after a reconnect the earlier context is used; a read-only shell command does not raise confirm_risky; a known app name is not asked again after a lookup miss. Record transcript evidence under ~/.agents/artifacts/bcl-110/.",
+            "summary": "Typed confirm, reconnect, shell, and app-name",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
             "total": 4
           }
         },
         {
-          "id": "E",
+          "id": "TOOLS",
+          "name": "cua_act typing",
           "finding_ids": [
-            "OBS-26"
+            "AGENT-22",
+            "AGENT-23"
           ],
-          "reason": "Small observability ranking fix, done inline without Codex. OBS-25 was moved into group AC to avoid a live_session.py merge conflict.",
-          "worktree": "acu-0143-obs",
           "depends_on": [],
-          "status": "done",
+          "reason": "Terminal/TextEdit cua_act retries and the typed_text log_event keyword crash share the tool dispatch and activity log.",
+          "worktree": "acu-110-tools",
+          "status": "pending",
           "codex": {
-            "model": "inline",
-            "effort": "n/a",
-            "status": "done",
-            "started_at": "2026-11-14T09:34:48Z",
-            "ended_at": "2026-11-14T09:36:17Z",
-            "duration_s": 89
+            "model": "gpt-6-luna",
+            "effort": "max",
+            "service_tier": "priority",
+            "status": "pending"
           },
           "verify": {
-            "method": "Observability query: island error-state HUD snapshots such as 'Can't hear you, check mic' are attached to the mic or tool error and are not ranked as island_layout failures.",
-            "status": "verified",
-            "fixed": 1,
+            "method": "Regression tests for the typed_text log_event path, plus a live Terminal or TextEdit type step that must not raise TypeError and must not loop on expect_unverified/action_failed/retry_cap. Evidence in ~/.agents/artifacts/bcl-110/.",
+            "summary": "Terminal type and typed_text log tests",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          }
+        },
+        {
+          "id": "ISLAND",
+          "name": "Island Fast label",
+          "finding_ids": [
+            "ISLAND-03"
+          ],
+          "depends_on": [],
+          "reason": "IslandCodexThreads reads model and effort but not service_tier, so a priority/Fast Luna job looks like a normal run.",
+          "worktree": "acu-110-island",
+          "status": "pending",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "max",
+            "service_tier": "priority",
+            "status": "pending"
+          },
+          "verify": {
+            "method": "Live island screenshots: a gpt-6-luna job with service_tier=priority shows a Fast label; a normal/default-tier job does not. Evidence in ~/.agents/artifacts/bcl-110/.",
+            "summary": "Island Fast-label screenshots for both tiers",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           }
         },
         {
-          "id": "V",
+          "id": "HYGIENE",
+          "name": "Release hygiene clones",
           "finding_ids": [
-            "ISLAND-02",
-            "AGENT-25",
-            "OBS-23"
+            "HYG-01"
           ],
-          "reason": "Verify-only after the single 0.2.143 build and install. No code in this group.",
-          "worktree": "samantha-pr107-rollover",
-          "depends_on": [
-            "AC",
-            "B",
-            "D",
-            "E"
-          ],
-          "status": "blocked",
+          "depends_on": [],
+          "reason": "The ACU hygiene gate reports local-only work from other clones and forces --hygiene-override on every install.",
+          "worktree": "acu-110-hygiene",
+          "status": "pending",
           "codex": {
-            "model": "none",
-            "effort": "n/a",
+            "model": "gpt-6-luna",
+            "effort": "max",
+            "service_tier": "priority",
             "status": "pending"
           },
           "verify": {
-            "method": "After install: screenshot a live short Luna Fast detached codex exec on the island (ISLAND-02). Re-score AGENT-25 against the Her spec with transcript evidence. Measure OBS-23 speech-to-playback on a short spoken or typed-to-speech turn.",
-            "status": "partial",
-            "fixed": 1,
+            "method": "Unit tests that dirty or local-only work in a different clone is ignored, and only problems in the clone under release are reported.",
+            "summary": "Hygiene unit test ignores other clones",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
+            "total": 1
+          }
+        },
+        {
+          "id": "PAGE",
+          "name": "Gate current-step styling",
+          "finding_ids": [
+            "PAGE-05"
+          ],
+          "depends_on": [
+            "STATUS"
+          ],
+          "reason": "The Fixes gate ring and heavy label still look current while Collect is the current step. render.py may also change in STATUS for the Merged/Done state, so this waits.",
+          "worktree": "bcl-110-page",
+          "status": "pending",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "max",
+            "service_tier": "priority",
+            "status": "pending"
+          },
+          "verify": {
+            "method": "Render the Collect page with the gate unmet and confirm the Fixes node does not use current-step emphasis; the current stage and a met gate still get their markers.",
+            "summary": "Gate node is not styled current",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          }
+        },
+        {
+          "id": "CMDS",
+          "name": "sync-main and install-local",
+          "finding_ids": [
+            "AUTO-04",
+            "AUTO-05"
+          ],
+          "depends_on": [
+            "STATUS"
+          ],
+          "reason": "After-merge sync and local plugin install are still hand steps, and they share the bcl entrypoint with STATUS commands.",
+          "worktree": "bcl-110-cmds",
+          "status": "pending",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "max",
+            "service_tier": "priority",
+            "status": "pending"
+          },
+          "verify": {
+            "method": "Unit tests: bcl sync-main merges main, handles deleted skill refs, re-renders HTML and stashes only hook dirt; bcl install-local installs to ~/.agents, Codex cache and Cursor cache, trashes old copies, and checks the sha against the merge.",
+            "summary": "Sync-main and install-local command tests",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          }
+        },
+        {
+          "id": "CORE",
+          "name": "Merge guard, verify, introspect",
+          "finding_ids": [
+            "BCL-01",
+            "BCL-02",
+            "BCL-03"
+          ],
+          "depends_on": [
+            "STATUS"
+          ],
+          "reason": "The merge snapshot guard, stored per-group verify commands, and introspect section drafts all live in the bcl CLI and manage_findings, which STATUS will also edit.",
+          "worktree": "bcl-110-core",
+          "status": "pending",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "max",
+            "service_tier": "priority",
+            "status": "pending"
+          },
+          "verify": {
+            "method": "Unit tests: bcl merge refuses unsnapshotted live changes and never stashes the tracker; bcl verify runs each group's stored command and updates group verify state; bcl introspect drafts delete/simplify/optimize/automate from the run log and still requires the four sections and confirmation.",
+            "summary": "Merge guard, stored verify, introspect draft",
+            "status": "partial",
+            "fixed": 0,
+            "failed": 1,
             "total": 3
+          }
+        },
+        {
+          "id": "PLANC",
+          "name": "Plan group cap check",
+          "finding_ids": [
+            "PLAN-03",
+            "PLAN-02"
+          ],
+          "depends_on": [
+            "CORE"
+          ],
+          "reason": "The four-issue cap belongs in plan-fix.md, and the plan check that enforces the cap and splits heavy Luna-max jobs should land after CORE's plan-schema work.",
+          "worktree": "bcl-110-planc",
+          "status": "pending",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "max",
+            "service_tier": "priority",
+            "status": "pending"
+          },
+          "verify": {
+            "method": "plan-fix.md states the about-4-issues cap and no longer points at fix-and-verify.md. bcl plan rejects or splits groups over the cap and flags a single heavy Luna-max job that should be medium jobs.",
+            "summary": "Plan cap and Luna-max split check",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          }
+        },
+        {
+          "id": "VOICE",
+          "name": "Spoken latency and run_id",
+          "finding_ids": [
+            "OBS-23",
+            "OBS-25"
+          ],
+          "depends_on": [
+            "SESSION"
+          ],
+          "reason": "Spoken playback latency and mid-task utterance run_ids need live_session changes; verify is blocked until a microphone is available.",
+          "worktree": "acu-110-voice",
+          "status": "blocked",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "max",
+            "service_tier": "priority",
+            "status": "pending"
+          },
+          "verify": {
+            "method": "Code may land after SESSION, but live verify is blocked: no input device (text only) and island_error_raw Can't hear you, check mic. Do not use typed turns as a substitute. Mark skipped/blocked until a mic is available.",
+            "summary": "Spoken latency and run_id need mic",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
           }
         }
       ],
-      "cycle": 1
+      "cycle": 2
     },
     "round": 1,
     "round_history": [
@@ -2334,7 +2439,8 @@
     ],
     "stages_reached": [
       "collect",
-      "present"
+      "present",
+      "plan_fix"
     ]
   },
   "findings": [
@@ -4377,7 +4483,7 @@
       "id": "AGENT-27",
       "title": "Shell gate asks approval for read-only commands",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "12:10:39 and 12:13:19 IST: 'ls -la && git branch --show-current && find ... 2>/dev/null | head' and 'node -e <print package.json scripts>' each needed approval; 3 extra round trips and one 120 s timeout before any work. She also used node -e instead of file_edit read.",
       "recommendation": "Treat /dev/null (and 2>&1) redirects as safe; keep find without -exec/-delete safe; steer reads to file_edit in the instructions.",
       "details": {
@@ -4720,7 +4826,7 @@
       "id": "ISLAND-03",
       "title": "Island doesn't show when a Codex job runs in Fast mode",
       "source": "User reported",
-      "status": "failing",
+      "status": "in_progress",
       "summary": "When a Codex job is running in Fast mode, the island still shows only the model and effort, so it looks the same as a normal-speed run.",
       "impact": "You cannot tell whether the Fast mode rule for Luna is being followed.",
       "done_when": "For a Fast mode run, the island shows the model, the effort, and Fast; a normal-speed run does not show Fast. This is confirmed with a live screenshot.",
@@ -4878,7 +4984,7 @@
       "id": "HYG-01",
       "title": "Hygiene check should ignore other clones' local work",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "Release hygiene should ignore local-only commits and dirty files in other clones of the same repo, and only judge the clone being released.",
       "impact": "A clean release is blocked, or needs a hygiene override, because another checkout on the same machine has unrelated local work.",
       "done_when": "Hygiene on a release clone passes when the only failures are local-only work in a different clone.",
@@ -4900,7 +5006,7 @@
       "id": "PAGE-04",
       "title": "Carried-over issues show Working on it on a new list that has no work in progress",
       "source": "User requested",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "After rollover, issues carried onto the new list still appear as Working on it even though nothing is in progress on that list.",
       "impact": "The new list looks like work has already started, so you cannot tell what is actually open or only carried over.",
       "done_when": "Carried-over issues on a new list show as open or carried over until work on that list actually starts, and Working on it is reserved for findings in progress.",
@@ -4927,7 +5033,7 @@
       "id": "PAGE-06",
       "title": "After a list's PR merges, the page still shows Report & roll over as happening now",
       "source": "User requested",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "After the list's PR is merged, the page still looks like Report & roll over is in progress, with an old Last reported time.",
       "impact": "You cannot tell that the work is finished and merged, so the status on the page is wrong.",
@@ -4959,7 +5065,7 @@
       "id": "AUTO-01",
       "title": "Rollover should write only the new list and reset carried issues to open",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "Rolling over to a new list should create that new list file, leave the old list unchanged, and show carried issues as open.",
       "impact": "Overwriting the old list hides its final state, and carried issues look like work has already started on the new list.",
@@ -4976,7 +5082,7 @@
       "id": "AUTO-02",
       "title": "A merged command should record the merge and mark the list done",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "When a list's PR merges, including by auto-merge, a single command should record the merge and show the list as done.",
       "impact": "Without that, a merged list can still look in progress, and stacked PRs may keep pointing at the old branch.",
@@ -4993,7 +5099,7 @@
       "id": "AUTO-03",
       "title": "Only starting Collect should point the page at the new list",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "The page should stay on the old list until Collect actually starts on the new one. Only that step should move the viewer.",
       "impact": "If the viewer is moved by hand, you can be shown a new list before Collect has started, or left on a stale in-progress state after a merge.",
