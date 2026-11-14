@@ -508,6 +508,35 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)["title"], "Icon appears too small")
 
+    def test_readable_fields_store_and_summary_warnings_cover_all_commands(self):
+        entry = self.root / 'entry.json'
+        entry.write_text(json.dumps({'id':'ISSUE-03','title':'A control does not open','source':'User reported',
+            'status':'untested','observed':'The control stays closed.','recommendation':'Restore the open action.',
+            'impact':'Readers cannot continue.','done_when':'The control opens when selected.'}))
+        added = self.cli('add', self.data, entry)
+        self.assertEqual(added.returncode, 0, added.stderr)
+        self.assertIn('add summary, impact and done_when in plain words', added.stderr)
+        patch = self.root / 'patch.json'
+        patch.write_text(json.dumps({'summary':'trace_id=abc failed','impact':'The flow stops.','done_when':'The control opens.'}))
+        updated = self.cli('update', self.data, 'ISSUE-03', patch)
+        self.assertEqual(updated.returncode, 0, updated.stderr)
+        self.assertIn('summary looks like log text', updated.stderr)
+        self.assertEqual(json.loads(self.data.read_text())['findings'][-1]['summary'], 'trace_id=abc failed')
+
+        operations = self.root / 'operations.json'
+        operations.write_text(json.dumps([
+            {'action':'add','entry':{'id':'ISSUE-04','title':'A row is missing','source':'User reported',
+                'status':'untested','observed':'The row is missing.','recommendation':'Show the row.',
+                'summary':'python3 check.py failed','impact':'Information is hidden.','done_when':'The row appears.'}},
+            {'action':'update','id':'ISSUE-03','patch':{'summary':'git status failed','impact':'The task is blocked.'}}
+        ]))
+        batched = self.cli('batch', self.data, operations)
+        self.assertEqual(batched.returncode, 0, batched.stderr)
+        self.assertGreaterEqual(batched.stderr.count('summary looks like log text'), 2)
+        findings = {item['id']:item for item in json.loads(self.data.read_text())['findings']}
+        self.assertEqual(findings['ISSUE-04']['done_when'], 'The row appears.')
+        self.assertEqual(findings['ISSUE-03']['impact'], 'The task is blocked.')
+
     def test_add_update_delete_and_render_empty(self):
         entry = self.root / "entry.json"
         entry.write_text(json.dumps({

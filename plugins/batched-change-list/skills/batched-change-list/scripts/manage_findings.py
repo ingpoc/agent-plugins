@@ -17,6 +17,14 @@ SPEC = importlib.util.spec_from_file_location("change_list_renderer", RENDERER_P
 RENDERER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RENDERER)
 
+
+def warn_summary(item, adding=False):
+    summary = item.get("summary")
+    if adding and not summary:
+        print("warning: add summary, impact and done_when in plain words", file=sys.stderr)
+    elif isinstance(summary, str) and RENDERER.looks_like_log_text(summary):
+        print("warning: summary looks like log text; use plain words", file=sys.stderr)
+
 MAX_TRACKER_BYTES = 320 * 1024
 MAX_DETAIL_CHARS = 600
 MAX_DETAIL_KEYS = 8
@@ -758,6 +766,7 @@ def main(argv=None):
                         raise ValueError("entry must be a JSON object")
                     if re.fullmatch(r"WF-\d+", str(item.get("id", ""))):
                         raise ValueError("WF- tasks come only from one introspect call: {\"action\":\"introspect\",\"issues\":[...]} (one task per Introspect)")
+                    warn_summary(item, adding=True)
                     validate_detail_limits(item)
                     trim_verification_evidence(item)
                     run = store["document"].get("tracking", {}).get("verification_run", {})
@@ -775,6 +784,7 @@ def main(argv=None):
                     if "check" in patch or "check_history" in patch:
                         raise ValueError("use verification actions to update check progress")
                     updated = merge_patch(dict(findings[index]), patch)
+                    warn_summary(updated)
                     validate_detail_limits(updated)
                     trim_verification_evidence(updated)
                     findings[index] = updated
@@ -833,6 +843,7 @@ def main(argv=None):
             item = read_json(args.entry)
             if not isinstance(item, dict):
                 raise ValueError("entry must be a JSON object")
+            warn_summary(item, adding=True)
             validate_detail_limits(item)
             trim_verification_evidence(item)
             if store["kind"] == "json":
@@ -854,6 +865,7 @@ def main(argv=None):
             index = find_index(findings, args.id)
             updated = merge_patch(dict(findings[index]), patch)
             updated["id"] = args.id
+            warn_summary(updated)
             validate_detail_limits(updated)
             trim_verification_evidence(updated)
             findings[index] = updated

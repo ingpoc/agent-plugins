@@ -6,6 +6,9 @@
       "title": "The selected item does not open",
       "source": "User reported",
       "status": "untested",
+      "summary": "Selecting the item does not open its details.",
+      "impact": "Readers cannot review the selected item's information.",
+      "done_when": "Selecting the item opens its details in the installed view.",
       "observed": "The user reported that selecting the item had no effect.",
       "recommendation": "Restore the selection action and verify it on the installed build.",
       "details": {
