@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "present",
+      "stage": "plan_fix",
       "updated_at": "2026-11-14T16:55:59Z",
-      "now": "2026-11-14T16:55:59Z — Started collection"
+      "now": "2026-11-14T16:55:59Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 110,
@@ -2117,8 +2117,231 @@
     ],
     "stages_reached": [
       "collect",
-      "present"
-    ]
+      "present",
+      "plan_fix"
+    ],
+    "plan": {
+      "round": 1,
+      "groups": [
+        {
+          "id": "PAGE",
+          "name": "Stale tag and empty loop steps",
+          "finding_ids": [
+            "PAGE-08"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "fix",
+          "reason": "First group. Status accuracy: show Stale after stale_after_min, tick loop steps only from this list's current-round stage history, and have bcl plan refresh the clock and move to Plan & fix.",
+          "worktree": "samantha-pr111-rollover",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
+            "plugins/batched-change-list/skills/batched-change-list/templates/change-list.html",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_render.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py"
+          ],
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "service_tier": "priority",
+            "fast": true
+          },
+          "verify": {
+            "command": "python3 -m unittest scripts.test_render scripts.test_manage_findings -q && curl -s http://127.0.0.1:53366/",
+            "summary": "Unit tests plus live :53366 page",
+            "method": "Run test_render and test_manage_findings, then curl the :53366 page for Stale, empty Collect loop ticks, and Plan & fix after bcl plan.",
+            "status": "failed",
+            "fixed": 0,
+            "failed": 1,
+            "total": 1
+          },
+          "updated_at": "2026-11-14T16:55:59Z"
+        },
+        {
+          "id": "AGENT",
+          "name": "Her spec score",
+          "finding_ids": [
+            "AGENT-25"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "fix",
+          "reason": "Independent product lane: score the six Her traits on the installed build. verified_fixed only at 12/12 with transcript evidence.",
+          "worktree": "samantha-pr111-rollover",
+          "files": [
+            "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua/live_session.py"
+          ],
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "service_tier": "priority",
+            "fast": true
+          },
+          "verify": {
+            "command": "echo 'Score AGENT-25 Her traits 0-2 with transcript evidence; close only at 12/12'",
+            "summary": "Scored Her-trait retest with transcripts",
+            "method": "Run a conversation and record each trait 0-2 with transcript refs.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-14T16:55:59Z"
+        },
+        {
+          "id": "PLANC",
+          "name": "Restore four-issue cap",
+          "finding_ids": [
+            "PLAN-03"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "fix",
+          "reason": "Independent one-file docs fix in plan-fix.md. PLAN-02 depends on this text landing, so it is deferred.",
+          "worktree": "samantha-pr111-rollover",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/references/plan-fix.md"
+          ],
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "service_tier": "priority",
+            "fast": true
+          },
+          "verify": {
+            "command": "rg -n 'about 4 issues' plugins/batched-change-list/skills/batched-change-list/references/plan-fix.md",
+            "summary": "plan-fix.md states the four-issue cap",
+            "method": "Confirm references/plan-fix.md tells agents to cap a parallel fix group at about 4 issues.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-14T16:55:59Z"
+        },
+        {
+          "id": "VOICE",
+          "name": "Spoken latency and fragments",
+          "finding_ids": [
+            "OBS-23",
+            "OBS-25"
+          ],
+          "depends_on": [],
+          "status": "deferred",
+          "phase": "deferred",
+          "parked_to": 2,
+          "reason": "Parked: the Mini still has no real microphone (ffmpeg lists only LoomAudioDevice). Spoken playback and fragment tests cannot run.",
+          "codex": {},
+          "verify": {
+            "summary": "Deferred until a mic is available",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "updated_at": "2026-11-14T16:55:59Z"
+        },
+        {
+          "id": "CMDS",
+          "name": "sync-main and install-local",
+          "finding_ids": [
+            "AUTO-04",
+            "AUTO-05"
+          ],
+          "depends_on": [
+            "PAGE"
+          ],
+          "status": "deferred",
+          "phase": "deferred",
+          "parked_to": 2,
+          "reason": "Deferred: both commands land in bin/bcl, which PAGE-08 also edits this round.",
+          "codex": {},
+          "verify": {
+            "summary": "Deferred; shares bin/bcl with PAGE",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "updated_at": "2026-11-14T16:55:59Z"
+        },
+        {
+          "id": "CORE",
+          "name": "Tracker commit and introspect drafts",
+          "finding_ids": [
+            "BCL-01",
+            "BCL-02",
+            "BCL-03"
+          ],
+          "depends_on": [
+            "PAGE"
+          ],
+          "status": "deferred",
+          "phase": "deferred",
+          "parked_to": 2,
+          "reason": "Deferred: BCL-01/02/03 edit manage_findings and bcl, which PAGE-08 is changing this round.",
+          "codex": {},
+          "verify": {
+            "summary": "Deferred; shares bcl core with PAGE",
+            "status": "partial",
+            "fixed": 0,
+            "failed": 1,
+            "total": 3
+          },
+          "updated_at": "2026-11-14T16:55:59Z"
+        },
+        {
+          "id": "AUTO",
+          "name": "Viewer retarget and reload",
+          "finding_ids": [
+            "AUTO-03",
+            "AUTO-06"
+          ],
+          "depends_on": [
+            "PAGE"
+          ],
+          "status": "deferred",
+          "phase": "deferred",
+          "parked_to": 2,
+          "reason": "Deferred: viewer start/reload shares bin/bcl and serve.py with the PAGE-08 live-verify work.",
+          "codex": {},
+          "verify": {
+            "summary": "Deferred; shares viewer code with PAGE",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "updated_at": "2026-11-14T16:55:59Z"
+        },
+        {
+          "id": "PLAN2",
+          "name": "Plan check for Luna max",
+          "finding_ids": [
+            "PLAN-02"
+          ],
+          "depends_on": [
+            "PLANC"
+          ],
+          "status": "deferred",
+          "phase": "deferred",
+          "parked_to": 2,
+          "reason": "Deferred until PLAN-03 restores the four-issue cap in plan-fix.md, which this check should point at.",
+          "codex": {},
+          "verify": {
+            "summary": "Deferred until PLAN-03 lands",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-14T16:55:59Z"
+        }
+      ],
+      "cycle": 3
+    }
   },
   "findings": [
     {
