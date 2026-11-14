@@ -1,5 +1,10 @@
 # Changelog: batched-change-list
 
+## 0.1.16
+
+- Added recorded execution plans with deterministic lane diagrams and current-cycle Install / Install-before-Verify guards.
+- Added the `bcl` stage command and idempotent repository `bcl install-hooks` backstop that chains existing hooks and checks rendered triage freshness.
+
 ## 0.1.15
 
 - Added a configurable 15-fix rollover gate and round counter to the workflow strip, with a return loop to Plan & fix; rollover advances the cycle and starts the next list at Collect.

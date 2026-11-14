@@ -6,7 +6,7 @@ Collection routing: repo-root `AGENTS.md`. Client load path: [compatible-clients
 
 ## What ships
 
-Skills only. `skills/batched-change-list/` holds `SKILL.md`, four references, three stdlib Python scripts, one HTML template, an example tracker and their tests. There is no `mcp.json`, no `bin/`, no install script, no data directory and no network service except the optional loopback viewer on `127.0.0.1:53366`.
+`bin/bcl` is the stage entrypoint and `bin/bcl-hook` provides repository git-hook freshness checks. The skill folder holds `SKILL.md`, four references, three stdlib Python scripts, one HTML template, an example tracker and their tests. There is no `mcp.json`, install script, or data directory; the optional viewer listens on `127.0.0.1:53366`.
 
 Requires `python3` (standard library only). Nothing else to install or configure after the client loads the plugin.
 

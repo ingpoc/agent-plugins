@@ -684,7 +684,7 @@ def main(argv=None):
             if not isinstance(operations, list) or not operations:
                 raise ValueError("batch requires a nonempty operations array")
             existing_run = store["document"].get("tracking", {}).get("verification_run")
-            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "set-stage", "set-activity"}
+            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "set-stage", "set-activity", "set-plan", "update-plan-group"}
             if (existing_run or any(isinstance(op, dict) and op.get("action") == "rollover" for op in operations)) and not args.render:
                 raise ValueError("rollover requires --render so the page stays current")
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
@@ -694,6 +694,48 @@ def main(argv=None):
                 if not isinstance(operation, dict):
                     raise ValueError("batch operation must be an object")
                 action = operation.get("action")
+                if action in ("set-plan", "update-plan-group"):
+                    tracking = store["document"].setdefault("tracking", {})
+                    cycle = RENDERER.rollover_cycle(tracking)
+                    if action == "set-plan":
+                        plan = copy.deepcopy(operation.get("plan"))
+                        if not isinstance(plan, dict) or type(plan.get("round")) is not int or not isinstance(plan.get("groups"), list):
+                            raise ValueError("set-plan requires plan {round, groups}")
+                        groups = plan["groups"]
+                        ids = [group.get("id") for group in groups if isinstance(group, dict)]
+                        if len(ids) != len(groups) or any(not isinstance(i, str) or not i.strip() for i in ids) or len(ids) != len(set(ids)):
+                            raise ValueError("plan groups require unique nonempty ids")
+                        finding_ids = {item["id"] for item in findings}
+                        states = {"pending", "running", "blocked", "done", "failed"}
+                        for group in groups:
+                            if not isinstance(group.get("finding_ids"), list) or any(not isinstance(i, str) or i not in finding_ids for i in group["finding_ids"]):
+                                raise ValueError(f"plan group {group['id']} references an unknown finding")
+                            if group.get("status") not in states:
+                                raise ValueError(f"plan group {group['id']} has invalid status")
+                            if not isinstance(group.get("depends_on", []), list) or any(not isinstance(i, str) or i not in ids for i in group.get("depends_on", [])):
+                                raise ValueError(f"plan group {group['id']} has invalid dependencies")
+                        plan["cycle"] = cycle
+                        tracking["plan"] = plan
+                    else:
+                        plan = tracking.get("plan")
+                        if not isinstance(plan, dict) or plan.get("cycle", cycle) != cycle:
+                            raise ValueError("update-plan-group requires a plan for the current cycle")
+                        group = next((g for g in plan.get("groups", []) if g.get("id") == operation.get("id")), None)
+                        patch = operation.get("patch")
+                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify"}:
+                            raise ValueError("update-plan-group requires id and a status/codex/verify patch")
+                        group.update(patch)
+                        if "status" in patch and patch["status"] not in {"pending", "running", "blocked", "done", "failed"}:
+                            raise ValueError("invalid plan group status")
+                    continue
+                if action in ("set-stage", "set-activity"):
+                    target = operation.get("stage")
+                    tracking = store["document"].setdefault("tracking", {})
+                    cycle = RENDERER.rollover_cycle(tracking)
+                    if target == "install" and (not isinstance(tracking.get("plan"), dict) or tracking["plan"].get("cycle", cycle) != cycle or not tracking["plan"].get("groups")):
+                        raise ValueError("install requires a recorded plan with at least one group for the current cycle")
+                    if target == "verify" and "install" not in tracking.get("stages_reached", []):
+                        raise ValueError("verify requires install to be reached in the current cycle")
                 if action == "introspect":
                     # One Introspect = one record and at most ONE WF- task listing every issue found, never a task per issue.
                     issues = operation.get("issues", [])

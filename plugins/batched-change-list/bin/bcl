@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""Stage-oriented entrypoint for batched-change-list."""
+import argparse, json, subprocess, sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parents[1]
+SKILL = HERE / "skills/batched-change-list"
+MANAGE = SKILL / "scripts/manage_findings.py"
+
+def run(args, operations):
+    payload = json.dumps(operations)
+    command = [sys.executable, str(MANAGE), "batch", str(args.data), "-", "--render", str(args.render)]
+    result = subprocess.run(command, input=payload, text=True, capture_output=True)
+    if result.returncode:
+        sys.stderr.write(result.stderr or result.stdout)
+        raise SystemExit(result.returncode)
+
+def install_hooks(repo):
+    root = Path(subprocess.check_output(["git", "-C", str(repo), "rev-parse", "--show-toplevel"], text=True).strip())
+    hooks = root / ".githooks"; hooks.mkdir(exist_ok=True)
+    hook_tool = HERE / "bin/bcl-hook"
+    subprocess.run(["git", "-C", str(root), "config", "core.hooksPath", ".githooks"], check=True)
+    for name in ("pre-commit", "pre-push"):
+        path = hooks / name
+        if path.exists() and "bcl-hook" in path.read_text(): continue
+        previous = ""
+        if path.exists():
+            original = hooks / f"{name}.bcl-original"
+            if not original.exists(): original.write_text(path.read_text()); original.chmod(0o755)
+            previous = f'"$(dirname "$0")/{original.name}" "$@" || exit $?\n'
+        path.write_text(f'#!/bin/sh\n{previous}exec "{hook_tool}" "{root}"\n')
+        path.chmod(0o755)
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data", type=Path); parser.add_argument("--render", type=Path)
+    parser.add_argument("--progress", type=Path); parser.add_argument("--now")
+    parser.add_argument("--ids", action="append", default=[]); parser.add_argument("--plan", type=Path)
+    parser.add_argument("--result"); parser.add_argument("--issues", type=Path)
+    parser.add_argument("--repo", type=Path); parser.add_argument("stage")
+    args = parser.parse_args()
+    if args.stage == "install-hooks":
+        install_hooks(args.repo or Path.cwd()); return
+    if not args.data or not args.render:
+        parser.error("all stages require --data and --render")
+    stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    doc = json.loads(args.data.read_text())
+    tracking = doc.get("tracking", {})
+    stages = tracking.get("stages_reached", [])
+    stage = args.stage
+    if stage == "status":
+        plan = tracking.get("plan", {})
+        sys.path.insert(0, str(SKILL / "scripts")); import render
+        fixed, threshold, met = render.rollover_gate(doc.get("findings", []), tracking)
+        print(json.dumps({"stage": tracking.get("workflow", {}).get("stage"), "cycle": tracking.get("cycle", 1), "gate": {"fixed": fixed, "threshold": threshold, "met": met}, "plan": [{"id": g.get("id"), "status": g.get("status")} for g in plan.get("groups", [])]}, indent=2)); return
+    operations = []
+    if stage == "start":
+        target = "present" if "collect" in stages else "collect"
+        operations = [{"action":"set-activity","stage":target,"ids":args.ids,"now":"Started collection"}]
+    elif stage == "plan":
+        plan = json.loads(args.plan.read_text()) if args.plan else tracking.get("plan")
+        if not plan: parser.error("plan requires --plan or an existing tracking.plan")
+        operations = [{"action":"set-plan","plan":plan},{"action":"set-activity","stage":"plan_fix","ids":args.ids,"now":"Plan recorded"}]
+    elif stage in ("fix", "install", "verify"):
+        key = {"fix":"plan_fix","install":"install","verify":"verify"}[stage]
+        ids = args.ids or [item["id"] for item in doc.get("findings", []) if item.get("status") == "in_progress"]
+        operations = [{"action":"set-activity","stage":key,"ids":ids,"now":f"{stage.title()} in progress"}]
+    elif stage == "introspect":
+        op = {"action":"introspect"}
+        if args.issues: op["issues"] = json.loads(args.issues.read_text())
+        else: op["result"] = args.result or "no issues"
+        ids = args.ids or [item["id"] for item in doc.get("findings", []) if item.get("status") == "in_progress"]
+        operations = [op,{"action":"set-activity","stage":"introspect","ids":ids,"now":"Introspection recorded"}]
+    elif stage == "report": operations = [{"action":"set-stage","stage":"report_rollover"}]
+    else: parser.error("unknown stage")
+    run(args, operations)
+    if args.progress:
+        args.progress.parent.mkdir(parents=True, exist_ok=True)
+        with args.progress.open("a") as out: out.write(f"{stamp} {stage}\n")
+
+if __name__ == "__main__": main()

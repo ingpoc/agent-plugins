@@ -2,6 +2,8 @@
 
 The JSON is authoritative; render it after each mutation. If only a standalone HTML page remains, the manager can read or patch its embedded array; pass `--collection` for a legacy array name. For a committed report, provide `tracking.pull_request.label`, `tracking.pull_request.url`, and `tracking.worktree` in the JSON.
 
+Use `plugins/batched-change-list/bin/bcl --data FINDINGS.json --render PAGE.html <stage>` for workflow stages. It records activity with the existing manager, renders the page and optionally appends `--progress FILE`. `plan --plan PLAN.json` replaces the plan for the current cycle; `update-plan-group` is available through the manager batch API for live status updates. Install requires a nonempty current-cycle plan, and Verify requires Install to have been reached. `bcl install-hooks` adds repository pre-commit and pre-push report freshness checks.
+
 `get` omits large inline screenshot payloads by default; pass `--include-evidence` only when you need the image bytes. `list` stays compact.
 
 Set `SKILL_DIR` to the absolute `batched-change-list` skill directory before running these commands.

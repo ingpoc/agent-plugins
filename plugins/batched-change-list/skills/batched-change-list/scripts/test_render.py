@@ -13,6 +13,21 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_recorded_plan_renders_deterministic_lanes_and_shared_merge(self):
+        self.data['tracking'] = {'plan': {'cycle': 1, 'round': 1, 'groups': [
+            {'id':'A','finding_ids':['ISSUE-01'],'reason':'Shared cause','depends_on':[],'status':'running',
+             'codex':{'model':'gpt-6-luna','status':'running','started_at':'2026-11-14T09:00:00Z'},
+             'verify':{'method':'Live check','status':'pending'}},
+            {'id':'B','finding_ids':['ISSUE-02'],'depends_on':['A'],'status':'pending'}]}}
+        page = renderer.render(self.data, self.base)
+        self.assertEqual(page, renderer.render(self.data, self.base))
+        self.assertEqual(page.count('class="plan-box plan-merge"'), 1)
+        self.assertIn('Depends on A', page)
+        self.assertLess(page.index('Findings · running'), page.index('Codex · running'))
+        self.assertLess(page.index('Codex · running'), page.index('Verify · pending'))
+        self.data['tracking'].pop('plan')
+        self.assertNotIn('class="plan-lanes"', renderer.render(self.data, self.base))
+
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
     def test_version_timeline_shows_status_and_evidence_together(self):
         template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()

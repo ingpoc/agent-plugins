@@ -389,9 +389,28 @@ def render(data, base, inventory_override=None, now=None):
         round_label = f'<small class="workflow-round">Round {cycle}</small>' if key == "gate" else ""
         steps.append(f'<li data-stage="{key}" class="{classes}"{current}><span>{index}</span>{html.escape(name)}{round_label}</li>')
     steps = "".join(steps)
+    plan = tracking_data.get("plan") if isinstance(tracking_data, dict) else None
+    lanes = ""
+    if isinstance(plan, dict) and plan.get("cycle", cycle) == cycle and isinstance(plan.get("groups"), list):
+        lane_rows = []
+        for group in plan["groups"]:
+            if not isinstance(group, dict):
+                continue
+            codex = group.get("codex", {}) if isinstance(group.get("codex"), dict) else {}
+            verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
+            findings = ", ".join(html.escape(str(value)) for value in group.get("finding_ids", []))
+            cells = [("Findings", findings or "None", group.get("status")),
+                     ("Codex", codex.get("model", "Codex"), codex.get("status")),
+                     ("Verify", verify.get("method", "Verification"), verify.get("status"))]
+            boxes = "".join(f'<div class="plan-box"><strong>{label} · {html.escape(str(status or "pending"))}</strong><span>{html.escape(str(value))}</span>{f'<small>{html.escape(str(times))}</small>' if (times := " · ".join(str(x) for x in ((codex.get("started_at"), codex.get("ended_at"), codex.get("duration_s")) if label == "Codex" else (verify.get("started_at"), verify.get("ended_at"), verify.get("duration_s"))) if x is not None)) else ""}</div><span class="plan-arrow" aria-hidden="true">→</span>' for label, value, status in cells)
+            reason_text = group.get("reason") or ("Depends on " + ", ".join(group["depends_on"]) if group.get("depends_on") else "")
+            reason = f'<small class="plan-reason">{html.escape(str(reason_text))}</small>' if reason_text else ""
+            lane_rows.append(f'<div class="plan-lane"><strong class="plan-lane-id">{html.escape(str(group.get("id", "?")))}</strong>{boxes}{reason}</div>')
+        if lane_rows:
+            lanes = '<div class="plan-lanes" aria-label="Recorded execution plan"><div class="plan-groups">' + "".join(lane_rows) + '</div><div class="plan-box plan-merge"><strong>Merge</strong></div></div>'
     loop_label = f"fewer than {threshold}"
     timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow</strong><span>{"Last reported " + time_html if time_html else "No active step reported"}</span></div>'
-                f'<ol>{steps}</ol><svg class="workflow-loop" role="img" aria-label="Fewer than {threshold} verified fixes returns to Plan and fix" viewBox="0 0 100 28" preserveAspectRatio="none"><defs><marker id="workflow-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 z"/></marker></defs><path class="workflow-loop-path" d="M90 0 C90 26 35 26 35 0" marker-end="url(#workflow-arrow)"/><text class="workflow-loop-label" x="62" y="26">{html.escape(loop_label)}</text></svg>{now_html}</section>')
+                f'<ol>{steps}</ol><svg class="workflow-loop" role="img" aria-label="Fewer than {threshold} verified fixes returns to Plan and fix" viewBox="0 0 100 28" preserveAspectRatio="none"><defs><marker id="workflow-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 z"/></marker></defs><path class="workflow-loop-path" d="M90 0 C90 26 35 26 35 0" marker-end="url(#workflow-arrow)"/><text class="workflow-loop-label" x="62" y="26">{html.escape(loop_label)}</text></svg>{now_html}{lanes}</section>')
     serialized = json.dumps([item for item in output if item["id"] not in excluded], ensure_ascii=True).replace("<", "\\u003c")
     run_view = {key: run[key] for key in ("id", "build", "revision", "installed_at", "status")} if run else None
     replacements = {"{{TITLE}}": html.escape(title), "{{FINDINGS_JSON}}": serialized,

@@ -11,6 +11,26 @@ RENDERER = Path(__file__).with_name("render.py")
 
 
 class ManageFindingsTests(unittest.TestCase):
+    def test_plan_validation_replacement_and_group_patch(self):
+        ops, page = self.root / 'plan.json', self.root / 'plan.html'
+        def batch(*rows):
+            ops.write_text(json.dumps(rows))
+            return self.cli('batch', self.data, ops, '--render', page)
+        invalid = [
+            {'round':1,'groups':[{'id':'A','finding_ids':['MISSING'],'depends_on':[],'status':'pending'}]},
+            {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':['B'],'status':'pending'}]},
+            {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'unknown'}]},
+        ]
+        for plan in invalid:
+            before = self.data.read_bytes()
+            result = batch({'action':'set-plan','plan':plan})
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(self.data.read_bytes(), before)
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}
+        self.assertEqual(batch({'action':'set-plan','plan':plan}).returncode, 0)
+        self.assertEqual(batch({'action':'set-plan','plan':plan}, {'action':'update-plan-group','id':'A','patch':{'status':'done'}}).returncode, 0)
+        self.assertEqual(json.loads(self.data.read_text())['tracking']['plan']['groups'][0]['status'], 'done')
+
     def test_recheck_preserves_previous_result_and_other_checks(self):
         ops, page = self.root / 'ops.json', self.root / 'page.html'
         def apply(*rows):
@@ -45,6 +65,10 @@ class ManageFindingsTests(unittest.TestCase):
         ops, page = self.root / 'phase.json', self.root / 'report.html'
         for stage in ('collect', 'present', 'plan_fix', 'install', 'verify', 'introspect', 'gate', 'report_rollover', None):
             pre = [{'action':'introspect','result':'no issues'}] if stage == 'report_rollover' else []
+            if stage in ('install', 'verify', 'report_rollover'):
+                pre.insert(0, {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}})
+                if stage in ('verify', 'report_rollover'):
+                    pre.insert(1, {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'})
             if stage in ('plan_fix', 'install', 'verify'):
                 pre.append({'action':'set-activity','stage':stage,'ids':['ISSUE-01'],'now':'Starting the checked stage'})
             ops.write_text(json.dumps(pre + [{'action':'set-stage','stage':stage}]))
@@ -73,6 +97,9 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(data['findings'][0]['status'], 'in_progress')
         self.assertEqual(data['tracking']['workflow']['stage'], 'plan_fix')
         self.assertIn('aria-current="step"><span>3</span>Plan &amp; fix', page.read_text())
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
+        self.assertEqual(run(plan).returncode, 0)
+        self.assertEqual(run({'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'}).returncode, 0)
         before = self.data.read_bytes()
         self.assertNotEqual(run({'action':'set-stage','stage':'made-up'}).returncode, 0)
         self.assertEqual(self.data.read_bytes(), before)
@@ -90,15 +117,16 @@ class ManageFindingsTests(unittest.TestCase):
                 operations.write_text(json.dumps([operation]))
                 result = self.cli('batch', self.data, operations, '--render', self.root / 'guard.html')
                 self.assertNotEqual(result.returncode, 0, (stage, operation))
-                self.assertIn('in_progress', result.stderr)
+                self.assertTrue('in_progress' in result.stderr or 'recorded plan' in result.stderr or 'requires install' in result.stderr)
                 self.assertEqual(self.data.read_bytes(), before)
         operations = self.root / 'guard.json'
-        operations.write_text(json.dumps([{'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Starting verification'}]))
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
+        operations.write_text(json.dumps([plan, {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'}, {'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Starting verification'}]))
         result = self.cli('batch', self.data, operations, '--render', self.root / 'guard.html')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(self.data.read_text())['findings'][0]['status'], 'in_progress')
         before = self.data.read_bytes()
-        operations.write_text(json.dumps([{'action':'set-activity','stage':'install','ids':[],'now':'No selected finding'}]))
+        operations.write_text(json.dumps([plan, {'action':'set-activity','stage':'install','ids':[],'now':'No selected finding'}]))
         empty = self.cli('batch', self.data, operations, '--render', self.root / 'empty.html')
         self.assertNotEqual(empty.returncode, 0)
         self.assertIn('nonempty ID list', empty.stderr)
@@ -258,11 +286,13 @@ class ManageFindingsTests(unittest.TestCase):
             if force:
                 args.append('--force')
             return self.cli(*args)
-        self.assertEqual(batch({'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Starting verification'}, {'action':'set-stage','stage':'report_rollover'}, force=True).returncode, 0)
-        self.assertEqual(batch({'action':'set-stage','stage':'install'}).returncode, 0)
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
+        install = {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'}
+        self.assertEqual(batch(plan, install, {'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Starting verification'}, {'action':'introspect','result':'no issues'}, {'action':'set-stage','stage':'report_rollover'}, force=True).returncode, 0)
+        self.assertEqual(batch(plan, {'action':'set-stage','stage':'install'}).returncode, 0)
         blocked = batch({'action':'set-stage','stage':'report_rollover'})
         self.assertNotEqual(blocked.returncode, 0)
-        self.assertIn('introspect', blocked.stderr)
+        self.assertIn('gate not met', blocked.stderr)
         self.assertNotEqual(batch({'action':'rollover','source_pr':1,'worktree':'w','pull_request':{'label':'PR #2','url':'https://example.test/pull/2'}}).returncode, 0)
         self.assertNotEqual(batch({'action':'introspect','result':'two\nlines'}).returncode, 0)
         self.assertEqual(batch({'action':'start-verification','run':{'id':'r1','build':'b1','revision':'abc','installed_at':'2026-11-12T10:00:00+05:30','install_evidence':'log'}}).returncode, 0)

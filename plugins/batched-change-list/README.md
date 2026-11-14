@@ -8,7 +8,9 @@ Portable [Agent Plugin](https://agent-plugins.org/specification). Install: [`AGE
 
 **Purpose.** Keeps one authoritative tracker for a batch of findings and one rendered view of it. The tracker records each issue once with status, evidence and verification history; the renderer produces a standalone HTML page with navigation, badges and embedded crops. The workflow phases (collect, present, plan/fix, install, verify, report/roll over) are written into the skill so a long QA cycle does not lose items, proof, or the user's priorities.
 
-**Requirements.** `python3` only, standard library. No MCP server, no runtime install, no data directory, no credentials. The optional live viewer listens on `127.0.0.1:53366` and can be left off.
+**Requirements.** `python3` only, standard library. No MCP server, runtime dependency, data directory or credentials. The optional live viewer listens on `127.0.0.1:53366` and can be left off.
+
+**Workflow command.** Use `plugins/batched-change-list/bin/bcl --data FINDINGS.json --render PAGE.html <stage>` for `start`, `plan --plan PLAN.json`, `fix`, `install`, `verify`, `introspect`, `report` and `status`. It applies tracker actions, refreshes the page and can append progress with `--progress FILE`. Install requires a plan for the current cycle; Verify requires Install. Run `bcl install-hooks` in a repository to add idempotent pre-commit and pre-push freshness checks. Existing hooks are chained.
 
 **Install.**
 
@@ -20,7 +22,7 @@ Portable [Agent Plugin](https://agent-plugins.org/specification). Install: [`AGE
 
 **Network endpoints, permissions and credentials.** No outbound calls. The viewer binds loopback only and serves the generated page plus the evidence images embedded in it. Local evidence images are read from paths relative to the findings JSON.
 
-**Testing.** From `skills/batched-change-list`: `python3 -m unittest discover -s scripts -p 'test_*.py'` (53 tests: tracker mutations, renderer validation, viewer).
+**Testing.** From `skills/batched-change-list`: `python3 -m unittest discover -s scripts -p 'test_*.py'` (70 tests: tracker mutations, renderer validation, viewer, `bcl` workflow and git hooks).
 
 **License.** MIT (repository root [`LICENSE`](../../LICENSE)).
 

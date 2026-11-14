@@ -2,6 +2,8 @@
 
 ## Fix and verify
 
+Record the work groups and dependency edges in `tracking.plan` with `bcl plan` before Install. The tracker rejects Install without a nonempty plan for the active cycle and rejects Verify until Install is recorded in that cycle. Run `bcl fix`, `bcl install`, and `bcl verify` to keep stage bookkeeping and the rendered timeline in sync.
+
 When the scope is agreed or already authorized, group related fixes into one coherent plan with affected files, acceptance checks, and dependencies. Use existing project gates and the smallest number of build/install cycles consistent with safe verification. Do not assume every issue will be fixed in one cycle.
 
 When debugging, follow [fix root causes](principles.md#fix-root-causes): reproduce, trace the first wrong decision or mishandled legitimate state, fix its owner, and check for the same fault elsewhere. When writing or changing tests, follow [test behavior, not implementation](principles.md#test-behavior-not-implementation). For ordering a multi-step batch, see [sequence verifiable units](principles.md#sequence-verifiable-units).
