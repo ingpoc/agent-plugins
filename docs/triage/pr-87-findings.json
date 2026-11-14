@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "verify",
-      "updated_at": "2026-11-14T10:19:23Z",
+      "updated_at": "2026-11-14T10:30:45Z",
       "now": "2026-11-14T10:19:23Z — Verify in progress"
     },
     "rollover": {
@@ -3751,7 +3751,7 @@
       "id": "AGENT-16",
       "title": "Gateway health times out after the voice process has already stopped",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "On 14 Nov 2026 at 01:16:24 IST, session bd4abacd logged startup/gateway_health failure 'timeout 45s' (observability col-97ca2e1ef5264965, ACU 0.2.141). The supervisor had already stopped the voice process at 01:15:39 IST, about 45 seconds earlier. Port 8766 is not listening after that failed start; CUAService is still running.",
       "recommendation": "Cancel the gateway health wait when the voice process exits, and do not record a 45s timeout as a startup failure after an intentional or racing stop.",
       "details": {
@@ -3767,13 +3767,27 @@
       "evidence": [],
       "summary": "If you start Samantha and then stop her right away, the app keeps waiting almost a minute before it notices she is gone.",
       "impact": "Starting and stopping feels stuck, and the app records a false startup failure that hides real problems.",
-      "done_when": "Stopping Samantha ends the wait at once, and no startup failure is recorded for a stop you asked for."
+      "done_when": "Stopping Samantha ends the wait at once, and no startup failure is recorded for a stop you asked for.",
+      "verification": "On installed 0.2.143, CUABackend.voice_control start-then-immediate-stop finished in 1.742s total (stop 1.687s). Start did not hang on gateway_health (start itself returned healthy in 0.879s). Port 8766 dropped cleanly; the unrelated 8765 listener was left untouched. Samantha was started again afterwards and /health returned 0.2.143. Evidence: ~/.agents/artifacts/acu-0143/verify/agent-16-start-stop.json.",
+      "verification_refs": [
+        "~/.agents/artifacts/acu-0143/verify/agent-16-start-stop.json"
+      ],
+      "verification_evidence": [
+        {
+          "check": "start-then-immediate-stop",
+          "outcome": "passed",
+          "build": "ACU 0.2.143",
+          "session": "acu-0143-verify",
+          "timestamp": "2026-11-14T10:30:44Z",
+          "reference": "~/.agents/artifacts/acu-0143/verify/agent-16-start-stop.json"
+        }
+      ]
     },
     {
       "id": "AGENT-17",
       "title": "Samantha retries a missing app by passing its bundle ID as the application name",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "On 14 Nov 2026 at 01:10:10–01:10:20 IST, run 07e85c58fe8e4bfe82324001f7ef9dcd (observability run_ref 176df365d4f96103cd46f9c0, session 374280f6, ACU 0.2.141+add24e6e826e) failed cua_state with 'App is not running' for com.likeminded.app, then retried cua_act with application names 'Likeminded' and 'com.likeminded.app'; both returned app_not_found. The island showed 'Something went wrong'. Observability col-9c0d43c3913c2f4b grouped this as 1 failure plus 2 downstream retries. The task outcome stayed unverified.",
       "recommendation": "Treat app_not_running as a terminal condition for that target, and never pass a bundle ID to the application-name lookup. Tell the user the app is not running or not installed instead of retrying and showing a generic island error.",
       "details": {
@@ -3789,7 +3803,22 @@
       "evidence": [],
       "summary": "When an app she was asked to use is not open, Samantha keeps retrying with the wrong name instead of opening it or telling you.",
       "impact": "You wait while she fails several times and never learn the actual problem.",
-      "done_when": "She either opens the app correctly or tells you plainly that it is not running or not installed."
+      "done_when": "She either opens the app correctly or tells you plainly that it is not running or not installed.",
+      "verification": "When “Use like minded app.” failed, she used the human name “Like Minded” (cua_act open, then cua_state) and did not retry with a bundle ID; the OS has no Like Minded app, and she told the user. For Calculator she used app name “Calculator” (not a bundle ID), opened it, and computed 17×19=323. Turns T2 and T6 plus the activity log.",
+      "verification_refs": [
+        "~/.agents/artifacts/acu-0143/verify/turns/T2.json",
+        "~/.agents/artifacts/acu-0143/verify/turns/T6.json"
+      ],
+      "verification_evidence": [
+        {
+          "check": "app name vs bundle id",
+          "outcome": "passed",
+          "build": "ACU 0.2.143",
+          "session": "acu-0143-verify",
+          "timestamp": "2026-11-14T10:30:44Z",
+          "reference": "~/.agents/artifacts/acu-0143/verify/turns/T2.json"
+        }
+      ]
     },
     {
       "id": "OBS-23",
@@ -3811,7 +3840,21 @@
       "evidence": [],
       "summary": "Some spoken replies still take 15 to 20 seconds before you hear anything.",
       "impact": "Long silences make the conversation feel broken and make you wonder whether she heard you.",
-      "done_when": "Short questions get a spoken answer within a few seconds, and slower tasks give a quick acknowledgement first."
+      "done_when": "Short questions get a spoken answer within a few seconds, and slower tasks give a quick acknowledgement first.",
+      "verification": "Blocked on this host: microphone preflight failed earlier (“no input device (text only)”), and the activity log shows island_error_raw “Can't hear you, check mic”. Spoken playback latency was not measured. Typed turns are not a substitute for this finding.",
+      "verification_refs": [
+        "~/.agents/artifacts/acu-0143/release-microphone.log"
+      ],
+      "verification_evidence": [
+        {
+          "check": "spoken playback latency",
+          "outcome": "blocked",
+          "build": "ACU 0.2.143",
+          "session": "acu-0143-verify",
+          "timestamp": "2026-11-14T10:30:44Z",
+          "reference": "no microphone; island_error_raw Can't hear you, check mic"
+        }
+      ]
     },
     {
       "id": "AGENT-18",
@@ -3833,13 +3876,27 @@
       "evidence": [],
       "summary": "Samantha asked you to repeat an app name she had just heard correctly.",
       "impact": "Repeating yourself is frustrating and makes her seem like she is not listening.",
-      "done_when": "She acts on what she just heard and only asks again when she truly did not catch it."
+      "done_when": "She acts on what she just heard and only asks again when she truly did not catch it.",
+      "verification": "Retest on 0.2.143 (T2): she correctly parsed “like minded” as “Like Minded” and tried cua_act open, which failed app_not_found (that app is not installed under /Applications). She then asked “Could you double-check the exact app name?” So she no longer ignores the heard name, but she still asks the user to restate it after a lookup miss. Not marked verified_fixed.",
+      "verification_refs": [
+        "~/.agents/artifacts/acu-0143/verify/turns/T2.json"
+      ],
+      "verification_evidence": [
+        {
+          "check": "typed turn T2 app name",
+          "outcome": "inconclusive",
+          "build": "ACU 0.2.143",
+          "session": "acu-0143-verify",
+          "timestamp": "2026-11-14T10:30:44Z",
+          "reference": "~/.agents/artifacts/acu-0143/verify/turns/T2.json"
+        }
+      ]
     },
     {
       "id": "AGENT-19",
       "title": "Samantha missed the local clone path and did not treat batched-change-list as the plugin",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "At 01:07:05 IST Guru said the app was 'already cloned in the apps folder inside remote clod' (ASR of remote claude). She asked what 'remote clod' meant and did not inspect the local folder until 01:09:25, when he asked if she could see Finder. At 01:10:01 he said 'use batch change list'; at 01:10:45 she said she does not have a 'Batch Change List' tool.",
       "recommendation": "Map folder hints such as remote claude/apps to the local checkout, and treat 'batch change list' as the batched-change-list plugin/viewer, not an app to launch.",
       "details": {
@@ -3855,7 +3912,21 @@
       "evidence": [],
       "summary": "Samantha did not understand where the project lived on your Mac, or that 'batch change list' meant the change-list tool.",
       "impact": "You had to walk her step by step to things she should have connected herself.",
-      "done_when": "She maps everyday hints like a folder name or tool nickname to the right place and tool without extra prompting."
+      "done_when": "She maps everyday hints like a folder name or tool nickname to the right place and tool without extra prompting.",
+      "verification": "Typed turn T3 gave the exact samantha-pr107-rollover batched-change-list path and told her to treat “batch change list” as that plugin. She opened that folder in Finder (cua_act app=Finder op=open with the given path) and replied “Opened the batched-change-list folder in Finder — it has AGENTS.md, an assets folder, and CHANGELOG.md.” She did not ask for the path or plugin name again. Turn ~/.agents/artifacts/acu-0143/verify/turns/T3.json.",
+      "verification_refs": [
+        "~/.agents/artifacts/acu-0143/verify/turns/T3.json"
+      ],
+      "verification_evidence": [
+        {
+          "check": "typed turn T3 path",
+          "outcome": "passed",
+          "build": "ACU 0.2.143",
+          "session": "acu-0143-verify",
+          "timestamp": "2026-11-14T10:30:44Z",
+          "reference": "~/.agents/artifacts/acu-0143/verify/turns/T3.json"
+        }
+      ]
     },
     {
       "id": "OBS-24",
@@ -3913,13 +3984,27 @@
       "evidence": [],
       "summary": "Every short word you say, like 'So' or 'Yes', is logged as a separate new task.",
       "impact": "The activity log fills with noise, so it is hard to see what she actually worked on.",
-      "done_when": "Short follow-up words stay attached to the task already in progress."
+      "done_when": "Short follow-up words stay attached to the task already in progress.",
+      "verification": "Spoken utterance fragments were not retested (no microphone). Each typed turn in this session used a single run_id (T1–T6), which does not exercise the spoken-fragment bug.",
+      "verification_refs": [
+        "~/.agents/artifacts/acu-0143/verify/turns/T1.json"
+      ],
+      "verification_evidence": [
+        {
+          "check": "spoken fragment run_ids",
+          "outcome": "blocked",
+          "build": "ACU 0.2.143",
+          "session": "acu-0143-verify",
+          "timestamp": "2026-11-14T10:30:44Z",
+          "reference": "no microphone; typed turns not a substitute"
+        }
+      ]
     },
     {
       "id": "OBS-26",
       "title": "Island error-state snapshots are ranked as island_layout failures",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "The top active failure was 'island_layout failed 318x' (col-7ed98c0042f27adc), including 8 events in this window, but first_error_line was unknown. The 8 snapshots were the island in status=error while it showed 'Can't hear you, check mic' or 'Something went wrong', attributed to supervisor sessions e30966a5 and bfee12ae, not the voice session.",
       "recommendation": "Do not count error-state HUD snapshots as layout failures; attach them to the underlying mic or tool error, and keep first_error_line and session attribution.",
       "details": {
@@ -3935,7 +4020,22 @@
       "evidence": [],
       "summary": "Error messages on the Dynamic Island, like a microphone warning, are counted as layout bugs.",
       "impact": "The real cause gets buried, and the island looks broken when it is not.",
-      "done_when": "Island error messages are linked to the real cause, such as the microphone, and are not counted as layout problems."
+      "done_when": "Island error messages are linked to the real cause, such as the microphone, and are not counted as layout problems.",
+      "verification": "Re-ran the fixed 0.1.30 collector (PR 107 worktree) against live sources into ~/.agents/artifacts/acu-0143/obs-26/findings.json at 2026-11-14T10:26:58Z. Result: 0 standalone failures titled “island_layout failed Nx” (the previous store still had “samantha: island_layout failed 318x”), and 0 island_layout findings with hud_status=error. The only remaining island_layout card is a recovered 0.2.120 voice_slot overflow, not an error HUD. Live island_error_raw events such as “Can't hear you, check mic” were present in the activity log and were not ranked as island_layout.",
+      "verification_refs": [
+        "~/.agents/artifacts/acu-0143/obs-26/findings.json",
+        "~/.agents/artifacts/acu-0143/obs-26/collect.log"
+      ],
+      "verification_evidence": [
+        {
+          "check": "observability collect",
+          "outcome": "passed",
+          "build": "ACU 0.2.143",
+          "session": "acu-0143-verify",
+          "timestamp": "2026-11-14T10:30:44Z",
+          "reference": "~/.agents/artifacts/acu-0143/obs-26/findings.json"
+        }
+      ]
     },
     {
       "id": "AGENT-20",
@@ -4020,7 +4120,21 @@
       },
       "summary": "Typing into Terminal and TextEdit by clicking around often fails, so Samantha retries many times.",
       "impact": "Simple edits take minutes instead of seconds and sometimes fail completely.",
-      "done_when": "Screen typing works on the first try most of the time, and she switches approach instead of repeating a failing step."
+      "done_when": "Screen typing works on the first try most of the time, and she switches approach instead of repeating a failing step.",
+      "verification": "No Terminal or TextEdit typing retest in this pass. A Calculator cua_act click sequence on 0.2.143 still returned expect_unverified even though the display showed 323; she did not enter a retry loop. Not enough to close the Terminal/TextEdit finding.",
+      "verification_refs": [
+        "~/.agents/artifacts/acu-0143/verify/turns/T6.json"
+      ],
+      "verification_evidence": [
+        {
+          "check": "Terminal/TextEdit cua_act",
+          "outcome": "inconclusive",
+          "build": "ACU 0.2.143",
+          "session": "acu-0143-verify",
+          "timestamp": "2026-11-14T10:30:44Z",
+          "reference": "Calculator expect_unverified only; Terminal/TextEdit not retested"
+        }
+      ]
     },
     {
       "id": "AGENT-23",
@@ -4112,7 +4226,7 @@
       "id": "OBS-28",
       "title": "Typed-turn replies are truncated to 240 characters",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "On 14 Nov 2026 IST, session 91c0b348, /api/session/text and activity-log assistant_reply (source=backend) stored only 240 characters. The install/test reply was cut mid-word: 'npm run test:auth passed: 18 tests, 0 failur'. The health-feature reply was cut at 'matching `pa'. live_voice follow-up lines were shorter summaries and did not restore the missing words. Independent check: npm run test:health later passed 2/2, so the cut text was not a model failure.",
       "recommendation": "Return and log the full assistant reply for a typed turn, or a documented higher cap, and do not slice at 240 characters.",
       "details": {
@@ -4123,10 +4237,23 @@
         "Where to look": "runtime/voice-cua/python/voice_cua/live_session.py send_text_and_wait (the [:240] slices on ok, error, and timeout paths) and the assistant_reply logger.",
         "Provenance": "HTTP bodies and activity-log assistant_reply LEN 240; voice.log first spoken sentence also matches the slice, with a shorter live_voice follow-up."
       },
-      "verification": "[:240] slices removed (tests); every live reply was under 240 chars (longest ~200), so the cut was not exercised live.",
+      "verification": "Typed turn T5 on 0.2.143 (POST 127.0.0.1:8766/api/session/text, turn_id 50d50bd0f84641adadd5713dc42faf6a) returned a 1358-character reply, well over the old 240-character cut. Full text is in ~/.agents/artifacts/acu-0143/verify/turns/T5.json.",
       "summary": "Typed replies were cut off after about one sentence.",
       "impact": "You missed important parts of her answer, like full test results.",
-      "done_when": "Typed replies come back and are logged in full, confirmed in a live test."
+      "done_when": "Typed replies come back and are logged in full, confirmed in a live test.",
+      "verification_refs": [
+        "~/.agents/artifacts/acu-0143/verify/turns/T5.json"
+      ],
+      "verification_evidence": [
+        {
+          "check": "typed turn T5 length",
+          "outcome": "passed",
+          "build": "ACU 0.2.143",
+          "session": "acu-0143-verify",
+          "timestamp": "2026-11-14T10:30:44Z",
+          "reference": "~/.agents/artifacts/acu-0143/verify/turns/T5.json"
+        }
+      ]
     },
     {
       "id": "AGENT-25",
@@ -4153,11 +4280,27 @@
           "session": "e4355832",
           "timestamp": "2026-11-14T12:32:10+05:30",
           "reference": "7/12 on 0.2.142 retest: acts directly 2, conversation 1, remembers 1, initiative 1, warm+brief 2, many jobs 0 (baseline 1/12)."
+        },
+        {
+          "check": "Her spec re-score",
+          "outcome": "reviewed",
+          "build": "ACU 0.2.143",
+          "session": "acu-0143-verify",
+          "timestamp": "2026-11-14T10:30:44Z",
+          "reference": "6/12 on typed 0.2.143 turns T1–T6; not 12/12"
         }
       ],
       "summary": "Samantha should feel like the assistant in the film Her: warm, brief, and able to get real work done just by talking.",
       "impact": "This is the goal that every other fix is measured against.",
-      "done_when": "A test run scores the full 12 out of 12 on the six traits, with proof from the conversation for every point."
+      "done_when": "A test run scores the full 12 out of 12 on the six traits, with proof from the conversation for every point.",
+      "verification": "ACU 0.2.143 typed retest (acu-0143-verify, 14 Nov 2026 afternoon IST) scored 6/12, up from the 1/12 baseline, not 12/12 so this stays open. 1 Acts directly 1/2: T3 used Finder with the given path; T4 used shell_run (after an unnecessary approval); T6 clicked Calculator and hit expect_unverified. 2 Conversation 2/2 (typed): every typed turn answered in 1.7–18.6s, no cutoff; spoken not scored (no mic). 3 Remembers 1/2: T3 used the given path; T2 still asked for the app name after a miss. 4 Initiative 1/2: she moved T3/T4/T6 forward, but asked confirm_risky for a read-only command. 5 Warm and brief 1/2: T1/T3/T4 were short and natural; T6 claimed the display was “confirmed” after expect_unverified. 6 Many jobs 0/2: this run did not start a long Samantha job and keep chatting. Transcripts: ~/.agents/artifacts/acu-0143/verify/turns/T1–T6.json.",
+      "verification_refs": [
+        "~/.agents/artifacts/acu-0143/verify/turns/T1.json",
+        "~/.agents/artifacts/acu-0143/verify/turns/T3.json",
+        "~/.agents/artifacts/acu-0143/verify/turns/T4.json",
+        "~/.agents/artifacts/acu-0143/verify/turns/T5.json",
+        "~/.agents/artifacts/acu-0143/verify/turns/T6.json"
+      ]
     },
     {
       "id": "AGENT-26",
@@ -4172,13 +4315,14 @@
       },
       "summary": "If you do not answer an approval request, the typed conversation gets stuck and blocks your next message.",
       "impact": "You cannot continue until you restart her, and the work in progress is lost.",
-      "done_when": "An unanswered approval ends cleanly and your next message goes through normally."
+      "done_when": "An unanswered approval ends cleanly and your next message goes through normally.",
+      "verification": "Not retested in this pass: no second unanswered confirm was left hanging on a typed turn."
     },
     {
       "id": "AGENT-27",
       "title": "Shell gate asks approval for read-only commands",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "failing",
       "observed": "12:10:39 and 12:13:19 IST: 'ls -la && git branch --show-current && find ... 2>/dev/null | head' and 'node -e <print package.json scripts>' each needed approval; 3 extra round trips and one 120 s timeout before any work. She also used node -e instead of file_edit read.",
       "recommendation": "Treat /dev/null (and 2>&1) redirects as safe; keep find without -exec/-delete safe; steer reads to file_edit in the instructions.",
       "details": {
@@ -4186,13 +4330,27 @@
       },
       "summary": "Samantha asks for your approval even for harmless commands that only look at files.",
       "impact": "Extra approvals slow every task and train you to approve without reading.",
-      "done_when": "Read-only commands run without asking, and approval is only requested for changes."
+      "done_when": "Read-only commands run without asking, and approval is only requested for changes.",
+      "verification": "Not fixed on 0.2.143. Typed turn T4 asked for a read-only one-liner that prints plugin.json’s version. After a first shell_run error she called confirm_risky with prompt “Run a read-only Python one-liner to print the version field from plugin.json… No files will be changed.” confirm_request was issued and later approved (waited 4.8s). The command was not treated as a no-approval read-only path. Reply was then “The version is 0.1.12.”",
+      "verification_refs": [
+        "~/.agents/artifacts/acu-0143/verify/turns/T4.json"
+      ],
+      "verification_evidence": [
+        {
+          "check": "read-only shell approval",
+          "outcome": "failed",
+          "build": "ACU 0.2.143",
+          "session": "acu-0143-verify",
+          "timestamp": "2026-11-14T10:30:44Z",
+          "reference": "~/.agents/artifacts/acu-0143/verify/turns/T4.json"
+        }
+      ]
     },
     {
       "id": "AGENT-28",
       "title": "Island /api/confirm can resolve typed confirmations without auth",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "Terra review round 3 (0b04a82): island_state.py ~230 lets the unauthenticated legacy /api/confirm resolve typed-owned confirms; a local caller can read the id from /api/island/state. Kept deliberately so the Swift Allow/Deny buttons work; the shell classifier hard-refuses api/confirm and port 8766 mentions, but a repo script could still call localhost.",
       "recommendation": "Next ACU build: IslandController.resolveConfirm sends X-Voice-CUA-Control (token already held, line ~304); gateway requires it on /api/confirm when VOICE_CUA_CONTROL_TOKEN is set.",
       "details": {
@@ -4200,7 +4358,21 @@
       },
       "summary": "The island's Allow button can approve a typed request without the app's secret check.",
       "impact": "Another program on the Mac could in theory approve an action you never saw.",
-      "done_when": "Approvals from the island only work when they come from the real app."
+      "done_when": "Approvals from the island only work when they come from the real app.",
+      "verification": "On the live 0.2.143 gateway at 127.0.0.1:8766, unauthenticated POST /api/session/approve and GET /api/confirm/pending returned 403 “typed approval unauthorized”; unauthenticated POST /api/confirm returned 403 “invalid voice control token” (VOICE_CUA_CONTROL_TOKEN is configured). GET /api/confirm/pending with the per-process typed-approve token returned 200. A real typed confirm_risky during T4 was approved in 4.8s via confirm_answer (not an unauthenticated HTTP call, and not a timeout), which is consistent with the Island Allow path still working while raw unauthenticated /api/confirm is rejected.",
+      "verification_refs": [
+        "~/.agents/artifacts/acu-0143/verify/turns/T4.json"
+      ],
+      "verification_evidence": [
+        {
+          "check": "unauthenticated confirm APIs",
+          "outcome": "passed",
+          "build": "ACU 0.2.143",
+          "session": "acu-0143-verify",
+          "timestamp": "2026-11-14T10:30:44Z",
+          "reference": "POST /api/confirm and /api/session/approve without tokens returned 403 on 127.0.0.1:8766"
+        }
+      ]
     },
     {
       "id": "AGENT-29",
@@ -4214,7 +4386,8 @@
       },
       "summary": "After about 15 minutes of quiet, the voice service disconnects and Samantha forgets the conversation.",
       "impact": "You have to explain the project and task again after a short break.",
-      "done_when": "After a reconnect she still knows the project, the task and the last result."
+      "done_when": "After a reconnect she still knows the project, the task and the last result.",
+      "verification": "Not retested in this pass: no 15-minute idle wait was run."
     },
     {
       "id": "WF-06",
@@ -4259,7 +4432,7 @@
       "id": "ISLAND-01",
       "title": "Grok Bot background work doesn't keep the agent on the island; it disappears between turns",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "14 Nov 2026 13:08 and 13:10 IST (Guru, live): the Dynamic Island shows the 'Agent Computer Use · Macos computer use' pill while the parent agent is mid-turn, but shows 'No agents running' between turns while only its background subagents/executors run on the Mini (this executor was running the merge/install job at the time). The Grok Bot roster row comes only from IslandGrokBotActivity, which reads the Grok Bot app's accessibility tree: a sidebar row labelled '<name>, Working' or the '<name> is working' AXApplicationStatus live region. Both exist only while the open conversation streams a turn; background executors and subagents set neither, and island-events.jsonl has no roster snapshot to show it.",
       "recommendation": "Add a background/busy source for Grok Bot: e.g. have local-exec jobs (executors, Codex exec launched by Grok Bot) post a start/heartbeat/end through bin/island-post (or a ~/.cache/macos-cua heartbeat file) and merge it with the AX turn signal in IslandGrokBotActivity.rows, keeping the row while any heartbeat is fresh. Also log roster snapshots so this can be verified.",
       "details": {
@@ -4268,13 +4441,41 @@
       },
       "summary": "The island shows Grok Bot only while it is replying to you. When it hands work to background helpers, the island says no agents are running even though work continues.",
       "impact": "You can't tell from the island that work is still happening, so it looks finished or stuck when it isn't.",
-      "done_when": "While any Grok Bot background job runs, the island keeps showing the agent as working, and it clears when the last job ends."
+      "done_when": "While any Grok Bot background job runs, the island keeps showing the agent as working, and it clears when the last job ends.",
+      "verification": "On the installed ACU 0.2.143 island (16 Nov 14 15:52–15:54 IST), a Grok Bot background row stayed visible between turns: “Verify 0.2.143 / background job” with a Stop control, alongside other live rows. Confirmed in expanded-roster screenshots while this verify job continued.",
+      "verification_refs": [
+        "docs/triage/captures/acu-0143/ISLAND-01-verify-background-job.png",
+        "docs/triage/captures/acu-0143/ISLAND-01-02-background-and-headless.png",
+        "~/.agents/artifacts/acu-0143/island/roster-topwide.png"
+      ],
+      "evidence": [
+        {
+          "src": "captures/acu-0143/ISLAND-01-verify-background-job.png",
+          "alt": "Expanded Dynamic Island showing Verify 0.2.143 background job",
+          "caption": "Grok Bot background work remains on the island: Verify 0.2.143 · background job."
+        },
+        {
+          "src": "captures/acu-0143/ISLAND-01-02-background-and-headless.png",
+          "alt": "Island roster with Verify 0.2.143 and a live headless Codex thread",
+          "caption": "Same roster later: Verify 0.2.143 still present with a live headless Codex exec."
+        }
+      ],
+      "verification_evidence": [
+        {
+          "check": "live island screenshot",
+          "outcome": "passed",
+          "build": "ACU 0.2.143",
+          "session": "acu-0143-verify",
+          "timestamp": "2026-11-14T10:30:44Z",
+          "reference": "docs/triage/captures/acu-0143/ISLAND-01-verify-background-job.png"
+        }
+      ]
     },
     {
       "id": "ISLAND-02",
       "title": "Confirm headless codex exec jobs appear on the island while they run",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "Code and sqlite check (14 Nov 2026, 13:15 IST, no code changed): IslandCodexThreads.readDatabase reads every row of ~/.codex*/state_5.sqlite 'threads' WHERE archived = 0 (not only app threads). Today's Grok Bot exec jobs are there: 01a1d867… created 10:24:17 IST and 01a1d898-e571… created 11:17:41 IST, both source=exec, originator=acu_exec.grokbot, archived=0, agent_role and attached_thread_parent_id NULL, cwd not a probe path, so rows() keeps them and hostLabel maps acu_exec.* to 'terminal'. A row shows as running only while liveState finds a live process whose executable basename is 'codex' holding the rollout file open (lsof); the standalone binary .../bin/codex matches. No runtime proof exists: island-events.jsonl records clicks and controls but no roster snapshots, so there is no record that these two jobs were displayed.",
       "recommendation": "Run one short detached codex exec with CODEX_INTERNAL_ORIGINATOR_OVERRIDE=acu_exec.grokbot and capture the island while it runs (screenshot + a roster snapshot). Add roster snapshot logging to island-events.jsonl so this is checkable after the fact.",
       "details": {
@@ -4283,7 +4484,30 @@
       },
       "summary": "Coding jobs that Grok Bot starts in the background should show on the island while they run. The code suggests they do, but it hasn't been confirmed on screen.",
       "impact": "If they don't show, long coding jobs are invisible and you can't see what is running on the Mac.",
-      "done_when": "A background coding job appears on the island while it runs and disappears shortly after it ends, confirmed with a screenshot."
+      "done_when": "A background coding job appears on the island while it runs and disappears shortly after it ends, confirmed with a screenshot.",
+      "verification": "A headless `codex exec` started from this verify job appeared on the live island while it ran: first as “Untitled thread / via ACU · Luna · low · 1s”, then “Run this exact command and… / via ACU · Luna · low · 6s”, with a spinner. A separate already-running job “# batched-change-list 0.1.17 / via ACU · Luna · medium · 13m” was also visible. Session 01a1d995-226c-7010-9a84-c1c88c16f1ef (short Fast exec) and the long Fast exec under ~/.agents/artifacts/acu-0143/island/codex-fast-long2.",
+      "verification_refs": [
+        "docs/triage/captures/acu-0143/ISLAND-01-02-background-and-headless.png",
+        "~/.agents/artifacts/acu-0143/island/fastlabel-5.png",
+        "~/.agents/artifacts/acu-0143/island/codex-fast-long2/"
+      ],
+      "evidence": [
+        {
+          "src": "captures/acu-0143/ISLAND-01-02-background-and-headless.png",
+          "alt": "Island showing a live headless Codex thread via ACU",
+          "caption": "Headless Luna exec visible on the island while it ran (via ACU · Luna · low)."
+        }
+      ],
+      "verification_evidence": [
+        {
+          "check": "live island screenshot",
+          "outcome": "passed",
+          "build": "ACU 0.2.143",
+          "session": "acu-0143-verify",
+          "timestamp": "2026-11-14T10:30:44Z",
+          "reference": "docs/triage/captures/acu-0143/ISLAND-01-02-background-and-headless.png"
+        }
+      ]
     },
     {
       "id": "PAGE-01",
@@ -4441,12 +4665,34 @@
       "id": "ISLAND-03",
       "title": "Island doesn't show when a Codex job runs in Fast mode",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "failing",
       "summary": "When a Codex job is running in Fast mode, the island still shows only the model and effort, so it looks the same as a normal-speed run.",
       "impact": "You cannot tell whether the Fast mode rule for Luna is being followed.",
       "done_when": "For a Fast mode run, the island shows the model, the effort, and Fast; a normal-speed run does not show Fast. This is confirmed with a live screenshot.",
       "observed": "On 14 Nov 2026 Guru noted that the island Codex row reads model and effort from state_5.sqlite (for example 'Luna · medium') but not service_tier. A run started with -c service_tier=priority therefore looks the same as a normal run. The code lives in IslandCodexThreads in the ACU Swift app.",
-      "recommendation": "Read service_tier from the Codex session record and show a Fast label when it is priority. Leave the label off for default or normal runs. Verify with a live island screenshot of a Fast Luna job and a normal one."
+      "recommendation": "Read service_tier from the Codex session record and show a Fast label when it is priority. Leave the label off for default or normal runs. Verify with a live island screenshot of a Fast Luna job and a normal one.",
+      "verification": "Not fixed on 0.2.143. A live Luna Fast exec (`gpt-6-luna`, service_tier=priority, originator acu_exec.grokbot) appeared as “Run this exact command and… / via ACU · Luna · low · 6s”. The meta line had model and effort only — no Fast label — so it looked like a normal-speed run. Screenshot: docs/triage/captures/acu-0143/ISLAND-03-fast-job-no-fast-label.png.",
+      "verification_refs": [
+        "docs/triage/captures/acu-0143/ISLAND-03-fast-job-no-fast-label.png",
+        "~/.agents/artifacts/acu-0143/island/codex-fast-long2/"
+      ],
+      "evidence": [
+        {
+          "src": "captures/acu-0143/ISLAND-03-fast-job-no-fast-label.png",
+          "alt": "Fast Codex job on the island showing Luna low without a Fast label",
+          "caption": "Fast/priority exec still shows only “Luna · low”, with no Fast badge."
+        }
+      ],
+      "verification_evidence": [
+        {
+          "check": "live island screenshot",
+          "outcome": "failed",
+          "build": "ACU 0.2.143",
+          "session": "acu-0143-verify",
+          "timestamp": "2026-11-14T10:30:44Z",
+          "reference": "docs/triage/captures/acu-0143/ISLAND-03-fast-job-no-fast-label.png"
+        }
+      ]
     },
     {
       "id": "BCL-01",
