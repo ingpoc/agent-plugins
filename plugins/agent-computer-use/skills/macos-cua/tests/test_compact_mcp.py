@@ -72,7 +72,7 @@ def _close(proc: subprocess.Popen) -> None:
 
 
 class CompactMcpDispatchTests(unittest.TestCase):
-    def test_stale_pinned_window_reresolves_before_typed_text_dispatch(self):
+    def _backend_with_stale_text_result(self, failure, resolved_window_id, plan_dispatched=None):
         before = '[0] AXWindow "Terminal"\n[1] AXTextArea value=""'
         after = before.replace('value=""', 'value="echo acutest"')
 
@@ -89,17 +89,20 @@ class CompactMcpDispatchTests(unittest.TestCase):
 
                     def get_app_state(self, app, **kwargs):
                         self.outer.state_calls += 1
-                        window_id = 11 if self.outer.state_calls == 1 else 22
-                        text = after if self.outer.state_calls >= 3 else before
+                        window_id = 11 if self.outer.state_calls == 1 else resolved_window_id
+                        text = after if self.outer.type_calls else before
                         return {"windowId": window_id, "text": text}
 
                     def execute_plan(self, app, steps, window_id=None):
                         self.outer.plan_windows.append(window_id)
-                        return {
+                        plan = {
                             "before": {"text": before},
                             "after": {"text": before},
-                            "results": [{"ok": False, "error": "stale window id"}],
+                            "results": [dict(failure)],
                         }
+                        if plan_dispatched is not None:
+                            plan["dispatched"] = plan_dispatched
+                        return plan
 
                     def type_text(self, app, text, **kwargs):
                         self.outer.type_calls.append((text, kwargs.get("window_id")))
@@ -107,12 +110,36 @@ class CompactMcpDispatchTests(unittest.TestCase):
 
                 return fn(Client(self))
 
-        backend = Backend()
+        return Backend()
+
+    def test_stale_text_retries_only_when_undispatched_and_same_window(self):
+        backend = self._backend_with_stale_text_result(
+            {"ok": False, "dispatched": False, "error": "stale node"}, 11
+        )
         result = backend.act("Terminal", {"text": "echo acutest", "expect": "echo acutest"})
         self.assertTrue(result["ok"])
         self.assertTrue(result["verified"])
         self.assertEqual(backend.plan_windows, [11])
-        self.assertEqual(backend.type_calls, [("echo acutest", 22)])
+        self.assertEqual(backend.type_calls, [("echo acutest", 11)])
+
+        wrong_window = self._backend_with_stale_text_result(
+            {"ok": False, "dispatched": False, "error": "stale node"}, 22
+        )
+        result = wrong_window.act("Terminal", {"text": "echo acutest", "expect": "echo acutest"})
+        self.assertFalse(result["ok"])
+        self.assertEqual(wrong_window.type_calls, [])
+
+    def test_ambiguous_or_partially_dispatched_text_is_not_replayed(self):
+        failures = (
+            ({"ok": False, "error": "stale node"}, None),
+            ({"ok": False, "dispatched": True, "error": "stale node"}, None),
+            ({"ok": False, "dispatched": False, "error": "stale node"}, True),
+        )
+        for failure, plan_dispatched in failures:
+            with self.subTest(failure=failure, plan_dispatched=plan_dispatched):
+                backend = self._backend_with_stale_text_result(failure, 11, plan_dispatched)
+                backend.act("Terminal", {"text": "echo acutest", "expect": "echo acutest"})
+                self.assertEqual(backend.type_calls, [])
 
     def test_act_waits_for_terminal_ax_output_before_verifying_expect(self):
         class Backend(compact_mcp.CUABackend):
