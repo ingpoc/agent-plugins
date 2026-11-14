@@ -200,7 +200,8 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
     lead = Counter((e['kind'], e['step']) for e in events if e['step']).most_common(1)
     step = lead[0][0][1] if lead else (events[0]['step'] or events[0]['kind'])
     plain = [e for e in newest if not e.get('alias')] or newest
-    message = plain[-1].get('message') or ''
+    text_events = [e for e in plain if e.get('kind') != 'island_layout'] or plain
+    message = text_events[-1].get('message') or ''
     times = [iso(e.get('ts')) for e in stamped[-64:]]
     sources = Counter(e['source'] for e in events)
     finding = {
@@ -213,7 +214,8 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
         'failure_attempt_times': times, 'failure_attempt_times_complete': count <= 64 and len(times) == count,
         'recovery_times': [], 'recovery_times_complete': True,
         'workflow_id': f"wf:{sources.most_common(1)[0][0]}", 'step_id': f'step:{project}-{step}',
-        'latest_evidence': {'project': project, 'tool': step, 'first_error_line': message, 'error_type': events[0]['kind']},
+        'latest_evidence': {'project': project, 'tool': step, 'first_error_line': message,
+                            'error_type': (text_events[0]['kind'] if text_events else events[0]['kind'])},
         'event_timeline': [{'event_id': e['ref'], 'event_at': iso(e.get('ts')) if e.get('ts') is not None else None,
                             'event_type': e['kind'], 'outcome': 'failure' if e['error'] else 'unknown',
                             'safe_evidence': {'tool': e['step'], 'version': e.get('version'),
@@ -268,6 +270,38 @@ def _occurrences(items):
     return best
 
 
+
+def _hud_error(event):
+    return event.get('kind') == 'island_layout' and str((event.get('layout') or {}).get('hud_status') or '').lower() == 'error'
+
+
+def _assign_hud_snapshots(clusters, events, window=ROLLUP_WINDOW_S):
+    """Attach error-state island HUD snapshots to a nearby mic or tool failure, not as their own finding."""
+    snapshots = [e for e in events if _hud_error(e) and e.get('ts') is not None]
+    assigned = {key: [] for key in clusters}
+    for snap in snapshots:
+        best = None
+        for key, items in clusters.items():
+            for event in items:
+                if event.get('ts') is None or event.get('project') != snap.get('project'):
+                    continue
+                delta = abs(snap['ts'] - event['ts'])
+                if delta > window:
+                    continue
+                kind_step = f"{event['kind']} {event['step']}"
+                prefer = 0 if (
+                    event['step'] in ('mic_preflight', 'audio_ready', 'cua_act', 'cua_state')
+                    or 'mic' in kind_step or 'tool' in event['kind'] or 'realtime' in event['kind']
+                ) else 1
+                same = 0 if event.get('session') == snap.get('session') else 1
+                cand = (prefer, same, delta, key)
+                if best is None or cand < best:
+                    best = cand
+        if best:
+            assigned[best[3]].append(snap)
+    return assigned
+
+
 def failures(ctx, events, roll):
     """Root-cause clusters: (project, cause signature). Each session counts its occurrences once,
     taking the largest count any single source/kind logged for it, so mirrors are not double counted.
@@ -289,9 +323,13 @@ def failures(ctx, events, roll):
             # Prose lines ('mic preflight failed: …') join the structured failure of that phase in the same session.
             home = phase_home.get((e['project'], e.get('session'), e['step']))
             clusters[home or (e['project'], signature(e['message']) or f"{e['kind']}/{e['step']}", '')].append(e)
+    snapshots = _assign_hud_snapshots(clusters, events)
     out = []
     for parts, items in clusters.items():
+        nearby = snapshots.get(parts) or []
         occurrences, by_version, counted = _occurrences(items)
+        if nearby:
+            items = list(items) + nearby
         logged = Counter()
         for e in items:
             logged[f"{e['source'].split(':')[-1]} {_label(e)}"] += 1
@@ -303,6 +341,12 @@ def failures(ctx, events, roll):
         error_class = 'environment_condition' if condition else 'app_error'
         by_version = dict(by_version)
         extra = {'logged_as': dict(logged.most_common(6)), **({'condition': condition} if condition else {})}
+        if nearby:
+            extra['island_error_snapshots'] = {
+                'count': len(nearby),
+                'status': 'error',
+                'sessions': sorted({str(event.get('session')) for event in nearby if event.get('session')}),
+            }
         headline = f"{parts[0]}: {label}{cause} failed {occurrences}x"
         roots = [e for e in items if id(e) in roll['effects']]
         if roots:
@@ -507,6 +551,8 @@ def island_layout(ctx, events):
     for e in events:
         spec = e.get('layout')
         if not isinstance(spec, dict):
+            continue
+        if str(spec.get('hud_status') or '').lower() == 'error':
             continue
         screen, island = spec.get('screen'), spec.get('island')
         overlays = spec.get('overlays') or []

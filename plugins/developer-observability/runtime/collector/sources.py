@@ -421,6 +421,11 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
             if layout is None:
                 stats[source]['skipped'] += 1
                 continue
+            if status:
+                layout['hud_status'] = status[:40]
+            # Island HUD status (idle/listening/error/...) is presentation, not a collector failure.
+            error = False
+            condition = None
         operation = obj.get('ledger_operation') if step == 'ledger_task' or 'ledger' in kind.lower() else None
         operation = operation if operation in ('lookup', 'capture', 'recall', 'preference', 'unknown') else None
         scope_kind = obj.get('ledger_scope_kind') if step == 'ledger_task' else None
