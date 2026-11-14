@@ -2042,8 +2042,8 @@
     },
     "workflow": {
       "stage": "collect",
-      "updated_at": "2026-11-14T11:22:03Z",
-      "now": "2026-11-14T11:22:03Z — Rolled over from PR #107; Guru approved at 18 verified fixes (all count), 2026-11-14 16:48 IST"
+      "updated_at": "2026-11-14T11:55:42Z",
+      "now": "2026-11-14T11:55:42Z — Started collection"
     },
     "rollover": {
       "source_pr": 107,
@@ -2331,6 +2331,9 @@
         "fixed": 61,
         "ended_at": "2026-11-14T11:22:03Z"
       }
+    ],
+    "stages_reached": [
+      "collect"
     ]
   },
   "findings": [
@@ -4891,6 +4894,145 @@
       "done_when": "A plan check flags or splits a group that is too large or set to Luna max, preferring medium jobs of about 4 issues.",
       "observed": "In the 0.2.143 parallel fix round on PR #107, the island group (ISLAND-01, ISLAND-03, AGENT-28) ran as a Luna-max Fast job and took about 25 minutes / 11M tokens, while the tools group finished in about 5 minutes and the session group in about 10.",
       "recommendation": "Add a plan check that caps groups at about 4 issues and splits Luna-max work into medium jobs. The practice note is already in fix-and-verify.md."
+    },
+    {
+      "id": "PAGE-04",
+      "title": "Carried-over issues show Working on it on a new list that has no work in progress",
+      "source": "User requested",
+      "status": "untested",
+      "summary": "After rollover, issues carried onto the new list still appear as Working on it even though nothing is in progress on that list.",
+      "impact": "The new list looks like work has already started, so you cannot tell what is actually open or only carried over.",
+      "done_when": "Carried-over issues on a new list show as open or carried over until work on that list actually starts, and Working on it is reserved for findings in progress.",
+      "observed": "On 14 Nov 2026 after PR #107 rolled over to draft PR #110, the new list was at Collect with no work started. Eight carried findings were still marked in_progress in 110.json (AGENT-18, AGENT-22, AGENT-23, AGENT-25, AGENT-26, AGENT-29, OBS-23, OBS-25), and the page showed them as Working on it. The other eight carried items were failing or untested. Nothing on the new list was being worked. Status accuracy is Guru's top priority (noted 14 Nov 2026, 17:17 IST). AUTO-01 tracks the rollover command that should reset carried items to open and leave the old list file unchanged.",
+      "recommendation": "When rolling a list over, reset carried findings that were in_progress on the previous list to an open or carried-over status, and keep Working on it only for work that has started on the new list. Do this in `bcl rollover` (AUTO-01), which must write only the new list file.",
+      "priority": "high",
+      "details": {
+        "Priority": "high — status accuracy is Guru's top priority (17:17 IST)",
+        "Related": "AUTO-01"
+      }
+    },
+    {
+      "id": "PAGE-05",
+      "title": "The Fixes gate looks like the current step while the list is still at Collect",
+      "source": "User requested",
+      "status": "untested",
+      "summary": "On a new list that is still at Collect, the Fixes gate node is visually highlighted as if it were the current step.",
+      "impact": "The workflow strip is misleading: it looks like the list is at the gate instead of at the start of Collect.",
+      "done_when": "Only the actual current stage is highlighted as Now. While the list is at Collect, Collect is the current step and the Fixes gate reads as an upcoming (or met) marker, not the current step.",
+      "observed": "On 14 Nov 2026 the rolled-over PR #110 list was at Collect, cycle 2, round 1, with the gate at 0 of 15 and not met. Collect is marked current in the markup, but the Fixes node still stands out like the current step: the gate keeps a prominent amber ring and a heavy ink label (font-weight 650) even when its state is upcoming. Guru reported this on the 53366 viewer while the list was at Collect.",
+      "recommendation": "Restyle an upcoming Fixes node so it does not share the current-step emphasis (halo, heavy label, strong ring). Keep that emphasis for the actual current stage, and for a met gate only as a done/met marker."
+    },
+    {
+      "id": "PAGE-06",
+      "title": "After a list's PR merges, the page still shows Report & roll over as happening now",
+      "source": "User requested",
+      "status": "untested",
+      "priority": "high",
+      "summary": "After the list's PR is merged, the page still looks like Report & roll over is in progress, with an old Last reported time.",
+      "impact": "You cannot tell that the work is finished and merged, so the status on the page is wrong.",
+      "done_when": "A merged list shows a finished Merged or Done state, with the merge commit and the merge time, and the stage no longer looks like it is happening now.",
+      "observed": "On 14 Nov 2026 at 17:17 IST, Guru's screenshot of the 53366 viewer (still on 107.json) showed Workflow stage 'Report & roll over · NOW' and 'Last reported 4:50 PM'. Live 107.json still had tracking.workflow.stage = report_rollover and updated_at 2026-11-14T11:20:27Z (4:50 PM IST). PR #107 had already merged as 7e16f66 at 2026-11-14 11:44:48 UTC (17:14 IST); the tracker had no merge commit, merge time, or terminal Merged/Done state. Status accuracy is Guru's top priority (17:17 IST). AUTO-02 tracks the `bcl merged` command for this.",
+      "recommendation": "When a list's PR merges, record the merge commit and time and switch the page to a terminal Merged/Done state so the stage is no longer shown as in progress. Implement this as `bcl merged` (AUTO-02), including when auto-merge lands.",
+      "details": {
+        "Priority": "high — status accuracy is Guru's top priority (17:17 IST)",
+        "Related": "AUTO-02",
+        "Evidence": "Guru screenshot 17:17 IST; 107.json workflow.updated_at 11:20:27Z; merge 7e16f66 at 17:14 IST"
+      }
+    },
+    {
+      "id": "PLAN-03",
+      "title": "Re-add the cap of about 4 issues per parallel fix group",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "The guidance to keep a parallel fix group to about 4 issues was lost and needs to be put back in the plan-and-fix instructions.",
+      "impact": "Plans can again put too many issues in one job, which slows the round.",
+      "done_when": "The plan-and-fix reference again tells agents to cap a parallel fix group at about 4 issues.",
+      "observed": "The 'cap a parallel fix group at about 4 issues' note lived in references/fix-and-verify.md, which was deleted in PR #109. Installed 0.1.17 references/plan-fix.md describes the Fast cycle but does not mention that cap. PLAN-02 still says the practice note is in fix-and-verify.md, which no longer exists. Status accuracy is Guru's top priority (17:17 IST); this lost guidance is recorded on the same list so it is not dropped again.",
+      "recommendation": "Restore the cap of about 4 issues per parallel fix group in references/plan-fix.md, and point PLAN-02 at that file instead of the deleted fix-and-verify.md.",
+      "details": {
+        "Related": "PLAN-02",
+        "Belongs in": "references/plan-fix.md"
+      }
+    },
+    {
+      "id": "AUTO-01",
+      "title": "Rollover should write only the new list and reset carried issues to open",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "high",
+      "summary": "Rolling over to a new list should create that new list file, leave the old list unchanged, and show carried issues as open.",
+      "impact": "Overwriting the old list hides its final state, and carried issues look like work has already started on the new list.",
+      "done_when": "`bcl rollover` writes only the new list file, never overwrites the old one, and resets carried items to open.",
+      "observed": "On 14 Nov 2026, rollover to #110 overwrote 107.json; it was restored from e0736ae (Change list: snapshot live tracker, 16:50:27 IST). Carried items on the new list still showed Working on it (PAGE-04). Guru said at 17:20 IST that hand-rolled steps should become scripts run inside their step. Status accuracy is Guru's top priority (17:17–17:20 IST).",
+      "recommendation": "Add `bcl rollover` as a script run inside the Report & roll over step: write only the new list file, never overwrite the old one, and reset carried items to open. See PAGE-04.",
+      "details": {
+        "Priority": "high — status accuracy is Guru's top priority (17:17–17:20 IST)",
+        "Related": "PAGE-04",
+        "Evidence": "107.json overwritten, restored from e0736ae at 16:50:27 IST; Guru 17:20 IST"
+      }
+    },
+    {
+      "id": "AUTO-02",
+      "title": "A merged command should record the merge and mark the list done",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "high",
+      "summary": "When a list's PR merges, including by auto-merge, a single command should record the merge and show the list as done.",
+      "impact": "Without that, a merged list can still look in progress, and stacked PRs may keep pointing at the old branch.",
+      "done_when": "`bcl merged` records the merge commit and time, sets a terminal done state, retargets stacked PRs to main, and runs when auto-merge lands.",
+      "observed": "PR #107 merged as 7e16f66 at 17:14 IST, including after auto-merge was enabled, but 107.json stayed at report_rollover with Last reported 4:50 PM (PAGE-06). Stacked #110 had to be retargeted to main by hand. Guru said at 17:20 IST that hand-rolled steps should become scripts run inside their step. Status accuracy is Guru's top priority (17:17–17:20 IST).",
+      "recommendation": "Add `bcl merged` as a script triggered when the merge lands, including auto-merge: record the merge commit and time, set a terminal Merged/Done state, and retarget stacked PRs to main. See PAGE-06.",
+      "details": {
+        "Priority": "high — status accuracy is Guru's top priority (17:17–17:20 IST)",
+        "Related": "PAGE-06",
+        "Evidence": "7e16f66 at 17:14 IST; 107.json still report_rollover; Guru 17:20 IST"
+      }
+    },
+    {
+      "id": "AUTO-03",
+      "title": "Only starting Collect should point the page at the new list",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "high",
+      "summary": "The page should stay on the old list until Collect actually starts on the new one. Only that step should move the viewer.",
+      "impact": "If the viewer is moved by hand, you can be shown a new list before Collect has started, or left on a stale in-progress state after a merge.",
+      "done_when": "Only `bcl collect` (the Collect start) re-points the viewer at the new list; other steps leave the current page where it is.",
+      "observed": "The 53366 viewer (pid 99658, 0.1.17, data 107.json) was re-pointed by hand twice: toward #110 after rollover, then back to #107's final state, with a note that the #110 viewer was not started. Guru asked that #110 show only when Collect starts. Guru said at 17:20 IST that hand-rolled steps should become scripts run inside their step. Status accuracy is Guru's top priority (17:17–17:20 IST).",
+      "recommendation": "Make viewer re-pointing part of `bcl collect` start only. Do not move the viewer during rollover, merge, or other steps.",
+      "details": {
+        "Priority": "high — status accuracy is Guru's top priority (17:17–17:20 IST)",
+        "Related": "PAGE-06",
+        "Evidence": "53366 pid 99658 re-pointed by hand twice; Guru 17:20 IST"
+      }
+    },
+    {
+      "id": "AUTO-04",
+      "title": "Syncing main after a merge is still a set of hand steps",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "After a merge, catching the local branch up to main still takes several manual sync and render steps.",
+      "impact": "Those steps are easy to miss or do inconsistently, which leaves the worktree dirty or the page out of date.",
+      "done_when": "`bcl sync-main` merges main, resolves deletions of skill references, re-renders HTML, and stashes hook dirt in one scripted step.",
+      "observed": "For PR #107 these were all done by hand: merge main, resolve deletions of skill-reference files, re-render HTML, and stash hook dirt. Guru said at 17:20 IST that hand-rolled steps should become scripts run inside their step. BCL-02 already covers storing the verify command for each plan group, so that is not a new AUTO item.",
+      "recommendation": "Add `bcl sync-main` as a script run after merge: merge main, resolve deletions of skill refs, re-render HTML, and stash hook dirt.",
+      "details": {
+        "Evidence": "Hand steps for #107; Guru 17:20 IST",
+        "Already tracked": "BCL-02 covers stored verify commands"
+      }
+    },
+    {
+      "id": "AUTO-05",
+      "title": "Installing a merged plugin still has to be copied into several local places by hand",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "After a merge, installing the plugin locally still means copying it into several caches and checking the revision by hand.",
+      "impact": "Old copies can be left behind, and an install can silently not match the merge.",
+      "done_when": "`bcl install-local` installs to ~/.agents, the Codex cache and the Cursor cache, removes old copies, and checks the sha against the merge.",
+      "observed": "Installing batched-change-list 0.1.17 required copying into ~/.agents, the Codex plugin cache, and the Cursor plugin cache, trashing old copies, and checking the sha against the merge, all by hand. Guru said at 17:20 IST that hand-rolled steps should become scripts run inside their step.",
+      "recommendation": "Add `bcl install-local` as a script run inside the Install step: install to ~/.agents, the Codex cache and the Cursor cache, trash old copies, and check the sha against the merge.",
+      "details": {
+        "Evidence": "0.1.17 hand install to ~/.agents, Codex cache, Cursor cache; Guru 17:20 IST"
+      }
     }
   ]
 }
