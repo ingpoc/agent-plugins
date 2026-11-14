@@ -64,6 +64,74 @@ class TerminalOutcomeTests(unittest.TestCase):
     def test_settled_task_without_action_evidence_is_unknown(self) -> None:
         self.assertEqual(_task_outcome([], status="completed"), ("unknown", None))
 
+    def test_confirmation_refusal_and_final_reply_failures_do_not_verify_success(self) -> None:
+        success = [{"tool": "cua_act", "ok": True, "verified": True}]
+        self.assertEqual(_task_outcome(success, status="completed", reply="Done"),
+                         ("verified_success", "tool_reported"))
+        self.assertEqual(_task_outcome(success + [{"tool": "confirm_risky", "ok": False,
+                                                    "approved": False, "timed_out": True}],
+                                       status="completed", reply="Done"),
+                         ("unverified", "tool_reported"))
+        self.assertEqual(_task_outcome(success + [{"tool": "cua_act", "ok": False,
+                                                    "needs_confirmation": True}],
+                                       status="completed"), ("unverified", "tool_reported"))
+        for reply in ("I couldn't finish.", "I could not finish.", "I wasn't able to finish.",
+                      "I was unable to finish.", "I didn't manage to finish.", "I failed to finish.",
+                      "I could not confirm it."):
+            with self.subTest(reply=reply):
+                self.assertEqual(_task_outcome(success, status="completed", reply=reply),
+                                 ("unverified", "tool_reported"))
+        self.assertEqual(_task_outcome(success, status="completed", reply="The test failed at first, then passed."),
+                         ("verified_success", "tool_reported"))
+
+    def test_background_launch_needs_a_successful_job_poll(self) -> None:
+        started = [{"tool": "shell_run", "ok": True, "background": True, "job_id": "job-1"}]
+        self.assertEqual(_task_outcome(started, status="completed"), ("unverified", "tool_reported"))
+        finished = started + [{"tool": "shell_job", "ok": True, "job_id": "job-1",
+                               "job_done": True, "exit_code": 0, "outcome": "verified"}]
+        self.assertEqual(_task_outcome(finished, status="completed"),
+                         ("verified_success", "tool_reported"))
+
+    def test_task_collector_preserves_confirmation_and_job_evidence(self) -> None:
+        session = LiveSession(api_key="test", enable_audio=False)
+        session._task_runs["run"] = []
+        session._record_task_result("run", "confirm_risky", {
+            "ok": False, "approved": False, "timed_out": True,
+            "error_type": "confirm_timed_out", "needs_confirmation": True,
+        })
+        session._record_task_result("run", "shell_job", {
+            "ok": True, "background": True, "job_id": "job-1", "job_done": True,
+            "exit_code": 0, "outcome": "verified",
+        })
+        self.assertEqual(session._task_runs["run"], [
+            {"tool": "confirm_risky", "ok": False, "verified": False, "cancelled": False,
+             "outcome": None, "approved": False, "needs_confirmation": True, "timed_out": True,
+             "error_type": "confirm_timed_out", "background": False, "job_id": None,
+             "job_done": False, "exit_code": None},
+            {"tool": "shell_job", "ok": True, "verified": False, "cancelled": False,
+             "outcome": "verified", "approved": None, "needs_confirmation": False, "timed_out": False,
+             "error_type": None, "background": True, "job_id": "job-1", "job_done": True,
+             "exit_code": 0},
+        ])
+
+    def test_response_done_passes_final_reply_to_task_outcome_and_caps_log_at_2000(self) -> None:
+        reply = "I couldn't confirm it. " + "x" * 2200
+        session = LiveSession(api_key="test", enable_audio=False)
+        session._response_task_run_ids["response"] = "run"
+        session._task_runs["run"] = [{"tool": "cua_act", "ok": True, "verified": True}]
+        session._task_request_step_refs["run"] = "request-step"
+        rows = []
+        with patch("voice_cua.live_session.log_event", lambda kind, **fields: rows.append((kind, fields))), \
+                patch("voice_cua.live_session.log_task_outcome") as outcome, \
+                patch("voice_cua.live_session.mark"), patch("builtins.print"):
+            session._note_response_done({"id": "response", "status": "completed", "output": [
+                {"type": "message", "content": [{"type": "output_text", "text": reply}]},
+            ]})
+        self.assertEqual(outcome.call_args.kwargs["outcome"], "unverified")
+        self.assertEqual(outcome.call_args.kwargs["caused_by"], ["request-step"])
+        logged = next(fields["text"] for kind, fields in rows if kind == "assistant_reply")
+        self.assertEqual(len(logged), 2000)
+
 
 class FakeWS:
     def __init__(self) -> None:
@@ -795,6 +863,16 @@ class TranscriptionTests(unittest.TestCase):
                 "transcript": "open Calculator",
             }))
         self.assertIn("You: open Calculator", out.getvalue())
+
+    def test_typed_submission_prints_one_you_line(self) -> None:
+        session = LiveSession(api_key="test", enable_audio=False)
+        out = io.StringIO()
+        with patch.object(session, "_spoken_task_cancel", return_value=False), \
+                patch.object(session, "_note_user_turn", return_value="request"), \
+                patch.object(session, "_send"), patch.object(session, "_send_response_create"), \
+                patch("voice_cua.live_session.island_publish"), contextlib.redirect_stdout(out):
+            session.send_text("typed build request", request_id="request")
+        self.assertEqual(out.getvalue().splitlines(), ["You: typed build request"])
 
 
 BROKER_OK = {

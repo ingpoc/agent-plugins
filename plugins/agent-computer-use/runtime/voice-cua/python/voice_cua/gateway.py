@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 import hmac
+import math
 import os
+import secrets
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -26,6 +29,60 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = int(os.environ.get("VOICE_CUA_PORT", "8765"))
 SSE_HEARTBEAT_S = 10.0
 _HTTPD: ThreadingHTTPServer | None = None
+_APPROVE_TOKEN: str | None = None
+_APPROVE_TOKEN_PATH: Path | None = None
+_APPROVE_TOKEN_LOCK = threading.Lock()
+MAX_TEXT_WAIT_S = 1800.0
+
+
+def _approve_token_path() -> Path:
+    return Path.home() / ".cache" / "macos-cua" / "typed-approve.token"
+
+
+def _create_approve_token() -> None:
+    global _APPROVE_TOKEN, _APPROVE_TOKEN_PATH
+    token = secrets.token_urlsafe(32)
+    path = _approve_token_path()
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags, 0o600)
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            fd = -1
+            f.write(token)
+    finally:
+        if fd >= 0:
+            os.close(fd)
+    with _APPROVE_TOKEN_LOCK:
+        _APPROVE_TOKEN = token
+        _APPROVE_TOKEN_PATH = path
+
+
+def _delete_approve_token() -> None:
+    global _APPROVE_TOKEN, _APPROVE_TOKEN_PATH
+    with _APPROVE_TOKEN_LOCK:
+        path, _APPROVE_TOKEN_PATH = _APPROVE_TOKEN_PATH, None
+        _APPROVE_TOKEN = None
+    if path is not None:
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _cleanup_gateway_state() -> None:
+    try:
+        from voice_cua.session_hub import shutdown_turns
+
+        shutdown_turns()
+    finally:
+        try:
+            from voice_cua.dev_tools import shutdown_jobs
+
+            shutdown_jobs()
+        finally:
+            _delete_approve_token()
 
 
 def live_model() -> str:
@@ -42,6 +99,7 @@ def request_shutdown() -> None:
         import time
 
         time.sleep(0.05)
+        _cleanup_gateway_state()
         if httpd is not None:
             try:
                 httpd.shutdown()
@@ -60,7 +118,7 @@ class Handler(BaseHTTPRequestHandler):
         sys_stderr = __import__("sys").stderr
         print(f"[voice-cua] {self.address_string()} {fmt % args}", file=sys_stderr)
 
-    def _json(self, code: int, payload: dict[str, Any]) -> None:
+    def _json(self, code: int, payload: Any) -> None:
         raw = json.dumps(payload).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
@@ -82,6 +140,15 @@ class Handler(BaseHTTPRequestHandler):
         if supplied and hmac.compare_digest(supplied, expected):
             return True
         self._json(403, {"ok": False, "error": "invalid voice control token"})
+        return False
+
+    def _authorize_typed_approval(self) -> bool:
+        with _APPROVE_TOKEN_LOCK:
+            expected = _APPROVE_TOKEN or ""
+        supplied = self.headers.get("X-Voice-CUA-Approve", "")
+        if expected and hmac.compare_digest(supplied, expected):
+            return True
+        self._json(403, {"ok": False, "error": "typed approval unauthorized"})
         return False
 
     def _read_json(self) -> dict[str, Any]:
@@ -129,6 +196,23 @@ class Handler(BaseHTTPRequestHandler):
             from voice_cua.session_hub import status as session_status
 
             self._json(200, session_status())
+            return
+        if path == "/api/session/turn":
+            if not self._authorize_typed_approval():
+                return
+            from voice_cua.session_hub import get_turn
+
+            turn_id = (query.get("id") or [""])[0]
+            if not turn_id:
+                self._json(400, {"ok": False, "error": "id query param required"})
+                return
+            turn = get_turn(turn_id)
+            self._json(200 if turn else 404, turn or {"ok": False, "error": "unknown turn_id"})
+            return
+        if path == "/api/confirm/pending":
+            if not self._authorize_typed_approval():
+                return
+            self._json(200, ISLAND.pending_confirm())
             return
         if path == "/api/island/state":
             self._json(200, ISLAND.state.to_dict())
@@ -260,36 +344,87 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/confirm":
             body = self._read_json()
             cid = str(body.get("confirm_id") or "")
-            approved = bool(body.get("approved"))
+            if not isinstance(body.get("approved"), bool):
+                self._json(400, {"ok": False, "error": "approved must be a boolean"})
+                return
+            approved = body["approved"]
             ok = ISLAND.resolve_confirm(cid, approved)
-            self._json(200, {"ok": ok, "confirm_id": cid, "approved": approved})
+            self._json(200 if ok else 409, {"ok": ok, "confirm_id": cid, "approved": approved})
+            return
+        if path == "/api/session/approve":
+            body = self._read_json()
+            cid = str(body.get("confirm_id") or "")
+            if not isinstance(body.get("approved"), bool):
+                self._json(400, {"ok": False, "error": "approved must be a boolean"})
+                return
+            if not self._authorize_typed_approval():
+                return
+            approved = body["approved"]
+            ok = ISLAND.resolve_confirm(cid, approved)
+            self._json(200 if ok else 409, {"ok": ok, "confirm_id": cid, "approved": approved})
             return
         if path == "/api/confirm/request":
             body = self._read_json()
             cid = str(body.get("confirm_id") or "")
             prompt = str(body.get("prompt") or "Confirm?")
-            timeout = float(body.get("timeout") or 120.0)
+            raw_timeout = body.get("timeout", 120.0)
+            try:
+                timeout = float(raw_timeout)
+            except (TypeError, ValueError, OverflowError):
+                timeout = 0.0
+            if (isinstance(raw_timeout, bool) or not isinstance(raw_timeout, (int, float))
+                    or not math.isfinite(timeout) or timeout <= 0):
+                self._json(400, {"ok": False, "error": "timeout must be finite and greater than zero"})
+                return
             if not cid:
                 self._json(400, {"ok": False, "error": "confirm_id required"})
                 return
-            approved = ISLAND.request_confirm(cid, prompt, timeout=timeout)
-            self._json(200, {"ok": True, "confirm_id": cid, "approved": approved})
+            origin_turn_id = body.get("origin_turn_id")
+            if origin_turn_id is not None:
+                from voice_cua.session_hub import has_turn
+
+                if not isinstance(origin_turn_id, str) or not has_turn(origin_turn_id):
+                    self._json(409, {"ok": False, "error": "unknown originating turn"})
+                    return
+            outcome = ISLAND.request_confirm(cid, prompt, timeout=timeout,
+                                             origin_turn_id=origin_turn_id)
+            ok = outcome != "error"
+            self._json(200 if ok else 409, {
+                "ok": ok, "confirm_id": cid, "outcome": outcome,
+                "approved": outcome == "approved", "timed_out": outcome == "timed_out",
+            })
             return
         if path == "/api/session/set-listening":
             ISLAND.publish("listening", title="Listening", detail="")
             self._json(200, {"ok": True})
             return
         if path == "/api/session/text":
-            from voice_cua.session_hub import send_text_and_wait
+            from voice_cua.session_hub import start_turn
 
             body = self._read_json()
-            text = str(body.get("text") or "").strip()
+            raw_text = body.get("text")
+            text = raw_text.strip() if isinstance(raw_text, str) else ""
             if not text:
                 self._json(400, {"ok": False, "error": "text required"})
                 return
-            timeout = float(body.get("timeout") or 90.0)
-            result = send_text_and_wait(text, timeout=min(timeout, 120.0))
-            code = 200 if result.get("ok") else 503
+            raw_timeout = body.get("timeout", 90.0)
+            if isinstance(raw_timeout, bool) or not isinstance(raw_timeout, (int, float)):
+                self._json(400, {"ok": False, "error": "timeout must be a finite number greater than zero"})
+                return
+            try:
+                timeout = float(raw_timeout)
+            except (TypeError, ValueError, OverflowError):
+                self._json(400, {"ok": False, "error": "timeout must be a finite number greater than zero"})
+                return
+            if not math.isfinite(timeout) or timeout <= 0:
+                self._json(400, {"ok": False, "error": "timeout must be a finite number greater than zero"})
+                return
+            if "async" in body and not isinstance(body["async"], bool):
+                self._json(400, {"ok": False, "error": "async must be a boolean"})
+                return
+            asynchronous = body.get("async") is True
+            result = start_turn(text, timeout=min(timeout, MAX_TEXT_WAIT_S), asynchronous=asynchronous)
+            code = 202 if result.get("status") == "running" else (200 if result.get("ok") else 503)
             self._json(code, result)
             return
         if path == "/api/shutdown":
@@ -343,8 +478,14 @@ class Handler(BaseHTTPRequestHandler):
 def serve(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
     global _HTTPD
     _HTTPD = ThreadingHTTPServer((host, port), Handler)
-    print(f"voice-cua gateway http://{host}:{port} model={live_model()}")
-    _HTTPD.serve_forever()
+    try:
+        _create_approve_token()
+        print(f"voice-cua gateway http://{host}:{port} model={live_model()}")
+        _HTTPD.serve_forever()
+    finally:
+        _cleanup_gateway_state()
+        _HTTPD.server_close()
+        _HTTPD = None
 
 
 def main() -> None:

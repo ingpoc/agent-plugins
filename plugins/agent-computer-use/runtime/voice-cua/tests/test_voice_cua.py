@@ -180,7 +180,7 @@ class LabelsTrackerTests(unittest.TestCase):
 class IslandTests(unittest.TestCase):
     def test_confirm_flow(self) -> None:
         bus = IslandBus()
-        result: list[bool] = []
+        result: list[str] = []
 
         def worker() -> None:
             result.append(bus.request_confirm("c1", "ok?", timeout=2.0))
@@ -195,7 +195,7 @@ class IslandTests(unittest.TestCase):
             time.sleep(0.02)
         self.assertTrue(bus.resolve_confirm("c1", True))
         t.join(timeout=3)
-        self.assertEqual(result, [True])
+        self.assertEqual(result, ["approved"])
 
 
 class ToolsTests(unittest.TestCase):
@@ -456,12 +456,61 @@ class AudioIOTests(unittest.TestCase):
                 "id": "resp_expected",
                 "status": "completed",
                 "metadata": {"voice_cua_request_id": request_id},
-                "output": [{"type": "message", "content": [{"type": "output_text", "text": "RIGHT"}]}],
+                "output": [{"type": "message", "content": [{"type": "output_text", "text": "R" * 300}]}],
             },
         }))
         thread.join(timeout=1)
-        self.assertEqual(result, {"ok": True, "reply": "RIGHT"})
+        self.assertEqual(result, {"ok": True, "reply": "R" * 300})
         self.assertEqual(hide.call_count, 2)
+
+    def test_typed_turn_keeps_text_waiter_audio_and_lock_until_settled(self) -> None:
+        class FakeWS:
+            def send(self, _raw):
+                pass
+
+        class FakeAudio:
+            paused = False
+            resumed = False
+
+            def pause_input(self):
+                self.paused = True
+
+            def resume_input(self):
+                self.resumed = True
+
+        session = LiveSession(api_key="test", enable_audio=False)
+        session.ws = FakeWS()
+        session._audio = FakeAudio()
+        result = {}
+        with patch("voice_cua.live_session.hide_agent_cursor"), \
+                patch("voice_cua.live_session.island_publish"), \
+                patch.object(session, "_note_user_turn", side_effect=lambda _text, request_id, **_kw: request_id):
+            worker = threading.Thread(
+                target=lambda: result.update(session.send_text_and_wait(
+                    "build feature", timeout=None, typed_turn_id="turn-owned",
+                )),
+                daemon=True,
+            )
+            worker.start()
+            deadline = time.monotonic() + 1
+            request_id = ""
+            while time.monotonic() < deadline:
+                with session._response_lock:
+                    if session._text_waiters:
+                        request_id = next(iter(session._text_waiters))
+                        break
+                time.sleep(0.01)
+            self.assertTrue(request_id)
+            self.assertTrue(worker.is_alive())
+            self.assertTrue(session._text_request_lock.locked())
+            self.assertTrue(session._audio.paused)
+            self.assertEqual(session._typed_turn_ids_by_request[request_id], "turn-owned")
+            session._finish_text_waiter(request_id, reply="ready")
+            worker.join(timeout=1)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(result, {"ok": True, "reply": "ready"})
+        self.assertFalse(session._text_request_lock.locked())
+        self.assertTrue(session._audio.resumed)
 
     def test_failed_mic_preflight_disables_audio_status(self) -> None:
         session = LiveSession(api_key="test", enable_audio=True)

@@ -86,12 +86,12 @@ class RiskGate:
             "hint": CONFIRM_HINT,
         }
 
-    def confirm(self, ask: Callable[[str, str], bool]) -> dict[str, Any]:
+    def confirm(self, ask: Callable[[str, str], str]) -> dict[str, Any]:
         """Ask the user about the newest pending action; bind approval to it."""
         with self._confirm_lock:
             return self._confirm(ask)
 
-    def _confirm(self, ask: Callable[[str, str], bool]) -> dict[str, Any]:
+    def _confirm(self, ask: Callable[[str, str], str]) -> dict[str, Any]:
         with self._lock:
             self._prune_locked(self._clock())
             fp = self._last_pending
@@ -105,18 +105,30 @@ class RiskGate:
             }
         description = pending[0]
         try:
-            approved = bool(ask(str(uuid.uuid4()), description))
+            outcome = ask(str(uuid.uuid4()), description)
         except Exception:  # noqa: BLE001 — fail closed
-            approved = False
+            outcome = "error"
+        if outcome not in {"approved", "denied", "timed_out", "error"}:
+            outcome = "error"
         with self._lock:
             self._pending.pop(fp, None)
             if self._last_pending == fp:
                 self._last_pending = next(reversed(self._pending), "") if self._pending else ""
-            if approved:
+            if outcome == "approved":
                 self._approved[fp] = self._clock() + APPROVAL_TTL
-        if approved:
+        if outcome == "approved":
             return {"ok": True, "approved": True, "hint": "Approved: retry the same call now."}
-        return {"ok": True, "approved": False, "hint": "User said no: do not retry; tell the user."}
+        if outcome == "timed_out":
+            return {"ok": False, "approved": False, "timed_out": True,
+                    "error": "confirmation timed out", "error_type": "confirm_timed_out",
+                    "hint": "No answer before the confirm timed out; nothing was done. Tell the user it still needs their OK."}
+        if outcome == "denied":
+            return {"ok": False, "approved": False, "timed_out": False,
+                    "error": "user denied", "error_type": "user_denied",
+                    "hint": "The user denied this action. Do not retry; tell the user."}
+        return {"ok": False, "approved": False, "timed_out": False,
+                "error": "confirmation transport failed", "error_type": "confirm_transport_error",
+                "hint": "Confirmation could not be delivered; nothing was done. Tell the user it still needs their OK."}
 
 
 GATE = RiskGate()

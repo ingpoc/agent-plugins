@@ -33,9 +33,9 @@ def test_preferences_and_recall_without_helper(tmp_path):
                       situation='choose Gmail account')['data']['matches'][0]['decision'] == 'Work'
     decide.assert_not_called()
     assert 'ledger_task' in {tool['name'] for tool in tool_definitions()}
-    assert 'proactively' in SYSTEM_INSTRUCTIONS
+    assert 'skip routine dev, shell, and file turns' in SYSTEM_INSTRUCTIONS
     assert 'same scope and rule' in SYSTEM_INSTRUCTIONS
-    assert 'do not wait for the user to ask' in SYSTEM_INSTRUCTIONS
+    assert 'Do not wait for the user to ask' in SYSTEM_INSTRUCTIONS
     ledger_tool = next(tool for tool in tool_definitions() if tool['name'] == 'ledger_task')
     assert 'For recall, always provide both a concrete need and the actual situation' in ledger_tool['description']
     assert 'non-retryable' in ledger_tool['description']

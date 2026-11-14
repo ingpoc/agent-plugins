@@ -503,6 +503,25 @@ class ConfirmTimeoutTests(unittest.TestCase):
     def test_unanswered_confirm_card_is_taken_down(self):
         from voice_cua.island_state import IslandBus
         bus = IslandBus()
-        self.assertFalse(bus.request_confirm("c-timeout", "Delete it?", timeout=0.05))
-        self.assertNotEqual(bus.state.kind, "confirm")
-        self.assertEqual(bus.state.confirm_id, "")
+        self.assertEqual(bus.request_confirm("c-timeout", "Delete it?", timeout=0.05), "timed_out")
+
+    def test_confirm_ids_are_single_use_and_invalid_timeouts_fail_closed(self):
+        from voice_cua.island_state import IslandBus
+        bus = IslandBus()
+        result = []
+        worker = threading.Thread(target=lambda: result.append(bus.request_confirm("same-id", "OK?", timeout=2)))
+        worker.start()
+        for _ in range(50):
+            if bus.pending_confirm():
+                break
+            import time
+            time.sleep(0.01)
+        self.assertEqual(bus.request_confirm("same-id", "Again?", timeout=1), "error")
+        self.assertTrue(bus.resolve_confirm("same-id", False))
+        worker.join(timeout=2)
+        self.assertEqual(result, ["denied"])
+        self.assertEqual(bus.request_confirm("same-id", "Stale?", timeout=1), "error")
+        self.assertFalse(bus.resolve_confirm("same-id", True))
+        self.assertEqual(bus.request_confirm("bad-timeout", "OK?", timeout=float("inf")), "error")
+        self.assertEqual(bus.request_confirm("huge-timeout", "OK?", timeout=10 ** 400), "error")
+        self.assertIsNone(bus.pending_confirm())

@@ -82,6 +82,19 @@ class XAITests(unittest.TestCase):
         for gone in ("type", "output_modalities", "tool_choice", "reasoning"):
             self.assertNotIn(gone, s)
 
+    def test_typed_request_id_survives_xai_round_trip(self) -> None:
+        p = XAIProvider("grok-voice-latest")
+        meta = {"voice_cua_request_id": "req1"}
+        self.assertEqual(p.outbound({"type": "response.create", "response": {"metadata": meta}}),
+                         [{"type": "response.create"}])
+        (created,) = p.inbound({"type": "response.created", "response": {"id": "r1"}})
+        self.assertEqual(created["response"]["metadata"], meta)
+        (done,) = p.inbound({"type": "response.done", "response": {"id": "r1", "status": "completed"}})
+        self.assertEqual(done["response"]["metadata"], meta)
+        p.outbound({"type": "response.create"})  # untagged create keeps the order aligned
+        (plain,) = p.inbound({"type": "response.created", "response": {"id": "r2"}})
+        self.assertNotIn("metadata", plain["response"])
+
     def test_system_note_becomes_tagged_user_item(self) -> None:
         (out,) = XAIProvider("grok-voice-latest").outbound({"type": "conversation.item.create", "item": {
             "type": "message", "role": "system", "content": [{"type": "input_text", "text": "reconnected"}]}})

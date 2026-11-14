@@ -1,5 +1,10 @@
 # Changelog: batched-change-list
 
+## 0.1.11
+
+- `introspect` adds its `WF-` task to an open verification run as pending, like `add`, so rendering no longer rejects it mid-run.
+- Version bump after merging with 0.1.10 (readable issue detail); no other behavior change.
+
 ## 0.1.10
 
 - Add plain-language finding summaries, impact and completion checks; show issue details in a readable hierarchy with one collapsed Evidence section.

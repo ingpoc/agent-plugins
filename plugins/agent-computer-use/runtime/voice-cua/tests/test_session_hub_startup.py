@@ -12,7 +12,9 @@ from voice_cua import session_hub
 def _session(ready=False):
     sess = SimpleNamespace(_session_ready=threading.Event(), _stop=threading.Event(), _dormant=None,
                            _text_only=False, _audio_enabled=True)
-    sess.send_text_and_wait = lambda text, timeout: {"ok": True, "reply": "hi " + text}
+    sess.send_text_and_wait = lambda text, timeout, cancel_event=None, typed_turn_id="": {
+        "ok": True, "reply": "hi " + text,
+    }
     if ready:
         sess._session_ready.set()
     return sess
@@ -28,7 +30,9 @@ class StartupTextTurnTest(unittest.TestCase):
         self.assertEqual(session_hub.status()["ready"], False)
         threading.Timer(0.2, sess._session_ready.set).start()
         started = time.monotonic()
-        self.assertEqual(session_hub.send_text_and_wait("there"), {"ok": True, "reply": "hi there"})
+        result = session_hub.send_text_and_wait("there")
+        self.assertEqual((result["ok"], result["status"], result["reply"]), (True, "done", "hi there"))
+        self.assertTrue(result["turn_id"])
         self.assertLess(time.monotonic() - started, 5)
 
     def test_never_ready_reports_typed_error(self):
@@ -38,11 +42,15 @@ class StartupTextTurnTest(unittest.TestCase):
             result = session_hub.send_text_and_wait("x")
         finally:
             session_hub.WAKE_WAIT_S = old
-        self.assertEqual((result["ok"], result["error_type"]), (False, "session_not_ready"))
+        self.assertEqual((result["ok"], result["status"]), (False, "error"))
+        self.assertIn("still starting", result["error"])
 
     def test_no_session_still_fails_fast(self):
         started = time.monotonic()
-        self.assertFalse(session_hub.send_text_and_wait("x")["ok"])
+        result = session_hub.send_text_and_wait("x")
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["status"], "error")
+        self.assertTrue(result["turn_id"])
         self.assertLess(time.monotonic() - started, 1)
 
 

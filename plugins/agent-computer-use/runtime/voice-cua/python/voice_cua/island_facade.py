@@ -250,12 +250,24 @@ def island_publish(
     )
 
 
-def island_confirm(confirm_id: str, prompt: str, *, timeout: float = 120.0) -> bool:
+def island_confirm(confirm_id: str, prompt: str, *, timeout: float = 120.0) -> str:
+    from voice_cua.activity_log import current_typed_turn_id
+
+    origin_turn_id = current_typed_turn_id() or None
     if use_remote():
+        body = {"confirm_id": confirm_id, "prompt": prompt, "timeout": timeout}
+        if origin_turn_id:
+            body["origin_turn_id"] = origin_turn_id
         data = _post(
             "/api/confirm/request",
-            {"confirm_id": confirm_id, "prompt": prompt, "timeout": timeout},
+            body,
             timeout=timeout + 5,
         )
-        return bool(data and data.get("approved"))
-    return ISLAND.request_confirm(confirm_id, prompt, timeout=timeout)
+        if data is None or data.get("ok") is not True:
+            return "error"
+        if data.get("timed_out") is True:
+            return "timed_out"
+        if data.get("approved") is True:
+            return "approved"
+        return "denied" if data.get("approved") is False else "error"
+    return ISLAND.request_confirm(confirm_id, prompt, timeout=timeout, origin_turn_id=origin_turn_id)

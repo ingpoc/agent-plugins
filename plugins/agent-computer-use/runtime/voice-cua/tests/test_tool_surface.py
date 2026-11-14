@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "python"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from voice_cua import tools  # noqa: E402
+from voice_cua import SYSTEM_INSTRUCTIONS  # noqa: E402
 from voice_cua.cua_bridge import get_tool_schemas  # noqa: E402
 from voice_cua.risk_gate import APPROVAL_TTL, RiskGate  # noqa: E402
 from test_phase1_reliability import make_session  # noqa: E402
@@ -82,11 +83,21 @@ class LazyGroupTests(unittest.TestCase):
         loaded = names(groups={"secrets"})
         self.assertTrue(set(tools.TOOL_GROUPS["secrets"]) <= loaded)
         self.assertIn("more_tools", loaded)  # workflows remain available
-        self.assertNotIn("more_tools", names(groups={"secrets", "workflows", "ledger"}))
+        self.assertNotIn("more_tools", names(groups={"secrets", "workflows", "ledger", "dev"}))
 
     def test_workflow_group_exposes_create_update_and_delete(self) -> None:
         loaded = names(groups={"workflows"})
         self.assertTrue(set(tools.TOOL_GROUPS["workflows"]) <= loaded)
+
+    def test_dev_tools_load_lazily_from_more_tools(self) -> None:
+        self.assertTrue({"shell_run", "shell_job", "file_edit"}.isdisjoint(names()))
+        loaded = names(groups={"dev"})
+        self.assertTrue(set(tools.TOOL_GROUPS["dev"]) <= loaded)
+        self.assertEqual(tools.dispatch("more_tools", {"group": "dev"}),
+                         {"ok": True, "group": "dev", "loaded": ["shell_run", "shell_job", "file_edit"]})
+        error = tools.dispatch("more_tools", {"group": "unknown"})
+        self.assertIn("dev", error["hint"])
+        self.assertIn("load more_tools {group: dev}", SYSTEM_INSTRUCTIONS)
 
     def test_workflow_delete_dispatches_to_confined_store(self) -> None:
         with patch("voice_cua.tools.workflow_store.delete_workflow", return_value={"ok": True}) as delete:
@@ -124,7 +135,7 @@ class RiskGateTests(_Fresh):
 
     def test_confirm_then_exact_retry_runs_once(self) -> None:
         tools.dispatch("cua_act", dict(RISKY))
-        with patch("voice_cua.tools.island_confirm", return_value=True) as ask:
+        with patch("voice_cua.tools.island_confirm", return_value="approved") as ask:
             conf = tools.dispatch("confirm_risky", {"prompt": "ignored model text"})
         self.assertTrue(conf["approved"])
         self.assertIn("Mail", ask.call_args.args[1])  # server text, not the model's
@@ -136,7 +147,7 @@ class RiskGateTests(_Fresh):
         self.assertEqual(self.backend.act.call_count, 1)
 
     def test_denied_or_failed_confirmation_fails_closed(self) -> None:
-        for outcome in (False, RuntimeError("island gone")):
+        for outcome in ("denied", RuntimeError("island gone")):
             tools.reset_session_state()
             tools.dispatch("cua_act", dict(RISKY))
             with patch("voice_cua.tools.island_confirm", side_effect=[outcome] if isinstance(outcome, Exception) else None,
@@ -146,9 +157,24 @@ class RiskGateTests(_Fresh):
             self.assertTrue(tools.dispatch("cua_act", dict(RISKY)).get("needs_confirmation"))
         self.backend.act.assert_not_called()
 
+    def test_confirmation_timeout_is_not_reported_as_a_user_denial(self) -> None:
+        tools.dispatch("cua_act", dict(RISKY))
+        events = []
+        with patch("voice_cua.tools.island_confirm", return_value="timed_out"), \
+                patch("voice_cua.tools.log_event", lambda kind, **fields: events.append((kind, fields))):
+            result = tools.dispatch("confirm_risky", {})
+        self.assertFalse(result["approved"])
+        self.assertTrue(result["timed_out"])
+        self.assertEqual(result["error_type"], "confirm_timed_out")
+        self.assertIn("No answer before the confirm timed out", result["hint"])
+        answer = next(fields for kind, fields in events if kind == "confirm_answer")
+        self.assertEqual((answer["outcome"], answer["reason"], answer["approved"], answer["timed_out"]),
+                         ("timed_out", "timed_out", False, True))
+        self.assertTrue(tools.dispatch("cua_act", dict(RISKY)).get("needs_confirmation"))
+
     def test_approval_does_not_cover_a_different_action(self) -> None:
         tools.dispatch("cua_act", dict(RISKY))
-        with patch("voice_cua.tools.island_confirm", return_value=True):
+        with patch("voice_cua.tools.island_confirm", return_value="approved"):
             tools.dispatch("confirm_risky", {})
         other = dict(RISKY, label="Delete")
         self.assertTrue(tools.dispatch("cua_act", other).get("needs_confirmation"))
@@ -156,7 +182,7 @@ class RiskGateTests(_Fresh):
 
     def test_approval_does_not_cover_changed_dispatch_flags(self) -> None:
         tools.dispatch("cua_act", dict(RISKY))
-        with patch("voice_cua.tools.island_confirm", return_value=True):
+        with patch("voice_cua.tools.island_confirm", return_value="approved"):
             tools.dispatch("confirm_risky", {})
         for changed in ({"expect": "Draft"}, {"allow_unverified": True}, {"wait": 5}):
             self.assertTrue(tools.dispatch("cua_act", dict(RISKY, **changed)).get("needs_confirmation"), changed)
@@ -166,7 +192,7 @@ class RiskGateTests(_Fresh):
         other = dict(RISKY, label="Delete")
         tools.dispatch("cua_act", dict(RISKY))
         tools.dispatch("cua_act", other)
-        with patch("voice_cua.tools.island_confirm", return_value=True) as ask:
+        with patch("voice_cua.tools.island_confirm", return_value="approved") as ask:
             tools.dispatch("confirm_risky", {})
         self.assertIn("Delete", ask.call_args.args[1])
         self.assertTrue(tools.dispatch("cua_act", dict(RISKY)).get("needs_confirmation"))
@@ -183,7 +209,7 @@ class RiskGateTests(_Fresh):
         now = [100.0]
         gate = RiskGate(clock=lambda: now[0])
         self.assertIsNotNone(gate.check("cua_act", RISKY, "x"))
-        self.assertTrue(gate.confirm(lambda _c, _t: True)["approved"])
+        self.assertTrue(gate.confirm(lambda _c, _t: "approved")["approved"])
         now[0] += APPROVAL_TTL + 1
         self.assertIsNotNone(gate.check("cua_act", RISKY, "x"))
 
@@ -223,7 +249,7 @@ class RiskGateTests(_Fresh):
         seen: list[str] = []
         with patch("voice_cua.tools._resolve_secret_args", return_value=(item, None)), \
                 patch("voice_cua.tools.fetch_value") as fetch, \
-                patch("voice_cua.tools.island_confirm", side_effect=lambda _c, text: seen.append(text) or False):
+                patch("voice_cua.tools.island_confirm", side_effect=lambda _c, text: seen.append(text) or "denied"):
             for name, args in (
                 ("secrets_inject", {"app": "Mail", "label": "gh", "navigate_steps": nav}),
                 ("secrets_provide", {"action": "inject", "app": "Mail", "label": "gh", "navigate_steps": nav}),
@@ -239,14 +265,14 @@ class RiskGateTests(_Fresh):
 
     def test_approval_binds_timeout_and_screenshot(self) -> None:
         tools.dispatch("cua_act", dict(RISKY))
-        with patch("voice_cua.tools.island_confirm", return_value=True):
+        with patch("voice_cua.tools.island_confirm", return_value="approved"):
             tools.dispatch("confirm_risky", {})
         self.assertTrue(tools.dispatch("cua_act", dict(RISKY, timeout=99)).get("needs_confirmation"))
         self.backend.act.assert_not_called()
 
     def test_reconnect_clears_approvals(self) -> None:
         tools.dispatch("cua_act", dict(RISKY))
-        with patch("voice_cua.tools.island_confirm", return_value=True):
+        with patch("voice_cua.tools.island_confirm", return_value="approved"):
             tools.dispatch("confirm_risky", {})
         tools.reset_session_state()
         self.assertTrue(tools.dispatch("cua_act", dict(RISKY)).get("needs_confirmation"))
