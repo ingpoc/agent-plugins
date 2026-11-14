@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-14T08:01:27Z",
-      "now": "2026-11-14T08:01:27Z — Planning 0.1.13 for three findings: live install versions, a workflow strip that stays current, and a guard so a fix cycle can't start with no finding in progress."
+      "stage": "report_rollover",
+      "updated_at": "2026-11-14T08:17:11Z",
+      "now": "2026-11-14T08:17:11Z — Live verify passed on 0.1.13: the #107 page shows agent-computer-use 0.2.142, Last reported and Now at 1:46 PM IST, and the workflow strip current. Draft PR #109. Not merging."
     },
     "rollover": {
       "source_pr": 105,
@@ -2112,8 +2112,15 @@
       ]
     },
     "stages_reached": [
-      "plan_fix"
-    ]
+      "plan_fix",
+      "install",
+      "verify",
+      "report_rollover"
+    ],
+    "introspect": {
+      "result": "no issues",
+      "at": "2026-11-14T08:17:11Z"
+    }
   },
   "findings": [
     {
@@ -4122,34 +4129,51 @@
       "id": "PAGE-01",
       "title": "The page shows stored plugin versions instead of the ones actually installed",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "summary": "The installed-plugins box still says agent-computer-use 0.2.121, but 0.2.142 is what's installed.",
       "impact": "You can't trust the page to tell you which build you're looking at, so checks and fixes can target the wrong version.",
       "done_when": "The page shows the versions read from the installed copies, and uses the stored list only as a labelled fallback when a copy can't be found.",
       "observed": "On 14 Nov 2026, the PR #107 page showed agent-computer-use 0.2.121 (stored 8 Nov) in the Installed plugins box, while ~/.agents/plugins/agent-computer-use/plugin.json and the Codex cache both report 0.2.142.",
-      "recommendation": "At render time, read installed plugin versions from the live installs (Codex cache, ~/.agents/plugins and skills, Cursor cache). Use the stored inventory only as a labelled fallback when a copy can't be found."
+      "recommendation": "At render time, read installed plugin versions from the live installs (Codex cache, ~/.agents/plugins and skills, Cursor cache). Use the stored inventory only as a labelled fallback when a copy can't be found.",
+      "verification": "The live #107 page at 13:46 IST on 14 Nov 2026 showed agent-computer-use 0.2.142 from the agents plugins copy, labelled live at render time.",
+      "verification_refs": [
+        "http://127.0.0.1:53366/ at 2026-11-14 13:46 IST",
+        "/workspace/bcl-ui/live-latest.png",
+        "batched-change-list 0.1.13 commits ff5c59c and 237efc6, draft PR #109"
+      ]
     },
     {
       "id": "PAGE-02",
       "title": "The workflow strip and Last reported time don't move while new work is happening",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "summary": "The page stayed on Report & roll over with a Last reported time more than 30 minutes old while a fix was already running.",
       "impact": "It looks as if work has finished or hasn't started, so you can't tell that a fix cycle is underway.",
       "done_when": "Whenever the tracker is updated, the workflow strip and Last reported time show that latest activity, including during Plan & fix, Install, Verify and Report.",
       "observed": "On 14 Nov 2026, the PR #107 page stayed on Report & roll over with Last reported 12:53 PM IST and a raw ISO timestamp next to Now, more than 30 minutes after live-details work had started. The strip only moved after the tracker was updated by hand.",
-      "recommendation": "At render time, Last reported and Now must reflect the newest tracker activity plus the render time, in IST, with no raw ISO as visible text. Every tracker write should advance the workflow timestamp, and the viewer should show the new stage as soon as the JSON changes."
+      "recommendation": "At render time, Last reported and Now must reflect the newest tracker activity plus the render time, in IST, with no raw ISO as visible text. Every tracker write should advance the workflow timestamp, and the viewer should show the new stage as soon as the JSON changes.",
+      "verification": "The live #107 page at 13:46 IST showed Verify active, Last reported 14 Nov 2026 13:46, and Now 1:46 PM IST with the current verify line, not a stale Report & roll over time.",
+      "verification_refs": [
+        "http://127.0.0.1:53366/ at 2026-11-14 13:46 IST",
+        "/workspace/bcl-ui/live-latest.png"
+      ]
     },
     {
       "id": "TRACK-01",
       "title": "A fix cycle can start without a tracked finding in progress",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "summary": "Work on a fix can begin before that issue is logged on the change list, so the page doesn't show what's being fixed.",
       "impact": "The agent can drift off the list, and you have no orderly record of what is in progress.",
       "done_when": "A fix cycle cannot quietly start with no in-progress finding: the plugin refuses or flags it, and the skill tells the agent to log the finding first.",
       "observed": "On 14 Nov 2026, 0.1.13 implementation work started in a new branch before a finding for that work was on the PR #107 change list. Guru asked that every issue being fixed be tracked and shown as in progress under Plan & fix.",
-      "recommendation": "Add a manage_findings guard that refuses or flags a fix-cycle stage (plan_fix, install, verify) when no finding is in progress, and state in SKILL.md that a fix cycle starts only after the finding is logged and set in progress."
+      "recommendation": "Add a manage_findings guard that refuses or flags a fix-cycle stage (plan_fix, install, verify) when no finding is in progress, and state in SKILL.md that a fix cycle starts only after the finding is logged and set in progress.",
+      "verification": "0.1.13 manage_findings refuses plan_fix, install, or verify when no finding would be in progress, and SKILL.md says a fix cycle starts only after the finding is logged and set in progress. Unit tests passed.",
+      "verification_refs": [
+        "commit 237efc6",
+        "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
+        "draft PR #109"
+      ]
     }
   ]
 }
