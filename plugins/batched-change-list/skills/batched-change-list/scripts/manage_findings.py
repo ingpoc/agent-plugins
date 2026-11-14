@@ -12,6 +12,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import live_state
+
 RENDERER_PATH = Path(__file__).with_name("render.py")
 SPEC = importlib.util.spec_from_file_location("change_list_renderer", RENDERER_PATH)
 RENDERER = importlib.util.module_from_spec(SPEC)
@@ -604,12 +606,105 @@ def require_rollover_gate(findings, tracking, force, action):
                    "verified_fixed": fixed, "threshold": threshold})
 
 
+def validate_merged_record(merged):
+    if not isinstance(merged, dict):
+        raise ValueError("merged stage requires merge metadata")
+    commit = merged.get("commit_sha")
+    if not isinstance(commit, str) or not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", commit, re.I):
+        raise ValueError("merged.commit_sha must be a full Git commit SHA")
+    merged_at = merged.get("merged_at")
+    if not isinstance(merged_at, str):
+        raise ValueError("merged.merged_at must be an ISO 8601 timestamp with timezone")
+    validate_record({"check":"merge", "outcome":"merged", "build":"unknown", "session":"merge",
+                     "timestamp":merged_at, "reference":"merge"})
+    stacked = merged.get("stacked_prs")
+    if not isinstance(stacked, dict) or stacked.get("status") not in ("complete", "pending", "partial"):
+        raise ValueError("merged.stacked_prs requires status complete, pending or partial")
+    return merged
+
+
+def prepare_rollover(document, operation, force=False):
+    findings = document.get("findings")
+    tracking = document.setdefault("tracking", {})
+    pr, worktree = operation.get("pull_request"), operation.get("worktree")
+    if not isinstance(pr, dict) or not pr.get("label") or not pr.get("url") or not isinstance(worktree, str) or not worktree.strip():
+        raise ValueError("rollover requires pull_request {label,url} and worktree")
+    if "install" in tracking.get("stages_reached", []) and not tracking.get("introspect"):
+        raise ValueError("full cycle (reached install): record introspect with --sections before rollover")
+    require_rollover_gate(findings, tracking, force, "rollover")
+    rollover = tracking.setdefault("rollover", {})
+    if not isinstance(rollover, dict):
+        raise ValueError("tracking.rollover must be an object")
+    excluded = rollover.get("excluded_ids", [])
+    if not isinstance(excluded, list) or any(not isinstance(identifier, str) for identifier in excluded):
+        raise ValueError("tracking.rollover.excluded_ids must be an array of finding IDs")
+    fixed = [item["id"] for item in findings if item.get("status") == "verified_fixed"]
+    source_pr = operation.get("source_pr")
+    if source_pr is None:
+        match = re.search(r"/pull/(\d+)", str(tracking.get("pull_request", {}).get("url", "")))
+        source_pr = int(match.group(1)) if match else rollover.get("source_pr")
+    rollover["source_pr"] = source_pr
+    rollover["excluded_ids"] = sorted(set(excluded) | set(fixed))
+    rollover["unresolved_ids"] = [item["id"] for item in findings if item.get("status") not in CLOSED_STATUSES]
+    if tracking.get("merged"):
+        rollover["source_merge"] = tracking.pop("merged")
+    tracking["pull_request"], tracking["worktree"] = {"label": pr["label"], "url": pr["url"]}, worktree.strip()
+    timestamp = operation.get("now") or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    validate_record({"check":"rollover", "outcome":"started", "build":"unknown", "session":"rollover",
+                     "timestamp":timestamp, "reference":"rollover"})
+    round_number = RENDERER.rollover_round(tracking)
+    tracking.setdefault("round_history", []).append({"round": round_number, "fixed": len(fixed), "ended_at": timestamp})
+    tracking["round"] = 1
+    tracking["cycle"] = RENDERER.rollover_cycle(tracking) + 1
+    tracking["workflow"] = {"stage":"collect", "updated_at":timestamp}
+    run = tracking.pop("verification_run", None)
+    if isinstance(run, dict):
+        tracking.setdefault("verification_history", []).append({**run, "status":"interrupted" if run.get("status") == "active" else run.get("status")})
+    tracking.pop("stages_reached", None)
+    tracking.pop("introspect", None)
+    for item in findings:
+        if item.get("status") == "in_progress":
+            item["status"] = "untested"
+    return document
+
+
+def rollover_live(path, operation, force=False):
+    path = Path(path).resolve()
+    if not path.is_relative_to(live_state.STATE.resolve()):
+        raise ValueError("rollover requires an adopted live tracker; run bcl adopt first")
+    record = next((record for record in live_state.registry().values()
+                   if Path(record["live"]).resolve() == path), None)
+    if not record:
+        raise ValueError("rollover requires an adopted live tracker; run bcl adopt first")
+    live = path
+    if path != live and path.read_bytes() != live.read_bytes():
+        raise ValueError(f"in-repo tracker differs from live state; live file: {live}")
+    document = prepare_rollover(json.loads(live.read_text(encoding="utf-8")), operation, force)
+    return live_state.register_rollover(record, live, document)[2]
+
+
+def missing_report_file(error, base):
+    filename = Path(error.filename or "")
+    return filename.is_absolute() and filename.resolve().is_relative_to(Path(base).resolve())
+
+
+def warn_missing_report_file(error, base):
+    filename = Path(error.filename).resolve()
+    print(f"warning: missing report capture {filename.relative_to(Path(base).resolve())}; tracker update saved and page render skipped", file=sys.stderr)
+
+
 def write(path, original, store, findings, validate=True, touch=True):
     if store["kind"] == "json":
         document = store["document"]
         document[store["collection"]] = findings
         if validate and store["collection"] == "findings":
-            RENDERER.render(document, path.parent)
+            base = live_state.evidence_base(path)
+            try:
+                RENDERER.render(document, base)
+            except FileNotFoundError as error:
+                if not missing_report_file(error, base):
+                    raise
+                warn_missing_report_file(error, base)
         if touch:
             touch_workflow(document)
         content = (json.dumps(document, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
@@ -772,10 +867,14 @@ def main(argv=None):
             operations = read_json(args.operations)
             if not isinstance(operations, list) or not operations:
                 raise ValueError("batch requires a nonempty operations array")
+            if any(isinstance(op, dict) and op.get("action") == "rollover" for op in operations):
+                if len(operations) != 1 or not isinstance(operations[0], dict):
+                    raise ValueError("rollover must be the only batch operation")
+                new_live = rollover_live(path, operations[0], args.force)
+                print(f"Created new live list {new_live}; the current viewer stays on the old list until bcl start begins Collect")
+                return 0
             existing_run = store["document"].get("tracking", {}).get("verification_run")
             run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "set-stage", "set-activity", "set-plan", "update-plan-group"}
-            if (existing_run or any(isinstance(op, dict) and op.get("action") == "rollover" for op in operations)) and not args.render:
-                raise ValueError("rollover requires --render so the page stays current")
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()
@@ -903,6 +1002,8 @@ def main(argv=None):
                     target = "report_rollover" if action == "rollover" else operation.get("stage")
                     tracking = store["document"].setdefault("tracking", {})
                     previous_stage = tracking.get("workflow", {}).get("stage")
+                    if previous_stage == "merged" and target != "merged":
+                        raise ValueError("merged is terminal; start a new list with bcl rollover")
                     if target == "report_rollover" and "install" in tracking.get("stages_reached", []) and not tracking.get("introspect"):
                         raise ValueError("full cycle (reached install): record introspect with --sections before report_rollover")
                     if target == "report_rollover" and action != "set-activity":
@@ -915,12 +1016,21 @@ def main(argv=None):
                     stage = operation.get("stage")
                     if stage not in (*RENDERER.WORKFLOW_STAGES, None) or "stage" not in operation:
                         raise ValueError("set-stage requires a valid stage or null")
-                    store["document"].setdefault("tracking", {})["workflow"] = {"stage": stage, "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+                    tracking = store["document"].setdefault("tracking", {})
+                    if stage == "merged":
+                        merged = validate_merged_record(operation.get("merged"))
+                        tracking["merged"] = copy.deepcopy(merged)
+                        updated_at = merged["merged_at"]
+                    else:
+                        updated_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                    tracking["workflow"] = {"stage": stage, "updated_at": updated_at}
                     continue
                 if action == "set-activity":
                     stage, ids, activity = operation.get("stage"), operation.get("ids"), operation.get("now")
                     if stage not in RENDERER.WORKFLOW_STAGES:
                         raise ValueError("set-activity requires a valid stage")
+                    if stage == "merged":
+                        raise ValueError("use set-stage with merge metadata to mark a list merged")
                     if not isinstance(ids, list) or any(not isinstance(identifier, str) or not identifier.strip() for identifier in ids) or len(ids) != len(set(ids)):
                         raise ValueError("set-activity ids must be a list of unique finding IDs")
                     if not isinstance(activity, str) or not activity.strip() or "\n" in activity or "\r" in activity:
@@ -944,34 +1054,6 @@ def main(argv=None):
                         tracking["round"] = round_number + 1
                         if isinstance(tracking.get("plan"), dict): tracking["plan"]["round"] = round_number + 1
                     tracking["workflow"] = {"stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
-                    continue
-                if action == "rollover":
-                    # One step at merge time: exclude every verified_fixed finding, list the rest as carried over,
-                    # point the page header at the new PR and worktree, and set the stage (was five manual edits).
-                    pr, worktree = operation.get("pull_request"), operation.get("worktree")
-                    if not isinstance(pr, dict) or not pr.get("label") or not pr.get("url") or not isinstance(worktree, str) or not worktree.strip():
-                        raise ValueError("rollover requires pull_request {label,url} and worktree")
-                    tracking = store["document"].setdefault("tracking", {})
-                    fixed = [item["id"] for item in findings if item.get("status") == "verified_fixed"]
-                    rollover = tracking.setdefault("rollover", {})
-                    if not isinstance(rollover, dict):
-                        raise ValueError("tracking.rollover must be an object")
-                    rollover["source_pr"] = operation.get("source_pr", rollover.get("source_pr"))
-                    rollover["excluded_ids"] = sorted(set(rollover.get("excluded_ids", [])) | set(fixed))
-                    rollover["unresolved_ids"] = [item["id"] for item in findings if item.get("status") not in CLOSED_STATUSES]
-                    tracking["pull_request"], tracking["worktree"] = {"label": pr["label"], "url": pr["url"]}, worktree.strip()
-                    timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-                    note = str(operation.get("now") or f"Rolled over to {pr['label']}").strip().splitlines()[0]
-                    round_number = RENDERER.rollover_round(tracking)
-                    tracking.setdefault("round_history", []).append({"round": round_number, "fixed": len(fixed), "ended_at": timestamp})
-                    tracking["round"] = 1
-                    tracking["cycle"] = RENDERER.rollover_cycle(tracking) + 1
-                    tracking["workflow"] = {"stage": "collect", "updated_at": timestamp, "now": f"{timestamp} — {note}"}
-                    run = tracking.pop("verification_run", None)  # a run never carries into the next PR's list
-                    if isinstance(run, dict):
-                        tracking.setdefault("verification_history", []).append({**run, "status": "interrupted" if run.get("status") == "active" else run.get("status")})
-                    tracking.pop("stages_reached", None)  # a new cycle starts after rollover
-                    tracking.pop("introspect", None)
                     continue
                 if action in run_actions:
                     if action == "finish-check" and operation.get("id") in started_checks:
@@ -1033,10 +1115,17 @@ def main(argv=None):
                 raise ValueError("render output must differ from input and template")
             touch_workflow(store["document"])
             inventory = RENDERER.load_inventory(args.inventory) if args.inventory else None
-            rendered = RENDERER.render(store["document"], args.base or path.parent, inventory)
+            base = args.base or live_state.evidence_base(path)
+            try:
+                rendered = RENDERER.render(store["document"], base, inventory)
+            except FileNotFoundError as error:
+                if not missing_report_file(error, base):
+                    raise
+                warn_missing_report_file(error, base)
+                rendered = None
             html_original = args.render.read_bytes() if args.render and args.render.exists() else None
             write(path, original, store, findings, validate=False, touch=False)
-            if args.render:
+            if args.render and rendered is not None:
                 try:
                     run = store["document"].get("tracking", {}).get("verification_run")
                     (live_write if run else atomic_write)(args.render, html_original, rendered.encode("utf-8"))

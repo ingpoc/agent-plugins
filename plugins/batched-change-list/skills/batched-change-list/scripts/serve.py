@@ -7,6 +7,7 @@ import importlib.util
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+import live_state
 
 RENDERER_PATH = Path(__file__).with_name("render.py")
 SPEC = importlib.util.spec_from_file_location("change_list_renderer", RENDERER_PATH)
@@ -52,8 +53,13 @@ def handler_for(page, data=None, inventory=None, viewer_metadata=None, base=None
                 return
             try:
                 fingerprint, state = response_state(page, data, inventory, viewer_metadata)
-                content = (state if data is None else
-                           RENDERER.render(state[0], base or data.resolve().parent, state[1], state[2], json.loads(viewer_metadata.read_text()) if viewer_metadata else None).encode('utf-8')) if body else None
+                if not body:
+                    content = None
+                elif data is None:
+                    content = state
+                else:
+                    content = RENDERER.render(state[0], base or live_state.evidence_base(data), state[1], state[2],
+                                              json.loads(viewer_metadata.read_text()) if viewer_metadata else None).encode('utf-8')
             except (OSError, ValueError, UnicodeError, json.JSONDecodeError):
                 self.send_error(503, 'Report unavailable')
                 return
@@ -92,6 +98,7 @@ def main():
         parser.error('--inventory must be a JSON file')
     viewer_metadata = args.viewer_metadata.resolve(strict=True) if args.viewer_metadata else None
     base = args.base.resolve(strict=True) if args.base else None
+    base = base or (live_state.evidence_base(data) if data else None)
     with HTTPServer(('127.0.0.1', args.port), handler_for(page, data, inventory, viewer_metadata, base)) as server:
         print(f'http://127.0.0.1:{server.server_port}/', flush=True)
         try:

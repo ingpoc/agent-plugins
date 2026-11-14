@@ -13,6 +13,14 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_merged_is_terminal_and_report_rollover_is_not_current(self):
+        self.data['tracking'] = {'workflow': {'stage':'merged','updated_at':'2026-11-14T12:00:00Z'}}
+        page = renderer.render(self.data, self.base)
+        self.assertIn('Merged / Done', page)
+        self.assertIn('data-stage="merged" class="wf-step done"', page)
+        self.assertNotIn('data-stage="report_rollover" class="wf-step current"', page)
+        self.assertNotIn('aria-current="step"', page)
+
     def test_recorded_plan_renders_deterministic_lanes_and_shared_merge(self):
         self.data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}, 'plan': {'cycle': 1, 'round': 1, 'groups': [
             {'id':'A','finding_ids':['ISSUE-01'],'reason':'Shared cause','depends_on':[],'status':'running',

@@ -15,7 +15,7 @@ STATUSES = {"verified_fixed", "failing", "untested", "in_progress", "awaiting_us
             "awaiting_verification", "blocked", "investigation"}
 SOURCES = {"User reported", "User requested", "Agent reported", "Telemetry lead", "Source hypothesis"}
 CHECK_STATES = {"pending", "checking", "fixed", "not_fixed", "blocked", "inconclusive"}
-WORKFLOW_STAGES = {"collect": "Collect", "present": "Present", "plan_fix": "Plan & fix", "install": "Install", "verify": "Verify", "introspect": "Introspect", "gate": "Fixes", "report_rollover": "Report & roll over"}
+WORKFLOW_STAGES = {"collect": "Collect", "present": "Present", "plan_fix": "Plan & fix", "install": "Install", "verify": "Verify", "introspect": "Introspect", "gate": "Fixes", "report_rollover": "Report & roll over", "merged": "Merged / Done"}
 DEFAULT_ROLLOVER_THRESHOLD = 15
 AGENT_COLLECTION_PLUGINS = ("agent-computer-use", "batched-change-list", "comet-control",
                             "context-ledger", "developer-observability")
@@ -214,11 +214,11 @@ def render_plan_tail(plan, tracking):
 
 
 def render_workflow(active, fixed, threshold, gate_met, round_number):
-    order = ["collect", "present", "plan_fix", "install", "verify", "introspect", "gate", "report_rollover"]
+    order = ["collect", "present", "plan_fix", "install", "verify", "introspect", "gate", "report_rollover", "merged"]
     active = "unknown" if active == "install_verify" else active
     active_index = order.index(active) if active in order else -1
     def step(key, label, index):
-        state = "done" if (key == "gate" and gate_met) or (active_index >= 0 and index < active_index) else "current" if index == active_index else "upcoming"
+        state = "done" if (key == "gate" and gate_met) or (key == "merged" and active == "merged") or (active_index >= 0 and index < active_index) else "current" if index == active_index else "upcoming"
         current = ' aria-current="step"' if state == "current" else ""
         suffix = '<span class="sr">, done</span>' if state == "done" else ""
         tag = '<span class="wf-now-tag">Now</span>' if state == "current" else ""
@@ -235,7 +235,8 @@ def render_workflow(active, fixed, threshold, gate_met, round_number):
         return f'<li data-stage="{key}" class="{classes}"{current}><span class="wf-dot"><i></i></span><span class="wf-label">{html.escape(label)}{tag}{suffix}{f"<small>{threshold} reached</small>" if key == "report_rollover" else ""}</span>{"<span class=\"wf-exit\" aria-hidden=\"true\"><span class=\"wf-exit-label\">"+str(threshold)+" reached</span><svg width=\"7\" height=\"8\" viewBox=\"0 0 7 8\"><path d=\"M0 0L7 4L0 8z\"/></svg></span>" if key == "report_rollover" else ""}</li>'
     pre = "".join(step(key, WORKFLOW_STAGES[key], order.index(key)) for key in ("collect", "present"))
     repeated = "".join(step(key, WORKFLOW_STAGES[key], order.index(key)) for key in ("plan_fix", "install", "verify", "introspect", "gate"))
-    post = step("report_rollover", WORKFLOW_STAGES["report_rollover"], order.index("report_rollover"))
+    post_keys = ("report_rollover", "merged") if active == "merged" else ("report_rollover",)
+    post = "".join(step(key, WORKFLOW_STAGES[key], order.index(key)) for key in post_keys)
     pips = min(round_number, 5)
     pip_html = "".join(f'<i class="{"now" if index == pips else "past" if index < pips else ""}"></i>' for index in range(1, pips + 1))
     return (f'<ol class="wf" aria-label="Workflow steps"><li class="wf-pre"><ol>{pre}</ol></li>'
