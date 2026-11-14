@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-14T08:58:20Z",
-      "now": "2026-11-14T08:58:19Z — Verifying the 0.1.15 workflow strip on http://127.0.0.1:53366/: Fixes 4 of 15, Round 1, a curved fewer-than-15 return arrow to Plan & fix, and Report & roll over last."
+      "stage": "plan_fix",
+      "updated_at": "2026-11-14T10:07:05Z",
+      "now": "2026-11-14T09:33:21Z — Fix in progress"
     },
     "rollover": {
       "source_pr": 105,
@@ -2121,7 +2121,166 @@
       "result": "no issues",
       "at": "2026-11-14T08:17:11Z"
     },
-    "cycle": 1
+    "cycle": 1,
+    "plan": {
+      "round": 2,
+      "updated_at": "2026-11-14T09:32:31Z",
+      "groups": [
+        {
+          "id": "AC",
+          "finding_ids": [
+            "AGENT-26",
+            "AGENT-29",
+            "OBS-28",
+            "AGENT-18",
+            "AGENT-19",
+            "AGENT-27",
+            "OBS-25"
+          ],
+          "reason": "Python session and judgement in live_session.py, providers.py, session_hub.py, and dev_tools.py. OBS-25 is included here because it shares live_session.py; a parallel inline edit would conflict.",
+          "worktree": "acu-0143-session",
+          "depends_on": [],
+          "status": "done",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "status": "done",
+            "started_at": "2026-11-14T09:33:22Z",
+            "ended_at": "2026-11-14T09:43:02Z",
+            "duration_s": 580,
+            "service_tier": "priority",
+            "session_id": "01a1d967-8467-7bc3-98cb-9b38a4ba6d4c",
+            "commit": "85399b0",
+            "usage": {
+              "input_tokens": 10251339,
+              "cached_input_tokens": 10114944,
+              "output_tokens": 31259,
+              "reasoning_output_tokens": 9081
+            }
+          },
+          "verify": {
+            "method": "Typed Samantha turns via POST 127.0.0.1:8766/api/session/text; read the session transcript. Cover a second confirm (AGENT-26), a full-length reply (OBS-28), a known app name and folder hint (AGENT-18, AGENT-19), a read-only shell command (AGENT-27), and follow-up words staying on the same run (OBS-25). AGENT-29 is a reconnect/context unit plus a transcript check after a simulated idle reconnect.",
+            "status": "pending"
+          }
+        },
+        {
+          "id": "B",
+          "finding_ids": [
+            "AGENT-17",
+            "AGENT-22",
+            "AGENT-23"
+          ],
+          "reason": "Samantha tool dispatch and logging: app_not_running handling, cua_act retry strategy, and the typed_text log_event conflict.",
+          "worktree": "acu-0143-tools",
+          "depends_on": [],
+          "status": "done",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "status": "done",
+            "started_at": "2026-11-14T09:33:22Z",
+            "ended_at": "2026-11-14T09:38:33Z",
+            "duration_s": 311,
+            "service_tier": "priority",
+            "session_id": "01a1d967-8685-7480-ad01-53bc1228f19f",
+            "commit": "e14fea4",
+            "usage": {
+              "input_tokens": 3724026,
+              "cached_input_tokens": 3634432,
+              "output_tokens": 17540,
+              "reasoning_output_tokens": 5527
+            }
+          },
+          "verify": {
+            "method": "Typed Samantha turns: ask for an app that is not running (AGENT-17 — she opens it or says it is not running, never retries with a bundle ID). A Terminal type step (AGENT-22, AGENT-23) must not crash the logger and should succeed or change strategy instead of repeating the same failing keystrokes.",
+            "status": "pending"
+          }
+        },
+        {
+          "id": "D",
+          "finding_ids": [
+            "ISLAND-01",
+            "ISLAND-03",
+            "AGENT-28",
+            "AGENT-16"
+          ],
+          "reason": "Swift CUAService work. AGENT-16 moved here from the Python group: waitForGatewayHealth lives in VoiceSupervisor.swift. AGENT-28 also touches gateway.py and island_state.py.",
+          "worktree": "acu-0143-island",
+          "depends_on": [],
+          "status": "done",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "max",
+            "status": "done",
+            "started_at": "2026-11-14T09:33:24Z",
+            "ended_at": "2026-11-14T09:57:57Z",
+            "duration_s": 1473,
+            "service_tier": "priority",
+            "session_id": "01a1d967-8c01-7892-964e-3bb8966237b8",
+            "commit": "29c950b",
+            "usage": {
+              "input_tokens": 11261186,
+              "cached_input_tokens": 11035520,
+              "output_tokens": 108116,
+              "reasoning_output_tokens": 84875
+            }
+          },
+          "verify": {
+            "method": "Island screenshots: ISLAND-01 while a background job runs (agent stays visible); ISLAND-03 with a live short Luna Fast codex exec showing Fast, and a normal run without Fast. AGENT-28: POST /api/confirm without the token is rejected; the island Allow button still works. AGENT-16: start then immediately stop Samantha; the wait ends at once and no gateway_health timeout is recorded.",
+            "status": "pending"
+          }
+        },
+        {
+          "id": "E",
+          "finding_ids": [
+            "OBS-26"
+          ],
+          "reason": "Small observability ranking fix, done inline without Codex. OBS-25 was moved into group AC to avoid a live_session.py merge conflict.",
+          "worktree": "acu-0143-obs",
+          "depends_on": [],
+          "status": "done",
+          "codex": {
+            "model": "inline",
+            "effort": "n/a",
+            "status": "done",
+            "started_at": "2026-11-14T09:34:48Z",
+            "ended_at": "2026-11-14T09:36:17Z",
+            "duration_s": 89
+          },
+          "verify": {
+            "method": "Observability query: island error-state HUD snapshots such as 'Can't hear you, check mic' are attached to the mic or tool error and are not ranked as island_layout failures.",
+            "status": "pending"
+          }
+        },
+        {
+          "id": "V",
+          "finding_ids": [
+            "ISLAND-02",
+            "AGENT-25",
+            "OBS-23"
+          ],
+          "reason": "Verify-only after the single 0.2.143 build and install. No code in this group.",
+          "worktree": "samantha-pr107-rollover",
+          "depends_on": [
+            "AC",
+            "B",
+            "D",
+            "E"
+          ],
+          "status": "blocked",
+          "codex": {
+            "model": "none",
+            "effort": "n/a",
+            "status": "pending"
+          },
+          "verify": {
+            "method": "After install: screenshot a live short Luna Fast detached codex exec on the island (ISLAND-02). Re-score AGENT-25 against the Her spec with transcript evidence. Measure OBS-23 speech-to-playback on a short spoken or typed-to-speech turn.",
+            "status": "pending"
+          }
+        }
+      ],
+      "cycle": 1
+    }
   },
   "findings": [
     {
@@ -3592,7 +3751,7 @@
       "id": "AGENT-16",
       "title": "Gateway health times out after the voice process has already stopped",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "On 14 Nov 2026 at 01:16:24 IST, session bd4abacd logged startup/gateway_health failure 'timeout 45s' (observability col-97ca2e1ef5264965, ACU 0.2.141). The supervisor had already stopped the voice process at 01:15:39 IST, about 45 seconds earlier. Port 8766 is not listening after that failed start; CUAService is still running.",
       "recommendation": "Cancel the gateway health wait when the voice process exits, and do not record a 45s timeout as a startup failure after an intentional or racing stop.",
       "details": {
@@ -3614,7 +3773,7 @@
       "id": "AGENT-17",
       "title": "Samantha retries a missing app by passing its bundle ID as the application name",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "On 14 Nov 2026 at 01:10:10–01:10:20 IST, run 07e85c58fe8e4bfe82324001f7ef9dcd (observability run_ref 176df365d4f96103cd46f9c0, session 374280f6, ACU 0.2.141+add24e6e826e) failed cua_state with 'App is not running' for com.likeminded.app, then retried cua_act with application names 'Likeminded' and 'com.likeminded.app'; both returned app_not_found. The island showed 'Something went wrong'. Observability col-9c0d43c3913c2f4b grouped this as 1 failure plus 2 downstream retries. The task outcome stayed unverified.",
       "recommendation": "Treat app_not_running as a terminal condition for that target, and never pass a bundle ID to the application-name lookup. Tell the user the app is not running or not installed instead of retrying and showing a generic island error.",
       "details": {
@@ -3636,7 +3795,7 @@
       "id": "OBS-23",
       "title": "Two voice turns on 0.2.141 took more than 10 seconds to reach playback",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "Session 374280f6 on ACU 0.2.141 had two turns over 10s (observability col-76a7411cce3a3654): turn 1 speech_to_playback 21496 ms at 01:02:36 IST (run_ref 5e63a8d0866195a8dc0e717e, no tools), and turn 24 15137 ms at 01:07:22 IST with comet_act and ledger_task. This is a recurrence of OBS-01, which is marked verified_fixed.",
       "recommendation": "Re-measure speech-to-playback on the installed 0.2.141 build for a short spoken turn with no tools, and for a turn that uses Comet and Ledger, then fix the slow stage if it still exceeds 10s.",
       "details": {
@@ -3658,7 +3817,7 @@
       "id": "AGENT-18",
       "title": "Samantha asked for the app name after already hearing 'Use like minded app'",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "At 01:05:18 IST session 374280f6 transcribed 'Use like minded app' (microphone_transcription). At 01:05:22 IST she replied 'I didn’t catch the app name—could you repeat it or spell it out?' Guru had to repeat 'It's like minded' at 01:05:33 IST before she looked it up.",
       "recommendation": "Ground the spoken reply on the completed user_transcript; do not ask the user to repeat a name that was just transcribed.",
       "details": {
@@ -3680,7 +3839,7 @@
       "id": "AGENT-19",
       "title": "Samantha missed the local clone path and did not treat batched-change-list as the plugin",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "At 01:07:05 IST Guru said the app was 'already cloned in the apps folder inside remote clod' (ASR of remote claude). She asked what 'remote clod' meant and did not inspect the local folder until 01:09:25, when he asked if she could see Finder. At 01:10:01 he said 'use batch change list'; at 01:10:45 she said she does not have a 'Batch Change List' tool.",
       "recommendation": "Map folder hints such as remote claude/apps to the local checkout, and treat 'batch change list' as the batched-change-list plugin/viewer, not an app to launch.",
       "details": {
@@ -3738,7 +3897,7 @@
       "id": "OBS-25",
       "title": "Each spoken utterance fragment starts a new task run_id",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "In session 374280f6, 15 short microphone utterances such as 'So', 'My Git', and 'Yes. So' each minted a new run_id and showed up in observability_tasks as duration 0, step_count 1, outcome unknown. The long task run 07e85c58… continued in parallel.",
       "recommendation": "Attach follow-on transcripts to the active task run, and do not create a new run_id for a mid-task fragment or backchannel.",
       "details": {
@@ -3760,7 +3919,7 @@
       "id": "OBS-26",
       "title": "Island error-state snapshots are ranked as island_layout failures",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "The top active failure was 'island_layout failed 318x' (col-7ed98c0042f27adc), including 8 events in this window, but first_error_line was unknown. The 8 snapshots were the island in status=error while it showed 'Can't hear you, check mic' or 'Something went wrong', attributed to supervisor sessions e30966a5 and bfee12ae, not the voice session.",
       "recommendation": "Do not count error-state HUD snapshots as layout failures; attach them to the underlying mic or tool error, and keep first_error_line and session attribution.",
       "details": {
@@ -3848,7 +4007,7 @@
       "id": "AGENT-22",
       "title": "Terminal and TextEdit cua_act frequently fail with expect_unverified, action_failed, stale_id, and retry_cap",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "Session 91c0b348, 14 Nov 2026 IST: turn 1 had app_not_running then stale_id, expect_unverified, and action_failed on Terminal, and she gave up. Turn 2 (success after ~3 min) had 20 cua_act starts, 6 action_failed, 5 expect_unverified, 1 retry_cap, 8 ok. Every later turn repeated expect_unverified and action_failed; turn 4 and 6 also hit retry_cap; turns 5–7 had observation_incomplete when reading command output; turn 6 had expect_unverified on TextEdit too. She often recovered after many retries.",
       "recommendation": "Make Terminal typing and expect-verification reliable (stable targets after the shell updates, complete output observations), and treat retry_cap as a signal to change strategy rather than more of the same keystroke steps.",
       "details": {
@@ -3867,7 +4026,7 @@
       "id": "AGENT-23",
       "title": "cua_act logging crashes with a typed_text keyword conflict",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "observed": "At 02:13:08 and 02:13:24 IST on 14 Nov 2026, session 91c0b348, two cua_act calls on TextEdit (call_c0P4ngEHfSZVXp3ViZAcl54y and call_U1ve1a66OpTqXbitkADHxuB9, run 53aec28f844a4dd598c19175aa545fb6) failed with error_type TypeError: voice_cua.activity_log.log_event() got multiple values for keyword argument 'typed_text'. Each call logged the TypeError twice. This was during the local-commit turn while she was using TextEdit.",
       "recommendation": "Pass typed_text only once into log_event — merge it into fields or drop the duplicate keyword — so a TextEdit or Terminal type step cannot fail in the logger.",
       "details": {
@@ -3953,7 +4112,7 @@
       "id": "OBS-28",
       "title": "Typed-turn replies are truncated to 240 characters",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "observed": "On 14 Nov 2026 IST, session 91c0b348, /api/session/text and activity-log assistant_reply (source=backend) stored only 240 characters. The install/test reply was cut mid-word: 'npm run test:auth passed: 18 tests, 0 failur'. The health-feature reply was cut at 'matching `pa'. live_voice follow-up lines were shorter summaries and did not restore the missing words. Independent check: npm run test:health later passed 2/2, so the cut text was not a model failure.",
       "recommendation": "Return and log the full assistant reply for a typed turn, or a documented higher cap, and do not slice at 240 characters.",
       "details": {
@@ -3973,7 +4132,7 @@
       "id": "AGENT-25",
       "title": "Samantha meets the Her (2013) spec: 6 traits, scored 0–2 each, target 12/12",
       "source": "User requested",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "Guru (10:58 IST, 14 Nov 2026) asked for the Her spec to be tracked. Samantha should feel like the OS in the film: a capable companion who gets real work done by talking. Every test run is scored on six traits, 0–2 each (12 total), every point backed by transcript evidence. Baseline from ACU's own read of the 14 Nov typed Likeminded session (0.2.141): 1/12 (acts directly 0, conversation 0, remembers 1, initiative 0, warm and brief 0, many jobs 0).",
       "recommendation": "Keep open. Each retest records a score here with record-evidence (per-trait line + transcript refs). Report as X/12, one line per trait; file each trait scored 0 as a finding traced Guru said -> Samantha decided -> step failed -> code area. verified_fixed only at 12/12 with transcript evidence.",
       "details": {
@@ -4004,7 +4163,7 @@
       "id": "AGENT-26",
       "title": "A typed turn never settles after a second unanswered confirm on Grok Voice",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "Session e4355832, 12:13:39 IST: typed 'Yes.' -> confirm_request 12:13:40, never surfaced as pending_confirm on the turn poll, timed out 12:15:40; Samantha replied 'That confirm timed out too.' but the turn stayed running and held the text lock. The next typed turn (989401a2) waited 206 s and failed 'session disconnected' when xAI closed the idle socket at 12:30.",
       "recommendation": "Bind every confirm raised inside a typed turn to that turn, and settle the turn on its final response even when the request-id chain breaks (fallback: settle on response.done when exactly one typed waiter is open). Add a bounded no-progress settle.",
       "details": {
@@ -4019,7 +4178,7 @@
       "id": "AGENT-27",
       "title": "Shell gate asks approval for read-only commands",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "12:10:39 and 12:13:19 IST: 'ls -la && git branch --show-current && find ... 2>/dev/null | head' and 'node -e <print package.json scripts>' each needed approval; 3 extra round trips and one 120 s timeout before any work. She also used node -e instead of file_edit read.",
       "recommendation": "Treat /dev/null (and 2>&1) redirects as safe; keep find without -exec/-delete safe; steer reads to file_edit in the instructions.",
       "details": {
@@ -4033,7 +4192,7 @@
       "id": "AGENT-28",
       "title": "Island /api/confirm can resolve typed confirmations without auth",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "Terra review round 3 (0b04a82): island_state.py ~230 lets the unauthenticated legacy /api/confirm resolve typed-owned confirms; a local caller can read the id from /api/island/state. Kept deliberately so the Swift Allow/Deny buttons work; the shell classifier hard-refuses api/confirm and port 8766 mentions, but a repo script could still call localhost.",
       "recommendation": "Next ACU build: IslandController.resolveConfirm sends X-Voice-CUA-Control (token already held, line ~304); gateway requires it on /api/confirm when VOICE_CUA_CONTROL_TOKEN is set.",
       "details": {
@@ -4047,7 +4206,7 @@
       "id": "AGENT-29",
       "title": "Grok Voice idle timeout drops the conversation context",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "12:30 IST, session e4355832: xAI closed the socket after 900 s idle ('Conversation timed out due to inactivity'); after the reconnect Samantha said 'I don't have any earlier context from before the disconnect ... Could you remind me what you were asking?'",
       "recommendation": "Replay a compact context summary (repo, branch, task, last result) into the new xAI conversation on reconnect, or keep it alive while a typed session is open.",
       "details": {
@@ -4100,7 +4259,7 @@
       "id": "ISLAND-01",
       "title": "Grok Bot background work doesn't keep the agent on the island; it disappears between turns",
       "source": "User reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "14 Nov 2026 13:08 and 13:10 IST (Guru, live): the Dynamic Island shows the 'Agent Computer Use · Macos computer use' pill while the parent agent is mid-turn, but shows 'No agents running' between turns while only its background subagents/executors run on the Mini (this executor was running the merge/install job at the time). The Grok Bot roster row comes only from IslandGrokBotActivity, which reads the Grok Bot app's accessibility tree: a sidebar row labelled '<name>, Working' or the '<name> is working' AXApplicationStatus live region. Both exist only while the open conversation streams a turn; background executors and subagents set neither, and island-events.jsonl has no roster snapshot to show it.",
       "recommendation": "Add a background/busy source for Grok Bot: e.g. have local-exec jobs (executors, Codex exec launched by Grok Bot) post a start/heartbeat/end through bin/island-post (or a ~/.cache/macos-cua heartbeat file) and merge it with the AX turn signal in IslandGrokBotActivity.rows, keeping the row while any heartbeat is fresh. Also log roster snapshots so this can be verified.",
       "details": {
@@ -4115,7 +4274,7 @@
       "id": "ISLAND-02",
       "title": "Confirm headless codex exec jobs appear on the island while they run",
       "source": "User requested",
-      "status": "untested",
+      "status": "in_progress",
       "observed": "Code and sqlite check (14 Nov 2026, 13:15 IST, no code changed): IslandCodexThreads.readDatabase reads every row of ~/.codex*/state_5.sqlite 'threads' WHERE archived = 0 (not only app threads). Today's Grok Bot exec jobs are there: 01a1d867… created 10:24:17 IST and 01a1d898-e571… created 11:17:41 IST, both source=exec, originator=acu_exec.grokbot, archived=0, agent_role and attached_thread_parent_id NULL, cwd not a probe path, so rows() keeps them and hostLabel maps acu_exec.* to 'terminal'. A row shows as running only while liveState finds a live process whose executable basename is 'codex' holding the rollout file open (lsof); the standalone binary .../bin/codex matches. No runtime proof exists: island-events.jsonl records clicks and controls but no roster snapshots, so there is no record that these two jobs were displayed.",
       "recommendation": "Run one short detached codex exec with CODEX_INTERNAL_ORIGINATOR_OVERRIDE=acu_exec.grokbot and capture the island while it runs (screenshot + a roster snapshot). Add roster snapshot logging to island-events.jsonl so this is checkable after the fact.",
       "details": {
@@ -4209,6 +4368,100 @@
         "/Users/gurusharan/.agents/artifacts/bcl-ui/live-loop.png",
         "commit 23f019c, draft PR #109"
       ]
+    },
+    {
+      "id": "PLAN-01",
+      "title": "Plan and fix does not show the planned groups, jobs, or checks",
+      "source": "User requested",
+      "status": "verified_fixed",
+      "summary": "When a fix round starts, the page does not show which issues will be fixed together, which work will run at the same time, or how each group will be checked.",
+      "impact": "You cannot see whether a round is being planned efficiently, or where time is going while work runs.",
+      "done_when": "Under the existing timeline, each round shows a lane diagram built from saved plan data: one lane per parallel group, with the issues, the job, the check, and then merge, including live status and time, and at most one short reason under a box.",
+      "observed": "On 14 Nov 2026 Guru asked for Plan and fix to record a real plan as data: issue groups, which run in parallel or wait on another, each group's worktree and job (model, effort, status, start, end, duration), and how each group is checked. The page should draw this under the timeline as a lane diagram that updates as the round runs. The current page has no plan object and no lanes.",
+      "recommendation": "Store the plan on the tracker for the current round. The renderer draws one lane per parallel group from that data, left to right: findings, job, verify, then merge. Show live status and time, and at most one short reason line per box. No hand-made diagrams.",
+      "verification": "On 14 Nov 2026 at 2:58 PM IST the 0.1.16 viewer at http://127.0.0.1:53366/ showed a lane diagram under the existing workflow timeline. Group A listed PLAN-01, RUN-01, HOOK-01 and TEST-01, with the job, the check, a Merge box, live status and time, and one short reason line. ISLAND-03 was on the list as an open issue and was not in the plan.",
+      "verification_refs": [
+        "http://127.0.0.1:53366/ live check 14:58 IST",
+        "/Users/gurusharan/.agents/artifacts/bcl-ui/live-plan.png",
+        "commits 9440226 and 578dde9, draft PR #109"
+      ]
+    },
+    {
+      "id": "RUN-01",
+      "title": "Each workflow step still has to be run as several separate commands",
+      "source": "User requested",
+      "status": "verified_fixed",
+      "summary": "To move the list forward, someone has to remember a series of script calls for logging, setting the stage, rendering the page, and writing a progress line.",
+      "impact": "A missed command leaves the page behind the real work, or lets a later step start before an earlier one is done.",
+      "done_when": "One command, bcl plus the step name, runs that step's actions in order, and later steps refuse to start if the earlier required work is missing: install needs a plan, verify needs an install, and report needs the fix gate.",
+      "observed": "On 14 Nov 2026 Guru asked for a single bcl command per stage (start, plan, fix, install, verify, introspect, report, status) that runs every sub-step in order. Today each of those is a separate script call the agent must remember.",
+      "recommendation": "Add a bcl entrypoint that wraps the existing scripts, writes a progress line, re-renders the page, and enforces the stage guards.",
+      "verification": "On 14 Nov 2026 the bcl command ran the Install and Verify steps, each time setting the stage and re-rendering first. Install without a plan was refused, and Report was refused at 5 of 15 verified fixes. A follow-up change made bcl run any extra install command only after the page had already moved.",
+      "verification_refs": [
+        "http://127.0.0.1:53366/ live check 14:58 IST",
+        "/Users/gurusharan/.agents/artifacts/bcl-ui/live-plan.png",
+        "commits 9440226 and 578dde9, draft PR #109"
+      ]
+    },
+    {
+      "id": "HOOK-01",
+      "title": "The workflow scripts can still be skipped because nothing requires them",
+      "source": "User requested",
+      "status": "verified_fixed",
+      "summary": "The list and page only stay in sync if someone remembers to run the right scripts. There is no single required command, and no automatic backup when a change is saved.",
+      "impact": "Work can move ahead while the page still shows an old step, so both the user and the agent lose the orderly sequence the list is meant to keep.",
+      "done_when": "Every step is done through the bcl command, which refuses to run steps out of order, and bcl install-hooks can add repository hooks that refresh the page and check it when changes are committed or pushed. Nothing is tied to a particular agent tool.",
+      "observed": "On 14 Nov 2026 Guru asked for reliable invocation that is not tied to any one agent harness. Use only what the agent-plugins format defines: the bcl stage commands plus stage guards as the core, and repository hooks (pre-commit and pre-push via bcl install-hooks) as a harness-neutral backstop. Do not add Cursor, Claude, or Codex hook files, and do not document per-harness setup.",
+      "recommendation": "Keep the core as bcl plus guards so it works in any harness. Ship hook scripts with the plugin and have bcl install-hooks install them idempotently into a target repository's hooks directory, chaining with any hook already there. The hooks re-render the page and run a freshness check. Update the skill to tell agents to use bcl for each stage.",
+      "verification": "On 14 Nov 2026, bcl install-hooks added repository pre-commit and pre-push hooks that chain with the existing push check. After a tracker-only edit, the hook refreshed the page (the new duration appeared on the live viewer) and failed the hook until that refreshed page was staged. No agent-specific hook files were added.",
+      "verification_refs": [
+        "http://127.0.0.1:53366/ live check 14:58 IST",
+        "/Users/gurusharan/.agents/artifacts/bcl-ui/live-plan.png",
+        "commits 9440226 and 578dde9, draft PR #109"
+      ]
+    },
+    {
+      "id": "TEST-01",
+      "title": "The new plan, command, and hooks are not proven by a plain scripted cycle",
+      "source": "User requested",
+      "status": "verified_fixed",
+      "summary": "There is no automated test that runs a full list cycle with only the plugin scripts, or that checks the step refusals, and the README does not yet describe the new command.",
+      "impact": "A later change can break the orderly cycle without anyone noticing, and a new user cannot see how to run it.",
+      "done_when": "Tests cover a full cycle through the bcl command with no particular agent tool, plus the step refusals, and the README describes bcl and bcl install-hooks in a way that works for any agent.",
+      "observed": "On 14 Nov 2026 Guru asked for a full-cycle test that uses only the plugin scripts, not a specific harness, plus tests that the stage guards refuse illegal steps, and a harness-neutral README.",
+      "recommendation": "Add a scripted full-cycle test and guard-refusal tests. Document bcl and bcl install-hooks in the README without per-harness sections.",
+      "verification": "The plugin tests include a full cycle through bcl with only the plugin scripts, plus guard refusals, plus a test that bcl install updates the stage before install work starts. The first 0.1.16 suite had 66 passing tests; the follow-up added the ordering test (4 tests in the bcl file). scripts/check.py passed both times. The README describes bcl and bcl install-hooks without per-tool setup sections.",
+      "verification_refs": [
+        "http://127.0.0.1:53366/ live check 14:58 IST",
+        "/Users/gurusharan/.agents/artifacts/bcl-ui/live-plan.png",
+        "commits 9440226 and 578dde9, draft PR #109"
+      ]
+    },
+    {
+      "id": "ISLAND-03",
+      "title": "Island doesn't show when a Codex job runs in Fast mode",
+      "source": "User reported",
+      "status": "in_progress",
+      "summary": "When a Codex job is running in Fast mode, the island still shows only the model and effort, so it looks the same as a normal-speed run.",
+      "impact": "You cannot tell whether the Fast mode rule for Luna is being followed.",
+      "done_when": "For a Fast mode run, the island shows the model, the effort, and Fast; a normal-speed run does not show Fast. This is confirmed with a live screenshot.",
+      "observed": "On 14 Nov 2026 Guru noted that the island Codex row reads model and effort from state_5.sqlite (for example 'Luna · medium') but not service_tier. A run started with -c service_tier=priority therefore looks the same as a normal run. The code lives in IslandCodexThreads in the ACU Swift app.",
+      "recommendation": "Read service_tier from the Codex session record and show a Fast label when it is priority. Leave the label off for default or normal runs. Verify with a live island screenshot of a Fast Luna job and a normal one."
+    },
+    {
+      "id": "BCL-01",
+      "title": "Merging fix branches hid the live tracker (stashed), so the page went stale",
+      "source": "User reported",
+      "status": "failing",
+      "summary": "The live change-list was put in a git stash so fix branches could be merged, and the open page went back to an old committed snapshot.",
+      "impact": "You cannot trust the page during a merge: it shows an old stage, an old fix count, and none of the current plan lanes.",
+      "done_when": "Each bcl stage commits the tracker itself, and a merge of fix branches is refused while the tracker is dirty, so the open page keeps showing the current stage, plan and gate.",
+      "observed": "On 14 Nov 2026 at about 15:35 IST, the PR #107 viewer at http://127.0.0.1:53366/ still showed Verify from 14:28 IST and Fixes 5 of 15. The live tracker (Plan & fix, round 2 lanes, groups AC/B/D/E done) was in stash@{0} ('acu-0143 tracker mid-round') on worktree samantha-pr107-rollover after the ACU 0.2.143 fix-branch merge.",
+      "recommendation": "bcl should commit the tracker at each stage, and the merge step should refuse to run while the tracker is dirty. Never stash the tracker; commit it before any merge.",
+      "details": {
+        "Where to look": "plugins/batched-change-list/bin/bcl and manage_findings.py stage operations; the merge/integration step in the fix workflow; SKILL.md.",
+        "Rule": "Never stash docs/triage/*-findings.json or the rendered HTML. Commit them first."
+      }
     }
   ]
 }
