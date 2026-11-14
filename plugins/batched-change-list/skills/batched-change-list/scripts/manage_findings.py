@@ -492,9 +492,28 @@ def live_write(path, original, content):
 
 def touch_workflow(document):
     tracking = document.get("tracking")
+    if isinstance(tracking, dict):
+        tracking["cycle"] = RENDERER.rollover_cycle(tracking)
     workflow = tracking.get("workflow") if isinstance(tracking, dict) else None
     if isinstance(workflow, dict):
         workflow["updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def require_rollover_gate(findings, tracking, force, action):
+    fixed, threshold, met = RENDERER.rollover_gate(findings, tracking)
+    if met:
+        return
+    if not force:
+        raise ValueError(f"report_rollover gate not met: {fixed} of {threshold} verified_fixed findings and open findings remain; pass --force to override")
+    rollover = tracking.setdefault("rollover", {})
+    if not isinstance(rollover, dict):
+        raise ValueError("tracking.rollover must be an object")
+    forced = rollover.setdefault("forced_gate_overrides", [])
+    if not isinstance(forced, list):
+        raise ValueError("tracking.rollover.forced_gate_overrides must be an array")
+    forced.append({"cycle": RENDERER.rollover_cycle(tracking), "action": action,
+                   "forced_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+                   "verified_fixed": fixed, "threshold": threshold})
 
 
 def write(path, original, store, findings, validate=True, touch=True):
@@ -563,6 +582,7 @@ def parser_for():
     batch.add_argument("operations", help="JSON array path, or - for stdin")
     batch.add_argument("--render", type=Path, help="render the resulting authoritative JSON to this HTML file")
     batch.add_argument("--inventory", type=Path, help="optional installed-plugin inventory JSON")
+    batch.add_argument("--force", action="store_true", help="override the verified-fix rollover gate and record the override")
     batch.add_argument("--collection", default="findings")
     return parser
 
@@ -715,6 +735,8 @@ def main(argv=None):
                     tracking = store["document"].setdefault("tracking", {})
                     if target == "report_rollover" and "install" in tracking.get("stages_reached", []) and not tracking.get("introspect"):
                         raise ValueError("full cycle (reached install): record {\"action\":\"introspect\",\"result\":\"no issues\"} or its findings before report_rollover")
+                    if target == "report_rollover" and action != "set-activity":
+                        require_rollover_gate(findings, tracking, args.force, action)
                     if target in ("plan_fix", "install", "verify") and action == "set-stage" and not any(item.get("status") == "in_progress" for item in findings):
                         raise ValueError(f"{target} requires at least one finding with status in_progress; log the finding and set it in progress first")
                     if target in RENDERER.WORKFLOW_STAGES and target not in tracking.setdefault("stages_reached", []):
@@ -739,6 +761,8 @@ def main(argv=None):
                         raise ValueError(f"set-activity cannot reopen closed findings {', '.join(closed)}; pass \"reopen\": true")
                     for item in affected:
                         item["status"] = "in_progress"
+                    if stage == "report_rollover":
+                        require_rollover_gate(findings, store["document"].setdefault("tracking", {}), args.force, action)
                     if stage in ("plan_fix", "install", "verify") and (not ids or not any(item.get("status") == "in_progress" for item in findings)):
                         raise ValueError(f"set-activity for {stage} requires a nonempty ID list and an in_progress finding; log a finding and set it in progress first")
                     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -754,13 +778,16 @@ def main(argv=None):
                     tracking = store["document"].setdefault("tracking", {})
                     fixed = [item["id"] for item in findings if item.get("status") == "verified_fixed"]
                     rollover = tracking.setdefault("rollover", {})
+                    if not isinstance(rollover, dict):
+                        raise ValueError("tracking.rollover must be an object")
                     rollover["source_pr"] = operation.get("source_pr", rollover.get("source_pr"))
                     rollover["excluded_ids"] = sorted(set(rollover.get("excluded_ids", [])) | set(fixed))
                     rollover["unresolved_ids"] = [item["id"] for item in findings if item.get("status") not in CLOSED_STATUSES]
                     tracking["pull_request"], tracking["worktree"] = {"label": pr["label"], "url": pr["url"]}, worktree.strip()
                     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                     note = str(operation.get("now") or f"Rolled over to {pr['label']}").strip().splitlines()[0]
-                    tracking["workflow"] = {"stage": "report_rollover", "updated_at": timestamp, "now": f"{timestamp} — {note}"}
+                    tracking["cycle"] = RENDERER.rollover_cycle(tracking) + 1
+                    tracking["workflow"] = {"stage": "collect", "updated_at": timestamp, "now": f"{timestamp} — {note}"}
                     run = tracking.pop("verification_run", None)  # a run never carries into the next PR's list
                     if isinstance(run, dict):
                         tracking.setdefault("verification_history", []).append({**run, "status": "interrupted" if run.get("status") == "active" else run.get("status")})

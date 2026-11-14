@@ -1,5 +1,10 @@
 # Changelog: batched-change-list
 
+## 0.1.15
+
+- Added a configurable 15-fix rollover gate and round counter to the workflow strip, with a return loop to Plan & fix; rollover advances the cycle and starts the next list at Collect.
+- The manager blocks report rollover before the gate unless `--force` is supplied, and records forced overrides.
+
 ## 0.1.14
 
 - The live viewer fingerprints tracker and inventory inputs instead of rendered timestamps, so HEAD polls stay stable while those inputs are unchanged. Reload only after the fingerprint changes and preserve the selected issue and view position.

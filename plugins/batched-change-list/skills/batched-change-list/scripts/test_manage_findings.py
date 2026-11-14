@@ -43,12 +43,15 @@ class ManageFindingsTests(unittest.TestCase):
 
     def test_each_phase_updates_the_timeline_and_can_be_cleared(self):
         ops, page = self.root / 'phase.json', self.root / 'report.html'
-        for stage in ('collect', 'present', 'plan_fix', 'install', 'verify', 'introspect', 'report_rollover', None):
+        for stage in ('collect', 'present', 'plan_fix', 'install', 'verify', 'introspect', 'gate', 'report_rollover', None):
             pre = [{'action':'introspect','result':'no issues'}] if stage == 'report_rollover' else []
             if stage in ('plan_fix', 'install', 'verify'):
                 pre.append({'action':'set-activity','stage':stage,'ids':['ISSUE-01'],'now':'Starting the checked stage'})
             ops.write_text(json.dumps(pre + [{'action':'set-stage','stage':stage}]))
-            result = self.cli('batch', self.data, ops, '--render', page)
+            args = ['batch', self.data, ops, '--render', page]
+            if stage == 'report_rollover':
+                args.append('--force')
+            result = self.cli(*args)
             self.assertEqual(result.returncode, 0, result.stderr)
             doc = json.loads(self.data.read_text())
             self.assertEqual(doc['tracking']['workflow']['stage'], stage)
@@ -113,6 +116,7 @@ class ManageFindingsTests(unittest.TestCase):
         written = json.loads(self.data.read_text())
         self.assertEqual(written['tracking']['workflow']['stage'], 'collect')
         self.assertGreater(written['tracking']['workflow']['updated_at'], '2020-01-01T00:00:00Z')
+        self.assertEqual(written['tracking']['cycle'], 1)
 
     def test_audit_flags_stale_and_duplicate_without_writing(self):
         self.document.setdefault('tracking', {})['verification_run'] = {'build':'ACU 0.2.120'}
@@ -195,27 +199,66 @@ class ManageFindingsTests(unittest.TestCase):
     def test_rollover_excludes_fixed_lists_rest_and_updates_header(self):
         document = json.loads(self.data.read_text())
         document['findings'][0].update(status='verified_fixed', verification='Verified on the installed build.', verification_refs=['receipt'])
+        document['findings'][1]['status'] = 'untested'
         self.data.write_text(json.dumps(document))
         operations, page = self.root / 'rollover.json', self.root / 'rollover.html'
         operations.write_text(json.dumps([{'action':'rollover','source_pr':96,'worktree':'next-wt',
             'pull_request':{'label':'PR #98','url':'https://example.test/pull/98'}}]))
         self.assertNotEqual(self.cli('batch', self.data, operations).returncode, 0)
-        result = self.cli('batch', self.data, operations, '--render', page)
+        blocked = self.cli('batch', self.data, operations, '--render', page)
+        self.assertNotEqual(blocked.returncode, 0)
+        self.assertIn('--force', blocked.stderr)
+        result = self.cli('batch', self.data, operations, '--render', page, '--force')
         self.assertEqual(result.returncode, 0, result.stderr)
         tracking = json.loads(self.data.read_text())['tracking']
         self.assertIn('ISSUE-01', tracking['rollover']['excluded_ids'])
         self.assertNotIn('ISSUE-01', tracking['rollover']['unresolved_ids'])
         self.assertEqual((tracking['pull_request']['label'], tracking['worktree']), ('PR #98', 'next-wt'))
-        self.assertEqual(tracking['workflow']['stage'], 'report_rollover')
+        self.assertEqual(tracking['workflow']['stage'], 'collect')
+        self.assertEqual(tracking['cycle'], 2)
+        self.assertEqual(tracking['rollover']['forced_gate_overrides'][0]['action'], 'rollover')
         self.assertIn('PR #98', page.read_text())
+
+    def test_report_rollover_gate_and_force_logging(self):
+        page, operations = self.root / 'report-gate.html', self.root / 'report-gate.json'
+        operations.write_text(json.dumps([{'action':'set-stage','stage':'report_rollover'}]))
+        original = self.data.read_bytes()
+        blocked = self.cli('batch', self.data, operations, '--render', page)
+        self.assertNotEqual(blocked.returncode, 0)
+        self.assertIn('1 of 15 verified_fixed', blocked.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
+        forced = self.cli('batch', self.data, operations, '--render', page, '--force')
+        self.assertEqual(forced.returncode, 0, forced.stderr)
+        tracking = json.loads(self.data.read_text())['tracking']
+        self.assertEqual(tracking['rollover']['forced_gate_overrides'][0]['cycle'], 1)
+        self.assertEqual(tracking['rollover']['forced_gate_overrides'][0]['threshold'], 15)
+
+    def test_rollover_gate_uses_configured_threshold_or_no_open_findings(self):
+        page, operations = self.root / 'threshold.html', self.root / 'threshold.json'
+        document = json.loads(self.data.read_text())
+        document['tracking'] = {'rollover_threshold':1}
+        self.data.write_text(json.dumps(document))
+        operations.write_text(json.dumps([{'action':'set-stage','stage':'report_rollover'}]))
+        result = self.cli('batch', self.data, operations, '--render', page)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        document = json.loads(self.data.read_text())
+        for item in document['findings']:
+            item.update(status='verified_fixed', verification='Verified.', verification_refs=['receipt'])
+        document['tracking'] = {'rollover_threshold':15}
+        self.data.write_text(json.dumps(document))
+        result = self.cli('batch', self.data, operations, '--render', page)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_full_cycle_needs_introspect_before_report_small_cycle_does_not(self):
         page = self.root / 'gate.html'
-        def batch(*items):
+        def batch(*items, force=False):
             ops = self.root / 'gate.json'
             ops.write_text(json.dumps(list(items)))
-            return self.cli('batch', self.data, ops, '--render', page)
-        self.assertEqual(batch({'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Starting verification'}, {'action':'set-stage','stage':'report_rollover'}).returncode, 0)
+            args = ['batch', self.data, ops, '--render', page]
+            if force:
+                args.append('--force')
+            return self.cli(*args)
+        self.assertEqual(batch({'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Starting verification'}, {'action':'set-stage','stage':'report_rollover'}, force=True).returncode, 0)
         self.assertEqual(batch({'action':'set-stage','stage':'install'}).returncode, 0)
         blocked = batch({'action':'set-stage','stage':'report_rollover'})
         self.assertNotEqual(blocked.returncode, 0)
@@ -223,10 +266,10 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertNotEqual(batch({'action':'rollover','source_pr':1,'worktree':'w','pull_request':{'label':'PR #2','url':'https://example.test/pull/2'}}).returncode, 0)
         self.assertNotEqual(batch({'action':'introspect','result':'two\nlines'}).returncode, 0)
         self.assertEqual(batch({'action':'start-verification','run':{'id':'r1','build':'b1','revision':'abc','installed_at':'2026-11-12T10:00:00+05:30','install_evidence':'log'}}).returncode, 0)
-        result = batch({'action':'introspect','result':'no issues'}, {'action':'set-stage','stage':'report_rollover'})
+        result = batch({'action':'introspect','result':'no issues'}, {'action':'set-stage','stage':'report_rollover'}, force=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(self.data.read_text())['tracking']['introspect']['result'], 'no issues')
-        self.assertEqual(batch({'action':'rollover','source_pr':1,'worktree':'w','pull_request':{'label':'PR #2','url':'https://example.test/pull/2'}}).returncode, 0)
+        self.assertEqual(batch({'action':'rollover','source_pr':1,'worktree':'w','pull_request':{'label':'PR #2','url':'https://example.test/pull/2'}}, force=True).returncode, 0)
         tracking = json.loads(self.data.read_text())['tracking']
         self.assertNotIn('introspect', tracking)
         self.assertNotIn('stages_reached', tracking)

@@ -11,4 +11,4 @@ Keep it one cheap pass over what the run already recorded (failed commands, retr
 5. **Silent failures are always addressed**: the owning script must exit non-zero with a one-line cause.
 6. **Record everything in one call; it creates exactly one `WF-` task** listing every issue (never one task per issue):
    `{"action":"introspect","issues":[{"issue":"...","evidence":"log/path or value","outcome":"fixed"},{"issue":"...","evidence":"...","outcome":"next_cycle"}]}`
-   The task is `verified_fixed` when every issue was fixed in Introspect, otherwise `untested` with the next-cycle items as its recommendation. Then `set-activity` stage `report_rollover`.
+   The task is `verified_fixed` when every issue was fixed in Introspect, otherwise `untested` with the next-cycle items as its recommendation. Then move to the gate; `report_rollover` remains blocked until the configured threshold is met or no open findings remain (unless the batch uses `--force`).

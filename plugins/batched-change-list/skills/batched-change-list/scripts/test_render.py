@@ -159,6 +159,28 @@ setImmediate(async()=>{
         self.assertIn('Last reported', page)
         self.assertIn('Intl.RelativeTimeFormat', page)
 
+    def test_workflow_strip_shows_gate_loop_round_and_report_last_deterministically(self):
+        data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
+        data['tracking'] = {'workflow': {'stage':'gate','updated_at':'2026-11-14T07:00:00Z'},
+                            'cycle':3,'rollover_threshold':15}
+        for index, item in enumerate(data['findings']):
+            item.update(status='verified_fixed', verification='Verified on the installed build.',
+                        verification_refs=['Example receipt'])
+        for index in range(5):
+            item = copy.deepcopy(data['findings'][0])
+            item['id'] = f'ISSUE-{index + 3:02d}'
+            data['findings'].append(item)
+        page = renderer.render(data, Path(__file__).parents[1])
+        self.assertIn('Fixes 7 of 15', page)
+        self.assertIn('Round 3', page)
+        self.assertIn('fewer than 15', page)
+        timeline = page.split('<ol>', 1)[1].split('</ol>', 1)[0]
+        stages = ['collect','present','plan_fix','install','verify','introspect','gate','report_rollover']
+        positions = [timeline.index(f'data-stage="{stage}"') for stage in stages]
+        self.assertEqual(positions, sorted(positions))
+        self.assertEqual(page.count('aria-label="Workflow progress"'), 1)
+        self.assertEqual(renderer.render(data, Path(__file__).parents[1]), page)
+
     def test_timeline_selects_latest_dated_result_per_version_including_runs(self):
         item = {'id': 'ISSUE-01', 'verification_evidence': [
             {'build':'ACU 0.2.120', 'timestamp':'2026-11-07T12:00:00Z', 'outcome':'old', 'check':'check'},

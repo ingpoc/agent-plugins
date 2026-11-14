@@ -45,7 +45,7 @@ class ServerTests(unittest.TestCase):
             page.write_text('fallback')
             document = json.loads(example.read_text())
             data.write_text(json.dumps(document))
-            inventory.write_text(json.dumps({'versions': {'batched-change-list':'0.1.14'},
+            inventory.write_text(json.dumps({'versions': {'batched-change-list':'0.1.15'},
                                              'observed_at':'2026-11-14T07:55:00Z','source':'test inventory'}))
             with patch.object(server_module.RENDERER, 'render', wraps=server_module.RENDERER.render) as render:
                 with HTTPServer(('127.0.0.1', 0), server_module.handler_for(page, data, inventory)) as server:
@@ -84,7 +84,7 @@ class ServerTests(unittest.TestCase):
             page, data = root / 'report.html', root / 'findings.json'
             page.write_text('fallback')
             data.write_text(example.read_text())
-            inventory = {'versions': {'batched-change-list':'0.1.14'},
+            inventory = {'versions': {'batched-change-list':'0.1.15'},
                          'sources': {'batched-change-list':'agents plugins'},
                          'observed_at':'2026-11-14T07:55:00+00:00','source':'installed copies'}
             with patch.object(server_module.RENDERER, 'discover_installed_plugins', return_value=inventory) as discover:
@@ -96,7 +96,7 @@ class ServerTests(unittest.TestCase):
                             content = response.read().decode()
                         self.assertIn('Live, read from installed copies at render time', content)
                         self.assertIn('agents plugins', content)
-                        self.assertIn('<strong>0.1.14</strong>', content)
+                        self.assertIn('<strong>0.1.15</strong>', content)
                         discover.assert_called_once()
                     finally:
                         server.shutdown()

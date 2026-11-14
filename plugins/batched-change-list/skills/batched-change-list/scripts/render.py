@@ -15,7 +15,8 @@ STATUSES = {"verified_fixed", "failing", "untested", "in_progress", "awaiting_us
             "awaiting_verification", "blocked", "investigation"}
 SOURCES = {"User reported", "User requested", "Agent reported", "Telemetry lead", "Source hypothesis"}
 CHECK_STATES = {"pending", "checking", "fixed", "not_fixed", "blocked", "inconclusive"}
-WORKFLOW_STAGES = {"collect": "Collect", "present": "Present", "plan_fix": "Plan & fix", "install": "Install", "verify": "Verify", "introspect": "Introspect", "report_rollover": "Report & roll over"}
+WORKFLOW_STAGES = {"collect": "Collect", "present": "Present", "plan_fix": "Plan & fix", "install": "Install", "verify": "Verify", "introspect": "Introspect", "gate": "Fixes", "report_rollover": "Report & roll over"}
+DEFAULT_ROLLOVER_THRESHOLD = 15
 TEMPLATE = Path(__file__).resolve().parent.parent / "templates/change-list.html"
 
 
@@ -60,6 +61,29 @@ def latest_version_evidence(item, runs):
         if version not in latest or rank > latest[version][0]:
             latest[version] = (rank, {"version": version, **record})
     return [record for _, record in sorted(latest.values(), key=lambda entry: entry[0], reverse=True)]
+
+
+def rollover_cycle(tracking):
+    cycle = tracking.get("cycle", 1)
+    if type(cycle) is not int or cycle < 1:
+        raise ValueError("tracking.cycle must be a positive integer")
+    return cycle
+
+
+def rollover_gate(findings, tracking):
+    threshold = tracking.get("rollover_threshold", DEFAULT_ROLLOVER_THRESHOLD)
+    if type(threshold) is not int or threshold < 1:
+        raise ValueError("tracking.rollover_threshold must be a positive integer")
+    rollover = tracking.get("rollover", {})
+    if not isinstance(rollover, dict):
+        raise ValueError("tracking.rollover must be an object")
+    excluded = rollover.get("excluded_ids", [])
+    if not isinstance(excluded, list) or any(not isinstance(item_id, str) for item_id in excluded):
+        raise ValueError("tracking.rollover.excluded_ids must be a list of finding IDs")
+    excluded = set(excluded)
+    fixed = sum(item.get("status") == "verified_fixed" and item.get("id") not in excluded for item in findings)
+    has_open = any(item.get("status") not in ("verified_fixed", "closed") for item in findings)
+    return fixed, threshold, fixed >= threshold or not has_open
 
 
 def required_text(value, field):
@@ -224,7 +248,7 @@ def render(data, base, inventory_override=None, now=None):
     if workflow is not None and (not isinstance(workflow, dict) or workflow.get("stage") not in (*WORKFLOW_STAGES, "install_verify", None) or not isinstance(workflow.get("updated_at"), str) or not workflow["updated_at"].strip()):
         raise ValueError("tracking.workflow requires a valid stage and updated_at")
     active = workflow.get("stage") if workflow else None
-    steps = ''.join('<li class="workflow-step' + (' active" aria-current="step"' if key == active else '"') + f'><span>{index}</span>{html.escape(label)}</li>' for index, (key, label) in enumerate(WORKFLOW_STAGES.items(), 1))
+    cycle = rollover_cycle(tracking_data)
     ist = ZoneInfo("Asia/Kolkata")
     reported = datetime.fromisoformat(workflow["updated_at"].replace("Z", "+00:00")).astimezone(ist) if workflow else None
     time_html = (f'<time datetime="{html.escape(reported.isoformat(), quote=True)}" data-relative>'
@@ -243,7 +267,6 @@ def render(data, base, inventory_override=None, now=None):
                     f'<time datetime="{html.escape(current.isoformat(), quote=True)}">'
                     f'{html.escape(current_ist.strftime("%-I:%M %p IST"))}</time>'
                     f'{" · " + html.escape(status) if status else ""}</p>')
-    timeline = f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow</strong><span>{"Last reported " + time_html if time_html else "No active step reported"}</span></div><ol>{steps}</ol>{now_html}</section>'
     tracking, build_card = render_tracking(tracking_data, inventory_override)
     run = tracking_data.get("verification_run")
     progress = '<p id="verification-progress" role="status"></p>' if isinstance(run, dict) and run.get("status") == "active" else ""
@@ -352,9 +375,23 @@ def render(data, base, inventory_override=None, now=None):
     if run is not None and set(run["checks"]) != seen:
         raise ValueError("verification run checks must match the tracked issue IDs")
     template = TEMPLATE.read_text(encoding="utf-8")
-    excluded = tracking_data.get("rollover", {}).get("excluded_ids", [])
+    fixed_count, threshold, gate_met = rollover_gate(findings, tracking_data)
+    rollover = tracking_data.get("rollover", {})
+    excluded = rollover.get("excluded_ids", [])
     if not isinstance(excluded, list) or any(not isinstance(item, str) for item in excluded) or not set(excluded) <= seen:
         raise ValueError("rollover excluded_ids must identify tracked findings")
+    steps = []
+    for index, (key, label) in enumerate(WORKFLOW_STAGES.items(), 1):
+        name = f"Fixes {fixed_count} of {threshold}" if key == "gate" else label
+        classes = "workflow-step" + (" active" if key == active else "")
+        classes += (" gate-met" if gate_met else " gate-pending") if key == "gate" else ""
+        current = ' aria-current="step"' if key == active else ""
+        round_label = f'<small class="workflow-round">Round {cycle}</small>' if key == "gate" else ""
+        steps.append(f'<li data-stage="{key}" class="{classes}"{current}><span>{index}</span>{html.escape(name)}{round_label}</li>')
+    steps = "".join(steps)
+    loop_label = f"fewer than {threshold}"
+    timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow</strong><span>{"Last reported " + time_html if time_html else "No active step reported"}</span></div>'
+                f'<ol>{steps}</ol><svg class="workflow-loop" role="img" aria-label="Fewer than {threshold} verified fixes returns to Plan and fix" viewBox="0 0 100 28" preserveAspectRatio="none"><defs><marker id="workflow-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 z"/></marker></defs><path class="workflow-loop-path" d="M90 0 C90 26 35 26 35 0" marker-end="url(#workflow-arrow)"/><text class="workflow-loop-label" x="62" y="26">{html.escape(loop_label)}</text></svg>{now_html}</section>')
     serialized = json.dumps([item for item in output if item["id"] not in excluded], ensure_ascii=True).replace("<", "\\u003c")
     run_view = {key: run[key] for key in ("id", "build", "revision", "installed_at", "status")} if run else None
     replacements = {"{{TITLE}}": html.escape(title), "{{FINDINGS_JSON}}": serialized,
