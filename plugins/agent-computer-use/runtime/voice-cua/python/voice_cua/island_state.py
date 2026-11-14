@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import time
+import math
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Literal
 
@@ -55,6 +56,7 @@ class IslandBus:
         self._listeners: list[Callable[[IslandState], None]] = []
         self._confirms: dict[str, threading.Event] = {}
         self._confirm_results: dict[str, bool] = {}
+        self._seen_confirm_ids: set[str] = set()
         self._agent_decisions: dict[str, bool] = {}
 
     @property
@@ -169,12 +171,30 @@ class IslandBus:
                 pass
         return snap
 
-    def request_confirm(self, confirm_id: str, prompt: str, timeout: float = 120.0) -> bool:
-        """Block until island/voice confirms. Default deny on timeout."""
+    def pending_confirm(self) -> dict[str, str] | None:
+        with self._lock:
+            confirm_id = self._state.confirm_id
+            if not confirm_id or confirm_id not in self._confirms:
+                return None
+            return {"confirm_id": confirm_id, "prompt": self._state.confirm_prompt}
+
+    def request_confirm(self, confirm_id: str, prompt: str, timeout: float = 120.0) -> str:
+        """Block for an explicit answer and distinguish denial, timeout, and transport failure."""
+        if (not isinstance(confirm_id, str) or not confirm_id or isinstance(timeout, bool)
+                or not isinstance(timeout, (int, float))):
+            return "error"
+        try:
+            timeout = float(timeout)
+        except (TypeError, ValueError, OverflowError):
+            return "error"
+        if not math.isfinite(timeout) or timeout <= 0:
+            return "error"
         event = threading.Event()
         with self._lock:
+            if confirm_id in self._seen_confirm_ids:
+                return "error"
+            self._seen_confirm_ids.add(confirm_id)
             self._confirms[confirm_id] = event
-            self._confirm_results.pop(confirm_id, None)
         self.publish(
             "confirm",
             title="Confirm",
@@ -182,24 +202,32 @@ class IslandBus:
             confirm_id=confirm_id,
             confirm_prompt=prompt,
         )
-        ok = event.wait(timeout=timeout)
+        answered = event.wait(timeout=timeout)
         with self._lock:
-            result = self._confirm_results.pop(confirm_id, False) if ok else False
+            # Resolve at the deadline wins if the response acquired the lock first.
+            answered = answered or confirm_id in self._confirm_results
+            result = self._confirm_results.pop(confirm_id, False) if answered else False
             self._confirms.pop(confirm_id, None)
-            stale = not ok and getattr(self._state, "confirm_id", None) == confirm_id
+            timed_out = not answered
+            stale = timed_out and getattr(self._state, "confirm_id", None) == confirm_id
         if stale:
             # Timed out unanswered: take the card down (default deny) instead of leaving Allow/Deny up.
             self.publish("done", title="Not confirmed", detail="No answer, so nothing was done")
-        return bool(result)
+        if timed_out:
+            return "timed_out"
+        return "approved" if result else "denied"
 
     def resolve_confirm(self, confirm_id: str, approved: bool) -> bool:
+        if not isinstance(confirm_id, str) or type(approved) is not bool:
+            return False
         with self._lock:
-            self._confirm_results[confirm_id] = approved
             event = self._confirms.get(confirm_id)
-        if event:
+            if event is None or confirm_id in self._confirm_results:
+                return False
+            self._confirm_results[confirm_id] = approved
+            self._confirms.pop(confirm_id, None)
             event.set()
             return True
-        return False
 
 
     def resolve_agent_approval(self, approval_id: str, approved: bool) -> bool:

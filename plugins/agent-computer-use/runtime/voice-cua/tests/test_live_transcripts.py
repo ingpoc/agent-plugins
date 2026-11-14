@@ -52,6 +52,14 @@ class LiveInboundTranscriptTests(unittest.TestCase):
         self.assertTrue(user["step_ref"])
         self.assertEqual(dict(events)["assistant_reply"]["text"], "Opening it now.")
 
+    def test_assistant_reply_log_is_capped_at_2000_chars(self):
+        events = []
+        with patch.object(providers, "log_event", lambda kind, **kw: events.append((kind, kw))), \
+                patch("builtins.print"):
+            providers.LiveProvider()._on_said("R" * 2500)
+        reply = next(fields["text"] for kind, fields in events if kind == "assistant_reply")
+        self.assertEqual(len(reply), 2000)
+
 
 class InterleavedTranscriptTests(unittest.TestCase):
     def test_user_talking_over_a_reply_keeps_one_row_per_utterance(self):
@@ -350,7 +358,7 @@ class ExpiryRestTests(unittest.TestCase):
             _dormant = threading.Event()
             _wake = threading.Event()
 
-            def send_text_and_wait(self, text, timeout):
+            def send_text_and_wait(self, text, timeout, cancel_event=None):
                 return {"ok": True, "reply": text}
 
         sess = Sess()
@@ -359,7 +367,8 @@ class ExpiryRestTests(unittest.TestCase):
         worker.start()
         try:
             with patch.object(session_hub, "_active", sess), patch.object(session_hub, "WAKE_WAIT_S", 1.0):
-                self.assertEqual(session_hub.send_text_and_wait("hi")["ok"], True)
+                result = session_hub.send_text_and_wait("hi")
+                self.assertEqual((result["ok"], result["reply"], result["status"]), (True, "hi", "done"))
         finally:
             worker.join(timeout=2)
         self.assertTrue(sess._wake.is_set())

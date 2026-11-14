@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
+import shlex
 import sys
 import threading
 import time
@@ -40,7 +42,9 @@ _LEDGER_DETAIL_KEYS = frozenset({
     "scope", "rule", "entities", "sensitivity", "constraints", "reason", "changed_choice",
     "supersedes", "superseded_by", "source", "tags", "created_at", "updated_at", "record_type",
 })
-_TASK_OUTCOME_TOOLS = frozenset({"cua_act", "comet_act", "system_volume", "ledger_task"})
+_TASK_OUTCOME_TOOLS = frozenset({"cua_act", "comet_act", "system_volume", "ledger_task",
+                                 "shell_run", "shell_job", "file_edit"})
+_DEV_TOOLS = frozenset({"shell_run", "shell_job", "file_edit"})
 _process_session_id = uuid.uuid4().hex[:8]  # fallback when startup_trace never ran
 _build_label: str | None = None
 _timeline_lock = threading.Lock()
@@ -707,6 +711,41 @@ def _task_fields(name: str, arguments: dict[str, Any], result: dict[str, Any] | 
     return fields
 
 
+def _dev_tool_metadata(name: str, arguments: dict[str, Any], result: dict[str, Any] | None = None,
+                       *, duration_ms: int | None = None) -> dict[str, Any]:
+    has_result = result is not None
+    result = result or {}
+    fields: dict[str, Any] = {"ok": result.get("ok") is True} if has_result else {}
+    op = arguments.get("op") or arguments.get("action")
+    if isinstance(op, str):
+        fields["op"] = op
+    path = arguments.get("path") or result.get("log")
+    if isinstance(path, str) and path:
+        fields["path_basename"] = Path(path).name
+    command = arguments.get("command")
+    if isinstance(command, str):
+        try:
+            head = shlex.split(command, comments=False, posix=True)[0]
+        except (ValueError, IndexError):
+            head = command.strip().split(maxsplit=1)[0] if command.strip() else ""
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", head):
+            head = head.split("=", 1)[0] + "=[redacted]"
+        fields["command_head"] = Path(head).name[:80]
+        fields["command_hash"] = hashlib.sha256(command.encode("utf-8", errors="replace")).hexdigest()
+    elif isinstance(result.get("command_hash"), str):
+        fields["command_hash"] = result["command_hash"]
+        fields["command_head"] = str(result.get("command_head") or "")[:80]
+    if "exit_code" in result and (type(result.get("exit_code")) is int or result.get("exit_code") is None):
+        fields["exit_code"] = result.get("exit_code")
+    duration = duration_ms if duration_ms is not None else result.get("duration_ms")
+    if type(duration) is int and duration >= 0:
+        fields["duration_ms"] = duration
+    for key in ("truncated", "timed_out"):
+        if key in result:
+            fields[key] = result.get(key) is True
+    return fields
+
+
 _encoder: Any = False  # False = not probed yet; None = tiktoken unavailable
 
 
@@ -743,6 +782,10 @@ def result_size(result: Any) -> dict[str, int]:
 
 
 def log_tool_start(name: str, arguments: dict[str, Any]) -> None:
+    if name in _DEV_TOOLS:
+        log_event("tool_start", **_current_tool_ids(), tool=name,
+                  arguments=_dev_tool_metadata(name, arguments))
+        return
     arguments = _redact_tool_credentials(arguments, name)
     start_arguments = _without_typed_values(arguments)
     app = str(arguments.get("app") or "") if name != "ledger_task" else ""
@@ -775,6 +818,11 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operati
                     arguments: dict[str, Any] | None = None) -> None:
     """One row per finished tool call; ``duration_ms`` is the wall time the model waited (OBS-03/OBS-14)."""
     arguments = arguments or {}
+    if name in _DEV_TOOLS:
+        metadata = _dev_tool_metadata(name, arguments, result, duration_ms=duration_ms)
+        log_event("tool_result" if result.get("ok") is True else "tool_error",
+                  **_current_tool_ids(), tool=name, **metadata)
+        return
     typed_text = _typed_text(arguments)
     typed_security = _typed_text_security(arguments, result) if typed_text is not None else None
     typed_redaction_fields = {}
@@ -810,18 +858,22 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operati
             return value
         result = redact_known(result)
     if result.get("cancelled") is True and result.get("error_type") == "user_cancelled":
+        task_fields = _task_fields(name, arguments, result)
+        task_fields.update(typed_redaction_fields)
         log_event("tool_cancelled", **_current_tool_ids(), tool=name, classification="user_cancelled",
                   duration_ms=duration_ms, result=result, arguments=arguments,
-                  **_task_fields(name, arguments, result), **typed_redaction_fields)
+                  **task_fields)
         return
     ok = bool(result.get("ok"))
     err = str(result.get("error") or "")
     error_type = str(result.get("error_type") or "")
     if not ok and (result.get("needs_confirmation") or error_type.startswith("needs_confirm")):
         # Risk gate asked the user first: an expected step, not a failed tool.
+        task_fields = _task_fields(name, arguments, result)
+        task_fields.update(typed_redaction_fields)
         log_event("tool_needs_confirmation", **_current_tool_ids(), tool=name, app=(app or None) if name != "ledger_task" else None,
                   classification="needs_confirmation", result=result, arguments=arguments,
-                  **_task_fields(name, arguments, result), **typed_redaction_fields)
+                  **task_fields)
         return
     if not error_type:
         error_type = "user_denied" if err == "user denied" else ("act_miss" if not ok else "")

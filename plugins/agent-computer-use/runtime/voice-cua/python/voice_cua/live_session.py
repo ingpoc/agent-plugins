@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import math
 import os
 import random
 import re
@@ -58,6 +59,9 @@ _TASK_ACTION_EVIDENCE = {
     "comet_act": "browser_inventory",
     "system_volume": "app_readback",
     "ledger_task": "ledger_result",
+    "shell_run": "shell_exit_code",
+    "shell_job": "shell_job_status",
+    "file_edit": "file_edit_result",
 }
 _READ_ONLY_TOOLS = {
     "cua_state", "secrets_list", "secrets_get", "more_tools", "show_details", "workflow_read",
@@ -88,7 +92,7 @@ def _turn_latency_fields(turn: dict[str, Any], playback_at: float | None) -> dic
                            and durations["total_speech_end_to_playback_start"] > 4000}
 
 
-def _task_outcome(results: list[dict[str, Any]], *, status: str) -> tuple[str, str | None]:
+def _task_outcome(results: list[dict[str, Any]], *, status: str, reply: str = "") -> tuple[str, str | None]:
     evidence_class = "tool_reported" if results else None
     if any(row.get("outcome") == "unknown" for row in results):
         return "unknown", evidence_class
@@ -96,6 +100,26 @@ def _task_outcome(results: list[dict[str, Any]], *, status: str) -> tuple[str, s
         return "cancelled", evidence_class
     if not results:
         return "unknown", None
+    if any(row.get("tool") == "confirm_risky" and row.get("approved") is False for row in results):
+        return "unverified", evidence_class
+    last = results[-1]
+    if last.get("needs_confirmation") is True or str(last.get("error_type") or "").startswith("needs_confirm"):
+        return "unverified", evidence_class
+    for row in results:
+        if row.get("tool") == "shell_run" and row.get("background") is True:
+            job_id = row.get("job_id")
+            settled = next((item for item in results if item.get("tool") == "shell_job"
+                            and item.get("job_id") == job_id and item.get("job_done") is True), None)
+            if not settled or settled.get("exit_code") != 0:
+                return "unverified", evidence_class
+    if re.search(
+        r"\bI\s+(?:couldn['’]t|could not|wasn['’]t able(?: to)?|was not able(?: to)?|"
+        r"was unable(?: to)?|didn['’]t manage(?: to)?|did not manage(?: to)?|failed(?: to)?|"
+        r"(?:can['’]t|cannot) confirm)\b",
+        reply,
+        flags=re.IGNORECASE,
+    ):
+        return "unverified", evidence_class
     return ("verified_success" if status == "completed" and results[-1].get("ok") is True
             else "unverified", evidence_class)
 
@@ -549,6 +573,9 @@ class LiveSession:
 
     def _prepare_reconnect(self) -> None:
         """Reset per-connection bookkeeping; fail outstanding text waiters."""
+        from voice_cua.session_hub import fail_session_turns
+
+        fail_session_turns(self, "session disconnected")
         if self._audio is not None:
             self._audio.clear_playback()
         with self._response_condition:
@@ -1534,6 +1561,14 @@ class LiveSession:
                     "verified": result.get("verified") is True,
                     "cancelled": result.get("cancelled") is True,
                     "outcome": result.get("outcome"),
+                    "approved": result.get("approved"),
+                    "needs_confirmation": result.get("needs_confirmation") is True,
+                    "timed_out": result.get("timed_out") is True,
+                    "error_type": result.get("error_type"),
+                    "background": result.get("background") is True,
+                    "job_id": result.get("job_id"),
+                    "job_done": result.get("job_done") is True,
+                    "exit_code": result.get("exit_code"),
                 })
 
     @staticmethod
@@ -1860,17 +1895,36 @@ class LiveSession:
         except Exception:  # noqa: BLE001 — telemetry never blocks shutdown
             pass
 
-    def send_text_and_wait(self, text: str, *, timeout: float = 90.0) -> dict[str, Any]:
+    def send_text_and_wait(self, text: str, *, timeout: float = 90.0,
+                           cancel_event: threading.Event | None = None) -> dict[str, Any]:
+        if isinstance(timeout, bool):
+            return {"ok": False, "error": "timeout must be finite and greater than zero",
+                    "error_type": "invalid_timeout"}
+        try:
+            timeout = float(timeout)
+        except (TypeError, ValueError, OverflowError):
+            return {"ok": False, "error": "timeout must be finite and greater than zero",
+                    "error_type": "invalid_timeout"}
+        if not math.isfinite(timeout) or timeout <= 0:
+            return {"ok": False, "error": "timeout must be finite and greater than zero",
+                    "error_type": "invalid_timeout"}
+        if cancel_event is not None and cancel_event.is_set():
+            return {"ok": False, "error": "session disconnected", "error_type": "session_disconnected"}
         started = time.monotonic()
         if self._spoken_task_cancel(text):
             # A stop must not queue behind the request it is stopping.
             self.send_text(text)
             return {"ok": True, "reply": "", "stopped": True}
-        if not self._text_request_lock.acquire(timeout=timeout):
-            return {"ok": False, "error": "timeout waiting for another text request"}
+        while not self._text_request_lock.acquire(timeout=min(0.1, max(0.0, timeout - (time.monotonic() - started)))):
+            if cancel_event is not None and cancel_event.is_set():
+                return {"ok": False, "error": "session disconnected", "error_type": "session_disconnected"}
+            if time.monotonic() - started >= timeout:
+                return {"ok": False, "error": "timeout waiting for another text request"}
         request_id = uuid.uuid4().hex
         waiter = {"event": threading.Event(), "reply": "", "error": ""}
         try:
+            if cancel_event is not None and cancel_event.is_set():
+                return {"ok": False, "error": "session disconnected", "error_type": "session_disconnected"}
             if self._audio:
                 self._audio.pause_input()
                 self._send({"type": "input_audio_buffer.clear"})
@@ -1881,11 +1935,15 @@ class LiveSession:
                 self._text_waiters[request_id] = waiter
             self.send_text(text, request_id=request_id)
             remaining = max(0.0, timeout - (time.monotonic() - started))
-            if not waiter["event"].wait(timeout=remaining):
-                return {"ok": False, "error": "timeout", "reply": str(waiter["reply"])[:240]}
+            deadline = time.monotonic() + remaining
+            while not waiter["event"].wait(timeout=min(0.1, max(0.0, deadline - time.monotonic()))):
+                if cancel_event is not None and cancel_event.is_set():
+                    return {"ok": False, "error": "session disconnected", "error_type": "session_disconnected"}
+                if time.monotonic() >= deadline:
+                    return {"ok": False, "error": "timeout", "reply": str(waiter["reply"])}
             if waiter["error"]:
-                return {"ok": False, "error": str(waiter["error"])[:240], "reply": str(waiter["reply"])[:240]}
-            return {"ok": True, "reply": str(waiter["reply"])[:240]}
+                return {"ok": False, "error": str(waiter["error"])[:240], "reply": str(waiter["reply"])}
+            return {"ok": True, "reply": str(waiter["reply"])}
         finally:
             with self._response_lock:
                 self._text_waiters.pop(request_id, None)
@@ -1970,19 +2028,8 @@ class LiveSession:
             task_results = self._task_runs.pop(task_run_id, []) if task_settling else []
             task_started_at = self._task_started_at.pop(task_run_id, None) if task_settling else None
             expected_outcome = self._task_expected_outcomes.pop(task_run_id, "") if task_settling else ""
+            request_step_ref = self._task_request_step_refs.get(task_run_id, "") if task_settling else ""
             cancel_step_ref = self._cancel_requested_by_run.pop(task_run_id, "") if task_settling else ""
-        task_outcome = _task_outcome(task_results, status=status)
-        if task_settling:
-            log_task_outcome(check_id="tool_task", outcome=task_outcome[0],
-                             evidence_class=task_outcome[1], run_id=task_run_id,
-                             response_id=response_id,
-                             step_ref=self._response_step_refs.get(response_id, "") or new_step_ref(),
-                             caused_by=[ref for ref in (self._task_request_step_refs.get(task_run_id),
-                                                        cancel_step_ref) if ref],
-                             duration_ms=(int((time.monotonic() - task_started_at) * 1000)
-                                          if task_started_at is not None else None),
-                             expected_outcome=expected_outcome or "unknown",
-                             tools=sorted({row["tool"] for row in task_results if row.get("tool") in _TASK_ACTION_EVIDENCE}))
         if task_run_id:
             with self._response_lock:
                 if self._active_task_run_id == task_run_id:
@@ -2014,8 +2061,20 @@ class LiveSession:
         with self._response_lock:
             transcript = self._response_transcripts.get(response_id, "")
         reply = _normalize_reply(" ".join(text_bits).strip() or transcript.strip())
+        task_outcome = _task_outcome(task_results, status=status, reply=reply)
+        if task_settling:
+            log_task_outcome(check_id="tool_task", outcome=task_outcome[0],
+                             evidence_class=task_outcome[1], run_id=task_run_id,
+                             response_id=response_id,
+                             step_ref=self._response_step_refs.get(response_id, "") or new_step_ref(),
+                             caused_by=[ref for ref in (request_step_ref,
+                                                        cancel_step_ref) if ref],
+                             duration_ms=(int((time.monotonic() - task_started_at) * 1000)
+                                          if task_started_at is not None else None),
+                             expected_outcome=expected_outcome or "unknown",
+                             tools=sorted({row["tool"] for row in task_results if row.get("tool") in _TASK_ACTION_EVIDENCE}))
         if reply:
-            log_event("assistant_reply", text=reply[:240], source="backend", response_id=response_id or None)
+            log_event("assistant_reply", text=reply[:2000], source="backend", response_id=response_id or None)
             print(f"Samantha: {reply}", flush=True)
         mark("response_done", status="ok" if reply else "empty")
         if request_id:
@@ -2303,6 +2362,7 @@ class LiveSession:
         if not replay:
             request_id = self._note_user_turn(text, request_id=request_id,
                                               retry_of_run_ref=retry_of_run_ref)
+            print(f"You: {text}", flush=True)
         self._send({
             "type": "conversation.item.create",
             "item": {

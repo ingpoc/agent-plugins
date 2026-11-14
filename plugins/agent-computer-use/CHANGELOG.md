@@ -1,5 +1,11 @@
 # Changelog: agent-computer-use
 
+## 0.2.142
+
+- Typed turns can run for up to 30 minutes, return pollable turn IDs, and receive a typed approval through the per-process confirm token.
+- Add lazy, approval-gated repository shell and file tools with bounded output, background job tracking, and metadata-only activity records.
+- Preserve confirmation timeout reasons, prevent false task-success claims, log typed turns in `voice.log`, and retain longer assistant replies.
+
 ## 0.2.141
 
 - A typed Samantha turn sent while she is still starting now waits for her to be ready instead of failing with no session.

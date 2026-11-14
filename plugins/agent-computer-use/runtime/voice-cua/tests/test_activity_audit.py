@@ -269,6 +269,49 @@ class ActivityAudit(unittest.TestCase):
             raw = log.read_text()
         self.assertNotIn(sentinel, raw)
 
+    def test_cancel_and_confirmation_rows_do_not_duplicate_typed_redaction_fields(self) -> None:
+        rows = []
+        cases = (
+            ({"app": "Login", "steps": [{"op": "type_text", "label": "Password",
+                                               "text": "secure-sentinel"}]},
+             {"ok": False, "cancelled": True, "error_type": "user_cancelled"}, "tool_cancelled"),
+            ({"app": "Unknown", "steps": [{"op": "type_text", "text": "unknown-sentinel"}]},
+             {"ok": False, "needs_confirmation": True, "error_type": "needs_confirmation"},
+             "tool_needs_confirmation"),
+        )
+        with patch.object(activity_log, "_append_row", side_effect=rows.append), \
+             activity_log.tool_context(run_id="1234567890abcdef1234567890abcdef"):
+            for args, result, _kind in cases:
+                activity_log.log_tool_result("cua_act", result, arguments=args)
+        self.assertEqual([row["kind"] for row in rows], [case[2] for case in cases])
+        self.assertEqual([row["typed_text"] for row in rows], ["[redacted]", "[redacted]"])
+        self.assertEqual([row["typed_text_redacted_reason"] for row in rows],
+                         ["secure_target", "security_unknown"])
+
+    def test_dev_tool_rows_log_metadata_only(self) -> None:
+        command_secret = "COMMAND_PRIVATE_SENTINEL"
+        output_secret = "OUTPUT_PRIVATE_SENTINEL"
+        file_secret = "FILE_PRIVATE_SENTINEL"
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "a.jsonl"
+            with patch.dict(os.environ, {"VOICE_CUA_ACTIVITY_LOG": str(log)}):
+                activity_log.log_tool_start("shell_run", {"command": f"printf {command_secret}", "cwd": "/repo"})
+                activity_log.log_tool_result("shell_run", {"ok": True, "exit_code": 0, "duration_ms": 4,
+                                                             "output": output_secret, "truncated": False},
+                                             arguments={"command": f"printf {command_secret}", "cwd": "/repo"})
+                activity_log.log_tool_start("file_edit", {"op": "write", "path": "/repo/token.txt",
+                                                            "content": file_secret})
+                activity_log.log_tool_result("file_edit", {"ok": True, "path": "token.txt", "bytes": len(file_secret)},
+                                             arguments={"op": "write", "path": "/repo/token.txt",
+                                                        "content": file_secret})
+            raw = log.read_text()
+            rows = [json.loads(line) for line in raw.splitlines()]
+        for secret in (command_secret, output_secret, file_secret, "/repo/token.txt"):
+            self.assertNotIn(secret, raw)
+        self.assertEqual(rows[0]["arguments"]["command_head"], "printf")
+        self.assertIn("command_hash", rows[0]["arguments"])
+        self.assertEqual(rows[2]["arguments"]["path_basename"], "token.txt")
+
 
 if __name__ == "__main__":
     unittest.main()

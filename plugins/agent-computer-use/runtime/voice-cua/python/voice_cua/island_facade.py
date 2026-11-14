@@ -250,12 +250,18 @@ def island_publish(
     )
 
 
-def island_confirm(confirm_id: str, prompt: str, *, timeout: float = 120.0) -> bool:
+def island_confirm(confirm_id: str, prompt: str, *, timeout: float = 120.0) -> str:
     if use_remote():
         data = _post(
             "/api/confirm/request",
             {"confirm_id": confirm_id, "prompt": prompt, "timeout": timeout},
             timeout=timeout + 5,
         )
-        return bool(data and data.get("approved"))
+        if data is None or data.get("ok") is not True:
+            return "error"
+        if data.get("timed_out") is True:
+            return "timed_out"
+        if data.get("approved") is True:
+            return "approved"
+        return "denied" if data.get("approved") is False else "error"
     return ISLAND.request_confirm(confirm_id, prompt, timeout=timeout)

@@ -377,7 +377,7 @@ class LiveProvider(VoiceProvider):
 
     def _on_said(self, text: str) -> None:
         self._remember("assistant", text)
-        log_event("assistant_reply", text=text[:240], source="live_voice")
+        log_event("assistant_reply", text=text[:2000], source="live_voice")
         print(f"Samantha: {text}", flush=True)
 
     # -- state ---------------------------------------------------------------

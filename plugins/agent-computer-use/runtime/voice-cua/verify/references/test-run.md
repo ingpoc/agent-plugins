@@ -27,8 +27,10 @@ Submit one prompt at a time:
 curl --fail-with-body --max-time 100 -sS \
   -X POST "http://127.0.0.1:$PORT/api/session/text" \
   -H 'Content-Type: application/json' \
-  -d '{"text":"Reply with exactly: test ready.","timeout":90}'
+  -d '{"text":"Reply with exactly: test ready.","timeout":90,"async":true}'
 ```
+
+The default typed wait is 90 seconds; `timeout` accepts up to 1800 seconds. Async submission returns a `turn_id` with `status: running`; poll `GET /api/session/turn?id=<turn_id>` until it settles. A synchronous wait that expires also returns `still_running`; the turn continues, so poll it instead of resubmitting the task. For typed approvals, read `GET /api/confirm/pending` and use the per-process token at `~/.cache/macos-cua/typed-approve.token` in the `X-Voice-CUA-Approve` header for `POST /api/session/approve`. The Island buttons continue using `POST /api/confirm`.
 
 A direct `/api/tools/call` checks the local tool boundary, not model selection/delegation. Keep that evidence separate.
 

@@ -180,7 +180,7 @@ class LabelsTrackerTests(unittest.TestCase):
 class IslandTests(unittest.TestCase):
     def test_confirm_flow(self) -> None:
         bus = IslandBus()
-        result: list[bool] = []
+        result: list[str] = []
 
         def worker() -> None:
             result.append(bus.request_confirm("c1", "ok?", timeout=2.0))
@@ -195,7 +195,7 @@ class IslandTests(unittest.TestCase):
             time.sleep(0.02)
         self.assertTrue(bus.resolve_confirm("c1", True))
         t.join(timeout=3)
-        self.assertEqual(result, [True])
+        self.assertEqual(result, ["approved"])
 
 
 class ToolsTests(unittest.TestCase):
@@ -456,11 +456,11 @@ class AudioIOTests(unittest.TestCase):
                 "id": "resp_expected",
                 "status": "completed",
                 "metadata": {"voice_cua_request_id": request_id},
-                "output": [{"type": "message", "content": [{"type": "output_text", "text": "RIGHT"}]}],
+                "output": [{"type": "message", "content": [{"type": "output_text", "text": "R" * 300}]}],
             },
         }))
         thread.join(timeout=1)
-        self.assertEqual(result, {"ok": True, "reply": "RIGHT"})
+        self.assertEqual(result, {"ok": True, "reply": "R" * 300})
         self.assertEqual(hide.call_count, 2)
 
     def test_failed_mic_preflight_disables_audio_status(self) -> None:
