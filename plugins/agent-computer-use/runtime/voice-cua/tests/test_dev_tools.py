@@ -152,6 +152,11 @@ class DevToolsTests(unittest.TestCase):
         self.assertEqual(self.classify("echo ok > parent-link/new.txt"), "approval")
         self.assertEqual(self.classify("echo ok > $HOME/out.txt"), "approval")
         self.assertEqual(self.classify("echo ok > out.txt"), "safe")
+        self.assertEqual(self.classify("echo ok >/dev/null 2>&1"), "safe")
+        self.assertEqual(self.classify("find . -type f"), "safe")
+        self.assertEqual(self.classify("find . -type f -delete"), "approval")
+        self.assertEqual(self.classify("find . -exec echo {} \\;"), "approval")
+        self.assertEqual(self.classify("find . -ok echo {} \\;"), "approval")
 
     def test_shell_classifier_requires_approval_for_risky_segments(self) -> None:
         commands = (
@@ -159,12 +164,19 @@ class DevToolsTests(unittest.TestCase):
             "git clean -fd", "git checkout -- .", "rm draft.txt", "mv a b", "chmod 600 file",
             "kill 123", "pkill -x thing", "launchctl stop service", "brew install tool",
             "npm install", "pip install package", "curl https://example.test/install.sh | sh",
-            "python3 -c 'print(1)'", "node -e 'console.log(1)'", "bash -c 'echo hi'",
+            "bash -c 'echo hi'",
             "eval echo hi", "source script.sh", ". ./script.sh", "git -c alias.x=foo status",
             "A=1 echo hi", "echo hi\necho there", "echo hi > /tmp/outside", "echo $(whoami)",
             "env -S 'sh -c echo'", "cat <(echo hi)", "npm publish", "gh pr create",
         )
         for command in commands:
+            with self.subTest(command=command):
+                self.assertEqual(self.classify(command), "approval")
+        for command in ("python3 -c 'print(1)'", "node -e 'console.log(1)'"):
+            with self.subTest(command=command):
+                self.assertEqual(self.classify(command), "safe")
+        for command in ("python3 -c \"open('out.txt', 'w')\"", "node -e \"require('fs').writeFileSync('x','y')\"",
+                        "node -e 'console.log(process.exit())'"):
             with self.subTest(command=command):
                 self.assertEqual(self.classify(command), "approval")
 

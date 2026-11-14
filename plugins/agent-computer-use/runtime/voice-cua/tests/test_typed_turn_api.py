@@ -174,6 +174,19 @@ class TypedTurnAPITests(unittest.TestCase):
             self.assertEqual(code, 400)
             resolve.assert_not_called()
 
+    def test_legacy_confirm_requires_voice_control_token_when_configured(self) -> None:
+        payload = {"confirm_id": "c-control", "approved": True}
+        with patch.dict(os.environ, {"VOICE_CUA_CONTROL_TOKEN": "test-control-token"}):
+            with patch.object(gateway.ISLAND, "resolve_confirm", return_value=True) as resolve:
+                for headers in ({}, {"X-Voice-CUA-Control": "wrong-token"}):
+                    with self.subTest(headers=headers):
+                        self.assertEqual(self.request("POST", "/api/confirm", payload, headers)[0], 403)
+                resolve.assert_not_called()
+                code, body = self.request("POST", "/api/confirm", payload,
+                                          {"X-Voice-CUA-Control": "test-control-token"})
+                self.assertEqual((code, body["ok"]), (200, True))
+                resolve.assert_called_once_with("c-control", True)
+
     def test_typed_approval_requires_per_process_token_and_rejects_duplicate_answer(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "typed-approve.token"

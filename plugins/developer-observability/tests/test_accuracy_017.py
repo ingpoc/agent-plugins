@@ -188,10 +188,13 @@ class LimitTests(Case):
         self.assertNotIn('Decider', NEXT_STEPS['invalid_limit'])
 
 
-def layout(overlays, island=None, screen=None, trigger='overlay_show', ts=T):
-    return {'ts': ts, 'event': 'island_layout', 'schema': 1, 'session_id': 'L', 'turn_id': 3, 'version': '0.2.85',
+def layout(overlays, island=None, screen=None, trigger='overlay_show', ts=T, status=None, session_id='L'):
+    row = {'ts': ts, 'event': 'island_layout', 'schema': 1, 'session_id': session_id, 'turn_id': 3, 'version': '0.2.85',
             'trigger': trigger, 'screen': screen or {'id': 'main', 'x': 0, 'y': 0, 'w': 1512, 'h': 982, 'scale': 2},
             'island': island or {'x': 656, 'y': 0, 'w': 200, 'h': 40, 'visible': True}, 'overlays': overlays}
+    if status is not None:
+        row['status'] = status
+    return row
 
 
 def overlay(kind, x, y, w, h, visible=True, inside=True):
@@ -240,6 +243,41 @@ class IslandLayoutTests(Case):
         self.assertEqual(page['total'], 2)
         self.assertEqual({i['island_layout']['violation'] for i in page['issues']}, {'outside_island', 'off_screen'})
         self.assertEqual(api.issues('voice', kind='turn_latency')['total'], 0)
+
+    def test_error_state_hud_is_not_a_layout_failure(self):
+        # Overflowing error HUD must not become island_layout or a standalone "island_layout failed Nx".
+        overflow = overlay('status_pill', 640, 4, 100, 30)
+        rows = [
+            {'kind': 'mic_preflight', 'session_id': 'voice1', 'status': 'error', 'error': "Can't hear you, check mic",
+             'ts': T, 'version': '0.2.85'},
+            layout([overflow], trigger='settled', ts=T + 1, status='error', session_id='supervisor'),
+            layout([overflow], trigger='settled', ts=T + 2, status='error', session_id='supervisor'),
+        ]
+        findings, _ = self.collect(rows)
+        layout_hits = [f for f in findings if f['kind'] == 'island_layout']
+        self.assertEqual(layout_hits, [], [f['headline'] for f in layout_hits])
+        standalone = [f for f in findings if f['kind'] == 'failure' and 'island_layout' in f['headline']]
+        self.assertEqual(standalone, [], [f['headline'] for f in standalone])
+        mic = next(f for f in findings if f['kind'] == 'failure' and 'mic_preflight' in f['headline'])
+        self.assertEqual(mic['failed_attempt_count'], 1)
+        self.assertIn("Can't hear you, check mic", mic['latest_evidence']['first_error_line'])
+        self.assertEqual(mic['latest_evidence']['error_type'], 'mic_preflight')
+        self.assertEqual(mic['island_error_snapshots']['count'], 2)
+        self.assertEqual(mic['island_error_snapshots']['status'], 'error')
+
+    def test_error_state_hud_does_not_rank_above_real_errors(self):
+        rows = [
+            {'kind': 'tool_error', 'session_id': 'voice1', 'tool': 'cua_act', 'error': 'Something went wrong',
+             'ts': T, 'version': '0.2.85'},
+        ] + [layout([overlay('status_pill', 640, 4, 100, 30)], ts=T + i, status='error', session_id='sup')
+             for i in range(8)]
+        findings, _ = self.collect(rows)
+        failures = [f for f in findings if f['kind'] == 'failure']
+        self.assertEqual(len(failures), 1, [f['headline'] for f in failures])
+        self.assertIn('cua_act', failures[0]['headline'])
+        self.assertNotIn('island_layout', failures[0]['headline'])
+        self.assertEqual(failures[0]['island_error_snapshots']['count'], 8)
+
 
 
 if __name__ == '__main__':

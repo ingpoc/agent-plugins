@@ -342,6 +342,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"ok": True})
             return
         if path == "/api/confirm":
+            if not self._authorize_shutdown():
+                return
             body = self._read_json()
             cid = str(body.get("confirm_id") or "")
             if not isinstance(body.get("approved"), bool):

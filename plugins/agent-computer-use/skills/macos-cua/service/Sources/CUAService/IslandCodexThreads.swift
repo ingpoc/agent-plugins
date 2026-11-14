@@ -7,6 +7,7 @@ enum IslandCodexThreads {
         var error: String?
         var model: String?
         var effort: String?
+        var serviceTier: String?
         var tokens: Int?
         var contextPercent: Int?
         /// When the current state began (task_started / task_complete / error event timestamp).
@@ -37,6 +38,7 @@ enum IslandCodexThreads {
             if type == "turn_context" {
                 result.model = payload["model"] as? String ?? result.model
                 result.effort = payload["effort"] as? String ?? result.effort
+                result.serviceTier = payload["service_tier"] as? String ?? result.serviceTier
             } else if type == "event_msg", let event = payload["type"] as? String {
                 if event.hasPrefix("hook_") || [payload["message"] as? String, payload["reason"] as? String].compactMap({ $0 }).contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("hook:") }) { continue }
                 switch event {
@@ -78,6 +80,7 @@ enum IslandCodexThreads {
         var firstUserMessage: String?
         var model: String?
         var effort: String?
+        var serviceTier: String? = nil
         var updatedAt: Date
         var originator: String? = nil
         var cwd: String? = nil
@@ -226,6 +229,7 @@ enum IslandCodexThreads {
             let desktop = ["Codex Desktop", "codex_work_desktop"].contains(record.originator ?? "")
             var parts = [productModelName(record.rollout.model ?? record.model),
                          effortLabel(record.rollout.effort ?? record.effort, desktop: desktop)].compactMap { $0 }
+            if (record.rollout.serviceTier ?? record.serviceTier) == "priority" { parts.append("Fast") }
             if let count = helpers[record.id]?.count, count > 0 { parts.append("+\(count) helpers") }
             switch state {
             case "error": row.local_detail = humanError(record.rollout.error)
@@ -287,7 +291,7 @@ enum IslandCodexThreads {
             if let value = sqlite3_column_text(schema, 1) { columns.insert(String(cString: value)) }
         }
         sqlite3_finalize(schema)
-        let wanted = ["id", "rollout_path", "title", "first_user_message", "model", "reasoning_effort", "updated_at_ms", "originator", "cwd", "git_branch", "git_origin_url", "attached_thread_parent_id", "agent_role"]
+        let wanted = ["id", "rollout_path", "title", "first_user_message", "model", "reasoning_effort", "service_tier", "updated_at_ms", "originator", "cwd", "git_branch", "git_origin_url", "attached_thread_parent_id", "agent_role"]
         guard columns.contains("id"), columns.contains("rollout_path"), columns.contains("updated_at_ms") else { return nil }
         let fields = wanted.map { columns.contains($0) ? $0 : "NULL" }.joined(separator: ", ")
         let filter = columns.contains("archived") ? " WHERE archived = 0" : ""
@@ -304,12 +308,12 @@ enum IslandCodexThreads {
         var step = sqlite3_step(stmt)
         while step == SQLITE_ROW {
             defer { step = sqlite3_step(stmt) }
-            guard let id = string(0), let path = string(1), sqlite3_column_type(stmt, 6) != SQLITE_NULL else { continue }
+            guard let id = string(0), let path = string(1), sqlite3_column_type(stmt, 7) != SQLITE_NULL else { continue }
             records.append(ThreadRecord(id: id, rolloutPath: path, title: string(2), firstUserMessage: string(3),
-                                        model: string(4), effort: string(5),
-                                        updatedAt: Date(timeIntervalSince1970: Double(sqlite3_column_int64(stmt, 6)) / 1000),
-                                        originator: string(7), cwd: string(8), branch: string(9), originURL: string(10),
-                                        parentID: string(11), role: string(12), codexHome: homeName))
+                                        model: string(4), effort: string(5), serviceTier: string(6),
+                                        updatedAt: Date(timeIntervalSince1970: Double(sqlite3_column_int64(stmt, 7)) / 1000),
+                                        originator: string(8), cwd: string(9), branch: string(10), originURL: string(11),
+                                        parentID: string(12), role: string(13), codexHome: homeName))
         }
         return step == SQLITE_DONE ? records : nil
     }

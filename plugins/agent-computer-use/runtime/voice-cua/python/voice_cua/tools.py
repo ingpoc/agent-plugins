@@ -586,7 +586,7 @@ def _cua_act(args: dict[str, Any]) -> dict[str, Any]:
 MAX_STEP_TRIES = 2
 _STEP_IGNORE = frozenset({"expect", "allow_unverified", "wait"})
 STEP_FAIL_TTL = 600.0
-_STEP_FAILS: dict[str, tuple[int, float, str]] = {}
+_STEP_FAILS: dict[str, tuple[int, float, str, str]] = {}
 _STEP_LOCK = threading.Lock()
 FAIL_HINTS = {
     "target_missing": ("Control not found: cua_state with a query, then retry by label.", True),
@@ -600,8 +600,9 @@ FAIL_HINTS = {
     "confirm_timed_out": ("No answer before the confirm timed out; nothing was done. Tell the user it still needs their OK.", False),
     "confirm_transport_error": ("Confirmation could not be delivered; nothing was done. Tell the user it still needs their OK.", False),
     "screen_locked": ("Mac is locked: tell the user to unlock it; don't retry until they say it's unlocked.", False),
+    "app_not_running": ("That app is not running. Open it by its application name (never its bundle ID), or tell the user it is not installed.", False),
 }
-CAP_HINT = "Stopped retrying this action: tell the user what blocked it, or take a different approach."
+CAP_HINT = "Stopped repeating this action: use a different strategy or tell the user what blocked it."
 
 
 def _describe_steps(args: dict[str, Any], step: str) -> str:
@@ -639,11 +640,16 @@ def _action_fingerprint(args: dict[str, Any]) -> str:
 def _retry_capped(step_fp: str) -> dict[str, Any] | None:
     now = time.monotonic()
     with _STEP_LOCK:
-        for key in [k for k, (_, ts, _) in _STEP_FAILS.items() if now - ts > STEP_FAIL_TTL]:
+        for key in [k for k, (_, ts, _, _) in _STEP_FAILS.items() if now - ts > STEP_FAIL_TTL]:
             _STEP_FAILS.pop(key, None)
-        count = _STEP_FAILS.get(step_fp, (0, now, ""))[0]
+        record = _STEP_FAILS.get(step_fp, (0, now, "", ""))
+        count = record[0]
     if count < MAX_STEP_TRIES:
         return None
+    if record[3] == "app_not_running":
+        hint, _ = FAIL_HINTS["app_not_running"]
+        return {"ok": False, "error": "App is not running", "error_type": "app_not_running",
+                "retryable": False, "hint": hint}
     log_event("cua_act_retry_capped", **current_tool_ids(), tries=count)
     return {"ok": False, "error": "retry cap reached for this step", "error_type": "retry_cap",
             "retryable": False, "hint": CAP_HINT}
@@ -655,9 +661,9 @@ def _note_failure(step_fp: str, out: dict[str, Any]) -> None:
         error_type = "user_denied"
     hint, retryable = FAIL_HINTS.get(error_type, ("Try one different approach, then tell the user.", True))
     with _STEP_LOCK:
-        count = _STEP_FAILS.get(step_fp, (0, 0.0, ""))[0] + 1
+        count = _STEP_FAILS.get(step_fp, (0, 0.0, "", ""))[0] + 1
         step_ref = current_tool_ids().get("step_ref") or ""
-        _STEP_FAILS[step_fp] = (MAX_STEP_TRIES if not retryable else count, time.monotonic(), step_ref)
+        _STEP_FAILS[step_fp] = (MAX_STEP_TRIES if not retryable else count, time.monotonic(), step_ref, error_type)
     if count >= MAX_STEP_TRIES and retryable:
         hint, retryable = CAP_HINT, False
     out["hint"] = hint

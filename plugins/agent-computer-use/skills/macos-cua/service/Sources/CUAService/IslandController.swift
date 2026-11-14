@@ -571,6 +571,8 @@ final class IslandController {
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let token = controlToken()
+        if !token.isEmpty { req.setValue(token, forHTTPHeaderField: "X-Voice-CUA-Control") }
         let body: [String: Any] = ["confirm_id": pendingConfirmId, "approved": approved]
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         _ = try? await URLSession.shared.data(for: req)

@@ -72,6 +72,36 @@ def _close(proc: subprocess.Popen) -> None:
 
 
 class CompactMcpDispatchTests(unittest.TestCase):
+    def test_act_waits_for_terminal_ax_output_before_verifying_expect(self):
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                self.observations = iter([
+                    {"text": '[0] AXWindow "Terminal"'},
+                    {"text": '[0] AXWindow "Terminal"\n[1] AXTextArea value=""'},
+                    {"text": '[0] AXWindow "Terminal"\n[1] AXTextArea value=""'},
+                    {"text": '[0] AXWindow "Terminal"\n[1] AXTextArea value="command output"'},
+                ])
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def __init__(self, outer):
+                        self.outer = outer
+
+                    def execute_plan(self, app, steps, **kwargs):
+                        return {"before": next(self.outer.observations),
+                                "after": next(self.outer.observations),
+                                "results": [{"ok": True, "method": "type_text"}]}
+
+                    def get_app_state(self, app, **kwargs):
+                        return next(self.outer.observations)
+
+                return fn(Client(self))
+
+        result = Backend().act("Terminal", {"text": "command", "expect": "command output"})
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["verified"])
+        self.assertIn("command output", result["text"])
+
     def test_action_retains_dispatch_when_app_exits_before_screenshot(self):
         from cua_client import RPCError
         backend = compact_mcp.CUABackend()

@@ -326,8 +326,28 @@ class CUABackend:
                 )
 
             before_text = str(before.get("text") or "") if isinstance(before, dict) else ""
-            text = str(after.get("text") or "") if isinstance(after, dict) else ""
             dispatched = all(item.get("ok") is True for item in results) and bool(results)
+            if dispatched and effectful and expectation_is_supported(expect):
+                # AX trees can lag shell and TextEdit updates by a few hundred milliseconds.
+                deadline = time.monotonic() + 2.0
+                while True:
+                    text = str(after.get("text") or "") if isinstance(after, dict) else ""
+                    if expectation_is_new(expect, before_text, text, results, after if isinstance(after, dict) else {}):
+                        break
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        break
+                    time.sleep(min(0.2, remaining))
+                    try:
+                        after = self._get_app_state(
+                            client, app, disableDiff=True, includeScreenshot=False, includeElements=True,
+                            maxElements=1000,
+                        )
+                    except Exception as exc:
+                        if getattr(exc, "code", None) == -32001:
+                            after = {"running": False}
+                        break
+            text = str(after.get("text") or "") if isinstance(after, dict) else ""
             if effectful and expectation_is_supported(expect):
                 verified = expectation_is_new(expect, before_text, text, results)
                 if isinstance(expect, (list, dict)):
@@ -354,6 +374,9 @@ class CUABackend:
             }
             if isinstance(after, dict) and after.get("running") is False:
                 payload["app_running"] = False
+                payload.update(error_type="app_not_running", error="App is not running",
+                               hint="Tell the user the app is not running or not installed; do not retry by bundle ID.",
+                               retryable=False)
             def fetch():
                 from cua_client import RPCError
                 try:
@@ -398,6 +421,10 @@ class CUABackend:
             return self._rpc(_run, retry=False)
         except Exception as exc:
             err = str(exc)
+            if getattr(exc, "code", None) == -32001:
+                return {"ok": False, "app": app, "running": False, "error": "App is not running",
+                        "error_type": "app_not_running", "retryable": False,
+                        "hint": "Tell the user the app is not running or not installed; do not retry by bundle ID."}
             # Native RPC may raise before a structured step result exists.
             after = ""
             try:
