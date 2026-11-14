@@ -1,3 +1,7 @@
+## 0.2.145
+
+- Typing: if the focused field in the pinned window rejects AX insert, fall back to HID on that same field instead of refusing the type. Sibling text areas are still excluded.
+
 # Changelog: agent-computer-use
 
 ## 0.2.144
