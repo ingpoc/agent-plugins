@@ -224,6 +224,12 @@ class XAIProvider(VoiceProvider):
 
     name = "xai"
 
+    def __init__(self, model: str, *, send_raw: Callable[[dict[str, Any]], bool] | None = None) -> None:
+        super().__init__(model, send_raw=send_raw)
+        self._meta_lock = threading.Lock()
+        self._pending_meta: list[tuple[dict[str, Any] | None, float]] = []
+        self._response_meta: dict[str, dict[str, Any]] = {}
+
     def url(self) -> str:
         return f"wss://api.x.ai/v1/realtime?model={self.model}"
 
@@ -268,8 +274,41 @@ class XAIProvider(VoiceProvider):
                     "type": "message", "role": "user",
                     "content": [{"type": "input_text", "text": f"[system note] {text}"}]}}]
         if et == "response.create":
+            # xAI drops response.metadata, so the typed-turn request id never comes back. Remember it
+            # in send order and stamp it on the matching response.created/done (inbound).
+            metadata = (event.get("response") or {}).get("metadata")
+            with self._meta_lock:
+                now = time.monotonic()
+                self._pending_meta = [(m, t) for m, t in self._pending_meta if now - t < 30.0][-8:]
+                self._pending_meta.append((dict(metadata) if isinstance(metadata, dict) else None, now))
             return [{"type": "response.create"}]
         return [event]
+
+    def inbound(self, event: dict[str, Any]) -> list[dict[str, Any]]:
+        et = event.get("type")
+        if et not in {"response.created", "response.done"}:
+            return [event]
+        response = event.get("response")
+        if not isinstance(response, dict) or response.get("metadata"):
+            return [event]
+        rid = str(response.get("id") or "")
+        with self._meta_lock:
+            if et == "response.created":
+                metadata = self._pending_meta.pop(0)[0] if self._pending_meta else None
+                if rid and metadata:
+                    self._response_meta[rid] = metadata
+                    while len(self._response_meta) > 64:
+                        self._response_meta.pop(next(iter(self._response_meta)))
+            else:
+                metadata = self._response_meta.pop(rid, None) if rid else None
+        if not metadata:
+            return [event]
+        return [{**event, "response": {**response, "metadata": metadata}}]
+
+    def reset(self) -> None:
+        with self._meta_lock:
+            self._pending_meta = []
+            self._response_meta = {}
 
 
 class TranscriptBurst:
