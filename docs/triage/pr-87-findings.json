@@ -2043,7 +2043,7 @@
     "workflow": {
       "stage": "plan_fix",
       "updated_at": "2026-11-14T12:29:53Z",
-      "now": "2026-11-14T12:29:53Z — Plan recorded"
+      "now": "2026-11-14T12:29:53Z — Fix in progress"
     },
     "rollover": {
       "source_pr": 107,
