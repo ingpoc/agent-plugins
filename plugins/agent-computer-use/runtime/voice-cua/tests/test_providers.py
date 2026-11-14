@@ -485,6 +485,65 @@ class LiveSessionLoopTests(_Rows):
         self.assertEqual(s._reconnect_context["last_result"], "Calendar is open.")
         self.assertIn("do not ask the user to restate it", s.reconnect_note(comet_active=False))
 
+    def test_reconnect_replays_accumulated_turns_without_server_history(self) -> None:
+        s = live_session()
+        with patch("voice_cua.tools.note_user_turn"):
+            first = s._note_user_turn("Remember marker EARLY-TASK-110", request_id="1" * 32)
+            s._note_response_done({
+                "id": "response-1", "status": "completed",
+                "metadata": {"voice_cua_request_id": first},
+                "output": [{"type": "message", "content": [{"type": "output_text", "text": "Marker recorded."}]}],
+            })
+            second = s._note_user_turn("Check the current branch", request_id="2" * 32)
+            s._note_response_done({
+                "id": "response-2", "status": "completed",
+                "metadata": {"voice_cua_request_id": second},
+                "output": [{"type": "message", "content": [{"type": "output_text", "text": "Branch checked."}]}],
+            })
+
+        self.assertEqual(s.provider.history, [])
+        s._prepare_reconnect()
+        s._conn_epoch = 1
+        notes = []
+        with patch.object(s, "_send"), patch.object(s, "_send_system_note", side_effect=notes.append), \
+                patch("voice_cua.live_session.comet_is_active", return_value=False), \
+                patch("voice_cua.live_session.island_publish"):
+            s._on_open(s.ws)
+
+        self.assertEqual(len(notes), 1)
+        self.assertIn("EARLY-TASK-110", notes[0])
+        self.assertIn("Check the current branch => Branch checked.", notes[0])
+
+    def test_late_retired_turn_response_cannot_bind_or_settle_new_turn(self) -> None:
+        s = live_session()
+        old_waiter = {"event": threading.Event(), "reply": "", "error": "", "typed_turn_id": "typed-old"}
+        with s._response_lock:
+            s._text_waiters["old-request"] = old_waiter
+            s._typed_turn_ids_by_request["old-request"] = "typed-old"
+            s._response_request_ids["old-response"] = "old-request"
+            s._response_task_run_ids["old-response"] = "old-request"
+        s._finish_response("old-response")
+        s._retire_text_waiter("old-request")
+
+        new_waiter = {"event": threading.Event(), "reply": "", "error": "", "typed_turn_id": "typed-new"}
+        with s._response_lock:
+            s._text_waiters["new-request"] = new_waiter
+            s._typed_turn_ids_by_request["new-request"] = "typed-new"
+        self.assertIn("old-request", s._retired_request_ids)
+        self.assertIn("old-response", s._retired_response_ids)
+
+        s._on_message(s.ws, json.dumps({"type": "response.created", "response": {
+            "id": "late-response", "metadata": {"voice_cua_request_id": "old-request"},
+        }}))
+        s._on_message(s.ws, json.dumps({"type": "response.done", "response": {
+            "id": "old-response", "status": "completed",
+            "output": [{"type": "message", "content": [{"type": "output_text", "text": "Old reply."}]}],
+        }}))
+
+        self.assertNotIn("late-response", s._response_typed_turn_ids)
+        self.assertFalse(new_waiter["event"].is_set())
+        self.assertEqual(new_waiter["reply"], "")
+
     def test_broken_request_id_binds_typed_confirm_and_final_response(self) -> None:
         from contextlib import nullcontext
 
