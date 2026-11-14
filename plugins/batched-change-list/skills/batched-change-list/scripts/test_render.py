@@ -88,21 +88,42 @@ class RenderTests(unittest.TestCase):
         self.assertIn("const detail=node('details',null,'evidence')", template)
 
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
-    def test_poll_signature_is_stable_for_identical_page_content(self):
+    def test_fingerprint_poll_reloads_once_only_after_change_and_preserves_view(self):
         template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
-        signature = next(line for line in template.splitlines() if line.startswith('const pageContentSignature='))
-        # Baseline comes from the first fetched copy, never the live DOM: page JS rewrites
-        # <time data-relative> inside .workflow, so a live-DOM baseline reloads on every poll.
-        self.assertNotIn('pageContentSignature(document)', template)
-        self.assertIn('(original??=pageContentSignature(next))!==pageContentSignature(next)', template)
-        program = signature + """
-const page=(data,run,workflow,build,tracking)=>({
- getElementById(id){return {textContent:id==='findings-data'?data:run}},
- querySelector(selector){return {outerHTML:({'.workflow':workflow,'.header-build':build,'.tracking':tracking})[selector]}}
+        save_view = next(line for line in template.splitlines() if line.startswith('const saveView='))
+        refresh = next(line for line in template.splitlines() if line.startswith("if(location.protocol==='http:'"))
+        self.assertIn("method:'HEAD'", refresh)
+        self.assertIn('setInterval(refresh,5000)', refresh)
+        self.assertNotIn("fetch(location.href,{cache:'no-store'})", refresh)
+        program = """
+let etag='one', reloads=0, saved=null, poll;
+const search={value:'query',selectionStart:2,selectionEnd:4};
+const evidence={open:true,querySelector(){return null}};
+const document={hidden:false,activeElement:search};
+const location={protocol:'http:',href:'http://example.test/',hash:'',reload(){reloads++}};
+const history={replaceState(_state,_title,hash){location.hash=hash}};
+const selected={hash:'#ISSUE-01'};
+const nav={querySelector(){return selected}};
+const panel={querySelector(){return evidence}};
+const window={scrollX:12,scrollY:345};
+const sessionStorage={setItem(_key,value){saved=value}};
+const run={status:'complete'};
+const fetch=async()=>({ok:true,headers:{get(){return etag}}});
+const setInterval=fn=>{poll=fn};
+""" + save_view + "\n" + refresh + "\n" + """
+setImmediate(async()=>{
+ await poll();
+ if(reloads!==0)process.exit(1);
+ await poll();
+ if(reloads!==0)process.exit(2);
+ etag='two';
+ await poll();
+ if(reloads!==1)process.exit(3);
+ await poll();
+ if(reloads!==1)process.exit(4);
+ const state=JSON.parse(saved);
+ if(location.hash!=='#ISSUE-01'||state.y!==345||state.x!==12||state.query!=='query'||!state.details)process.exit(5);
 });
-const original=pageContentSignature(page('findings','run','workflow','build','tracking'));
-if(pageContentSignature(page('findings','run','workflow','build','tracking'))!==original)process.exit(1);
-if(pageContentSignature(page('findings','run','workflow','build','changed'))===original)process.exit(2);
 """
         subprocess.run(['node', '-e', program], check=True)
 

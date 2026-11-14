@@ -37,6 +37,46 @@ class ServerTests(unittest.TestCase):
                     server.shutdown()
                     thread.join()
 
+    def test_data_fingerprint_is_stable_and_tracks_tracker_and_inventory_without_rendering_head(self):
+        example = Path(__file__).parents[1] / 'examples/findings.json'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            page, data, inventory = root / 'report.html', root / 'findings.json', root / 'inventory.json'
+            page.write_text('fallback')
+            document = json.loads(example.read_text())
+            data.write_text(json.dumps(document))
+            inventory.write_text(json.dumps({'versions': {'batched-change-list':'0.1.14'},
+                                             'observed_at':'2026-11-14T07:55:00Z','source':'test inventory'}))
+            with patch.object(server_module.RENDERER, 'render', wraps=server_module.RENDERER.render) as render:
+                with HTTPServer(('127.0.0.1', 0), server_module.handler_for(page, data, inventory)) as server:
+                    thread = threading.Thread(target=server.serve_forever, daemon=True)
+                    thread.start()
+                    url = f'http://127.0.0.1:{server.server_port}/'
+                    def etag():
+                        with urlopen(Request(url, method='HEAD')) as response:
+                            return response.headers['ETag']
+                    try:
+                        first = etag()
+                        self.assertEqual(etag(), first)
+                        render.assert_not_called()
+                        document['title'] += ' updated'
+                        data.write_text(json.dumps(document))
+                        tracker_changed = etag()
+                        self.assertNotEqual(tracker_changed, first)
+                        inventory.write_text(json.dumps({'versions': {'batched-change-list':'0.1.15'},
+                                                         'observed_at':'2026-11-14T07:56:00Z','source':'test inventory'}))
+                        inventory_changed = etag()
+                        self.assertNotEqual(inventory_changed, tracker_changed)
+                        render.assert_not_called()
+                        with urlopen(url) as response:
+                            body = response.read().decode()
+                            self.assertEqual(response.headers['ETag'], inventory_changed)
+                        self.assertIn('<strong>0.1.15</strong>', body)
+                        render.assert_called_once()
+                    finally:
+                        server.shutdown()
+                        thread.join()
+
     def test_live_source_discovers_installed_version_without_inventory_file(self):
         example = Path(__file__).parents[1] / 'examples/findings.json'
         with tempfile.TemporaryDirectory() as directory:
@@ -44,7 +84,7 @@ class ServerTests(unittest.TestCase):
             page, data = root / 'report.html', root / 'findings.json'
             page.write_text('fallback')
             data.write_text(example.read_text())
-            inventory = {'versions': {'batched-change-list':'0.1.13'},
+            inventory = {'versions': {'batched-change-list':'0.1.14'},
                          'sources': {'batched-change-list':'agents plugins'},
                          'observed_at':'2026-11-14T07:55:00+00:00','source':'installed copies'}
             with patch.object(server_module.RENDERER, 'discover_installed_plugins', return_value=inventory) as discover:
@@ -56,7 +96,7 @@ class ServerTests(unittest.TestCase):
                             content = response.read().decode()
                         self.assertIn('Live, read from installed copies at render time', content)
                         self.assertIn('agents plugins', content)
-                        self.assertIn('<strong>0.1.13</strong>', content)
+                        self.assertIn('<strong>0.1.14</strong>', content)
                         discover.assert_called_once()
                     finally:
                         server.shutdown()

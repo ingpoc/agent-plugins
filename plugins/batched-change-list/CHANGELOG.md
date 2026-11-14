@@ -1,5 +1,9 @@
 # Changelog: batched-change-list
 
+## 0.1.14
+
+- The live viewer fingerprints tracker and inventory inputs instead of rendered timestamps, so HEAD polls stay stable while those inputs are unchanged. Reload only after the fingerprint changes and preserve the selected issue and view position.
+
 ## 0.1.13
 
 - Installed plugin versions are discovered from package manifests at live render time; stored versions remain labeled `As recorded` only when discovery cannot find that plugin.

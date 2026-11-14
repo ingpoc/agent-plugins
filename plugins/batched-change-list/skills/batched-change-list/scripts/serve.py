@@ -14,6 +14,28 @@ RENDERER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RENDERER)
 
 
+def response_state(page, data=None, inventory=None):
+    if data is None:
+        content = page.read_bytes()
+        return hashlib.sha256(content).hexdigest(), content
+    tracker_bytes = data.read_bytes()
+    document = json.loads(tracker_bytes)
+    current = datetime.now(timezone.utc)
+    if inventory:
+        inventory_bytes = inventory.read_bytes()
+        installed = json.loads(inventory_bytes)
+        if not isinstance(installed, dict):
+            raise ValueError("inventory must be a JSON object")
+        inventory_fingerprint = inventory_bytes
+    else:
+        installed = RENDERER.discover_installed_plugins(now=current)
+        inventory_fingerprint = json.dumps(
+            {"versions": installed.get("versions", {}), "sources": installed.get("sources", {})},
+            sort_keys=True, separators=(",", ":")).encode("utf-8")
+    digest = hashlib.sha256(tracker_bytes + b"\0" + inventory_fingerprint + b"\0" + RENDERER.TEMPLATE.read_bytes()).hexdigest()
+    return digest, (document, installed, current)
+
+
 def handler_for(page, data=None, inventory=None):
     class Handler(BaseHTTPRequestHandler):
         def do_HEAD(self):
@@ -27,23 +49,20 @@ def handler_for(page, data=None, inventory=None):
                 self.send_error(404)
                 return
             try:
-                if data is None:
-                    content = page.read_bytes()
-                else:
-                    document = json.loads(data.read_text(encoding='utf-8'))
-                    current = datetime.now(timezone.utc)
-                    installed = RENDERER.load_inventory(inventory) if inventory else RENDERER.discover_installed_plugins(now=current)
-                    content = RENDERER.render(document, data.resolve().parent, installed, current).encode('utf-8')
-            except (OSError, ValueError, json.JSONDecodeError):
+                fingerprint, state = response_state(page, data, inventory)
+                content = (state if data is None else
+                           RENDERER.render(state[0], data.resolve().parent, state[1], state[2]).encode('utf-8')) if body else None
+            except (OSError, ValueError, UnicodeError, json.JSONDecodeError):
                 self.send_error(503, 'Report unavailable')
                 return
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Cache-Control', 'no-store')
-            self.send_header('ETag', '"' + hashlib.sha256(content).hexdigest() + '"')
-            self.send_header('Content-Length', str(len(content)))
+            self.send_header('ETag', '"' + fingerprint + '"')
+            if content is not None:
+                self.send_header('Content-Length', str(len(content)))
             self.end_headers()
-            if body:
+            if body and content is not None:
                 self.wfile.write(content)
 
     return Handler
