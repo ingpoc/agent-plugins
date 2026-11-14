@@ -17,6 +17,8 @@ SOURCES = {"User reported", "User requested", "Agent reported", "Telemetry lead"
 CHECK_STATES = {"pending", "checking", "fixed", "not_fixed", "blocked", "inconclusive"}
 WORKFLOW_STAGES = {"collect": "Collect", "present": "Present", "plan_fix": "Plan & fix", "install": "Install", "verify": "Verify", "introspect": "Introspect", "gate": "Fixes", "report_rollover": "Report & roll over"}
 DEFAULT_ROLLOVER_THRESHOLD = 15
+AGENT_COLLECTION_PLUGINS = ("agent-computer-use", "batched-change-list", "comet-control",
+                            "context-ledger", "developer-observability")
 TEMPLATE = Path(__file__).resolve().parent.parent / "templates/change-list.html"
 
 
@@ -184,7 +186,15 @@ def render_plan(data, tracking, plan, round_number, now):
         dl = "".join(f'<dt>{html.escape(k)}</dt><dd>{html.escape(str(v))}</dd>' for k,v in details if v)
         rows.append(f'<details class="grp {state}"><summary><span class="g-id">{html.escape(str(group.get("id", "?")))}</span><span class="g-name">{name}{dependency}</span><span class="g-meta"><span class="g-chips">{"".join(chips)}</span><span class="g-min">{html.escape(duration)}</span><span class="g-model">{html.escape(model or "—")}</span><span class="g-verify">{html.escape(verify_text)}</span></span><span class="pill {state}">{labels[state]}</span><svg class="chev" viewBox="0 0 14 14" aria-hidden="true"><path d="m5 2 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></summary><dl class="g-detail">{dl}</dl></details>')
     noun = "group" if len(groups) == 1 else "groups"
-    return f'<div class="plan"><div class="plan-head"><span><strong>Round {round_number}</strong> · {len(groups)} {noun} in parallel · then merge → build → verify</span><span class="plan-tally">{html.escape(tally)}</span></div><div class="plan-rows">{"".join(rows)}{render_plan_tail(plan, tracking)}</div></div>'
+    head = f'<strong>Round {round_number}</strong> · {len(groups)} {noun} in parallel'
+    if tally:
+        head += f' · {html.escape(tally)}'
+    pr = tracking.get("pull_request") if isinstance(tracking.get("pull_request"), dict) else {}
+    match = re.search(r"/pull/(\d+)", str(pr.get("url") or ""))
+    plan_key = match.group(1) if match else (tracking.get("worktree") if isinstance(tracking.get("worktree"), str) and tracking.get("worktree") else "round")
+    return (f'<details class="plan" id="round-plan" data-plan-key="{html.escape(str(plan_key), quote=True)}">'
+            f'<summary class="plan-head">{head}</summary>'
+            f'<div class="plan-rows">{"".join(rows)}{render_plan_tail(plan, tracking)}</div></details>')
 
 
 def render_plan_tail(plan, tracking):
@@ -235,19 +245,6 @@ def render_workflow(active, fixed, threshold, gate_met, round_number):
             f'<li class="wf-post"><ol>{post}</ol></li></ol>')
 
 
-# Tooling and process prefixes do not count toward the rollover gate and do not keep it open.
-GATE_EXCLUDE_PREFIXES = ("WF", "BCL", "PAGE", "TRACK", "FLOW", "PLAN", "RUN", "HOOK", "TEST")
-
-
-def gate_prefix(item_id):
-    return str(item_id or "").split("-", 1)[0]
-
-
-def counts_toward_gate(item, excluded, prefixes):
-    identifier = item.get("id")
-    return isinstance(identifier, str) and identifier not in excluded and gate_prefix(identifier) not in prefixes
-
-
 def rollover_gate(findings, tracking):
     threshold = tracking.get("rollover_threshold", DEFAULT_ROLLOVER_THRESHOLD)
     if type(threshold) is not int or threshold < 1:
@@ -259,15 +256,12 @@ def rollover_gate(findings, tracking):
     if not isinstance(excluded, list) or any(not isinstance(item_id, str) for item_id in excluded):
         raise ValueError("tracking.rollover.excluded_ids must be a list of finding IDs")
     excluded = set(excluded)
-    prefixes = rollover.get("gate_exclude_prefixes", list(GATE_EXCLUDE_PREFIXES))
-    if not isinstance(prefixes, list) or any(not isinstance(item, str) or not item for item in prefixes):
-        raise ValueError("tracking.rollover.gate_exclude_prefixes must be a list of nonempty prefix strings")
-    prefixes = tuple(prefixes)
-    counted = [item for item in findings if counts_toward_gate(item, excluded, prefixes)]
+    counted = [item for item in findings if isinstance(item.get("id"), str) and item["id"] not in excluded]
     fixed = sum(item.get("status") == "verified_fixed" for item in counted)
     has_open = any(item.get("status") not in ("verified_fixed", "closed") for item in counted)
     # A count at or above the threshold is always met; never render N of 15 as not met when N >= 15.
     return fixed, threshold, fixed >= threshold or not has_open
+
 
 
 def required_text(value, field):
@@ -356,18 +350,17 @@ def discover_installed_plugins(roots=None, now=None):
 def render_tracking(tracking, inventory_override=None):
     if not isinstance(tracking, dict):
         raise ValueError("tracking must be an object")
-    parts = []
+    context = []
     pull_request = tracking.get("pull_request")
     if pull_request is not None:
         if not isinstance(pull_request, dict):
             raise ValueError("tracking.pull_request must be an object")
         label = html.escape(required_text(pull_request.get("label"), "tracking.pull_request.label"))
         url = html.escape(safe_link(pull_request.get("url"), "tracking.pull_request.url"), quote=True)
-        parts.append(f'<a class="tracking-item" href="{url}"><span class="tracking-label">Pull request</span><strong>{label}</strong></a>')
+        context.append(f'<a class="header-pr" href="{url}">{label}</a>')
     worktree = tracking.get("worktree")
     if worktree is not None:
-        label = html.escape(required_text(worktree, "tracking.worktree"))
-        parts.append(f'<div class="tracking-item"><span class="tracking-label">Worktree</span><strong>{label}</strong></div>')
+        context.append(f'<span class="header-worktree">{html.escape(required_text(worktree, "tracking.worktree"))}</span>')
     run = tracking.get("verification_run")
     build_card = ""
     if run is not None:
@@ -380,7 +373,6 @@ def render_tracking(tracking, inventory_override=None):
         build = html.escape(run["build"])
         revision = html.escape(run["revision"])
         installed = html.escape(run["installed_at"])
-        build_card = f'<div class="tracking-item"><span class="tracking-label">Verification build</span><strong>{build} · {revision}</strong><span>Run installed {installed} · {run["status"]}</span></div>'
     recorded_inventory = inventory_override is None and tracking.get("installed_plugins") is not None
     inventory = inventory_override if inventory_override is not None else tracking.get("installed_plugins")
     if inventory_override is not None and not isinstance(inventory_override, dict):
@@ -401,26 +393,44 @@ def render_tracking(tracking, inventory_override=None):
     if inventory is not None:
         if not isinstance(inventory, dict) or not isinstance(inventory.get("versions"), dict):
             raise ValueError("tracking.installed_plugins requires versions")
-        observed = html.escape(required_text(inventory.get("observed_at"), "installed_plugins.observed_at"))
-        source = html.escape(required_text(inventory.get("source"), "installed_plugins.source"))
-        versions = []
+        observed = required_text(inventory.get("observed_at"), "installed_plugins.observed_at")
+        source = required_text(inventory.get("source"), "installed_plugins.source")
         recorded_versions = inventory.get("recorded_versions", {})
         sources = inventory.get("sources", {})
+        chips = []
         for name, version in inventory["versions"].items():
-            label = ' <small>As recorded</small>' if name in recorded_versions else f' <small>{html.escape(sources[name])}</small>' if name in sources else ''
-            versions.append(f'<span>{html.escape(required_text(name, "plugin name"))} <strong>{html.escape(required_text(version, "plugin version"))}</strong>{label}</span>')
-        if not versions:
-            versions.append("<span>No plugin versions recorded</span>")
-        detail_rows = []
+            required_text(name, "plugin name")
+            required_text(version, "plugin version")
+            if name not in AGENT_COLLECTION_PLUGINS:
+                continue
+            tip = []
+            if name in recorded_versions or recorded_inventory:
+                tip.append("As recorded")
+            elif name in sources:
+                tip.append(str(sources[name]))
+            tip.append(f"Inventory checked {observed} · {source}")
+            chips.append(f'<span class="plugin-chip" title="{html.escape(" · ".join(tip), quote=True)}">{html.escape(name)} {html.escape(version)}</span>')
+        tips = [f"Inventory checked {observed} · {source}"]
         if run is not None:
-            detail_rows.append(f'<p>Verification run: {build} · {revision}<br>Installed {installed} · {run["status"]}</p>')
-        detail_rows.append(f'<p>Inventory checked {observed} · {source}</p>')
-        inventory_note = "As recorded" if recorded_inventory else "Live, read from installed copies at render time" if sources else "Inventory supplied at render time"
-        build_card = (f'<div class="tracking-item"><span class="tracking-label">Installed plugins</span>'
-                     f'<div class="plugin-versions">{"".join(versions)}</div><span class="inventory-note">{inventory_note}</span>'
-                     f'<details class="build-details"><summary>Build details</summary>{"".join(detail_rows)}</details></div>')
-    summary = '<div class="tracking" aria-label="Pull request and worktree">' + "".join(parts) + "</div>" if parts else ""
-    return summary, build_card
+            tips.insert(0, f"Verification run: {build} · {revision}, installed {installed} · {run['status']}")
+        context_html = (' · '.join(context)) if context else ""
+        context_line = f'<p class="header-context">{context_html}</p>' if context_html else ""
+        chips_html = f'<div class="plugin-chips">{"".join(chips)}</div>' if chips else ""
+        title = html.escape(" · ".join(tips), quote=True)
+        if context_line or chips_html:
+            build_card = f'<div class="header-meta" title="{title}">{context_line}{chips_html}</div>'
+        context = []  # consumed into the header
+    if not build_card and (context or run is not None):
+        tips = []
+        if run is not None:
+            tips.append(f"Verification run: {build} · {revision}, installed {installed} · {run['status']}")
+        context_html = ' · '.join(context)
+        context_line = f'<p class="header-context">{context_html}</p>' if context_html else ""
+        title = html.escape(" · ".join(tips), quote=True) if tips else ""
+        attr = f' title="{title}"' if title else ""
+        if context_line:
+            build_card = f'<div class="header-meta"{attr}>{context_line}</div>'
+    return "", build_card
 
 
 def render(data, base, inventory_override=None, now=None, viewer=None):

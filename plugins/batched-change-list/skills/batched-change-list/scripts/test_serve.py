@@ -71,7 +71,7 @@ class ServerTests(unittest.TestCase):
                         with urlopen(url) as response:
                             body = response.read().decode()
                             self.assertEqual(response.headers['ETag'], inventory_changed)
-                        self.assertIn('<strong>0.1.16</strong>', body)
+                        self.assertIn('batched-change-list 0.1.16', body)
                         render.assert_called_once()
                     finally:
                         server.shutdown()
@@ -94,9 +94,9 @@ class ServerTests(unittest.TestCase):
                     try:
                         with urlopen(f'http://127.0.0.1:{server.server_port}/') as response:
                             content = response.read().decode()
-                        self.assertIn('Live, read from installed copies at render time', content)
+                        self.assertIn('Inventory checked', content)
                         self.assertIn('agents plugins', content)
-                        self.assertIn('<strong>0.1.16</strong>', content)
+                        self.assertIn('batched-change-list 0.1.16', content)
                         discover.assert_called_once()
                     finally:
                         server.shutdown()
@@ -119,8 +119,8 @@ class ServerTests(unittest.TestCase):
                 try:
                     with urlopen(f'http://127.0.0.1:{server.server_port}/') as response:
                         content = response.read().decode()
-                    self.assertIn('Inventory supplied at render time', content)
-                    self.assertIn('<strong>0.1.3</strong>', content)
+                    self.assertIn('Inventory checked', content)
+                    self.assertIn('batched-change-list 0.1.3', content)
                 finally:
                     server.shutdown()
                     thread.join()

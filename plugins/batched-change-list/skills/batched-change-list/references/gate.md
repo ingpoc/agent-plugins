@@ -1,11 +1,6 @@
 # Gate
 
-The gate counts `verified_fixed` findings on **this list** that block rollover. A finding counts only when:
-
-- it is not in `tracking.rollover.excluded_ids`, and
-- its id prefix is not a process or page-tool prefix: `WF`, `BCL`, `PAGE`, `TRACK`, `FLOW`, `PLAN`, `RUN`, `HOOK`, or `TEST` (override with `tracking.rollover.gate_exclude_prefixes` only when a list needs a different rule).
-
-Product prefixes such as `AGENT`, `OBS`, `ISLAND`, and `ISSUE` count. Open process or page-tool items do not keep the gate open, and their verified fixes do not inflate the count.
+The gate counts every `verified_fixed` finding on **this list** that is not in `tracking.rollover.excluded_ids`. Process and page-tool prefixes such as `WF`, `BCL`, `PAGE`, `TRACK`, `FLOW`, `PLAN`, `RUN`, `HOOK`, and `TEST` count the same as product prefixes. Their open items keep the gate open, and their verified fixes add to the count.
 
 The threshold is `tracking.rollover_threshold` (default 15). The gate is met when the counted verified-fixed total is at least the threshold, or when no counted findings remain open. A count at or above the threshold is always met; never render `N of 15` as not met when `N >= 15`.
 

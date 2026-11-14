@@ -10,7 +10,7 @@ Adopt the in-repo tracker once with `bcl --data FINDINGS.json adopt`. The live f
 
 When adding a finding, write `summary`, `impact`, and `done_when` in plain words. Put commands, SHAs, counts, timestamps, and log quotes in `observed` or `details`.
 
-Collect and Present run once; then loop Plan & fix → Install → Verify → (full cycle) Introspect → Gate. `tracking.round` starts at 1 and increments when the gate loops back; `tracking.cycle` advances only on PR rollover. The gate counts `verified_fixed` findings on this list that are not in `tracking.rollover.excluded_ids` and do not use process prefixes (WF, BCL, PAGE, TRACK, FLOW, PLAN, RUN, HOOK, TEST). Default threshold is 15 (`tracking.rollover_threshold`).
+Collect and Present run once; then loop Plan & fix → Install → Verify → (full cycle) Introspect → Gate. `tracking.round` starts at 1 and increments when the gate loops back; `tracking.cycle` advances only on PR rollover. The gate counts every `verified_fixed` finding on this list that is not in `tracking.rollover.excluded_ids`, including WF- and other page-tool prefixes. Default threshold is 15 (`tracking.rollover_threshold`).
 
 | Step | `bcl` command | Load this file | Trigger |
 | --- | --- | --- | --- |

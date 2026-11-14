@@ -24,11 +24,44 @@ class RenderTests(unittest.TestCase):
         self.assertNotIn('setInterval(formatPageTimes', page)
         for marker in ('class="wf"', 'class="wf-band gate-pending"', 'class="wf-loop"', 'wf-gate', 'class="grp running"', 'class="tail"', 'after A', 'href="#ISSUE-01"', 'title="'):
             self.assertIn(marker, page)
+        self.assertIn('<details class="plan" id="round-plan" data-plan-key="round">', page)
+        self.assertNotIn('id="round-plan" open', page)
+        self.assertNotIn('id="round-plan" open=', page)
+        self.assertIn('<summary class="plan-head"><strong>Round 1</strong> · 2 groups in parallel · 1 running · 1 planned</summary>', page)
+        self.assertLess(page.index('</summary>'), page.index('class="plan-rows"'))
+        self.assertLess(page.index('class="plan-rows"'), page.index('class="tail"'))
+        self.assertIn("localStorage.getItem(key)==='1'", page)
+        self.assertIn('change-list-plan-open:', page)
         self.assertNotIn('plan-merge', page)
         self.assertIn('Fixing', page)
         self.assertIn('Planned', page)
         self.assertIn('No fix plan for Round 1 yet.', renderer.render({**self.data, 'tracking':{'workflow':{'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}}}, self.base))
         self.assertNotIn('class="plan-rows"', renderer.render({**self.data, 'tracking':{}}, self.base))
+
+    @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
+    def test_plan_open_state_is_kept_in_local_storage(self):
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        start = template.index("(function(){const plan=document.getElementById('round-plan')")
+        end = template.index("})();", start) + 5
+        hook = template[start:end]
+        program = """
+const store={};
+const localStorage={getItem(k){return Object.prototype.hasOwnProperty.call(store,k)?store[k]:null},setItem(k,v){store[k]=String(v)}};
+const listeners={};
+const plan={open:false,getAttribute(name){return name==='data-plan-key'?'110':null},addEventListener(type,fn){listeners[type]=fn}};
+const document={getElementById(id){return id==='round-plan'?plan:null}};
+""" + hook + """
+if(plan.open)process.exit(1);
+listeners.toggle();
+if(store['change-list-plan-open:110']!=='0')process.exit(2);
+plan.open=true;
+listeners.toggle();
+if(store['change-list-plan-open:110']!=='1')process.exit(3);
+plan.open=false;
+""" + hook + """
+if(!plan.open)process.exit(4);
+"""
+        subprocess.run(['node', '-e', program], check=True)
 
     def test_compact_plan_labels_duration_status_details_and_fallbacks(self):
         data = copy.deepcopy(self.data)
@@ -184,14 +217,16 @@ setImmediate(async()=>{
         data['tracking'] = {'installed_plugins': {'versions': {'batched-change-list':'0.1.2'},
                                                   'observed_at':'2026-11-10T00:00:00Z','source':'saved inventory'}}
         page = renderer.render(data, Path(__file__).parents[1])
+        self.assertIn('batched-change-list 0.1.2', page)
         self.assertIn('As recorded', page)
-        self.assertIn('0.1.2', page)
         inventory = {'versions': {'batched-change-list':'0.1.3'},
                      'observed_at':'2026-11-10T01:00:00Z','source':'live inventory'}
         page = renderer.render(data, Path(__file__).parents[1], inventory)
-        self.assertIn('Inventory supplied at render time', page)
-        self.assertIn('0.1.3', page)
-        self.assertNotIn('<strong>0.1.2</strong>', page)
+        self.assertIn('batched-change-list 0.1.3', page)
+        self.assertIn('Inventory checked', page)
+        self.assertNotIn('batched-change-list 0.1.2', page)
+        self.assertNotIn('Inventory supplied at render time', page)
+        self.assertNotIn('Live, read from installed copies at render time', page)
 
     def test_workflow_times_render_localization_hooks_and_now_line(self):
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
@@ -299,13 +334,20 @@ setImmediate(async()=>{
             'installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt','status':'complete',
             'checks': {'ISSUE-01': {'state':'inconclusive','evidence':'unknown','finished_at':'now'},
                        'ISSUE-02': {'state':'fixed','evidence':'passed','finished_at':'now'}}},
-            'installed_plugins': {'observed_at':'today','source':'manifests','versions': {'ACU':'2','Ledger':'3'}}}
+            'installed_plugins': {'observed_at':'today','source':'manifests','versions': {
+                'batched-change-list':'0.1.17','agent-computer-use':'2','pstack':'9','remotion':'4','irctc-train-booking':'1'}}}
         page = renderer.render(self.data, self.base)
+        self.assertIn('class="plugin-chip"', page)
+        self.assertIn('batched-change-list 0.1.17', page)
+        self.assertIn('agent-computer-use 2', page)
+        self.assertNotIn('pstack', page)
+        self.assertNotIn('remotion', page)
+        self.assertNotIn('irctc-train-booking', page)
+        self.assertNotIn('Installed plugins', page)
+        self.assertNotIn('Build details', page)
         self.assertIn('ACU 1 · abc', page)
-        self.assertIn('Installed plugins', page)
-        self.assertIn('Build details', page)
-        self.assertIn('Ledger <strong>3</strong>', page)
-        self.assertLess(page.index('Installed plugins'), page.index('</header>'))
+        self.assertLess(page.index('class="header-meta"'), page.index('</header>'))
+        self.assertLess(page.index('plugin-chips'), page.index('</header>'))
         self.assertNotIn('{{BUILD_CARD}}', page)
 
     def test_valid_and_safe_serialization(self):
@@ -383,10 +425,15 @@ setImmediate(async()=>{
         self.assertIn("body{margin:0;background:var(--page);color:var(--ink)", page)
         self.assertIn('href="https://cursor.com/pr/87"', page)
         self.assertIn("PR #87 &lt;triage&gt;", page)
-        self.assertIn('<span class="tracking-label">Pull request</span>', page)
-        self.assertIn('<span class="tracking-label">Worktree</span>', page)
+        self.assertIn('class="header-pr"', page)
+        self.assertIn('class="header-worktree"', page)
         self.assertIn("codex-samantha-issues-20261105", page)
-        self.assertIn('class="tracking"', page)
+        self.assertIn('class="header-meta"', page)
+        self.assertLess(page.index('header-context'), page.index('</header>'))
+        self.assertGreater(page.index('</header>'), page.index('header-worktree'))
+        self.assertNotIn('class="tracking"', page)
+        self.assertNotIn('class="tracking-label"', page)
+        self.assertNotIn('<span class="tracking-label">', page)
         self.data["tracking"]["pull_request"]["url"] = "javascript:alert(1)"
         with self.assertRaises(ValueError):
             renderer.render(self.data, self.base)
@@ -397,7 +444,6 @@ setImmediate(async()=>{
             'checks': {'ISSUE-01':{'state':'checking','started_at':'2026-11-06T00:00:00Z'},
                        'ISSUE-02':{'state':'pending'}}}}
         page = renderer.render(self.data, self.base)
-        self.assertIn('Verification build', page)
         self.assertIn('Checking this install', page)
         self.assertIn('prefers-reduced-motion:reduce', page)
         self.assertIn("item.status==='verified_fixed'", page)
@@ -441,12 +487,17 @@ setImmediate(async()=>{
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
         data['tracking'] = {'installed_plugins': {'versions': {'demo':'0.1.0', 'old-plugin':'3.0.0'},
             'observed_at':'2026-11-10T00:00:00Z','source':'saved inventory'}}
-        live = {'versions': {'demo':'0.2.0'}, 'sources': {'demo':'agents plugins'},
+        data['tracking'] = {'installed_plugins': {'versions': {'batched-change-list':'0.1.0', 'pstack':'3.0.0', 'context-ledger':'3.0.0'},
+            'observed_at':'2026-11-10T00:00:00Z','source':'saved inventory'}}
+        live = {'versions': {'batched-change-list':'0.2.0', 'pstack':'4.0.0'}, 'sources': {'batched-change-list':'agents plugins', 'pstack':'agents plugins'},
                 'observed_at':'2026-11-14T07:55:00+00:00','source':'installed copies'}
         page = renderer.render(data, Path(__file__).parents[1], live)
-        self.assertIn('<strong>0.2.0</strong>', page)
+        self.assertIn('batched-change-list 0.2.0', page)
         self.assertIn('agents plugins', page)
-        self.assertIn('<strong>3.0.0</strong> <small>As recorded</small>', page)
+        self.assertIn('context-ledger 3.0.0', page)
+        self.assertIn('As recorded', page)
+        self.assertNotIn('pstack', page)
+        self.assertNotIn('batched-change-list 0.1.0', page)
 
     def test_now_argument_formats_both_workflow_times_in_ist(self):
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
@@ -469,7 +520,7 @@ setImmediate(async()=>{
 
 
 
-    def test_gate_excludes_page_tool_prefixes_and_meets_at_threshold(self):
+    def test_gate_counts_all_prefixes_and_meets_at_threshold(self):
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
         data['tracking'] = {'workflow': {'stage':'gate','updated_at':'2026-11-14T07:00:00Z'},
                             'cycle':2,'round':2,'rollover_threshold':15}
@@ -478,7 +529,7 @@ setImmediate(async()=>{
             row.update(id=identifier, status=status, verification='Verified on the installed build.',
                        verification_refs=['Example receipt'])
             return row
-        # 8 product VF, 9 page-tool VF, leftover open product, plus a WF VF that must not count.
+        # 8 product VF, 9 page-tool VF, leftover open product, plus a WF VF: all 18 count, so the gate is met.
         data['findings'] = (
             [item(f'AGENT-{i:02d}') for i in range(1, 9)]
             + [item('PAGE-01'), item('PAGE-02'), item('TRACK-01'), item('FLOW-01'),
@@ -486,10 +537,16 @@ setImmediate(async()=>{
             + [item('AGENT-18', 'untested'), item('WF-07', 'verified_fixed')]
         )
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes 8 of 15', page)
+        self.assertIn('Fixes 18 of 15', page)
+        self.assertIn('class="wf-band gate-met"', page)
+        self.assertNotIn('class="wf-band gate-pending"', page)
+        # 14 VF with an open page-tool finding stays short of the threshold and is not met.
+        data['findings'] = [item(f'AGENT-{i:02d}') for i in range(1, 15)] + [item('PAGE-01', 'untested')]
+        page = renderer.render(data, Path(__file__).parents[1])
+        self.assertIn('Fixes 14 of 15', page)
         self.assertIn('class="wf-band gate-pending"', page)
         self.assertNotIn('class="wf-band gate-met"', page)
-        # 15 product VF with leftover open page-tool and WF items: met, never "not met".
+        # 15 product VF with leftover open page-tool and WF items: still met at the threshold.
         data['findings'] = (
             [item(f'AGENT-{i:02d}') for i in range(1, 16)]
             + [item('PAGE-01', 'untested'), item('BCL-01', 'failing'), item('WF-07', 'untested')]
@@ -516,6 +573,9 @@ setImmediate(async()=>{
                             ]}}
         page = renderer.render(data, self.base)
         self.assertIn('Round 2', page)
+        self.assertIn('<summary class="plan-head"><strong>Round 2</strong> · 2 groups in parallel · 1 partial · 1 verified</summary>', page)
+        self.assertIn('<details class="plan" id="round-plan"', page)
+        self.assertNotIn('id="round-plan" open', page)
         self.assertIn('class="grp partial"', page)
         self.assertIn('Partial', page)
         self.assertIn('class="grp verified"', page)

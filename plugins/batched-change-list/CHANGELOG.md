@@ -3,7 +3,9 @@
 - Store adopted trackers outside git, snapshot stage changes only in the home worktree, and add a non-merging freshness guard.
 - Start and restart a per-list live viewer from `bcl`; show viewer metadata in its live page footer.
 - Replace the plan display with compact, responsive group rows.
-- Count only product `verified_fixed` findings toward the 15-fix gate; process and page-tool prefixes (WF, BCL, PAGE, TRACK, FLOW, PLAN, RUN, HOOK, TEST) are excluded. A count at or above the threshold is always met.
+- Count every `verified_fixed` finding toward the 15-fix gate, including WF- Introspect records and page-tool prefixes; only `tracking.rollover.excluded_ids` are omitted. A count at or above the threshold is always met.
+- Put the linked PR, worktree, and installed agent-plugin chips in a compact top-right header block; hide non-collection plugins and drop the full-width tracking cards.
+- Collapse the round plan (summary, group rows, Once-per-round tail) under the workflow timeline in a native `<details>` that stays closed by default and remembers open/closed in `localStorage` across live reloads.
 - `bcl verify` and finding-status writes update each plan group's verify state to verified, failed, or partial with counts. Introspect closes the current plan.
 - `bcl introspect --sections` requires four headings (delete, simplify, optimize, automate), always creates one `verified_fixed` WF- task, and links code follow-ups as separate non-WF issues.
 - Compact `SKILL.md` to a per-step command table; workflow detail lives in per-step references plus `tracker.md` and `viewer.md`.
