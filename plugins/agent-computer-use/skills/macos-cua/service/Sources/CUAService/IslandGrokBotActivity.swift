@@ -40,8 +40,9 @@ enum IslandGrokBotActivity {
         name.components(separatedBy: " · ").first.map { $0.trimmingCharacters(in: .whitespaces) } ?? name
     }
 
-    static func rows(_ working: [(name: String, since: Date)], now: Date) -> [IslandAgent] {
-        working.map { bot in
+    static func rows(_ working: [(name: String, since: Date)], now: Date,
+                     heartbeats: [IslandHub.Entry] = []) -> [IslandAgent] {
+        let bots = working.map { bot in
             let age = max(0, Int(now.timeIntervalSince(bot.since)))
             var row = IslandAgent(id: "local:grok-bot:\(bot.name)", name: "Grok Bot", app: "Grok Bot",
                                   title: shortName(bot.name), status: "running",
@@ -50,6 +51,18 @@ enum IslandGrokBotActivity {
             row.tooltip = bot.name
             return row
         }
+        let jobs = heartbeats.compactMap { entry -> IslandAgent? in
+            guard entry.source == .grokBot, entry.agent.plugin == nil, entry.agent.status == "running",
+                  !entry.stale, now.timeIntervalSince(entry.updated) < entry.ttl else { return nil }
+            var row = entry.agent
+            row.elapsed_s = max(0, now.timeIntervalSince(entry.started))
+            row.last_seen_at = entry.updated.timeIntervalSince1970
+            if let meta = row.local_detail, !meta.isEmpty {
+                row.local_detail = meta + " · " + IslandCodexThreads.duration(Int(row.elapsed_s))
+            }
+            return row
+        }
+        return bots + jobs
     }
 }
 

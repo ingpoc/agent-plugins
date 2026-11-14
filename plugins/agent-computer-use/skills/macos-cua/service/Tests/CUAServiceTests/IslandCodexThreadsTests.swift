@@ -10,7 +10,7 @@ final class IslandCodexThreadsTests: XCTestCase {
     func testRolloutStateAndTimeouts() {
         let lines = """
         {"type":"response_item","payload":{"type":"task_complete"}}
-        {"type":"turn_context","payload":{"model":"gpt-6-luna","effort":"low"}}
+        {"type":"turn_context","payload":{"model":"gpt-6-luna","effort":"low","service_tier":"priority"}}
         {"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":3100000},"last_token_usage":{"total_tokens":620},"model_context_window":1000}}}
         {"type":"event_msg","payload":{"type":"task_started"}}
         """
@@ -20,6 +20,7 @@ final class IslandCodexThreadsTests: XCTestCase {
         XCTAssertEqual(result.tokens, 3_100_000)
         XCTAssertEqual(result.contextPercent, 62)
         XCTAssertEqual(IslandCodexThreads.productModelName(result.model), "Luna")
+        XCTAssertEqual(result.serviceTier, "priority")
         XCTAssertEqual(IslandCodexThreads.rolloutState(data, age: 601).state, "working", "liveState decides idle vs stopped")
         XCTAssertEqual(IslandCodexThreads.rolloutState(data, age: 1801).state, "idle")
         let done = Data("{\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\"}}".utf8)
@@ -88,6 +89,14 @@ final class IslandCodexThreadsTests: XCTestCase {
         XCTAssertEqual(rows.count, 1)
         XCTAssertEqual(rows.first?.status, "running")
         XCTAssertEqual(rows.first?.local_detail, "Luna · high · 1m")
+        thread.serviceTier = "priority"
+        XCTAssertEqual(IslandCodexThreads.rows(records: [thread], hosts: [host], now: now).first?.local_detail,
+                       "Luna · high · Fast · 1m")
+        for tier in ["default", "normal"] {
+            thread.serviceTier = tier
+            XCTAssertEqual(IslandCodexThreads.rows(records: [thread], hosts: [host], now: now).first?.local_detail,
+                           "Luna · high · 1m")
+        }
         thread.cwd = "/tmp/empty-probe"
         XCTAssertTrue(IslandCodexThreads.rows(records: [thread], hosts: [host], now: now).isEmpty)
     }
@@ -129,6 +138,20 @@ final class IslandCodexThreadsTests: XCTestCase {
         XCTAssertNil(IslandCodexThreads.readDatabase(path, immutable: false))
         XCTAssertEqual(IslandCodexThreads.readDatabase(path).first?.model, "m")
         sqlite3_exec(writer, "ROLLBACK", nil, nil, nil)
+    }
+
+    func testReadDatabaseServiceTier() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("codex-tier-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let path = dir.appendingPathComponent("state.sqlite").path
+        var db: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(path, &db), SQLITE_OK)
+        let sql = "CREATE TABLE threads (id TEXT, rollout_path TEXT, updated_at_ms INTEGER, service_tier TEXT); " +
+            "INSERT INTO threads VALUES ('id', '/a', 1000, 'priority');"
+        XCTAssertEqual(sqlite3_exec(db, sql, nil, nil, nil), SQLITE_OK)
+        sqlite3_close(db)
+        XCTAssertEqual(IslandCodexThreads.readDatabase(path).first?.serviceTier, "priority")
     }
 
     func testDesktopThreadUsesTheAppsEffortLabels() {
