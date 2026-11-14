@@ -7,6 +7,7 @@ import Foundation
 @MainActor
 final class VoiceSupervisor {
     private var process: Process?
+    private var gatewayHealthWait: Task<Bool, Never>?
     private var healthTimer: Timer?
     private var restartTask: Task<Void, Never>?
     private var recentRestarts: [Date] = []
@@ -126,7 +127,19 @@ final class VoiceSupervisor {
             try proc.run()
             process = proc
             logStartup(phase: "process_started")
-            guard await waitForGatewayHealth(timeout: 45) else {
+            let sessionID = startupSessionId
+            let healthWait = Task { @MainActor [weak self] in
+                guard let self else { return false }
+                return await self.waitForGatewayHealth(timeout: 45)
+            }
+            gatewayHealthWait = healthWait
+            let gatewayHealthy = await healthWait.value
+            if startupSessionId == sessionID { gatewayHealthWait = nil }
+            let isCurrent = startupSessionId == sessionID && (process.map { $0 === proc } ?? false)
+            guard Self.isStartupProcessActive(stopping: stopping, isCurrent: isCurrent, isRunning: proc.isRunning) else {
+                return false
+            }
+            guard gatewayHealthy else {
                 logStartup(phase: "gateway_health", status: "fail", detail: "timeout 45s")
                 appendLog("voice start failed: gateway health timeout\n")
                 proc.terminate()
@@ -161,6 +174,8 @@ final class VoiceSupervisor {
 
     func stop() {
         stopping = true
+        gatewayHealthWait?.cancel()
+        gatewayHealthWait = nil
         restartTask?.cancel()
         restartTask = nil
         healthTimer?.invalidate()
@@ -185,14 +200,31 @@ final class VoiceSupervisor {
         return checkGatewayHealth(timeout: 1.5)
     }
 
-    private func waitForGatewayHealth(timeout: TimeInterval) async -> Bool {
+    func waitForGatewayHealth(timeout: TimeInterval) async -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
-            if let proc = process, !proc.isRunning { return false }
-            if checkGatewayHealth(timeout: 1.0) { return true }
-            try? await Task.sleep(nanoseconds: 200_000_000)
+            guard !Task.isCancelled, let proc = process, proc.isRunning else { return false }
+            if await checkGatewayHealthAsync(timeout: 1.0) { return true }
+            guard !Task.isCancelled, let current = process, current === proc, proc.isRunning else { return false }
+            do {
+                try await Task.sleep(nanoseconds: 200_000_000)
+            } catch {
+                return false
+            }
         }
         return false
+    }
+
+    static func isStartupProcessActive(stopping: Bool, isCurrent: Bool, isRunning: Bool) -> Bool {
+        !stopping && isCurrent && isRunning
+    }
+
+    private func checkGatewayHealthAsync(timeout: TimeInterval) async -> Bool {
+        guard let url = URL(string: "/health", relativeTo: gatewayURL) else { return false }
+        var req = URLRequest(url: url)
+        req.timeoutInterval = timeout
+        guard let (_, response) = try? await URLSession.shared.data(for: req) else { return false }
+        return (response as? HTTPURLResponse)?.statusCode == 200
     }
 
     private func checkGatewayHealth(timeout: TimeInterval) -> Bool {
@@ -351,6 +383,8 @@ final class VoiceSupervisor {
         if let current = process, current !== terminated {
             return
         }
+        gatewayHealthWait?.cancel()
+        gatewayHealthWait = nil
         healthTimer?.invalidate()
         healthTimer = nil
         process = nil
