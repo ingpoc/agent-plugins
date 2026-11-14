@@ -18,6 +18,26 @@ WORKFLOW_STAGES = {"collect": "Collect", "present": "Present", "plan_fix": "Plan
 TEMPLATE = Path(__file__).resolve().parent.parent / "templates/change-list.html"
 
 
+def looks_like_log_text(text):
+    if len(text) > 240:
+        return True
+    return bool(re.search(
+        r"(?:\b\w+=[^\s]+|\b(?=[0-9a-f]*[0-9])(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}\b|"
+        r"\b\d{2}:\d{2}:\d{2}\b|[`{}]|(?:^|\s)(?:[\w.-]+/)+[\w.-]+|"
+        r"\b[\w.-]+\.(?:py|js|ts|tsx|jsx|json|html|css|sh|log|swift|md|yaml|yml)\b|"
+        r"\b[a-z]+_[a-z0-9_]+\b|\b(?:npm run|python3?\s|curl\s|git\s|pytest\b|make\s))",
+        text, re.I))
+
+
+def first_plain_sentence(text):
+    for match in re.finditer(r"(?<=[.!?])\s+(?=[A-Z\"“])", text):
+        prefix = text[:match.start()].rstrip()
+        if prefix.casefold().endswith(("e.g.", "i.e.")):
+            continue
+        return prefix, text[match.end():].strip()
+    return text.strip(), ""
+
+
 def latest_version_evidence(item, runs):
     candidates = [{"build": r["build"], "timestamp": r["timestamp"], "outcome": r["outcome"],
                    "check": r["check"], "state": ""} for r in item.get("verification_evidence", [])]
@@ -149,6 +169,9 @@ def render(data, base, inventory_override=None):
         item = dict(original)
         for field in ("id", "title", "source", "status", "observed", "recommendation"):
             required_text(item.get(field), f"findings[{index}].{field}")
+        for field in ("summary", "impact", "done_when"):
+            if field in item and not isinstance(item[field], str):
+                raise ValueError(f"findings[{index}].{field} must be a string")
         if item["id"] in seen:
             raise ValueError(f"duplicate id: {item['id']}")
         seen.add(item["id"])
@@ -183,15 +206,25 @@ def render(data, base, inventory_override=None):
         details = item.get("details", {})
         if not isinstance(details, dict) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in details.items()):
             raise ValueError(f"{item['id']}.details must contain string keys and values")
-        displayed = {" ".join(item.get("verification", "").split()).casefold()}
-        unique = {}
-        for key, value in details.items():
-            normalized = " ".join(value.split()).casefold()
-            if normalized and normalized not in displayed:
-                unique[key] = value
-                displayed.add(normalized)
-        details = unique
         item["details"] = details
+        if item.get("summary") is not None:
+            item["evidence_text"] = item["observed"]
+        else:
+            candidate, remainder = first_plain_sentence(item["observed"])
+            if candidate and not looks_like_log_text(candidate):
+                item["summary"] = candidate
+                item["evidence_text"] = remainder
+            else:
+                item["summary"] = ""
+                item["evidence_text"] = item["observed"]
+        item["impact"] = item.get("impact", "")
+        if "done_when" not in item:
+            verification = item.get("verification", "")
+            if verification:
+                item["done_when"] = (verification if item["status"] == "verified_fixed"
+                    else re.sub(r"^Pending:\s*", "", verification))
+            if not item.get("done_when"):
+                item["done_when"] = next((value for key, value in details.items() if key.casefold() == "expected"), "")
         if run is not None and check.get("evidence"):
             if check.get("corrections"):
                 details = {**details, "Check corrections": json.dumps(check["corrections"], ensure_ascii=False)}

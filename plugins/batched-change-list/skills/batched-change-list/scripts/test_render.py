@@ -16,11 +16,69 @@ class RenderTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
     def test_version_timeline_shows_status_and_evidence_together(self):
         template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
-        timeline = next(line for line in template.splitlines() if line.startswith(' const records=selected.version_timeline'))
-        program = "const node=(tag,text)=>({tag,text,children:[],append(...nodes){this.children.push(...nodes)}});"
-        program += "const article=node('article');const selected={version_timeline:[{version:'0.2.118',state:'fixed',outcome:'Live proof',check:'check',timestamp:'today',build:'ACU'}]};"
-        program += timeline + "\nconst summary=article.children[0].children[1].children[0].children[2].children[0];if(summary.children[0].tag!=='strong'||summary.children[0].text!=='Fixed: '||summary.children[1].text!=='Live proof')process.exit(1);"
-        subprocess.run(['node', '-e', program], check=True)
+        self.assertIn("node('div','Verification by version','evidence-label')", template)
+        self.assertIn("node('p',`${record.check} · ${record.timestamp} · ${record.build}`,'evidence-meta')", template)
+        evidence_builder = next(line for line in template.splitlines() if line.startswith(' const detail=node(\'details\''))
+        self.assertIn("node('details',null,'evidence')", evidence_builder)
+        self.assertNotIn("node('details'", next(line for line in template.splitlines() if line.startswith(' if(records.length)')))
+
+    def test_optional_readable_fields_and_observed_fallbacks(self):
+        data = copy.deepcopy(self.data)
+        item = data['findings'][0]
+        item.update(summary='A plain problem sentence.', impact='Readers cannot understand it.', done_when='The panel shows a clear result.')
+        page = renderer.render(data, self.base)
+        payload = page.split('<script type="application/json" id="findings-data">', 1)[1].split('</script>', 1)[0]
+        rendered = json.loads(payload)[0]
+        self.assertEqual((rendered['summary'], rendered['impact'], rendered['done_when'], rendered['evidence_text']),
+                         ('A plain problem sentence.', 'Readers cannot understand it.', 'The panel shows a clear result.', item['observed']))
+        item.pop('summary')
+        item.pop('impact')
+        item.pop('done_when')
+        item['observed'] = 'The control does not open. The panel stays closed.'
+        rendered = json.loads(renderer.render(data, self.base).split('<script type="application/json" id="findings-data">', 1)[1].split('</script>', 1)[0])[0]
+        self.assertEqual((rendered['summary'], rendered['evidence_text']), ('The control does not open.', 'The panel stays closed.'))
+        item['observed'] = 'trace_id=4af39b2 command.py failed. More evidence follows.'
+        rendered = json.loads(renderer.render(data, self.base).split('<script type="application/json" id="findings-data">', 1)[1].split('</script>', 1)[0])[0]
+        self.assertEqual((rendered['summary'], rendered['evidence_text']), ('', item['observed']))
+
+    def test_optional_fields_validate_as_strings_and_pending_is_stripped(self):
+        data = copy.deepcopy(self.data)
+        item = data['findings'][0]
+        item.pop('done_when', None)
+        item['verification'] = 'Pending: The installed view shows the selected row.'
+        page = renderer.render(data, self.base)
+        payload = page.split('<script type="application/json" id="findings-data">', 1)[1].split('</script>', 1)[0]
+        self.assertEqual(json.loads(payload)[0]['done_when'], 'The installed view shows the selected row.')
+        for field in ('summary', 'impact', 'done_when'):
+            invalid = copy.deepcopy(data)
+            invalid['findings'][0][field] = 3
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, field):
+                renderer.render(invalid, self.base)
+
+    def test_done_when_falls_back_to_expected_detail_case_insensitively(self):
+        data = copy.deepcopy(self.data)
+        item = data['findings'][0]
+        item.pop('done_when', None)
+        item.pop('verification', None)
+        item['details'] = {'eXpEcTeD': 'The selected row opens.'}
+        payload = renderer.render(data, self.base).split('<script type="application/json" id="findings-data">', 1)[1].split('</script>', 1)[0]
+        self.assertEqual(json.loads(payload)[0]['done_when'], 'The selected row opens.')
+
+    def test_log_text_heuristic(self):
+        for text in ('build=failed', 'a1b2c3d', 'At 01:05:18', '`quoted`', '{payload}',
+                     'src/module.py', 'code_value', 'python3 script.py', 'x' * 241):
+            with self.subTest(text=text):
+                self.assertTrue(renderer.looks_like_log_text(text))
+        for text in ('The button does not open.', 'A reader can understand this.'):
+            with self.subTest(text=text):
+                self.assertFalse(renderer.looks_like_log_text(text))
+
+    def test_evidence_is_one_flat_disclosure(self):
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        self.assertIn("`Evidence (${evidenceCount} ${evidenceCount===1?'row':'rows'})`", template)
+        self.assertNotIn('Agent details', template)
+        self.assertNotIn('Additional details', template)
+        self.assertIn("const detail=node('details',null,'evidence')", template)
 
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
     def test_poll_signature_is_stable_for_identical_page_content(self):
@@ -159,15 +217,15 @@ if(pageContentSignature(page('findings','run','workflow','build','changed'))===o
         self.assertIn(r'\u003c/script>', page)
         self.assertNotIn('</script><script>alert(1)</script>', page)
 
-    def test_repeated_detail_is_shown_once_without_mutating_source(self):
+    def test_all_details_are_shown_without_mutating_source(self):
         item = self.data['findings'][0]
         item['verification'] = 'Verified observation.'
         item['details'] = {'First': 'Same finding', 'Duplicate': 'Same finding', 'Summary again': 'Verified observation.'}
         before = copy.deepcopy(self.data)
         page = renderer.render(self.data, self.base)
         self.assertIn('"First": "Same finding"', page)
-        self.assertNotIn('"Duplicate": "Same finding"', page)
-        self.assertNotIn('"Summary again": "Verified observation."', page)
+        self.assertIn('"Duplicate": "Same finding"', page)
+        self.assertIn('"Summary again": "Verified observation."', page)
         self.assertEqual(self.data, before)
 
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')

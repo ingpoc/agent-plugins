@@ -20,7 +20,7 @@ Portable [Agent Plugin](https://agent-plugins.org/specification). Install: [`AGE
 
 **Network endpoints, permissions and credentials.** No outbound calls. The viewer binds loopback only and serves the generated page plus the evidence images embedded in it. Local evidence images are read from paths relative to the findings JSON.
 
-**Testing.** From `skills/batched-change-list`: `python3 -m unittest discover -s scripts -p 'test_*.py'` (32 tests: tracker mutations, renderer validation, viewer).
+**Testing.** From `skills/batched-change-list`: `python3 -m unittest discover -s scripts -p 'test_*.py'` (53 tests: tracker mutations, renderer validation, viewer).
 
 **License.** MIT (repository root [`LICENSE`](../../LICENSE)).
 
