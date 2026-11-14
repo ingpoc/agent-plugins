@@ -2,14 +2,14 @@
 
 - Store adopted trackers outside git, snapshot stage changes only in the home worktree, and add a non-merging freshness guard.
 - Start and restart a per-list live viewer from `bcl`; show viewer metadata in its live page footer.
-- Replace plan lanes with compact, responsive group rows.
+- Replace the plan display with compact, responsive group rows.
 
 # Changelog: batched-change-list
 
 ## 0.1.16
 
 - `bcl fix`, `install`, and `verify` update and render the stage before running an optional command; Codex handoffs now require the page update at the start of each stage.
-- Added recorded execution plans with deterministic lane diagrams and current-cycle Install / Install-before-Verify guards.
+- Added recorded execution plans with deterministic parallel group rows and current-cycle Install / Install-before-Verify guards.
 - Added the `bcl` stage command and idempotent repository `bcl install-hooks` backstop that chains existing hooks and checks rendered triage freshness.
 
 ## 0.1.15

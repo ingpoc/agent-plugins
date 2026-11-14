@@ -97,7 +97,7 @@ class ManageFindingsTests(unittest.TestCase):
         data = json.loads(self.data.read_text())
         self.assertEqual(data['findings'][0]['status'], 'in_progress')
         self.assertEqual(data['tracking']['workflow']['stage'], 'plan_fix')
-        self.assertIn('aria-current="step"><span>3</span>Plan &amp; fix', page.read_text())
+        self.assertIn('class="wf-step current" aria-current="step"><span class="wf-dot">', page.read_text())
         plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
         self.assertEqual(run(plan).returncode, 0)
         self.assertEqual(run({'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'}).returncode, 0)
@@ -210,6 +210,19 @@ class ManageFindingsTests(unittest.TestCase):
         again = self.cli('compact', self.data)
         self.assertEqual(again.returncode, 0, again.stderr)
         self.assertEqual(self.data.read_bytes(), first_bytes)
+
+    def test_plan_fields_and_loopback_increment_round_history(self):
+        ops, page = self.root / 'round.json', self.root / 'round.html'
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','name':'Plain group','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','worktree':'fix-a','codex':{'job_id':'job-1','status':'done','started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z'},'verify':{'summary':'Focused check passed','status':'pending'}}],'merge':{'status':'done','ref':'abc'}}}
+        ops.write_text(json.dumps([plan, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Plan'}, {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Install'}, {'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Verify'}, {'action':'set-activity','stage':'gate','ids':[],'now':'Gate'}, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Repeat'}]))
+        result = self.cli('batch', self.data, ops, '--render', page)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        tracking = json.loads(self.data.read_text())['tracking']
+        self.assertEqual(tracking['round'], 2)
+        self.assertEqual(tracking['round_history'][0]['round'], 1)
+        self.assertEqual(tracking['plan']['round'], 2)
+        group = tracking['plan']['groups'][0]
+        self.assertEqual((group['name'], group['worktree'], group['codex']['job_id'], group['codex']['duration_s']), ('Plain group','fix-a','job-1',300))
 
     def test_set_activity_marks_group_and_renders_single_now_line(self):
         operations, page = self.root / 'activity.json', self.root / 'activity.html'

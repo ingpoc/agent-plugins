@@ -2,7 +2,7 @@
 
 ## Fix and verify
 
-Record the work groups and dependency edges in `tracking.plan` with `bcl plan` before Install. The page shows a compact row per group with issue chips, status, duration/model and a short verification summary; open Details for full methods, grouping reasons, file notes and raw times. The tracker rejects Install without a nonempty plan for the active cycle and rejects Verify until Install is recorded in that cycle. Run `bcl fix`, `bcl install`, and `bcl verify` to keep stage bookkeeping and the live timeline in sync.
+Record the work groups and dependency edges in `tracking.plan` with `bcl plan` before Install. The page shows a compact row per group with issue chips, status, duration/model and a short verification summary; open Details for full methods, grouping reasons, file notes and IST time ranges. The tracker rejects Install without a nonempty plan for the active cycle and rejects Verify until Install is recorded in that cycle. Run `bcl fix`, `bcl install`, and `bcl verify` to keep stage bookkeeping and the live timeline in sync.
 
 When the scope is agreed or already authorized, group related fixes into one coherent plan with affected files, acceptance checks, and dependencies. Use existing project gates and the smallest number of build/install cycles consistent with safe verification. Do not assume every issue will be fixed in one cycle.
 

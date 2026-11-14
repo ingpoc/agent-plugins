@@ -70,6 +70,162 @@ def rollover_cycle(tracking):
     return cycle
 
 
+def rollover_round(tracking):
+    round_number = tracking.get("round", 1)
+    if type(round_number) is not int or round_number < 1:
+        raise ValueError("tracking.round must be a positive integer")
+    history = tracking.get("round_history", [])
+    if not isinstance(history, list) or any(not isinstance(item, dict) for item in history):
+        raise ValueError("tracking.round_history must be an array of round records")
+    return round_number
+
+
+def parse_instant(value):
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        instant = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return instant.replace(tzinfo=timezone.utc) if instant.tzinfo is None else instant
+
+
+def ist_time(value):
+    instant = parse_instant(value)
+    return instant.astimezone(ZoneInfo("Asia/Kolkata")).strftime("%-I:%M %p IST") if instant else ""
+
+
+def plan_duration(group, now):
+    codex = group.get("codex", {}) if isinstance(group.get("codex"), dict) else {}
+    verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
+    status = group.get("status", codex.get("status", "pending"))
+    started = parse_instant(codex.get("started_at"))
+    ended = parse_instant(codex.get("ended_at"))
+    seconds = group.get("duration_s", codex.get("duration_s", verify.get("duration_s")))
+    if status == "running" and started and now:
+        updated = parse_instant(codex.get("updated_at") or group.get("updated_at") or codex.get("started_at"))
+        if updated and (now - updated).total_seconds() > 300:
+            return "stale"
+        seconds = max(0, (now - started).total_seconds())
+    elif seconds is None and started and ended:
+        seconds = max(0, (ended - started).total_seconds())
+    if not isinstance(seconds, (int, float)) or isinstance(seconds, bool):
+        return "—"
+    return f"{max(1, round(seconds / 60))} min"
+
+
+def plan_status(group):
+    codex = group.get("codex", {}) if isinstance(group.get("codex"), dict) else {}
+    verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
+    status = group.get("status", codex.get("status", "pending"))
+    verify_status = verify.get("status", "pending")
+    if status in ("failed", "blocked") or codex.get("status") in ("failed", "blocked") or verify_status in ("failed", "blocked"):
+        return "failed"
+    if verify_status == "running":
+        return "verifying"
+    if status in ("done", "fixed"):
+        return "verified" if verify_status in ("done", "complete", "verified") else "fixed"
+    if status == "running" or codex.get("status") == "running":
+        return "running"
+    return "queued"
+
+
+def short_words(value, limit=10):
+    return " ".join(str(value or "").split()[:limit])
+
+
+def render_plan(data, tracking, plan, round_number, now):
+    active = tracking.get("workflow", {}).get("stage")
+    stages = list(WORKFLOW_STAGES)
+    has_started = active in stages and stages.index(active) >= stages.index("plan_fix")
+    matching = isinstance(plan, dict) and plan.get("round", plan.get("cycle", 1)) == round_number
+    if not matching:
+        return f'<div class="plan-empty">No fix plan for Round {round_number} yet.</div>' if has_started else ""
+    groups = [group for group in plan.get("groups", []) if isinstance(group, dict)]
+    counts = {state: sum(plan_status(group) == state for group in groups) for state in ("running", "fixed", "verifying", "verified", "failed", "queued")}
+    tally = " · ".join(f"{counts[key]} {label}" for key, label in (("running", "running"), ("fixed", "fixed"), ("failed", "failed"), ("verifying", "verifying"), ("verified", "verified"), ("queued", "planned")) if counts[key])
+    findings = {item.get("id"): item for item in data.get("findings", [])}
+    rows = []
+    labels = {"queued":"Planned", "running":"Fixing", "fixed":"Fixed", "verifying":"Verifying", "verified":"Verified", "failed":"Failed"}
+    for group in groups:
+        codex = group.get("codex", {}) if isinstance(group.get("codex"), dict) else {}
+        verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
+        state = plan_status(group)
+        ids = group.get("finding_ids", []) if isinstance(group.get("finding_ids"), list) else []
+        chips = [f'<a class="chip" title="{html.escape(str(findings.get(i, {}).get("title", i)), quote=True)}" href="#{quote(str(i), safe="")}">{html.escape(str(i))}</a>' for i in ids[:3]]
+        if len(ids) > 3: chips.append(f'<span class="chip">+{len(ids)-3}</span>')
+        if not chips: chips = ['<span class="chip no-issues">no issues</span>']
+        name = html.escape(str(group.get("name") or group.get("label") or group.get("reason") or f"Group {group.get('id', '?')}"))
+        deps = group.get("depends_on", [])
+        dependency = f'<small>after {html.escape(", ".join(map(str, deps)))}</small>' if deps else ""
+        verify_text = verify.get("summary") or group.get("verify_summary") or short_words(verify.get("failure") or verify.get("result") or verify.get("method"))
+        if state == "failed": verify_text = verify.get("failure") or verify.get("result") or verify_text
+        verify_text = short_words(verify_text)
+        model = str(codex.get("model", "")).replace("gpt-6-luna", "Luna").replace("gpt-6-astra", "Astra").replace("gpt-6-sol", "Sol")
+        if codex.get("effort"): model += " " + str(codex["effort"])
+        if codex.get("service_tier") == "priority" or codex.get("fast"): model += " Fast"
+        duration = plan_duration(group, now)
+        times = " – ".join(filter(None, (ist_time(codex.get("started_at")), ist_time(codex.get("ended_at")))))
+        file_notes = group.get("files", group.get("file_notes", []))
+        if not isinstance(file_notes, list): file_notes = [str(file_notes)]
+        verify_info = " · ".join(filter(None, (verify.get("method"), verify.get("status"), verify.get("failure"), verify.get("result"), verify.get("summary"), ist_time(verify.get("started_at")), ist_time(verify.get("ended_at")))))
+        details = [("Issues", " · ".join(f"{i} {findings.get(i, {}).get('title','')}".strip() for i in ids) or "No issues"),
+                   ("Fix", " · ".join(filter(None, (codex.get("job_id"), codex.get("model"), codex.get("effort"), codex.get("service_tier"), codex.get("worktree"), codex.get("status"), times)))),
+                   ("Verify", verify_info), ("Reason", group.get("reason", "")), ("Files", ", ".join(map(str, file_notes)))]
+        dl = "".join(f'<dt>{html.escape(k)}</dt><dd>{html.escape(str(v))}</dd>' for k,v in details if v)
+        rows.append(f'<details class="grp {state}"><summary><span class="g-id">{html.escape(str(group.get("id", "?")))}</span><span class="g-name">{name}{dependency}</span><span class="g-meta"><span class="g-chips">{"".join(chips)}</span><span class="g-min">{html.escape(duration)}</span><span class="g-model">{html.escape(model or "—")}</span><span class="g-verify">{html.escape(verify_text)}</span></span><span class="pill {state}">{labels[state]}</span><svg class="chev" viewBox="0 0 14 14" aria-hidden="true"><path d="m5 2 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></summary><dl class="g-detail">{dl}</dl></details>')
+    noun = "group" if len(groups) == 1 else "groups"
+    return f'<div class="plan"><div class="plan-head"><span><strong>Round {round_number}</strong> · {len(groups)} {noun} in parallel · then merge → build → verify</span><span class="plan-tally">{html.escape(tally)}</span></div><div class="plan-rows">{"".join(rows)}{render_plan_tail(plan, tracking)}</div></div>'
+
+
+def render_plan_tail(plan, tracking):
+    run = tracking.get("verification_run") if isinstance(tracking.get("verification_run"), dict) else {}
+    checks = run.get("checks", {}) if isinstance(run.get("checks"), dict) else {}
+    checked = sum(isinstance(c, dict) and c.get("state") in ("fixed", "not_fixed", "blocked", "inconclusive") for c in checks.values())
+    fallback = (("merge", {"status": "done" if run else "pending"}), ("build", {"status": "done" if run and run.get("status") == "complete" else "running" if run else "pending", "build": run.get("build", "")}), ("verify", {"status": "running" if run and run.get("status") == "active" else "done" if run else "pending", "checked": checked, "total": len(checks)}))
+    rows = []
+    for key, default in fallback:
+        record = plan.get(key) if isinstance(plan.get(key), dict) else default
+        status = record.get("status", "pending")
+        state = "done" if status in ("done", "complete", "fixed") else "running" if status in ("running", "active") else "failed" if status in ("failed", "blocked") else "pending"
+        detail = record.get("ref", "") if key == "merge" else record.get("build", "") if key == "build" else f'{record.get("checked", checked)}/{record.get("total", len(checks))}' if key == "verify" and (checks or "checked" in record or "total" in record) else ""
+        label = key.capitalize()
+        rows.append(f'<li class="{state}"><i></i>{label}{f" <small>{html.escape(str(detail))}</small>" if detail else ""}</li>')
+    return f'<div class="tail"><span class="tail-label">Once per round</span><ol>{"".join(rows)}</ol></div>'
+
+
+def render_workflow(active, fixed, threshold, gate_met, round_number):
+    order = ["collect", "present", "plan_fix", "install", "verify", "introspect", "gate", "report_rollover"]
+    active = "unknown" if active == "install_verify" else active
+    active_index = order.index(active) if active in order else -1
+    def step(key, label, index):
+        state = "done" if (key == "gate" and gate_met) or (active_index >= 0 and index < active_index) else "current" if index == active_index else "upcoming"
+        current = ' aria-current="step"' if state == "current" else ""
+        suffix = '<span class="sr">, done</span>' if state == "done" else ""
+        tag = '<span class="wf-now-tag">Now</span>' if state == "current" else ""
+        classes = f"wf-step {state}" + (" wf-gate" if key == "gate" else "")
+        if key == "gate":
+            accessible = f"Fixes {fixed} of {threshold}, gate {'met' if gate_met else 'not met'}"
+            if gate_met:
+                icon = f'<svg width="22" height="22" viewBox="0 0 22 22" role="img" aria-label="{accessible}"><circle cx="11" cy="11" r="8.5" fill="var(--green)" stroke="var(--green)" stroke-width="3"/><path d="M7.2 11.2l2.6 2.6 5-5.4" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+            else:
+                amount = min(100, round(100 * fixed / threshold))
+                icon = f'<svg width="22" height="22" viewBox="0 0 22 22" role="img" aria-label="{accessible}"><circle cx="11" cy="11" r="8.5" fill="#fff" stroke="var(--amber-track)" stroke-width="3"/><circle cx="11" cy="11" r="8.5" fill="none" stroke="var(--amber)" stroke-width="3" stroke-linecap="round" pathLength="100" stroke-dasharray="{amount} 100" transform="rotate(-90 11 11)"/></svg>'
+            label = f'Fixes <b>{fixed}/{threshold}</b><span class="wf-loop-mobile">{"gate met" if gate_met else f"under {threshold} · repeat"}</span>'
+            return f'<li data-stage="{key}" class="{classes}"{current}><span class="wf-dot">{icon}</span><span class="wf-label">{label}{suffix}</span></li>'
+        return f'<li data-stage="{key}" class="{classes}"{current}><span class="wf-dot"><i></i></span><span class="wf-label">{html.escape(label)}{tag}{suffix}{f"<small>{threshold} reached</small>" if key == "report_rollover" else ""}</span>{"<span class=\"wf-exit\" aria-hidden=\"true\"><span class=\"wf-exit-label\">"+str(threshold)+" reached</span><svg width=\"7\" height=\"8\" viewBox=\"0 0 7 8\"><path d=\"M0 0L7 4L0 8z\"/></svg></span>" if key == "report_rollover" else ""}</li>'
+    pre = "".join(step(key, WORKFLOW_STAGES[key], order.index(key)) for key in ("collect", "present"))
+    repeated = "".join(step(key, WORKFLOW_STAGES[key], order.index(key)) for key in ("plan_fix", "install", "verify", "introspect", "gate"))
+    post = step("report_rollover", WORKFLOW_STAGES["report_rollover"], order.index("report_rollover"))
+    pips = min(round_number, 5)
+    pip_html = "".join(f'<i class="{"now" if index == pips else "past" if index < pips else ""}"></i>' for index in range(1, pips + 1))
+    return (f'<ol class="wf" aria-label="Workflow steps"><li class="wf-pre"><ol>{pre}</ol></li>'
+            f'<li class="wf-band {"gate-met" if gate_met else "gate-pending"}" role="group" aria-label="Repeats each round. Round {round_number}.">'
+            f'<div class="wf-band-head" aria-hidden="true"><span><svg width="12" height="12" viewBox="0 0 12 12"><path d="M10 6a4 4 0 1 1-1.2-2.85" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M9.6 1v2.6H7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Repeats each round</span><span class="wf-round">Round {round_number} <span class="wf-pips">{pip_html}</span></span></div>'
+            f'<ol class="wf-band-steps">{repeated}</ol><div class="wf-loop" aria-hidden="true"><svg class="wf-loop-head" width="10" height="8" viewBox="0 0 10 8"><path d="M5 0L10 8H0z"/></svg><span class="wf-loop-label">under {threshold} fixes · back to Plan &amp; fix</span><span class="sr">Under {threshold} verified fixes returns to Plan and fix.</span></div></li>'
+            f'<li class="wf-post"><ol>{post}</ol></li></ol>')
+
+
 def rollover_gate(findings, tracking):
     threshold = tracking.get("rollover_threshold", DEFAULT_ROLLOVER_THRESHOLD)
     if type(threshold) is not int or threshold < 1:
@@ -251,8 +407,16 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     cycle = rollover_cycle(tracking_data)
     ist = ZoneInfo("Asia/Kolkata")
     reported = datetime.fromisoformat(workflow["updated_at"].replace("Z", "+00:00")).astimezone(ist) if workflow else None
-    time_html = (f'<time datetime="{html.escape(reported.isoformat(), quote=True)}" data-relative>'
-                 f'{html.escape(reported.strftime("%b %-d, %Y, %-I:%M %p IST"))}</time>') if reported else ''
+    relative = ""
+    now_record = workflow.get("now", "") if isinstance(workflow, dict) else ""
+    match = re.search(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)", now_record)
+    reference = now or (parse_instant(match.group()) if match else reported)
+    if reported and reference:
+        minutes = max(0, int((reference - reported).total_seconds() / 60))
+        amount, unit = (minutes, "minute") if minutes < 60 else (minutes // 60, "hour") if minutes < 1440 else (minutes // 1440, "day")
+        relative = f" ({amount} {unit}{'' if amount == 1 else 's'} ago)"
+    time_html = (f'<time datetime="{html.escape(reported.isoformat(), quote=True)}">'
+                 f'{html.escape(reported.strftime("%b %-d, %Y, %-I:%M %p IST") + relative)}</time>') if reported else ''
     now_html = ""
     if workflow:
         stored_now = required_text(workflow["now"], "tracking.workflow.now") if workflow.get("now") is not None else ""
@@ -380,55 +544,14 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     excluded = rollover.get("excluded_ids", [])
     if not isinstance(excluded, list) or any(not isinstance(item, str) for item in excluded) or not set(excluded) <= seen:
         raise ValueError("rollover excluded_ids must identify tracked findings")
-    steps = []
-    for index, (key, label) in enumerate(WORKFLOW_STAGES.items(), 1):
-        name = f"Fixes {fixed_count} of {threshold}" if key == "gate" else label
-        classes = "workflow-step" + (" active" if key == active else "")
-        classes += (" gate-met" if gate_met else " gate-pending") if key == "gate" else ""
-        current = ' aria-current="step"' if key == active else ""
-        round_label = f'<small class="workflow-round">Round {cycle}</small>' if key == "gate" else ""
-        steps.append(f'<li data-stage="{key}" class="{classes}"{current}><span>{index}</span>{html.escape(name)}{round_label}</li>')
-    steps = "".join(steps)
     plan = tracking_data.get("plan") if isinstance(tracking_data, dict) else None
-    plan_view = ""
-    if isinstance(plan, dict) and plan.get("cycle", cycle) == cycle and isinstance(plan.get("groups"), list):
-        plan_rows = []
-        counts = {"pending": 0, "running": 0, "done": 0, "failed": 0}
-        for group in plan["groups"]:
-            if not isinstance(group, dict):
-                continue
-            codex = group.get("codex", {}) if isinstance(group.get("codex"), dict) else {}
-            verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
-            status = group.get("status", codex.get("status", "pending")); verify_status = verify.get("status", "pending")
-            counts[status if status in counts else "pending"] += 1
-            shown = "Failed" if status in ("failed", "blocked") or codex.get("status") in ("failed", "blocked") or verify_status in ("failed", "blocked") else "Verified" if status == "done" and verify_status == "done" else "Verifying" if verify_status == "running" else "Fixed" if status == "done" else "Fixing" if status == "running" else "Planned"
-            ids = group.get("finding_ids", [])
-            titles = [next((f.get("title", "") for f in data.get("findings", []) if f.get("id") == issue_id), "") for issue_id in ids]
-            label = group.get("label") or " ".join((next((x for x in titles if x), "") or str(group.get("id", "Group"))).split()[:5])
-            chips = " ".join(f'<a class="plan-chip" title="{html.escape(title, quote=True)}" href="#{quote(str(issue_id), safe="")}">{html.escape(str(issue_id))}</a>' for issue_id, title in zip(ids, titles))
-            start, end = codex.get("started_at", group.get("started_at")), codex.get("ended_at", group.get("ended_at"))
-            seconds = codex.get("duration_s", group.get("duration_s", verify.get("duration_s")))
-            if seconds is None and start and end:
-                try: seconds = (datetime.fromisoformat(end.replace("Z", "+00:00")) - datetime.fromisoformat(start.replace("Z", "+00:00"))).total_seconds()
-                except ValueError: seconds = None
-            duration = f'{max(1, round(float(seconds) / 60))} min' if seconds is not None else ""
-            model = str(codex.get("model", "")); model = model.split("-")[-1].title() if model else ""
-            effort = str(codex.get("effort", "")).title(); tier = codex.get("service_tier", "")
-            model_text = " ".join(x for x in (model, effort, "Fast" if tier in ("priority", "fast", "Fast") else "") if x)
-            summary = group.get("verify_summary") or " ".join(str(verify.get("method", "")).split()[:10])
-            summary = " ".join(str(summary).split()[:10])
-            reason = group.get("reason") or ("Depends on " + ", ".join(group["depends_on"]) if group.get("depends_on") else "")
-            file_notes = group.get("file_notes", group.get("files", ""))
-            raw_times = " · ".join(str(x) for x in (start, end, seconds, verify.get("started_at"), verify.get("ended_at"), verify.get("duration_s")) if x is not None)
-            details = f'<details class="plan-details"><summary>Details</summary><p>{html.escape(str(verify.get("method", "")))}</p><p>{html.escape(str(reason))}</p><p>{html.escape(str(file_notes))}</p><p>{html.escape(str(raw_times))}</p></details>'
-            plan_rows.append(f'<div class="plan-row"><strong class="plan-label">{html.escape(str(label))}</strong><span class="plan-chips">{chips}</span><span class="plan-status plan-{shown.lower()}">{shown}</span><span class="plan-duration">{html.escape(duration)} {html.escape(model_text)}</span><span class="plan-verify">{html.escape(summary)}</span>{details}</div>')
-        if plan_rows:
-            summary = f'Plan, round {plan.get("round", 1)}: {len(plan_rows)} groups in parallel → 1 merge → 1 build → 1 verify · {counts["done"]} fixed, {counts["running"]} fixing'
-            plan_view = f'<div class="plan-view" aria-label="Recorded execution plan"><strong class="plan-summary">{html.escape(summary)}</strong><div class="plan-rows">{"".join(plan_rows)}</div></div>'
-    loop_label = f"fewer than {threshold}"
+    round_number = rollover_round(tracking_data)
+    render_now = now or parse_instant(workflow.get("updated_at")) if workflow else now
+    timeline_steps = render_workflow(active, fixed_count, threshold, gate_met, round_number)
+    plan_view = render_plan(data, tracking_data, plan, round_number, render_now)
     viewer_html = (f'<p class="viewer-footer">reading {html.escape(str(viewer["path"]))}, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}</p>' if viewer else "")
     timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow</strong><span>{"Last reported " + time_html if time_html else "No active step reported"}</span></div>'
-                f'<ol>{steps}</ol><svg class="workflow-loop" role="img" aria-label="Fewer than {threshold} verified fixes returns to Plan and fix" viewBox="0 0 100 28" preserveAspectRatio="none"><defs><marker id="workflow-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 z"/></marker></defs><path class="workflow-loop-path" d="M90 0 C90 26 35 26 35 0" marker-end="url(#workflow-arrow)"/><text class="workflow-loop-label" x="62" y="26">{html.escape(loop_label)}</text></svg>{now_html}{plan_view}{viewer_html}</section>')
+                f'{timeline_steps}{now_html}{plan_view}{viewer_html}</section>')
     serialized = json.dumps([item for item in output if item["id"] not in excluded], ensure_ascii=True).replace("<", "\\u003c")
     run_view = {key: run[key] for key in ("id", "build", "revision", "installed_at", "status")} if run else None
     replacements = {"{{TITLE}}": html.escape(title), "{{FINDINGS_JSON}}": serialized,

@@ -13,47 +13,42 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
-    def test_recorded_plan_renders_deterministic_compact_rows(self):
-        self.data['tracking'] = {'plan': {'cycle': 1, 'round': 1, 'groups': [
+    def test_recorded_plan_renders_deterministic_lanes_and_shared_merge(self):
+        self.data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}, 'plan': {'cycle': 1, 'round': 1, 'groups': [
             {'id':'A','finding_ids':['ISSUE-01'],'reason':'Shared cause','depends_on':[],'status':'running',
              'codex':{'model':'gpt-6-luna','status':'running','started_at':'2026-11-14T09:00:00Z'},
              'verify':{'method':'Live check','status':'pending'}},
             {'id':'B','finding_ids':['ISSUE-02'],'depends_on':['A'],'status':'pending'}]}}
         page = renderer.render(self.data, self.base)
         self.assertEqual(page, renderer.render(self.data, self.base))
-        self.assertIn('Plan, round 1: 2 groups in parallel → 1 merge → 1 build → 1 verify', page)
+        self.assertNotIn('setInterval(formatPageTimes', page)
+        for marker in ('class="wf"', 'class="wf-band gate-pending"', 'class="wf-loop"', 'wf-gate', 'class="grp running"', 'class="tail"', 'after A', 'href="#ISSUE-01"', 'title="'):
+            self.assertIn(marker, page)
         self.assertNotIn('plan-merge', page)
-        self.assertIn('Depends on A', page)
-        self.assertIn('href="#ISSUE-01"', page)
-        self.assertIn('title="', page)
         self.assertIn('Fixing', page)
-        self.assertIn('plan-status plan-planned', page)
-        self.assertIn('<details class="plan-details">', page)
-        self.data['tracking'].pop('plan')
-        self.assertNotIn('class="plan-row"', renderer.render(self.data, self.base))
+        self.assertIn('Planned', page)
+        self.assertIn('No fix plan for Round 1 yet.', renderer.render({**self.data, 'tracking':{'workflow':{'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}}}, self.base))
+        self.assertNotIn('class="plan-rows"', renderer.render({**self.data, 'tracking':{}}, self.base))
 
     def test_compact_plan_labels_duration_status_details_and_fallbacks(self):
         data = copy.deepcopy(self.data)
-        data['tracking'] = {'plan': {'round': 1, 'groups': [
-            {'id':'A','finding_ids':['ISSUE-01'],'label':'Render label','verify_summary':'Render verify summary','status':'done','codex':{'model':'gpt-6-luna','effort':'medium','service_tier':'priority','duration_s':300,'started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z'},'verify':{'status':'pending','method':'Run the focused test and inspect the live page carefully'}},
+        data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}, 'plan': {'round': 1, 'groups': [
+            {'id':'A','name':'Render label','finding_ids':['ISSUE-01'],'status':'done','codex':{'model':'gpt-6-luna','effort':'medium','service_tier':'priority','duration_s':300,'started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z'},'verify':{'status':'pending','method':'Run the focused test and inspect the live page carefully'}},
             {'id':'B','finding_ids':['ISSUE-02'],'status':'done','verify':{'status':'done','method':'Verified on runtime'}},
             {'id':'C','finding_ids':['ISSUE-01'],'status':'running','verify':{'status':'running','method':'Verify running'}},
-            {'id':'D','finding_ids':['ISSUE-02'],'status':'blocked','verify':{'status':'pending','method':'Blocked'}}]}}
+            {'id':'D','finding_ids':['ISSUE-02'],'status':'blocked','verify':{'status':'pending','failure':'Codex job failed tests did not pass','method':'Blocked'}}]}}
         page = renderer.render(data, self.base)
-        row = page.split('<div class="plan-row">', 2)[1].split('<details class="plan-details">', 1)[0]
-        self.assertIn('5 min Luna Medium Fast', row)
-        self.assertIn('Fixed', row)
-        self.assertIn('Render label', page)
-        self.assertIn('Render verify summary', page)
-        self.assertNotIn('2026-11-14T09:00:00Z', row)
-        self.assertIn('2026-11-14T09:00:00Z', page.split('<details class="plan-details">', 1)[1])
-        self.assertIn('Run the focused test and inspect the live page', page)
-        self.assertIn('Verified', page)
-        self.assertIn('Verifying', page)
-        self.assertIn('Failed', page)
-        self.assertIn('title="', page)
-        self.assertIn('The selected item does not open', page)
-        self.assertIn('Verified on runtime', page)
+        row = page.split('<details class="grp fixed">', 1)[1].split('</details>', 1)[0]
+        self.assertIn('5 min', row); self.assertIn('Luna medium Fast', row)
+        self.assertIn('Render label', row); self.assertIn('Fixed', row)
+        self.assertIn('Run the focused test and inspect the live page carefully', page)
+        self.assertIn('Failed', page); self.assertIn('Codex job failed tests did not pass', page)
+        self.assertIn('Verifying', page); self.assertIn('Verified', page)
+        self.assertIn('2:30 PM IST – 2:35 PM IST', page)
+        self.assertNotRegex(row, r'20\d\d-\d\d-\d\dT')
+        self.assertIn('2:30 PM IST – 2:35 PM IST', page)
+        self.assertIn('Group B', page)
+
 
     def test_viewer_footer_is_opt_in_and_deterministic_without_metadata(self):
         plain = renderer.render(self.data, self.base)
@@ -206,12 +201,13 @@ setImmediate(async()=>{
         self.assertEqual(page.count('<time datetime='), 2)
         self.assertIn('class="workflow-now"', page)
         self.assertIn('Last reported', page)
-        self.assertIn('Intl.RelativeTimeFormat', page)
+        self.assertNotIn('Intl.RelativeTimeFormat', page)
+        self.assertNotIn('setInterval(formatPageTimes', page)
 
     def test_workflow_strip_shows_gate_loop_round_and_report_last_deterministically(self):
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
         data['tracking'] = {'workflow': {'stage':'gate','updated_at':'2026-11-14T07:00:00Z'},
-                            'cycle':3,'rollover_threshold':15}
+                            'cycle':3,'round':3,'rollover_threshold':15}
         for index, item in enumerate(data['findings']):
             item.update(status='verified_fixed', verification='Verified on the installed build.',
                         verification_refs=['Example receipt'])
@@ -222,8 +218,12 @@ setImmediate(async()=>{
         page = renderer.render(data, Path(__file__).parents[1])
         self.assertIn('Fixes 7 of 15', page)
         self.assertIn('Round 3', page)
-        self.assertIn('fewer than 15', page)
-        timeline = page.split('<ol>', 1)[1].split('</ol>', 1)[0]
+        self.assertIn('under 15 fixes', page)
+        self.assertIn('class="wf-band gate-met"', page)
+        self.assertIn('class="wf-step done wf-gate"', page)
+        self.assertIn('class="wf-exit"', page)
+        self.assertIn('gate-met .wf-loop', page)
+        timeline = page
         stages = ['collect','present','plan_fix','install','verify','introspect','gate','report_rollover']
         positions = [timeline.index(f'data-stage="{stage}"') for stage in stages]
         self.assertEqual(positions, sorted(positions))
@@ -380,7 +380,7 @@ setImmediate(async()=>{
             "worktree": "codex-samantha-issues-20261105",
         }
         page = renderer.render(self.data, self.base)
-        self.assertIn("body{margin:0;background:Canvas;color:var(--ink)", page)
+        self.assertIn("body{margin:0;background:var(--page);color:var(--ink)", page)
         self.assertIn('href="https://cursor.com/pr/87"', page)
         self.assertIn("PR #87 &lt;triage&gt;", page)
         self.assertIn('<span class="tracking-label">Pull request</span>', page)
@@ -455,7 +455,7 @@ setImmediate(async()=>{
         now = renderer.datetime.fromisoformat('2026-11-14T07:55:00+00:00')
         page = renderer.render(data, Path(__file__).parents[1], now=now)
         self.assertIn('Last reported <time datetime="2026-11-14T12:30:00+05:30"', page)
-        self.assertIn('Nov 14, 2026, 12:30 PM IST</time>', page)
+        self.assertIn('Nov 14, 2026, 12:30 PM IST (55 minutes ago)</time>', page)
         self.assertIn('<strong>Now</strong> <time datetime="2026-11-14T07:55:00+00:00">1:25 PM IST</time>', page)
         self.assertNotIn('2026-11-14T07:35:00Z', page)
         self.assertEqual(renderer.render(data, Path(__file__).parents[1]), renderer.render(data, Path(__file__).parents[1]))

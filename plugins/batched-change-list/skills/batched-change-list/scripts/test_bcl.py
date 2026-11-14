@@ -50,7 +50,7 @@ class BclTests(unittest.TestCase):
         planfile = self.root / "plan.json"; planfile.write_text(json.dumps(plan))
         for stage, extra in (("plan", ["--plan", str(planfile), "--ids", "ISSUE-01"]), ("fix", ["--ids", "ISSUE-01"]), ("install", ["--ids", "ISSUE-01"]), ("verify", ["--ids", "ISSUE-01"]), ("introspect", ["--result", "no issues"])):
             result = self.call(stage, *extra); self.assertEqual(result.returncode, 0, result.stderr)
-            if stage == "plan": self.assertIn('class="plan-view"', self.page.read_text())
+            if stage == "plan": self.assertIn('class="plan"', self.page.read_text())
         status = self.call("status")
         self.assertEqual(status.returncode, 0, status.stderr)
         data = json.loads(self.data.read_text())
@@ -70,7 +70,7 @@ class BclTests(unittest.TestCase):
         tracker["tracking"]["plan"] = {"cycle": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "running"}]}
         live.write_text(json.dumps(tracker)); self.data.write_text(json.dumps(tracker))
         stub = self.root / "check_stage.py"
-        stub.write_text("import json, sys\nfrom pathlib import Path\ndata, page = map(Path, sys.argv[1:])\nassert json.loads(data.read_text())['tracking']['workflow']['stage'] == 'install'\nassert '<li data-stage=\\\"install\\\" class=\\\"workflow-step active\\\" aria-current=\\\"step\\\">' in page.read_text()\n")
+        stub.write_text("import json, sys\nfrom pathlib import Path\ndata, page = map(Path, sys.argv[1:])\nassert json.loads(data.read_text())['tracking']['workflow']['stage'] == 'install'\nassert '<li data-stage=\\\"install\\\" class=\\\"wf-step current\\\" aria-current=\\\"step\\\">' in page.read_text()\n")
         command = f'"{sys.executable}" "{stub}" "{live}" "{self.page}"'
         result = self.call("install", live, "--ids", "ISSUE-01", "--then", command)
         self.assertEqual(result.returncode, 0, result.stderr)
