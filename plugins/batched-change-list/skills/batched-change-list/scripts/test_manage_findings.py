@@ -209,6 +209,19 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIn('runner mismatch', task['recommendation'])
         self.assertNotIn('stale report', task['recommendation'])
 
+    def test_introspect_task_joins_an_active_verification_run(self):
+        page, ops = self.root / 'run.html', self.root / 'run.json'
+        def batch(*items):
+            ops.write_text(json.dumps(list(items)))
+            return self.cli('batch', self.data, ops, '--render', page)
+        run = {'id':'r9','build':'b9','revision':'abc','installed_at':'2026-11-14T12:05:10+05:30','install_evidence':'log'}
+        self.assertEqual(batch({'action':'start-verification','run':run}).returncode, 0)
+        result = batch({'action':'introspect','issues':[{'issue':'gate noise','evidence':'r.log','outcome':'next_cycle'}]})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        doc = json.loads(self.data.read_text())
+        task = doc['tracking']['introspect']['task']
+        self.assertEqual(doc['tracking']['verification_run']['checks'][task], {'state': 'pending'})
+
     def test_set_activity_requires_reopen_for_closed_findings(self):
         operations, page = self.root / 'closed-activity.json', self.root / 'closed-activity.html'
         for status in ('verified_fixed', 'closed'):

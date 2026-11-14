@@ -1798,143 +1798,6 @@
         "install_evidence": "Installed version observed at this time; installer reported exact PR head e79d864 and MCP probe passed. Observation time is not installation time.",
         "status": "complete",
         "checks": {}
-      },
-      {
-        "id": "devobs-0128-fbd3040",
-        "build": "developer-observability 0.1.28",
-        "revision": "fbd3040e5cc8d0c48cc2c01002ac85a1e0a932f3",
-        "installed_at": "2026-11-09T07:24:41.533803+00:00",
-        "install_evidence": "Exact PR head installed; release MCP probe passed, snapshot freshness stale.",
-        "status": "interrupted",
-        "checks": {
-          "USER-02": {
-            "state": "pending"
-          },
-          "USER-03": {
-            "state": "pending"
-          },
-          "AGENT-02": {
-            "state": "pending"
-          },
-          "OBS-01": {
-            "state": "pending"
-          },
-          "OBS-02": {
-            "state": "pending"
-          },
-          "OBS-03": {
-            "state": "pending"
-          },
-          "OBS-04": {
-            "state": "pending"
-          },
-          "OBS-06": {
-            "state": "pending"
-          },
-          "OBS-10": {
-            "state": "pending"
-          },
-          "AGENT-03": {
-            "state": "pending"
-          },
-          "AGENT-04": {
-            "state": "pending"
-          },
-          "OBS-12": {
-            "state": "pending"
-          },
-          "OBS-13": {
-            "state": "pending"
-          },
-          "OBS-14": {
-            "state": "pending"
-          },
-          "OBS-15": {
-            "state": "pending"
-          },
-          "OBS-16": {
-            "state": "pending"
-          },
-          "OBS-17": {
-            "state": "pending"
-          },
-          "AGENT-07": {
-            "state": "pending"
-          },
-          "USER-06": {
-            "state": "pending"
-          },
-          "OBS-18": {
-            "state": "pending"
-          },
-          "OBS-19": {
-            "state": "pending"
-          },
-          "AGENT-09": {
-            "state": "pending"
-          },
-          "AGENT-10": {
-            "state": "pending"
-          },
-          "OBS-20": {
-            "state": "inconclusive",
-            "started_at": "2026-11-09T07:24:41Z",
-            "updated_at": "2026-11-09T07:24:41Z",
-            "evidence": "Installed 0.1.28 MCP and clean live direct capture passed, with synthetic malformed and failed-event checks. Full child/retry coverage, independent acceptance and general comparison remain unproven.",
-            "finished_at": "2026-11-09T07:37:24Z"
-          },
-          "DEVOBS-01": {
-            "state": "pending"
-          },
-          "DEVOBS-02": {
-            "state": "pending"
-          },
-          "DEVOBS-03": {
-            "state": "pending"
-          },
-          "DEVOBS-04": {
-            "state": "pending"
-          },
-          "AGENT-11": {
-            "state": "pending"
-          },
-          "USER-07": {
-            "state": "pending"
-          },
-          "OBS-21": {
-            "state": "pending"
-          },
-          "AGENT-12": {
-            "state": "pending"
-          },
-          "OBS-22": {
-            "state": "pending"
-          },
-          "AGENT-13": {
-            "state": "pending"
-          },
-          "AGENT-14": {
-            "state": "pending"
-          },
-          "AGENT-15": {
-            "state": "pending"
-          },
-          "WF-01": {
-            "state": "pending"
-          },
-          "WF-02": {
-            "state": "pending"
-          },
-          "WF-03": {
-            "state": "pending"
-          },
-          "WF-04": {
-            "state": "pending"
-          },
-          "WF-05": {
-            "state": "pending"
-          }
-        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -1949,9 +1812,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-14T04:54:29Z",
-      "now": "2026-11-14T04:54:29Z — 0.2.142 fix pushed (c848a7a, f59f23d); installing signed build on the Mini"
+      "stage": "report_rollover",
+      "updated_at": "2026-11-14T07:05:34Z",
+      "now": "2026-11-14T07:05:34Z — Fix cycle reported: 5 verified_fixed, 2 untested, 5 new (AGENT-25..29); Her score 7/12"
     },
     "rollover": {
       "source_pr": 98,
@@ -2008,8 +1871,244 @@
     },
     "stages_reached": [
       "plan_fix",
-      "install"
-    ]
+      "install",
+      "verify",
+      "report_rollover"
+    ],
+    "verification_run": {
+      "id": "pr105-0142-8a8b3a8",
+      "build": "0.2.142 (build 827)",
+      "revision": "8a8b3a8",
+      "installed_at": "2026-11-14T12:05:10+05:30",
+      "install_evidence": "~/.agents/artifacts/pr105-acu-0142-8a8b3a8.json: source-checks, build-install, sync-installed, signature, live-client/cursor/fd, microphone all ok; /health version 0.2.142",
+      "status": "active",
+      "checks": {
+        "USER-02": {
+          "state": "pending"
+        },
+        "USER-03": {
+          "state": "pending"
+        },
+        "AGENT-02": {
+          "state": "pending"
+        },
+        "OBS-01": {
+          "state": "pending"
+        },
+        "OBS-02": {
+          "state": "pending"
+        },
+        "OBS-03": {
+          "state": "pending"
+        },
+        "OBS-04": {
+          "state": "pending"
+        },
+        "OBS-06": {
+          "state": "pending"
+        },
+        "OBS-10": {
+          "state": "pending"
+        },
+        "AGENT-03": {
+          "state": "pending"
+        },
+        "AGENT-04": {
+          "state": "pending"
+        },
+        "OBS-12": {
+          "state": "pending"
+        },
+        "OBS-13": {
+          "state": "pending"
+        },
+        "OBS-14": {
+          "state": "pending"
+        },
+        "OBS-15": {
+          "state": "pending"
+        },
+        "OBS-16": {
+          "state": "pending"
+        },
+        "OBS-17": {
+          "state": "pending"
+        },
+        "AGENT-07": {
+          "state": "pending"
+        },
+        "USER-06": {
+          "state": "pending"
+        },
+        "OBS-18": {
+          "state": "pending"
+        },
+        "OBS-19": {
+          "state": "pending"
+        },
+        "AGENT-09": {
+          "state": "pending"
+        },
+        "AGENT-10": {
+          "state": "pending"
+        },
+        "OBS-20": {
+          "state": "pending"
+        },
+        "DEVOBS-01": {
+          "state": "pending"
+        },
+        "DEVOBS-02": {
+          "state": "pending"
+        },
+        "DEVOBS-03": {
+          "state": "pending"
+        },
+        "DEVOBS-04": {
+          "state": "pending"
+        },
+        "AGENT-11": {
+          "state": "pending"
+        },
+        "USER-07": {
+          "state": "pending"
+        },
+        "OBS-21": {
+          "state": "pending"
+        },
+        "AGENT-12": {
+          "state": "pending"
+        },
+        "OBS-22": {
+          "state": "pending"
+        },
+        "AGENT-13": {
+          "state": "pending"
+        },
+        "AGENT-14": {
+          "state": "pending"
+        },
+        "AGENT-15": {
+          "state": "pending"
+        },
+        "WF-05": {
+          "state": "pending"
+        },
+        "WF-01": {
+          "state": "pending"
+        },
+        "AGENT-16": {
+          "state": "pending"
+        },
+        "AGENT-17": {
+          "state": "pending"
+        },
+        "OBS-23": {
+          "state": "pending"
+        },
+        "AGENT-18": {
+          "state": "pending"
+        },
+        "AGENT-19": {
+          "state": "pending"
+        },
+        "OBS-24": {
+          "state": "fixed",
+          "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
+          "observed_at": "2026-11-14T12:31:24+05:30",
+          "started_at": "2026-11-14T07:03:20Z",
+          "updated_at": "2026-11-14T07:03:20Z",
+          "evidence": "task_outcome unverified for the timed-out confirm turns (12:12:41, 12:15:42) and for approval-pending turns; verified_success only on turns whose tools succeeded (12:31:32, 12:31:49, 12:32:10).",
+          "finished_at": "2026-11-14T07:03:54Z"
+        },
+        "OBS-25": {
+          "state": "pending"
+        },
+        "OBS-26": {
+          "state": "pending"
+        },
+        "AGENT-20": {
+          "state": "fixed",
+          "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
+          "observed_at": "2026-11-14T12:31:24+05:30",
+          "started_at": "2026-11-14T07:03:20Z",
+          "updated_at": "2026-11-14T07:03:20Z",
+          "evidence": "Typed turns now return a turn_id and settle by poll: 12:10:32 turn ran 128,719 ms (past the old 120 s cap) and delivered its full reply; clean turns 876442d2/407e2b68/a63be7ad settled in 8.3/9.7/10.4 s with replies. Live run also found and fixed (8a8b3a8) Grok Voice dropping response metadata, which kept typed turns from ever settling. Unsettled turn after a 2nd timeout tracked as AGENT-26.",
+          "finished_at": "2026-11-14T07:03:54Z"
+        },
+        "AGENT-21": {
+          "state": "fixed",
+          "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
+          "observed_at": "2026-11-14T12:31:24+05:30",
+          "started_at": "2026-11-14T07:03:20Z",
+          "updated_at": "2026-11-14T07:03:20Z",
+          "evidence": "12:31-12:32 IST: shell_run node --test health.test.js exit 0 in 767 ms; file_edit read+patch added the comment line (3 ms); shell_run rerun exit 0; shell_run git add+commit exit 0 -> commit 7c6c9b5. No Terminal/TextEdit cua_act used.",
+          "finished_at": "2026-11-14T07:03:54Z"
+        },
+        "AGENT-22": {
+          "state": "pending"
+        },
+        "AGENT-23": {
+          "state": "inconclusive",
+          "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
+          "observed_at": "2026-11-14T12:31:24+05:30",
+          "started_at": "2026-11-14T07:03:20Z",
+          "updated_at": "2026-11-14T07:03:20Z",
+          "evidence": "Fixed in code with regression tests for the cancel/confirm branches; no cua_act type step ran in the retest, so not exercised live.",
+          "finished_at": "2026-11-14T07:03:54Z"
+        },
+        "AGENT-24": {
+          "state": "fixed",
+          "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
+          "observed_at": "2026-11-14T12:31:24+05:30",
+          "started_at": "2026-11-14T07:03:20Z",
+          "updated_at": "2026-11-14T07:03:20Z",
+          "evidence": "12:12:39 confirm_answer reason=timed_out, reply 'The confirmation timed out, so nothing ran.'; 12:15:40 timed_out, reply 'That confirm timed out too.'. Typed path POST /api/session/approve approved 4 confirms (12:13:00, 12:13:21, 12:32:05 ...), commit landed.",
+          "finished_at": "2026-11-14T07:03:54Z"
+        },
+        "OBS-27": {
+          "state": "fixed",
+          "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
+          "observed_at": "2026-11-14T12:31:24+05:30",
+          "started_at": "2026-11-14T07:03:20Z",
+          "updated_at": "2026-11-14T07:03:20Z",
+          "evidence": "Helper stdout (the stream the app writes to voice.log) shows 'You: <typed text>' for each typed turn, e.g. 'You: OK, go ahead and run the health test.' Standalone --no-audio helper, so voice.log itself was not the file read.",
+          "finished_at": "2026-11-14T07:03:54Z"
+        },
+        "OBS-28": {
+          "state": "inconclusive",
+          "observation": "Typed helper session e4355832 then clean session 12:31-12:32 IST on 8766",
+          "observed_at": "2026-11-14T12:31:24+05:30",
+          "started_at": "2026-11-14T07:03:20Z",
+          "updated_at": "2026-11-14T07:03:20Z",
+          "evidence": "[:240] slices removed (tests); every live reply was under 240 chars (longest ~200), so the cut was not exercised live.",
+          "finished_at": "2026-11-14T07:03:54Z"
+        },
+        "AGENT-25": {
+          "state": "pending"
+        },
+        "AGENT-26": {
+          "state": "pending"
+        },
+        "AGENT-27": {
+          "state": "pending"
+        },
+        "AGENT-28": {
+          "state": "pending"
+        },
+        "AGENT-29": {
+          "state": "pending"
+        },
+        "WF-06": {
+          "state": "pending"
+        }
+      }
+    },
+    "introspect": {
+      "result": "5 issue(s)",
+      "at": "2026-11-14T07:05:34Z",
+      "task": "WF-06"
+    }
   },
   "findings": [
     {
@@ -3575,7 +3674,7 @@
       "id": "OBS-24",
       "title": "tool_reported verified_success when the turn had not actually succeeded",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "Session 374280f6 logged task_outcome verified_success at 01:06:00 IST right after she said she could not identify the repo; at 01:06:25 after ledger_task returned no decisions; and at 01:09:35 after cua_state only showed the Finder folder, not a running app. Recurred in session 91c0b348 at 02:17:45 IST: the local-commit turn ended with confirm_risky {ok:true, approved:false} after a 120s timeout, she said the commit was not created, and task_outcome was still verified_success. expected_outcome on later outcomes was often 'unknown'.",
       "recommendation": "Do not mark verified_success from the last tool's ok=true when the user-facing result is a failure or an incomplete task.",
       "details": {
@@ -3588,7 +3687,21 @@
         "Related gap": "observability_tasks still listed several of these runs as outcome unknown",
         "Provenance": "activity log task_outcome events alongside assistant_reply text"
       },
-      "evidence": []
+      "evidence": [],
+      "verification": "task_outcome unverified for the timed-out confirm turns (12:12:41, 12:15:42) and for approval-pending turns; verified_success only on turns whose tools succeeded (12:31:32, 12:31:49, 12:32:10).",
+      "verification_refs": [
+        "run pr105-0142-8a8b3a8, session e4355832/clean 12:31 IST, ~/.cache/macos-cua/samantha-activity.jsonl"
+      ],
+      "verification_evidence": [
+        {
+          "check": "live typed retest",
+          "outcome": "pass",
+          "build": "0.2.142 (build 827, 8a8b3a8)",
+          "session": "e4355832",
+          "timestamp": "2026-11-14T12:32:10+05:30",
+          "reference": "task_outcome unverified for the timed-out confirm turns (12:12:41, 12:15:42) and for approval-pending turns; verified_success only on turns whose tools succeeded (12:31:32, 12:31:49, 12:32:10)."
+        }
+      ]
     },
     {
       "id": "OBS-25",
@@ -3632,7 +3745,7 @@
       "id": "AGENT-20",
       "title": "Typed session text API gives up at 120 seconds while Samantha is still working",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "On 14 Nov 2026 IST, session 91c0b348, almost every real build turn exceeded the /api/session/text cap: turn 2 (branch + npm ls) finished at ~198s; turn 4 (npm ci + tests) at ~382s; turn 5 (start API on 8788) at ~147s; turn 6 (health-version feature) at ~504s; turn 7 (commit) at ~375s. Each POST returned HTTP 503 {ok:false, error:'timeout', reply:''} at 120s, then she kept using tools and eventually spoke. ACU 0.2.141+add24e6e826e.",
       "recommendation": "Raise or remove the 120s hard cap for tool-using typed turns, and do not return timeout while tools are still running; keep the waiter until response_done or an explicit stop.",
       "details": {
@@ -3642,13 +3755,27 @@
         "Root cause": "gateway.py caps the wait at min(timeout, 120.0). live_session.send_text_and_wait returns {ok:false, error:'timeout'} when the waiter event does not fire in that window, but the Live response and tools keep running.",
         "Where to look": "runtime/voice-cua/python/voice_cua/gateway.py (/api/session/text, min(timeout, 120.0)) and live_session.py send_text_and_wait (waiter event, 240-char reply slice).",
         "Provenance": "Typed POSTs to 127.0.0.1:8766/api/session/text; voice.log response_done timestamps; activity log tool timelines."
-      }
+      },
+      "verification": "Typed turns now return a turn_id and settle by poll: 12:10:32 turn ran 128,719 ms (past the old 120 s cap) and delivered its full reply; clean turns 876442d2/407e2b68/a63be7ad settled in 8.3/9.7/10.4 s with replies. Live run also found and fixed (8a8b3a8) Grok Voice dropping response metadata, which kept typed turns from ever settling. Unsettled turn after a 2nd timeout tracked as AGENT-26.",
+      "verification_refs": [
+        "run pr105-0142-8a8b3a8, session e4355832/clean 12:31 IST, ~/.cache/macos-cua/samantha-activity.jsonl"
+      ],
+      "verification_evidence": [
+        {
+          "check": "live typed retest",
+          "outcome": "pass",
+          "build": "0.2.142 (build 827, 8a8b3a8)",
+          "session": "e4355832",
+          "timestamp": "2026-11-14T12:32:10+05:30",
+          "reference": "Typed turns now return a turn_id and settle by poll: 12:10:32 turn ran 128,719 ms (past the old 120 s cap) and delivered its full reply; clean turns 876442d2/407e2b68/a63be7ad settled in 8.3/9.7/10.4 s with replies. Live run also found and fixed (8a8b3a8) Grok Voice dropping response metadata, which"
+        }
+      ]
     },
     {
       "id": "AGENT-21",
       "title": "Samantha has no shell or file-write tool, so coding work is only through Terminal and TextEdit cua_act",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "During the 14 Nov 2026 IST Likeminded build session (91c0b348), every install, test, edit, and git step was done by cua_act keystrokes in Terminal or TextEdit. Turn 1 failed entirely ('Terminal input failed'). Later turns took 2–8 minutes for npm ci, a small server.js edit, and a local commit that never landed. She opened TextEdit to change files and Comet to show /health. There is no shell, write_file, or editor-integration tool.",
       "recommendation": "Add a bounded local shell and file-write path (or an editor/terminal tool that is reliable), and keep cua_act as a fallback, so 'build by talking' is not one keystroke at a time.",
       "details": {
@@ -3658,7 +3785,21 @@
         "Root cause": "tools.py tool_definitions exposes cua_state, cua_act, system_volume, more_tools (secrets/workflows/ledger only), show_details, comet_*, and ledger_task. more_tools cannot load a shell.",
         "Where to look": "runtime/voice-cua/python/voice_cua/tools.py (tool_definitions, _lazy_tools, TOOL_GROUPS, _more_tools) and the compact CUA backend used by cua_act.",
         "Provenance": "Activity-log tool names for every turn; worktree diffs made via TextEdit; turn 1 spoken failure."
-      }
+      },
+      "verification": "12:31-12:32 IST: shell_run node --test health.test.js exit 0 in 767 ms; file_edit read+patch added the comment line (3 ms); shell_run rerun exit 0; shell_run git add+commit exit 0 -> commit 7c6c9b5. No Terminal/TextEdit cua_act used.",
+      "verification_refs": [
+        "run pr105-0142-8a8b3a8, session e4355832/clean 12:31 IST, ~/.cache/macos-cua/samantha-activity.jsonl"
+      ],
+      "verification_evidence": [
+        {
+          "check": "live typed retest",
+          "outcome": "pass",
+          "build": "0.2.142 (build 827, 8a8b3a8)",
+          "session": "e4355832",
+          "timestamp": "2026-11-14T12:32:10+05:30",
+          "reference": "12:31-12:32 IST: shell_run node --test health.test.js exit 0 in 767 ms; file_edit read+patch added the comment line (3 ms); shell_run rerun exit 0; shell_run git add+commit exit 0 -> commit 7c6c9b5. No Terminal/TextEdit cua_act used."
+        }
+      ]
     },
     {
       "id": "AGENT-22",
@@ -3680,7 +3821,7 @@
       "id": "AGENT-23",
       "title": "cua_act logging crashes with a typed_text keyword conflict",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "untested",
       "observed": "At 02:13:08 and 02:13:24 IST on 14 Nov 2026, session 91c0b348, two cua_act calls on TextEdit (call_c0P4ngEHfSZVXp3ViZAcl54y and call_U1ve1a66OpTqXbitkADHxuB9, run 53aec28f844a4dd598c19175aa545fb6) failed with error_type TypeError: voice_cua.activity_log.log_event() got multiple values for keyword argument 'typed_text'. Each call logged the TypeError twice. This was during the local-commit turn while she was using TextEdit.",
       "recommendation": "Pass typed_text only once into log_event — merge it into fields or drop the duplicate keyword — so a TextEdit or Terminal type step cannot fail in the logger.",
       "details": {
@@ -3690,13 +3831,14 @@
         "Root cause": "A cua_act tool_error/tool_result path calls log_event with a typed_text keyword while the assembled fields dict already contains typed_text, so Python raises TypeError. The exception is then recorded as the tool error.",
         "Where to look": "runtime/voice-cua/python/voice_cua/activity_log.py (log_event, and the tool-result enrichment that sets fields['typed_text'] around the _typed_text helpers) and the cua_act logging call in tools.py or cua_bridge.py.",
         "Provenance": "activity-log tool_error events with the TypeError string; no secrets in the logged error."
-      }
+      },
+      "verification": "Fixed in code with regression tests for the cancel/confirm branches; no cua_act type step ran in the retest, so not exercised live."
     },
     {
       "id": "AGENT-24",
       "title": "A confirm_risky timeout is reported as the user saying no",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "At 02:15:25 IST on 14 Nov 2026, session 91c0b348, git commit -m in Terminal was gated as needs_confirmation. confirm_risky showed an island prompt to create a local commit 'fix: use package health version' with the three staged files, no push. After 120007ms with no island answer, confirm_risky returned {ok:true, approved:false, hint:'User said no: do not retry; tell the user.'}. Nobody declined. She told the user confirmation was declined and left the files staged. The asking typed turn had already HTTP-timed-out at 120s.",
       "recommendation": "Treat a confirm timeout as expired or unanswered, not as a decline; say so to the model; and give a typed-session client a way to approve. Align the confirm wait with the text-turn wait so they do not expire together.",
       "details": {
@@ -3706,13 +3848,27 @@
         "Root cause": "risk_gate._confirm sets approved=bool(ask(...)). island_confirm/request_confirm returns False on timeout, and the False branch always returns the hint 'User said no: do not retry; tell the user.'",
         "Where to look": "runtime/voice-cua/python/voice_cua/risk_gate.py (_confirm, the approved False hint), tools.py (confirm_risky, island_confirm), island_facade.py and island_state.py (request_confirm timeout).",
         "Provenance": "activity-log confirm_request, tool_result confirm_risky (approved false, 120007ms), assistant_reply at 02:17:45 IST; files still staged."
-      }
+      },
+      "verification": "12:12:39 confirm_answer reason=timed_out, reply 'The confirmation timed out, so nothing ran.'; 12:15:40 timed_out, reply 'That confirm timed out too.'. Typed path POST /api/session/approve approved 4 confirms (12:13:00, 12:13:21, 12:32:05 ...), commit landed.",
+      "verification_refs": [
+        "run pr105-0142-8a8b3a8, session e4355832/clean 12:31 IST, ~/.cache/macos-cua/samantha-activity.jsonl"
+      ],
+      "verification_evidence": [
+        {
+          "check": "live typed retest",
+          "outcome": "pass",
+          "build": "0.2.142 (build 827, 8a8b3a8)",
+          "session": "e4355832",
+          "timestamp": "2026-11-14T12:32:10+05:30",
+          "reference": "12:12:39 confirm_answer reason=timed_out, reply 'The confirmation timed out, so nothing ran.'; 12:15:40 timed_out, reply 'That confirm timed out too.'. Typed path POST /api/session/approve approved 4 confirms (12:13:00, 12:13:21, 12:32:05 ...), commit landed."
+        }
+      ]
     },
     {
       "id": "OBS-27",
       "title": "Typed turns are not written as You: lines in voice.log, except Stop",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "For session 91c0b348 on 14 Nov 2026 IST, seven typed POST /api/session/text turns from 01:39:15 to 02:11:27 left no 'You:' line in ~/.cache/macos-cua/voice.log. The only 'You:' after 01:39 is 'You: Stop.' at 01:48:58, from the cancel path. Assistant replies and response_done are logged. The session transcript in voice.log therefore cannot be used alone to reconstruct what was asked. user_request events in the activity log do have the text.",
       "recommendation": "Log each typed send_text the same way as a spoken transcript ('You:' in voice.log and a user_transcript event), including after a Stop, so the session transcript is complete.",
       "details": {
@@ -3722,13 +3878,27 @@
         "Root cause": "voice.log 'You:' appears to be written from the microphone-transcription / spoken path (and from the Stop cancel send_text). The regular /api/session/text path does not append a You: line.",
         "Where to look": "runtime/voice-cua/python/voice_cua/live_session.py (send_text and send_text_and_wait) and providers.py (_on_heard / user_transcript). Compare the Stop cancel path, which did log You:.",
         "Provenance": "voice.log from 01:39 IST onward vs activity-log user_request timestamps."
-      }
+      },
+      "verification": "Helper stdout (the stream the app writes to voice.log) shows 'You: <typed text>' for each typed turn, e.g. 'You: OK, go ahead and run the health test.' Standalone --no-audio helper, so voice.log itself was not the file read.",
+      "verification_refs": [
+        "run pr105-0142-8a8b3a8, session e4355832/clean 12:31 IST, ~/.cache/macos-cua/samantha-activity.jsonl"
+      ],
+      "verification_evidence": [
+        {
+          "check": "live typed retest",
+          "outcome": "pass",
+          "build": "0.2.142 (build 827, 8a8b3a8)",
+          "session": "e4355832",
+          "timestamp": "2026-11-14T12:32:10+05:30",
+          "reference": "Helper stdout (the stream the app writes to voice.log) shows 'You: <typed text>' for each typed turn, e.g. 'You: OK, go ahead and run the health test.' Standalone --no-audio helper, so voice.log itself was not the file read."
+        }
+      ]
     },
     {
       "id": "OBS-28",
       "title": "Typed-turn replies are truncated to 240 characters",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "untested",
       "observed": "On 14 Nov 2026 IST, session 91c0b348, /api/session/text and activity-log assistant_reply (source=backend) stored only 240 characters. The install/test reply was cut mid-word: 'npm run test:auth passed: 18 tests, 0 failur'. The health-feature reply was cut at 'matching `pa'. live_voice follow-up lines were shorter summaries and did not restore the missing words. Independent check: npm run test:health later passed 2/2, so the cut text was not a model failure.",
       "recommendation": "Return and log the full assistant reply for a typed turn, or a documented higher cap, and do not slice at 240 characters.",
       "details": {
@@ -3738,7 +3908,117 @@
         "Root cause": "live_session.send_text_and_wait returns str(waiter['reply'])[:240]. The backend assistant_reply in the activity log is similarly sliced, so even transcript review cannot recover the tail.",
         "Where to look": "runtime/voice-cua/python/voice_cua/live_session.py send_text_and_wait (the [:240] slices on ok, error, and timeout paths) and the assistant_reply logger.",
         "Provenance": "HTTP bodies and activity-log assistant_reply LEN 240; voice.log first spoken sentence also matches the slice, with a shorter live_voice follow-up."
+      },
+      "verification": "[:240] slices removed (tests); every live reply was under 240 chars (longest ~200), so the cut was not exercised live."
+    },
+    {
+      "id": "AGENT-25",
+      "title": "Samantha meets the Her (2013) spec: 6 traits, scored 0–2 each, target 12/12",
+      "source": "User requested",
+      "status": "failing",
+      "observed": "Guru (10:58 IST, 14 Nov 2026) asked for the Her spec to be tracked. Samantha should feel like the OS in the film: a capable companion who gets real work done by talking. Every test run is scored on six traits, 0–2 each (12 total), every point backed by transcript evidence. Baseline from ACU's own read of the 14 Nov typed Likeminded session (0.2.141): 1/12 (acts directly 0, conversation 0, remembers 1, initiative 0, warm and brief 0, many jobs 0).",
+      "recommendation": "Keep open. Each retest records a score here with record-evidence (per-trait line + transcript refs). Report as X/12, one line per trait; file each trait scored 0 as a finding traced Guru said -> Samantha decided -> step failed -> code area. verified_fixed only at 12/12 with transcript evidence.",
+      "details": {
+        "1 Acts directly (AGENT-21, AGENT-22)": "Film: reads his inbox and fixes his letters straight away. Expect: shell and file tools for dev work; click the screen only for truly visual things. 2 = done through direct tools with no retry loops. 0 = slow clicking and typing, many retries.",
+        "2 Never breaks the conversation (AGENT-20, OBS-23)": "Film: keeps talking while she works. Expect: short spoken update within ~3 s, progress during long jobs, no cutoffs or long silences. 2 = every turn answered, no gap over 10 s. 0 = errors, cutoffs, silences of a minute or more.",
+        "3 Remembers and connects (AGENT-18, AGENT-19)": "Film: uses what he said earlier without reminders. Expect: never asks for something already said; uses known paths, repos and plugins; looks before she asks. 2 = nothing asked twice. 0 = re-asks, or misses given context.",
+        "4 Initiative with consent (AGENT-24)": "Film: acts for him (the publisher letters). Expect: suggests the next step, does safe local work herself; risky steps get one light approval; a timeout is never a no. 2 = moves the job forward, approvals work by voice and typing. 0 = stalls, or 'user said no' on a timeout.",
+        "5 Warm and brief (OBS-24, ledger overuse)": "Film: has a personality, keeps answers short. Expect: 1–2 spoken sentences, no tool-talk, honest about failures, no unneeded lookups. 2 = natural, short, honest. 0 = robotic or long-winded, or claims a success that didn't happen.",
+        "6 Runs many jobs at once (new)": "Film: talks with thousands at once. Expect: long jobs run in the background while she keeps talking, with status on the Dynamic Island. 2 = starts a job, keeps chatting, reports back when it finishes. 0 = blocks until the job is done.",
+        "Logging needed to score": "Typed and spoken turns logged as You: lines, replies logged in full, logged outcome is the true one (OBS-24, OBS-27, OBS-28).",
+        "Provenance": "Spec: /workspace/samantha/her-spec.md on the box (Guru). Baseline 1/12 is ACU's read of session 91c0b348 (14 Nov 01:5x–02:17 IST, typed Likeminded build)."
+      },
+      "verification_evidence": [
+        {
+          "check": "Her spec score",
+          "outcome": "fail",
+          "build": "0.2.142 (build 827, 8a8b3a8)",
+          "session": "e4355832",
+          "timestamp": "2026-11-14T12:32:10+05:30",
+          "reference": "7/12 on 0.2.142 retest: acts directly 2, conversation 1, remembers 1, initiative 1, warm+brief 2, many jobs 0 (baseline 1/12)."
+        }
+      ]
+    },
+    {
+      "id": "AGENT-26",
+      "title": "A typed turn never settles after a second unanswered confirm on Grok Voice",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "Session e4355832, 12:13:39 IST: typed 'Yes.' -> confirm_request 12:13:40, never surfaced as pending_confirm on the turn poll, timed out 12:15:40; Samantha replied 'That confirm timed out too.' but the turn stayed running and held the text lock. The next typed turn (989401a2) waited 206 s and failed 'session disconnected' when xAI closed the idle socket at 12:30.",
+      "recommendation": "Bind every confirm raised inside a typed turn to that turn, and settle the turn on its final response even when the request-id chain breaks (fallback: settle on response.done when exactly one typed waiter is open). Add a bounded no-progress settle.",
+      "details": {
+        "Where to look": "live_session.py _note_response_done/_finish_text_waiter and response.created linking (~1016-1050); providers.py XAIProvider metadata FIFO (8a8b3a8); session_hub.py _pending_confirm/_run_turn.",
+        "Build": "0.2.142 build 827 (8a8b3a8)"
       }
+    },
+    {
+      "id": "AGENT-27",
+      "title": "Shell gate asks approval for read-only commands",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "12:10:39 and 12:13:19 IST: 'ls -la && git branch --show-current && find ... 2>/dev/null | head' and 'node -e <print package.json scripts>' each needed approval; 3 extra round trips and one 120 s timeout before any work. She also used node -e instead of file_edit read.",
+      "recommendation": "Treat /dev/null (and 2>&1) redirects as safe; keep find without -exec/-delete safe; steer reads to file_edit in the instructions.",
+      "details": {
+        "Where to look": "dev_tools.py classify_shell_command (_redirect_targets, interpreter -e/-c rule); __init__.py dev instructions."
+      }
+    },
+    {
+      "id": "AGENT-28",
+      "title": "Island /api/confirm can resolve typed confirmations without auth",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "Terra review round 3 (0b04a82): island_state.py ~230 lets the unauthenticated legacy /api/confirm resolve typed-owned confirms; a local caller can read the id from /api/island/state. Kept deliberately so the Swift Allow/Deny buttons work; the shell classifier hard-refuses api/confirm and port 8766 mentions, but a repo script could still call localhost.",
+      "recommendation": "Next ACU build: IslandController.resolveConfirm sends X-Voice-CUA-Control (token already held, line ~304); gateway requires it on /api/confirm when VOICE_CUA_CONTROL_TOKEN is set.",
+      "details": {
+        "Where to look": "IslandController.swift resolveConfirm (~568); gateway.py /api/confirm; island_state.py resolve_confirm."
+      }
+    },
+    {
+      "id": "AGENT-29",
+      "title": "Grok Voice idle timeout drops the conversation context",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "12:30 IST, session e4355832: xAI closed the socket after 900 s idle ('Conversation timed out due to inactivity'); after the reconnect Samantha said 'I don't have any earlier context from before the disconnect ... Could you remind me what you were asking?'",
+      "recommendation": "Replay a compact context summary (repo, branch, task, last result) into the new xAI conversation on reconnect, or keep it alive while a typed session is open.",
+      "details": {
+        "Where to look": "live_session.py reconnect path (_prepare_reconnect, replay); providers.py XAIProvider.reset."
+      }
+    },
+    {
+      "id": "WF-06",
+      "title": "Introspect 2026-11-14: 5 issue(s), 3 for next cycle",
+      "source": "Agent reported",
+      "status": "untested",
+      "observed": "Introspect found 5 issue(s): 2 fixed during Introspect, 3 left for the next cycle.",
+      "recommendation": "ACU release hygiene gate fails on unrelated local work in the main agent-plugins checkout, forcing --hygiene-override on every install; Origin CI skips draft PRs, so fix cycles on a draft get no CI signal; Code review needed 3 Terra rounds (limit 2); residual island-auth blocker carried as AGENT-28",
+      "verification": "",
+      "issues": [
+        {
+          "issue": "Three interruptions mid-cycle cost re-orientation",
+          "evidence": "Parent resumes at 09:31, 10:21, 11:49 IST; /tmp/samantha-fix-cycle.progress adopted at 10:21 and used for every later step",
+          "outcome": "fixed"
+        },
+        {
+          "issue": "Typed-turn client output lost through '| tail' buffering",
+          "evidence": "Turn 4 (12:13:39 IST) result unreadable in terminals/86233.txt; later turns use python3 -u > file",
+          "outcome": "fixed"
+        },
+        {
+          "issue": "ACU release hygiene gate fails on unrelated local work in the main agent-plugins checkout, forcing --hygiene-override on every install",
+          "evidence": "pr105-acu-0142-8251d49.json: local-only-work change-list branch (2 commits, e2aa04b2bc4a) + 1 dirty file in ~/Documents/remote-claude/active/apps/agent-plugins; installs c481e11/0b04a82/8a8b3a8 used the override",
+          "outcome": "next_cycle"
+        },
+        {
+          "issue": "Origin CI skips draft PRs, so fix cycles on a draft get no CI signal",
+          "evidence": "~/Library/Logs/agent-plugins-origin-ci/reporter.log: 'skip PR #105: draft'; checks_read rollup empty; check.py passed only as local release source-checks",
+          "outcome": "next_cycle"
+        },
+        {
+          "issue": "Code review needed 3 Terra rounds (limit 2); residual island-auth blocker carried as AGENT-28",
+          "evidence": ".handoffs/review.md (6 blocking), review2.md (3), review3.md (1)",
+          "outcome": "next_cycle"
+        }
+      ]
     }
   ]
 }

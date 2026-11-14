@@ -684,6 +684,11 @@ def main(argv=None):
                         validate_detail_limits(task)
                         validate_ids(findings + [task])
                         findings.append(task)
+                        run = store["document"].get("tracking", {}).get("verification_run", {})
+                        if isinstance(run, dict) and run.get("status") in ("active", "complete"):
+                            # Like add: a new task joins the open run as pending, or rendering rejects it.
+                            run["status"] = "active"
+                            run.setdefault("checks", {})[task_id] = {"state": "pending"}
                         record["task"] = task_id
                     store["document"].setdefault("tracking", {})["introspect"] = record
                     continue

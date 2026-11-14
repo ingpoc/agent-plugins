@@ -1,5 +1,9 @@
 # Changelog: batched-change-list
 
+## 0.1.10
+
+- `introspect` adds its `WF-` task to an open verification run as pending, like `add`, so rendering no longer rejects it mid-run.
+
 ## 0.1.9
 
 - `add` refuses `WF-` ids: the only way to create an Introspect task is the single `introspect` call, so one Introspect always means one task.
