@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "report_rollover",
-      "updated_at": "2026-11-14T07:23:09Z",
-      "now": "2026-11-14T07:23:09Z — 2026-11-14T12:53:09+0530"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-14T07:59:21Z",
+      "now": "2026-11-14T07:59:21Z — Collect and present are done. Planning the 0.1.13 fix so the page reads live installs at render time and keeps the workflow strip and timestamp current."
     },
     "rollover": {
       "source_pr": 105,
@@ -2110,7 +2110,10 @@
         "WF-01",
         "WF-05"
       ]
-    }
+    },
+    "stages_reached": [
+      "plan_fix"
+    ]
   },
   "findings": [
     {
@@ -4114,6 +4117,17 @@
       "summary": "Coding jobs that Grok Bot starts in the background should show on the island while they run. The code suggests they do, but it hasn't been confirmed on screen.",
       "impact": "If they don't show, long coding jobs are invisible and you can't see what is running on the Mac.",
       "done_when": "A background coding job appears on the island while it runs and disappears shortly after it ends, confirmed with a screenshot."
+    },
+    {
+      "id": "PAGE-01",
+      "title": "The change-list page shows stale plugin versions and old workflow times",
+      "source": "User requested",
+      "status": "in_progress",
+      "summary": "The page still shows last month's plugin versions and a workflow time from earlier in the day, even while work is happening now.",
+      "impact": "You can't tell what's actually installed or whether the list is being worked on, so the page looks finished or out of date when it isn't.",
+      "done_when": "The page always shows the versions that are installed now, and the workflow strip and timestamp move as soon as the tracker is updated.",
+      "observed": "On 14 Nov 2026, the PR #107 page showed agent-computer-use 0.2.121 (stored 8 Nov) while 0.2.142 is installed. It stayed on Report & roll over with Last reported 12:53 PM IST and a raw ISO timestamp next to Now, more than 30 minutes after live-details work had started.",
+      "recommendation": "At render time, read installed plugin versions from the live installs and use stored values only as a labelled fallback. Show Last reported and Now from the latest tracker change plus the render time, in IST, with no raw ISO as visible text. Keep the workflow strip current whenever the tracker is updated, and serve a fresh render on each page load."
     }
   ]
 }
