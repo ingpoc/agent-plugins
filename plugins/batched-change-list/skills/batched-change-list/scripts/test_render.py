@@ -16,11 +16,18 @@ class RenderTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
     def test_version_timeline_shows_status_and_evidence_together(self):
         template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
-        self.assertIn("node('div','Verification by version','evidence-label')", template)
-        self.assertIn("node('p',`${record.check} · ${record.timestamp} · ${record.build}`,'evidence-meta')", template)
+        self.assertIn("history.append(node('h3','Verification by version'))", template)
+        self.assertIn("node('span',record.version,'version-chip')", template)
+        self.assertIn("`Installed ${ist(record.timestamp)} · ${record.build}`", template)
+        # Shown in the main card after Done when, never inside the collapsed Evidence section.
+        self.assertLess(template.index("part('Done when'"), template.index("'Verification by version'"))
+        self.assertLess(template.index("'Verification by version'"), template.index("node('details',null,'evidence')"))
         evidence_builder = next(line for line in template.splitlines() if line.startswith(' const detail=node(\'details\''))
-        self.assertIn("node('details',null,'evidence')", evidence_builder)
-        self.assertNotIn("node('details'", next(line for line in template.splitlines() if line.startswith(' if(records.length)')))
+        self.assertNotIn('Verification by version', evidence_builder)
+        # Agent-facing fix hints live in Evidence; machine-readable state sits on the article.
+        self.assertIn("evidenceRows.push(['Suggested fix · where to look',selected.recommendation])", template)
+        self.assertNotIn("part('Suggested fix'", template)
+        self.assertIn("article.dataset.status=selected.status", template)
 
     def test_optional_readable_fields_and_observed_fallbacks(self):
         data = copy.deepcopy(self.data)

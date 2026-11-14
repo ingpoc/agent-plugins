@@ -3716,7 +3716,10 @@
           "timestamp": "2026-11-14T12:32:10+05:30",
           "reference": "task_outcome unverified for the timed-out confirm turns (12:12:41, 12:15:42) and for approval-pending turns; verified_success only on turns whose tools succeeded (12:31:32, 12:31:49, 12:32:10)."
         }
-      ]
+      ],
+      "summary": "The activity log marked some turns as successful even when the action had not actually worked.",
+      "impact": "Agents and you could trust a result that never happened.",
+      "done_when": "A turn is only marked successful when its actions really succeeded."
     },
     {
       "id": "OBS-25",
@@ -3790,7 +3793,10 @@
           "timestamp": "2026-11-14T12:32:10+05:30",
           "reference": "Typed turns now return a turn_id and settle by poll: 12:10:32 turn ran 128,719 ms (past the old 120 s cap) and delivered its full reply; clean turns 876442d2/407e2b68/a63be7ad settled in 8.3/9.7/10.4 s with replies. Live run also found and fixed (8a8b3a8) Grok Voice dropping response metadata, which"
         }
-      ]
+      ],
+      "summary": "Typed conversations with Samantha gave up after two minutes, even while she was still working.",
+      "impact": "Longer tasks looked like failures and you lost her answer.",
+      "done_when": "Typed turns wait until she finishes, however long the task takes."
     },
     {
       "id": "AGENT-21",
@@ -3820,7 +3826,10 @@
           "timestamp": "2026-11-14T12:32:10+05:30",
           "reference": "12:31-12:32 IST: shell_run node --test health.test.js exit 0 in 767 ms; file_edit read+patch added the comment line (3 ms); shell_run rerun exit 0; shell_run git add+commit exit 0 -> commit 7c6c9b5. No Terminal/TextEdit cua_act used."
         }
-      ]
+      ],
+      "summary": "Samantha had no way to run commands or edit files directly, so she had to click and type in apps.",
+      "impact": "Small coding tasks took many minutes and often failed.",
+      "done_when": "She can run safe commands and edit project files directly, with your approval for risky changes."
     },
     {
       "id": "AGENT-22",
@@ -3889,7 +3898,10 @@
           "timestamp": "2026-11-14T12:32:10+05:30",
           "reference": "12:12:39 confirm_answer reason=timed_out, reply 'The confirmation timed out, so nothing ran.'; 12:15:40 timed_out, reply 'That confirm timed out too.'. Typed path POST /api/session/approve approved 4 confirms (12:13:00, 12:13:21, 12:32:05 ...), commit landed."
         }
-      ]
+      ],
+      "summary": "When you did not answer an approval in time, Samantha recorded it as you saying no.",
+      "impact": "The log showed a decision you never made.",
+      "done_when": "An unanswered approval is recorded as timed out, and typed conversations can approve or decline."
     },
     {
       "id": "OBS-27",
@@ -3919,7 +3931,10 @@
           "timestamp": "2026-11-14T12:32:10+05:30",
           "reference": "Helper stdout (the stream the app writes to voice.log) shows 'You: <typed text>' for each typed turn, e.g. 'You: OK, go ahead and run the health test.' Standalone --no-audio helper, so voice.log itself was not the file read."
         }
-      ]
+      ],
+      "summary": "Messages you typed to Samantha were missing from her conversation log.",
+      "impact": "Reviewing a session showed only half of the conversation.",
+      "done_when": "Every typed message appears in the log next to her reply."
     },
     {
       "id": "OBS-28",

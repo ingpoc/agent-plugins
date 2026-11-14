@@ -1,5 +1,13 @@
 # Changelog: batched-change-list
 
+## 0.1.12
+
+- Issue page: "Verification by version" always shows in the main card, below Done when and above the collapsed Evidence section, never inside Evidence.
+- Each version is a clean timeline row: version chip, coloured status chip (Fixed / Failing / Blocked / Inconclusive), one-line summary (click to expand), and a muted line with the install time in IST and the build.
+- Suggested fix moves into Evidence as "Suggested fix · where to look" (agent-facing); the main card keeps What's wrong, Why it matters, Done when and Verification by version. The issue article carries `data-finding-id` and `data-status` for agents.
+- Done when no longer falls back to log-like verification text; that text stays in the version timeline and Evidence. "Issues found" uses the same section heading style; the install-check badge no longer stretches full width.
+- Repo check (`scripts/check.py`): the current `docs/triage/pr-N.html` must be byte-identical to a fresh `render.py` output of its tracker, so pages cannot be hand-edited.
+
 ## 0.1.11
 
 - `introspect` adds its `WF-` task to an open verification run as pending, like `add`, so rendering no longer rejects it mid-run.
