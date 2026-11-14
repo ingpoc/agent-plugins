@@ -377,6 +377,7 @@ class LiveSession:
         self._cancelled_response_ids: set[str] = set()
         self._current_response_id = ""
         self._last_user_text = ""
+        self._last_assistant_reply = ""
         self._reconnect_attempts = 0
         self._last_server_event_at = 0.0
         self._connected_at = 0.0  # monotonic time of the last session.updated
@@ -609,6 +610,13 @@ class LiveSession:
         self._tool_groups.clear()
         reset_session_state()
         self.provider.reset()
+        last_results = self._task_runs.get(self._last_task_run_id) or []
+        self._reconnect_context = {
+            "repo": os.path.basename(os.getcwd()),
+            "branch": self._current_branch(),
+            "task": self._task_expected_outcomes.get(self._last_task_run_id, ""),
+            "last_result": self._last_assistant_reply or str(last_results[-1] if last_results else "")[:1200],
+        }
         keep = (self._drop_plan or {}).get("request_id") or ""
         for request_id in request_ids:
             if request_id == keep:
@@ -822,6 +830,11 @@ class LiveSession:
         ))
         if reconnected:
             note = self.reconnect_note(comet_active=self._comet_active)
+            context = getattr(self, "_reconnect_context", {})
+            if context:
+                note += (f" Current project: {context.get('repo')}; branch: {context.get('branch') or 'unknown'}."
+                         f" Current task: {context.get('task') or 'none recorded'}."
+                         f" Last result: {context.get('last_result') or 'none recorded'}.")
             self._send_system_note(note)
             log_event("reconnect_note", comet_active=self._comet_active)
         if self._text_only:
@@ -852,6 +865,15 @@ class LiveSession:
                 "content": [{"type": "input_text", "text": text}],
             },
         })
+
+    @staticmethod
+    def _current_branch() -> str:
+        import subprocess
+        try:
+            return subprocess.run(["git", "branch", "--show-current"], check=True, capture_output=True,
+                                  text=True, timeout=1).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            return ""
 
     def _send_tools_update(self) -> None:
         self._tools_update_ack.clear()
@@ -1033,6 +1055,9 @@ class LiveSession:
                         self._response_started.clear()
                         self._spoken_stop_response_ids.clear()
                     self._response_started[response_id] = time.monotonic()
+                    for waiter in self._text_waiters.values():
+                        if not waiter["event"].is_set():
+                            waiter["last_progress"] = self._response_started[response_id]
                     if request_id:
                         turn = getattr(self, "_turn_latency", None)
                         if not isinstance(turn, dict) or turn.get("run_id") != request_id:
@@ -1052,6 +1077,11 @@ class LiveSession:
                             self._response_typed_turn_ids[response_id] = typed_turn_id
                         self._task_runs.setdefault(request_id, [])
                         self._cancel_settle(request_id)
+                    else:
+                        typed_waiters = [waiter for waiter in self._text_waiters.values()
+                                         if waiter.get("typed_turn_id") and not waiter["event"].is_set()]
+                        if len(typed_waiters) == 1:
+                            self._response_typed_turn_ids[response_id] = typed_waiters[0]["typed_turn_id"]
                     self._cancelled_response_ids.discard(response_id)
                 self._response_condition.notify_all()
             log_event("model_response_start", run_id=request_id or None,
@@ -1578,6 +1608,10 @@ class LiveSession:
                     "job_done": result.get("job_done") is True,
                     "exit_code": result.get("exit_code"),
                 })
+                typed_turn_id = self._typed_turn_ids_by_request.get(run_id)
+                for waiter in self._text_waiters.values():
+                    if typed_turn_id and waiter.get("typed_turn_id") == typed_turn_id:
+                        waiter["last_progress"] = time.monotonic()
 
     @staticmethod
     def stale_result_note(name: str, result: dict[str, Any]) -> str:
@@ -1931,7 +1965,8 @@ class LiveSession:
             if timeout is not None and time.monotonic() - started >= timeout:
                 return {"ok": False, "error": "timeout waiting for another text request"}
         request_id = uuid.uuid4().hex
-        waiter = {"event": threading.Event(), "reply": "", "error": ""}
+        waiter = {"event": threading.Event(), "reply": "", "error": "",
+                  "typed_turn_id": typed_turn_id, "last_progress": time.monotonic()}
         try:
             if cancel_event is not None and cancel_event.is_set():
                 return {"ok": False, "error": "session disconnected", "error_type": "session_disconnected"}
@@ -1952,10 +1987,12 @@ class LiveSession:
                                                      if deadline is not None else 0.1)):
                 if cancel_event is not None and cancel_event.is_set():
                     return {"ok": False, "error": "session disconnected", "error_type": "session_disconnected"}
+                if time.monotonic() - waiter["last_progress"] >= 300:
+                    return {"ok": False, "error": "no progress for 300 seconds", "reply": str(waiter["reply"])}
                 if deadline is not None and time.monotonic() >= deadline:
                     return {"ok": False, "error": "timeout", "reply": str(waiter["reply"])}
             if waiter["error"]:
-                return {"ok": False, "error": str(waiter["error"])[:240], "reply": str(waiter["reply"])}
+                return {"ok": False, "error": str(waiter["error"]), "reply": str(waiter["reply"])}
             return {"ok": True, "reply": str(waiter["reply"])}
         finally:
             with self._response_lock:
@@ -2023,7 +2060,6 @@ class LiveSession:
                 return
             waiter["reply"] = reply
             waiter["error"] = error
-            self._typed_turn_ids_by_request.pop(request_id, None)
             waiter["event"].set()
 
     def _note_response_done(self, response: dict[str, Any]) -> None:
@@ -2037,6 +2073,17 @@ class LiveSession:
             return
         response_id = str(response.get("id") or "")
         request_id = self._request_id(response) or self._request_for_response(response_id)
+        if not request_id:
+            typed_turn_id = self._response_typed_turn_ids.get(response_id, "")
+            with self._response_lock:
+                matches = [key for key, waiter in self._text_waiters.items()
+                           if typed_turn_id and waiter.get("typed_turn_id") == typed_turn_id
+                           and not waiter["event"].is_set()]
+                if not matches:
+                    matches = [key for key, waiter in self._text_waiters.items()
+                               if waiter.get("typed_turn_id") and not waiter["event"].is_set()]
+            if len(matches) == 1:
+                request_id = matches[0]
         with self._response_lock:
             task_run_id = (self._response_task_run_ids.get(response_id)
                            or (request_id if request_id in self._task_runs else ""))
@@ -2077,6 +2124,8 @@ class LiveSession:
         with self._response_lock:
             transcript = self._response_transcripts.get(response_id, "")
         reply = _normalize_reply(" ".join(text_bits).strip() or transcript.strip())
+        if reply:
+            self._last_assistant_reply = reply[:1200]
         task_outcome = _task_outcome(task_results, status=status, reply=reply)
         if task_settling:
             log_task_outcome(check_id="tool_task", outcome=task_outcome[0],
@@ -2090,7 +2139,7 @@ class LiveSession:
                              expected_outcome=expected_outcome or "unknown",
                              tools=sorted({row["tool"] for row in task_results if row.get("tool") in _TASK_ACTION_EVIDENCE}))
         if reply:
-            log_event("assistant_reply", text=reply[:2000], source="backend", response_id=response_id or None)
+            log_event("assistant_reply", text=reply, source="backend", response_id=response_id or None)
             print(f"Samantha: {reply}", flush=True)
         mark("response_done", status="ok" if reply else "empty")
         if request_id:
@@ -2250,14 +2299,18 @@ class LiveSession:
         self._turn_text = text
         self._last_user_text = text
         self._turn_tools = 0
-        task_request_id = request_id or uuid.uuid4().hex
+        with self._response_lock:
+            active_run = self._active_task_run_id
+            attach_transcript = bool(source == "microphone_transcription" and active_run
+                                     and active_run in self._task_runs)
+        task_request_id = request_id or (active_run if attach_transcript else uuid.uuid4().hex)
         turn = getattr(self, "_turn_latency", {})
         self._turn_latency = {"speech_end": self._pending_speech_end, "run_id": task_request_id,
                               "step_ref": "", "tool_time_total_ms": 0, "tool_count": 0}
         self._pending_speech_end = None
         request_step_ref = new_step_ref()
         with self._response_lock:
-            if task_request_id:
+            if task_request_id and not attach_transcript:
                 self._task_runs[task_request_id] = []
                 self._task_expected_outcomes[task_request_id] = text
                 self._task_request_step_refs[task_request_id] = request_step_ref
@@ -2266,7 +2319,8 @@ class LiveSession:
                 self._active_task_run_id = task_request_id
                 self._last_task_run_id = task_request_id
         log_event("user_transcript" if source == "microphone_transcription" else "user_request",
-                  run_id=task_request_id, run_ref_status="linked", run_ref_source="controller_task_start",
+                  run_id=task_request_id, run_ref_status="linked",
+                  run_ref_source="active_task_continuation" if attach_transcript else "controller_task_start",
                   retry_of_run_ref=retry_of_run_ref or None, step_ref=request_step_ref,
                   request=text, expected_outcome=text,
                   text=text if source == "microphone_transcription" else None,

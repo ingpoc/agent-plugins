@@ -114,7 +114,7 @@ class TerminalOutcomeTests(unittest.TestCase):
              "exit_code": 0},
         ])
 
-    def test_response_done_passes_final_reply_to_task_outcome_and_caps_log_at_2000(self) -> None:
+    def test_response_done_passes_and_logs_full_final_reply(self) -> None:
         reply = "I couldn't confirm it. " + "x" * 2200
         session = LiveSession(api_key="test", enable_audio=False)
         session._response_task_run_ids["response"] = "run"
@@ -130,7 +130,28 @@ class TerminalOutcomeTests(unittest.TestCase):
         self.assertEqual(outcome.call_args.kwargs["outcome"], "unverified")
         self.assertEqual(outcome.call_args.kwargs["caused_by"], ["request-step"])
         logged = next(fields["text"] for kind, fields in rows if kind == "assistant_reply")
-        self.assertEqual(len(logged), 2000)
+        self.assertEqual(logged, reply)
+
+    def test_response_done_settles_the_only_typed_waiter_without_request_metadata(self) -> None:
+        session = LiveSession(api_key="test", enable_audio=False)
+        waiter = {"event": threading.Event(), "reply": "", "error": "", "typed_turn_id": "turn-1"}
+        session._text_waiters["request-1"] = waiter
+        session._response_typed_turn_ids["response"] = "turn-1"
+        session._note_response_done({"id": "response", "status": "completed", "output": [
+            {"type": "message", "content": [{"type": "output_text", "text": "Full reply"}]},
+        ]})
+        self.assertTrue(waiter["event"].is_set())
+        self.assertEqual(waiter["reply"], "Full reply")
+
+    def test_follow_on_transcript_keeps_the_active_task_run(self) -> None:
+        session = LiveSession(api_key="test", enable_audio=False)
+        with patch("voice_cua.workflow_store.begin_engagement"), patch("voice_cua.tools.note_user_turn"), \
+                patch("voice_cua.live_session.log_event") as logged:
+            first = session._note_user_turn("Open the report", source="microphone_transcription")
+            second = session._note_user_turn("The report named Q4", source="microphone_transcription")
+        self.assertEqual(second, first)
+        self.assertEqual(session._task_expected_outcomes[first], "Open the report")
+        self.assertEqual(logged.call_args.kwargs["run_ref_source"], "active_task_continuation")
 
 
 class FakeWS:
