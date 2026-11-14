@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-14T14:58:05Z",
-      "now": "2026-11-14T14:58:05Z — Plan recorded"
+      "stage": "introspect",
+      "updated_at": "2026-11-14T15:56:12Z",
+      "now": "2026-11-14T15:56:12Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 107,
@@ -2163,8 +2163,8 @@
           "depends_on": [],
           "reason": "PAGE-07 and PAGE-06 share render.py and change-list.html, so they are one lane. Implement status-v2 (lanes per phase, no single Now, one Updated clock, derived issue copy, parked line, merge commit and merge time on a merged list).",
           "worktree": "bcl-110-r3-page",
-          "status": "pending",
-          "phase": "fix",
+          "status": "done",
+          "phase": "done",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_render.py",
@@ -2179,11 +2179,12 @@
           "verify": {
             "command": "python3 -m unittest scripts.test_render -q && python3 /Users/gurusharan/.agents/artifacts/bcl-110/page07/verify-live.py",
             "summary": "Tests plus live 1x 2x captures",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 2,
             "failed": 0,
             "total": 2
-          }
+          },
+          "updated_at": "2026-11-14T15:54:03Z"
         },
         {
           "id": "ISLAND",
@@ -2194,8 +2195,8 @@
           "depends_on": [],
           "reason": "Read service_tier from event_msg thread_settings as well as turn_context so a priority Codex job shows Fast.",
           "worktree": "bcl-110-r3-island",
-          "status": "pending",
-          "phase": "fix",
+          "status": "done",
+          "phase": "done",
           "files": [
             "plugins/agent-computer-use/skills/macos-cua/service/Sources/CUAService/IslandCodexThreads.swift"
           ],
@@ -2207,8 +2208,8 @@
           "verify": {
             "command": "python3 /Users/gurusharan/.agents/artifacts/bcl-110/island/verify-island03.py",
             "summary": "Fast vs normal island screenshots",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           }
@@ -2222,8 +2223,8 @@
           "depends_on": [],
           "reason": "Idle close did not fire after typed turns; after reconnect she must still know project, task, and last result.",
           "worktree": "bcl-110-r3-session",
-          "status": "pending",
-          "phase": "fix",
+          "status": "done",
+          "phase": "done",
           "files": [
             "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua/live_session.py"
           ],
@@ -2235,8 +2236,8 @@
           "verify": {
             "command": "python3 /Users/gurusharan/.agents/artifacts/bcl-110/session/verify-agent29.py",
             "summary": "Idle close then reconnect memory",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           }
@@ -2250,8 +2251,8 @@
           "depends_on": [],
           "reason": "Independent of the page render path. Map cursor.com / git remotes to the Origin repo gurusharan/agent-plugins so retarget can run.",
           "worktree": "bcl-110-r3-merged",
-          "status": "pending",
-          "phase": "fix",
+          "status": "done",
+          "phase": "done",
           "files": [
             "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
@@ -2264,8 +2265,8 @@
           "verify": {
             "command": "python3 -m unittest scripts.test_bcl -q && python3 /Users/gurusharan/.agents/artifacts/bcl-110/merged/verify-auto02.py",
             "summary": "Tests plus Origin retarget evidence",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           }
@@ -2280,7 +2281,7 @@
           "depends_on": [],
           "reason": "Held this round: Terra request-changes P1s from 20:15 IST. Deferred, not failed.",
           "worktree": "bcl-110-cmds",
-          "status": "pending",
+          "status": "deferred",
           "phase": "deferred",
           "codex": {},
           "verify": {
@@ -2302,7 +2303,7 @@
           "depends_on": [],
           "reason": "Held this round; depends on later STATUS/CMDS work. Deferred, not failed.",
           "worktree": "",
-          "status": "pending",
+          "status": "deferred",
           "phase": "deferred",
           "codex": {},
           "verify": {
@@ -2323,7 +2324,7 @@
           "depends_on": [],
           "reason": "Held this round; deferred, not failed.",
           "worktree": "",
-          "status": "pending",
+          "status": "deferred",
           "phase": "deferred",
           "codex": {},
           "verify": {
@@ -2344,7 +2345,7 @@
           "depends_on": [],
           "reason": "Held this round; needs a mic and benefits from AGENT-29 first. Deferred, not failed.",
           "worktree": "",
-          "status": "pending",
+          "status": "deferred",
           "phase": "deferred",
           "codex": {},
           "verify": {
@@ -2356,7 +2357,8 @@
           }
         }
       ],
-      "cycle": 2
+      "cycle": 2,
+      "status": "closed"
     },
     "round": 2,
     "round_history": [
@@ -2379,65 +2381,31 @@
       "introspect"
     ],
     "introspect": {
-      "result": "Introspect: mid-round lane rules applied; leftover product and parked process items carried",
-      "at": "2026-11-14T14:53:07Z",
-      "task": "WF-08",
+      "result": "Introspect recorded",
+      "at": "2026-11-14T15:56:12Z",
+      "task": "WF-09",
       "sections": {
         "delete": {
-          "items": [
-            {
-              "item": "Removed the proposed 15-minute Codex job cap and did not write any fixed time cap into the skill",
-              "evidence": "Guru rejected a 15-minute cap at 19:35 IST on 14 Nov 2026. SKILL.md and references/plan-fix.md have the lane model and speed rules 1-4 with no 15-minute wording (confirmed again at 20:16 IST).",
-              "outcome": "fixed inline"
-            }
-          ]
+          "none": "This cycle did not leave unused product files on the PR branch; the PAGE helper copies in .bcl-page07/ and the worker REPORT.md were left untracked or off the home commit."
         },
         "simplify": {
-          "items": [
-            {
-              "item": "One Terra review round per group; leftover nits become new issues, and one-file fixes skip Terra",
-              "evidence": "TOOLS had extra review rounds earlier this cycle. The rule is now in SKILL.md. CMDS received one Terra work-done review at 20:15 IST (request-changes in bcl-110-cmds/REVIEW.md) and was not sent back for a second review this round. AGENT-22 was a one-file InputActions.swift change, so Terra was skipped.",
-              "outcome": "fixed inline"
-            },
-            {
-              "item": "Do not restart a round after an executor interrupt; Astra plan review is unsupported here and was skipped rather than retried",
-              "evidence": "Round 2 continued from the live tracker and remaining lanes after context compaction at 20:00 IST. Astra plan review was skipped because it is unsupported in this environment.",
-              "outcome": "fixed inline"
-            }
-          ]
+          "none": "The PAGE worker already ran one Terra review and fixed the three findings in the same commit; no further simplification was justified by a failure."
         },
         "optimize": {
-          "items": [
-            {
-              "item": "Always launch Mini Codex with HOME=/Users/gurusharan and CODEX_HOME=/Users/gurusharan/.codex",
-              "evidence": "An earlier Codex 401 in this cycle was caused by HOME pointing at a captures directory. Every later Terra and Luna job in this pass used HOME=/Users/gurusharan.",
-              "outcome": "fixed inline"
-            },
-            {
-              "item": "Default fix jobs to Luna medium, run only independent groups, and cap a round at 3-4 groups",
-              "evidence": "STATUS used Luna max and ran 3714 seconds (12:34-13:36 UTC, 6:04-7:06 PM IST). references/plan-fix.md now has the independent-group check and 3-4 cap; SKILL.md has Luna medium by default. CORE, PLANC and VOICE were marked deferred this round, not planned or failed.",
-              "outcome": "fixed inline"
-            },
-            {
-              "item": "Process fixes must not outnumber product fixes; park new process work unless it blocks",
-              "evidence": "After STATUS/CMDS/PAGE, remaining work prioritized SESSION, TOOLS and ISLAND. PAGE-07 was logged for the next round and was not started. FLOW-02 and the speed rules were written mid-round because they blocked the current lane model.",
-              "outcome": "fixed inline"
-            }
-          ]
+          "none": "No retry or wrong-result path in this cycle pointed to a product optimization that was not already fixed (idle watchdog in 0.2.147, Origin repo_id in b440e11b)."
         },
         "automate": {
           "items": [
             {
-              "item": "Viewer port reuse should wait until 53366 is actually free before starting an ephemeral fallback",
-              "evidence": "After trashing batched-change-list 0.1.17, ensure_viewer saw 53366 occupied, started 0.1.18 on ephemeral 60905, then the old process died and 53366 freed. The leftover wait is still tracked as AUTO-03.",
+              "item": "After a page-plugin install, the running list viewer kept the old renderer in memory",
+              "evidence": "At 9:22 PM IST on 14 Nov 2026, curl of http://127.0.0.1:53366/ still had a Now line and workflow-now, while the on-disk pr-110.html rendered by manage_findings did not. Viewer pid 59002 had been started at 7:58 PM IST, before render.py was rsynced. The first 1x captures OCR'd the old Now line. Restarting only that process on port 53366 loaded status-v2.",
               "outcome": "issue",
-              "issue_id": "AUTO-03"
+              "issue_id": "AUTO-06"
             },
             {
-              "item": "Introspect should auto-fill the four sections from the progress log",
-              "evidence": "These four sections were assembled by hand from /tmp/bcl-110-round2.progress, live tracker updates, and artifact evidence. Already tracked as BCL-03.",
-              "outcome": "issue",
-              "issue_id": "BCL-03"
+              "item": "Live verify now fetches the list viewer URL, not only the on-disk HTML",
+              "evidence": "The stored verify script ~/.agents/artifacts/bcl-110/page07/verify-live.py now requests http://127.0.0.1:53366/ and fails if the served page has a Now line or is missing the Updated clock or parked line. Re-run after that change: VERDICT PASS.",
+              "outcome": "fixed inline"
             }
           ]
         }
@@ -4553,7 +4521,7 @@
       "id": "AGENT-29",
       "title": "Grok Voice idle timeout drops the conversation context",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "12:30 IST, session e4355832: xAI closed the socket after 900 s idle ('Conversation timed out due to inactivity'); after the reconnect Samantha said 'I don't have any earlier context from before the disconnect ... Could you remind me what you were asking?'",
       "recommendation": "Replay a compact context summary (repo, branch, task, last result) into the new xAI conversation on reconnect, or keep it alive while a typed session is open.",
       "details": {
@@ -4562,7 +4530,11 @@
       "summary": "After about 15 minutes of quiet, the voice service disconnects and Samantha forgets the conversation.",
       "impact": "You have to explain the project and task again after a short break.",
       "done_when": "After a reconnect she still knows the project, the task and the last result.",
-      "verification": "Not retested in this pass: no 15-minute idle wait was run."
+      "verification": "On 14 Nov 2026 at 8:44 PM IST, the isolated 0.2.147 Grok Voice helper with VOICE_CUA_LIVE_IDLE_CLOSE_S=20 recorded live_idle_close after 22.2s (session 8415470a), then reconnect_note, and the follow-up typed turn recalled project batched-change-list, ticket AGENT-29, and last result ACU 0.2.146. Evidence: ~/.agents/artifacts/bcl-110/session/agent-29-r3-evidence.json.",
+      "verification_refs": [
+        "/Users/gurusharan/.agents/artifacts/bcl-110/session/agent-29-r3-evidence.json",
+        "9a8eee81 ACU 0.2.147: idle-close watchdog also runs on Grok Voice"
+      ]
     },
     {
       "id": "WF-06",
@@ -4840,16 +4812,18 @@
       "id": "ISLAND-03",
       "title": "Island doesn't show when a Codex job runs in Fast mode",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "summary": "When a Codex job is running in Fast mode, the island still shows only the model and effort, so it looks the same as a normal-speed run.",
       "impact": "You cannot tell whether the Fast mode rule for Luna is being followed.",
       "done_when": "For a Fast mode run, the island shows the model, the effort, and Fast; a normal-speed run does not show Fast. This is confirmed with a live screenshot.",
       "observed": "On 14 Nov 2026 Guru noted that the island Codex row reads model and effort from state_5.sqlite (for example 'Luna · medium') but not service_tier. A run started with -c service_tier=priority therefore looks the same as a normal run. The code lives in IslandCodexThreads in the ACU Swift app.",
       "recommendation": "Read service_tier from the Codex session record and show a Fast label when it is priority. Leave the label off for default or normal runs. Verify with a live island screenshot of a Fast Luna job and a normal one.",
-      "verification": "Not fixed on 0.2.143. A live Luna Fast exec (`gpt-6-luna`, service_tier=priority, originator acu_exec.grokbot) appeared as “Run this exact command and… / via ACU · Luna · low · 6s”. The meta line had model and effort only — no Fast label — so it looked like a normal-speed run. Screenshot: docs/triage/captures/acu-0143/ISLAND-03-fast-job-no-fast-label.png.",
+      "verification": "On 14 Nov 2026 at 8:38 PM IST, after ACU 0.2.146 was Developer ID signed and installed, the island pill on the live PAGE-07 Luna max priority job read “Luna · max · Fast · 4m”. Screenshots: ~/.agents/artifacts/bcl-110/island/r3-live-island-panel.png and r3-live-after-click-720x420.png.",
       "verification_refs": [
-        "docs/triage/captures/acu-0143/ISLAND-03-fast-job-no-fast-label.png",
-        "~/.agents/artifacts/acu-0143/island/codex-fast-long2/"
+        "/Users/gurusharan/.agents/artifacts/bcl-110/island/island-03-r3-evidence.json",
+        "/Users/gurusharan/.agents/artifacts/bcl-110/island/r3-live-island-panel.png",
+        "/Users/gurusharan/.agents/artifacts/bcl-110/island/r3-live-after-click-720x420.png",
+        "5c91a3a4 ACU 0.2.146: island Fast label and live idle-close clock"
       ],
       "evidence": [
         {
@@ -5064,7 +5038,7 @@
       "id": "PAGE-06",
       "title": "After a list's PR merges, the page still shows Report & roll over as happening now",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "After the list's PR is merged, the page still looks like Report & roll over is in progress, with an old Last reported time.",
       "impact": "You cannot tell that the work is finished and merged, so the status on the page is wrong.",
@@ -5075,7 +5049,14 @@
         "Priority": "high — status accuracy is Guru's top priority (17:17 IST)",
         "Related": "AUTO-02",
         "Evidence": "Guru screenshot 17:17 IST; 107.json workflow.updated_at 11:20:27Z; merge 7e16f66 at 17:14 IST"
-      }
+      },
+      "verification": "On 14 Nov 2026 at 9:23 PM IST, a live render of #107 (tracking.merged.commit_sha 7e16f664…, merged_at 2026-11-14T11:44:49Z) showed Merge 7e16f664 and 5:14:49 PM IST on the Updated clock, a Merged / Done state, and no Now line. Evidence: ~/.agents/artifacts/bcl-110/page07/pr-107-merged.html and page06-merged-107-desktop-1x.png.",
+      "verification_refs": [
+        "/Users/gurusharan/.agents/artifacts/bcl-110/page07/page-06-07-r3-evidence.json",
+        "/Users/gurusharan/.agents/artifacts/bcl-110/page07/pr-107-merged.html",
+        "/Users/gurusharan/.agents/artifacts/bcl-110/page07/page06-merged-107-desktop-1x.png",
+        "6ac17575 Change list: status-v2 lanes and merged commit clock"
+      ]
     },
     {
       "id": "PLAN-03",
@@ -5119,7 +5100,7 @@
       "id": "AUTO-02",
       "title": "A merged command should record the merge and mark the list done",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "When a list's PR merges, including by auto-merge, a single command should record the merge and show the list as done.",
       "impact": "Without that, a merged list can still look in progress, and stacked PRs may keep pointing at the old branch.",
@@ -5130,7 +5111,12 @@
         "Priority": "high — status accuracy is Guru's top priority (17:17–17:20 IST)",
         "Related": "PAGE-06",
         "Evidence": "7e16f66 at 17:14 IST; 107.json still report_rollover; Guru 17:20 IST"
-      }
+      },
+      "verification": "On 14 Nov 2026 at 8:45 PM IST, live_state.repo_id on the #110 worktree returned ingpoc/agent-plugins by default and gurusharan/agent-plugins for provider origin. origin pr list --repo gurusharan/agent-plugins succeeded; --repo ingpoc/agent-plugins failed with Repository not found. Commit b440e11b. Evidence: ~/.agents/artifacts/bcl-110/merged/auto02-r3-evidence.json.",
+      "verification_refs": [
+        "/Users/gurusharan/.agents/artifacts/bcl-110/merged/auto02-r3-evidence.json",
+        "b440e11b bcl: map Origin CLI repo from the Origin remote"
+      ]
     },
     {
       "id": "AUTO-03",
@@ -5202,7 +5188,7 @@
       "id": "PAGE-07",
       "title": "The page's status language, counts, and clocks do not match the status-v2 spec",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "The page still uses one Now marker, mixes up failed and parked work, and treats carried issues as in progress, so you cannot tell each lane's real phase or which counts are current.",
       "impact": "Status accuracy is hard to trust: blocked work looks like a failure, parked groups look like planned work, carried issues look in progress, and a single Now hides how many lanes are in each step.",
@@ -5214,7 +5200,17 @@
         "Related": "PAGE-04 (CARRIED tag supersedes Working on it); FLOW-02 lane phases",
         "Spec": "box file /workspace/bcl-redesign/status-v2/SPEC.md section 7 and mock.html (to be passed at the start of the next round)",
         "Fields": "group.status, phase, blocked_reason, parked_to, build, updated_at; finding.carried_from; stale_after_min"
-      }
+      },
+      "verification": "On 14 Nov 2026 at 9:23 PM IST, after status-v2 was installed into batched-change-list 0.1.18 and the :53366 viewer was restarted, the live #110 page had no Now line or workflow-now, showed Updated 9:20 PM IST · 2 min ago, derived copy “In install · PAGE”, a Parked for Round 3 line for CMDS, CORE, PLANC and VOICE, and “Fixes 14/15 verified”. 1x/2x desktop and mobile captures are in ~/.agents/artifacts/bcl-110/page07/. 41 test_render tests passed.",
+      "verification_refs": [
+        "/Users/gurusharan/.agents/artifacts/bcl-110/page07/page-06-07-r3-evidence.json",
+        "/Users/gurusharan/.agents/artifacts/bcl-110/page07/status-v2-live-desktop-1x.png",
+        "/Users/gurusharan/.agents/artifacts/bcl-110/page07/status-v2-live-desktop-2x.png",
+        "/Users/gurusharan/.agents/artifacts/bcl-110/page07/status-v2-live-mobile-1x.png",
+        "/Users/gurusharan/.agents/artifacts/bcl-110/page07/status-v2-live-mobile-2x.png",
+        "/Users/gurusharan/.agents/artifacts/bcl-110/page07/verify-live.py",
+        "6ac17575 Change list: status-v2 lanes and merged commit clock"
+      ]
     },
     {
       "id": "WF-08",
@@ -5290,6 +5286,59 @@
       "verification_refs": [
         "AUTO-03",
         "BCL-03"
+      ]
+    },
+    {
+      "id": "AUTO-06",
+      "title": "Installing the page plugin does not reload the running list viewer",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "high",
+      "summary": "After render.py is copied into the installed plugin and the 0.1.18 cache, the already-running list viewer keeps the old renderer in memory, so the live page can still show a Now line after status-v2 is installed.",
+      "impact": "Live verify and anyone watching the list viewer can see a stale workflow while the on-disk HTML is already correct, so a fix looks unverified or is signed off against the wrong page.",
+      "done_when": "The Install step restarts or re-execs the list viewer for that tracker so the next request is rendered with the newly installed render.py, or serve.py reloads render.py when the file changes.",
+      "observed": "On 14 Nov 2026 at 9:22 PM IST, after status-v2 was rsynced into ~/.agents/plugins/batched-change-list and ~/.codex/plugins/cache/ingpoc-agent-plugins/batched-change-list/0.1.18, curl of http://127.0.0.1:53366/ still contained workflow-now and “Now 9:22 PM IST - Plan recorded”, while docs/triage/pr-110.html on disk had no workflow-now and showed Parked for Round 3. The viewer was pid 59002, started at 7:58 PM IST, before the install. 1x captures OCR’d the old Now line. Restarting only that process on the same port loaded the new renderer; the next captures and curl were status-v2.",
+      "recommendation": "In the Install step, bounce the adopted list viewer after the plugin files are installed, or make serve.py reload render.py when it changes, and have the live verify command fetch the viewer URL rather than only the on-disk HTML."
+    },
+    {
+      "id": "WF-09",
+      "title": "Introspect 2026-11-14: Introspect recorded",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "Introspect recorded",
+      "recommendation": "Do the linked code issues: AUTO-06",
+      "verification": "Inline items were done during Introspect.",
+      "details": {
+        "fixed_in": "Introspect"
+      },
+      "sections": {
+        "delete": {
+          "none": "This cycle did not leave unused product files on the PR branch; the PAGE helper copies in .bcl-page07/ and the worker REPORT.md were left untracked or off the home commit."
+        },
+        "simplify": {
+          "none": "The PAGE worker already ran one Terra review and fixed the three findings in the same commit; no further simplification was justified by a failure."
+        },
+        "optimize": {
+          "none": "No retry or wrong-result path in this cycle pointed to a product optimization that was not already fixed (idle watchdog in 0.2.147, Origin repo_id in b440e11b)."
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "After a page-plugin install, the running list viewer kept the old renderer in memory",
+              "evidence": "At 9:22 PM IST on 14 Nov 2026, curl of http://127.0.0.1:53366/ still had a Now line and workflow-now, while the on-disk pr-110.html rendered by manage_findings did not. Viewer pid 59002 had been started at 7:58 PM IST, before render.py was rsynced. The first 1x captures OCR'd the old Now line. Restarting only that process on port 53366 loaded status-v2.",
+              "outcome": "issue",
+              "issue_id": "AUTO-06"
+            },
+            {
+              "item": "Live verify now fetches the list viewer URL, not only the on-disk HTML",
+              "evidence": "The stored verify script ~/.agents/artifacts/bcl-110/page07/verify-live.py now requests http://127.0.0.1:53366/ and fails if the served page has a Now line or is missing the Updated clock or parked line. Re-run after that change: VERDICT PASS.",
+              "outcome": "fixed inline"
+            }
+          ]
+        }
+      },
+      "verification_refs": [
+        "AUTO-06"
       ]
     }
   ]
