@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -35,6 +36,31 @@ class ServerTests(unittest.TestCase):
                 finally:
                     server.shutdown()
                     thread.join()
+
+    def test_live_source_discovers_installed_version_without_inventory_file(self):
+        example = Path(__file__).parents[1] / 'examples/findings.json'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            page, data = root / 'report.html', root / 'findings.json'
+            page.write_text('fallback')
+            data.write_text(example.read_text())
+            inventory = {'versions': {'batched-change-list':'0.1.13'},
+                         'sources': {'batched-change-list':'agents plugins'},
+                         'observed_at':'2026-11-14T07:55:00+00:00','source':'installed copies'}
+            with patch.object(server_module.RENDERER, 'discover_installed_plugins', return_value=inventory) as discover:
+                with HTTPServer(('127.0.0.1', 0), server_module.handler_for(page, data)) as server:
+                    thread = threading.Thread(target=server.serve_forever, daemon=True)
+                    thread.start()
+                    try:
+                        with urlopen(f'http://127.0.0.1:{server.server_port}/') as response:
+                            content = response.read().decode()
+                        self.assertIn('Live, read from installed copies at render time', content)
+                        self.assertIn('agents plugins', content)
+                        self.assertIn('<strong>0.1.13</strong>', content)
+                        discover.assert_called_once()
+                    finally:
+                        server.shutdown()
+                        thread.join()
 
     def test_live_source_renders_inventory_override(self):
         example = Path(__file__).parents[1] / 'examples/findings.json'

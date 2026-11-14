@@ -315,5 +315,66 @@ if(pageContentSignature(page('findings','run','workflow','build','changed'))===o
             renderer.render(self.data, self.base)
 
 
+    def test_discovery_precedence_semver_and_nested_manifests(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            roots = {key: root / key for key in ('agents_plugins', 'codex_cache', 'agents_skills', 'cursor_cache', 'cursor_marketplaces')}
+            def manifest(path, name, version):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps({'name': name, 'version': version}))
+            manifest(roots['agents_plugins'] / 'demo/plugin.json', 'demo', '1.0.0')
+            manifest(roots['codex_cache'] / 'vendor/demo/1.8.0/plugin.json', 'demo', '1.8.0')
+            manifest(roots['codex_cache'] / 'vendor/demo/1.10.0/plugin.json', 'demo', '1.10.0')
+            manifest(roots['agents_skills'] / 'only-skill/plugin.json', 'only-skill', '2.0.0')
+            manifest(roots['cursor_cache'] / 'any/other/.cursor-plugin/plugin.json', 'nested-client', '9.9.9')
+            now = renderer.datetime(2026, 11, 14, 7, 55, tzinfo=renderer.timezone.utc)
+            inventory = renderer.discover_installed_plugins(roots, now)
+            self.assertEqual(inventory['versions'], {'demo':'1.0.0', 'only-skill':'2.0.0'})
+            self.assertEqual(inventory['sources']['demo'], 'agents plugins')
+            self.assertEqual(inventory['observed_at'], now.isoformat())
+            cache_roots = dict(roots)
+            cache_roots['agents_plugins'] = root / 'empty-agents'
+            cache_roots['agents_skills'] = root / 'empty-skills'
+            manifest(cache_roots['codex_cache'] / 'vendor/cache-only/1.8.0/plugin.json', 'cache-only', '1.8.0')
+            manifest(cache_roots['codex_cache'] / 'vendor/cache-only/1.10.0/plugin.json', 'cache-only', '1.10.0')
+            manifest(cache_roots['cursor_cache'] / 'vendor/cursor-only/2.0.0/plugin.json', 'cursor-only', '2.0.0')
+            manifest(cache_roots['cursor_marketplaces'] / 'marketplaces/store/plugins/market-only/plugin.json', 'market-only', '3.0.0')
+            inventory = renderer.discover_installed_plugins(cache_roots, now)
+            self.assertEqual(inventory['versions']['cache-only'], '1.10.0')
+            self.assertEqual(inventory['sources']['cache-only'], 'codex cache')
+            self.assertEqual(inventory['sources']['cursor-only'], 'cursor cache')
+            self.assertEqual(inventory['sources']['market-only'], 'cursor marketplaces')
+
+    def test_live_inventory_fills_missing_names_from_tracker(self):
+        data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
+        data['tracking'] = {'installed_plugins': {'versions': {'demo':'0.1.0', 'old-plugin':'3.0.0'},
+            'observed_at':'2026-11-10T00:00:00Z','source':'saved inventory'}}
+        live = {'versions': {'demo':'0.2.0'}, 'sources': {'demo':'agents plugins'},
+                'observed_at':'2026-11-14T07:55:00+00:00','source':'installed copies'}
+        page = renderer.render(data, Path(__file__).parents[1], live)
+        self.assertIn('<strong>0.2.0</strong>', page)
+        self.assertIn('agents plugins', page)
+        self.assertIn('<strong>3.0.0</strong> <small>As recorded</small>', page)
+
+    def test_now_argument_formats_both_workflow_times_in_ist(self):
+        data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
+        data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-14T07:00:00Z',
+            'now':'2026-11-14T07:30:00Z — 2026-11-14T07:35:00Z'}}
+        now = renderer.datetime.fromisoformat('2026-11-14T07:55:00+00:00')
+        page = renderer.render(data, Path(__file__).parents[1], now=now)
+        self.assertIn('Last reported <time datetime="2026-11-14T12:30:00+05:30"', page)
+        self.assertIn('Nov 14, 2026, 12:30 PM IST</time>', page)
+        self.assertIn('<strong>Now</strong> <time datetime="2026-11-14T07:55:00+00:00">1:25 PM IST</time>', page)
+        self.assertNotIn('2026-11-14T07:35:00Z', page)
+        self.assertEqual(renderer.render(data, Path(__file__).parents[1]), renderer.render(data, Path(__file__).parents[1]))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, output = root / 'findings.json', root / 'report.html'
+            source.write_text(json.dumps(data))
+            subprocess.run(['python3', str(Path(__file__).with_name('render.py')), str(source), str(output),
+                            '--now', '2026-11-14T07:55:00Z'], check=True, capture_output=True, text=True)
+            self.assertIn('1:25 PM IST', output.read_text())
+
+
 if __name__ == "__main__":
     unittest.main()

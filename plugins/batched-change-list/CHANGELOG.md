@@ -1,5 +1,10 @@
 # Changelog: batched-change-list
 
+## 0.1.13
+
+- Installed plugin versions are discovered from package manifests at live render time; stored versions remain labeled `As recorded` only when discovery cannot find that plugin.
+- Workflow timestamps render in IST with a current render-time `Now` value; `render.py` accepts deterministic `--now` and opt-in `--live` inputs, and the data-backed viewer refreshes both on every request.
+
 ## 0.1.12
 
 - Issue page: "Verification by version" always shows in the main card, below Done when and above the collapsed Evidence section, never inside Evidence.

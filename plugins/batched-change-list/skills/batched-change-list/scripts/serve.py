@@ -5,6 +5,7 @@ import hashlib
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import importlib.util
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 RENDERER_PATH = Path(__file__).with_name("render.py")
@@ -30,8 +31,9 @@ def handler_for(page, data=None, inventory=None):
                     content = page.read_bytes()
                 else:
                     document = json.loads(data.read_text(encoding='utf-8'))
-                    installed = RENDERER.load_inventory(inventory) if inventory else None
-                    content = RENDERER.render(document, data.resolve().parent, installed).encode('utf-8')
+                    current = datetime.now(timezone.utc)
+                    installed = RENDERER.load_inventory(inventory) if inventory else RENDERER.discover_installed_plugins(now=current)
+                    content = RENDERER.render(document, data.resolve().parent, installed, current).encode('utf-8')
             except (OSError, ValueError, json.JSONDecodeError):
                 self.send_error(503, 'Report unavailable')
                 return

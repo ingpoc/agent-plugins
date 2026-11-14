@@ -6,9 +6,10 @@ import html
 import json
 import mimetypes
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo
 
 STATUSES = {"verified_fixed", "failing", "untested", "in_progress", "awaiting_user_test",
             "awaiting_verification", "blocked", "investigation"}
@@ -84,6 +85,66 @@ def load_inventory(path):
     return inventory
 
 
+def _semver_key(value):
+    match = re.match(r"^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$", value)
+    if not match:
+        return (-1, 0, 0, 0, ((1, value),))
+    prerelease = match.group(4)
+    identifiers = tuple((0, int(part)) if part.isdigit() else (1, part) for part in prerelease.split(".")) if prerelease else ()
+    return tuple(int(match.group(i)) for i in (1, 2, 3)) + (0 if prerelease else 1, identifiers)
+
+
+
+def discover_installed_plugins(roots=None, now=None):
+    home = Path.home()
+    if roots is None:
+        roots = {
+            "agents_plugins": home / ".agents/plugins",
+            "codex_cache": home / ".codex/plugins/cache",
+            "agents_skills": home / ".agents/skills",
+            "cursor_cache": home / ".cursor/plugins/cache",
+            "cursor_marketplaces": home / ".cursor/plugins/marketplaces",
+        }
+    current = now or datetime.now(timezone.utc)
+    observed_at = current.isoformat()
+    found = {}
+    for key, root in roots.items():
+        root = Path(root).expanduser()
+        if not root.exists():
+            continue
+        manifests = ()
+        if key in ("agents_plugins", "agents_skills"):
+            manifests = root.glob("*/plugin.json")
+        elif key == "codex_cache":
+            manifests = root.glob("*/*/*/plugin.json")
+        elif key == "cursor_cache":
+            manifests = root.glob("**/plugin.json")
+        elif key == "cursor_marketplaces":
+            manifests = root.glob("**/plugins/*/plugin.json")
+        for manifest in manifests:
+            try:
+                if manifest.parent.name in (".cursor-plugin", ".claude-plugin"):
+                    continue
+                package = json.loads(manifest.read_text(encoding="utf-8"))
+                name, version = package.get("name"), package.get("version")
+                if not isinstance(name, str) or not name or not isinstance(version, str) or not version:
+                    continue
+                if key == "cursor_cache" and manifest.parent.name != name and manifest.parent.parent.name != name:
+                    continue
+                if key == "codex_cache" and manifest.parent.parent.name != name:
+                    continue
+                previous = found.get(name)
+                priority = list(roots).index(key)
+                semver = _semver_key(version)
+                if previous is None or priority < previous[0] or priority == previous[0] and semver > previous[1]:
+                    found[name] = (priority, semver, version, key.replace("_", " "))
+            except (OSError, json.JSONDecodeError):
+                continue
+    return {"versions": {name: version for name, (_, _, version, _) in found.items()},
+            "sources": {name: source for name, (_, _, _, source) in found.items()},
+            "observed_at": observed_at, "source": "installed copies"}
+
+
 def render_tracking(tracking, inventory_override=None):
     if not isinstance(tracking, dict):
         raise ValueError("tracking must be an object")
@@ -114,21 +175,39 @@ def render_tracking(tracking, inventory_override=None):
         build_card = f'<div class="tracking-item"><span class="tracking-label">Verification build</span><strong>{build} · {revision}</strong><span>Run installed {installed} · {run["status"]}</span></div>'
     recorded_inventory = inventory_override is None and tracking.get("installed_plugins") is not None
     inventory = inventory_override if inventory_override is not None else tracking.get("installed_plugins")
+    if inventory_override is not None and not isinstance(inventory_override, dict):
+        raise ValueError("inventory must be an object")
+    stored_inventory = tracking.get("installed_plugins")
+    if stored_inventory is not None and (not isinstance(stored_inventory, dict) or not isinstance(stored_inventory.get("versions"), dict)):
+        raise ValueError("tracking.installed_plugins requires versions")
+    if inventory_override is not None and inventory_override.get("sources") and stored_inventory:
+        stored = stored_inventory["versions"]
+        versions = dict(inventory_override["versions"])
+        recorded_versions = {name: version for name, version in stored.items() if name not in versions}
+        versions.update(recorded_versions)
+        inventory = {**inventory_override, "versions": versions, "recorded_versions": recorded_versions}
+    if inventory_override is not None and "sources" in inventory_override and not inventory_override.get("versions"):
+        inventory = stored_inventory
+        recorded_inventory = stored_inventory is not None
+
     if inventory is not None:
         if not isinstance(inventory, dict) or not isinstance(inventory.get("versions"), dict):
             raise ValueError("tracking.installed_plugins requires versions")
         observed = html.escape(required_text(inventory.get("observed_at"), "installed_plugins.observed_at"))
         source = html.escape(required_text(inventory.get("source"), "installed_plugins.source"))
         versions = []
+        recorded_versions = inventory.get("recorded_versions", {})
+        sources = inventory.get("sources", {})
         for name, version in inventory["versions"].items():
-            versions.append(f'<span>{html.escape(required_text(name, "plugin name"))} <strong>{html.escape(required_text(version, "plugin version"))}</strong></span>')
+            label = ' <small>As recorded</small>' if name in recorded_versions else f' <small>{html.escape(sources[name])}</small>' if name in sources else ''
+            versions.append(f'<span>{html.escape(required_text(name, "plugin name"))} <strong>{html.escape(required_text(version, "plugin version"))}</strong>{label}</span>')
         if not versions:
             versions.append("<span>No plugin versions recorded</span>")
         detail_rows = []
         if run is not None:
             detail_rows.append(f'<p>Verification run: {build} · {revision}<br>Installed {installed} · {run["status"]}</p>')
         detail_rows.append(f'<p>Inventory checked {observed} · {source}</p>')
-        inventory_note = "As recorded" if recorded_inventory else "Inventory supplied at render time"
+        inventory_note = "As recorded" if recorded_inventory else "Live, read from installed copies at render time" if sources else "Inventory supplied at render time"
         build_card = (f'<div class="tracking-item"><span class="tracking-label">Installed plugins</span>'
                      f'<div class="plugin-versions">{"".join(versions)}</div><span class="inventory-note">{inventory_note}</span>'
                      f'<details class="build-details"><summary>Build details</summary>{"".join(detail_rows)}</details></div>')
@@ -136,7 +215,7 @@ def render_tracking(tracking, inventory_override=None):
     return summary, build_card
 
 
-def render(data, base, inventory_override=None):
+def render(data, base, inventory_override=None, now=None):
     if not isinstance(data, dict):
         raise ValueError("document must be an object")
     title = required_text(data.get("title"), "title")
@@ -146,14 +225,24 @@ def render(data, base, inventory_override=None):
         raise ValueError("tracking.workflow requires a valid stage and updated_at")
     active = workflow.get("stage") if workflow else None
     steps = ''.join('<li class="workflow-step' + (' active" aria-current="step"' if key == active else '"') + f'><span>{index}</span>{html.escape(label)}</li>' for index, (key, label) in enumerate(WORKFLOW_STAGES.items(), 1))
-    timestamp = html.escape(workflow['updated_at'], quote=True) if workflow else ''
-    time_html = f'<time datetime="{timestamp}" data-relative>{html.escape(workflow["updated_at"])}</time>' if workflow else ''
+    ist = ZoneInfo("Asia/Kolkata")
+    reported = datetime.fromisoformat(workflow["updated_at"].replace("Z", "+00:00")).astimezone(ist) if workflow else None
+    time_html = (f'<time datetime="{html.escape(reported.isoformat(), quote=True)}" data-relative>'
+                 f'{html.escape(reported.strftime("%b %-d, %Y, %-I:%M %p IST"))}</time>') if reported else ''
     now_html = ""
-    if workflow and workflow.get("now") is not None:
-        match = re.match(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})) — (.+)$", required_text(workflow["now"], "tracking.workflow.now"))
-        if not match:
-            raise ValueError("tracking.workflow.now must start with its ISO 8601 timestamp")
-        now_html = f'<p class="workflow-now"><strong>Now</strong> <time datetime="{html.escape(match.group(1), quote=True)}" data-relative>{html.escape(match.group(1))}</time> · {html.escape(match.group(2))}</p>'
+    if workflow:
+        stored_now = required_text(workflow["now"], "tracking.workflow.now") if workflow.get("now") is not None else ""
+        iso_pattern = r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)"
+        timestamps = re.findall(iso_pattern, stored_now)
+        status = re.sub(iso_pattern, "", stored_now).strip(" \t—-·")
+        current = now or (datetime.fromisoformat(timestamps[0].replace("Z", "+00:00")) if timestamps else reported)
+        if current.tzinfo is None:
+            raise ValueError("now must include a timezone")
+        current_ist = current.astimezone(ist)
+        now_html = (f'<p class="workflow-now"><strong>Now</strong> '
+                    f'<time datetime="{html.escape(current.isoformat(), quote=True)}">'
+                    f'{html.escape(current_ist.strftime("%-I:%M %p IST"))}</time>'
+                    f'{" · " + html.escape(status) if status else ""}</p>')
     timeline = f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow</strong><span>{"Last reported " + time_html if time_html else "No active step reported"}</span></div><ol>{steps}</ol>{now_html}</section>'
     tracking, build_card = render_tracking(tracking_data, inventory_override)
     run = tracking_data.get("verification_run")
@@ -281,13 +370,16 @@ def main():
     parser.add_argument("input", type=Path, help="authoritative findings JSON")
     parser.add_argument("output", type=Path, help="output HTML")
     parser.add_argument("--inventory", type=Path, help="optional installed-plugin inventory JSON")
+    parser.add_argument("--now", help="explicit render time as ISO 8601")
+    parser.add_argument("--live", action="store_true", help="discover installed plugins and use the current time")
     args = parser.parse_args()
     try:
         if args.input.resolve() == args.output.resolve() or args.output.resolve() == TEMPLATE.resolve():
             raise ValueError("output must differ from input and template")
         data = json.loads(args.input.read_text(encoding="utf-8"))
-        inventory = load_inventory(args.inventory) if args.inventory else None
-        result = render(data, args.input.resolve().parent, inventory)
+        current = datetime.fromisoformat(args.now.replace("Z", "+00:00")) if args.now else datetime.now(timezone.utc) if args.live else None
+        inventory = load_inventory(args.inventory) if args.inventory else discover_installed_plugins(now=current) if args.live else None
+        result = render(data, args.input.resolve().parent, inventory, current)
         args.output.write_text(result, encoding="utf-8")
     except (OSError, ValueError, json.JSONDecodeError) as error:
         parser.exit(2, f"render: {error}\n")
