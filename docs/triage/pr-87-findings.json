@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-14T08:26:54Z",
-      "now": "2026-11-14T08:26:54Z — Planning 0.1.14 so the viewer reloads only when the tracker or installed plugins actually change, not every few seconds because the clock moved."
+      "stage": "report_rollover",
+      "updated_at": "2026-11-14T08:36:59Z",
+      "now": "2026-11-14T08:36:59Z — Live verify passed on 0.1.14: the page stayed still for 60s with a stable ETag, then reloaded once after a tracker write and kept #PAGE-03. Screenshot /workspace/bcl-ui/live-no-refresh.png. Skip Introspect (small follow-up). Not merging."
     },
     "rollover": {
       "source_pr": 105,
@@ -4179,12 +4179,18 @@
       "id": "PAGE-03",
       "title": "The change-list page keeps refreshing every few seconds even when nothing has changed",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "summary": "The open page reloads itself every few seconds, even when you have not changed the list.",
       "impact": "The page jumps and is hard to read, so you cannot calmly review an issue.",
       "done_when": "The open page stays still while nothing has changed, and it reloads once only after the list itself is updated, keeping your place.",
       "observed": "On 14 Nov 2026 around 13:56 IST, Guru reported that the PR #107 viewer at http://127.0.0.1:53366/ keeps refreshing every few seconds. The 0.1.13 viewer re-renders with the current time on every request, so the ETag changes even when the tracker has not, and the page reloads.",
-      "recommendation": "Expose a cheap content fingerprint or ETag from the tracker mtime/contents plus the live inventory, not the rendered clock. Poll that lightly (or long-poll/SSE) and reload only when the fingerprint changes. If a reload happens, keep scroll position and the selected issue. Do not use a timer to fully reload the page."
+      "recommendation": "Expose a cheap content fingerprint or ETag from the tracker mtime/contents plus the live inventory, not the rendered clock. Poll that lightly (or long-poll/SSE) and reload only when the fingerprint changes. If a reload happens, keep scroll position and the selected issue. Do not use a timer to fully reload the page.",
+      "verification": "On 14 Nov 2026 the 0.1.14 viewer kept a stable ETag and did not reload for 60 seconds with no tracker writes. A later harmless tracker write changed the ETag and the open page reloaded once, staying on #PAGE-03.",
+      "verification_refs": [
+        "http://127.0.0.1:53366/ live check 14:05–14:06 IST",
+        "/workspace/bcl-ui/live-no-refresh.png",
+        "commit 977b400, draft PR #109"
+      ]
     }
   ]
 }
