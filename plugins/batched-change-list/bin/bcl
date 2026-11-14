@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""Stage-oriented entrypoint for batched-change-list."""
+import argparse, json, subprocess, sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parents[1]
+SKILL = HERE / "skills/batched-change-list"
+SCRIPTS = SKILL / "scripts"
+MANAGE = SCRIPTS / "manage_findings.py"
+sys.path.insert(0, str(SCRIPTS))
+import live_state
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data", type=Path); parser.add_argument("--render", type=Path)
+    parser.add_argument("--progress", type=Path); parser.add_argument("--now")
+    parser.add_argument("--ids", action="append", default=[]); parser.add_argument("--plan", type=Path)
+    parser.add_argument("--result"); parser.add_argument("--issues", type=Path); parser.add_argument("--sections", type=Path)
+    parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
+    parser.add_argument("stage"); args, command_args = parser.parse_known_args()
+    if args.stage == "adopt" and not args.data and command_args: args.data = Path(command_args.pop(0))
+    if args.stage == "install-hooks":
+        root = Path(subprocess.check_output(["git", "-C", str(args.repo or Path.cwd()), "rev-parse", "--show-toplevel"], text=True).strip())
+        hooks = root / ".githooks"; hooks.mkdir(exist_ok=True)
+        subprocess.run(["git", "-C", str(root), "config", "core.hooksPath", ".githooks"], check=True)
+        tool = HERE / "bin/bcl-hook"
+        for name in ("pre-commit", "pre-push"):
+            path = hooks / name
+            if path.exists() and "bcl-hook" in path.read_text(): continue
+            old = ""
+            if path.exists():
+                backup = hooks / f"{name}.bcl-original"
+                if not backup.exists(): backup.write_text(path.read_text()); backup.chmod(0o755)
+                old = f'"$(dirname "$0")/{backup.name}" "$@" || exit $?\n'
+            path.write_text(f'#!/bin/sh\n{old}exec "{tool}" "{root}"\n'); path.chmod(0o755)
+        return
+    if not args.data: parser.error("--data is required")
+    source = args.data.resolve()
+    try: key, record, live = live_state.locate(source, adopt=args.stage == "adopt", render_path=args.render if args.stage == "adopt" else None)
+    except ValueError as error: parser.error(str(error))
+    plugin_version = json.loads((HERE / "plugin.json").read_text())["version"]
+    if args.stage == "adopt" and record:
+        import render
+        report, base = live_state.report_paths(record, live)
+        report.write_text(render.render(json.loads(live.read_text()), base))
+    if record:
+        live_state.ensure_viewer(key, record, live, plugin_version)
+    if args.stage == "adopt":
+        if not record: parser.error("could not register tracker")
+        print(live); return
+    if not record:
+        if args.stage == "status":
+            print(json.dumps({"adopted": False, "message": "Run bcl adopt <tracker-in-repo> first."})); return
+        parser.error("tracker is not adopted; run bcl adopt <tracker-in-repo>")
+    if source != live and source.read_bytes() != live.read_bytes():
+        parser.error(f"in-repo tracker differs from live state; live file: {live}")
+    data = json.loads(live.read_text())
+    tracking = data.get("tracking", {}); stages = tracking.get("stages_reached", [])
+    stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    if args.stage == "status":
+        import render
+        fixed, threshold, met = render.rollover_gate(data.get("findings", []), tracking)
+        print(json.dumps({"adopted": True, "live": str(live), "stage": tracking.get("workflow", {}).get("stage"), "cycle": tracking.get("cycle", 1), "gate": {"fixed": fixed, "threshold": threshold, "met": met}, "plan": [{"id": g.get("id"), "status": g.get("status")} for g in tracking.get("plan", {}).get("groups", [])]}, indent=2)); return
+    if args.stage == "merge":
+        home = Path(record["home"])
+        if live.with_suffix(".unsnapshotted").exists(): parser.error(f"live tracker has unsnapshotted changes: {live}")
+        try: committed = subprocess.check_output(["git", "-C", str(home), "show", f"HEAD:{record['snapshot']}"], stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError: committed = b""
+        if live.read_bytes() != committed:
+            parser.error(f"live tracker has unsnapshotted changes: {live}")
+        return
+    stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    stage = args.stage
+    if stage == "start": operations = [{"action":"set-activity","stage":"present" if "collect" in stages else "collect","ids":args.ids,"now":"Started collection"}]
+    elif stage == "plan":
+        plan = json.loads(args.plan.read_text()) if args.plan else tracking.get("plan")
+        if not plan: parser.error("plan requires --plan or an existing tracking.plan")
+        operations = [{"action":"set-plan","plan":plan},{"action":"set-activity","stage":"plan_fix","ids":args.ids,"now":"Plan recorded"}]
+    elif stage in ("fix", "install", "verify"):
+        ids = args.ids or [x["id"] for x in data.get("findings", []) if x.get("status") == "in_progress"]
+        operations = [{"action":"set-activity","stage":{"fix":"plan_fix","install":"install","verify":"verify"}[stage],"ids":ids,"now":f"{stage.title()} in progress"}]
+    elif stage == "introspect":
+        if not args.sections: parser.error("introspect requires --sections FILE.json")
+        op = {"action":"introspect","sections": json.loads(args.sections.read_text())}
+        if args.result: op["result"] = args.result
+        ids = args.ids or [x["id"] for x in data.get("findings", []) if x.get("status") == "in_progress"]
+        operations = [op,{"action":"set-activity","stage":"introspect","ids":ids,"now":"Introspection recorded"}]
+    elif stage == "report": operations = [{"action":"set-stage","stage":"report_rollover"}]
+    else: parser.error("unknown stage")
+    report, base = live_state.report_paths(record, live)
+    command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
+    result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
+    if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
+    live_state.snapshot(record, live)
+    if args.then_command: subprocess.run(args.then_command, shell=True, check=True)
+    elif command_args: subprocess.run(command_args, check=True)
+    if args.progress:
+        args.progress.parent.mkdir(parents=True, exist_ok=True)
+        with args.progress.open("a") as out: out.write(f"{stamp} {stage}\n")
+
+if __name__ == "__main__": main()

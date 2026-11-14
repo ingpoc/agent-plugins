@@ -1,4 +1,37 @@
+## 0.1.17
+
+- Store adopted trackers outside git, snapshot stage changes only in the home worktree, and add a non-merging freshness guard.
+- Start and restart a per-list live viewer from `bcl`; show viewer metadata in its live page footer.
+- Replace the plan display with compact, responsive group rows.
+- Count every `verified_fixed` finding toward the 15-fix gate, including WF- Introspect records and page-tool prefixes; only `tracking.rollover.excluded_ids` are omitted. A count at or above the threshold is always met.
+- Put the linked PR, worktree, and installed agent-plugin chips in a compact top-right header block; hide non-collection plugins and drop the full-width tracking cards.
+- Collapse the round plan (summary, group rows, Once-per-round tail) under the workflow timeline in a native `<details>` that stays closed by default and remembers open/closed in `localStorage` across live reloads.
+- `bcl verify` and finding-status writes update each plan group's verify state to verified, failed, or partial with counts. Introspect closes the current plan.
+- `bcl introspect --sections` requires four headings (delete, simplify, optimize, automate), always creates one `verified_fixed` WF- task, and links code follow-ups as separate non-WF issues.
+- Compact `SKILL.md` to a per-step command table; workflow detail lives in per-step references plus `tracker.md` and `viewer.md`.
+
 # Changelog: batched-change-list
+
+## 0.1.16
+
+- `bcl fix`, `install`, and `verify` update and render the stage before running an optional command; Codex handoffs now require the page update at the start of each stage.
+- Added recorded execution plans with deterministic parallel group rows and current-cycle Install / Install-before-Verify guards.
+- Added the `bcl` stage command and idempotent repository `bcl install-hooks` backstop that chains existing hooks and checks rendered triage freshness.
+
+## 0.1.15
+
+- Added a configurable 15-fix rollover gate and round counter to the workflow strip, with a return loop to Plan & fix; rollover advances the cycle and starts the next list at Collect.
+- The manager blocks report rollover before the gate unless `--force` is supplied, and records forced overrides.
+
+## 0.1.14
+
+- The live viewer fingerprints tracker and inventory inputs instead of rendered timestamps, so HEAD polls stay stable while those inputs are unchanged. Reload only after the fingerprint changes and preserve the selected issue and view position.
+
+## 0.1.13
+
+- Installed plugin versions are discovered from package manifests at live render time; stored versions remain labeled `As recorded` only when discovery cannot find that plugin.
+- Workflow timestamps render in IST with a current render-time `Now` value; `render.py` accepts deterministic `--now` and opt-in `--live` inputs, and the data-backed viewer refreshes both on every request. Finding writes advance `Last reported` without changing the workflow stage.
+- `plan_fix`, `install`, and `verify` require a logged finding in progress; `set-activity` marks its listed findings in progress before checking the gate.
 
 ## 0.1.12
 

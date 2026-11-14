@@ -18,6 +18,23 @@ RENDERER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RENDERER)
 
 
+def stamp_plan_group(group, now):
+    codex = group.get("codex")
+    verify = group.get("verify")
+    if isinstance(codex, dict):
+        if codex.get("status") == "running": codex["updated_at"] = now
+        for record in (group, codex):
+            start, end = record.get("started_at"), record.get("ended_at")
+            if isinstance(start, str) and isinstance(end, str):
+                try: record["duration_s"] = max(0, int((datetime.fromisoformat(end.replace("Z", "+00:00")) - datetime.fromisoformat(start.replace("Z", "+00:00"))).total_seconds()))
+                except ValueError: pass
+    if isinstance(verify, dict):
+        start, end = verify.get("started_at"), verify.get("ended_at")
+        if isinstance(start, str) and isinstance(end, str):
+            try: verify["duration_s"] = max(0, int((datetime.fromisoformat(end.replace("Z", "+00:00")) - datetime.fromisoformat(start.replace("Z", "+00:00"))).total_seconds()))
+            except ValueError: pass
+
+
 def warn_summary(item, adding=False):
     summary = item.get("summary")
     if adding and not summary:
@@ -490,12 +507,111 @@ def live_write(path, original, content):
             raise
 
 
-def write(path, original, store, findings, validate=True):
+
+INTROSPECT_SECTIONS = ("delete", "simplify", "optimize", "automate")
+
+
+def validate_introspect_sections(sections):
+    if not isinstance(sections, dict) or any(name not in sections for name in INTROSPECT_SECTIONS):
+        raise ValueError("introspect requires sections delete, simplify, optimize, automate")
+    cleaned = {}
+    for name in INTROSPECT_SECTIONS:
+        section = sections[name]
+        if not isinstance(section, dict):
+            raise ValueError(f"introspect section {name} must be an object")
+        if "none" in section:
+            reason = section.get("none")
+            if not isinstance(reason, str) or not reason.strip():
+                raise ValueError(f"introspect section {name} 'none' requires a reason")
+            if section.get("items"):
+                raise ValueError(f"introspect section {name} cannot have both none and items")
+            cleaned[name] = {"none": reason.strip()}
+            continue
+        items = section.get("items")
+        if not isinstance(items, list) or not items:
+            raise ValueError(f"introspect section {name} needs items or none plus a reason")
+        clean_items = []
+        for item in items:
+            if not isinstance(item, dict):
+                raise ValueError(f"introspect section {name} items must be objects")
+            text = item.get("item") or item.get("step")
+            evidence = item.get("evidence")
+            outcome = item.get("outcome")
+            if not isinstance(text, str) or not text.strip() or not isinstance(evidence, str) or not evidence.strip():
+                raise ValueError(f"introspect section {name} items require item and evidence")
+            if outcome == "fixed inline":
+                clean_items.append({"item": text.strip(), "evidence": evidence.strip(), "outcome": "fixed inline"})
+            elif outcome == "issue":
+                issue_id = item.get("issue_id")
+                if not isinstance(issue_id, str) or not issue_id.strip() or re.fullmatch(r"WF-\d+", issue_id.strip()):
+                    raise ValueError(f"introspect section {name} code items need a non-WF issue id")
+                clean_items.append({"item": text.strip(), "evidence": evidence.strip(), "outcome": "issue", "issue_id": issue_id.strip()})
+            else:
+                raise ValueError(f"introspect section {name} outcome must be 'fixed inline' or 'issue'")
+        cleaned[name] = {"items": clean_items}
+    return cleaned
+
+
+def sync_plan_verify(document):
+    findings = {item.get("id"): item for item in document.get("findings", []) if isinstance(item, dict)}
+    plan = document.get("tracking", {}).get("plan")
+    if not isinstance(plan, dict) or not isinstance(plan.get("groups"), list):
+        return
+    for group in plan["groups"]:
+        if not isinstance(group, dict):
+            continue
+        ids = group.get("finding_ids") or []
+        states = [(findings.get(identifier) or {}).get("status") for identifier in ids]
+        total = len(ids)
+        fixed = sum(state == "verified_fixed" for state in states)
+        failed = sum(state == "failing" for state in states)
+        open_count = sum(state not in ("verified_fixed", "failing", "closed") for state in states)
+        if total == 0 or (not fixed and not failed):
+            status = "pending"
+        elif fixed == total:
+            status = "verified"
+        elif failed and not open_count and not fixed:
+            status = "failed"
+        else:
+            status = "partial"
+        verify = group.get("verify") if isinstance(group.get("verify"), dict) else {}
+        verify.update({"status": status, "fixed": fixed, "failed": failed, "total": total})
+        group["verify"] = verify
+
+def touch_workflow(document):
+    tracking = document.get("tracking")
+    if isinstance(tracking, dict):
+        tracking["cycle"] = RENDERER.rollover_cycle(tracking)
+    workflow = tracking.get("workflow") if isinstance(tracking, dict) else None
+    if isinstance(workflow, dict):
+        workflow["updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def require_rollover_gate(findings, tracking, force, action):
+    fixed, threshold, met = RENDERER.rollover_gate(findings, tracking)
+    if met:
+        return
+    if not force:
+        raise ValueError(f"report_rollover gate not met: {fixed} of {threshold} verified_fixed findings and open findings remain; pass --force to override")
+    rollover = tracking.setdefault("rollover", {})
+    if not isinstance(rollover, dict):
+        raise ValueError("tracking.rollover must be an object")
+    forced = rollover.setdefault("forced_gate_overrides", [])
+    if not isinstance(forced, list):
+        raise ValueError("tracking.rollover.forced_gate_overrides must be an array")
+    forced.append({"cycle": RENDERER.rollover_cycle(tracking), "action": action,
+                   "forced_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+                   "verified_fixed": fixed, "threshold": threshold})
+
+
+def write(path, original, store, findings, validate=True, touch=True):
     if store["kind"] == "json":
         document = store["document"]
         document[store["collection"]] = findings
         if validate and store["collection"] == "findings":
             RENDERER.render(document, path.parent)
+        if touch:
+            touch_workflow(document)
         content = (json.dumps(document, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     else:
         data = json.dumps(findings, ensure_ascii=True, separators=(",", ":")).replace("<", "\\u003c")
@@ -553,7 +669,9 @@ def parser_for():
     batch.add_argument("data", type=Path)
     batch.add_argument("operations", help="JSON array path, or - for stdin")
     batch.add_argument("--render", type=Path, help="render the resulting authoritative JSON to this HTML file")
+    batch.add_argument("--base", type=Path, help="resolve relative evidence paths from this tracker snapshot directory")
     batch.add_argument("--inventory", type=Path, help="optional installed-plugin inventory JSON")
+    batch.add_argument("--force", action="store_true", help="override the verified-fix rollover gate and record the override")
     batch.add_argument("--collection", default="findings")
     return parser
 
@@ -622,6 +740,7 @@ def main(argv=None):
             if args.render and (args.render.resolve() == path.resolve() or args.render.resolve() == RENDERER.TEMPLATE.resolve()):
                 raise ValueError("render output must differ from input and template")
             compact_document(store["document"])
+            touch_workflow(store["document"])
             inventory = RENDERER.load_inventory(args.inventory) if args.inventory else None
             rendered = RENDERER.render(store["document"], path.parent, inventory) if args.render else None
             content = (json.dumps(store["document"], ensure_ascii=False, indent=2) + "\n").encode("utf-8")
@@ -654,7 +773,7 @@ def main(argv=None):
             if not isinstance(operations, list) or not operations:
                 raise ValueError("batch requires a nonempty operations array")
             existing_run = store["document"].get("tracking", {}).get("verification_run")
-            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "set-stage", "set-activity"}
+            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "set-stage", "set-activity", "set-plan", "update-plan-group"}
             if (existing_run or any(isinstance(op, dict) and op.get("action") == "rollover" for op in operations)) and not args.render:
                 raise ValueError("rollover requires --render so the page stays current")
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
@@ -664,47 +783,132 @@ def main(argv=None):
                 if not isinstance(operation, dict):
                     raise ValueError("batch operation must be an object")
                 action = operation.get("action")
+                if action in ("set-plan", "update-plan-group"):
+                    tracking = store["document"].setdefault("tracking", {})
+                    cycle = RENDERER.rollover_cycle(tracking)
+                    if action == "set-plan":
+                        plan = copy.deepcopy(operation.get("plan"))
+                        if not isinstance(plan, dict) or type(plan.get("round")) is not int or not isinstance(plan.get("groups"), list):
+                            raise ValueError("set-plan requires plan {round, groups}")
+                        groups = plan["groups"]
+                        ids = [group.get("id") for group in groups if isinstance(group, dict)]
+                        if len(ids) != len(groups) or any(not isinstance(i, str) or not i.strip() for i in ids) or len(ids) != len(set(ids)):
+                            raise ValueError("plan groups require unique nonempty ids")
+                        finding_ids = {item["id"] for item in findings}
+                        states = {"pending", "running", "blocked", "done", "failed"}
+                        for key in ("merge", "build", "verify"):
+                            if key in plan and not isinstance(plan[key], dict):
+                                raise ValueError(f"plan.{key} must be an object")
+                        for group in groups:
+                            if not isinstance(group.get("finding_ids"), list) or any(not isinstance(i, str) or i not in finding_ids for i in group["finding_ids"]):
+                                raise ValueError(f"plan group {group['id']} references an unknown finding")
+                            if group.get("status") not in states:
+                                raise ValueError(f"plan group {group['id']} has invalid status")
+                            if any(key in group and not isinstance(group[key], str) for key in ("name", "label", "verify_summary", "worktree")):
+                                raise ValueError(f"plan group {group['id']} name, label, verify_summary and worktree must be strings")
+                            if len(group.get("verify_summary", "").split()) > 10:
+                                raise ValueError(f"plan group {group['id']} verify_summary must be at most 10 words")
+                            if not isinstance(group.get("codex", {}), dict) or not isinstance(group.get("verify", {}), dict):
+                                raise ValueError(f"plan group {group['id']} codex and verify must be objects")
+                            verify_data = group.get("verify", {})
+                            if verify_data.get("summary") is not None and (not isinstance(verify_data["summary"], str) or len(verify_data["summary"].split()) > 10):
+                                raise ValueError(f"plan group {group['id']} verify.summary must be at most 10 words")
+                            if not isinstance(group.get("depends_on", []), list) or any(not isinstance(i, str) or i not in ids for i in group.get("depends_on", [])):
+                                raise ValueError(f"plan group {group['id']} has invalid dependencies")
+                        plan["cycle"] = cycle
+                        plan["round"] = RENDERER.rollover_round(tracking)
+                        stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                        for group in groups: stamp_plan_group(group, stamp)
+                        tracking["plan"] = plan
+                    else:
+                        plan = tracking.get("plan")
+                        if not isinstance(plan, dict) or plan.get("cycle", cycle) != cycle:
+                            raise ValueError("update-plan-group requires a plan for the current cycle")
+                        group = next((g for g in plan.get("groups", []) if g.get("id") == operation.get("id")), None)
+                        patch = operation.get("patch")
+                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes"}:
+                            raise ValueError("update-plan-group requires id and a valid group patch")
+                        if any(key in patch and not isinstance(patch[key], str) for key in ("label", "verify_summary", "name", "worktree", "reason")):
+                            raise ValueError("label, name, verify_summary, worktree and reason must be strings")
+                        if len(patch.get("verify_summary", "").split()) > 10:
+                            raise ValueError("verify_summary must be at most 10 words")
+                        if "finding_ids" in patch and (not isinstance(patch["finding_ids"], list) or any(i not in {f["id"] for f in findings} for i in patch["finding_ids"])):
+                            raise ValueError("finding_ids must reference tracked findings")
+                        if "depends_on" in patch and (not isinstance(patch["depends_on"], list) or any(i not in {g.get("id") for g in plan.get("groups", [])} for i in patch["depends_on"])):
+                            raise ValueError("depends_on must reference plan groups")
+                        if "verify" in patch and not isinstance(patch["verify"], dict) or "codex" in patch and not isinstance(patch["codex"], dict):
+                            raise ValueError("codex and verify patches must be objects")
+                        if "verify" in patch and patch["verify"].get("summary") is not None and (not isinstance(patch["verify"]["summary"], str) or len(patch["verify"]["summary"].split()) > 10):
+                            raise ValueError("verify.summary must be at most 10 words")
+                        group.update(patch)
+                        stamp_plan_group(group, datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
+                        plan["round"] = RENDERER.rollover_round(tracking)
+                        if "status" in patch and patch["status"] not in {"pending", "running", "blocked", "done", "failed"}:
+                            raise ValueError("invalid plan group status")
+                    continue
+                if action in ("set-stage", "set-activity"):
+                    target = operation.get("stage")
+                    tracking = store["document"].setdefault("tracking", {})
+                    cycle = RENDERER.rollover_cycle(tracking)
+                    if target == "install" and (not isinstance(tracking.get("plan"), dict) or tracking["plan"].get("cycle", cycle) != cycle or not tracking["plan"].get("groups")):
+                        raise ValueError("install requires a recorded plan with at least one group for the current cycle")
+                    if target == "verify" and "install" not in tracking.get("stages_reached", []):
+                        raise ValueError("verify requires install to be reached in the current cycle")
                 if action == "introspect":
-                    # One Introspect = one record and at most ONE WF- task listing every issue found, never a task per issue.
-                    issues = operation.get("issues", [])
-                    result = operation.get("result")
-                    if not isinstance(issues, list) or any(
-                            not isinstance(i, dict) or not all(isinstance(i.get(k), str) and i[k].strip() for k in ("issue", "evidence"))
-                            or i.get("outcome") not in ("fixed", "next_cycle") for i in issues):
-                        raise ValueError("introspect issues must be [{issue, evidence, outcome: fixed|next_cycle}]; no evidence, no issue")
-                    if not issues and (not isinstance(result, str) or not result.strip() or "\n" in result or "\r" in result):
-                        raise ValueError("introspect requires result: one nonempty line, e.g. \"no issues\"")
-                    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-                    record = {"result": (result or "").strip() or f"{len(issues)} issue(s)", "at": stamp}
+                    # One Introspect = one WF- task with four sections. Code follow-ups are separate non-WF issues.
+                    sections = validate_introspect_sections(operation.get("sections"))
+                    issues = operation.get("issues") or []
                     if issues:
-                        used = [int(f["id"][3:]) for f in findings if re.fullmatch(r"WF-\d+", str(f.get("id", "")))]
-                        task_id = f"WF-{max(used, default=0) + 1:02d}"
-                        clean = [{"issue": i["issue"].strip(), "evidence": i["evidence"].strip(), "outcome": i["outcome"]} for i in issues]
-                        pending = [i["issue"] for i in clean if i["outcome"] == "next_cycle"]
-                        task = {"id": task_id, "title": f"Introspect {stamp[:10]}: {len(issues)} issue(s), {len(pending)} for next cycle",
-                                "source": "Agent reported", "status": "untested" if pending else "verified_fixed",
-                                "observed": f"Introspect found {len(clean)} issue(s): {len(clean) - len(pending)} fixed during Introspect, {len(pending)} left for the next cycle.",
-                                "recommendation": "; ".join(pending) or "None; all fixed during Introspect.",
-                                "verification": "" if pending else "All issues fixed and checked during Introspect.",
-                                "issues": clean}
-                        if not pending:
-                            task["verification_refs"] = [i["evidence"].strip() for i in issues]
-                        validate_detail_limits(task)
-                        validate_ids(findings + [task])
-                        findings.append(task)
-                        run = store["document"].get("tracking", {}).get("verification_run", {})
-                        if isinstance(run, dict) and run.get("status") in ("active", "complete"):
-                            # Like add: a new task joins the open run as pending, or rendering rejects it.
-                            run["status"] = "active"
-                            run.setdefault("checks", {})[task_id] = {"state": "pending"}
-                        record["task"] = task_id
+                        raise ValueError("code follow-ups must be separate issues linked from sections; do not pass issues/next_cycle on introspect")
+                    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                    linked = [item["issue_id"] for section in sections.values() if "items" in section for item in section["items"] if item.get("outcome") == "issue"]
+                    finding_ids = {item.get("id") for item in findings}
+                    missing = [identifier for identifier in linked if identifier not in finding_ids]
+                    if missing:
+                        raise ValueError("introspect section links unknown issue ids: " + ", ".join(missing))
+                    all_none = all("none" in section for section in sections.values())
+                    result = operation.get("result")
+                    if result:
+                        summary = result.strip()
+                    elif all_none:
+                        summary = "Introspect: no issues"
+                    else:
+                        summary = "Introspect recorded"
+                    if result and (not isinstance(result, str) or "\n" in result or "\r" in result):
+                        raise ValueError("introspect result must be one nonempty line")
+                    used = [int(f["id"][3:]) for f in findings if re.fullmatch(r"WF-\d+", str(f.get("id", "")))]
+                    task_id = f"WF-{max(used, default=0) + 1:02d}"
+                    task = {"id": task_id, "title": f"Introspect {stamp[:10]}: {summary}",
+                            "source": "Agent reported", "status": "verified_fixed",
+                            "observed": summary,
+                            "recommendation": "Do the linked code issues: " + ", ".join(linked) if linked else "None; all items were fixed inline or none.",
+                            "verification": "Inline items were done during Introspect." if not all_none else "Clean cycle; every section is none with a reason.",
+                            "details": {"fixed_in": "Introspect"},
+                            "sections": sections}
+                    task["verification_refs"] = linked or ["Introspect"]
+                    validate_detail_limits(task)
+                    validate_ids(findings + [task])
+                    findings.append(task)
+                    run = store["document"].get("tracking", {}).get("verification_run", {})
+                    if isinstance(run, dict) and run.get("status") in ("active", "complete"):
+                        run["status"] = "active"
+                        run.setdefault("checks", {})[task_id] = {"state": "pending"}
+                    record = {"result": summary, "at": stamp, "task": task_id, "sections": sections}
                     store["document"].setdefault("tracking", {})["introspect"] = record
+                    plan = store["document"].setdefault("tracking", {}).get("plan")
+                    if isinstance(plan, dict):
+                        plan["status"] = "closed"
                     continue
                 if action in ("set-stage", "set-activity", "rollover"):
                     target = "report_rollover" if action == "rollover" else operation.get("stage")
                     tracking = store["document"].setdefault("tracking", {})
+                    previous_stage = tracking.get("workflow", {}).get("stage")
                     if target == "report_rollover" and "install" in tracking.get("stages_reached", []) and not tracking.get("introspect"):
-                        raise ValueError("full cycle (reached install): record {\"action\":\"introspect\",\"result\":\"no issues\"} or its findings before report_rollover")
+                        raise ValueError("full cycle (reached install): record introspect with --sections before report_rollover")
+                    if target == "report_rollover" and action != "set-activity":
+                        require_rollover_gate(findings, tracking, args.force, action)
+                    if target in ("plan_fix", "install", "verify") and action == "set-stage" and not any(item.get("status") == "in_progress" for item in findings):
+                        raise ValueError(f"{target} requires at least one finding with status in_progress; log the finding and set it in progress first")
                     if target in RENDERER.WORKFLOW_STAGES and target not in tracking.setdefault("stages_reached", []):
                         tracking["stages_reached"].append(target)
                 if action == "set-stage":
@@ -727,9 +931,19 @@ def main(argv=None):
                         raise ValueError(f"set-activity cannot reopen closed findings {', '.join(closed)}; pass \"reopen\": true")
                     for item in affected:
                         item["status"] = "in_progress"
+                    if stage == "report_rollover":
+                        require_rollover_gate(findings, store["document"].setdefault("tracking", {}), args.force, action)
+                    if stage in ("plan_fix", "install", "verify") and (not ids or not any(item.get("status") == "in_progress" for item in findings)):
+                        raise ValueError(f"set-activity for {stage} requires a nonempty ID list and an in_progress finding; log a finding and set it in progress first")
                     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-                    store["document"].setdefault("tracking", {})["workflow"] = {
-                        "stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
+                    if (stage == "plan_fix" and previous_stage in ("verify", "introspect", "gate")
+                            and not RENDERER.rollover_gate(findings, tracking)[2]):
+                        round_number = RENDERER.rollover_round(tracking)
+                        history = tracking.setdefault("round_history", [])
+                        history.append({"round": round_number, "fixed": RENDERER.rollover_gate(findings, tracking)[0], "ended_at": timestamp})
+                        tracking["round"] = round_number + 1
+                        if isinstance(tracking.get("plan"), dict): tracking["plan"]["round"] = round_number + 1
+                    tracking["workflow"] = {"stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
                     continue
                 if action == "rollover":
                     # One step at merge time: exclude every verified_fixed finding, list the rest as carried over,
@@ -740,13 +954,19 @@ def main(argv=None):
                     tracking = store["document"].setdefault("tracking", {})
                     fixed = [item["id"] for item in findings if item.get("status") == "verified_fixed"]
                     rollover = tracking.setdefault("rollover", {})
+                    if not isinstance(rollover, dict):
+                        raise ValueError("tracking.rollover must be an object")
                     rollover["source_pr"] = operation.get("source_pr", rollover.get("source_pr"))
                     rollover["excluded_ids"] = sorted(set(rollover.get("excluded_ids", [])) | set(fixed))
                     rollover["unresolved_ids"] = [item["id"] for item in findings if item.get("status") not in CLOSED_STATUSES]
                     tracking["pull_request"], tracking["worktree"] = {"label": pr["label"], "url": pr["url"]}, worktree.strip()
                     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                     note = str(operation.get("now") or f"Rolled over to {pr['label']}").strip().splitlines()[0]
-                    tracking["workflow"] = {"stage": "report_rollover", "updated_at": timestamp, "now": f"{timestamp} — {note}"}
+                    round_number = RENDERER.rollover_round(tracking)
+                    tracking.setdefault("round_history", []).append({"round": round_number, "fixed": len(fixed), "ended_at": timestamp})
+                    tracking["round"] = 1
+                    tracking["cycle"] = RENDERER.rollover_cycle(tracking) + 1
+                    tracking["workflow"] = {"stage": "collect", "updated_at": timestamp, "now": f"{timestamp} — {note}"}
                     run = tracking.pop("verification_run", None)  # a run never carries into the next PR's list
                     if isinstance(run, dict):
                         tracking.setdefault("verification_history", []).append({**run, "status": "interrupted" if run.get("status") == "active" else run.get("status")})
@@ -765,7 +985,7 @@ def main(argv=None):
                     if not isinstance(item, dict):
                         raise ValueError("entry must be a JSON object")
                     if re.fullmatch(r"WF-\d+", str(item.get("id", ""))):
-                        raise ValueError("WF- tasks come only from one introspect call: {\"action\":\"introspect\",\"issues\":[...]} (one task per Introspect)")
+                        raise ValueError("WF- tasks come only from one introspect call with sections (one task per Introspect)")
                     warn_summary(item, adding=True)
                     validate_detail_limits(item)
                     trim_verification_evidence(item)
@@ -808,12 +1028,14 @@ def main(argv=None):
                     raise ValueError("unknown batch action")
             validate_ids(findings)
             store["document"]["findings"] = findings
+            sync_plan_verify(store["document"])
             if args.render and (args.render.resolve() == path.resolve() or args.render.resolve() == RENDERER.TEMPLATE.resolve()):
                 raise ValueError("render output must differ from input and template")
+            touch_workflow(store["document"])
             inventory = RENDERER.load_inventory(args.inventory) if args.inventory else None
-            rendered = RENDERER.render(store["document"], path.parent, inventory)
+            rendered = RENDERER.render(store["document"], args.base or path.parent, inventory)
             html_original = args.render.read_bytes() if args.render and args.render.exists() else None
-            write(path, original, store, findings, validate=False)
+            write(path, original, store, findings, validate=False, touch=False)
             if args.render:
                 try:
                     run = store["document"].get("tracking", {}).get("verification_run")
