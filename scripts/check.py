@@ -1028,6 +1028,48 @@ def run_integration(plugins: list[Path]) -> int:
     return 0
 
 
+TRIAGE_RENDERER = ROOT / "plugins/batched-change-list/skills/batched-change-list/scripts/render.py"
+
+
+def check_triage_renders() -> list[str]:
+    """The current change-list page must be a fresh, untouched render of its tracker JSON.
+
+    For each docs/triage/*-findings.json, the page named for the tracker's current PR
+    (tracking.pull_request.url .../pull/N -> docs/triage/pr-N.html) must be byte-identical
+    to render.py's output. Earlier PR pages are frozen snapshots and are not re-rendered.
+    """
+    import re
+    import tempfile
+
+    errors: list[str] = []
+    triage = ROOT / "docs/triage"
+    if not TRIAGE_RENDERER.is_file():
+        return errors
+    for data in sorted(triage.glob("*-findings.json")):
+        try:
+            url = (json.loads(data.read_text()).get("tracking", {}).get("pull_request") or {}).get("url", "")
+        except (OSError, ValueError) as exc:
+            errors.append(f"{data.relative_to(ROOT)}: unreadable tracker ({exc})")
+            continue
+        match = re.search(r"/pull/(\d+)", url)
+        if not match:
+            continue
+        report = triage / f"pr-{match.group(1)}.html"
+        if not report.is_file():
+            errors.append(f"{report.relative_to(ROOT)}: missing; render it from {data.name} with render.py")
+            continue
+        with tempfile.TemporaryDirectory() as tmp:
+            fresh = Path(tmp) / report.name
+            proc = subprocess.run([sys.executable, str(TRIAGE_RENDERER), str(data), str(fresh)],
+                                  capture_output=True, text=True)
+            if proc.returncode != 0:
+                errors.append(f"{data.relative_to(ROOT)}: render.py failed: {(proc.stderr or proc.stdout).strip()[-300:]}")
+            elif fresh.read_bytes() != report.read_bytes():
+                errors.append(f"{report.relative_to(ROOT)}: differs from a fresh render of {data.name}; "
+                              "regenerate with render.py (no hand edits)")
+    return errors
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate packages and run discovered tests.")
     parser.add_argument(
@@ -1088,6 +1130,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"validate {plugin.relative_to(ROOT)}", flush=True)
         errors.extend(validate_plugin(plugin))
     errors.extend(check_host_dest())
+    errors.extend(check_triage_renders())
     if errors:
         print("\n".join(errors), file=sys.stderr)
         return 1

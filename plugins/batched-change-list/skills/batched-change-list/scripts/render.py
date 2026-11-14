@@ -225,6 +225,8 @@ def render(data, base, inventory_override=None):
                     else re.sub(r"^Pending:\s*", "", verification))
             if not item.get("done_when"):
                 item["done_when"] = next((value for key, value in details.items() if key.casefold() == "expected"), "")
+            if looks_like_log_text(item.get("done_when", "")):
+                item["done_when"] = ""  # log-like text stays in Evidence and the version timeline
         if run is not None and check.get("evidence"):
             if check.get("corrections"):
                 details = {**details, "Check corrections": json.dumps(check["corrections"], ensure_ascii=False)}
