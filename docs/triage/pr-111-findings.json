@@ -2181,8 +2181,8 @@
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
             "status": "partial",
-            "fixed": 1,
-            "failed": 3,
+            "fixed": 3,
+            "failed": 1,
             "total": 4
           },
           "updated_at": "2026-11-15T13:02:36Z",
@@ -2761,13 +2761,27 @@
       "id": "PAGE-13",
       "title": "Issue status can contradict its latest verification",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "An issue can be labeled untested even though its latest verification failed.",
       "impact": "You may think an issue was never checked when there is already a failing result.",
       "done_when": "The issue status and latest verification are clearly distinguished, and a recorded failure is not presented as an unqualified untested result.",
       "recommendation": "Show the current issue state and last verification with unambiguous labels.",
-      "observed": "Chrome visual review on 15 Nov: AGENT-25 is labeled Untested in its heading and list, while its latest recorded verification is Failing on ACU 0.2.147 (10/12). Its earlier 0.2.143 result also failed."
+      "observed": "Chrome visual review on 15 Nov: AGENT-25 is labeled Untested in its heading and list, while its latest recorded verification is Failing on ACU 0.2.147 (10/12). Its earlier 0.2.143 result also failed.",
+      "verification_evidence": [
+        {
+          "check": "Chrome on the installed 0.1.19 viewer showed AGENT-25 as Issue status: Untested and separately showed its last verification as Failing.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.19",
+          "session": "codex-installed-review-111",
+          "timestamp": "2026-11-15T13:03:08Z",
+          "reference": "af13e9f70a81d559e07a0292ed8ab84a9b95db08:PAGE-13:installed-check"
+        }
+      ],
+      "verification": "Chrome on the installed 0.1.19 viewer showed AGENT-25 as Issue status: Untested and separately showed its last verification as Failing.",
+      "verification_refs": [
+        "af13e9f70a81d559e07a0292ed8ab84a9b95db08:PAGE-13:installed-check"
+      ]
     },
     {
       "id": "PAGE-14",
@@ -2835,13 +2849,27 @@
       "id": "PAGE-17",
       "title": "Verified counts use different totals without explanation",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "The page shows two different verified totals without explaining why they differ.",
       "impact": "You cannot tell which count is relevant to the rollover gate.",
       "done_when": "The page explains which records count toward rollover and why that total can differ from the issue summary.",
       "recommendation": "Label the gate count and issue summary so their different scopes are clear.",
-      "observed": "Chrome review on 15 Nov: the issue summary says 3 verified fixed while the gate says 2 of 15 verified. WF-07 is a verified introspection record excluded from the gate count."
+      "observed": "Chrome review on 15 Nov: the issue summary says 3 verified fixed while the gate says 2 of 15 verified. WF-07 is a verified introspection record excluded from the gate count.",
+      "verification_evidence": [
+        {
+          "check": "Chrome on the installed 0.1.19 viewer showed the 2/15 gate with an explicit note excluding completed introspection records and excluded issues, alongside the 3 verified fixed issue count.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.19",
+          "session": "codex-installed-review-111",
+          "timestamp": "2026-11-15T13:03:08Z",
+          "reference": "af13e9f70a81d559e07a0292ed8ab84a9b95db08:PAGE-17:installed-check"
+        }
+      ],
+      "verification": "Chrome on the installed 0.1.19 viewer showed the 2/15 gate with an explicit note excluding completed introspection records and excluded issues, alongside the 3 verified fixed issue count.",
+      "verification_refs": [
+        "af13e9f70a81d559e07a0292ed8ab84a9b95db08:PAGE-17:installed-check"
+      ]
     },
     {
       "id": "BCL-06",
@@ -3107,16 +3135,31 @@
       "id": "BCL-20",
       "title": "Plugin refresh fails when Codex uses another marketplace",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "summary": "The refresh stops after updating the personal package because Codex cannot find the plugin in the named marketplace.",
       "impact": "The installed client can remain on an older plugin while part of the refresh has already happened.",
       "done_when": "Refresh the plugin through its configured marketplace with preflight and verify the active installed copy.",
       "observed": "Release command for PR 111 updated ~/.agents/plugins/batched-change-list then codex plugin add batched-change-list@personal failed: plugin not found in marketplace personal; configured client uses ingpoc-agent-plugins.",
       "recommendation": "Correct release marketplace selection and perform validation before mutating any destination.",
       "details": {
-        "Release attempt": "Personal source copy was refreshed to 0.1.19, but Codex rejected batched-change-list@personal; active configured selector remains batched-change-list@ingpoc-agent-plugins with cached 0.1.18.",
-        "Source check": "Selector preflight now stops before package changes when personal has no entry; release helper tests passed. Exact PR install in existing client remains unresolved."
-      }
+        "Release attempt": "Earlier personal marketplace attempt failed after refreshing the personal source copy; configured client cache remained 0.1.18.",
+        "Source check": "Selector preflight now stops before package changes when personal has no entry; release helper tests passed. Exact PR install in existing client remains unresolved.",
+        "Installed verification": "The corrected existing-selector release installed 0.1.19; Codex lists it enabled and the isolated CLI/HTTP and managed-viewer probes passed."
+      },
+      "verification_evidence": [
+        {
+          "check": "Release succeeded through the existing ingpoc-agent-plugins selector; Codex reports 0.1.19 installed and enabled, and installed identity matched the PR candidate.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.19",
+          "session": "codex-installed-review-111",
+          "timestamp": "2026-11-15T13:03:08Z",
+          "reference": "af13e9f70a81d559e07a0292ed8ab84a9b95db08:BCL-20:installed-check"
+        }
+      ],
+      "verification": "Release succeeded through the existing ingpoc-agent-plugins selector; Codex reports 0.1.19 installed and enabled, and installed identity matched the PR candidate.",
+      "verification_refs": [
+        "af13e9f70a81d559e07a0292ed8ab84a9b95db08:BCL-20:installed-check"
+      ]
     }
   ]
 }
