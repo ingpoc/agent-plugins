@@ -14,6 +14,15 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_blocked_or_planned_lanes_do_not_make_recorded_stage_busy(self):
+        groups = [{'id':'A', 'status':'blocked', 'phase':'fix'}, {'id':'B', 'status':'planned'}]
+        page = renderer.render_workflow('plan_fix', groups, 0, 15, False, 0, 1)
+        plan = page.split('>Plan &amp; fix<', 1)[0].rsplit('<li ', 1)[-1]
+        self.assertIn('wf-step upcoming', plan)
+        track = renderer.row_phase_track({'id':'A', 'status':'verified'}, 'verified')
+        self.assertEqual(track.count('<i'), 4)
+        self.assertEqual(track.count('class="d"'), 4)
+
     def test_planned_lane_does_not_look_active_during_introspection(self):
         page = renderer.render_workflow('introspect', [{'id':'A', 'status':'planned'}], 0, 15, False, 0, 1)
         plan = page.split('>Plan &amp; fix<', 1)[0].rsplit('<li ', 1)[-1]
@@ -35,10 +44,23 @@ class RenderTests(unittest.TestCase):
         self.assertIn('stroke="var(--sage-line)" stroke-width="3"', gate_node)
         self.assertNotIn('var(--amber)', gate_node)
         self.assertIn('Fixes <b>1/1000</b> verified<small>0 in progress</small>', gate_node)
+        self.assertNotIn('excludes completed introspection', gate_node)
+        self.assertIn('<p class="gate-note">Fix count excludes completed introspection workflow records and excluded issues.</p>', page)
+
+    def test_gate_does_not_count_a_fixed_issue_during_an_unresolved_recheck(self):
+        finding = {'id':'ISSUE-01', 'status':'verified_fixed', 'verification_refs':['old receipt']}
+        tracking = {'rollover_threshold':1, 'verification_run':{'checks':{'ISSUE-01':{'state':'fixed'}}}}
+        self.assertEqual(renderer.rollover_gate([finding], tracking), (1, 1, True))
+        for state in ('checking', 'blocked', 'inconclusive', 'not_fixed'):
+            with self.subTest(state=state):
+                tracking['verification_run']['checks']['ISSUE-01']['state'] = state
+                self.assertEqual(renderer.rollover_gate([finding], tracking), (0, 1, False))
+        self.assertEqual(finding['verification_refs'], ['old receipt'])
 
         self.data['findings'][0]['status'] = 'verified_fixed'
         self.data['findings'][0]['verification'] = 'Verified on the installed build.'
         self.data['findings'][0]['verification_refs'] = ['Example receipt']
+        self.data['tracking'] = {'workflow': {'stage':'collect','updated_at':'2026-11-14T07:00:00Z'}}
         self.data['tracking']['rollover_threshold'] = 1
         page = renderer.render(self.data, self.base)
         self.assertIn('data-stage="collect" class="wf-step current" aria-current="step"', page)
@@ -129,8 +151,8 @@ class RenderTests(unittest.TestCase):
         self.assertIn('<b>1</b> blocked', page)
         self.assertIn('Parked for Round 2', page)
         self.assertIn('CORE · 1', page)
-        self.assertIn('aria-label="Phase 3 of 5: Install"', page)
-        self.assertIn('aria-label="Phase 4 of 5: Verify, blocked"', page)
+        self.assertIn('aria-label="Phase 3 of 4: Install"', page)
+        self.assertIn('aria-label="Phase 4 of 4: Verify, blocked"', page)
         self.assertIn('In install · INSTALL', page)
         self.assertIn('Blocked · no mic · needs Guru', page)
         self.assertIn('CARRIED', page)
@@ -261,14 +283,14 @@ function show(){
 """ + show + r"""
 show();
 const heading=panel.article.children[0];
-if(heading.children[1].text!=='Failing')process.exit(1);
+if(heading.children[1].text!=='Issue status: Failing')process.exit(1);
 const detail=panel.article.children.find(e=>e.tag==='details'&&e.cls==='evidence');
 if(!detail.children.some(e=>e.tag==='section'&&e.children[0].text==='Plan (last recorded)'&&e.children[1].text==='Parked → Round 2'))process.exit(2);
 const sections=panel.article.children.filter(e=>e.tag==='section');
 if(!sections.some(e=>e.children[0].text==='Build recorded with issue'&&e.children[1].text==='0.2.147'))process.exit(3);
 const history=sections.find(e=>e.children[0].text==='Verification by version');
 if(!sections.some(e=>e.children[0].text==='Status of last verification'&&e.children[1].text==='No verification result recorded.'))process.exit(6);
-if(!history||history.children[1].children[0].children[0].text!=='Version unknown'||history.children[1].children[0].children[1].text!=='No result recorded')process.exit(4);
+if(!history||history.children[1].text!=='No versioned verification recorded.')process.exit(4);
 findings[0].version_timeline=[
  {version:'0.2.147',build:'ACU 0.2.147',state:'not_fixed',outcome:'fail',reference:'10/12 on typed session; not 12/12.',timestamp:'2026-11-14T17:06:53Z'},
  {version:'0.2.143',build:'ACU 0.2.143',state:'not_fixed',outcome:'failing',reference:'6/12 on typed turns; not 12/12',timestamp:'2026-11-14T10:30:44Z'}];
@@ -277,6 +299,12 @@ const list=panel.article.children.find(e=>e.cls==='issue-part version-history').
 if(!list||list.children.length!==2||list.children[0].children[0].text!=='0.2.147'||list.children[1].children[0].text!=='0.2.143')process.exit(5);
 if(!panel.article.children.some(e=>e.tag==='section'&&e.children[0].text==='Status of last verification'&&e.children[1].text==='Failing'))process.exit(7);
 if(list.children[0].children[1].text!=='Failing'||list.children[1].children[1].text!=='Failing')process.exit(8);
+
+findings[0].version_timeline.push({version:'0.2.148',build:'ACU 0.2.148',state:'fixed',outcome:'fixed',timestamp:'unknown'});
+show();
+if(!panel.article.children.some(e=>e.tag==='section'&&e.children[0].text==='Status of last verification'&&e.children[1].text==='Latest result cannot be determined; some verification dates are unavailable. Latest dated: Failing.'))process.exit(12);
+if(panel.article.children.find(e=>e.cls==='issue-part version-history').children.find(e=>e.tag==='ol').children.length!==3)process.exit(13);
+
 if(list.children[0].children[2].children[1].text!=='Reason: 10/12 on typed session; not 12/12.'||list.children[1].children[2].children[1].text!=='Reason: 6/12 on typed turns; not 12/12')process.exit(11);
 findings[0].version_timeline=[{version:'0.2.143',build:'ACU 0.2.143',state:'blocked',outcome:'blocked',timestamp:'2026-11-14T10:30:44Z'}];
 show();
@@ -286,6 +314,11 @@ findings[0].version_timeline[0].state='';findings[0].version_timeline[0].outcome
 show();
 const ambiguous=panel.article.children.find(e=>e.cls==='issue-part version-history').children.find(e=>e.tag==='ol').children[0];
 if(ambiguous.children[1].text!=='Status not recorded'||ambiguous.children[2].children[0].text!=='Outcome: reviewed'||ambiguous.children[2].children[1].text!=='Reason not recorded.')process.exit(10);
+findings[0].version_timeline=[{version:'Version unknown',build:'unknown',state:'fixed',outcome:'fixed',timestamp:'unknown'}];
+show();
+const undated=panel.article.children.find(e=>e.cls==='issue-part version-history').children.find(e=>e.tag==='ol').children[0];
+if(undated.children[0].text!=='Version unknown'||undated.children[1].text!=='Fixed')process.exit(14);
+if(!panel.article.children.some(e=>e.tag==='section'&&e.children[0].text==='Status of last verification'&&e.children[1].text==='Fixed · Date unavailable'))process.exit(15);
 """
         subprocess.run(['node', '-e', program], check=True)
 
@@ -767,7 +800,7 @@ setImmediate(async()=>{
         ]}}
         page = renderer.render(data, self.base)
         self.assertIn('class="grp failed"', page)
-        self.assertIn('Phase 4 of 5: Verify, failed', page)
+        self.assertIn('Phase 4 of 4: Verify, failed', page)
         self.assertIn('Fix failed · F', page)
         self.assertIn('Fix failed · D', page)
         data['tracking']['plan']['groups'][0]['status'] = 'unknown'
@@ -779,7 +812,7 @@ setImmediate(async()=>{
         group = {'id':'A','status':'installing','phase':'fix','finding_ids':['ISSUE-01']}
         self.assertEqual(renderer.plan_phase(group), 'install')
         track = renderer.row_phase_track(group, 'installing')
-        self.assertIn('Phase 3 of 5: Install', track)
+        self.assertIn('Phase 3 of 4: Install', track)
         workflow = renderer.render_workflow('plan_fix',
             [{**group, 'id':f'G{i}'} for i in range(6)], 0, 15, False, 0, 1)
         self.assertIn('aria-label="6 lanes"', workflow)
@@ -814,7 +847,7 @@ setImmediate(async()=>{
         self.assertIn('class="grp installing"', page)
         self.assertIn('>Installing</span>', page)
         self.assertIn('class="grp running"', page)
-        self.assertIn('Phase 3 of 5: Install', page)
+        self.assertIn('Phase 3 of 4: Install', page)
         self.assertIn('data-stage="gate"', page)
         self.assertNotIn('data-stage="install"', page)
         self.assertIn('class="wf-step busy"', page)
@@ -823,13 +856,13 @@ setImmediate(async()=>{
         data['tracking']['plan']['groups'][0]['verify'] = {'status':'verified','method':'Unit tests'}
         page = renderer.render(data, self.base)
         self.assertIn('class="grp verified"', page)
-        self.assertIn('Phase 4 of 5: Verify', page)
+        self.assertIn('Phase 4 of 4: Verify', page)
         self.assertIn('class="wf-step done"', page)
         data['tracking']['plan']['groups'][0].update(status='review', phase='review', verify={'status':'pending'})
         page = renderer.render(data, self.base)
         self.assertIn('class="grp review"', page)
         self.assertIn('>In review</span>', page)
-        self.assertIn('Phase 2 of 5: Plan &amp; fix', page)
+        self.assertIn('Phase 2 of 4: Plan &amp; fix', page)
         data['tracking']['workflow']['stage'] = 'install'
         data['tracking']['plan']['groups'] = [
             {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'done','phase':'install','verify':{'status':'pending'}},

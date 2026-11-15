@@ -1,5 +1,7 @@
 ## 0.1.19
 
+- Reject stale verification updates, preserve failures and serialize cooperating tracker writes and snapshots. Writes and snapshots require `fcntl`; Windows support remains pending.
+- Show four lane phases, distinguish issue and verification status, and explain uncertain verification dates and gate exclusions.
 - Reject dependency cycles and attempts to start a lane before its prerequisites are verified. Verification must use the reviewed command recorded in the plan, and rejects common placeholder commands.
 - Explain lane dots, avoid highlighting planned lanes as active, identify missing viewer version, and keep finding edits from refreshing the workflow activity clock.
 - Status reads the live tracker without starting a viewer; concurrent browser connections no longer block the live report.

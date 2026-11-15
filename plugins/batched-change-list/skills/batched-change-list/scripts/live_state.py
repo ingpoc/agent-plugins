@@ -1,5 +1,9 @@
 """Live tracker registry and per-list viewer lifecycle."""
 import hashlib, json, os, re, socket, subprocess, sys, time, urllib.error, urllib.request, uuid
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -253,26 +257,42 @@ def _viewer_ready(proc, port, expected):
     return False
 
 def snapshot(record, live):
+    if fcntl is None:
+        raise RuntimeError("snapshot locking unavailable on this platform")
     home = Path(record["home"])
     snapshot_path = home / record["snapshot"]; html_path = home / record["html"]
     marker = live.with_suffix(".unsnapshotted")
     if not home.exists():
         marker.write_text(hashlib.sha256(live.read_bytes()).hexdigest() + "\n")
         raise RuntimeError(f"snapshot home worktree missing: {home}; restore it and retry")
-    import render
-    doc = json.loads(live.read_text())
-    snapshot_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        rendered = render.render(doc, snapshot_path.parent)
-    except FileNotFoundError as error:
-        missing = Path(error.filename or "")
-        if not missing.is_absolute() or not missing.resolve().is_relative_to(snapshot_path.parent.resolve()):
-            raise
-        marker.write_text(hashlib.sha256(live.read_bytes()).hexdigest() + "\n")
-        raise RuntimeError(f"snapshot capture missing: {missing}; restore it and retry") from error
-    snapshot_path.write_bytes(live.read_bytes())
-    html_path.write_text(rendered)
-    subprocess.run(["git", "-C", str(home), "add", record["snapshot"], record["html"]], check=True)
-    if subprocess.run(["git", "-C", str(home), "diff", "HEAD", "--quiet", "--", record["snapshot"], record["html"]]).returncode:
-        subprocess.run(["git", "-C", str(home), "commit", "--only", "-m", "Change list: snapshot live tracker", "--", record["snapshot"], record["html"]], check=True)
-    marker.unlink(missing_ok=True)
+    lock_path = Path(git(home, "rev-parse", "--git-path", "bcl-snapshot.lock"))
+    if not lock_path.is_absolute():
+        lock_path = home / lock_path
+    with lock_path.open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        import render
+        captured = live.read_bytes()
+        marker.write_text(hashlib.sha256(captured).hexdigest() + "\n")
+        doc = json.loads(captured)
+        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            rendered = render.render(doc, snapshot_path.parent)
+        except FileNotFoundError as error:
+            missing = Path(error.filename or "")
+            if not missing.is_absolute() or not missing.resolve().is_relative_to(snapshot_path.parent.resolve()):
+                raise
+            marker.write_text(hashlib.sha256(live.read_bytes()).hexdigest() + "\n")
+            raise RuntimeError(f"snapshot capture missing: {missing}; restore it and retry") from error
+        snapshot_path.write_bytes(captured)
+        html_path.write_text(rendered)
+        subprocess.run(["git", "-C", str(home), "add", record["snapshot"], record["html"]], check=True)
+        changed = subprocess.run(["git", "-C", str(home), "diff", "HEAD", "--quiet", "--", record["snapshot"], record["html"]])
+        if changed.returncode not in (0, 1):
+            raise RuntimeError(f"snapshot diff failed with exit {changed.returncode}")
+        if changed.returncode == 1:
+            subprocess.run(["git", "-C", str(home), "commit", "--only", "-m", "Change list: snapshot live tracker", "--", record["snapshot"], record["html"]], check=True)
+        current = live.read_bytes()
+        if current != captured:
+            marker.write_text(hashlib.sha256(current).hexdigest() + "\n")
+            raise RuntimeError("live tracker changed during snapshot; retry")
+        marker.unlink(missing_ok=True)

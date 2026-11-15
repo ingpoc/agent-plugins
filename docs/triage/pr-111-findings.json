@@ -2042,8 +2042,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-15T10:31:39Z",
-      "now": "2026-11-15T10:31:39Z — Plan recorded"
+      "updated_at": "2026-11-15T12:18:15Z",
+      "now": "2026-11-15T12:18:15Z — Lane DISPLAY updated"
     },
     "rollover": {
       "source_pr": 110,
@@ -2133,7 +2133,9 @@
           "name": "Dependency and proof controls",
           "finding_ids": [
             "BCL-06",
-            "BCL-05"
+            "BCL-05",
+            "BCL-07",
+            "BCL-08"
           ],
           "depends_on": [],
           "status": "blocked",
@@ -2145,17 +2147,17 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
           ],
-          "reason": "Prevent dependent work and placeholder proof from passing.",
+          "reason": "Repair verified dependencies and verification failures.",
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
             "method": "Run behavior checks; installed verification remains required.",
             "status": "partial",
             "fixed": 0,
-            "failed": 1,
-            "total": 2
+            "failed": 3,
+            "total": 4
           },
-          "updated_at": "2026-11-15T10:41:27Z",
-          "blocked_reason": "Installed verification and review unavailable"
+          "updated_at": "2026-11-15T12:18:15Z",
+          "blocked_reason": "Integrated verification and install pending"
         },
         {
           "id": "DISPLAY",
@@ -2167,7 +2169,7 @@
             "PAGE-17"
           ],
           "depends_on": [],
-          "status": "pending",
+          "status": "blocked",
           "phase": "fix",
           "worktree": "samantha-pr111-rollover",
           "files": [
@@ -2183,7 +2185,8 @@
             "failed": 4,
             "total": 4
           },
-          "updated_at": "2026-11-15T10:41:27Z"
+          "updated_at": "2026-11-15T12:18:15Z",
+          "blocked_reason": "Installed viewer verification pending"
         },
         {
           "id": "GUIDANCE",
@@ -2861,6 +2864,116 @@
       "done_when": "The page identifies the renderer build or says it is unknown, separately from installed plugin versions.",
       "recommendation": "Display the active viewer or renderer identity and its source separately from the installed inventory.",
       "observed": "Chrome review on 15 Nov: this page is served from the PR 111 candidate source, but the header lists installed batched-change-list 0.1.18 and does not identify the running renderer. The local server was started directly without viewer metadata."
+    },
+    {
+      "id": "BCL-07",
+      "title": "Failed verification can still look in progress",
+      "source": "Agent reported",
+      "status": "failing",
+      "summary": "A verification command fails but the lane can remain marked as verifying.",
+      "impact": "The tracker can give a misleading picture of progress.",
+      "done_when": "Record the failed command and stop the lane when it exits nonzero.",
+      "observed": "Source review: bin/bcl records verification before subprocess.run; a CalledProcessError exits without a tracker update.",
+      "recommendation": "Fix and test the owning tracker operation."
+    },
+    {
+      "id": "BCL-08",
+      "title": "Unplanned or parked issues can enter active work",
+      "source": "Agent reported",
+      "status": "failing",
+      "summary": "An issue outside the current plan, or in a parked group, can be started.",
+      "impact": "The tracker can give a misleading picture of progress.",
+      "done_when": "Reject work on issues outside an eligible current-round lane.",
+      "observed": "Source review: set-activity checks dependencies only for groups matching selected IDs.",
+      "recommendation": "Fix and test the owning tracker operation."
+    },
+    {
+      "id": "PAGE-19",
+      "title": "Lane updates do not refresh the workflow clock",
+      "source": "Agent reported",
+      "status": "failing",
+      "summary": "The workflow may look stale even after a lane changes state.",
+      "impact": "The tracker can give a misleading picture of progress.",
+      "done_when": "Refresh the activity clock when a lane changes, without treating issue edits as workflow progress.",
+      "observed": "Source review: update-plan-group stamps the group, while render uses workflow.updated_at.",
+      "recommendation": "Fix and test the owning tracker operation."
+    },
+    {
+      "id": "PAGE-20",
+      "title": "Undated checks can make the latest verification uncertain",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "An undated verification can be newer than the dated result shown as latest.",
+      "impact": "The page can present an uncertain result as the last verification.",
+      "done_when": "Show the latest dated result and disclose when undated results cannot be ordered.",
+      "observed": "Source review: unknown timestamps sort behind dated checks; the page labels the first result latest.",
+      "recommendation": "Distinguish unknown chronology when rendering verification history."
+    },
+    {
+      "id": "BCL-09",
+      "title": "No supported PR install path for batched change list",
+      "source": "Agent reported",
+      "status": "blocked",
+      "summary": "The documented release route cannot install the batched-change-list candidate from its open PR.",
+      "impact": "Changes cannot receive the required installed-client verification.",
+      "done_when": "Provide a supported way to install the exact open PR candidate and verify its version.",
+      "observed": "docs/dev-lifecycle.md requires release_agent_computer_use.py for installs; its --plugin choices are agent-computer-use and developer-observability only. Hygiene also reports unreviewed local-only branches.",
+      "recommendation": "Add or document an authorized exact-PR install path without editing cached packages."
+    },
+    {
+      "id": "BCL-10",
+      "title": "Running dependents can outlive a reopened prerequisite",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "A dependent lane can still appear active if its prerequisite is reopened.",
+      "impact": "Work may continue based on a prerequisite that no longer holds.",
+      "done_when": "Record the prerequisite change and block affected active dependents with a clear reason.",
+      "observed": "Source review: dependency checks run when plan or activity changes but do not invalidate an already active dependent when the prerequisite finding changes.",
+      "recommendation": "Update dependent lane state when prerequisite evidence becomes invalid."
+    },
+    {
+      "id": "BCL-11",
+      "title": "Concurrent tracker writes can overwrite each other",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "Two simultaneous updates can overwrite one another.",
+      "impact": "A finding or status change may disappear from the tracker.",
+      "done_when": "Serialize tracker writes and reject conflicting changes without losing either update.",
+      "observed": "Source review: atomic_write checks original bytes before os.replace but does not hold a cross-process lock across the read and replacement.",
+      "recommendation": "Protect all tracker read-modify-write operations with a shared lock and test competing writers."
+    },
+    {
+      "id": "BCL-12",
+      "title": "Snapshots can pair tracker data with an older page",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "A tracker change during a snapshot can produce an HTML page and JSON from different updates.",
+      "impact": "A committed page can show a status that does not match its tracker.",
+      "done_when": "Snapshot a single consistent tracker revision and serialize paired snapshot commits.",
+      "observed": "Source review: live_state.snapshot renders from the tracker and reads its JSON separately outside the tracker write lock.",
+      "recommendation": "Use a consistent captured tracker revision and coordinate snapshot writes."
+    },
+    {
+      "id": "BCL-13",
+      "title": "Tracker and snapshot locking needs Windows support",
+      "source": "Agent reported",
+      "status": "blocked",
+      "summary": "The new safe write lock is not available on Windows.",
+      "impact": "Tracker changes and snapshots cannot run there until a portable lock is verified.",
+      "done_when": "Support and verify cross-process locking on each supported platform without losing updates.",
+      "observed": "Source candidate uses fcntl; on platforms without it, writes and snapshots fail closed. No Windows runtime was available to verify an alternative.",
+      "recommendation": "Implement and run Windows-specific locking and concurrency tests."
+    },
+    {
+      "id": "BCL-14",
+      "title": "Rollover can count a fix while its recheck is unresolved",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "An earlier verified result can still count while a newer recheck has not passed.",
+      "impact": "The fix gate can imply completion before current verification is complete.",
+      "done_when": "Count a fix only when its current verification state supports it, while preserving prior results.",
+      "observed": "Source review: a finding can retain verified_fixed during an active or inconclusive recheck; rollover_gate counts status alone.",
+      "recommendation": "Make gate eligibility reflect the current check state."
     }
   ]
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Stage-oriented entrypoint for batched-change-list."""
-import argparse, json, re, shlex, shutil, subprocess, sys
+import argparse, hashlib, json, re, shlex, shutil, subprocess, sys
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -268,14 +268,23 @@ def main():
                 parser.error("verify requires one stored command; verify groups with different commands separately")
             expected = next(iter(commands))
             try:
-                words = shlex.split(expected)
+                lexer = shlex.shlex(expected, posix=True, punctuation_chars='|&;<>')
+                lexer.whitespace_split = True
+                lexer.commenters = ''
+                words = list(lexer)
             except ValueError:
                 parser.error("stored verify command has invalid quoting")
-            if not words or words[0] in {"echo", "printf", "true", ":"}:
+            if '\n' in expected or '\r' in expected or any(word and set(word) <= set('|&;<>') for word in words):
+                parser.error("verify does not support shell operators; record one executable command")
+            if words and Path(words[0]).name in {"sh", "bash", "zsh", "ksh", "dash", "fish", "env"}:
+                parser.error("verify cannot run a shell or env wrapper; record one executable command")
+            if not words or Path(words[0]).name in {"echo", "printf", "true", ":"}:
                 parser.error("stored verify command only prints or succeeds; record an actual check")
             if args.then_command != expected or command_args:
                 parser.error("verify requires --then with the exact stored command; review it before running")
         operations = [{"action":"set-activity","stage":{"fix":"plan_fix","install":"install","verify":"verify"}[stage],"ids":ids,"now":f"{stage.title()} in progress"}]
+        if stage == 'verify':
+            operations[0]['expected_plan_sha256'] = hashlib.sha256(json.dumps(tracking['plan'], sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
     elif stage == "introspect":
         if not args.sections: parser.error("introspect requires --sections FILE.json")
         op = {"action":"introspect","sections": json.loads(args.sections.read_text())}
@@ -295,7 +304,51 @@ def main():
         current.pop("rollover_pending", None)
         live_state.save_registry(records)
         live_state.ensure_viewer(key, current, live, plugin_version)
-    if args.then_command: subprocess.run(args.then_command, shell=True, check=True)
+    if stage == "verify":
+        started_plan = json.loads(live.read_text())['tracking']['plan']
+        started_groups = {group['id']: group for group in started_plan['groups']}
+        if any(group['id'] not in started_groups or
+               started_groups[group['id']].get('finding_ids') != group.get('finding_ids') or
+               started_groups[group['id']].get('verify', {}).get('command') != expected
+               for group in groups) or any(started_plan.get(k) != tracking['plan'].get(k) for k in ('cycle', 'round')):
+            raise SystemExit('plan changed before verification command started; reload and retry')
+        plan_hash = hashlib.sha256(json.dumps(started_plan, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
+        try:
+            result = subprocess.run(words, check=False)
+            code = result.returncode
+            reason = f"Verification command exited {code}" if code else ""
+        except OSError as error:
+            code = 127
+            reason = f"Verification command could not start: {error}"
+        if code:
+            print(reason, file=sys.stderr)
+            current = json.loads(live.read_text())
+            failed = [{"action":"update-plan-group", "id":group['id'], "expected_plan_sha256":plan_hash, "patch":{
+                "status":"failed", "phase":"verify",
+                "verify":{**started_groups[group['id']].get('verify', {}), "failure":reason}}} for group in groups]
+            failed_lanes = failed.copy()
+            previous = {item['id']: item.get('status') for item in data['findings']}
+            current_status = {item['id']: item.get('status') for item in current['findings']}
+            run = current['tracking'].get('verification_run', {})
+            for identifier in ids:
+                if current_status.get(identifier) != 'in_progress':
+                    continue
+                status = previous.get(identifier)
+                failed.append({"action":"update", "id":identifier, "expected_status":"in_progress", "patch":{
+                    "status": "blocked" if status == "in_progress" else status}})
+                if run.get('status') == 'active' and run.get('checks', {}).get(identifier, {}).get('state') == 'checking':
+                    failed.append({"action":"finish-check", "run_id":run['id'], "id":identifier,
+                                   "outcome":"blocked", "evidence":reason})
+            saved = subprocess.run(command, input=json.dumps(failed), text=True, capture_output=True)
+            if saved.returncode:
+                sys.stderr.write("Could not update verification findings: " + (saved.stderr or saved.stdout))
+                saved = subprocess.run(command, input=json.dumps(failed_lanes), text=True, capture_output=True)
+                if saved.returncode:
+                    sys.stderr.write("Could not record failed lanes: " + (saved.stderr or saved.stdout))
+                    raise SystemExit(saved.returncode)
+            live_state.snapshot(record, live)
+            raise SystemExit(code if code > 0 else 128 - code)
+    elif args.then_command: subprocess.run(args.then_command, shell=True, check=True)
     elif command_args: subprocess.run(command_args, check=True)
     if args.progress:
         args.progress.parent.mkdir(parents=True, exist_ok=True)

@@ -2,6 +2,7 @@
 """Read and edit individual findings in the authoritative JSON export."""
 import argparse
 import copy
+import hashlib
 from datetime import datetime, timezone
 import importlib.util
 import json
@@ -11,6 +12,11 @@ import stat
 import sys
 import tempfile
 from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 
 import live_state
 
@@ -608,8 +614,19 @@ def validate_plan_groups(plan: dict) -> None:
             raise ValueError(f"{gid}: cap a parallel fix group at about {MAX_GROUP_ISSUES} issues (has {len(ids)}); split it")
 
 
-def validate_dependencies(groups):
+def finding_verified(item, tracking):
+    run = tracking.get('verification_run') if isinstance(tracking, dict) else None
+    checks = run.get('checks') if isinstance(run, dict) else None
+    check = checks.get(item.get('id'), {}) if isinstance(checks, dict) else {}
+    if not isinstance(check, dict):
+        return False
+    return (item.get('status') == 'verified_fixed' and bool(item.get('verification_refs'))
+            and check.get('state') not in {'checking', 'blocked', 'inconclusive', 'not_fixed'})
+
+
+def validate_dependencies(groups, findings, tracking):
     by_id = {group['id']: group for group in groups}
+    by_finding = {item['id']: item for item in findings}
     visiting, visited = set(), set()
     def visit(identifier):
         if identifier in visiting:
@@ -625,11 +642,55 @@ def validate_dependencies(groups):
         visited.add(identifier)
     for identifier in by_id:
         visit(identifier)
+    prerequisites = {dep for group in groups for dep in group.get('depends_on', [])}
+    for identifier in prerequisites:
+        group = by_id[identifier]
+        if RENDERER.plan_status(group) == 'verified':
+            ids = group.get('finding_ids', [])
+            if not ids or any(not finding_verified(by_finding.get(i, {}), tracking) for i in ids):
+                raise ValueError(f"{identifier} requires verified findings with verification references")
     for group in groups:
         if RENDERER.plan_status(group) in {'running', 'review', 'installing', 'verifying', 'verified'}:
             pending = [dep for dep in group.get('depends_on', []) if RENDERER.plan_status(by_id[dep]) != 'verified']
             if pending:
                 raise ValueError(f"{group['id']} must wait for verified dependencies: {', '.join(pending)}")
+
+
+def invalidate_dependents(document, previous_document):
+    tracking = document.get('tracking', {})
+    groups = RENDERER.plan_groups_for_round(tracking.get('plan'), RENDERER.rollover_round(tracking))
+    current = {item['id']: item for item in document.get('findings', [])}
+    previous_tracking = previous_document.get('tracking', {})
+    changed = {item['id'] for item in previous_document.get('findings', [])
+               if finding_verified(item, previous_tracking) and not finding_verified(current.get(item['id'], {}), tracking)}
+    invalid = {group['id'] for group in groups if changed.intersection(group.get('finding_ids', []))}
+    if not invalid:
+        return
+    affected = set(invalid)
+    while True:
+        expanded = affected | {group['id'] for group in groups if affected.intersection(group.get('depends_on', []))}
+        if expanded == affected:
+            break
+        affected = expanded
+    timestamp = datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
+    blocked = False
+    for group in groups:
+        status = RENDERER.plan_status(group)
+        if (group['id'] in invalid and status == 'verified') or (
+                group['id'] in affected - invalid and status in {'running', 'review', 'installing', 'verifying', 'verified'}):
+            group['phase'] = RENDERER.plan_phase(group)
+            group['status'] = 'blocked'
+            group['blocked_reason'] = 'Prerequisite verification changed'
+            if group['id'] in affected - invalid:
+                for identifier in group.get('finding_ids', []):
+                    item = current.get(identifier, {})
+                    if item.get('status') in {'verified_fixed', 'in_progress'}:
+                        item['status'] = 'blocked'
+            stamp_plan_group(group, timestamp)
+            blocked = True
+    if blocked and isinstance(tracking.get('workflow'), dict):
+        tracking['workflow']['updated_at'] = timestamp
+        tracking['workflow']['now'] = f'{timestamp} — Prerequisite verification changed'
 
 
 def sync_plan_verify(document):
@@ -768,6 +829,9 @@ def write(path, original, store, findings, validate=True, touch=True):
     if store["kind"] == "json":
         document = store["document"]
         document[store["collection"]] = findings
+        if touch and store['collection'] == 'findings':
+            invalidate_dependents(document, json.loads(original))
+            sync_plan_verify(document)
         if validate and store["collection"] == "findings":
             base = live_state.evidence_base(path)
             try:
@@ -845,9 +909,7 @@ def parser_for():
     return parser
 
 
-def main(argv=None):
-    parser = parser_for()
-    args = parser.parse_args(argv)
+def run(args, parser):
     try:
         path, original, store, findings = load(args.data, getattr(args, "collection", "findings"))
         if args.command == "audit":
@@ -948,6 +1010,7 @@ def main(argv=None):
                 print(f"Created new live list {new_live}; the current viewer stays on the old list until bcl start begins Collect")
                 return 0
             existing_run = store["document"].get("tracking", {}).get("verification_run")
+            original_plan = copy.deepcopy(store['document'].get('tracking', {}).get('plan'))
             run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "set-stage", "set-activity", "set-plan", "update-plan-group"}
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
@@ -990,7 +1053,7 @@ def main(argv=None):
                             if not isinstance(group.get("depends_on", []), list) or any(not isinstance(i, str) or i not in ids for i in group.get("depends_on", [])):
                                 raise ValueError(f"plan group {group['id']} has invalid dependencies")
                             validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
-                        validate_dependencies(groups)
+                        validate_dependencies(groups, findings, tracking)
                         plan["cycle"] = cycle
                         plan["round"] = RENDERER.rollover_round(tracking)
                         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -1007,6 +1070,10 @@ def main(argv=None):
                         plan = tracking.get("plan")
                         if not isinstance(plan, dict) or plan.get("cycle", cycle) != cycle:
                             raise ValueError("update-plan-group requires a plan for the current cycle")
+                        if 'expected_plan_sha256' in operation:
+                            actual = hashlib.sha256(json.dumps(original_plan, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
+                            if operation['expected_plan_sha256'] != actual:
+                                raise ValueError('plan changed; refusing group update')
                         group = next((g for g in plan.get("groups", []) if g.get("id") == operation.get("id")), None)
                         patch = operation.get("patch")
                         if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at"}:
@@ -1023,13 +1090,21 @@ def main(argv=None):
                             raise ValueError("codex and verify patches must be objects")
                         if "verify" in patch and patch["verify"].get("summary") is not None and (not isinstance(patch["verify"]["summary"], str) or len(patch["verify"]["summary"].split()) > 10):
                             raise ValueError("verify.summary must be at most 10 words")
+                        activity_fields = ('status', 'phase', 'verify', 'blocked_reason')
+                        before_activity = {key: copy.deepcopy(group.get(key)) for key in activity_fields}
                         group.update(patch)
                         if "status" in patch and "phase" not in patch and patch["status"] not in ("blocked", "failed"):
                             group.pop("phase", None)
                         validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
                         validate_plan_groups(plan)
-                        validate_dependencies(plan['groups'])
-                        stamp_plan_group(group, datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
+                        validate_dependencies(plan['groups'], findings, tracking)
+                        stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                        stamp_plan_group(group, stamp)
+                        if any(group.get(key) != before_activity[key] for key in activity_fields):
+                            workflow = tracking.get('workflow')
+                            if isinstance(workflow, dict):
+                                workflow['updated_at'] = stamp
+                                workflow['now'] = f"{stamp} — Lane {group['id']} updated"
                         plan["round"] = RENDERER.rollover_round(tracking)
                     continue
                 if action in ("set-stage", "set-activity"):
@@ -1120,6 +1195,10 @@ def main(argv=None):
                     continue
                 if action == "set-activity":
                     stage, ids, activity = operation.get("stage"), operation.get("ids"), operation.get("now")
+                    if 'expected_plan_sha256' in operation:
+                        actual = hashlib.sha256(json.dumps(original_plan, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
+                        if operation['expected_plan_sha256'] != actual:
+                            raise ValueError('plan changed; refusing activity update')
                     if stage not in RENDERER.WORKFLOW_STAGES:
                         raise ValueError("set-activity requires a valid stage")
                     current_workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
@@ -1134,7 +1213,17 @@ def main(argv=None):
                         raise ValueError("set-activity now must be one nonempty line")
                     affected = [findings[find_index(findings, identifier)] for identifier in ids]
                     if stage in ('plan_fix', 'install', 'verify'):
-                        groups = tracking.get('plan', {}).get('groups', [])
+                        plan = tracking.get('plan', {})
+                        groups = RENDERER.plan_groups_for_round(plan, RENDERER.rollover_round(tracking))
+                        if not groups:
+                            raise ValueError('work requires a plan for the current round')
+                        if groups:
+                            matched = [group for group in groups if set(ids).intersection(group.get('finding_ids', []))]
+                            covered = {identifier for group in matched if RENDERER.plan_status(group) != 'parked'
+                                       for identifier in group.get('finding_ids', [])}
+                            if any(identifier not in covered for identifier in ids) or any(RENDERER.plan_status(group) == 'parked' for group in matched):
+                                raise ValueError('work requires an eligible current-round plan group for every finding')
+                            validate_dependencies(groups, findings, tracking)
                         by_id = {group['id']: group for group in groups}
                         for group in groups:
                             if set(ids).intersection(group.get('finding_ids', [])):
@@ -1195,6 +1284,9 @@ def main(argv=None):
                     patch = operation.get("patch")
                     if not isinstance(patch, dict):
                         raise ValueError("patch must be a JSON object")
+                    if 'expected_status' in operation and (not isinstance(operation['expected_status'], str)
+                            or findings[index].get('status') != operation['expected_status']):
+                        raise ValueError(f"{findings[index]['id']} status changed; refusing update")
                     if "check" in patch or "check_history" in patch:
                         raise ValueError("use verification actions to update check progress")
                     carried_from = patch.get("carried_from")
@@ -1226,6 +1318,7 @@ def main(argv=None):
                     raise ValueError("unknown batch action")
             validate_ids(findings)
             store["document"]["findings"] = findings
+            invalidate_dependents(store["document"], json.loads(original))
             sync_plan_verify(store["document"])
             if args.render and (args.render.resolve() == path.resolve() or args.render.resolve() == RENDERER.TEMPLATE.resolve()):
                 raise ValueError("render output must differ from input and template")
@@ -1316,6 +1409,24 @@ def main(argv=None):
         return 0
     except (OSError, ValueError, json.JSONDecodeError) as error:
         parser.exit(2, f"manage-findings: {error}\n")
+
+
+def main(argv=None):
+    parser = parser_for()
+    args = parser.parse_args(argv)
+    if args.command in {'audit', 'list', 'get'}:
+        return run(args, parser)
+    if fcntl is None:
+        parser.exit(2, 'manage-findings: tracker locking unavailable on this platform\n')
+    try:
+        lock_dir = Path('/tmp') / f'bcl-tracker-locks-{os.getuid()}'
+        lock_dir.mkdir(mode=0o700, exist_ok=True)
+        lock_name = hashlib.sha256(str(args.data.resolve()).encode()).hexdigest() + '.lock'
+        with (lock_dir / lock_name).open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            return run(args, parser)
+    except OSError as error:
+        parser.exit(2, f'manage-findings: tracker lock failed: {error}\n')
 
 
 if __name__ == "__main__":

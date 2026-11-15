@@ -240,7 +240,7 @@ def row_phase_track(group, state):
     phase = "verify" if state == "verified" else "fix" if state == "planned" else plan_phase(group)
     phase_index = ("fix", "review", "install", "verify", "introspect").index(phase)
     dots = []
-    for index in range(5):
+    for index in range(4):
         kind = ""
         if state == "verified" and index < 4:
             kind = "d"
@@ -251,7 +251,8 @@ def row_phase_track(group, state):
         elif state not in ("planned", "verified") and index == phase_index:
             kind = "c"
         dots.append(f'<i class="{kind}"></i>' if kind else "<i></i>")
-    label = f"Phase {phase_index + 1} of 5: {LANE_PHASES[phase]}"
+    label = (f"Phase {phase_index + 1} of 4: {LANE_PHASES[phase]}" if phase_index < 4
+             else "Lane complete; Introspect is a round step")
     if state in ("blocked", "failed"):
         label += f", {state}"
     return f'<span class="track" role="img" aria-label="{html.escape(label, quote=True)}">{"".join(dots)}</span>'
@@ -348,7 +349,7 @@ def render_plan(data, tracking, plan, round_number, now):
     header = (f'<span><strong>Round {round_number}</strong> · {len(active_groups)} lanes · each installs and verifies when ready</span>'
               + (f'<span class="t">{" · ".join(tally)}</span>' if tally else ""))
     return (f'<div class="plan" aria-label="Fix plan, round {round_number}"><div class="plan-head">{header}</div>'
-            '<p class="close-line">Lane dots: Fix → Review → Install → Verify → Introspect. Filled means completed; outlined means remaining.</p>'
+            '<p class="close-line">Lane dots: Fix → Review → Install → Verify. Filled means completed; outlined means not completed (highlighted: current). Introspect is a round step.</p>'
             f'<div class="plan-rows">{"".join(rows)}</div>{parked}'
             '<p class="close-line">Round closes when every lane is <b>verified, blocked or parked</b> → Introspect → gate.</p></div>')
 
@@ -391,7 +392,8 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
         # list's own stage history recorded it in the current round and we have moved past it.
         step_lanes = [(group, status) for group, status, position in lanes if position == index]
         running = any(status in ("running", "review", "installing", "verifying") for _, status in step_lanes)
-        state = "busy" if running or active == key else "done" if key in reached and past else "upcoming"
+        current = active == key and (key == "introspect" or not groups)
+        state = "busy" if running or current else "done" if key in reached and past else "upcoming"
         chips = []
         for status in ("planned", "running", "review", "installing", "verifying"):
             amount = sum(lane_status == status for _, lane_status in step_lanes)
@@ -434,7 +436,8 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
             f'<div class="wf-loop" aria-hidden="true"><svg class="wf-loop-head" width="10" height="8" viewBox="0 0 10 8"><path d="M5 0L10 8H0z"/></svg>'
             f'<span class="wf-loop-label">under {threshold} verified · back to Plan &amp; fix</span>'
             f'<span class="wf-loop-mobile">under {threshold} verified · repeat</span></div></li>'
-            f'<li class="wf-post"><ol>{post}</ol></li></ol>')
+            f'<li class="wf-post"><ol>{post}</ol></li></ol>'
+            '<p class="gate-note">Fix count excludes completed introspection workflow records and excluded issues.</p>')
 
 
 def rollover_gate(findings, tracking):
@@ -451,8 +454,13 @@ def rollover_gate(findings, tracking):
     counted = [item for item in findings if isinstance(item.get("id"), str) and item["id"] not in excluded
                and not (re.fullmatch(r"WF-\d+", item["id"]) and item.get("status") == "verified_fixed"
                         and isinstance(item.get("details"), dict) and item["details"].get("fixed_in") == "Introspect")]
-    fixed = sum(item.get("status") == "verified_fixed" for item in counted)
-    has_open = any(item.get("status") not in ("verified_fixed", "closed") for item in counted)
+    run = tracking.get("verification_run") or {}
+    checks = run.get("checks", {}) if isinstance(run, dict) else {}
+    def currently_fixed(item):
+        check = checks.get(item["id"], {}) if isinstance(checks, dict) else {}
+        return item.get("status") == "verified_fixed" and isinstance(check, dict) and check.get("state") not in {"checking", "blocked", "inconclusive", "not_fixed"}
+    fixed = sum(currently_fixed(item) for item in counted)
+    has_open = any(item.get("status") != "closed" and not currently_fixed(item) for item in counted)
     # A count at or above the threshold is always met; never render N of 15 as not met when N >= 15.
     return fixed, threshold, fixed >= threshold or not has_open
 
