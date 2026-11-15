@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "introspect",
-      "updated_at": "2026-11-15T04:10:55Z",
+      "updated_at": "2026-11-15T04:15:36Z",
       "now": "2026-11-14T17:10:56Z — Introspection recorded"
     },
     "rollover": {
@@ -2773,6 +2773,21 @@
         "Where to look": "plugins/batched-change-list/skills/batched-change-list/templates/change-list.html and scripts/render.py"
       },
       "recommendation": "Show the issue outcome and its last recorded plan state separately."
+    },
+    {
+      "id": "PAGE-10",
+      "title": "The issue page hides the recorded build and latest verification",
+      "source": "User reported",
+      "status": "failing",
+      "priority": "high",
+      "summary": "The issue page hides the last verification result and version among too much detail.",
+      "impact": "You cannot quickly see what was checked, which version it was checked on, or what the check found.",
+      "done_when": "The issue and a vertical verification timeline are prominent, including the latest result and version when recorded. Extra details are collapsed; missing verification or version is stated clearly.",
+      "recommendation": "Show the issue and verification history first; keep diagnostic detail available on demand.",
+      "observed": "The user reported the missing version on AGENT-26. Its structured Build is 0.2.147 and the report describes a live session on that build; there is no completed verification check for AGENT-26 in the tracker.",
+      "details": {
+        "Where to look": "plugins/batched-change-list/skills/batched-change-list/scripts/render.py and templates/change-list.html"
+      }
     }
   ]
 }
