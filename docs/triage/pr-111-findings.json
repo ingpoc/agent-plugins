@@ -2962,7 +2962,10 @@
       "impact": "Tracker changes and snapshots cannot run there until a portable lock is verified.",
       "done_when": "Support and verify cross-process locking on each supported platform without losing updates.",
       "observed": "Source candidate uses fcntl; on platforms without it, writes and snapshots fail closed. No Windows runtime was available to verify an alternative.",
-      "recommendation": "Implement and run Windows-specific locking and concurrency tests."
+      "recommendation": "Implement and run Windows-specific locking and concurrency tests.",
+      "details": {
+        "Source check": "Candidate implements Unix and Windows lock paths; Windows behavior has only mocked tests and still requires a real Windows concurrency test."
+      }
     },
     {
       "id": "BCL-14",
@@ -3006,7 +3009,10 @@
       "impact": "The affected lane may continue to look active after its check stopped.",
       "done_when": "Record or clearly flag failed verification without overwriting newer lane updates.",
       "observed": "Independent review: failure recovery compares the full plan and retries the same stale comparison when another lane changes.",
-      "recommendation": "Add safe per-lane identity or a persistent recovery record."
+      "recommendation": "Add safe per-lane identity or a persistent recovery record.",
+      "details": {
+        "Source check": "CLI source suite passed 33 tests; it recorded a failed selected lane when an unrelated lane changed, and rejected an update after the selected lane changed. Installed-client verification remains pending."
+      }
     },
     {
       "id": "AGENT-28",
@@ -3021,6 +3027,39 @@
       "details": {
         "Focused rerun": "python3 plugins/agent-computer-use/skills/macos-cua/tests/test_claude_hook.py passed 20 tests in isolation after full-gate failure; full gate still needs a clean rerun."
       }
+    },
+    {
+      "id": "AGENT-29",
+      "title": "A cold-start display test failed under the full gate",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "A quick response showed the waking indicator during a full test run.",
+      "impact": "The repository gate can fail while checking the status display.",
+      "done_when": "Establish why the timing check fails under full-suite load and verify its behavior reliably.",
+      "observed": "Full scripts/check.py failed IslandGateColdStartTests.testSubmitColdStartShowsWakingThenSucceeds; focused swift test rerun passed.",
+      "recommendation": "Investigate timing and scheduling in the owning test and runtime."
+    },
+    {
+      "id": "BCL-18",
+      "title": "Windows viewer liveness needs a safe platform check",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "The viewer liveness check may not be safe on Windows.",
+      "impact": "A viewer process could be handled incorrectly on that platform.",
+      "done_when": "Use and verify a non-destructive Windows liveness and ownership check.",
+      "observed": "Source review: live_state.py uses os.kill(pid, 0) for liveness; native Windows behavior was not tested.",
+      "recommendation": "Implement a Windows-safe process identity check and validate on Windows."
+    },
+    {
+      "id": "BCL-19",
+      "title": "One issue can be assigned to multiple active lanes",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "A plan can assign the same issue to more than one active lane.",
+      "impact": "Lane progress and verification failures can conflict or be left incomplete.",
+      "done_when": "Reject overlapping active lane assignments and retain valid future-round plans.",
+      "observed": "Independent review: set-plan accepts the same finding in multiple groups; an update to one may invalidate the other group’s failure precondition.",
+      "recommendation": "Validate unique current-round lane assignment before work starts."
     }
   ]
 }
