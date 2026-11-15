@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "introspect",
-      "updated_at": "2026-11-15T07:35:25Z",
+      "updated_at": "2026-11-15T07:37:01Z",
       "now": "2026-11-14T17:10:56Z — Introspection recorded"
     },
     "rollover": {
@@ -2930,6 +2930,30 @@
       "done_when": "The page explains which records count toward rollover and why that total can differ from the issue summary.",
       "recommendation": "Label the gate count and issue summary so their different scopes are clear.",
       "observed": "Chrome review on 15 Nov: the issue summary says 3 verified fixed while the gate says 2 of 15 verified. WF-07 is a verified introspection record excluded from the gate count."
+    },
+    {
+      "id": "BCL-06",
+      "title": "Dependent work can be marked running before its prerequisite",
+      "source": "Agent reported",
+      "status": "failing",
+      "priority": "high",
+      "summary": "The plan allows work to start even when another unfinished group is recorded as its prerequisite.",
+      "impact": "Agents can work in the wrong order, repeat work, or build on an unfinished fix.",
+      "done_when": "Dependent work cannot advance before its prerequisites reach the required state; independent groups can proceed in parallel within the cap.",
+      "recommendation": "Validate dependency order when a plan is created or a group advances.",
+      "observed": "Disposable tracker reproduction on 15 Nov: set-plan accepted group A as running and group B as running with depends_on A, returning exit 0. No live tracker was modified during the reproduction."
+    },
+    {
+      "id": "FLOW-04",
+      "title": "A fixed product-to-process quota can override dependency priority",
+      "source": "User reported",
+      "status": "untested",
+      "priority": "medium",
+      "summary": "The workflow prioritizes product findings over process findings by a fixed quota, even when the process work may unblock other issues.",
+      "impact": "Important shared fixes can be delayed and agents may spend extra time coordinating around them.",
+      "done_when": "Product and process work are prioritized by dependencies and impact, with bounded parallel work, and the reason for deferring a group is clear.",
+      "recommendation": "Replace the blanket quota with dependency-aware prioritization and an explicit concurrency cap.",
+      "observed": "The user clarified on 15 Nov that both process and product issues should be tracked and dependency prerequisites fixed first. Current plan-fix guidance requires product work first and limits process fixes while product work is fixable."
     }
   ]
 }
