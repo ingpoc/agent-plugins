@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "introspect",
-      "updated_at": "2026-11-14T17:10:56Z",
+      "updated_at": "2026-11-15T04:10:55Z",
       "now": "2026-11-14T17:10:56Z — Introspection recorded"
     },
     "rollover": {
@@ -2758,6 +2758,21 @@
       "verification_refs": [
         "Introspect"
       ]
+    },
+    {
+      "id": "PAGE-09",
+      "title": "Finding outcome is hidden by its plan state",
+      "source": "Agent reported",
+      "status": "failing",
+      "priority": "high",
+      "summary": "A failing issue can appear only as parked in the issue list and its heading.",
+      "impact": "You cannot tell whether an issue has been fixed or is still failing.",
+      "done_when": "The issue list and detail show the finding outcome separately from its last recorded plan state, including on a narrow screen.",
+      "observed": "BCL-01 is failing while its CORE lane is deferred. Before the change, the issue navigation and heading showed only Parked → Round 2.",
+      "details": {
+        "Where to look": "plugins/batched-change-list/skills/batched-change-list/templates/change-list.html and scripts/render.py"
+      },
+      "recommendation": "Show the issue outcome and its last recorded plan state separately."
     }
   ]
 }
