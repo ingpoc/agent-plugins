@@ -2042,8 +2042,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-15T12:18:15Z",
-      "now": "2026-11-15T12:18:15Z — Lane DISPLAY updated"
+      "updated_at": "2026-11-15T13:02:36Z",
+      "now": "2026-11-15T13:02:36Z — Lane DISPLAY updated"
     },
     "rollover": {
       "source_pr": 110,
@@ -2156,8 +2156,8 @@
             "failed": 3,
             "total": 4
           },
-          "updated_at": "2026-11-15T12:18:15Z",
-          "blocked_reason": "Integrated verification and install pending"
+          "updated_at": "2026-11-15T13:02:36Z",
+          "blocked_reason": "Individual issue checks pending"
         },
         {
           "id": "DISPLAY",
@@ -2180,13 +2180,13 @@
           "reason": "Make recorded and current states understandable.",
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
-            "status": "failed",
-            "fixed": 0,
-            "failed": 4,
+            "status": "partial",
+            "fixed": 1,
+            "failed": 3,
             "total": 4
           },
-          "updated_at": "2026-11-15T12:18:15Z",
-          "blocked_reason": "Installed viewer verification pending"
+          "updated_at": "2026-11-15T13:02:36Z",
+          "blocked_reason": "Remaining issue checks pending"
         },
         {
           "id": "GUIDANCE",
@@ -2228,9 +2228,9 @@
           "reason": "Follow the status display work and viewer migration.",
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_serve.py'",
-            "status": "failed",
-            "fixed": 0,
-            "failed": 1,
+            "status": "verified",
+            "fixed": 1,
+            "failed": 0,
             "total": 1
           },
           "updated_at": "2026-11-15T10:41:27Z"
@@ -2797,13 +2797,27 @@
       "id": "PAGE-16",
       "title": "Lane phase dots have no visible explanation",
       "source": "User reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "The dots on each plan row do not explain which steps they represent.",
       "impact": "You cannot tell what has happened or what remains from the lane progress display.",
       "done_when": "Each lane makes its phase and the meaning of completed and remaining steps clear without requiring hidden accessibility text.",
       "recommendation": "Label the lane phases in plain words and make completed, current, and remaining states clear.",
-      "observed": "User screenshot on 15 Nov shows four filled dots and one empty dot on verified lanes. The renderer uses five positions: Fix, Review, Install, Verify, Introspect; the labels are only in an accessibility attribute."
+      "observed": "User screenshot on 15 Nov shows four filled dots and one empty dot on verified lanes. The renderer uses five positions: Fix, Review, Install, Verify, Introspect; the labels are only in an accessibility attribute.",
+      "verification_evidence": [
+        {
+          "check": "Chrome viewed the live tracker served by installed 0.1.19; four lane steps and their legend were visible.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.19",
+          "session": "codex-installed-review-111",
+          "timestamp": "2026-11-15T13:02:35Z",
+          "reference": "af13e9f70a81d559e07a0292ed8ab84a9b95db08:PAGE-16:installed-check"
+        }
+      ],
+      "verification": "Chrome viewed the live tracker served by installed 0.1.19; four lane steps and their legend were visible.",
+      "verification_refs": [
+        "af13e9f70a81d559e07a0292ed8ab84a9b95db08:PAGE-16:installed-check"
+      ]
     },
     {
       "id": "BCL-05",
@@ -2857,13 +2871,27 @@
       "id": "PAGE-18",
       "title": "The displayed page does not identify its renderer build",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "The page lists installed plugin versions without clearly identifying the version rendering the page.",
       "impact": "You may associate a page behavior with the wrong installed version.",
       "done_when": "The page identifies the renderer build or says it is unknown, separately from installed plugin versions.",
       "recommendation": "Display the active viewer or renderer identity and its source separately from the installed inventory.",
-      "observed": "Chrome review on 15 Nov: this page is served from the PR 111 candidate source, but the header lists installed batched-change-list 0.1.18 and does not identify the running renderer. The local server was started directly without viewer metadata."
+      "observed": "Chrome review on 15 Nov: this page is served from the PR 111 candidate source, but the header lists installed batched-change-list 0.1.18 and does not identify the running renderer. The local server was started directly without viewer metadata.",
+      "verification_evidence": [
+        {
+          "check": "Installed CLI started a managed disposable viewer reporting 0.1.19; the installed live tracker viewer also displayed 0.1.19 separately from inventory.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.19",
+          "session": "codex-installed-review-111",
+          "timestamp": "2026-11-15T13:02:35Z",
+          "reference": "af13e9f70a81d559e07a0292ed8ab84a9b95db08:PAGE-18:installed-check"
+        }
+      ],
+      "verification": "Installed CLI started a managed disposable viewer reporting 0.1.19; the installed live tracker viewer also displayed 0.1.19 separately from inventory.",
+      "verification_refs": [
+        "af13e9f70a81d559e07a0292ed8ab84a9b95db08:PAGE-18:installed-check"
+      ]
     },
     {
       "id": "BCL-07",
@@ -2913,12 +2941,26 @@
       "id": "BCL-09",
       "title": "No supported PR install path for batched change list",
       "source": "Agent reported",
-      "status": "blocked",
+      "status": "verified_fixed",
       "summary": "The documented release route cannot install the batched-change-list candidate from its open PR.",
       "impact": "Changes cannot receive the required installed-client verification.",
       "done_when": "Provide a supported way to install the exact open PR candidate and verify its version.",
       "observed": "docs/dev-lifecycle.md requires release_agent_computer_use.py for installs; its --plugin choices are agent-computer-use and developer-observability only. Hygiene also reports unreviewed local-only branches.",
-      "recommendation": "Add or document an authorized exact-PR install path without editing cached packages."
+      "recommendation": "Add or document an authorized exact-PR install path without editing cached packages.",
+      "verification_evidence": [
+        {
+          "check": "Exact open PR candidate installed via existing Codex marketplace selector; installed identity and isolated CLI/HTTP probe passed.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.19",
+          "session": "codex-installed-review-111",
+          "timestamp": "2026-11-15T13:02:35Z",
+          "reference": "af13e9f70a81d559e07a0292ed8ab84a9b95db08:BCL-09:installed-check"
+        }
+      ],
+      "verification": "Exact open PR candidate installed via existing Codex marketplace selector; installed identity and isolated CLI/HTTP probe passed.",
+      "verification_refs": [
+        "af13e9f70a81d559e07a0292ed8ab84a9b95db08:BCL-09:installed-check"
+      ]
     },
     {
       "id": "BCL-10",
