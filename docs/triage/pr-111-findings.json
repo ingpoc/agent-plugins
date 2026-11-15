@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "introspect",
-      "updated_at": "2026-11-15T04:29:22Z",
+      "updated_at": "2026-11-15T04:32:29Z",
       "now": "2026-11-14T17:10:56Z — Introspection recorded"
     },
     "rollover": {
@@ -2596,7 +2596,7 @@
       "verification_evidence": [
         {
           "check": "Her spec re-score",
-          "outcome": "reviewed",
+          "outcome": "failing",
           "build": "ACU 0.2.143",
           "session": "acu-0143-verify",
           "timestamp": "2026-11-14T10:30:44Z",
@@ -2792,9 +2792,9 @@
       "priority": "high",
       "summary": "The issue page hides the last verification result and version among too much detail.",
       "impact": "You cannot quickly see what was checked, which version it was checked on, or what the check found.",
-      "done_when": "The issue and a vertical verification timeline are prominent, including the latest result and version when recorded. Extra details are collapsed; missing verification or version is stated clearly.",
+      "done_when": "After the issue, show the latest verification status and a vertical timeline with the status, version, and recorded reason for each check. Keep other details collapsed and clearly label missing evidence.",
       "recommendation": "Show the issue and verification history first; keep diagnostic detail available on demand.",
-      "observed": "The user reported the missing version on AGENT-26. Its structured Build is 0.2.147 and the report describes a live session on that build; there is no completed verification check for AGENT-26 in the tracker.",
+      "observed": "The user reported missing versions and requested the status and supporting reason for every version. PAGE-08 has an attributable viewer-candidate version; AGENT-25 has two recorded scored checks.",
       "details": {
         "Where to look": "plugins/batched-change-list/skills/batched-change-list/scripts/render.py and templates/change-list.html"
       }
