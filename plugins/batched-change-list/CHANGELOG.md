@@ -1,3 +1,7 @@
+## 0.1.19
+
+- Accept comma-separated issue IDs alongside repeated flags and correct the viewer recovery command.
+
 ## 0.1.18
 
 - `bcl merged` records the merge commit and time, moves the workflow to Merged / Done, and retargets stacked open PRs to `main` when provider CLI access is available; otherwise it records and prints a TODO.

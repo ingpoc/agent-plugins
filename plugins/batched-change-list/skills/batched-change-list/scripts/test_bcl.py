@@ -64,6 +64,22 @@ elif args[:2] != ['pr', 'edit']:
                     except OSError: pass
         self.addCleanup(cleanup_viewer)
 
+    def test_comma_separated_ids_and_repeated_flags(self):
+        record = json.loads((self.state / "registry.json").read_text())["example/project/123"]
+        live = Path(record["live"])
+        data = json.loads(live.read_text())
+        data["findings"][1]["status"] = "untested"
+        live.write_text(json.dumps(data))
+        self.data.write_bytes(live.read_bytes())
+        result = self.call("start", self.data, "--ids", "ISSUE-01, ISSUE-02")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        record = json.loads((self.state / "registry.json").read_text())["example/project/123"]
+        data = json.loads(Path(record["live"]).read_text())
+        self.assertEqual([x["status"] for x in data["findings"]], ["in_progress", "in_progress"])
+        result = self.call("start", self.data, "--ids", "ISSUE-01", "--ids", "ISSUE-02,")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("empty ID", result.stderr)
+
     def test_repo_id_uses_cursor_origin_over_github_mirror(self):
         self.git(self.home, "remote", "add", "origin", "https://origin.cursor.com/gurusharan/agent-plugins")
         self.assertEqual(live_state.repo_id(self.home), "example/project")

@@ -151,6 +151,10 @@ def main():
     parser.add_argument("--merge-commit"); parser.add_argument("--merged-at"); parser.add_argument("--base-branch")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("stage"); args, command_args = parser.parse_known_args()
+    expanded_ids = [part.strip() for value in args.ids for part in value.split(",")]
+    if any(not identifier for identifier in expanded_ids):
+        parser.error("--ids contains an empty ID")
+    args.ids = expanded_ids
     if args.stage == "adopt" and not args.data and command_args: args.data = Path(command_args.pop(0))
     if args.stage == "install-hooks":
         root = Path(subprocess.check_output(["git", "-C", str(args.repo or Path.cwd()), "rev-parse", "--show-toplevel"], text=True).strip())
