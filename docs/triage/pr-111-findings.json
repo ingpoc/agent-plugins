@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "introspect",
-      "updated_at": "2026-11-15T07:22:15Z",
+      "updated_at": "2026-11-15T07:32:47Z",
       "now": "2026-11-14T17:10:56Z — Introspection recorded"
     },
     "rollover": {
@@ -2858,6 +2858,42 @@
       "done_when": "Introspection records are excluded from the fix threshold while real tracked fixes continue to count.",
       "recommendation": "Exclude the workflow review records from the rollover count.",
       "observed": "The previous gate included each verified WF introspection record, including a clean review with no issues."
+    },
+    {
+      "id": "PAGE-13",
+      "title": "Issue status can contradict its latest verification",
+      "source": "Agent reported",
+      "status": "failing",
+      "priority": "high",
+      "summary": "An issue can be labeled untested even though its latest verification failed.",
+      "impact": "You may think an issue was never checked when there is already a failing result.",
+      "done_when": "The issue status and latest verification are clearly distinguished, and a recorded failure is not presented as an unqualified untested result.",
+      "recommendation": "Show the current issue state and last verification with unambiguous labels.",
+      "observed": "Chrome visual review on 15 Nov: AGENT-25 is labeled Untested in its heading and list, while its latest recorded verification is Failing on ACU 0.2.147 (10/12). Its earlier 0.2.143 result also failed."
+    },
+    {
+      "id": "PAGE-14",
+      "title": "Old workflow plans can appear current",
+      "source": "Agent reported",
+      "status": "failing",
+      "priority": "high",
+      "summary": "The page can show an old plan and workflow update as if they describe current activity.",
+      "impact": "You may think a fix is planned or underway when no current work has been established.",
+      "done_when": "The page clearly distinguishes a historical plan and last recorded workflow update from work currently running.",
+      "recommendation": "Label the plan as last recorded and show staleness based on the underlying activity timestamp.",
+      "observed": "Chrome review on 15 Nov: the AGENT-25 lane says Planned. Its last plan update was 14 Nov 16:55 UTC. The tracker workflow activity text is dated 14 Nov 17:10 UTC, while updated_at was refreshed on 15 Nov without a new activity."
+    },
+    {
+      "id": "PAGE-15",
+      "title": "A fixed label lacks installed verification evidence",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "summary": "A change-list item is marked verified fixed, but its recorded proof only describes a source-file check.",
+      "impact": "The page can suggest the installed product was verified when that proof is not recorded.",
+      "done_when": "The label reflects the available evidence, or an installed-client verification is recorded.",
+      "recommendation": "Review the existing proof and verify the installed client before claiming the fix is verified.",
+      "observed": "PLAN-03 is labeled verified_fixed; its verification text says plan-fix.md states the four-issue cap. This review did not find an installed-client verification record. The existing fixed status is preserved pending a controlled recheck."
     }
   ]
 }
