@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import cloud_health
 
 HOME = Path.home()
 CACHE = HOME / '.codex/plugins/cache/ingpoc-agent-plugins'
@@ -44,8 +45,7 @@ def preflight():
         print(f'{name}: ' + (', '.join(v for v, _ in found) if found else 'not found'))
     print('observability bridge:', 'available' if PYTHON.is_file() and BRIDGE.is_file() else 'unavailable')
     print('Sites preview:', shutil.which('sites-preview') or 'unavailable')
-    helpers = glob.glob('/workspace/**/site-workflow.mjs', recursive=True) + glob.glob(str(HOME / '.codex/plugins/cache/**/site-workflow.mjs'), recursive=True)
-    print('Sites source helper:', helpers[0] if helpers else 'not found in workspace or plugin cache')
+    print('Preview health:', json.dumps(cloud_health.health(), ensure_ascii=False))
     print('Native tool availability: check the host tool inventory separately.')
 
 

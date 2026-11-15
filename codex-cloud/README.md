@@ -16,9 +16,12 @@ Confirm with `codex plugin list`; open a fresh Codex session if the current sess
 
 ```sh
 python3 codex-cloud/project.py preflight
+python3 codex-cloud/cloud_health.py
 python3 codex-cloud/project.py summary /absolute/path/to/live-findings.json
 python3 codex-cloud/project.py diagnose PROJECT_ID --project-dir /absolute/path/to/project
 ```
+
+The health check reports preview status and searches the workspace and plugin cache for the Sites source helper. It does not start services or read logs; desktop state and relay failure causes remain unknown.
 
 Use the live path returned by `bcl --data FINDINGS.json status`; the summary cannot determine whether an arbitrary file is current. The diagnosis may run the supported collector once if the snapshot or project is missing or stale. Collection can move expired plugin-owned files to Trash. Empty findings are not proof of a passing test.
 
