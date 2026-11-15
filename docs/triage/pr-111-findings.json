@@ -2974,6 +2974,53 @@
       "done_when": "Count a fix only when its current verification state supports it, while preserving prior results.",
       "observed": "Source review: a finding can retain verified_fixed during an active or inconclusive recheck; rollover_gate counts status alone.",
       "recommendation": "Make gate eligibility reflect the current check state."
+    },
+    {
+      "id": "BCL-15",
+      "title": "A late tracker write can leave a snapshot falsely current",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "An update arriving as a snapshot finishes can leave an older snapshot without a warning.",
+      "impact": "The page and committed tracker can look current when a newer update exists.",
+      "done_when": "Coordinate snapshot completion with tracker writes so later changes remain detectable.",
+      "observed": "Independent source review: the final live read and unsnapshotted-marker removal use a different lock from tracker mutation.",
+      "recommendation": "Use a shared tracker lock and test the exact interleaving."
+    },
+    {
+      "id": "BCL-16",
+      "title": "Verification can start after its lane changes",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "A verification command may start after its lane is blocked or its prerequisites change.",
+      "impact": "The agent may run a check against an invalid plan.",
+      "done_when": "Reject a stale verification start when its selected lanes or dependencies changed.",
+      "observed": "Independent source review: after snapshot, the verification start rechecks IDs, commands and cycle but does not compare all lane states or dependencies.",
+      "recommendation": "Guard command launch with a plan reservation or equivalent checked state."
+    },
+    {
+      "id": "BCL-17",
+      "title": "Concurrent lane updates can prevent recording a failed check",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "An unrelated lane update can prevent a failed verification from being recorded.",
+      "impact": "The affected lane may continue to look active after its check stopped.",
+      "done_when": "Record or clearly flag failed verification without overwriting newer lane updates.",
+      "observed": "Independent review: failure recovery compares the full plan and retries the same stale comparison when another lane changes.",
+      "recommendation": "Add safe per-lane identity or a persistent recovery record."
+    },
+    {
+      "id": "AGENT-28",
+      "title": "A notification hook test failed during the repository gate",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "The notification hook test did not observe the expected notification during a full test run.",
+      "impact": "The repository gate cannot be considered passed until the failure is understood.",
+      "done_when": "Reproduce or rule out the failure with a focused rerun and record the result.",
+      "observed": "Full scripts/check.py run: test_claude_hook test_known_notification_types_post_exact_needs_you_args raised IndexError because posts was empty.",
+      "recommendation": "Rerun the specific test after the full gate and investigate if it repeats.",
+      "details": {
+        "Focused rerun": "python3 plugins/agent-computer-use/skills/macos-cua/tests/test_claude_hook.py passed 20 tests in isolation after full-gate failure; full gate still needs a clean rerun."
+      }
     }
   ]
 }
