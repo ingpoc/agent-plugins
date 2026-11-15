@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-15T07:37:36Z",
-      "now": "2026-11-14T17:10:56Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-15T10:31:39Z",
+      "now": "2026-11-15T10:31:39Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 110,
@@ -2097,7 +2097,7 @@
       }
     },
     "cycle": 3,
-    "round": 1,
+    "round": 2,
     "round_history": [
       {
         "round": 2,
@@ -2113,232 +2113,129 @@
         "round": 2,
         "fixed": 78,
         "ended_at": "2026-11-14T16:15:12Z"
+      },
+      {
+        "round": 1,
+        "fixed": 2,
+        "ended_at": "2026-11-15T10:31:39Z"
       }
     ],
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "round": 1,
+      "round": 2,
       "groups": [
         {
-          "id": "PAGE",
-          "name": "Stale tag and empty loop steps",
+          "id": "CONTROL",
+          "name": "Dependency and proof controls",
           "finding_ids": [
-            "PAGE-08"
+            "BCL-06",
+            "BCL-05"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "done",
-          "reason": "First group. Status accuracy: show Stale after stale_after_min, tick loop steps only from this list's current-round stage history, and have bcl plan refresh the clock and move to Plan & fix.",
+          "status": "running",
+          "phase": "fix",
           "worktree": "samantha-pr111-rollover",
           "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
-            "plugins/batched-change-list/skills/batched-change-list/templates/change-list.html",
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
             "plugins/batched-change-list/bin/bcl",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_render.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py"
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
           ],
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "service_tier": "priority",
-            "fast": true
-          },
+          "reason": "Prevent dependent work and placeholder proof from passing.",
           "verify": {
-            "status": "verified",
-            "summary": "Unit tests plus live :53366 page",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
+            "command": "python3 -m unittest discover -s scripts -p 'test_manage_findings.py'",
+            "method": "Run behavior checks; installed verification remains required.",
+            "status": "partial",
+            "fixed": 0,
+            "failed": 1,
+            "total": 2
           },
-          "updated_at": "2026-11-14T16:57:19Z"
+          "updated_at": "2026-11-15T10:31:39Z"
         },
         {
-          "id": "AGENT",
-          "name": "Her spec score",
+          "id": "DISPLAY",
+          "name": "Clear issue and workflow status",
           "finding_ids": [
-            "AGENT-25"
+            "PAGE-13",
+            "PAGE-14",
+            "PAGE-16",
+            "PAGE-17"
           ],
           "depends_on": [],
           "status": "pending",
           "phase": "fix",
-          "reason": "Independent product lane: score the six Her traits on the installed build. verified_fixed only at 12/12 with transcript evidence.",
           "worktree": "samantha-pr111-rollover",
           "files": [
-            "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua/live_session.py"
+            "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
+            "plugins/batched-change-list/skills/batched-change-list/templates/change-list.html",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_render.py"
           ],
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "service_tier": "priority",
-            "fast": true
-          },
+          "reason": "Make recorded and current states understandable.",
           "verify": {
-            "command": "echo 'Score AGENT-25 Her traits 0-2 with transcript evidence; close only at 12/12'",
-            "summary": "Scored Her-trait retest with transcripts",
-            "method": "Run a conversation and record each trait 0-2 with transcript refs.",
-            "status": "pending",
+            "command": "python3 -m unittest discover -s scripts -p 'test_render.py'",
+            "method": "Run behavior checks and inspect installed page.",
+            "status": "failed",
             "fixed": 0,
-            "failed": 0,
-            "total": 1
+            "failed": 4,
+            "total": 4
           },
-          "updated_at": "2026-11-14T16:55:59Z"
+          "updated_at": "2026-11-15T10:31:39Z"
         },
         {
-          "id": "PLANC",
-          "name": "Restore four-issue cap",
+          "id": "GUIDANCE",
+          "name": "Prioritize dependencies",
           "finding_ids": [
-            "PLAN-03"
+            "FLOW-04"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "done",
-          "reason": "Independent one-file docs fix in plan-fix.md. PLAN-02 depends on this text landing, so it is deferred.",
+          "status": "pending",
+          "phase": "fix",
           "worktree": "samantha-pr111-rollover",
           "files": [
+            "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
             "plugins/batched-change-list/skills/batched-change-list/references/plan-fix.md"
           ],
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "service_tier": "priority",
-            "fast": true
-          },
+          "reason": "Align the skill with dependency-first product and process work.",
           "verify": {
-            "status": "verified",
-            "summary": "plan-fix.md states the four-issue cap",
-            "fixed": 1,
+            "command": "python3 -m unittest discover -s scripts -p 'test_skill.py'",
+            "method": "Run skill checks and evaluate actual behavior.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-14T16:57:19Z"
+          "updated_at": "2026-11-15T10:31:39Z"
         },
         {
-          "id": "VOICE",
-          "name": "Spoken latency and fragments",
+          "id": "IDENTITY",
+          "name": "Identify the running renderer",
           "finding_ids": [
-            "OBS-23",
-            "OBS-25"
-          ],
-          "depends_on": [],
-          "status": "deferred",
-          "phase": "deferred",
-          "parked_to": 2,
-          "reason": "Parked: the Mini still has no real microphone (ffmpeg lists only LoomAudioDevice). Spoken playback and fragment tests cannot run.",
-          "codex": {},
-          "verify": {
-            "summary": "Deferred until a mic is available",
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 2
-          },
-          "updated_at": "2026-11-14T16:55:59Z"
-        },
-        {
-          "id": "CMDS",
-          "name": "sync-main and install-local",
-          "finding_ids": [
-            "AUTO-04",
-            "AUTO-05"
+            "PAGE-18"
           ],
           "depends_on": [
-            "PAGE"
+            "DISPLAY"
           ],
           "status": "deferred",
           "phase": "deferred",
-          "parked_to": 2,
-          "reason": "Deferred: both commands land in bin/bcl, which PAGE-08 also edits this round.",
-          "codex": {},
+          "parked_to": 3,
+          "worktree": "samantha-pr111-rollover",
+          "reason": "Follow the status display work and viewer migration.",
           "verify": {
-            "summary": "Deferred; shares bin/bcl with PAGE",
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 2
-          },
-          "updated_at": "2026-11-14T16:55:59Z"
-        },
-        {
-          "id": "CORE",
-          "name": "Tracker commit and introspect drafts",
-          "finding_ids": [
-            "BCL-01",
-            "BCL-02",
-            "BCL-03"
-          ],
-          "depends_on": [
-            "PAGE"
-          ],
-          "status": "deferred",
-          "phase": "deferred",
-          "parked_to": 2,
-          "reason": "Deferred: BCL-01/02/03 edit manage_findings and bcl, which PAGE-08 is changing this round.",
-          "codex": {},
-          "verify": {
-            "summary": "Deferred; shares bcl core with PAGE",
-            "status": "partial",
+            "command": "python3 -m unittest discover -s scripts -p 'test_serve.py'",
+            "method": "Check renderer identity on installed viewer.",
+            "status": "failed",
             "fixed": 0,
             "failed": 1,
-            "total": 3
-          },
-          "updated_at": "2026-11-14T16:55:59Z"
-        },
-        {
-          "id": "AUTO",
-          "name": "Viewer retarget and reload",
-          "finding_ids": [
-            "AUTO-03",
-            "AUTO-06"
-          ],
-          "depends_on": [
-            "PAGE"
-          ],
-          "status": "deferred",
-          "phase": "deferred",
-          "parked_to": 2,
-          "reason": "Deferred: viewer start/reload shares bin/bcl and serve.py with the PAGE-08 live-verify work.",
-          "codex": {},
-          "verify": {
-            "summary": "Deferred; shares viewer code with PAGE",
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 2
-          },
-          "updated_at": "2026-11-14T16:55:59Z"
-        },
-        {
-          "id": "PLAN2",
-          "name": "Plan check for Luna max",
-          "finding_ids": [
-            "PLAN-02"
-          ],
-          "depends_on": [
-            "PLANC"
-          ],
-          "status": "deferred",
-          "phase": "deferred",
-          "parked_to": 2,
-          "reason": "Deferred until PLAN-03 restores the four-issue cap in plan-fix.md, which this check should point at.",
-          "codex": {},
-          "verify": {
-            "summary": "Deferred until PLAN-03 lands",
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-14T16:55:59Z"
+          "updated_at": "2026-11-15T10:31:39Z"
         }
       ],
-      "cycle": 3,
-      "status": "closed"
+      "cycle": 3
     },
     "introspect": {
       "result": "Introspect recorded",
@@ -2935,7 +2832,7 @@
       "id": "BCL-06",
       "title": "Dependent work can be marked running before its prerequisite",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "priority": "high",
       "summary": "The plan allows work to start even when another unfinished group is recorded as its prerequisite.",
       "impact": "Agents can work in the wrong order, repeat work, or build on an unfinished fix.",
