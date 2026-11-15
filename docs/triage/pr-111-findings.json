@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "introspect",
-      "updated_at": "2026-11-15T07:37:01Z",
+      "updated_at": "2026-11-15T07:37:36Z",
       "now": "2026-11-14T17:10:56Z — Introspection recorded"
     },
     "rollover": {
@@ -2954,6 +2954,18 @@
       "done_when": "Product and process work are prioritized by dependencies and impact, with bounded parallel work, and the reason for deferring a group is clear.",
       "recommendation": "Replace the blanket quota with dependency-aware prioritization and an explicit concurrency cap.",
       "observed": "The user clarified on 15 Nov that both process and product issues should be tracked and dependency prerequisites fixed first. Current plan-fix guidance requires product work first and limits process fixes while product work is fixable."
+    },
+    {
+      "id": "PAGE-18",
+      "title": "The displayed page does not identify its renderer build",
+      "source": "Agent reported",
+      "status": "failing",
+      "priority": "medium",
+      "summary": "The page lists installed plugin versions without clearly identifying the version rendering the page.",
+      "impact": "You may associate a page behavior with the wrong installed version.",
+      "done_when": "The page identifies the renderer build or says it is unknown, separately from installed plugin versions.",
+      "recommendation": "Display the active viewer or renderer identity and its source separately from the installed inventory.",
+      "observed": "Chrome review on 15 Nov: this page is served from the PR 111 candidate source, but the header lists installed batched-change-list 0.1.18 and does not identify the running renderer. The local server was started directly without viewer metadata."
     }
   ]
 }
