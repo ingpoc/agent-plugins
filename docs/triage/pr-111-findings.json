@@ -2151,9 +2151,9 @@
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
             "method": "Run behavior checks; installed verification remains required.",
-            "status": "failed",
-            "fixed": 0,
-            "failed": 4,
+            "status": "partial",
+            "fixed": 1,
+            "failed": 3,
             "total": 4
           },
           "updated_at": "2026-11-15T13:02:36Z",
@@ -2928,12 +2928,26 @@
       "id": "BCL-07",
       "title": "Failed verification can still look in progress",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "summary": "A verification command fails but the lane can remain marked as verifying.",
       "impact": "The tracker can give a misleading picture of progress.",
       "done_when": "Record the failed command and stop the lane when it exits nonzero.",
       "observed": "Source review: bin/bcl records verification before subprocess.run; a CalledProcessError exits without a tracker update.",
-      "recommendation": "Fix and test the owning tracker operation."
+      "recommendation": "Fix and test the owning tracker operation.",
+      "verification_evidence": [
+        {
+          "check": "Installed CLI test suite passed: a failed verification marks its lane failed and its active check blocked while preserving the observation.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.19",
+          "session": "codex-installed-cli-suite-111",
+          "timestamp": "2026-11-15T13:04:54Z",
+          "reference": "af13e9f70a81d559e07a0292ed8ab84a9b95db08:BCL-07:installed-cli-suite"
+        }
+      ],
+      "verification": "Installed CLI test suite passed: a failed verification marks its lane failed and its active check blocked while preserving the observation.",
+      "verification_refs": [
+        "af13e9f70a81d559e07a0292ed8ab84a9b95db08:BCL-07:installed-cli-suite"
+      ]
     },
     {
       "id": "BCL-08",
@@ -3077,7 +3091,7 @@
       "id": "BCL-17",
       "title": "Concurrent lane updates can prevent recording a failed check",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "verified_fixed",
       "summary": "An unrelated lane update can prevent a failed verification from being recorded.",
       "impact": "The affected lane may continue to look active after its check stopped.",
       "done_when": "Record or clearly flag failed verification without overwriting newer lane updates.",
@@ -3085,7 +3099,21 @@
       "recommendation": "Add safe per-lane identity or a persistent recovery record.",
       "details": {
         "Source check": "CLI source suite passed 33 tests; it recorded a failed selected lane when an unrelated lane changed, and rejected an update after the selected lane changed. Installed-client verification remains pending."
-      }
+      },
+      "verification_evidence": [
+        {
+          "check": "Installed CLI test suite passed: an unrelated lane change does not prevent recording failure; a concurrently changed selected lane is not overwritten, and an unchanged selected lane is still marked failed.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.19",
+          "session": "codex-installed-cli-suite-111",
+          "timestamp": "2026-11-15T13:04:54Z",
+          "reference": "af13e9f70a81d559e07a0292ed8ab84a9b95db08:BCL-17:installed-cli-suite"
+        }
+      ],
+      "verification": "Installed CLI test suite passed: an unrelated lane change does not prevent recording failure; a concurrently changed selected lane is not overwritten, and an unchanged selected lane is still marked failed.",
+      "verification_refs": [
+        "af13e9f70a81d559e07a0292ed8ab84a9b95db08:BCL-17:installed-cli-suite"
+      ]
     },
     {
       "id": "AGENT-28",
