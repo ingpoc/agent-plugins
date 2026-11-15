@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "introspect",
-      "updated_at": "2026-11-15T07:32:47Z",
+      "updated_at": "2026-11-15T07:33:47Z",
       "now": "2026-11-14T17:10:56Z — Introspection recorded"
     },
     "rollover": {
@@ -2894,6 +2894,30 @@
       "done_when": "The label reflects the available evidence, or an installed-client verification is recorded.",
       "recommendation": "Review the existing proof and verify the installed client before claiming the fix is verified.",
       "observed": "PLAN-03 is labeled verified_fixed; its verification text says plan-fix.md states the four-issue cap. This review did not find an installed-client verification record. The existing fixed status is preserved pending a controlled recheck."
+    },
+    {
+      "id": "PAGE-16",
+      "title": "Lane phase dots have no visible explanation",
+      "source": "User reported",
+      "status": "failing",
+      "priority": "medium",
+      "summary": "The dots on each plan row do not explain which steps they represent.",
+      "impact": "You cannot tell what has happened or what remains from the lane progress display.",
+      "done_when": "Each lane makes its phase and the meaning of completed and remaining steps clear without requiring hidden accessibility text.",
+      "recommendation": "Label the lane phases in plain words and make completed, current, and remaining states clear.",
+      "observed": "User screenshot on 15 Nov shows four filled dots and one empty dot on verified lanes. The renderer uses five positions: Fix, Review, Install, Verify, Introspect; the labels are only in an accessibility attribute."
+    },
+    {
+      "id": "BCL-05",
+      "title": "A verification command can report success without verifying",
+      "source": "Agent reported",
+      "status": "failing",
+      "priority": "high",
+      "summary": "A planned verification command can succeed while only printing instructions.",
+      "impact": "A successful command could be mistaken for proof that a fix was checked.",
+      "done_when": "A stored verification command is an actual check, and a placeholder or empty check cannot be presented as verification success.",
+      "recommendation": "Replace the placeholder and make the verification gate reject commands that do not perform the intended check.",
+      "observed": "Chrome review on 15 Nov: the AGENT-25 plan shows verify command echo 'Score AGENT-25 Her traits 0-2 with transcript evidence; close only at 12/12'. Running echo only prints text and exits successfully; it does not run or score a conversation."
     }
   ]
 }
