@@ -18,6 +18,35 @@ RENDERER = Path(__file__).with_name("render.py")
 
 
 class ManageFindingsTests(unittest.TestCase):
+    def test_current_round_finding_assignments_are_unique(self):
+        ops, page = self.root / 'overlap.json', self.root / 'overlap.html'
+        def apply(*rows):
+            ops.write_text(json.dumps(rows))
+            return self.cli('batch', self.data, ops, '--render', page)
+        first = {'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}
+        second = {'id':'B','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}
+        before = self.data.read_bytes()
+        result = apply({'action':'set-plan','plan':{'round':1,'groups':[first, second]}})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('multiple current-round groups', result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+        second.update(status='deferred', phase='deferred', parked_to=2)
+        self.assertEqual(apply({'action':'set-plan','plan':{'round':1,'groups':[first, second]}}).returncode, 0)
+        self.assertEqual(apply({'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Starting'}).returncode, 0)
+        before = self.data.read_bytes()
+        result = apply({'action':'update-plan-group','id':'B','patch':{'status':'pending'}})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('multiple current-round groups', result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+        historical = json.loads(self.data.read_text())
+        historical['tracking']['plan']['groups'][1].update(status='pending', phase='fix')
+        self.data.write_text(json.dumps(historical))
+        before = self.data.read_bytes()
+        result = apply({'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Starting'})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('multiple current-round groups', result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
     def test_dependencies_block_early_work_and_cycles_but_allow_ready_work(self):
         ops, page = self.root / 'dependencies.json', self.root / 'page.html'
         def apply(*operations):
@@ -188,6 +217,24 @@ class ManageFindingsTests(unittest.TestCase):
         result = self.cli('batch', self.data, ops, '--render', page)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('plan changed; refusing activity update', result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
+    def test_group_precondition_allows_other_lane_updates_but_not_selected_lane_change(self):
+        ops, page = self.root / 'group-precondition.json', self.root / 'group-precondition.html'
+        def apply(*rows):
+            ops.write_text(json.dumps(rows))
+            return self.cli('batch', self.data, ops, '--render', page)
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'},
+                {'id':'B','finding_ids':['ISSUE-02'],'depends_on':[],'status':'pending'}]}
+        self.assertEqual(apply({'action':'set-plan','plan':plan}).returncode, 0)
+        saved = json.loads(self.data.read_text())['tracking']['plan']
+        precondition = {'expected_group':saved['groups'][0], 'expected_cycle':saved['cycle'], 'expected_round':saved['round']}
+        self.assertEqual(apply({'action':'update-plan-group','id':'B','patch':{'status':'running'}}).returncode, 0)
+        self.assertEqual(apply({'action':'update-plan-group','id':'A','patch':{'status':'running'},**precondition}).returncode, 0)
+        before = self.data.read_bytes()
+        result = apply({'action':'update-plan-group','id':'A','patch':{'status':'review'},**precondition})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('plan group changed', result.stderr)
         self.assertEqual(self.data.read_bytes(), before)
 
     @unittest.skipIf(fcntl is None, 'requires Unix flock')

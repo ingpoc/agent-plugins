@@ -1,5 +1,4 @@
 import json
-import fcntl
 import hashlib
 import os
 import subprocess
@@ -53,8 +52,8 @@ class SnapshotTests(unittest.TestCase):
         self.assertTrue(self.live.with_suffix('.unsnapshotted').exists())
 
     def test_snapshot_fails_closed_when_locking_is_unavailable(self):
-        with patch.object(live_state, 'fcntl', None):
-            with self.assertRaisesRegex(RuntimeError, 'snapshot locking unavailable'):
+        with patch.object(live_state.tracker_lock, 'fcntl', None), patch.object(live_state.tracker_lock, 'msvcrt', None):
+            with self.assertRaisesRegex(RuntimeError, 'tracker locking unavailable'):
                 live_state.snapshot(self.record, self.live)
 
     def test_snapshots_in_same_worktree_are_serialized(self):
@@ -121,10 +120,7 @@ class SnapshotTests(unittest.TestCase):
                 errors.append(str(error))
 
         def writer():
-            lock_dir = Path('/tmp') / f'bcl-tracker-locks-{os.getuid()}'
-            name = hashlib.sha256(str(self.live.resolve()).encode()).hexdigest() + '.lock'
-            with (lock_dir / name).open('a') as lock:
-                fcntl.flock(lock, fcntl.LOCK_EX)
+            with live_state.tracker_lock.exclusive_lock(live_state.tracker_lock.tracker_lock_path(self.live)):
                 writer_acquired.set()
 
         with patch.object(render, 'render', return_value='first'), patch.object(Path, 'unlink', delayed_unlink):

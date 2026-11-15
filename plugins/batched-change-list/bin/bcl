@@ -315,7 +315,6 @@ def main():
                started_groups[group['id']].get('verify', {}).get('command') != expected
                for group in groups) or any(started_plan.get(k) != tracking['plan'].get(k) for k in ('cycle', 'round')):
             raise SystemExit('plan changed before verification command started; reload and retry')
-        plan_hash = hashlib.sha256(json.dumps(started_plan, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
         try:
             result = subprocess.run(words, check=False)
             code = result.returncode
@@ -325,31 +324,37 @@ def main():
             reason = f"Verification command could not start: {error}"
         if code:
             print(reason, file=sys.stderr)
-            current = json.loads(live.read_text())
-            failed = [{"action":"update-plan-group", "id":group['id'], "expected_plan_sha256":plan_hash, "patch":{
-                "status":"failed", "phase":"verify",
-                "verify":{**started_groups[group['id']].get('verify', {}), "failure":reason}}} for group in groups]
-            failed_lanes = failed.copy()
             previous = {item['id']: item.get('status') for item in data['findings']}
-            current_status = {item['id']: item.get('status') for item in current['findings']}
-            run = current['tracking'].get('verification_run', {})
-            for identifier in ids:
-                if current_status.get(identifier) != 'in_progress':
-                    continue
-                status = previous.get(identifier)
-                failed.append({"action":"update", "id":identifier, "expected_status":"in_progress", "patch":{
-                    "status": "blocked" if status == "in_progress" else status}})
-                if run.get('status') == 'active' and run.get('checks', {}).get(identifier, {}).get('state') == 'checking':
-                    failed.append({"action":"finish-check", "run_id":run['id'], "id":identifier,
-                                   "outcome":"blocked", "evidence":reason})
-            saved = subprocess.run(command, input=json.dumps(failed), text=True, capture_output=True)
-            if saved.returncode:
-                sys.stderr.write("Could not update verification findings: " + (saved.stderr or saved.stdout))
-                saved = subprocess.run(command, input=json.dumps(failed_lanes), text=True, capture_output=True)
+            recorded = False
+            for group in groups:
+                current = json.loads(live.read_text())
+                lane = {"action":"update-plan-group", "id":group['id'],
+                    "expected_cycle":started_plan.get('cycle'), "expected_round":started_plan.get('round'),
+                    "expected_group":started_groups[group['id']], "patch":{
+                    "status":"failed", "phase":"verify",
+                    "verify":{**started_groups[group['id']].get('verify', {}), "failure":reason}}}
+                failed = [lane]
+                current_status = {item['id']: item.get('status') for item in current['findings']}
+                run = current['tracking'].get('verification_run', {})
+                for identifier in ids:
+                    if identifier not in group.get('finding_ids', []) or current_status.get(identifier) != 'in_progress':
+                        continue
+                    status = previous.get(identifier)
+                    failed.append({"action":"update", "id":identifier, "expected_status":"in_progress", "patch":{
+                        "status": "blocked" if status == "in_progress" else status}})
+                    if run.get('status') == 'active' and run.get('checks', {}).get(identifier, {}).get('state') == 'checking':
+                        failed.append({"action":"finish-check", "run_id":run['id'], "id":identifier,
+                                       "outcome":"blocked", "evidence":reason})
+                saved = subprocess.run(command, input=json.dumps(failed), text=True, capture_output=True)
+                if saved.returncode and len(failed) > 1:
+                    sys.stderr.write(f"Could not update verification findings for {group['id']}: " + (saved.stderr or saved.stdout))
+                    saved = subprocess.run(command, input=json.dumps([lane]), text=True, capture_output=True)
                 if saved.returncode:
-                    sys.stderr.write("Could not record failed lanes: " + (saved.stderr or saved.stdout))
-                    raise SystemExit(saved.returncode)
-            live_state.snapshot(record, live)
+                    sys.stderr.write(f"Could not record failed lanes ({group['id']}): " + (saved.stderr or saved.stdout))
+                else:
+                    recorded = True
+            if recorded:
+                live_state.snapshot(record, live)
             raise SystemExit(code if code > 0 else 128 - code)
     elif args.then_command: subprocess.run(args.then_command, shell=True, check=True)
     elif command_args: subprocess.run(command_args, check=True)

@@ -13,10 +13,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-try:
-    import fcntl
-except ImportError:
-    fcntl = None
+import tracker_lock
 
 import live_state
 
@@ -516,7 +513,10 @@ def atomic_write(path, original, content, *, tracker=True):
     descriptor, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
     try:
         with os.fdopen(descriptor, "wb") as temp:
-            os.fchmod(temp.fileno(), mode)
+            if hasattr(os, 'fchmod'):
+                os.fchmod(temp.fileno(), mode)
+            else:
+                os.chmod(temp_name, mode)
             temp.write(content)
             temp.flush()
             os.fsync(temp.fileno())
@@ -637,6 +637,14 @@ def finding_verified(item, tracking):
 def validate_dependencies(groups, findings, tracking):
     by_id = {group['id']: group for group in groups}
     by_finding = {item['id']: item for item in findings}
+    assignments = {}
+    for group in groups:
+        if RENDERER.plan_status(group) == 'parked':
+            continue
+        for identifier in group.get('finding_ids', []):
+            if identifier in assignments:
+                raise ValueError(f"finding {identifier} appears in multiple current-round groups: {assignments[identifier]}, {group['id']}")
+            assignments[identifier] = group['id']
     visiting, visited = set(), set()
     def visit(identifier):
         if identifier in visiting:
@@ -1084,6 +1092,14 @@ def run(args, parser):
                             actual = hashlib.sha256(json.dumps(original_plan, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
                             if operation['expected_plan_sha256'] != actual:
                                 raise ValueError('plan changed; refusing group update')
+                        if any(key in operation for key in ('expected_group', 'expected_cycle', 'expected_round')):
+                            previous = original_plan if isinstance(original_plan, dict) else {}
+                            previous_group = next((g for g in previous.get('groups', []) if g.get('id') == operation.get('id')), None)
+                            if (set(('expected_group', 'expected_cycle', 'expected_round')) - operation.keys()
+                                    or operation['expected_group'] != previous_group
+                                    or operation['expected_cycle'] != previous.get('cycle')
+                                    or operation['expected_round'] != previous.get('round')):
+                                raise ValueError('plan group changed; refusing group update')
                         group = next((g for g in plan.get("groups", []) if g.get("id") == operation.get("id")), None)
                         patch = operation.get("patch")
                         if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at"}:
@@ -1228,14 +1244,15 @@ def run(args, parser):
                         if not groups:
                             raise ValueError('work requires a plan for the current round')
                         if groups:
-                            matched = [group for group in groups if set(ids).intersection(group.get('finding_ids', []))]
-                            covered = {identifier for group in matched if RENDERER.plan_status(group) != 'parked'
+                            matched = [group for group in groups if RENDERER.plan_status(group) != 'parked'
+                                       and set(ids).intersection(group.get('finding_ids', []))]
+                            covered = {identifier for group in matched
                                        for identifier in group.get('finding_ids', [])}
-                            if any(identifier not in covered for identifier in ids) or any(RENDERER.plan_status(group) == 'parked' for group in matched):
+                            if any(identifier not in covered for identifier in ids):
                                 raise ValueError('work requires an eligible current-round plan group for every finding')
                             validate_dependencies(groups, findings, tracking)
                         by_id = {group['id']: group for group in groups}
-                        for group in groups:
+                        for group in matched:
                             if set(ids).intersection(group.get('finding_ids', [])):
                                 pending = [dep for dep in group.get('depends_on', [])
                                            if dep not in by_id or RENDERER.plan_status(by_id[dep]) != 'verified']
@@ -1426,16 +1443,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.command in {'audit', 'list', 'get'}:
         return run(args, parser)
-    if fcntl is None:
-        parser.exit(2, 'manage-findings: tracker locking unavailable on this platform\n')
     try:
-        lock_dir = Path('/tmp') / f'bcl-tracker-locks-{os.getuid()}'
-        lock_dir.mkdir(mode=0o700, exist_ok=True)
-        lock_name = hashlib.sha256(str(args.data.resolve()).encode()).hexdigest() + '.lock'
-        with (lock_dir / lock_name).open('a') as lock:
-            fcntl.flock(lock, fcntl.LOCK_EX)
+        with tracker_lock.exclusive_lock(tracker_lock.tracker_lock_path(args.data)):
             return run(args, parser)
-    except OSError as error:
+    except (OSError, RuntimeError) as error:
         parser.exit(2, f'manage-findings: tracker lock failed: {error}\n')
 
 

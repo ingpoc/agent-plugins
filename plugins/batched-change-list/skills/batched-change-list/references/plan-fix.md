@@ -32,6 +32,6 @@ A round runs only independent groups. At Plan, if a group would do better after 
 ## Round rules
 
 1. Prioritize prerequisites and high-impact work across product and process findings. Run only independent ready groups in parallel; defer blocked dependents with a reason.
-2. Default Codex fix jobs to Luna medium. Use max only for hard groups. Briefs name exact file paths.
-3. Run tests and a diff check before Terra. Skip Terra for one-file fixes.
+2. Choose the least expensive available model and effort that fit the task's difficulty and risk; escalate when needed. Briefs name exact file paths.
+3. Run tests and a diff check before independent review. Scale review to the change's risk.
 4. Job reports are 10 lines or fewer. Re-read only the tracker parts that changed.

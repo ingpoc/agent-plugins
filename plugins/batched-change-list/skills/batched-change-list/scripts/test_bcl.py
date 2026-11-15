@@ -225,6 +225,48 @@ elif args[:2] != ['pr', 'edit']:
         self.assertIn('Could not record failed lanes', result.stderr)
         self.assertEqual(json.loads(live.read_text())['tracking']['plan']['groups'][0]['status'], 'review')
 
+    def test_failed_command_is_recorded_when_another_lane_changes(self):
+        self.assertEqual(self.call('start').returncode, 0)
+        live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
+        fail = self.root / 'other_lane.py'
+        fail.write_text(f"import json\nfrom pathlib import Path\np=Path({str(live)!r})\nd=json.loads(p.read_text())\nd['tracking']['plan']['groups'][1]['status']='review'\np.write_text(json.dumps(d))\nraise SystemExit(7)\n")
+        command = f'"{sys.executable}" "{fail}"'
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending','verify':{'command':command}},
+                                    {'id':'B','finding_ids':['ISSUE-02'],'status':'pending','verify':{'command':'python3 test.py'}}]}
+        path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
+        self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
+        self.assertEqual(self.call('install','--ids','ISSUE-01').returncode, 0)
+        result = self.call('verify','--ids','ISSUE-01','--then',command)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn('Could not record failed lanes', result.stderr)
+        written = json.loads(live.read_text())
+        self.assertEqual(written['tracking']['plan']['groups'][0]['status'], 'failed')
+        self.assertIn('exited 7', written['tracking']['plan']['groups'][0]['verify']['failure'])
+        self.assertEqual(written['tracking']['plan']['groups'][1]['status'], 'review')
+
+    def test_failed_wave_records_unchanged_lane_when_other_selected_lane_changes(self):
+        self.assertEqual(self.call('start').returncode, 0)
+        live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
+        document = json.loads(live.read_text())
+        document['findings'][1]['status'] = 'untested'
+        live.write_text(json.dumps(document)); self.data.write_bytes(live.read_bytes())
+        fail = self.root / 'change_selected.py'
+        fail.write_text(f"import json\nfrom pathlib import Path\np=Path({str(live)!r})\nd=json.loads(p.read_text())\nd['tracking']['plan']['groups'][0]['status']='review'\np.write_text(json.dumps(d))\nraise SystemExit(7)\n")
+        command = f'"{sys.executable}" "{fail}"'
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending','verify':{'command':command}},
+                                    {'id':'B','finding_ids':['ISSUE-02'],'status':'pending','verify':{'command':command}}]}
+        path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
+        self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01','--ids','ISSUE-02').returncode, 0)
+        self.assertEqual(self.call('install','--ids','ISSUE-01','--ids','ISSUE-02').returncode, 0)
+        result = self.call('verify','--ids','ISSUE-01','--ids','ISSUE-02','--then',command)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Could not record failed lanes (A)', result.stderr)
+        written = json.loads(live.read_text())
+        self.assertEqual(written['tracking']['plan']['groups'][0]['status'], 'review')
+        self.assertEqual(written['tracking']['plan']['groups'][1]['status'], 'failed')
+        self.assertIn('exited 7', written['tracking']['plan']['groups'][1]['verify']['failure'])
+        self.assertEqual(next(item for item in written['findings'] if item['id'] == 'ISSUE-02')['status'], 'blocked')
+
     def test_verify_rejects_plan_change_during_snapshot(self):
         self.assertEqual(self.call('start').returncode, 0)
         marker = self.root / 'ran'

@@ -1,9 +1,6 @@
 """Live tracker registry and per-list viewer lifecycle."""
 import hashlib, json, os, re, socket, subprocess, sys, time, urllib.error, urllib.request, uuid
-try:
-    import fcntl
-except ImportError:
-    fcntl = None
+import tracker_lock
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -257,8 +254,6 @@ def _viewer_ready(proc, port, expected):
     return False
 
 def snapshot(record, live):
-    if fcntl is None:
-        raise RuntimeError("snapshot locking unavailable on this platform")
     home = Path(record["home"])
     snapshot_path = home / record["snapshot"]; html_path = home / record["html"]
     marker = live.with_suffix(".unsnapshotted")
@@ -268,8 +263,7 @@ def snapshot(record, live):
     lock_path = Path(git(home, "rev-parse", "--git-path", "bcl-snapshot.lock"))
     if not lock_path.is_absolute():
         lock_path = home / lock_path
-    with lock_path.open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with tracker_lock.exclusive_lock(lock_path):
         import render
         captured = live.read_bytes()
         marker.write_text(hashlib.sha256(captured).hexdigest() + "\n")
@@ -291,11 +285,7 @@ def snapshot(record, live):
             raise RuntimeError(f"snapshot diff failed with exit {changed.returncode}")
         if changed.returncode == 1:
             subprocess.run(["git", "-C", str(home), "commit", "--only", "-m", "Change list: snapshot live tracker", "--", record["snapshot"], record["html"]], check=True)
-        tracker_locks = Path('/tmp') / f'bcl-tracker-locks-{os.getuid()}'
-        tracker_locks.mkdir(mode=0o700, exist_ok=True)
-        tracker_lock = tracker_locks / (hashlib.sha256(str(live.resolve()).encode()).hexdigest() + '.lock')
-        with tracker_lock.open('a') as writer_lock:
-            fcntl.flock(writer_lock, fcntl.LOCK_EX)
+        with tracker_lock.exclusive_lock(tracker_lock.tracker_lock_path(live)):
             current = live.read_bytes()
             if current != captured:
                 marker.write_text(hashlib.sha256(current).hexdigest() + "\n")
