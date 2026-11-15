@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "introspect",
-      "updated_at": "2026-11-15T04:15:36Z",
+      "updated_at": "2026-11-15T04:29:22Z",
       "now": "2026-11-14T17:10:56Z — Introspection recorded"
     },
     "rollover": {
@@ -2686,6 +2686,16 @@
         "/tmp/pr111-planned.html",
         "plugins/batched-change-list/skills/batched-change-list/scripts/test_render.py::test_fresh_rollover_collect_leaves_loop_steps_empty_and_can_go_stale",
         "commit 4e74eee7"
+      ],
+      "verification_evidence": [
+        {
+          "check": "Stale status and workflow page",
+          "outcome": "fixed",
+          "build": "BCL 0.1.18-page08-wip",
+          "session": "pr111-page08",
+          "timestamp": "2026-11-14T16:55:59Z",
+          "reference": "/tmp/pr111-page08.html; tracker PAGE-08 verification records the 10:25:59 PM IST plan transition"
+        }
       ]
     },
     {
