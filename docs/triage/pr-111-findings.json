@@ -3214,7 +3214,7 @@
       "id": "BCL-21",
       "title": "Two agents can start the same verification concurrently",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "verified_fixed",
       "summary": "Two verification requests can both start the same check.",
       "impact": "Duplicate checks can conflict over shared resources and status.",
       "done_when": "Only one verification of the same work starts, with safe crash recovery.",
@@ -3223,7 +3223,21 @@
       "details": {
         "Source check": "Candidate has a nonblocking per-tracker verify lock. Competing-process, child tracker-write and crash-release tests passed; installed verification pending.",
         "Platform": "Unix behavior tested locally; Windows lock behavior is mocked only."
-      }
+      },
+      "verification_evidence": [
+        {
+          "check": "Installed 0.1.21 test ran competing verification requests: the second was rejected while the first verifier updated the tracker. OS lock crash-release passed on macOS; Windows remains mocked only.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.21",
+          "session": "codex-installed-cli-concurrency-111",
+          "timestamp": "2026-11-15T13:33:48Z",
+          "reference": "841f0f26c944a3a2ffcba116bf020a2c15f325e8:BCL-21:installed-cli"
+        }
+      ],
+      "verification": "Installed 0.1.21 test ran competing verification requests: the second was rejected while the first verifier updated the tracker. OS lock crash-release passed on macOS; Windows remains mocked only.",
+      "verification_refs": [
+        "841f0f26c944a3a2ffcba116bf020a2c15f325e8:BCL-21:installed-cli"
+      ]
     },
     {
       "id": "EVAL-01",
