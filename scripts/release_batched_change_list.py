@@ -98,18 +98,17 @@ def release_batched_change_list(root: Path, pr: int) -> int:
         raise RuntimeError('release requires a completed, passing hygiene check')
     package = root / 'plugins/batched-change-list'
     identity = shared.contract_module(root).package_identity(package)
-    destination = Path.home() / '.agents/plugins/batched-change-list'
-    if destination.is_symlink() or not destination.is_dir() or destination.resolve() == package.resolve():
-        raise RuntimeError('personal package must be a separate existing directory')
-    sync = ['rsync', '-a', '--delete', '--exclude=.DS_Store', '--exclude=__pycache__',
-            '--exclude=run/', str(package) + '/', str(destination) + '/']
-    preview = subprocess.check_output(sync[:1] + ['-ni'] + sync[1:], text=True)
-    if any(line.startswith('*deleting') for line in preview.splitlines()):
-        raise RuntimeError('personal package contains extra files; inspect before replacing')
+    selector = 'batched-change-list@ingpoc-agent-plugins'
+    override = ['-c', 'marketplaces.ingpoc-agent-plugins.source_type="local"',
+                '-c', 'marketplaces.ingpoc-agent-plugins.source=' + json.dumps(str(root.resolve()))]
+    available = json.loads(shared.output(
+        ['codex', 'plugin', 'list', *override, '--marketplace', 'ingpoc-agent-plugins', '--available', '--json'], root=root))
+    matches = [plugin for group in ('installed', 'available') if isinstance(available, dict) and isinstance(available.get(group, []), list)
+               for plugin in available[group] if isinstance(plugin, dict) and plugin.get('pluginId') == selector]
+    if len(matches) != 1 or matches[0].get('source', {}).get('source') != 'local' or Path(matches[0].get('source', {}).get('path', '')).resolve() != package.resolve():
+        raise RuntimeError('Codex marketplace does not resolve the existing selector to the candidate package; no install attempted')
     check_pr()
-    subprocess.run(sync, check=True)
-    check_pr()
-    result = json.loads(shared.output(['codex', 'plugin', 'add', 'batched-change-list@personal', '--json'], root=root))
+    result = json.loads(shared.output(['codex', 'plugin', 'add', *override, selector, '--json'], root=root))
     installed = Path(result['installedPath'])
     if result.get('version') != identity['version'] or shared.contract_module(root).package_identity(installed) != identity:
         raise RuntimeError('installed package does not match candidate')

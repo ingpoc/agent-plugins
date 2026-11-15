@@ -19,6 +19,8 @@ class ReleaseTests(unittest.TestCase):
                 return 'candidate'
             if command[:2] == ['git', 'branch']:
                 return 'topic'
+            if command[:3] == ['codex', 'plugin', 'list']:
+                return json.dumps({'installed': [{'pluginId': 'batched-change-list@ingpoc-agent-plugins', 'source': {'source':'local', 'path':'/candidate/plugins/batched-change-list'}}], 'available': []})
             return json.dumps({'status': status, 'headSha': head, 'headRef': 'topic'})
         return output
 
@@ -38,20 +40,19 @@ class ReleaseTests(unittest.TestCase):
                 release.release_batched_change_list(Path('/candidate'), 1)
             run.assert_not_called()
 
-    def test_extra_personal_files_stop_before_sync(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            home = Path(tmp)
-            (home / '.agents/plugins/batched-change-list').mkdir(parents=True)
-            contract = Mock(); contract.package_identity.return_value = {'version': '1.0.0'}
-            with patch.object(Path, 'home', return_value=home), \
-                 patch.object(release.shared, 'output', side_effect=self.output()), \
-                 patch.object(release.shared, 'frozen'), patch.object(release.shared, 'hygiene_gate', return_value={'checked': True, 'failures': []}), \
-                 patch.object(release.shared, 'contract_module', return_value=contract), \
-                 patch.object(release.subprocess, 'check_output', return_value='*deleting unknown\n'), \
-                 patch.object(release.subprocess, 'run') as run:
-                with self.assertRaisesRegex(RuntimeError, 'extra files'):
-                    release.release_batched_change_list(Path('/candidate'), 1)
-                run.assert_not_called()
+    def test_missing_marketplace_selector_stops_before_install(self):
+        contract = Mock(); contract.package_identity.return_value = {'version': '1.0.0'}
+        def output(command, **kwargs):
+            if command[:3] == ['codex', 'plugin', 'list']:
+                return json.dumps({'installed': [], 'available': []})
+            return self.output()(command, **kwargs)
+        with patch.object(release.shared, 'output', side_effect=output) as call, \
+             patch.object(release.shared, 'frozen'), \
+             patch.object(release.shared, 'hygiene_gate', return_value={'checked': True, 'failures': []}), \
+             patch.object(release.shared, 'contract_module', return_value=contract):
+            with self.assertRaisesRegex(RuntimeError, 'no install attempted'):
+                release.release_batched_change_list(Path('/candidate'), 1)
+            self.assertFalse(any(c.args[0][:3] == ['codex', 'plugin', 'add'] for c in call.call_args_list))
 
     def test_probe_runs_real_cli_and_live_viewer(self):
         package = Path(__file__).resolve().parent.parent / 'plugins/batched-change-list'
@@ -87,7 +88,7 @@ class ReleaseTests(unittest.TestCase):
             run.assert_not_called()
 
     def test_pr_drift_prevents_mutation_and_success(self):
-        for drift_on in (2, 4):
+        for drift_on in (2, 3):
             with self.subTest(drift_on=drift_on), tempfile.TemporaryDirectory() as tmp:
                 home = Path(tmp)
                 (home / '.agents/plugins/batched-change-list').mkdir(parents=True)
