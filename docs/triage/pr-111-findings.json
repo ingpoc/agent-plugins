@@ -2151,9 +2151,9 @@
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
             "method": "Run behavior checks; installed verification remains required.",
-            "status": "partial",
+            "status": "failed",
             "fixed": 0,
-            "failed": 3,
+            "failed": 4,
             "total": 4
           },
           "updated_at": "2026-11-15T13:02:36Z",
@@ -2875,13 +2875,16 @@
       "id": "BCL-06",
       "title": "Dependent work can be marked running before its prerequisite",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "failing",
       "priority": "high",
       "summary": "The plan allows work to start even when another unfinished group is recorded as its prerequisite.",
       "impact": "Agents can work in the wrong order, repeat work, or build on an unfinished fix.",
       "done_when": "Dependent work cannot advance before its prerequisites reach the required state; independent groups can proceed in parallel within the cap.",
       "recommendation": "Validate dependency order when a plan is created or a group advances.",
-      "observed": "Disposable tracker reproduction on 15 Nov: set-plan accepted group A as running and group B as running with depends_on A, returning exit 0. No live tracker was modified during the reproduction."
+      "observed": "Disposable tracker reproduction on 15 Nov: set-plan accepted group A as running and group B as running with depends_on A, returning exit 0. No live tracker was modified during the reproduction.",
+      "details": {
+        "Current status": "Source controls changed; the installed 0.1.19 behavior for this finding still needs an individual check."
+      }
     },
     {
       "id": "FLOW-04",
