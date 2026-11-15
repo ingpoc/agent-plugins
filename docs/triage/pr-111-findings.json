@@ -3060,6 +3060,21 @@
       "done_when": "Reject overlapping active lane assignments and retain valid future-round plans.",
       "observed": "Independent review: set-plan accepts the same finding in multiple groups; an update to one may invalidate the other group’s failure precondition.",
       "recommendation": "Validate unique current-round lane assignment before work starts."
+    },
+    {
+      "id": "BCL-20",
+      "title": "Plugin refresh fails when Codex uses another marketplace",
+      "source": "Agent reported",
+      "status": "failing",
+      "summary": "The refresh stops after updating the personal package because Codex cannot find the plugin in the named marketplace.",
+      "impact": "The installed client can remain on an older plugin while part of the refresh has already happened.",
+      "done_when": "Refresh the plugin through its configured marketplace with preflight and verify the active installed copy.",
+      "observed": "Release command for PR 111 updated ~/.agents/plugins/batched-change-list then codex plugin add batched-change-list@personal failed: plugin not found in marketplace personal; configured client uses ingpoc-agent-plugins.",
+      "recommendation": "Correct release marketplace selection and perform validation before mutating any destination.",
+      "details": {
+        "Release attempt": "Personal source copy was refreshed to 0.1.19, but Codex rejected batched-change-list@personal; active configured selector remains batched-change-list@ingpoc-agent-plugins with cached 0.1.18.",
+        "Source check": "Selector preflight now stops before package changes when personal has no entry; release helper tests passed. Exact PR install in existing client remains unresolved."
+      }
     }
   ]
 }
