@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "introspect",
-      "updated_at": "2026-11-15T07:01:30Z",
+      "updated_at": "2026-11-15T07:09:47Z",
       "now": "2026-11-14T17:10:56Z — Introspection recorded"
     },
     "rollover": {
@@ -2822,6 +2822,18 @@
       "done_when": "The freshness hook rejects a staged tracker whose page is missing from the index.",
       "recommendation": "Check that the report is staged when its tracker is staged.",
       "observed": "Independent review reproduced a passing freshness hook with a staged tracker and an untracked HTML report."
+    },
+    {
+      "id": "BCL-04",
+      "title": "Existing viewers cannot be safely restarted by the new version",
+      "source": "Agent reported",
+      "status": "blocked",
+      "priority": "high",
+      "summary": "The current change-list viewers do not have the identity information required for a safe restart.",
+      "impact": "The updated viewer cannot take over until the old one is stopped safely.",
+      "done_when": "Existing viewers can be migrated or stopped with verified ownership, and the updated viewer starts and shows the correct list.",
+      "recommendation": "Provide and verify a safe migration path for legacy viewer instances.",
+      "observed": "The 107, 110 and 111 viewer state records predate instance identity. The candidate refuses to signal them because the recorded PID alone is not proof of ownership."
     }
   ]
 }
