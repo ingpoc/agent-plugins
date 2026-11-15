@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "introspect",
-      "updated_at": "2026-11-15T04:32:29Z",
+      "updated_at": "2026-11-15T07:01:30Z",
       "now": "2026-11-14T17:10:56Z — Introspection recorded"
     },
     "rollover": {
@@ -2798,6 +2798,30 @@
       "details": {
         "Where to look": "plugins/batched-change-list/skills/batched-change-list/scripts/render.py and templates/change-list.html"
       }
+    },
+    {
+      "id": "SEC-01",
+      "title": "Arithmetic can hide a protected path from the shell gate",
+      "source": "Agent reported",
+      "status": "failing",
+      "priority": "high",
+      "summary": "A shell command can use arithmetic to hide the name of a protected file.",
+      "impact": "Samantha could read protected data without the required refusal.",
+      "done_when": "Arithmetic cannot disguise a protected path, while simple numeric echo still runs without approval.",
+      "recommendation": "Constrain the safe arithmetic exception to the specific harmless command.",
+      "observed": "Independent review reproduced a protected-token symlink named 2 being refused by cat 2 but allowed by cat $((1+1)); dummy data only."
+    },
+    {
+      "id": "PAGE-11",
+      "title": "A tracker can be committed without its report",
+      "source": "Agent reported",
+      "status": "failing",
+      "priority": "high",
+      "summary": "A change-list tracker can be staged while its page is left out of the commit.",
+      "impact": "The shared change list can be missing or out of date for reviewers.",
+      "done_when": "The freshness hook rejects a staged tracker whose page is missing from the index.",
+      "recommendation": "Check that the report is staged when its tracker is staged.",
+      "observed": "Independent review reproduced a passing freshness hook with a staged tracker and an untracked HTML report."
     }
   ]
 }
