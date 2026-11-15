@@ -69,7 +69,14 @@ def diagnose(project, directory):
             raise
         collected = bridge_call('observability_collect', {'project_dir': str(directory)})
         print('Collection:', json.dumps(collected, ensure_ascii=False))
-        result = bridge_call('observability_diagnose', args)
+        try:
+            result = bridge_call('observability_diagnose', args)
+        except RuntimeError as retry_error:
+            if 'unknown_project' not in str(retry_error):
+                raise
+            print(json.dumps({'project_id': project, 'state': 'no_project_findings',
+                              'coverage': 'unknown', 'note': 'No project findings after collection; health is not established.'}, indent=2))
+            return
         source = result.get('data_source') or {}
         if source.get('status') == 'no_findings' or result.get('freshness') in ('unavailable', 'stale'):
             raise RuntimeError('project diagnosis remains unavailable after collection')

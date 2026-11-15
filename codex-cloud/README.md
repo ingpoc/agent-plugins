@@ -33,3 +33,21 @@ If native Observability tools are absent, the MCP bridge is available with the i
 ```
 
 Read the installed plugin skills before use. Batched Change List stages can start viewers and commit snapshots; use them only within the user's authorization. Its live viewer binds to loopback, not the public internet. Never put secrets, private evidence, ledger databases or local configuration into this repository.
+
+## Preview attempt evidence
+
+When the Sites workflow permits a preview start, record an attempt with:
+
+```sh
+python3 codex-cloud/preview_attempt.py start /absolute/path/to/site --project PROJECT_ID --issue ISSUE-01
+```
+
+This command **starts the managed preview**. Do not repeatedly retry a failed preview without a concrete repair or evidence of recovery. It saves a private, permission-restricted JSON record under `~/.local/state/codex-cloud/preview-attempts/`; use `--record-dir` to choose another private location. The record contains a generated ID, time, project ID, bounded phase and error code, exit code, and optional reference IDs. It does not save raw command output, a site path, or the preview URL. On success the exact URL is returned in the command response, not saved in the record. The command exits nonzero if preview startup fails.
+
+To inspect a record and check an explicitly supplied tracker reference:
+
+```sh
+python3 codex-cloud/preview_attempt.py diagnose /absolute/path/to/attempt.json --tracker /absolute/path/to/live-findings.json
+```
+
+`--finding FINDING_ID` on `start` records an optional Developer Observability finding ID. The diagnostic checks that ID against a current project snapshot. References are user-supplied leads, not proof that a finding caused the attempt failure. Missing, stale, unmatched, or unavailable evidence cannot establish health or cause. The recorder can classify the documented relay-readiness timeout, but the managed service must provide additional diagnostic data before deeper root cause can be established. Do not commit attempt records or private logs.
