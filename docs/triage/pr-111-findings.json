@@ -3219,7 +3219,22 @@
       "impact": "Duplicate checks can conflict over shared resources and status.",
       "done_when": "Only one verification of the same work starts, with safe crash recovery.",
       "observed": "Independent source review: both verify calls can write in-progress state before the launch lock and then spawn sequentially because no launch claim is recorded.",
-      "recommendation": "Add a durable, validated per-run claim or another crash-safe exclusion mechanism."
+      "recommendation": "Add a durable, validated per-run claim or another crash-safe exclusion mechanism.",
+      "details": {
+        "Source check": "Candidate has a nonblocking per-tracker verify lock. Competing-process, child tracker-write and crash-release tests passed; installed verification pending.",
+        "Platform": "Unix behavior tested locally; Windows lock behavior is mocked only."
+      }
+    },
+    {
+      "id": "EVAL-01",
+      "title": "Prove delivery speed, token efficiency, control, and status accuracy",
+      "source": "User requested",
+      "status": "untested",
+      "summary": "We do not yet know whether the workflow helps agents deliver accepted work faster and with fewer tokens while keeping clear, accurate status.",
+      "impact": "Passing plugin tests alone cannot show that the workflow improves real feature delivery.",
+      "done_when": "Run a fair matched comparison with complete end-to-end time and token accounting, independent acceptance, workflow-control checks, and independently checked HTML status accuracy.",
+      "observed": "Existing OpenCode pilot reported six accepted pairs but was inconclusive on its primary endpoint and excluded verifier/orchestration tokens; rollover probes checked mechanics, not end-to-end delivery value.",
+      "recommendation": "Use the existing evaluation workflow and harness; freeze cases, baseline, acceptance criteria and measurement boundaries before running."
     }
   ]
 }
