@@ -176,7 +176,7 @@ def main():
         import render
         report, base = live_state.report_paths(record, live)
         report.write_text(render.render(json.loads(live.read_text()), base))
-    if record and not record.get("rollover_pending"):
+    if record and not record.get("rollover_pending") and args.stage != "status":
         live_state.ensure_viewer(key, record, live, plugin_version)
     if args.stage == "adopt":
         if not record: parser.error("could not register tracker")

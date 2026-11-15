@@ -1,5 +1,8 @@
 ## 0.1.19
 
+- Status reads the live tracker without starting a viewer; concurrent browser connections no longer block the live report.
+- Verification requires a known build and revision, and the timeline retains each recheck on the same build.
+- The rollover count excludes introspection records; real page and process fixes still count. The redundant lane-status grid is removed.
 - The skill handles feedback during every stage and links each step to its on-demand reference.
 - Snapshot and viewer startup failures now report an error and preserve recovery information; the viewer is checked before success is reported.
 - Viewer restarts verify the process, instance, and tracker identity before signalling; unverified legacy viewers require a safe manual stop.

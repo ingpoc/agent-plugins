@@ -313,13 +313,13 @@ elif args[:2] != ['pr', 'edit']:
         path = self.viewer_state_path()
         state = json.loads(path.read_text()); first_pid = state["pid"]
         state["version"] = "0.1.16"; path.write_text(json.dumps(state))
-        result = self.call("status")
+        result = self.call("merge")
         self.assertEqual(result.returncode, 0, result.stderr)
         updated = json.loads(path.read_text()); self.assertNotEqual(updated["pid"], first_pid)
         updated["data"] = "/tmp/wrong.json"; path.write_text(json.dumps(updated))
         old_pid = updated["pid"]
         self.extra_pids.add(old_pid)
-        self.assertEqual(self.call("status").returncode, 0)
+        self.assertEqual(self.call("merge").returncode, 0)
         self.assertNotEqual(json.loads(path.read_text())["pid"], old_pid)
 
     def test_collect_start_uses_default_port_when_free(self):
@@ -465,5 +465,15 @@ elif args[:2] != ['pr', 'edit']:
                 live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
         signal_process.assert_called_once_with(state['pid'], 0)
         request.assert_not_called()
+
+    def test_status_reads_tracker_without_touching_legacy_viewer(self):
+        state = self.viewer_state_path()
+        before = json.loads(state.read_text())
+        before.pop('instance')
+        state.write_text(json.dumps(before))
+        result = self.call('status')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(json.loads(result.stdout)['adopted'])
+        self.assertEqual(json.loads(state.read_text()), before)
 
 if __name__ == "__main__": unittest.main()

@@ -127,7 +127,6 @@ class RenderTests(unittest.TestCase):
         self.assertIn('aria-label="Phase 4 of 5: Verify, blocked"', page)
         self.assertIn('In install · INSTALL', page)
         self.assertIn('Blocked · no mic · needs Guru', page)
-        self.assertIn('Parked → Round 2', page)
         self.assertIn('CARRIED', page)
         self.assertIn('Fixes <b>0/15</b> verified<small>1 in progress</small>', page)
         self.assertIn('Round closes when every lane is <b>verified, blocked or parked</b> → Introspect → gate.', page)
@@ -290,7 +289,16 @@ if(ambiguous.children[1].text!=='Status not recorded'||ambiguous.children[2].chi
             {'id':'A','finding_ids':['ISSUE-01'],'status':'running','verify':{'command':'python3 check.py --id ISSUE-01'}}]}}
         page = renderer.render(data, self.base)
         self.assertIn('<dt>Verify command</dt><dd>python3 check.py --id ISSUE-01</dd>', page)
-        self.assertIn('<details class="copy"', page)
+        self.assertNotIn('Issue list status · derived from lane', page)
+
+    def test_rechecks_on_one_build_keep_each_recorded_outcome(self):
+        item = {'id': 'ISSUE-01'}
+        runs = [{'build': 'ACU 1.2.3', 'checks': {'ISSUE-01': {
+            'state': 'fixed', 'evidence': 'Display now shows the correct value', 'finished_at': '2026-11-15T02:00:00Z',
+            'previous_checks': [{'state': 'not_fixed', 'evidence': 'Display showed the wrong value', 'finished_at': '2026-11-15T01:00:00Z'}]}}}]
+        timeline = renderer.version_evidence(item, runs)
+        self.assertEqual([(entry['state'], entry['outcome']) for entry in timeline], [
+            ('fixed', 'Display now shows the correct value'), ('not_fixed', 'Display showed the wrong value')])
 
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
     def test_fingerprint_poll_reloads_once_only_after_change_and_preserves_view(self):
@@ -677,7 +685,7 @@ setImmediate(async()=>{
 
 
 
-    def test_gate_counts_all_prefixes_and_meets_at_threshold(self):
+    def test_gate_excludes_introspection_records_and_meets_at_threshold(self):
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
         data['tracking'] = {'workflow': {'stage':'gate','updated_at':'2026-11-14T07:00:00Z'},
                             'cycle':2,'round':2,'rollover_threshold':15}
@@ -686,15 +694,17 @@ setImmediate(async()=>{
             row.update(id=identifier, status=status, verification='Verified on the installed build.',
                        verification_refs=['Example receipt'])
             return row
-        # 8 product VF, 9 page-tool VF, leftover open product, plus a WF VF: all 18 count, so the gate is met.
+        # Introspection is a record, not a fix; actual page-tool fixes still count.
+        introspect = item('WF-07', 'verified_fixed')
+        introspect['details'] = {'fixed_in': 'Introspect'}
         data['findings'] = (
             [item(f'AGENT-{i:02d}') for i in range(1, 9)]
             + [item('PAGE-01'), item('PAGE-02'), item('TRACK-01'), item('FLOW-01'),
                item('PLAN-01'), item('RUN-01'), item('HOOK-01'), item('TEST-01'), item('BCL-01')]
-            + [item('AGENT-18', 'untested'), item('WF-07', 'verified_fixed')]
+            + [item('AGENT-18', 'untested'), introspect]
         )
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes <b>18/15</b> verified', page)
+        self.assertIn('Fixes <b>17/15</b> verified', page)
         self.assertIn('class="wf-band gate-met"', page)
         self.assertNotIn('class="wf-band gate-pending"', page)
         # 14 VF with an open page-tool finding stays short of the threshold and is not met.
@@ -703,6 +713,9 @@ setImmediate(async()=>{
         self.assertIn('Fixes <b>14/15</b> verified', page)
         self.assertIn('class="wf-band gate-pending"', page)
         self.assertNotIn('class="wf-band gate-met"', page)
+        fixed, _, met = renderer.rollover_gate([item('WF-06', 'untested'), introspect], {})
+        self.assertEqual(fixed, 0)
+        self.assertFalse(met)
         # 15 product VF with leftover open page-tool and WF items: still met at the threshold.
         data['findings'] = (
             [item(f'AGENT-{i:02d}') for i in range(1, 16)]

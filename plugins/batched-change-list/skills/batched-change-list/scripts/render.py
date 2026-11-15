@@ -58,9 +58,10 @@ def version_evidence(item, runs):
                   for r in item.get("verification_evidence", [])]
     for run in runs:
         check = run.get("checks", {}).get(item["id"], {})
-        if check.get("state") in ("fixed", "not_fixed", "blocked", "inconclusive") and check.get("evidence"):
-            candidates.append({"build": run.get("build", "unknown"), "timestamp": check.get("finished_at", "unknown"),
-                               "outcome": check["evidence"], "check": "Installed verification", "state": check["state"]})
+        for result in [*check.get("previous_checks", []), check]:
+            if result.get("state") in ("fixed", "not_fixed", "blocked", "inconclusive") and result.get("evidence"):
+                candidates.append({"build": run.get("build", "unknown"), "timestamp": result.get("finished_at", "unknown"),
+                                   "outcome": result["evidence"], "check": "Installed verification", "state": result["state"]})
     history = []
     seen = set()
     for index, record in enumerate(candidates):
@@ -235,20 +236,6 @@ def carried_tag(finding):
             if carried_from not in (None, "") else "")
 
 
-def render_issue_copy(data, lanes, round_number):
-    findings = [item for item in data.get("findings", []) if isinstance(item, dict)]
-    if not findings:
-        return ""
-    cards = []
-    for item in findings:
-        state = finding_lane_status(item, lanes.get(item.get("id")), round_number)
-        cards.append(f'<li><code>{html.escape(str(item.get("id", "")))}{carried_tag(item)}</code>'
-                     f'<span class="ttl">{html.escape(str(item.get("title", "")))}</span>'
-                     f'<span class="s {state["kind"]}">{html.escape(state["copy"])}</span></li>')
-    return ('<details class="copy" aria-label="Issue status copy, derived from lane">'
-            '<summary>Issue list status · derived from lane</summary><ul>' + "".join(cards) + '</ul></details>')
-
-
 def row_phase_track(group, state):
     phase = "verify" if state == "verified" else "fix" if state == "planned" else plan_phase(group)
     phase_index = ("fix", "review", "install", "verify", "introspect").index(phase)
@@ -276,7 +263,7 @@ def render_plan(data, tracking, plan, round_number, now):
     groups = plan_groups_for_round(plan, round_number)
     if not groups:
         empty = f'<div class="plan-empty">No fix plan for Round {round_number} yet.</div>' if has_started else ""
-        return empty + render_issue_copy(data, {}, round_number)
+        return empty
     lanes = lane_status_by_finding(data, groups, round_number)
     findings = {item.get("id"): item for item in data.get("findings", []) if isinstance(item, dict)}
     states = {group.get("id"): plan_status(group) for group in groups}
@@ -362,8 +349,7 @@ def render_plan(data, tracking, plan, round_number, now):
               + (f'<span class="t">{" · ".join(tally)}</span>' if tally else ""))
     return (f'<div class="plan" aria-label="Fix plan, round {round_number}"><div class="plan-head">{header}</div>'
             f'<div class="plan-rows">{"".join(rows)}</div>{parked}'
-            '<p class="close-line">Round closes when every lane is <b>verified, blocked or parked</b> → Introspect → gate.</p></div>'
-            + render_issue_copy(data, lanes, round_number))
+            '<p class="close-line">Round closes when every lane is <b>verified, blocked or parked</b> → Introspect → gate.</p></div>')
 
 
 def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, round_number, reached=None):
@@ -460,7 +446,9 @@ def rollover_gate(findings, tracking):
     if not isinstance(excluded, list) or any(not isinstance(item_id, str) for item_id in excluded):
         raise ValueError("tracking.rollover.excluded_ids must be a list of finding IDs")
     excluded = set(excluded)
-    counted = [item for item in findings if isinstance(item.get("id"), str) and item["id"] not in excluded]
+    counted = [item for item in findings if isinstance(item.get("id"), str) and item["id"] not in excluded
+               and not (re.fullmatch(r"WF-\d+", item["id"]) and item.get("status") == "verified_fixed"
+                        and isinstance(item.get("details"), dict) and item["details"].get("fixed_in") == "Introspect")]
     fixed = sum(item.get("status") == "verified_fixed" for item in counted)
     has_open = any(item.get("status") not in ("verified_fixed", "closed") for item in counted)
     # A count at or above the threshold is always met; never render N of 15 as not met when N >= 15.

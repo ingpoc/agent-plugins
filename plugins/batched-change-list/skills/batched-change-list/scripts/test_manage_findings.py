@@ -12,6 +12,18 @@ RENDERER = Path(__file__).with_name("render.py")
 
 
 class ManageFindingsTests(unittest.TestCase):
+    def test_verification_rejects_unknown_build_or_revision_without_writing(self):
+        ops = self.root / 'run.json'
+        run = {'id':'run-1','build':'ACU 1.2.3','revision':'abc','installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt'}
+        before = self.data.read_bytes()
+        for field in ('build', 'revision'):
+            candidate = {**run, field:'unknown'}
+            ops.write_text(json.dumps([{'action':'start-verification','run':candidate}]))
+            result = self.cli('batch', self.data, ops, '--render', self.root / 'page.html')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('known build and revision', result.stderr)
+            self.assertEqual(self.data.read_bytes(), before)
+
     def test_plan_validation_replacement_and_group_patch(self):
         ops, page = self.root / 'plan.json', self.root / 'plan.html'
         def batch(*rows):

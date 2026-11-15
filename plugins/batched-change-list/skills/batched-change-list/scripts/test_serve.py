@@ -3,6 +3,7 @@ import contextlib
 import io
 import json
 import os
+import socket
 from http.server import HTTPServer
 from pathlib import Path
 import tempfile
@@ -18,6 +19,21 @@ spec.loader.exec_module(server_module)
 
 
 class ServerTests(unittest.TestCase):
+    def test_idle_connection_does_not_block_report(self):
+        with tempfile.TemporaryDirectory() as directory:
+            page = Path(directory) / 'report.html'
+            page.write_text('visible report')
+            with server_module.ThreadingHTTPServer(('127.0.0.1', 0), server_module.handler_for(page)) as server:
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+                try:
+                    with socket.create_connection(('127.0.0.1', server.server_port), timeout=2):
+                        with urlopen(f'http://127.0.0.1:{server.server_port}/', timeout=2) as response:
+                            self.assertEqual(response.read(), b'visible report')
+                finally:
+                    server.shutdown()
+                    thread.join()
+
     def test_shutdown_requires_the_instance_and_stops_server(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

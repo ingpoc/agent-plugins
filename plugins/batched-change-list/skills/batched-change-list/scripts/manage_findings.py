@@ -442,6 +442,8 @@ def verification_action(document, findings, operation):
         validate_record({"check":"install", "outcome":"installed", "build":new["build"], "session":new["id"], "timestamp":new["installed_at"], "reference":new["install_evidence"]})
         if new["installed_at"] == "unknown":
             raise ValueError("installed_at must be a known timestamp")
+        if new["build"].strip().casefold() == "unknown" or new["revision"].strip().casefold() == "unknown":
+            raise ValueError("verification run requires a known build and revision")
         history = tracking.setdefault("verification_history", [])
         if not isinstance(history, list) or any(not isinstance(x, dict) for x in history):
             raise ValueError("verification_history must be an array of runs")

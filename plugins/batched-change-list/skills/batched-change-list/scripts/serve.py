@@ -2,7 +2,7 @@
 """Serve one generated change-list page on loopback for live refresh."""
 import argparse
 import hashlib
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
 import json
 import os
@@ -135,7 +135,7 @@ def main():
     viewer_metadata = args.viewer_metadata.resolve(strict=True) if args.viewer_metadata else None
     base = args.base.resolve(strict=True) if args.base else None
     base = base or (live_state.evidence_base(data) if data else None)
-    with HTTPServer(('127.0.0.1', args.port), handler_for(page, data, inventory, viewer_metadata, base)) as server:
+    with ThreadingHTTPServer(('127.0.0.1', args.port), handler_for(page, data, inventory, viewer_metadata, base)) as server:
         print(f'http://127.0.0.1:{server.server_port}/', flush=True)
         try:
             server.serve_forever()
