@@ -260,6 +260,8 @@ def main():
             covered = {identifier for group in groups for identifier in group.get("finding_ids", [])}
             if not groups or not set(ids).issubset(covered):
                 parser.error("verify requires IDs covered by the current plan")
+            if any(g.get('status') in ('blocked', 'failed', 'parked', 'deferred') for g in groups):
+                parser.error("verify cannot start a blocked, failed, or parked lane")
             values = [g.get("verify", {}).get("command", "") for g in groups]
             if any(not isinstance(value, str) for value in values):
                 parser.error("stored verify command must be text")
@@ -297,6 +299,7 @@ def main():
     command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
     result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
     if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
+    before_snapshot_plan = json.loads(live.read_text())['tracking']['plan'] if stage == 'verify' else None
     live_state.snapshot(record, live)
     if record.get("rollover_pending") and begins_collect:
         records = live_state.registry()
@@ -307,7 +310,7 @@ def main():
     if stage == "verify":
         started_plan = json.loads(live.read_text())['tracking']['plan']
         started_groups = {group['id']: group for group in started_plan['groups']}
-        if any(group['id'] not in started_groups or
+        if started_plan != before_snapshot_plan or any(group['id'] not in started_groups or
                started_groups[group['id']].get('finding_ids') != group.get('finding_ids') or
                started_groups[group['id']].get('verify', {}).get('command') != expected
                for group in groups) or any(started_plan.get(k) != tracking['plan'].get(k) for k in ('cycle', 'round')):

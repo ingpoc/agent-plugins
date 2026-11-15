@@ -508,7 +508,7 @@ def verification_action(document, findings, operation):
                            "finished_at":datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")}
 
 
-def atomic_write(path, original, content):
+def atomic_write(path, original, content, *, tracker=True):
     current = path.read_bytes() if path.exists() else None
     if current != original:
         raise ValueError("data file changed during this operation; reload the finding and retry")
@@ -520,6 +520,12 @@ def atomic_write(path, original, content):
             temp.write(content)
             temp.flush()
             os.fsync(temp.fileno())
+        if tracker and path.resolve().is_relative_to(live_state.STATE.resolve()):
+            registered = any(Path(record['live']).resolve() == path.resolve()
+                             for record in live_state.registry().values())
+            if not registered:
+                raise ValueError('tracker under state directory is not registered; repair registry before writing')
+            path.with_suffix('.unsnapshotted').write_text(hashlib.sha256(content).hexdigest() + '\n')
         os.replace(temp_name, path)
     except BaseException:
         try:
@@ -529,9 +535,13 @@ def atomic_write(path, original, content):
         raise
 
 
+def report_write(path, original, content):
+    return atomic_write(path, original, content, tracker=False)
+
+
 def live_write(path, original, content):
     if original is None:
-        return atomic_write(path, None, content)
+        return report_write(path, None, content)
     with path.open("r+b") as target:
         if target.read() != original:
             raise ValueError("rendered page changed during this operation; retry")
@@ -980,7 +990,7 @@ def run(args, parser):
             if args.render:
                 try:
                     run = store["document"].get("tracking", {}).get("verification_run")
-                    (live_write if run else atomic_write)(args.render, html_original, rendered.encode("utf-8"))
+                    (live_write if run else report_write)(args.render, html_original, rendered.encode("utf-8"))
                 except (OSError, ValueError) as error:
                     raise ValueError(f"JSON compacted but render failed: {error}") from error
             print(f"Compacted {path}: {len(original)} -> {len(content)} bytes" + (f"; rendered {args.render}" if args.render else ""))
@@ -1340,7 +1350,7 @@ def run(args, parser):
             if args.render and rendered is not None:
                 try:
                     run = store["document"].get("tracking", {}).get("verification_run")
-                    (live_write if run else atomic_write)(args.render, html_original, rendered.encode("utf-8"))
+                    (live_write if run else report_write)(args.render, html_original, rendered.encode("utf-8"))
                 except (OSError, ValueError) as error:
                     raise ValueError(f"JSON updated but render failed: {error}") from error
             print(f"Applied {len(operations)} operations" + (f"; rendered {args.render}" if args.render else ""))

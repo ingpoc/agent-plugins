@@ -933,6 +933,29 @@ class ManageFindingsTests(unittest.TestCase):
                               text=True, capture_output=True,
                               env={**os.environ, "BCL_STATE_DIR": str(self.state), **(env or {})})
 
+    def test_only_registered_live_mutations_create_unsnapshotted_marker(self):
+        self.state.mkdir()
+        live = self.state / '110.json'
+        live.write_bytes(self.data.read_bytes())
+        (self.state / 'registry.json').write_text(json.dumps({'repo/110': {'live':str(live), 'home':str(self.root),
+            'snapshot':'snapshot.json', 'html':'report.html'}}))
+        patch = self.root / 'patch.json'
+        patch.write_text(json.dumps({'status':'in_progress'}))
+        result = self.cli('update', live, 'ISSUE-01', patch)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        marker = live.with_suffix('.unsnapshotted')
+        self.assertEqual(marker.read_text().strip(), hashlib.sha256(live.read_bytes()).hexdigest())
+        result = self.cli('update', self.data, 'ISSUE-01', patch)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(self.data.with_suffix('.unsnapshotted').exists())
+        unregistered = self.state / '111.json'
+        unregistered.write_bytes(self.data.read_bytes())
+        before = unregistered.read_bytes()
+        result = self.cli('update', unregistered, 'ISSUE-01', patch)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('not registered', result.stderr)
+        self.assertEqual(unregistered.read_bytes(), before)
+
     def test_add_update_and_batch_preserve_changes_but_fail_when_capture_missing(self):
         home = self.root / "project"
         base = home / "docs/triage"

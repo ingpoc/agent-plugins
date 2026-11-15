@@ -1,4 +1,7 @@
 import json
+import fcntl
+import hashlib
+import os
 import subprocess
 import tempfile
 import threading
@@ -95,6 +98,50 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(json.loads((self.home / 'report/data.json').read_text())['title'], 'second')
         self.assertEqual((self.home / 'report/page.html').read_text(), 'second')
         self.assertFalse(self.live.with_suffix('.unsnapshotted').exists())
+
+    def test_final_comparison_and_marker_removal_hold_writer_lock(self):
+        removing = threading.Event()
+        release = threading.Event()
+        writer_acquired = threading.Event()
+        errors = []
+        original_unlink = Path.unlink
+        marker = self.live.with_suffix('.unsnapshotted')
+
+        def delayed_unlink(path, *args, **kwargs):
+            if path == marker:
+                removing.set()
+                if not release.wait(5):
+                    raise RuntimeError('test timed out waiting for release')
+            return original_unlink(path, *args, **kwargs)
+
+        def snapshot():
+            try:
+                live_state.snapshot(self.record, self.live)
+            except Exception as error:
+                errors.append(str(error))
+
+        def writer():
+            lock_dir = Path('/tmp') / f'bcl-tracker-locks-{os.getuid()}'
+            name = hashlib.sha256(str(self.live.resolve()).encode()).hexdigest() + '.lock'
+            with (lock_dir / name).open('a') as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX)
+                writer_acquired.set()
+
+        with patch.object(render, 'render', return_value='first'), patch.object(Path, 'unlink', delayed_unlink):
+            first = threading.Thread(target=snapshot)
+            first.start()
+            self.assertTrue(removing.wait(5))
+            second = threading.Thread(target=writer)
+            second.start()
+            try:
+                self.assertFalse(writer_acquired.wait(.3))
+            finally:
+                release.set()
+                first.join(10)
+                second.join(10)
+        self.assertFalse(first.is_alive() or second.is_alive())
+        self.assertTrue(writer_acquired.is_set())
+        self.assertEqual(errors, [])
 
 
 if __name__ == '__main__':

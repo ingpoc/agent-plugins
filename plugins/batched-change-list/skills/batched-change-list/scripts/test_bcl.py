@@ -225,6 +225,28 @@ elif args[:2] != ['pr', 'edit']:
         self.assertIn('Could not record failed lanes', result.stderr)
         self.assertEqual(json.loads(live.read_text())['tracking']['plan']['groups'][0]['status'], 'review')
 
+    def test_verify_rejects_plan_change_during_snapshot(self):
+        self.assertEqual(self.call('start').returncode, 0)
+        marker = self.root / 'ran'
+        proof = self.root / 'proof.py'; proof.write_text(f"from pathlib import Path\nPath({str(marker)!r}).write_text('ran')\n")
+        command = f'"{sys.executable}" "{proof}"'
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending','verify':{'command':command}}]}
+        path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
+        self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
+        self.assertEqual(self.call('install','--ids','ISSUE-01').returncode, 0)
+        live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
+        def change_plan(record, live_path):
+            data = json.loads(live_path.read_text())
+            data['tracking']['plan']['groups'][0].update(status='blocked', phase='verify', blocked_reason='Awaiting dependency')
+            live_path.write_text(json.dumps(data))
+        with patch.dict(os.environ, self.env), patch.object(live_state, 'STATE', self.state), \
+             patch.object(live_state, 'snapshot', side_effect=change_plan), \
+             patch.object(sys, 'argv', [str(BCL),'--data',str(live),'--ids','ISSUE-01','--then',command,'verify']):
+            with self.assertRaisesRegex(SystemExit, 'plan changed before verification command started'):
+                bcl_entrypoint.main()
+        self.assertFalse(marker.exists())
+        self.assertEqual(json.loads(live.read_text())['tracking']['plan']['groups'][0]['status'], 'blocked')
+
     def test_stage_guards_remain(self):
         self.assertNotEqual(self.call("install").returncode, 0)
         self.assertNotEqual(self.call("verify").returncode, 0)

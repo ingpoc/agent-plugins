@@ -291,8 +291,13 @@ def snapshot(record, live):
             raise RuntimeError(f"snapshot diff failed with exit {changed.returncode}")
         if changed.returncode == 1:
             subprocess.run(["git", "-C", str(home), "commit", "--only", "-m", "Change list: snapshot live tracker", "--", record["snapshot"], record["html"]], check=True)
-        current = live.read_bytes()
-        if current != captured:
-            marker.write_text(hashlib.sha256(current).hexdigest() + "\n")
-            raise RuntimeError("live tracker changed during snapshot; retry")
-        marker.unlink(missing_ok=True)
+        tracker_locks = Path('/tmp') / f'bcl-tracker-locks-{os.getuid()}'
+        tracker_locks.mkdir(mode=0o700, exist_ok=True)
+        tracker_lock = tracker_locks / (hashlib.sha256(str(live.resolve()).encode()).hexdigest() + '.lock')
+        with tracker_lock.open('a') as writer_lock:
+            fcntl.flock(writer_lock, fcntl.LOCK_EX)
+            current = live.read_bytes()
+            if current != captured:
+                marker.write_text(hashlib.sha256(current).hexdigest() + "\n")
+                raise RuntimeError("live tracker changed during snapshot; retry")
+            marker.unlink(missing_ok=True)
