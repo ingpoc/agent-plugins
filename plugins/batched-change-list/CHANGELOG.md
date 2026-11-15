@@ -1,5 +1,7 @@
 ## 0.1.19
 
+- Reject dependency cycles and attempts to start a lane before its prerequisites are verified. Verification must use the reviewed command recorded in the plan, and rejects common placeholder commands.
+- Explain lane dots, avoid highlighting planned lanes as active, identify missing viewer version, and keep finding edits from refreshing the workflow activity clock.
 - Status reads the live tracker without starting a viewer; concurrent browser connections no longer block the live report.
 - Verification requires a known build and revision, and the timeline retains each recheck on the same build.
 - The rollover count excludes introspection records; real page and process fixes still count. The redundant lane-status grid is removed.

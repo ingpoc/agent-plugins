@@ -2136,7 +2136,7 @@
             "BCL-05"
           ],
           "depends_on": [],
-          "status": "running",
+          "status": "blocked",
           "phase": "fix",
           "worktree": "samantha-pr111-rollover",
           "files": [
@@ -2147,14 +2147,15 @@
           ],
           "reason": "Prevent dependent work and placeholder proof from passing.",
           "verify": {
-            "command": "python3 -m unittest discover -s scripts -p 'test_manage_findings.py'",
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
             "method": "Run behavior checks; installed verification remains required.",
             "status": "partial",
             "fixed": 0,
             "failed": 1,
             "total": 2
           },
-          "updated_at": "2026-11-15T10:31:39Z"
+          "updated_at": "2026-11-15T10:41:27Z",
+          "blocked_reason": "Installed verification and review unavailable"
         },
         {
           "id": "DISPLAY",
@@ -2176,14 +2177,13 @@
           ],
           "reason": "Make recorded and current states understandable.",
           "verify": {
-            "command": "python3 -m unittest discover -s scripts -p 'test_render.py'",
-            "method": "Run behavior checks and inspect installed page.",
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
             "status": "failed",
             "fixed": 0,
             "failed": 4,
             "total": 4
           },
-          "updated_at": "2026-11-15T10:31:39Z"
+          "updated_at": "2026-11-15T10:41:27Z"
         },
         {
           "id": "GUIDANCE",
@@ -2201,14 +2201,13 @@
           ],
           "reason": "Align the skill with dependency-first product and process work.",
           "verify": {
-            "command": "python3 -m unittest discover -s scripts -p 'test_skill.py'",
-            "method": "Run skill checks and evaluate actual behavior.",
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_skill.py'",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-15T10:31:39Z"
+          "updated_at": "2026-11-15T10:41:27Z"
         },
         {
           "id": "IDENTITY",
@@ -2225,14 +2224,13 @@
           "worktree": "samantha-pr111-rollover",
           "reason": "Follow the status display work and viewer migration.",
           "verify": {
-            "command": "python3 -m unittest discover -s scripts -p 'test_serve.py'",
-            "method": "Check renderer identity on installed viewer.",
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_serve.py'",
             "status": "failed",
             "fixed": 0,
             "failed": 1,
             "total": 1
           },
-          "updated_at": "2026-11-15T10:31:39Z"
+          "updated_at": "2026-11-15T10:41:27Z"
         }
       ],
       "cycle": 3

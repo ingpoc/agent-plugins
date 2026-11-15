@@ -12,6 +12,34 @@ RENDERER = Path(__file__).with_name("render.py")
 
 
 class ManageFindingsTests(unittest.TestCase):
+    def test_dependencies_block_early_work_and_cycles_but_allow_ready_work(self):
+        ops, page = self.root / 'dependencies.json', self.root / 'page.html'
+        def apply(*operations):
+            ops.write_text(json.dumps(operations))
+            return self.cli('batch', self.data, ops, '--render', page)
+        groups = [
+            {'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'running'},
+            {'id':'B','finding_ids':['ISSUE-02'],'depends_on':['A'],'status':'running'},
+        ]
+        before = self.data.read_bytes()
+        result = apply({'action':'set-plan','plan':{'round':1,'groups':groups}})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('must wait', result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+        groups[1]['status'] = 'pending'
+        self.assertEqual(apply({'action':'set-plan','plan':{'round':1,'groups':groups}}).returncode, 0)
+        before = self.data.read_bytes()
+        self.assertNotEqual(apply({'action':'update-plan-group','id':'B','patch':{'status':'running'}}).returncode, 0)
+        self.assertNotEqual(apply({'action':'set-activity','stage':'plan_fix','ids':['ISSUE-02'],'now':'Starting B'}).returncode, 0)
+        self.assertEqual(self.data.read_bytes(), before)
+        self.assertEqual(apply({'action':'update-plan-group','id':'A','patch':{'status':'verified'}}).returncode, 0)
+        self.assertEqual(apply({'action':'update-plan-group','id':'B','patch':{'status':'running'}}).returncode, 0)
+        cyclic = [{'id':'A','finding_ids':['ISSUE-01'],'depends_on':['B'],'status':'pending'},
+                  {'id':'B','finding_ids':['ISSUE-02'],'depends_on':['A'],'status':'pending'}]
+        result = apply({'action':'set-plan','plan':{'round':1,'groups':cyclic}})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('dependency cycle', result.stderr)
+
     def test_verification_rejects_unknown_build_or_revision_without_writing(self):
         ops = self.root / 'run.json'
         run = {'id':'run-1','build':'ACU 1.2.3','revision':'abc','installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt'}
@@ -182,7 +210,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIn('nonempty ID list', empty.stderr)
         self.assertEqual(self.data.read_bytes(), before)
 
-    def test_finding_write_advances_workflow_updated_at(self):
+    def test_finding_write_preserves_last_workflow_activity(self):
         document = json.loads(self.data.read_text())
         document['tracking'] = {'workflow': {'stage':'collect','updated_at':'2020-01-01T00:00:00Z','now':'Last activity'}}
         self.data.write_text(json.dumps(document))
@@ -193,7 +221,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         written = json.loads(self.data.read_text())
         self.assertEqual(written['tracking']['workflow']['stage'], 'collect')
-        self.assertGreater(written['tracking']['workflow']['updated_at'], '2020-01-01T00:00:00Z')
+        self.assertEqual(written['tracking']['workflow']['updated_at'], '2020-01-01T00:00:00Z')
         self.assertEqual(written['tracking']['cycle'], 1)
 
     def test_audit_flags_stale_and_duplicate_without_writing(self):

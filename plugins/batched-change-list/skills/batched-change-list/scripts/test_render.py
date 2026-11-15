@@ -14,6 +14,12 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_planned_lane_does_not_look_active_during_introspection(self):
+        page = renderer.render_workflow('introspect', [{'id':'A', 'status':'planned'}], 0, 15, False, 0, 1)
+        plan = page.split('>Plan &amp; fix<', 1)[0].rsplit('<li ', 1)[-1]
+        self.assertNotIn('wf-step busy', plan)
+        self.assertIn('1 planned', page)
+
     def test_gate_uses_verified_count_and_never_shows_a_now_line(self):
         self.data['tracking'] = {'workflow': {'stage':'collect','updated_at':'2026-11-14T07:00:00Z'},
                                  'rollover_threshold': 1000}
@@ -154,10 +160,10 @@ class RenderTests(unittest.TestCase):
         self.assertIn('Group B', page)
 
 
-    def test_viewer_footer_is_opt_in_and_deterministic_without_metadata(self):
+    def test_viewer_footer_reports_missing_identity_deterministically(self):
         plain = renderer.render(self.data, self.base)
         self.assertEqual(plain, renderer.render(self.data, self.base))
-        self.assertNotIn('<p class="viewer-footer">', plain)
+        self.assertIn('Viewer version not recorded', plain)
         live = renderer.render(self.data, self.base, viewer={'path':'/tmp/list.json','version':'0.1.17','started':'Nov 14, 2026, 3:00 PM IST'})
         self.assertIn('reading /tmp/list.json, viewer 0.1.17, started Nov 14, 2026, 3:00 PM IST', live)
 

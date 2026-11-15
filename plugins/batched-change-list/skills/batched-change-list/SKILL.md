@@ -10,7 +10,7 @@ Adopt once with `bcl --data FINDINGS.json adopt`; thereafter the live state is a
 
 Handle new messages throughout the cycle: answer status questions, incorporate corrections and preferences, record new findings before fixing them, and keep independent authorized work moving. A changed requirement invalidates affected plans, renders, reviews, and checks; update the tracker and rerun affected proof. Preserve issue history and distinguish the current finding status, last verified outcome, observed build, and verified build. Never invent missing evidence.
 
-Collect and Present once, then loop Plan & fix → Install → Verify → Introspect → Gate. Each independent group moves through fix → review → install → verify; serialize builds and live verification. Process work must not outnumber product fixes while product work is fixable, except for blockers. Keep summaries, impact, and done-when plain; put technical evidence in details. Apply [principles.md](references/principles.md) for debugging, testing, sequencing, shared resources, or proof.
+Collect and Present once, then loop Plan & fix → Install → Verify → Introspect → Gate. Prioritize product and process work by dependencies and impact; run independent groups in bounded parallel lanes. Each group moves through fix → review → install → verify; serialize builds and live verification. Keep summaries, impact, and done-when plain; put technical evidence in details. Apply [principles.md](references/principles.md) for debugging, testing, sequencing, shared resources, or proof.
 
 Load only the reference for the current step:
 

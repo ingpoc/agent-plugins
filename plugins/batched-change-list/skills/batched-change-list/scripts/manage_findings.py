@@ -608,6 +608,30 @@ def validate_plan_groups(plan: dict) -> None:
             raise ValueError(f"{gid}: cap a parallel fix group at about {MAX_GROUP_ISSUES} issues (has {len(ids)}); split it")
 
 
+def validate_dependencies(groups):
+    by_id = {group['id']: group for group in groups}
+    visiting, visited = set(), set()
+    def visit(identifier):
+        if identifier in visiting:
+            raise ValueError(f"dependency cycle involving {identifier}; remove the cycle")
+        if identifier in visited:
+            return
+        visiting.add(identifier)
+        for dependency in by_id[identifier].get('depends_on', []):
+            if dependency not in by_id:
+                raise ValueError(f"{identifier} references unknown dependency {dependency}")
+            visit(dependency)
+        visiting.remove(identifier)
+        visited.add(identifier)
+    for identifier in by_id:
+        visit(identifier)
+    for group in groups:
+        if RENDERER.plan_status(group) in {'running', 'review', 'installing', 'verifying', 'verified'}:
+            pending = [dep for dep in group.get('depends_on', []) if RENDERER.plan_status(by_id[dep]) != 'verified']
+            if pending:
+                raise ValueError(f"{group['id']} must wait for verified dependencies: {', '.join(pending)}")
+
+
 def sync_plan_verify(document):
     findings = {item.get("id"): item for item in document.get("findings", []) if isinstance(item, dict)}
     plan = document.get("tracking", {}).get("plan")
@@ -638,9 +662,6 @@ def touch_workflow(document):
     tracking = document.get("tracking")
     if isinstance(tracking, dict):
         tracking["cycle"] = RENDERER.rollover_cycle(tracking)
-    workflow = tracking.get("workflow") if isinstance(tracking, dict) else None
-    if isinstance(workflow, dict):
-        workflow["updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def require_rollover_gate(findings, tracking, force, action):
@@ -969,6 +990,7 @@ def main(argv=None):
                             if not isinstance(group.get("depends_on", []), list) or any(not isinstance(i, str) or i not in ids for i in group.get("depends_on", [])):
                                 raise ValueError(f"plan group {group['id']} has invalid dependencies")
                             validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
+                        validate_dependencies(groups)
                         plan["cycle"] = cycle
                         plan["round"] = RENDERER.rollover_round(tracking)
                         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -1005,6 +1027,8 @@ def main(argv=None):
                         if "status" in patch and "phase" not in patch and patch["status"] not in ("blocked", "failed"):
                             group.pop("phase", None)
                         validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
+                        validate_plan_groups(plan)
+                        validate_dependencies(plan['groups'])
                         stamp_plan_group(group, datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
                         plan["round"] = RENDERER.rollover_round(tracking)
                     continue
@@ -1109,6 +1133,15 @@ def main(argv=None):
                     if not isinstance(activity, str) or not activity.strip() or "\n" in activity or "\r" in activity:
                         raise ValueError("set-activity now must be one nonempty line")
                     affected = [findings[find_index(findings, identifier)] for identifier in ids]
+                    if stage in ('plan_fix', 'install', 'verify'):
+                        groups = tracking.get('plan', {}).get('groups', [])
+                        by_id = {group['id']: group for group in groups}
+                        for group in groups:
+                            if set(ids).intersection(group.get('finding_ids', [])):
+                                pending = [dep for dep in group.get('depends_on', [])
+                                           if dep not in by_id or RENDERER.plan_status(by_id[dep]) != 'verified']
+                                if pending:
+                                    raise ValueError(f"{group['id']} must wait for verified dependencies: {', '.join(pending)}")
                     closed = [item["id"] for item in affected if item.get("status") in CLOSED_STATUSES]
                     if closed and operation.get("reopen") is not True:
                         raise ValueError(f"set-activity cannot reopen closed findings {', '.join(closed)}; pass \"reopen\": true")

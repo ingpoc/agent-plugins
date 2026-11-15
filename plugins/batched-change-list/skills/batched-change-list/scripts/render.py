@@ -348,6 +348,7 @@ def render_plan(data, tracking, plan, round_number, now):
     header = (f'<span><strong>Round {round_number}</strong> · {len(active_groups)} lanes · each installs and verifies when ready</span>'
               + (f'<span class="t">{" · ".join(tally)}</span>' if tally else ""))
     return (f'<div class="plan" aria-label="Fix plan, round {round_number}"><div class="plan-head">{header}</div>'
+            '<p class="close-line">Lane dots: Fix → Review → Install → Verify → Introspect. Filled means completed; outlined means remaining.</p>'
             f'<div class="plan-rows">{"".join(rows)}</div>{parked}'
             '<p class="close-line">Round closes when every lane is <b>verified, blocked or parked</b> → Introspect → gate.</p></div>')
 
@@ -388,8 +389,9 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
         past = active in order and order.index(active) > order.index(key)
         # Empty lanes must not tick the band: a loop step is done only when this
         # list's own stage history recorded it in the current round and we have moved past it.
-        state = "busy" if count or active == key else "done" if key in reached and past else "upcoming"
         step_lanes = [(group, status) for group, status, position in lanes if position == index]
+        running = any(status in ("running", "review", "installing", "verifying") for _, status in step_lanes)
+        state = "busy" if running or active == key else "done" if key in reached and past else "upcoming"
         chips = []
         for status in ("planned", "running", "review", "installing", "verifying"):
             amount = sum(lane_status == status for _, lane_status in step_lanes)
@@ -803,8 +805,8 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
                   if time_html else '<span class="fresh">No update recorded</span>')
     timeline_steps = render_workflow(active, groups, fixed_count, threshold, gate_met, in_progress, round_number, tracking_data.get("stages_reached") or [])
     plan_view = render_plan(data, tracking_data, plan, round_number, render_now)
-    viewer_html = (f'<p class="viewer-footer">reading {html.escape(str(viewer["path"]))}, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}</p>' if viewer else "")
-    timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow</strong>{fresh_html}</div>'
+    viewer_html = (f'<p class="viewer-footer">reading {html.escape(str(viewer["path"]))}, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}</p>' if viewer else '<p class="viewer-footer">Viewer version not recorded</p>')
+    timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow · last recorded</strong>{fresh_html}</div>'
                 f'{timeline_steps}{plan_view}{viewer_html}</section>')
     for item in output:
         item["_lane_status"] = lanes.get(item["id"], finding_lane_status(item, None, round_number))

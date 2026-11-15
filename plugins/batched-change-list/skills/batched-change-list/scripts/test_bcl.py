@@ -103,21 +103,48 @@ elif args[:2] != ['pr', 'edit']:
 
     def test_workflow_cycle_uses_live_tracker_and_snapshots_each_stage(self):
         self.assertEqual(self.call("start").returncode, 0)
-        plan = {"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"reason":"Same root cause","depends_on":[],"codex":{"model":"gpt-6-luna","effort":"medium","status":"running","started_at":"2026-11-14T09:00:00Z","duration_s":120},"verify":{"method":"Unit tests and a live page check","status":"pending"},"status":"running"}]}
+        marker = self.root / 'proof-ran'
+        proof = self.root / 'proof.py'; proof.write_text(f"from pathlib import Path\nPath({str(marker)!r}).write_text('yes')\n")
+        command = f'"{sys.executable}" "{proof}"'
+        plan = {"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"reason":"Same root cause","depends_on":[],"codex":{"model":"gpt-6-luna","effort":"medium","status":"running","started_at":"2026-11-14T09:00:00Z","duration_s":120},"verify":{"command":command,"method":"Unit tests and a live page check","status":"pending"},"status":"running"}]}
         planfile = self.root / "plan.json"; planfile.write_text(json.dumps(plan))
         sections = {"delete":{"none":"No deletions."},"simplify":{"none":"No simplifications."},"optimize":{"none":"No optimizations."},"automate":{"none":"No automations."}}
         sectionfile = self.root / "sections.json"; sectionfile.write_text(json.dumps(sections))
         self.assertNotEqual(self.call("introspect", "--result", "no issues").returncode, 0)
-        for stage, extra in (("plan", ["--plan", str(planfile), "--ids", "ISSUE-01"]), ("fix", ["--ids", "ISSUE-01"]), ("install", ["--ids", "ISSUE-01"]), ("verify", ["--ids", "ISSUE-01"]), ("introspect", ["--sections", str(sectionfile)])):
+        for stage, extra in (("plan", ["--plan", str(planfile), "--ids", "ISSUE-01"]), ("fix", ["--ids", "ISSUE-01"]), ("install", ["--ids", "ISSUE-01"]), ("verify", ["--ids", "ISSUE-01", "--then", command]), ("introspect", ["--sections", str(sectionfile)])):
             result = self.call(stage, *extra); self.assertEqual(result.returncode, 0, result.stderr)
             if stage == "plan": self.assertIn('class="plan"', self.page.read_text())
         status = self.call("status")
+        self.assertEqual(marker.read_text(), 'yes')
         self.assertEqual(status.returncode, 0, status.stderr)
         data = json.loads(self.data.read_text())
         self.assertEqual(data["tracking"]["stages_reached"], ["collect", "plan_fix", "install", "verify", "introspect"])
         self.assertEqual(data["tracking"]["plan"]["groups"][0]["id"], "A")
         self.assertEqual(data["tracking"]["plan"]["status"], "closed")
         self.assertEqual(json.loads(status.stdout)["plan"][0]["status"], "running")
+
+    def test_verify_rejects_placeholder_and_mismatched_command(self):
+        self.assertEqual(self.call('start').returncode, 0)
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending','verify':{'command':'echo verify'}}]}
+        path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
+        self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
+        self.assertEqual(self.call('install','--ids','ISSUE-01').returncode, 0)
+        result = self.call('verify','--ids','ISSUE-01','--then','echo verify')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('actual check', result.stderr)
+        plan['groups'][0]['verify']['command'] = 'python3 -m unittest test_example'
+        path.write_text(json.dumps(plan))
+        self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
+        result = self.call('verify','--ids','ISSUE-01','--then','python3 -m unittest other')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('exact stored command', result.stderr)
+        fail = self.root / 'fail.py'; fail.write_text('raise SystemExit(7)\n')
+        command = f'"{sys.executable}" "{fail}"'
+        plan['groups'][0]['verify']['command'] = command
+        path.write_text(json.dumps(plan))
+        self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
+        result = self.call('verify','--ids','ISSUE-01','--then',command)
+        self.assertNotEqual(result.returncode, 0)
 
     def test_stage_guards_remain(self):
         self.assertNotEqual(self.call("install").returncode, 0)
