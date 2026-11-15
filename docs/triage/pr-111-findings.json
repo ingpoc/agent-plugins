@@ -3085,7 +3085,11 @@
       "impact": "The agent may run a check against an invalid plan.",
       "done_when": "Reject a stale verification start when its selected lanes or dependencies changed.",
       "observed": "Independent source review: after snapshot, the verification start rechecks IDs, commands and cycle but does not compare all lane states or dependencies.",
-      "recommendation": "Guard command launch with a plan reservation or equivalent checked state."
+      "recommendation": "Guard command launch with a plan reservation or equivalent checked state.",
+      "details": {
+        "Source check": "Candidate reserves the plan through final validation and spawn for managed writers; contention, prerequisite and crash-release tests passed. Installed verification still pending.",
+        "Scope": "Direct edits to tracker JSON do not use managed locks; duplicate concurrent verify starts are tracked as BCL-21."
+      }
     },
     {
       "id": "BCL-17",
@@ -3191,6 +3195,17 @@
       "verification_refs": [
         "af13e9f70a81d559e07a0292ed8ab84a9b95db08:BCL-20:installed-check"
       ]
+    },
+    {
+      "id": "BCL-21",
+      "title": "Two agents can start the same verification concurrently",
+      "source": "Agent reported",
+      "status": "untested",
+      "summary": "Two verification requests can both start the same check.",
+      "impact": "Duplicate checks can conflict over shared resources and status.",
+      "done_when": "Only one verification of the same work starts, with safe crash recovery.",
+      "observed": "Independent source review: both verify calls can write in-progress state before the launch lock and then spawn sequentially because no launch claim is recorded.",
+      "recommendation": "Add a durable, validated per-run claim or another crash-safe exclusion mechanism."
     }
   ]
 }
