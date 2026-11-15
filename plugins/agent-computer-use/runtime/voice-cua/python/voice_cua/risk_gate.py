@@ -121,7 +121,7 @@ class RiskGate:
         if outcome == "timed_out":
             return {"ok": False, "approved": False, "timed_out": True,
                     "error": "confirmation timed out", "error_type": "confirm_timed_out",
-                    "hint": "No answer before the confirm timed out; nothing was done. Tell the user it still needs their OK."}
+                    "hint": "No answer before the confirm timed out; nothing was done. A timeout is not a no. If the action is still needed, briefly say it needs approval and stay ready to continue."}
         if outcome == "denied":
             return {"ok": False, "approved": False, "timed_out": False,
                     "error": "user denied", "error_type": "user_denied",

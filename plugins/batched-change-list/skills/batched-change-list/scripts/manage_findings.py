@@ -30,12 +30,14 @@ def stamp_plan_group(group, now):
             start, end = record.get("started_at"), record.get("ended_at")
             if isinstance(start, str) and isinstance(end, str):
                 try: record["duration_s"] = max(0, int((datetime.fromisoformat(end.replace("Z", "+00:00")) - datetime.fromisoformat(start.replace("Z", "+00:00"))).total_seconds()))
-                except ValueError: pass
+                except (ValueError, TypeError) as error:
+                    raise ValueError("invalid plan timestamps; correct started_at and ended_at") from error
     if isinstance(verify, dict):
         start, end = verify.get("started_at"), verify.get("ended_at")
         if isinstance(start, str) and isinstance(end, str):
             try: verify["duration_s"] = max(0, int((datetime.fromisoformat(end.replace("Z", "+00:00")) - datetime.fromisoformat(start.replace("Z", "+00:00"))).total_seconds()))
-            except ValueError: pass
+            except (ValueError, TypeError) as error:
+                raise ValueError("invalid verification timestamps; correct started_at and ended_at") from error
 
 
 def warn_summary(item, adding=False):
@@ -584,6 +586,26 @@ def validate_introspect_sections(sections):
     return cleaned
 
 
+
+MAX_GROUP_ISSUES = 4
+
+
+def validate_plan_groups(plan: dict) -> None:
+    """Check the group size before a fix round starts."""
+    groups = plan.get("groups") if isinstance(plan, dict) else None
+    if not isinstance(groups, list):
+        return
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        if (group.get("phase") or group.get("status")) in {"deferred", "done", "verified"}:
+            continue
+        ids = group.get("finding_ids") or group.get("ids") or []
+        if isinstance(ids, list) and len(ids) > MAX_GROUP_ISSUES:
+            gid = group.get("id") or group.get("name") or "group"
+            raise ValueError(f"{gid}: cap a parallel fix group at about {MAX_GROUP_ISSUES} issues (has {len(ids)}); split it")
+
+
 def sync_plan_verify(document):
     findings = {item.get("id"): item for item in document.get("findings", []) if isinstance(item, dict)}
     plan = document.get("tracking", {}).get("plan")
@@ -718,12 +740,8 @@ def missing_report_file(error, base):
     return filename.is_absolute() and filename.resolve().is_relative_to(Path(base).resolve())
 
 
-def warn_missing_report_file(error, base):
-    filename = Path(error.filename).resolve()
-    print(f"warning: missing report capture {filename.relative_to(Path(base).resolve())}; tracker update saved and page render skipped", file=sys.stderr)
-
-
 def write(path, original, store, findings, validate=True, touch=True):
+    missing_capture = None
     if store["kind"] == "json":
         document = store["document"]
         document[store["collection"]] = findings
@@ -734,7 +752,7 @@ def write(path, original, store, findings, validate=True, touch=True):
             except FileNotFoundError as error:
                 if not missing_report_file(error, base):
                     raise
-                warn_missing_report_file(error, base)
+                missing_capture = error
         if touch:
             touch_workflow(document)
         content = (json.dumps(document, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
@@ -743,6 +761,9 @@ def write(path, original, store, findings, validate=True, touch=True):
         text = store["text"][:store["start"]] + data + store["text"][store["end"]:]
         content = text.encode("utf-8")
     atomic_write(path, original, content)
+    if missing_capture:
+        path.with_suffix(".unsnapshotted").write_text("missing report capture\n")
+        raise ValueError(f"JSON saved but report capture is missing: {missing_capture.filename}; restore it and render/snapshot, do not repeat the mutation")
 
 
 def parser_for():
@@ -919,6 +940,7 @@ def main(argv=None):
                         plan = copy.deepcopy(operation.get("plan"))
                         if not isinstance(plan, dict) or type(plan.get("round")) is not int or not isinstance(plan.get("groups"), list):
                             raise ValueError("set-plan requires plan {round, groups}")
+                        validate_plan_groups(plan)
                         groups = plan["groups"]
                         ids = [group.get("id") for group in groups if isinstance(group, dict)]
                         if len(ids) != len(groups) or any(not isinstance(i, str) or not i.strip() for i in ids) or len(ids) != len(set(ids)):
@@ -1180,10 +1202,13 @@ def main(argv=None):
             except FileNotFoundError as error:
                 if not missing_report_file(error, base):
                     raise
-                warn_missing_report_file(error, base)
+                missing_capture = error
                 rendered = None
             html_original = args.render.read_bytes() if args.render and args.render.exists() else None
             write(path, original, store, findings, validate=False, touch=False)
+            if rendered is None:
+                path.with_suffix(".unsnapshotted").write_text("missing report capture\n")
+                raise ValueError(f"JSON saved but report capture is missing: {missing_capture.filename}; restore it and render/snapshot, do not repeat the mutation")
             if args.render and rendered is not None:
                 try:
                     run = store["document"].get("tracking", {}).get("verification_run")

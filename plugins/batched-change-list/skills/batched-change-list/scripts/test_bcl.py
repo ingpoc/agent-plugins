@@ -155,6 +155,24 @@ elif args[:2] != ['pr', 'edit']:
         result = subprocess.run([str(hooks / "pre-commit")], env=self.env, capture_output=True, text=True)
         self.assertNotEqual(result.returncode, 0, result.stderr); self.assertNotEqual(report.read_text(), "stale", result.stderr)
 
+    def test_hook_rejects_missing_report(self):
+        report = self.home / "docs/triage/pr-123.html"
+        self.assertFalse(report.exists())
+        result = subprocess.run([sys.executable, str(PLUGIN / "bin/bcl-hook"), str(self.home)], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing report", result.stderr)
+
+    def test_hook_rejects_staged_tracker_without_staged_report(self):
+        tracker = self.home / 'docs/triage/pr-123-findings.json'
+        report = self.home / 'docs/triage/pr-123.html'
+        render = PLUGIN / 'skills/batched-change-list/scripts/render.py'
+        subprocess.run([sys.executable, str(render), str(tracker), str(report)], check=True, capture_output=True)
+        tracker.write_text(tracker.read_text() + ' ')
+        self.git(self.home, 'add', str(tracker))
+        result = subprocess.run([sys.executable, str(PLUGIN / 'bin/bcl-hook'), str(self.home)], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('in the index', result.stderr)
+
     def test_stale_snapshot_refuses_without_changing_live(self):
         live = Path(self.call("adopt", self.data).stdout.strip()); before = live.read_bytes()
         stale = json.loads(self.data.read_text()); stale["title"] += " stale"; self.data.write_text(json.dumps(stale))
@@ -254,10 +272,22 @@ elif args[:2] != ['pr', 'edit']:
         record = next(iter(records.values())); record["home"] = str(self.root / "missing-home"); registry.write_text(json.dumps(records))
         second_tracker = self.second / record["snapshot"]
         result = self.call("start", second_tracker, cwd=self.second)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("snapshot home worktree missing", result.stderr)
         live = Path(record["live"])
         self.assertTrue(live.with_suffix(".unsnapshotted").exists())
         self.assertNotEqual(self.call("merge", live).returncode, 0)
+
+    def test_missing_capture_fails_and_preserves_recovery_marker(self):
+        import render
+        record = next(iter(json.loads((self.state / "registry.json").read_text()).values()))
+        live = Path(record["live"])
+        missing = self.home / Path(record["snapshot"]).parent / "missing.png"
+        error = FileNotFoundError(2, "missing capture", str(missing))
+        with patch.object(render, "render", side_effect=error):
+            with self.assertRaisesRegex(RuntimeError, "snapshot capture missing"):
+                live_state.snapshot(record, live)
+        self.assertTrue(live.with_suffix(".unsnapshotted").exists())
 
     def test_viewer_avoids_default_port_reserved_by_another_list(self):
         path = self.viewer_state_path()
@@ -273,11 +303,18 @@ elif args[:2] != ['pr', 'edit']:
             except OSError: time.sleep(.05)
         else: self.fail("viewer did not bind its recorded loopback port")
 
+    def test_corrupt_other_viewer_state_is_reported(self):
+        state = self.state / "viewers" / "other-list.json"
+        state.write_text("{")
+        with self.assertRaisesRegex(ValueError, "invalid viewer state"):
+            live_state._reserved_ports(self.viewer_state_path())
+
     def test_viewer_restarts_for_version_and_data_path_mismatch(self):
         path = self.viewer_state_path()
         state = json.loads(path.read_text()); first_pid = state["pid"]
         state["version"] = "0.1.16"; path.write_text(json.dumps(state))
-        self.assertEqual(self.call("status").returncode, 0)
+        result = self.call("status")
+        self.assertEqual(result.returncode, 0, result.stderr)
         updated = json.loads(path.read_text()); self.assertNotEqual(updated["pid"], first_pid)
         updated["data"] = "/tmp/wrong.json"; path.write_text(json.dumps(updated))
         old_pid = updated["pid"]
@@ -296,6 +333,7 @@ elif args[:2] != ['pr', 'edit']:
         class FakeSocket:
             def __enter__(self): return self
             def __exit__(self, *args): return False
+            def setsockopt(self, *args): pass
             def bind(self, address): binds.append(address)
 
         real_popen = subprocess.Popen
@@ -307,6 +345,7 @@ elif args[:2] != ['pr', 'edit']:
         with patch.dict(os.environ, self.env), patch.object(live_state, "STATE", self.state), \
              patch.object(live_state.socket, "socket", FakeSocket), \
              patch.object(bcl_entrypoint.subprocess, "Popen", safe_popen), \
+             patch.object(live_state, "_viewer_ready", return_value=True), \
              patch.object(sys, "argv", [str(BCL), "--data", str(new_live), "--ids", "ISSUE-01", "start"]):
             bcl_entrypoint.main()
 
@@ -327,9 +366,11 @@ elif args[:2] != ['pr', 'edit']:
         class FakeSocket:
             def __enter__(self): return self
             def __exit__(self, *args): return False
+            def setsockopt(self, *args): pass
             def bind(self, address): binds.append(address)
         with patch.object(live_state, "STATE", self.state), patch.object(live_state.socket, "socket", FakeSocket), \
-             patch.object(live_state.subprocess, "Popen", return_value=SimpleNamespace(pid=87005)) as popen:
+             patch.object(live_state.subprocess, "Popen", return_value=SimpleNamespace(pid=87005)) as popen, \
+             patch.object(live_state, "_viewer_ready", return_value=True):
             value = live_state.ensure_viewer(key, record, live.resolve(), "0.1.17")
         self.assertEqual(value["port"], 53366)
         self.assertEqual(binds, [("127.0.0.1", 53366)])
@@ -342,7 +383,7 @@ elif args[:2] != ['pr', 'edit']:
         viewer_path = self.viewer_state_path(live)
         current = json.loads(viewer_path.read_text())
         self.extra_pids.add(int(current["pid"]))
-        viewer_path.write_text(json.dumps({"port":53366, "pid":12345, "version":"old", "data":str(live)}))
+        viewer_path.write_text(json.dumps({"port":53366, "pid":12345, "version":"old", "data":str(live), "instance":"test"}))
         (self.state / "viewers" / "other-list.json").unlink()
         signals, probes, binds = [], [], []
 
@@ -353,19 +394,76 @@ elif args[:2] != ['pr', 'edit']:
             def getsockname(self): return ("127.0.0.1", 54444)
 
         def fake_kill(pid, sig): signals.append((pid, sig))
+        class FakeResponse:
+            status = 204
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
         def port_is_free(port):
             probes.append(port)
             return len(probes) > 1
 
         with patch.object(live_state, "STATE", self.state), patch.object(live_state.os, "kill", fake_kill), \
+             patch.object(live_state, "_viewer_responds", return_value=True), \
+             patch.object(live_state.urllib.request, "urlopen", return_value=FakeResponse()), \
              patch.object(live_state, "_port_is_free", side_effect=port_is_free), \
              patch.object(live_state.socket, "socket", FakeSocket), \
-             patch.object(live_state.subprocess, "Popen", return_value=SimpleNamespace(pid=87005)):
+             patch.object(live_state.subprocess, "Popen", return_value=SimpleNamespace(pid=87005)), \
+             patch.object(live_state, "_viewer_ready", return_value=True):
             value = live_state.ensure_viewer(key, record, live, "0.1.17")
 
-        self.assertEqual(signals, [(12345, 0), (12345, signal.SIGTERM)])
+        self.assertEqual(signals, [(12345, 0)])
         self.assertEqual(probes, [53366, 53366, 53366])
         self.assertEqual(value["port"], 53366)
         self.assertEqual(binds, [])
+
+    def test_viewer_start_failure_is_reported_and_not_recorded(self):
+        records = json.loads((self.state / "registry.json").read_text())
+        key, record = next(iter(records.items()))
+        state = self.viewer_state_path()
+        previous = state.read_bytes()
+        process = SimpleNamespace(pid=99999, poll=lambda: 1)
+        with patch.object(live_state, "STATE", self.state), \
+             patch.object(live_state.os, "kill", side_effect=ProcessLookupError), \
+             patch.object(live_state.subprocess, "Popen", return_value=process), \
+             patch.object(live_state, "_viewer_ready", return_value=False):
+            with self.assertRaisesRegex(RuntimeError, "viewer failed to start"):
+                live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
+        self.assertEqual(state.read_bytes(), previous)
+
+    def test_unresponsive_recorded_viewer_is_not_reported_as_healthy(self):
+        records = json.loads((self.state / "registry.json").read_text())
+        key, record = next(iter(records.items()))
+        state = json.loads(self.viewer_state_path().read_text())
+        with patch.object(live_state, "STATE", self.state), \
+             patch.object(live_state.os, "kill"), \
+             patch.object(live_state, "_viewer_responds", return_value=False):
+            with self.assertRaisesRegex(RuntimeError, "cannot verify viewer ownership"):
+                live_state.ensure_viewer(key, record, Path(record["live"]), state["version"])
+
+    def test_unverified_viewer_is_never_signalled(self):
+        records = json.loads((self.state / "registry.json").read_text())
+        key, record = next(iter(records.items()))
+        state = json.loads(self.viewer_state_path().read_text())
+        with patch.object(live_state, "STATE", self.state), \
+             patch.object(live_state.os, "kill") as signal_process, \
+             patch.object(live_state, "_viewer_responds", return_value=False):
+            with self.assertRaisesRegex(RuntimeError, "cannot verify viewer ownership"):
+                live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
+        signal_process.assert_called_once_with(state['pid'], 0)
+
+    def test_legacy_viewer_is_not_stopped_without_identity(self):
+        records = json.loads((self.state / "registry.json").read_text())
+        key, record = next(iter(records.items()))
+        path = self.viewer_state_path()
+        state = json.loads(path.read_text())
+        state.pop('instance')
+        path.write_text(json.dumps(state))
+        with patch.object(live_state, "STATE", self.state), \
+             patch.object(live_state.os, "kill") as signal_process, \
+             patch.object(live_state.urllib.request, "urlopen") as request:
+            with self.assertRaisesRegex(RuntimeError, "cannot verify viewer ownership"):
+                live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
+        signal_process.assert_called_once_with(state['pid'], 0)
+        request.assert_not_called()
 
 if __name__ == "__main__": unittest.main()

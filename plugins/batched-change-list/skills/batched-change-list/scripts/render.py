@@ -48,16 +48,26 @@ def first_plain_sentence(text):
     return text.strip(), ""
 
 
-def latest_version_evidence(item, runs):
+def version_evidence(item, runs):
+    outcome_states = {"fixed": "fixed", "verified_fixed": "fixed", "fail": "not_fixed",
+                      "failed": "not_fixed", "failing": "not_fixed", "not_fixed": "not_fixed",
+                      "blocked": "blocked", "inconclusive": "inconclusive"}
     candidates = [{"build": r["build"], "timestamp": r["timestamp"], "outcome": r["outcome"],
-                   "check": r["check"], "state": ""} for r in item.get("verification_evidence", [])]
+                   "check": r["check"], "session": r.get("session", ""), "reference": r.get("reference", ""),
+                   "state": outcome_states.get(r["outcome"].strip().lower(), "")}
+                  for r in item.get("verification_evidence", [])]
     for run in runs:
         check = run.get("checks", {}).get(item["id"], {})
         if check.get("state") in ("fixed", "not_fixed", "blocked", "inconclusive") and check.get("evidence"):
             candidates.append({"build": run.get("build", "unknown"), "timestamp": check.get("finished_at", "unknown"),
                                "outcome": check["evidence"], "check": "Installed verification", "state": check["state"]})
-    latest = {}
+    history = []
+    seen = set()
     for index, record in enumerate(candidates):
+        identity = tuple(record.get(key, "") for key in ("build", "timestamp", "outcome", "check", "state", "session", "reference"))
+        if identity in seen:
+            continue
+        seen.add(identity)
         match = re.search(r"\b\d+\.\d+\.\d+\b", record["build"])
         version = match.group() if match else "Version unknown"
         try:
@@ -66,9 +76,8 @@ def latest_version_evidence(item, runs):
         except (ValueError, OverflowError):
             timestamp = float("-inf")
         rank = (timestamp, index)
-        if version not in latest or rank > latest[version][0]:
-            latest[version] = (rank, {"version": version, **record})
-    return [record for _, record in sorted(latest.values(), key=lambda entry: entry[0], reverse=True)]
+        history.append((rank, {"version": version, **record}))
+    return [record for _, record in sorted(history, key=lambda entry: entry[0], reverse=True)]
 
 
 def rollover_cycle(tracking):
@@ -236,8 +245,8 @@ def render_issue_copy(data, lanes, round_number):
         cards.append(f'<li><code>{html.escape(str(item.get("id", "")))}{carried_tag(item)}</code>'
                      f'<span class="ttl">{html.escape(str(item.get("title", "")))}</span>'
                      f'<span class="s {state["kind"]}">{html.escape(state["copy"])}</span></li>')
-    return ('<div class="copy" aria-label="Issue status copy, derived from lane">'
-            '<h3>Issue list status · derived from lane</h3><ul>' + "".join(cards) + '</ul></div>')
+    return ('<details class="copy" aria-label="Issue status copy, derived from lane">'
+            '<summary>Issue list status · derived from lane</summary><ul>' + "".join(cards) + '</ul></details>')
 
 
 def row_phase_track(group, state):
@@ -321,7 +330,8 @@ def render_plan(data, tracking, plan, round_number, now):
         if not isinstance(files, list):
             files = [str(files)]
         details = [("Fix", " · ".join(filter(None, (codex.get("job_id"), codex.get("model"), codex.get("effort"), codex.get("service_tier"), codex.get("worktree"), codex.get("status"), times)))),
-                   ("Verify", verify_info), ("Reason", group.get("reason", "")), ("Files", ", ".join(map(str, files)))]
+                   ("Verify", verify_info), ("Verify command", verify.get("command", "")),
+                   ("Reason", group.get("reason", "")), ("Files", ", ".join(map(str, files)))]
         detail_rows = []
         for finding_id in ids:
             finding = findings.get(finding_id, {})
@@ -761,7 +771,7 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
         fields = ("check", "outcome", "build", "session", "timestamp", "reference")
         if not isinstance(records, list) or any(not isinstance(r, dict) or set(r) != set(fields) or any(not isinstance(r[k], str) or not r[k].strip() for k in fields) for r in records):
             raise ValueError(f"{item['id']}.verification_evidence has invalid records")
-        item["version_timeline"] = latest_version_evidence(item, [*tracking_data.get("verification_history", []), *([run] if run else [])])
+        item["version_timeline"] = version_evidence(item, [*tracking_data.get("verification_history", []), *([run] if run else [])])
         item.pop("verification_evidence", None)
         if item["status"] == "verified_fixed":
             item["details"] = {**details, "Verification references": "\n".join(item["verification_refs"])}

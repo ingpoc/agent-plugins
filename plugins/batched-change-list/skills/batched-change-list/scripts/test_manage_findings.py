@@ -38,6 +38,31 @@ class ManageFindingsTests(unittest.TestCase):
         group = json.loads(self.data.read_text())['tracking']['plan']['groups'][0]
         self.assertEqual((group['status'], group['label'], group['verify_summary']), ('done','Updated label','Runtime check passed'))
 
+    def test_plan_check_caps_group_size_without_rejecting_effort(self):
+        sys.path.insert(0, str(SCRIPT.parent))
+        import manage_findings
+        manage_findings.validate_plan_groups({
+            "round": 2,
+            "groups": [{"id": "A", "finding_ids": ["I1", "I2", "I3", "I4"], "status": "pending",
+                        "codex": {"effort": "medium"}}],
+        })
+        with self.assertRaises(ValueError) as err:
+            manage_findings.validate_plan_groups({
+                "round": 2,
+                "groups": [{"id": "BIG", "finding_ids": ["A", "B", "C", "D", "E"], "status": "pending"}],
+            })
+        self.assertIn("cap a parallel fix group", str(err.exception))
+        manage_findings.validate_plan_groups({
+            "round": 2,
+            "groups": [{"id": "HARD", "finding_ids": ["A"], "status": "pending",
+                        "codex": {"model": "gpt-6-luna", "effort": "max"}}],
+        })
+        manage_findings.validate_plan_groups({
+            "round": 2,
+            "groups": [{"id": "OLD", "finding_ids": ["A", "B", "C", "D", "E"], "status": "deferred",
+                        "codex": {"effort": "max"}}],
+        })
+
     def test_recheck_preserves_previous_result_and_other_checks(self):
         ops, page = self.root / 'ops.json', self.root / 'page.html'
         def apply(*rows):
@@ -686,7 +711,7 @@ class ManageFindingsTests(unittest.TestCase):
                               text=True, capture_output=True,
                               env={**os.environ, "BCL_STATE_DIR": str(self.state), **(env or {})})
 
-    def test_add_update_and_batch_use_report_capture_base_and_warn_when_missing(self):
+    def test_add_update_and_batch_preserve_changes_but_fail_when_capture_missing(self):
         home = self.root / "project"
         base = home / "docs/triage"
         capture = base / "captures/proof.png"
@@ -715,15 +740,17 @@ class ManageFindingsTests(unittest.TestCase):
         added.write_text(json.dumps({"id": "ISSUE-03", "title": "New", "evidence": [
             {"src": "captures/missing.png", "alt": "missing", "caption": "missing"}]}))
         add_result = self.cli("add", live, added)
-        self.assertEqual(add_result.returncode, 0, add_result.stderr)
-        self.assertIn("missing report capture", add_result.stderr)
+        self.assertNotEqual(add_result.returncode, 0)
+        self.assertIn("JSON saved but report capture is missing", add_result.stderr)
+        self.assertTrue(live.with_suffix(".unsnapshotted").exists())
+        self.assertTrue(any(item["id"] == "ISSUE-03" for item in json.loads(live.read_text())["findings"]))
 
         operations = self.root / "ops.json"
         operations.write_text(json.dumps([{"action": "set-activity", "stage": "collect", "ids": [], "now": "Collecting"}]))
         page = base / "110.html"
         batch = self.cli("batch", live, operations, "--render", page)
-        self.assertEqual(batch.returncode, 0, batch.stderr)
-        self.assertIn("missing report capture", batch.stderr)
+        self.assertNotEqual(batch.returncode, 0)
+        self.assertIn("JSON saved but report capture is missing", batch.stderr)
         self.assertFalse(page.exists())
 
     def test_list_and_get_return_only_requested_records(self):

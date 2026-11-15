@@ -31,7 +31,7 @@ A round runs only independent groups. At Plan, if a group would do better after 
 
 ## Round rules
 
-1. Process and workflow fixes must not outnumber product fixes in a round. Park new process issues for the next round unless they block the current one.
+1. Product items go first whenever any are fixable. Process and workflow fixes must not outnumber product fixes in a round while any product items are fixable. When no product items are fixable (all done, parked, or blocked), process groups can run without the product-share limit. Park new process issues for the next round unless they block the current one, or unless no product items are fixable.
 2. Default Codex fix jobs to Luna medium. Use max only for hard groups. Briefs name exact file paths.
 3. Run tests and a diff check before Terra. Skip Terra for one-file fixes.
 4. Job reports are 10 lines or fewer. Re-read only the tracker parts that changed.

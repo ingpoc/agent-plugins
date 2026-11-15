@@ -1,3 +1,13 @@
+## 0.1.19
+
+- The skill handles feedback during every stage and links each step to its on-demand reference.
+- Snapshot and viewer startup failures now report an error and preserve recovery information; the viewer is checked before success is reported.
+- Viewer restarts verify the process, instance, and tracker identity before signalling; unverified legacy viewers require a safe manual stop.
+- Recover a prior PR's committed page with `scripts/previous_report.py` for comparison.
+- Issue pages show the finding's outcome separately from the last recorded plan state, so a parked failing issue still reads as failing.
+- An issue's recorded build is visible alongside its verification history, with a clear message when no verification result is recorded.
+- The duplicate lane-status list is collapsed, lane details include the saved verification command, and the narrow workflow no longer overlays its loop label on the steps.
+
 ## 0.1.18
 
 - `bcl merged` records the merge commit and time, moves the workflow to Merged / Done, and retargets stacked open PRs to `main` when provider CLI access is available; otherwise it records and prints a TODO.
