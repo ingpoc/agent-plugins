@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "introspect",
-      "updated_at": "2026-11-15T07:09:47Z",
+      "updated_at": "2026-11-15T07:22:15Z",
       "now": "2026-11-14T17:10:56Z — Introspection recorded"
     },
     "rollover": {
@@ -2834,6 +2834,30 @@
       "done_when": "Existing viewers can be migrated or stopped with verified ownership, and the updated viewer starts and shows the correct list.",
       "recommendation": "Provide and verify a safe migration path for legacy viewer instances.",
       "observed": "The 107, 110 and 111 viewer state records predate instance identity. The candidate refuses to signal them because the recorded PID alone is not proof of ownership."
+    },
+    {
+      "id": "PAGE-12",
+      "title": "An idle browser connection can block the live page",
+      "source": "User reported",
+      "status": "failing",
+      "priority": "high",
+      "summary": "The live change-list page can stop loading when a browser connection sits idle.",
+      "impact": "You cannot view current findings even though the server appears to be running.",
+      "done_when": "The page loads while another browser connection remains idle.",
+      "recommendation": "Allow independent page connections without blocking each other.",
+      "observed": "The user reported the page was not loading. The original local server accepted a connection but subsequent requests reset; a concurrent-server candidate returned HTTP 200 while an idle socket remained open."
+    },
+    {
+      "id": "FLOW-03",
+      "title": "Introspection bookkeeping is counted as a verified fix",
+      "source": "User requested",
+      "status": "untested",
+      "priority": "medium",
+      "summary": "The rollover count includes an introspection record even when it does not represent a fix.",
+      "impact": "The count can suggest more fixes were delivered than actually were.",
+      "done_when": "Introspection records are excluded from the fix threshold while real tracked fixes continue to count.",
+      "recommendation": "Exclude the workflow review records from the rollover count.",
+      "observed": "The previous gate included each verified WF introspection record, including a clean review with no issues."
     }
   ]
 }
