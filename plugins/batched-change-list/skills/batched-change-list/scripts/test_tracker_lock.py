@@ -1,4 +1,6 @@
 import errno
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -26,6 +28,27 @@ class TrackerLockTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 with tracker_lock.exclusive_lock(Path(root) / 'lock'):
                     self.fail('unlocked work ran')
+
+    def test_plan_lock_is_released_when_holder_process_crashes(self):
+        with tempfile.TemporaryDirectory() as root:
+            lock_path = Path(root) / 'plan.lock'
+            helper_dir = str(Path(__file__).resolve().parent)
+            script = "\n".join((
+                "import os, sys",
+                "sys.path.insert(0, sys.argv[1])",
+                "from pathlib import Path",
+                "import tracker_lock",
+                "with tracker_lock.exclusive_lock(Path(sys.argv[2])):",
+                "    print('held', flush=True)",
+                "    os._exit(23)",
+            ))
+            process = subprocess.Popen([sys.executable, '-c', script, helper_dir, str(lock_path)],
+                                       stdout=subprocess.PIPE, text=True)
+            self.assertEqual(process.stdout.readline().strip(), 'held')
+            self.assertEqual(process.wait(timeout=5), 23)
+            process.stdout.close()
+            with tracker_lock.exclusive_lock(lock_path):
+                pass
 
 
 if __name__ == '__main__':

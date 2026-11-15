@@ -1,6 +1,6 @@
 import importlib.util
 from importlib.machinery import SourceFileLoader
-import json, os, signal, socket, subprocess, sys, tempfile, time, unittest
+import json, os, signal, socket, subprocess, sys, tempfile, threading, time, unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -277,17 +277,131 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
         self.assertEqual(self.call('install','--ids','ISSUE-01').returncode, 0)
         live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
+        manager = PLUGIN / 'skills/batched-change-list/scripts/manage_findings.py'
+        operations = self.root / 'change-plan.json'
+        operations.write_text(json.dumps([{'action':'update-plan-group','id':'A',
+                                           'patch':{'verify_summary':'Changed after activity commit'}}]))
         def change_plan(record, live_path):
-            data = json.loads(live_path.read_text())
-            data['tracking']['plan']['groups'][0].update(status='blocked', phase='verify', blocked_reason='Awaiting dependency')
-            live_path.write_text(json.dumps(data))
+            result = subprocess.run([sys.executable, str(manager), 'batch', str(live_path), str(operations),
+                                     '--render', str(self.page)], env=self.env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
         with patch.dict(os.environ, self.env), patch.object(live_state, 'STATE', self.state), \
              patch.object(live_state, 'snapshot', side_effect=change_plan), \
              patch.object(sys, 'argv', [str(BCL),'--data',str(live),'--ids','ISSUE-01','--then',command,'verify']):
             with self.assertRaisesRegex(SystemExit, 'plan changed before verification command started'):
                 bcl_entrypoint.main()
         self.assertFalse(marker.exists())
-        self.assertEqual(json.loads(live.read_text())['tracking']['plan']['groups'][0]['status'], 'blocked')
+        self.assertEqual(json.loads(live.read_text())['tracking']['plan']['groups'][0]['verify_summary'],
+                         'Changed after activity commit')
+
+    def test_verify_reserves_plan_until_spawn_against_plan_and_finding_writers(self):
+        self.assertEqual(self.call('start').returncode, 0)
+        marker = self.root / 'spawned'
+        proof = self.root / 'proof.py'
+        proof.write_text(f"from pathlib import Path\nPath({str(marker)!r}).write_text('yes')\n")
+        command = [sys.executable, str(proof)]
+        stored_command = f'"{sys.executable}" "{proof}"'
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending',
+                                     'verify':{'command':stored_command}}]}
+        path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
+        self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
+        self.assertEqual(self.call('install','--ids','ISSUE-01').returncode, 0)
+        live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
+        manager = PLUGIN / 'skills/batched-change-list/scripts/manage_findings.py'
+        operations = [
+            [{'action':'update-plan-group','id':'A','patch':{'verify_summary':'Writer waited'}}],
+            [{'action':'update','id':'ISSUE-01','patch':{'title':'Finding writer waited'}}],
+        ]
+        threads, started, completed, results = [], [threading.Event() for _ in operations], \
+            [threading.Event() for _ in operations], [None for _ in operations]
+
+        def spawn_writer(index):
+            ops = self.root / f'writer-{index}.json'; ops.write_text(json.dumps(operations[index]))
+            def write():
+                started[index].set()
+                results[index] = subprocess.run(
+                    [sys.executable, str(manager), 'batch', str(live), str(ops), '--render', str(self.page)],
+                    env=self.env, capture_output=True, text=True)
+                completed[index].set()
+            thread = threading.Thread(target=write)
+            threads.append(thread)
+            thread.start()
+
+        real_popen = subprocess.Popen
+        launched = False
+        def check_writers_then_spawn(args, *popen_args, **kwargs):
+            nonlocal launched
+            if args == command and not launched:
+                launched = True
+                for index in range(len(operations)):
+                    spawn_writer(index)
+                self.assertTrue(all(event.wait(5) for event in started))
+                self.assertFalse(any(event.wait(0.15) for event in completed),
+                                 'managed plan/finding writer crossed the launch reservation')
+            return real_popen(args, *popen_args, **kwargs)
+
+        with patch.dict(os.environ, self.env), patch.object(live_state, 'STATE', self.state), \
+             patch.object(bcl_entrypoint.subprocess, 'Popen', check_writers_then_spawn), \
+             patch.object(sys, 'argv', [str(BCL),'--data',str(live),'--ids','ISSUE-01','--then',stored_command,'verify']):
+            bcl_entrypoint.main()
+        for thread in threads:
+            thread.join(timeout=5)
+            self.assertFalse(thread.is_alive(), 'managed writer did not resume after spawn')
+        self.assertTrue(launched)
+        self.assertTrue(marker.exists())
+        self.assertTrue(all(result and result.returncode == 0 for result in results),
+                        [result.stderr if result else 'writer did not finish' for result in results])
+
+    def test_verify_rechecks_prerequisite_evidence_before_spawn(self):
+        document = json.loads(self.data.read_text())
+        prerequisite = next(item for item in document['findings'] if item['id'] == 'ISSUE-02')
+        prerequisite.update(status='verified_fixed', verification='Installed proof', verification_refs=['receipt'])
+        live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
+        serialized = json.dumps(document)
+        live.write_text(serialized)
+        self.data.write_text(serialized)
+        def invoke(stage, *extra):
+            with patch.dict(os.environ, self.env), patch.object(live_state, 'STATE', self.state), \
+                 patch.object(live_state, 'ensure_viewer'), \
+                 patch.object(sys, 'argv', [str(BCL),'--data',str(self.data),*map(str,extra),stage]):
+                bcl_entrypoint.main()
+        invoke('start')
+        marker = self.root / 'should-not-run'
+        proof = self.root / 'proof.py'
+        proof.write_text(f"from pathlib import Path\nPath({str(marker)!r}).write_text('ran')\n")
+        command = f'"{sys.executable}" "{proof}"'
+        plan = {'round':1,'groups':[
+            {'id':'A','finding_ids':['ISSUE-02'],'status':'verified','verify':{'command':'python3 proof-a.py'}},
+            {'id':'B','finding_ids':['ISSUE-01'],'depends_on':['A'],'status':'pending','verify':{'command':command}},
+        ]}
+        path = self.root / 'dependency-plan.json'; path.write_text(json.dumps(plan))
+        invoke('plan','--plan',str(path),'--ids','ISSUE-01')
+        invoke('install','--ids','ISSUE-01')
+        manager = PLUGIN / 'skills/batched-change-list/scripts/manage_findings.py'
+        def change_prerequisite_check(record, live_path):
+            def apply(operation):
+                ops = self.root / 'check-update.json'; ops.write_text(json.dumps([operation]))
+                result = subprocess.run([sys.executable, str(manager), 'batch', str(live_path), str(ops),
+                                         '--render', str(self.page)], env=self.env, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+            apply({'action':'start-verification','run':{
+                'id':'new-run','build':'2','revision':'def','installed_at':'2026-11-15T00:00:00Z',
+                'install_evidence':'new receipt'}})
+            apply({'action':'start-check','run_id':'new-run','id':'ISSUE-02',
+                   'observation':'Retesting prerequisite','observed_at':'2026-11-15T00:01:00Z'})
+            apply({'action':'finish-check','run_id':'new-run','id':'ISSUE-02','outcome':'inconclusive',
+                   'evidence':'Prerequisite could not be confirmed'})
+        with patch.dict(os.environ, self.env), patch.object(live_state, 'STATE', self.state), \
+             patch.object(live_state, 'ensure_viewer'), \
+             patch.object(live_state, 'snapshot', side_effect=change_prerequisite_check), \
+             patch.object(sys, 'argv', [str(BCL),'--data',str(live),'--ids','ISSUE-01','--then',command,'verify']):
+            with self.assertRaisesRegex(SystemExit, 'plan changed before verification command started'):
+                bcl_entrypoint.main()
+        current = json.loads(live.read_text())
+        self.assertFalse(marker.exists())
+        self.assertEqual(current['tracking']['verification_run']['checks']['ISSUE-02']['state'], 'inconclusive')
+        self.assertEqual(next(item for item in current['findings'] if item['id'] == 'ISSUE-02')['status'],
+                         'verified_fixed')
 
     def test_stage_guards_remain(self):
         self.assertNotEqual(self.call("install").returncode, 0)

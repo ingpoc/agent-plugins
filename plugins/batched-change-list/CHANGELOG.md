@@ -1,3 +1,7 @@
+## 0.1.20
+
+- Reserve managed tracker writes through final verification prerequisite checks and command launch. Duplicate concurrent starts remain a tracked limitation.
+
 ## 0.1.19
 
 - Reject stale verification updates, preserve failures and serialize cooperating tracker writes and snapshots. Writes and snapshots require `fcntl`; Windows support remains pending.

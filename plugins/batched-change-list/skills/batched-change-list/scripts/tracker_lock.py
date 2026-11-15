@@ -16,11 +16,19 @@ except ImportError:
     msvcrt = None
 
 
-def tracker_lock_path(path):
-    root = (Path('/tmp') / f'bcl-tracker-locks-{os.getuid()}' if hasattr(os, 'getuid')
-            else Path.home() / '.agents' / 'state' / 'bcl-tracker-locks')
+def _lock_path(path, purpose):
+    root = (Path('/tmp') / f'bcl-{purpose}-locks-{os.getuid()}' if hasattr(os, 'getuid')
+            else Path.home() / '.agents' / 'state' / f'bcl-{purpose}-locks')
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
     return root / (hashlib.sha256(str(Path(path).resolve()).encode()).hexdigest() + '.lock')
+
+
+def tracker_lock_path(path):
+    return _lock_path(path, 'tracker')
+
+
+def plan_lock_path(path):
+    return _lock_path(path, 'plan')
 
 
 @contextmanager

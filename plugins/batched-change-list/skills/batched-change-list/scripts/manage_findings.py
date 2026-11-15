@@ -1444,8 +1444,11 @@ def main(argv=None):
     if args.command in {'audit', 'list', 'get'}:
         return run(args, parser)
     try:
-        with tracker_lock.exclusive_lock(tracker_lock.tracker_lock_path(args.data)):
-            return run(args, parser)
+        # Serialize every supported mutation against verification launch and
+        # keep a single lock order for plan, finding, and tracker writes.
+        with tracker_lock.exclusive_lock(tracker_lock.plan_lock_path(args.data)):
+            with tracker_lock.exclusive_lock(tracker_lock.tracker_lock_path(args.data)):
+                return run(args, parser)
     except (OSError, RuntimeError) as error:
         parser.exit(2, f'manage-findings: tracker lock failed: {error}\n')
 

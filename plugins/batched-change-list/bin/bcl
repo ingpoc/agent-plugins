@@ -12,6 +12,7 @@ MANAGE = SCRIPTS / "manage_findings.py"
 sys.path.insert(0, str(SCRIPTS))
 import live_state
 import manage_findings
+import tracker_lock
 
 def _provider(url):
     return "gh" if (urlsplit(url).hostname or "").lower() == "github.com" else "origin"
@@ -246,6 +247,7 @@ def main():
         return
     stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     stage = args.stage
+    expected_verify_plan = None
     if stage == "start": operations = [{"action":"set-activity","stage":"collect" if record.get("rollover_pending") else "present" if "collect" in stages else "collect","ids":args.ids,"now":"Started collection"}]
     elif stage == "plan":
         plan = json.loads(args.plan.read_text()) if args.plan else tracking.get("plan")
@@ -287,6 +289,12 @@ def main():
         operations = [{"action":"set-activity","stage":{"fix":"plan_fix","install":"install","verify":"verify"}[stage],"ids":ids,"now":f"{stage.title()} in progress"}]
         if stage == 'verify':
             operations[0]['expected_plan_sha256'] = hashlib.sha256(json.dumps(tracking['plan'], sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
+            expected_document = json.loads(json.dumps(data))
+            for finding in expected_document['findings']:
+                if finding['id'] in ids:
+                    finding['status'] = 'in_progress'
+            manage_findings.sync_plan_verify(expected_document)
+            expected_verify_plan = expected_document['tracking']['plan']
     elif stage == "introspect":
         if not args.sections: parser.error("introspect requires --sections FILE.json")
         op = {"action":"introspect","sections": json.loads(args.sections.read_text())}
@@ -299,7 +307,6 @@ def main():
     command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
     result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
     if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
-    before_snapshot_plan = json.loads(live.read_text())['tracking']['plan'] if stage == 'verify' else None
     live_state.snapshot(record, live)
     if record.get("rollover_pending") and begins_collect:
         records = live_state.registry()
@@ -308,16 +315,26 @@ def main():
         live_state.save_registry(records)
         live_state.ensure_viewer(key, current, live, plugin_version)
     if stage == "verify":
-        started_plan = json.loads(live.read_text())['tracking']['plan']
-        started_groups = {group['id']: group for group in started_plan['groups']}
-        if started_plan != before_snapshot_plan or any(group['id'] not in started_groups or
-               started_groups[group['id']].get('finding_ids') != group.get('finding_ids') or
-               started_groups[group['id']].get('verify', {}).get('command') != expected
-               for group in groups) or any(started_plan.get(k) != tracking['plan'].get(k) for k in ('cycle', 'round')):
-            raise SystemExit('plan changed before verification command started; reload and retry')
         try:
-            result = subprocess.run(words, check=False)
-            code = result.returncode
+            with tracker_lock.exclusive_lock(tracker_lock.plan_lock_path(live)):
+                current = json.loads(live.read_text())
+                current_tracking = current.get('tracking', {})
+                started_plan = current_tracking['plan']
+                started_groups = {group['id']: group for group in started_plan['groups']}
+                if started_plan != expected_verify_plan or any(group['id'] not in started_groups or
+                       started_groups[group['id']].get('finding_ids') != group.get('finding_ids') or
+                       started_groups[group['id']].get('verify', {}).get('command') != expected
+                       for group in groups) or any(started_plan.get(k) != tracking['plan'].get(k) for k in ('cycle', 'round')):
+                    raise SystemExit('plan changed before verification command started; reload and retry')
+                try:
+                    manage_findings.validate_dependencies(
+                        started_plan['groups'], current['findings'], current_tracking)
+                except ValueError as error:
+                    raise SystemExit(f'verification prerequisites changed before command started: {error}') from error
+                process = subprocess.Popen(words)
+            # Release the reservation immediately after successful spawn so the
+            # verifier can use the managed tracker writers itself.
+            code = process.wait()
             reason = f"Verification command exited {code}" if code else ""
         except OSError as error:
             code = 127
