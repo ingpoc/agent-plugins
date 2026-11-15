@@ -4,6 +4,19 @@ Purpose: decide **keep / remove / hold / out of scope** at the lowest cost that
 can actually settle the claim. The test type follows the claim type. Running an
 agent is the most expensive step and is reserved for claims about agent behavior.
 
+## End-to-end delivery outcome
+
+For the batched-change-list outcome, compare matched tasks with and without the
+workflow using the same starting state, requirements, tools, and acceptance
+criteria. Balance order and retain failed runs. Measure elapsed time through
+independent acceptance, and account for the main agent, delegated agents, and
+verification separately before reporting a total. Record missing usage as
+unknown; do not infer cost or savings from a partial sample. Independently
+check delivered behavior, dependency and parallelism controls, failure recovery,
+and whether the HTML matches the tracker and latest verification evidence.
+Predeclare the primary metric, guardrails, cases, and decision rule before
+running. Report delivery efficiency and correctness separately.
+
 ## Classify the claim first
 
 | Claim | Required evidence | Observed cost | Decision rule |

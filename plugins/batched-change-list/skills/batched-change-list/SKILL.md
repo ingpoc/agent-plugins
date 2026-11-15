@@ -12,6 +12,8 @@ Handle new messages throughout the cycle: answer status questions, incorporate c
 
 Collect and Present once, then loop Plan & fix → Install → Verify → Introspect → Gate. Prioritize product and process work by dependencies and impact; run independent groups in bounded parallel lanes. Each group moves through fix → review → install → verify; serialize builds and live verification. Keep summaries, impact, and done-when plain; put technical evidence in details. Apply [principles.md](references/principles.md) for debugging, testing, sequencing, shared resources, or proof.
 
+Judge success by independently accepted delivery, accurate current status, and controlled execution. Claim time or token savings only from comparable end-to-end runs that include orchestration and verification; otherwise report them as unmeasured.
+
 Load only the reference for the current step:
 
 - New list or feedback: [collect.md](references/collect.md).

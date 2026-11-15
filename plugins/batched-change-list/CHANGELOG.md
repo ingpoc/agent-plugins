@@ -1,3 +1,7 @@
+## 0.1.22
+
+- State the delivery, status and measurement outcomes used to judge the workflow.
+
 ## 0.1.21
 
 - Reject concurrent verification starts for the same tracker while allowing verifier tracker writes.
