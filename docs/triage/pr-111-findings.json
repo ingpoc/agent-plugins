@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "introspect",
-      "updated_at": "2026-11-15T07:33:47Z",
+      "updated_at": "2026-11-15T07:34:27Z",
       "now": "2026-11-14T17:10:56Z — Introspection recorded"
     },
     "rollover": {
@@ -2877,11 +2877,11 @@
       "source": "Agent reported",
       "status": "failing",
       "priority": "high",
-      "summary": "The page can show an old plan and workflow update as if they describe current activity.",
-      "impact": "You may think a fix is planned or underway when no current work has been established.",
-      "done_when": "The page clearly distinguishes a historical plan and last recorded workflow update from work currently running.",
+      "summary": "Old plan and workflow states can be highlighted together as if work is active.",
+      "impact": "You cannot tell which stage, if any, is currently running.",
+      "done_when": "The page clearly distinguishes historical activity from current work and does not highlight multiple stages as active without evidence that they are running.",
       "recommendation": "Label the plan as last recorded and show staleness based on the underlying activity timestamp.",
-      "observed": "Chrome review on 15 Nov: the AGENT-25 lane says Planned. Its last plan update was 14 Nov 16:55 UTC. The tracker workflow activity text is dated 14 Nov 17:10 UTC, while updated_at was refreshed on 15 Nov without a new activity."
+      "observed": "Chrome review on 15 Nov: Plan & fix and Introspect are both visually emphasized. AGENT-25 is shown as Planned, last updated 14 Nov 16:55 UTC; the workflow activity text is dated 14 Nov 17:10 UTC while updated_at was refreshed on 15 Nov without a new activity. User reported the simultaneous highlights are unclear."
     },
     {
       "id": "PAGE-15",
