@@ -3080,7 +3080,7 @@
       "id": "BCL-16",
       "title": "Verification can start after its lane changes",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "verified_fixed",
       "summary": "A verification command may start after its lane is blocked or its prerequisites change.",
       "impact": "The agent may run a check against an invalid plan.",
       "done_when": "Reject a stale verification start when its selected lanes or dependencies changed.",
@@ -3089,7 +3089,21 @@
       "details": {
         "Source check": "Candidate reserves the plan through final validation and spawn for managed writers; contention, prerequisite and crash-release tests passed. Installed verification still pending.",
         "Scope": "Direct edits to tracker JSON do not use managed locks; duplicate concurrent verify starts are tracked as BCL-21."
-      }
+      },
+      "verification_evidence": [
+        {
+          "check": "Installed 0.1.20 passed plan/finding writer contention, changed-prerequisite, and plan-change-before-spawn scenarios; direct JSON edits and duplicate verify starts remain outside this check.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.20",
+          "session": "codex-installed-cli-reservation-111",
+          "timestamp": "2026-11-15T13:25:04Z",
+          "reference": "dc519243fa90d83231c8d655a41dd37f30bfdfd9:BCL-16:installed-cli-suite"
+        }
+      ],
+      "verification": "Installed 0.1.20 passed plan/finding writer contention, changed-prerequisite, and plan-change-before-spawn scenarios; direct JSON edits and duplicate verify starts remain outside this check.",
+      "verification_refs": [
+        "dc519243fa90d83231c8d655a41dd37f30bfdfd9:BCL-16:installed-cli-suite"
+      ]
     },
     {
       "id": "BCL-17",
