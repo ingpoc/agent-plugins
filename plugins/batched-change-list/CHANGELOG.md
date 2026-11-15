@@ -1,3 +1,7 @@
+## 0.1.21
+
+- Reject concurrent verification starts for the same tracker while allowing verifier tracker writes.
+
 ## 0.1.20
 
 - Reserve managed tracker writes through final verification prerequisite checks and command launch. Duplicate concurrent starts remain a tracked limitation.

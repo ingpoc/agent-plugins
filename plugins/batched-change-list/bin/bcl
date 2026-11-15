@@ -305,78 +305,90 @@ def main():
     else: parser.error("unknown stage")
     report, base = live_state.report_paths(record, live)
     command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
-    result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
-    if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
-    live_state.snapshot(record, live)
-    if record.get("rollover_pending") and begins_collect:
-        records = live_state.registry()
-        current = records[key]
-        current.pop("rollover_pending", None)
-        live_state.save_registry(records)
-        live_state.ensure_viewer(key, current, live, plugin_version)
+    verification_claim = None
     if stage == "verify":
+        verification_claim = tracker_lock.exclusive_lock(tracker_lock.verify_lock_path(live), blocking=False)
         try:
-            with tracker_lock.exclusive_lock(tracker_lock.plan_lock_path(live)):
-                current = json.loads(live.read_text())
-                current_tracking = current.get('tracking', {})
-                started_plan = current_tracking['plan']
-                started_groups = {group['id']: group for group in started_plan['groups']}
-                if started_plan != expected_verify_plan or any(group['id'] not in started_groups or
-                       started_groups[group['id']].get('finding_ids') != group.get('finding_ids') or
-                       started_groups[group['id']].get('verify', {}).get('command') != expected
-                       for group in groups) or any(started_plan.get(k) != tracking['plan'].get(k) for k in ('cycle', 'round')):
-                    raise SystemExit('plan changed before verification command started; reload and retry')
-                try:
-                    manage_findings.validate_dependencies(
-                        started_plan['groups'], current['findings'], current_tracking)
-                except ValueError as error:
-                    raise SystemExit(f'verification prerequisites changed before command started: {error}') from error
-                process = subprocess.Popen(words)
-            # Release the reservation immediately after successful spawn so the
-            # verifier can use the managed tracker writers itself.
-            code = process.wait()
-            reason = f"Verification command exited {code}" if code else ""
-        except OSError as error:
-            code = 127
-            reason = f"Verification command could not start: {error}"
-        if code:
-            print(reason, file=sys.stderr)
-            previous = {item['id']: item.get('status') for item in data['findings']}
-            recorded = False
-            for group in groups:
-                current = json.loads(live.read_text())
-                lane = {"action":"update-plan-group", "id":group['id'],
-                    "expected_cycle":started_plan.get('cycle'), "expected_round":started_plan.get('round'),
-                    "expected_group":started_groups[group['id']], "patch":{
-                    "status":"failed", "phase":"verify",
-                    "verify":{**started_groups[group['id']].get('verify', {}), "failure":reason}}}
-                failed = [lane]
-                current_status = {item['id']: item.get('status') for item in current['findings']}
-                run = current['tracking'].get('verification_run', {})
-                for identifier in ids:
-                    if identifier not in group.get('finding_ids', []) or current_status.get(identifier) != 'in_progress':
-                        continue
-                    status = previous.get(identifier)
-                    failed.append({"action":"update", "id":identifier, "expected_status":"in_progress", "patch":{
-                        "status": "blocked" if status == "in_progress" else status}})
-                    if run.get('status') == 'active' and run.get('checks', {}).get(identifier, {}).get('state') == 'checking':
-                        failed.append({"action":"finish-check", "run_id":run['id'], "id":identifier,
-                                       "outcome":"blocked", "evidence":reason})
-                saved = subprocess.run(command, input=json.dumps(failed), text=True, capture_output=True)
-                if saved.returncode and len(failed) > 1:
-                    sys.stderr.write(f"Could not update verification findings for {group['id']}: " + (saved.stderr or saved.stdout))
-                    saved = subprocess.run(command, input=json.dumps([lane]), text=True, capture_output=True)
-                if saved.returncode:
-                    sys.stderr.write(f"Could not record failed lanes ({group['id']}): " + (saved.stderr or saved.stdout))
-                else:
-                    recorded = True
-            if recorded:
-                live_state.snapshot(record, live)
-            raise SystemExit(code if code > 0 else 128 - code)
-    elif args.then_command: subprocess.run(args.then_command, shell=True, check=True)
-    elif command_args: subprocess.run(command_args, check=True)
-    if args.progress:
-        args.progress.parent.mkdir(parents=True, exist_ok=True)
-        with args.progress.open("a") as out: out.write(f"{stamp} {stage}\n")
+            verification_claim.__enter__()
+        except tracker_lock.LockBusyError:
+            raise SystemExit("verification already in progress for this tracker")
+    try:
+        result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
+        if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
+        live_state.snapshot(record, live)
+        if record.get("rollover_pending") and begins_collect:
+            records = live_state.registry()
+            current = records[key]
+            current.pop("rollover_pending", None)
+            live_state.save_registry(records)
+            live_state.ensure_viewer(key, current, live, plugin_version)
+        if stage == "verify":
+            try:
+                with tracker_lock.exclusive_lock(tracker_lock.plan_lock_path(live)):
+                    current = json.loads(live.read_text())
+                    current_tracking = current.get('tracking', {})
+                    started_plan = current_tracking['plan']
+                    started_groups = {group['id']: group for group in started_plan['groups']}
+                    if started_plan != expected_verify_plan or any(group['id'] not in started_groups or
+                           started_groups[group['id']].get('finding_ids') != group.get('finding_ids') or
+                           started_groups[group['id']].get('verify', {}).get('command') != expected
+                           for group in groups) or any(started_plan.get(k) != tracking['plan'].get(k) for k in ('cycle', 'round')):
+                        raise SystemExit('plan changed before verification command started; reload and retry')
+                    try:
+                        manage_findings.validate_dependencies(
+                            started_plan['groups'], current['findings'], current_tracking)
+                    except ValueError as error:
+                        raise SystemExit(f'verification prerequisites changed before command started: {error}') from error
+                    process = subprocess.Popen(words)
+                # Release the reservation immediately after successful spawn so the
+                # verifier can use the managed tracker writers itself.
+                code = process.wait()
+                reason = f"Verification command exited {code}" if code else ""
+            except OSError as error:
+                code = 127
+                reason = f"Verification command could not start: {error}"
+            if code:
+                print(reason, file=sys.stderr)
+                previous = {item['id']: item.get('status') for item in data['findings']}
+                recorded = False
+                for group in groups:
+                    current = json.loads(live.read_text())
+                    lane = {"action":"update-plan-group", "id":group['id'],
+                        "expected_cycle":started_plan.get('cycle'), "expected_round":started_plan.get('round'),
+                        "expected_group":started_groups[group['id']], "patch":{
+                        "status":"failed", "phase":"verify",
+                        "verify":{**started_groups[group['id']].get('verify', {}), "failure":reason}}}
+                    failed = [lane]
+                    current_status = {item['id']: item.get('status') for item in current['findings']}
+                    run = current['tracking'].get('verification_run', {})
+                    for identifier in ids:
+                        if identifier not in group.get('finding_ids', []) or current_status.get(identifier) != 'in_progress':
+                            continue
+                        status = previous.get(identifier)
+                        failed.append({"action":"update", "id":identifier, "expected_status":"in_progress", "patch":{
+                            "status": "blocked" if status == "in_progress" else status}})
+                        if run.get('status') == 'active' and run.get('checks', {}).get(identifier, {}).get('state') == 'checking':
+                            failed.append({"action":"finish-check", "run_id":run['id'], "id":identifier,
+                                           "outcome":"blocked", "evidence":reason})
+                    saved = subprocess.run(command, input=json.dumps(failed), text=True, capture_output=True)
+                    if saved.returncode and len(failed) > 1:
+                        sys.stderr.write(f"Could not update verification findings for {group['id']}: " + (saved.stderr or saved.stdout))
+                        saved = subprocess.run(command, input=json.dumps([lane]), text=True, capture_output=True)
+                    if saved.returncode:
+                        sys.stderr.write(f"Could not record failed lanes ({group['id']}): " + (saved.stderr or saved.stdout))
+                    else:
+                        recorded = True
+                if recorded:
+                    live_state.snapshot(record, live)
+                raise SystemExit(code if code > 0 else 128 - code)
+        elif args.then_command: subprocess.run(args.then_command, shell=True, check=True)
+        elif command_args: subprocess.run(command_args, check=True)
+        if args.progress:
+            args.progress.parent.mkdir(parents=True, exist_ok=True)
+            with args.progress.open("a") as out: out.write(f"{stamp} {stage}\n")
+
+    finally:
+        if verification_claim is not None:
+            verification_claim.__exit__(None, None, None)
 
 if __name__ == "__main__": main()

@@ -31,13 +31,21 @@ def plan_lock_path(path):
     return _lock_path(path, 'plan')
 
 
+def verify_lock_path(path):
+    return _lock_path(path, 'verify')
+
+
 @contextmanager
-def exclusive_lock(path):
+def exclusive_lock(path, *, blocking=True):
     if fcntl is None and msvcrt is None:
         raise RuntimeError('tracker locking unavailable on this platform')
     with Path(path).open('a+b') as lock:
         if fcntl is not None:
-            fcntl.flock(lock, fcntl.LOCK_EX)
+            mode = fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB)
+            try:
+                fcntl.flock(lock, mode)
+            except BlockingIOError as error:
+                raise LockBusyError('lock is already held') from error
         else:
             if os.fstat(lock.fileno()).st_size == 0:
                 lock.write(b'\0')
@@ -50,6 +58,8 @@ def exclusive_lock(path):
                 except OSError as error:
                     if error.errno not in (errno.EACCES, errno.EDEADLK):
                         raise
+                    if not blocking:
+                        raise LockBusyError('lock is already held') from error
                     time.sleep(0.05)
         try:
             yield
@@ -59,3 +69,7 @@ def exclusive_lock(path):
             else:
                 lock.seek(0)
                 msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+
+
+class LockBusyError(RuntimeError):
+    pass

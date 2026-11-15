@@ -294,6 +294,61 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(json.loads(live.read_text())['tracking']['plan']['groups'][0]['verify_summary'],
                          'Changed after activity commit')
 
+    def test_concurrent_verify_is_rejected_while_child_updates_tracker(self):
+        self.assertEqual(self.call('start').returncode, 0)
+        live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
+        changed = self.root / 'child-updated'
+        release = self.root / 'release-child'
+        operations = self.root / 'child-update.json'
+        operations.write_text(json.dumps([{'action':'update','id':'ISSUE-01',
+                                           'patch':{'title':'Updated by verifier child'}}]))
+        manager = PLUGIN / 'skills/batched-change-list/scripts/manage_findings.py'
+        proof = self.root / 'long_verify.py'
+        proof.write_text("\n".join((
+            'import subprocess, sys, time',
+            'from pathlib import Path',
+            f"result = subprocess.run([{sys.executable!r}, {str(manager)!r}, 'batch', {str(live)!r}, {str(operations)!r}, '--render', {str(self.page)!r}], capture_output=True, text=True)",
+            'if result.returncode: raise SystemExit(result.stderr)',
+            f"Path({str(changed)!r}).write_text('yes')",
+            f"deadline = time.monotonic() + 10; gate = Path({str(release)!r})",
+            'while not gate.exists() and time.monotonic() < deadline: time.sleep(0.02)',
+            'if not gate.exists(): raise SystemExit(9)',
+        )) + '\n')
+        command = f'"{sys.executable}" "{proof}"'
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending',
+                                     'verify':{'command':command}}]}
+        path = self.root / 'concurrent-plan.json'; path.write_text(json.dumps(plan))
+        self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
+        self.assertEqual(self.call('install','--ids','ISSUE-01').returncode, 0)
+
+        original_argv = sys.argv[:]
+        first_result = []
+        def first_verify():
+            sys.argv = [str(BCL),'--data',str(self.data),'--ids','ISSUE-01','--then',command,'verify']
+            try:
+                bcl_entrypoint.main()
+                first_result.append(None)
+            except BaseException as error:
+                first_result.append(error)
+
+        with patch.dict(os.environ, self.env), patch.object(live_state, 'STATE', self.state), \
+             patch.object(live_state, 'ensure_viewer'):
+            thread = threading.Thread(target=first_verify)
+            thread.start()
+            deadline = time.monotonic() + 10
+            while not changed.exists() and time.monotonic() < deadline:
+                time.sleep(0.02)
+            self.assertTrue(changed.exists(), 'verifier child could not write while launch lock was held')
+            sys.argv = [str(BCL),'--data',str(live),'--ids','ISSUE-01','--then',command,'verify']
+            with self.assertRaisesRegex(SystemExit, 'verification already in progress for this tracker'):
+                bcl_entrypoint.main()
+            release.write_text('continue')
+            thread.join(timeout=10)
+            self.assertFalse(thread.is_alive(), 'first verification did not finish')
+        sys.argv = original_argv
+        self.assertEqual(first_result, [None])
+        self.assertEqual(json.loads(live.read_text())['findings'][0]['title'], 'Updated by verifier child')
+
     def test_verify_reserves_plan_until_spawn_against_plan_and_finding_writers(self):
         self.assertEqual(self.call('start').returncode, 0)
         marker = self.root / 'spawned'

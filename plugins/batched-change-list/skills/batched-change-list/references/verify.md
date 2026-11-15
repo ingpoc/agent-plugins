@@ -2,7 +2,7 @@
 
 Start a verification run with its known installed build, revision, install time and receipt. Each finished check records its outcome and supporting observation in that run; rechecks retain earlier results. Do not invent a build or reason when the evidence is missing.
 
-Managed tracker writes are reserved during the final prerequisite check and command launch. This does not protect direct JSON edits or prevent duplicate concurrent verification starts; keep live verification serialized.
+Managed tracker writes are reserved during the final prerequisite check and command launch. A per-tracker lock rejects concurrent verification starts; direct JSON edits remain outside these protections. Keep shared-device verification serialized across trackers.
 
 Run `bcl verify` only after Install has been reached in the current cycle. Review the group's stored `verify.command`, then pass that exact command with `--then` and the group's IDs with `--ids`; groups with different commands run separately. Verification runs one executable directly, without a shell or `env` wrapper; put multiple checks in a script that propagates each failure. The command runs after the tracker records verification in progress. A nonzero exit records a failed lane and stops it; command success alone is not acceptance. Common direct placeholders are rejected, but the agent must still assess whether a command proves the intended behavior. Live verify is serialized (one Mini, island, and Comet). Finding-status writes update each plan group's `verify` state to `pending`, `verified`, `failed`, or `partial`. Mark `verified_fixed` only as evidence lands.
 
