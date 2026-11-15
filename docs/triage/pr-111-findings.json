@@ -2042,7 +2042,7 @@
     },
     "workflow": {
       "stage": "introspect",
-      "updated_at": "2026-11-15T07:34:27Z",
+      "updated_at": "2026-11-15T07:35:25Z",
       "now": "2026-11-14T17:10:56Z — Introspection recorded"
     },
     "rollover": {
@@ -2794,7 +2794,7 @@
       "impact": "You cannot quickly see what was checked, which version it was checked on, or what the check found.",
       "done_when": "After the issue, show the latest verification status and a vertical timeline with the status, version, and recorded reason for each check. Keep other details collapsed and clearly label missing evidence.",
       "recommendation": "Show the issue and verification history first; keep diagnostic detail available on demand.",
-      "observed": "The user reported missing versions and requested the status and supporting reason for every version. PAGE-08 has an attributable viewer-candidate version; AGENT-25 has two recorded scored checks.",
+      "observed": "The user reported missing versions and requested the status and supporting reason for every version. PAGE-08 has an attributable viewer-candidate version; AGENT-25 has two recorded scored checks. Chrome review on 15 Nov: AGENT-26 and AGENT-27 show No verification result recorded even though their observed fields describe a failing live typed session on ACU 0.2.147. The page does not make those observations visible in the timeline.",
       "details": {
         "Where to look": "plugins/batched-change-list/skills/batched-change-list/scripts/render.py and templates/change-list.html"
       }
@@ -2918,6 +2918,18 @@
       "done_when": "A stored verification command is an actual check, and a placeholder or empty check cannot be presented as verification success.",
       "recommendation": "Replace the placeholder and make the verification gate reject commands that do not perform the intended check.",
       "observed": "Chrome review on 15 Nov: the AGENT-25 plan shows verify command echo 'Score AGENT-25 Her traits 0-2 with transcript evidence; close only at 12/12'. Running echo only prints text and exits successfully; it does not run or score a conversation."
+    },
+    {
+      "id": "PAGE-17",
+      "title": "Verified counts use different totals without explanation",
+      "source": "Agent reported",
+      "status": "failing",
+      "priority": "medium",
+      "summary": "The page shows two different verified totals without explaining why they differ.",
+      "impact": "You cannot tell which count is relevant to the rollover gate.",
+      "done_when": "The page explains which records count toward rollover and why that total can differ from the issue summary.",
+      "recommendation": "Label the gate count and issue summary so their different scopes are clear.",
+      "observed": "Chrome review on 15 Nov: the issue summary says 3 verified fixed while the gate says 2 of 15 verified. WF-07 is a verified introspection record excluded from the gate count."
     }
   ]
 }
