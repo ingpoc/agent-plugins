@@ -736,7 +736,7 @@ def sync_plan_verify(document):
         install_reached = "install" in (document.get("tracking") or {}).get("stages_reached", [])
         checks_pending = RENDERER.checks_pending_reason(group)
         if fixed == total and total > 0 and (
-                group.get("status") == "blocked"
+                (group.get("status") == "blocked" and checks_pending)
                 or (group.get("status") == "verifying" and checks_pending)):
             group["status"] = "verified"
             group.pop("blocked_reason", None)
@@ -1065,6 +1065,21 @@ def run(args, parser):
                     tracking = store["document"].setdefault("tracking", {})
                     cycle = RENDERER.rollover_cycle(tracking)
                     if action == "set-plan":
+                        previous_stage = tracking.get("workflow", {}).get("stage")
+                        current_round = RENDERER.rollover_round(tracking)
+                        current_plan = tracking.get("plan")
+                        requested_plan = operation.get("plan")
+                        same_current_plan = (
+                            isinstance(current_plan, dict)
+                            and current_plan.get("cycle", cycle) == cycle
+                            and type(current_plan.get("round", current_round)) is int
+                            and current_plan.get("round", current_round) == current_round
+                            and isinstance(requested_plan, dict)
+                            and type(requested_plan.get("round")) is int
+                            and requested_plan["round"] == current_round
+                        )
+                        if previous_stage in ("verify", "introspect", "gate") and not same_current_plan:
+                            require_current_round_introspect(tracking, "returning to plan_fix")
                         plan = copy.deepcopy(operation.get("plan"))
                         if not isinstance(plan, dict) or type(plan.get("round")) is not int or not isinstance(plan.get("groups"), list):
                             raise ValueError("set-plan requires plan {round, groups}")
@@ -1167,6 +1182,9 @@ def run(args, parser):
                         raise ValueError("verify requires install to be reached in the current cycle")
                 if action == "introspect":
                     # One Introspect = one WF- task with four sections. Code follow-ups are separate non-WF issues.
+                    tracking = store["document"].setdefault("tracking", {})
+                    if "verify" not in tracking.get("stages_reached", []):
+                        raise ValueError("introspect requires verify to be reached in the current cycle")
                     sections = validate_introspect_sections(operation.get("sections"))
                     issues = operation.get("issues") or []
                     if issues:

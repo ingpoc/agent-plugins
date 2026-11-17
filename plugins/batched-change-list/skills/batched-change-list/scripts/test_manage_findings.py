@@ -358,9 +358,9 @@ class ManageFindingsTests(unittest.TestCase):
         ops, page = self.root / 'phase.json', self.root / 'report.html'
         for stage in ('collect', 'present', 'plan_fix', 'install', 'verify', 'introspect', 'gate', 'report_rollover', None):
             pre = [{'action':'introspect','sections':{'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}},'result':'no issues'}] if stage == 'report_rollover' else []
-            if stage in ('plan_fix', 'install', 'verify', 'report_rollover'):
+            if stage in ('plan_fix', 'install', 'verify'):
                 pre.insert(0, {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}})
-                if stage in ('verify', 'report_rollover'):
+                if stage == 'verify':
                     pre.insert(1, {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'})
             if stage in ('plan_fix', 'install', 'verify'):
                 pre.append({'action':'set-activity','stage':stage,'ids':['ISSUE-01'],'now':'Starting the checked stage'})
@@ -429,7 +429,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(self.data.read_text())['findings'][0]['status'], 'in_progress')
         before = self.data.read_bytes()
-        operations.write_text(json.dumps([plan, {'action':'set-activity','stage':'install','ids':[],'now':'No selected finding'}]))
+        operations.write_text(json.dumps([{'action':'set-activity','stage':'install','ids':[],'now':'No selected finding'}]))
         empty = self.cli('batch', self.data, operations, '--render', self.root / 'empty.html')
         self.assertNotEqual(empty.returncode, 0)
         self.assertIn('nonempty ID list', empty.stderr)
@@ -627,6 +627,9 @@ class ManageFindingsTests(unittest.TestCase):
             ops.write_text(json.dumps(list(items)))
             return self.cli('batch', self.data, ops, '--render', page)
         none = {'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}}
+        doc = json.loads(self.data.read_text())
+        doc.setdefault('tracking', {})['stages_reached'] = ['collect', 'present', 'plan_fix', 'install', 'verify']
+        self.data.write_text(json.dumps(doc), encoding='utf-8')
         self.assertNotEqual(batch({'action':'introspect','result':'no issues'}).returncode, 0)
         self.assertNotEqual(batch({'action':'introspect','issues':[{'issue':'x','evidence':'e','outcome':'fixed'}]}).returncode, 0)
         self.assertNotEqual(batch({'action':'introspect','sections':none,'issues':[{'issue':'x','evidence':'e','outcome':'fixed'}]}).returncode, 0)
@@ -662,6 +665,9 @@ class ManageFindingsTests(unittest.TestCase):
             ops.write_text(json.dumps(list(items)))
             return self.cli('batch', self.data, ops, '--render', page)
         none = {'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}}
+        doc = json.loads(self.data.read_text())
+        doc.setdefault('tracking', {})['stages_reached'] = ['collect', 'present', 'plan_fix', 'install', 'verify']
+        self.data.write_text(json.dumps(doc), encoding='utf-8')
         run = {'id':'r9','build':'b9','revision':'abc','installed_at':'2026-11-14T12:05:10+05:30','install_evidence':'log'}
         self.assertEqual(batch({'action':'start-verification','run':run}).returncode, 0)
         result = batch({'action':'introspect','sections':none})
@@ -1365,6 +1371,57 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(tracking["workflow"]["stage"], "verify")
         self.assertIsNone(tracking.get("introspect"))
 
+    def test_set_plan_requires_this_rounds_introspect_when_returning_from_verify(self):
+        document = self._path1_pre()
+        self.data.write_text(json.dumps(document), encoding="utf-8")
+        original = self.data.read_bytes()
+        plan = {"action": "set-plan", "plan": {"round": 2, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "pending",
+        }]}}
+        result = self._replay_batch(json.loads(original), plan)
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("this round's introspect", result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
+        current = json.loads(original)
+        current["findings"][0]["status"] = "failing"
+        current["tracking"]["plan"]["groups"][0].update(status="failed", phase="verify")
+        current["tracking"]["plan"]["groups"][0]["verify"].update(status="failed", failed=1, total=1)
+        result = self._replay_batch(current, {"action": "set-plan", "plan": current["tracking"]["plan"]})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        none = {key: {"none": f"No {key} changes."} for key in ("delete", "simplify", "optimize", "automate")}
+        result = self._replay_batch(json.loads(original), {"action": "introspect", "sections": none}, plan)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(self.data.read_text())["tracking"]["introspect"]["round"], 1)
+        self.assertEqual(json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["id"], "A")
+        present = json.loads(original)
+        present["tracking"]["workflow"]["stage"] = "present"
+        present["tracking"]["stages_reached"] = ["collect", "present"]
+        result = self._replay_batch(present, {"action": "set-plan", "plan": {
+            "round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "pending"}],
+        }})
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_introspect_cannot_authorize_plan_or_report_before_verify(self):
+        document = self._path1_pre()
+        document["tracking"]["stages_reached"].remove("verify")
+        self.data.write_text(json.dumps(document), encoding="utf-8")
+        original = self.data.read_bytes()
+        none = {key: {"none": f"No {key} changes."} for key in ("delete", "simplify", "optimize", "automate")}
+        result = self._replay_batch(json.loads(original), {"action": "introspect", "sections": none})
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("requires verify", result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
+        premature_plan = {"action": "set-plan", "plan": {"round": 2, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "pending",
+        }]}}
+        result = self._replay_batch(json.loads(original), {"action": "set-stage", "stage": "report_rollover"})
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("this round's introspect", result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
+        document["tracking"]["stages_reached"].append("verify")
+        result = self._replay_batch(document, {"action": "introspect", "sections": none}, premature_plan)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_statechart_path2_refuses_report_rollover_on_earlier_rounds_introspect(self):
         # Mini /tmp/bcl-statechart-replay/path2-stale-introspect-then-report: on 0.1.22,
         # set-stage report_rollover succeeded because an earlier round's record was present.
@@ -1427,6 +1484,10 @@ class ManageFindingsTests(unittest.TestCase):
                 "blocked_reason": "Individual issue checks pending",
             }],
         }
+        document["tracking"]["plan"]["groups"].append({
+            "id": "UNRELATED", "finding_ids": ["ISSUE-01"], "depends_on": [],
+            "status": "blocked", "blocked_reason": "Waiting for an external dependency",
+        })
         self.data.write_text(json.dumps(document), encoding="utf-8")
         page, ops = self.root / "checks.html", self.root / "checks.json"
         ops.write_text(json.dumps([{"action": "set-stage", "stage": "verify"}]))
@@ -1440,6 +1501,9 @@ class ManageFindingsTests(unittest.TestCase):
         group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
         self.assertEqual(group["status"], "verified")
         self.assertNotIn("blocked_reason", group)
+        unrelated = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][1]
+        self.assertEqual(unrelated["status"], "blocked")
+        self.assertEqual(unrelated["blocked_reason"], "Waiting for an external dependency")
         # Re-render a still-pending checks lane to confirm the page does not say Blocked
         pending = json.loads(self.data.read_text())
         pending["findings"][1]["status"] = "untested"
