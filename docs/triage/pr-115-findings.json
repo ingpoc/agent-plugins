@@ -5475,9 +5475,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-17T16:34:22Z",
-      "now": "2026-11-17T16:34:22Z — Lane SKILL-REDESIGN updated"
+      "stage": "install",
+      "updated_at": "2026-11-17T16:34:53Z",
+      "now": "2026-11-17T16:34:53Z — Install in progress"
     },
     "rollover": {
       "source_pr": 114,
@@ -5741,7 +5741,8 @@
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ]
   },
   "findings": [
