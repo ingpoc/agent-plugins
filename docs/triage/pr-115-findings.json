@@ -5754,8 +5754,8 @@
     },
     "workflow": {
       "stage": "verify",
-      "updated_at": "2026-11-17T16:49:58Z",
-      "now": "2026-11-17T16:49:58Z — Verify in progress"
+      "updated_at": "2026-11-17T16:51:16Z",
+      "now": "2026-11-17T16:51:16Z — Lane SKILL-REDESIGN updated"
     },
     "rollover": {
       "source_pr": 114,
@@ -5978,7 +5978,7 @@
             "BCL-38"
           ],
           "depends_on": [],
-          "status": "verifying",
+          "status": "failed",
           "phase": "verify",
           "worktree": "samantha-pr115-rollover",
           "reason": "Guru authorized one skill redesign so the always-needed rules stay in the skill file, the step workflow loads from references, the chart shows the real flow with Current and After as a toggle and verdict badges, and skill-creator plus skill-refine checks pass.",
@@ -6013,7 +6013,7 @@
             "total": 1,
             "failure": "Checked: /Users/gurusharan/.agents/artifacts/bcl-115/verify-bcl38.sh\nExpected: verification command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-17T16:49:52Z"
+          "updated_at": "2026-11-17T16:51:16Z"
         }
       ]
     },
@@ -6291,11 +6291,14 @@
           "state": "pending"
         },
         "BCL-38": {
-          "state": "checking",
+          "state": "blocked",
           "observation": "0.1.38 was reinstalled at a16093066b763cf542321103c2b3caf070979ec7 after fixing test_bcl.py so the installed skill copy resolves ~/.agents/plugins/batched-change-list/bin/bcl instead of /Users/plugins/batched-change-list/bin/bcl. About to rerun verify-bcl38.sh on the worktree and the installed copy.",
           "observed_at": "2026-11-17T16:49:51Z",
           "started_at": "2026-11-17T16:49:52Z",
-          "updated_at": "2026-11-17T16:49:52Z"
+          "updated_at": "2026-11-17T16:49:52Z",
+          "check_id": "38125d12b5244eb28c77832b524b6972",
+          "evidence": "Checked: /Users/gurusharan/.agents/artifacts/bcl-115/verify-bcl38.sh\nExpected: verification command exits 0\nObserved: Verification command exited 1",
+          "finished_at": "2026-11-17T16:51:16.397024Z"
         }
       }
     }
@@ -9493,7 +9496,7 @@
       "id": "BCL-38",
       "title": "Skill file mixes always-needed rules with the step workflow, and the chart does not show the real flow",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "blocked",
       "priority": "high",
       "summary": "The skill file repeats the workflow in a sentence and a list, while the rules that apply at every step are missing or written as bare commands. The chart only lists which file loads, not the loop, the gate, or which scripts run.",
       "impact": "An agent following the skill can miss the rules that apply at every step, load the wrong files, or treat the chart as the workflow when it is not. The skill also falls short of the usual skill-writing rules for descriptions, reasons, and behaviour tests.",
