@@ -1907,6 +1907,25 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIn(f"merged requires {required}", result.stderr)
         self.assertEqual(self.data.read_bytes(), before)
 
+    def test_merging_blocks_15_verified_fixes_and_accepts_16(self):
+        def merge(count):
+            document = copy.deepcopy(self.document)
+            template = document["findings"][0]
+            document["findings"] = []
+            for i in range(count):
+                finding = copy.deepcopy(template)
+                finding.update(id=f"ISSUE-{i + 1:02}", status="verified_fixed", verification="Verified", verification_refs=["receipt"])
+                document["findings"].append(finding)
+            document["tracking"] = {"stages_reached": ["report_rollover"]}
+            return self._replay_batch(document, {"action": "set-stage", "stage": "merged", "merged": {
+                "commit_sha": "a" * 40, "merged_at": "2026-11-17T00:00:00Z",
+                "stacked_prs": {"status": "complete"},
+            }})
+        blocked = merge(15)
+        self.assertNotEqual(blocked.returncode, 0)
+        self.assertIn("merge requires 16 verified_fixed findings; count is 15", blocked.stderr)
+        self.assertEqual(merge(16).returncode, 0)
+
     def test_completed_check_pass_clears_checks_pending_block(self):
         document = json.loads(self.data.read_text())
         document["findings"][0]["status"] = "verified_fixed"

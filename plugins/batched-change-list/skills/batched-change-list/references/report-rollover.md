@@ -1,6 +1,6 @@
 # Report and roll over
 
-Run `bcl report` only when the [gate](gate.md) is met and this round's Introspect has been recorded (required after Install). This marks Report & roll over as the current stage and snapshots the report.
+Run `bcl report` only when the [gate](gate.md) is met and this round's Introspect has been recorded (required after Install). The report/rollover default uses `gate.default_threshold`; merging the previous PR uses `gate.merge_previous_pr_threshold` from `scripts/workflow_definition.json`. This marks Report & roll over as the current stage and snapshots the report.
 
 After the PR is actually merged, run `bcl merged`. It records the merge commit SHA and time, moves the workflow to terminal Merged / Done, and retargets open stacked PRs based on this branch to `main` when the configured `gh` or Origin CLI can do so. If listing or retargeting is unavailable, the command records a pending TODO and prints the manual action. Then run `bcl install-local` to refresh the local Agents, Cursor, and Codex copies from the merged checkout.
 

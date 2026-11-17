@@ -12,22 +12,26 @@
   ],
   "exit": [
     {"id": "report_rollover", "label": "Report & roll over", "requires": ["introspect"], "check": "gate"},
-    {"id": "merged", "label": "Merge previous PR", "completed_label": "Merged / Done", "requires": ["report_rollover"], "check": "gate"}
+    {"id": "merged", "label": "Merge previous PR", "completed_label": "Merged / Done", "requires": ["report_rollover"], "check": "merge_gate"}
   ],
   "gate": {
     "default_threshold": 15,
+    "merge_previous_pr_threshold": 16,
     "badge_label": "Fixes",
     "label": "Fixes {fixed}/{threshold} verified",
     "loop_label": "under {threshold} verified · back to Plan & fix",
     "mobile_loop_label": "under {threshold} verified · repeat",
     "exit_label": "{threshold}+ verified",
-    "note": "{threshold}+ verified: report, roll over, or merge previous PR; no open findings also meets the gate."
+    "merge_label": "{threshold}+ verified for Merge previous PR",
+    "note": "{threshold}+ verified: report or roll over. Merge previous PR requires {merge_threshold}+ verified. No open findings also meets the report/rollover gate."
   },
+  "suggested_verdicts": {},
   "lane_phase_rank": {"fix": 0, "review": 0, "install": 1, "verify": 2, "introspect": 3},
   "checks": {
     "install": {"module": "check_install_sessions", "function": "validate_install_sessions", "file": "check_install_sessions.py"},
     "introspect": {"module": "check_introspect", "function": "validate_introspect", "file": "check_introspect.py"},
-    "gate": {"module": "check_gate_count", "function": "gate_count", "file": "check_gate_count.py"}
+    "gate": {"module": "check_gate_count", "function": "gate_count", "file": "check_gate_count.py"},
+    "merge_gate": {"module": "check_gate_count", "function": "merge_gate_count", "file": "check_gate_count.py"}
   },
   "transitions": {
     "verify": ["install"],

@@ -61,7 +61,7 @@ class RenderTests(unittest.TestCase):
         self.assertNotIn('var(--amber)', gate_node)
         self.assertIn('Fixes <b>1/1000</b> verified<small>0 in progress</small>', gate_node)
         self.assertNotIn('excludes completed introspection', gate_node)
-        self.assertIn('1000+ verified: report, roll over, or merge previous PR', page)
+        self.assertIn('1000+ verified: report or roll over. Merge previous PR requires 16+ verified.', page)
 
     def test_gate_does_not_count_a_fixed_issue_during_an_unresolved_recheck(self):
         finding = {'id':'ISSUE-01', 'status':'verified_fixed', 'verification_refs':['old receipt']}
@@ -512,10 +512,16 @@ setImmediate(async()=>{
                 install = page.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
                 self.assertNotIn('wf-step done', install)
 
-    def test_merge_previous_pr_is_the_shared_gate_exit(self):
+    def test_merge_previous_pr_uses_16_while_report_and_rollover_stay_at_15(self):
         page = renderer.render_workflow('gate', [], 15, 15, True, 0, 1)
         self.assertIn('>Merge previous PR<', page)
-        self.assertIn('15+ verified: report, roll over, or merge previous PR', page)
+        self.assertIn('15+ verified: report or roll over.', page)
+        self.assertIn('Merge previous PR requires 16+ verified.', page)
+        fifteen = [{'id': f'ISSUE-{i}', 'status': 'verified_fixed'} for i in range(15)]
+        sixteen = fifteen + [{'id': 'ISSUE-16', 'status': 'verified_fixed'}]
+        self.assertEqual(renderer.rollover_gate(fifteen, {}), (15, 15, True))
+        self.assertEqual(renderer.merge_gate(fifteen, {}), (15, 16, False))
+        self.assertEqual(renderer.merge_gate(sixteen, {}), (16, 16, True))
         merged = renderer.render_workflow('merged', [], 15, 15, True, 0, 1)
         self.assertIn('>Merged / Done<', merged)
 

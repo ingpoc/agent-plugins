@@ -1271,10 +1271,10 @@ def run(args, parser):
                     if target in workflow_definition.TRANSITIONS:
                         workflow_definition.require_transition(target, tracking.get("stages_reached", []))
                     if target == "merged":
-                        _fixed, _threshold, met = workflow_definition.run_stage_check(
+                        fixed, threshold, met = workflow_definition.run_stage_check(
                             "merged", {"findings": findings, "tracking": tracking})
                         if not met:
-                            raise ValueError("merge requires the shared exit gate to be met")
+                            raise ValueError(f"merge requires {threshold} verified_fixed findings; count is {fixed}")
                 if action == "introspect":
                     # One Introspect = one WF- task with four sections. Code follow-ups are separate non-WF issues.
                     tracking = store["document"].setdefault("tracking", {})

@@ -498,7 +498,8 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
         stage.get("hide_after_rollover_until_reached") and cycle > 1 and stage["id"] not in reached)]
     pre = "".join(simple_step(stage) for stage in entry)
     post = "".join(simple_step(stage) for stage in WF.EXIT)
-    gate_note = WF.DEFINITION["gate"]["note"].format(threshold=threshold)
+    gate_note = WF.DEFINITION["gate"]["note"].format(
+        threshold=threshold, merge_threshold=WF.MERGE_PREVIOUS_PR_THRESHOLD)
     return (f'<ol class="wf" aria-label="Workflow steps"><li class="wf-pre"><ol>{pre}</ol></li>'
             f'<li class="wf-band {"gate-met" if gate_met else "gate-pending"}" role="group" aria-label="Repeats each round. Round {round_number}. {len(lanes)} lanes across {occupied} steps.">'
             f'<div class="wf-band-head"><span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M10 6a4 4 0 1 1-1.2-2.85" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M9.6 1v2.6H7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Repeats each round{spread}</span>'
@@ -534,6 +535,12 @@ def rollover_gate(findings, tracking):
     has_open = any(item.get("status") != "closed" and not currently_fixed(item) for item in counted)
     # A count at or above the threshold is always met; never render N of 15 as not met when N >= 15.
     return fixed, threshold, fixed >= threshold or not has_open
+
+
+def merge_gate(findings, tracking):
+    fixed, _, _ = rollover_gate(findings, tracking)
+    threshold = WF.MERGE_PREVIOUS_PR_THRESHOLD
+    return fixed, threshold, fixed >= threshold
 
 
 

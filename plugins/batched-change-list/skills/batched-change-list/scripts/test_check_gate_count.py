@@ -14,6 +14,12 @@ class GateCountTests(unittest.TestCase):
         data = {"findings": [], "tracking": {}}
         self.assertEqual(check.gate_count(data), render.rollover_gate(data["findings"], data["tracking"]))
 
+    def test_merge_gate_count_uses_the_merge_threshold(self):
+        def data(count):
+            return {"findings": [{"id": f"ISSUE-{i}", "status": "verified_fixed"} for i in range(count)], "tracking": {}}
+        self.assertEqual(check.merge_gate_count(data(15)), (15, 16, False))
+        self.assertEqual(check.merge_gate_count(data(16)), (16, 16, True))
+
     def test_script_reports_count_from_a_temp_tracker(self):
         with tempfile.TemporaryDirectory() as directory:
             data = Path(directory) / "tracker.json"

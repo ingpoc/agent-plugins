@@ -73,6 +73,17 @@ elif args[:2] != ['pr', 'edit']:
                     except OSError: pass
         self.addCleanup(cleanup_viewer)
 
+    @staticmethod
+    def merge_ready(document):
+        template = document["findings"][0]
+        document["findings"] = []
+        for index in range(16):
+            finding = json.loads(json.dumps(template))
+            finding.update(id=f"ISSUE-{index + 1:02}", status="verified_fixed", verification="Verified", verification_refs=["receipt"])
+            document["findings"].append(finding)
+        document["tracking"].update(stages_reached=["report_rollover"], rollover_threshold=15)
+        return document
+
     def test_install_local_refreshes_only_the_requested_temp_destinations(self):
         checkout = self.root / "checkout"
         shutil.copytree(PLUGIN, checkout)
@@ -834,7 +845,7 @@ elif args[:2] != ['pr', 'edit']:
         sha = "a" * 40; merged_at = "2026-11-14T12:00:00Z"
         live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
         doc = json.loads(self.data.read_text())
-        doc["tracking"].update(stages_reached=["report_rollover"], rollover_threshold=1)
+        doc = self.merge_ready(doc)
         doc["tracking"]["workflow"] = {"stage": "report_rollover", "updated_at": "2026-11-14T11:00:00Z"}
         contents = json.dumps(doc)
         self.data.write_text(contents)
@@ -858,7 +869,7 @@ elif args[:2] != ['pr', 'edit']:
     def test_merged_keeps_terminal_data_and_emits_todo_when_retarget_api_fails(self):
         doc = json.loads(self.data.read_text())
         doc["tracking"]["pull_request"]["url"] = "https://origin.example/example/project/pull/123"
-        doc["tracking"].update(stages_reached=["report_rollover"], rollover_threshold=1)
+        doc = self.merge_ready(doc)
         doc["tracking"]["workflow"] = {"stage": "report_rollover", "updated_at": "2026-11-14T11:00:00Z"}
         contents = (json.dumps(doc, indent=2) + "\n").encode()
         self.data.write_bytes(contents)

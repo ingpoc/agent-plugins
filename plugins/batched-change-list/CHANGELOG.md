@@ -1,3 +1,9 @@
+## 0.1.38
+
+- Redesign the skill as an always-loaded rule set with a one-row-per-trigger reference router and step-local commands.
+- Generate a real workflow statechart with Current/After views and Elon verdict badges.
+- Add deterministic routing evals and read gate thresholds from workflow definition fields, including the separate merge-previous-PR threshold.
+
 ## 0.1.37
 
 - Allow max Codex effort on current plan groups while keeping the about-4-issues size cap.

@@ -1,4 +1,4 @@
-"""Shared BCL workflow definition and its skill-line generator."""
+"""Shared BCL workflow definition and stage checks."""
 import importlib
 import argparse
 import json
@@ -15,25 +15,7 @@ ROUND_IDS = [stage["id"] for stage in LOOP]
 TRANSITIONS = DEFINITION["transitions"]
 REQUIRED_CHECKS = DEFINITION["checks"]
 DEFAULT_ROLLOVER_THRESHOLD = DEFINITION["gate"]["default_threshold"]
-
-
-def skill_loop_line():
-    entry = " and ".join(stage["label"] for stage in ENTRY)
-    loop = " → ".join(stage["label"] for stage in LOOP)
-    exit_path = " → ".join(stage["label"] for stage in EXIT)
-    return f"Workflow: {entry} once; then loop {loop}. At {DEFAULT_ROLLOVER_THRESHOLD}+ fixes, {exit_path}."
-
-
-def write_skill_loop(path=None):
-    path = Path(path) if path else Path(__file__).resolve().parents[1] / "SKILL.md"
-    text = path.read_text(encoding="utf-8")
-    marker = "Workflow: "
-    lines = text.splitlines()
-    matches = [i for i, line in enumerate(lines) if line.startswith(marker)]
-    if len(matches) != 1:
-        raise ValueError("SKILL.md needs exactly one generated Workflow line")
-    lines[matches[0]] = skill_loop_line()
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+MERGE_PREVIOUS_PR_THRESHOLD = DEFINITION["gate"]["merge_previous_pr_threshold"]
 
 
 def run_check(name, *args, **kwargs):
@@ -62,15 +44,7 @@ def require_transition(stage, reached):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--write-skill", action="store_true", help="generate the Workflow line in SKILL.md")
-    args = parser.parse_args(argv)
-    if not args.write_skill:
-        parser.error("pass --write-skill")
-    try:
-        write_skill_loop()
-    except (OSError, ValueError) as error:
-        print(f"FAIL: {error}; fix: restore one generated Workflow line in SKILL.md", file=sys.stderr)
-        return 1
+    parser.parse_args(argv)
     return 0
 
 

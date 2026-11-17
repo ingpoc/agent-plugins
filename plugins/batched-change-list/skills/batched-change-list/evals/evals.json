@@ -1,0 +1,22 @@
+{
+  "evals": [
+    {
+      "prompt": "A new UI finding arrived while we are halfway through the current list. Add it without losing the existing status history.",
+      "trigger": "New list or feedback",
+      "reference": "references/collect.md",
+      "next": "Load collect.md, capture the finding in the existing list, preserve prior status/history, then run bcl start."
+    },
+    {
+      "prompt": "We have exactly 15 verified fixes on this list after Introspect. Is the gate met, and what should happen next?",
+      "trigger": "After Introspect or checking rollover",
+      "reference": "references/gate.md",
+      "next": "Read gate.default_threshold from workflow_definition.json (15), confirm 15 reaches the gate, then load report-rollover.md for bcl report/rollover."
+    },
+    {
+      "prompt": "One fix group depends on another group still in progress. Plan the next round.",
+      "trigger": "After Present or gate loop-back",
+      "reference": "references/plan-fix.md",
+      "next": "Defer the dependent group, select only 3 or 4 independent groups, then run bcl plan before fixes."
+    }
+  ]
+}

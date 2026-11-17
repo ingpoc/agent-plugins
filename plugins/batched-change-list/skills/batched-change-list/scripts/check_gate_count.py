@@ -17,6 +17,15 @@ def gate_count(data):
     return render.rollover_gate(data["findings"], tracking)
 
 
+def merge_gate_count(data):
+    if not isinstance(data, dict) or not isinstance(data.get("findings"), list):
+        raise ValueError("tracker must contain a findings array")
+    tracking = data.get("tracking", {})
+    if not isinstance(tracking, dict):
+        raise ValueError("tracker tracking must be an object")
+    return render.merge_gate(data["findings"], tracking)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", required=True, type=Path, help="live BCL tracker JSON")

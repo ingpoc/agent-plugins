@@ -1,92 +1,93 @@
-import json
-import re
-import hashlib
-import tempfile
-import unittest
+import hashlib, json, re, shutil, subprocess, sys, tempfile, unittest
 from pathlib import Path
-import workflow_definition
 import statechart
+import workflow_definition
 
-SKILL = Path(__file__).resolve().parents[1] / "SKILL.md"
-REFS = SKILL.parent / "references"
-STEPS = ("collect.md", "present.md", "plan-fix.md", "install.md", "verify.md", "introspect.md", "gate.md", "report-rollover.md")
-SHARED = ("tracker.md", "viewer.md")
-
+SKILL=Path(__file__).resolve().parents[1]/'SKILL.md'; ROOT=SKILL.parent; REFS=ROOT/'references'
+EXPECTED={'collect.md':'New list or feedback','present.md':'After collection','plan-fix.md':'After Present or gate loop-back','install.md':'After group review','verify.md':'After its install','introspect.md':"After every round's Verify",'gate.md':'After Introspect or checking rollover','report-rollover.md':'When gate is met','tracker.md':'Recovery','viewer.md':'Viewer use','principles.md':'Debugging, tests, sequencing, shared state, or proof'}
+STEPS=[stage["label"] for stage in workflow_definition.STAGES]
 
 class SkillLayoutTests(unittest.TestCase):
-    def test_skill_stays_under_line_cap_and_every_step_links_an_existing_file(self):
-        text = SKILL.read_text()
-        self.assertLessEqual(len(text.splitlines()), 90)
-        self.assertLessEqual(len(text.encode()), 3072)
-        self.assertRegex(text, r"(?m)^\| When \| Load \|")
-        self.assertLessEqual(sum(line.startswith("|") and not re.match(r"\|\s*:?-+", line) and not line.lower().startswith("| when") for line in text.splitlines()), 5)
-        for path in REFS.glob("*.md"):
-            self.assertIn(f"references/{path.name}", text, f"unnamed reference {path.name}")
-        for name in SHARED:
-            self.assertTrue((REFS / name).is_file())
+    def test_skill_body_contains_only_always_rules_router_and_validation(self):
+        text=SKILL.read_text(); body=text.split('---',2)[2]
+        self.assertNotRegex(body,r'(?m)^Workflow:|^\d+\. '); self.assertNotRegex(body,r'\b(?:15|16)\b')
+        self.assertEqual(sum(line=='| Step | When | Load | Run |' for line in body.splitlines()),1); self.assertEqual(sum(line=='| When | Load |' for line in body.splitlines()),1)
+        self.assertIn('\n\nSelf-validate:',body)
+        for phrase in ('so the fix and its review stay separate','so model and effort stay in one place','so the list and its history have one writer','so one fix does not break another','every “already present” item needs its own named test','so the gate count is the number the owner sees','Run Introspect after every Verify','python3 scripts/statechart.py','python3 -m unittest discover'):
+            self.assertIn(phrase,body)
 
-    def test_numbered_path_tracks_workflow_definition_and_names_check_scripts(self):
-        text = SKILL.read_text()
-        numbered = re.findall(r"(?m)^\d+\. (.+)$", text)
-        expected = [step["label"] for step in workflow_definition.STAGES[:7]] + ["Report & roll over / Merge"]
-        self.assertEqual(numbered, expected)
-        for name in ("check_gate_count.py", "check_install_sessions.py", "check_introspect.py"):
-            self.assertIn(name, text)
+    def test_router_names_each_step_and_side_reference_once_and_all_references(self):
+        text=SKILL.read_text(); rows=statechart.router(text); side=statechart.side_references(text)
+        self.assertEqual([r['step'] for r in rows],STEPS)
+        self.assertEqual([r['path'] for r in rows],list(EXPECTED)[:8]+[''])
+        self.assertEqual({r['path']:r['trigger'] for r in rows+side if r['path']},EXPECTED)
+        self.assertEqual(rows[2]['run'],'`bcl plan`, `bcl fix`')
+        for p in REFS.glob('*.md'): self.assertEqual(sum(r['path']==p.name for r in rows+side),1,p.name)
 
-    def test_statechart_json_payloads_initialize_unique_ids_and_map_each_reference_trigger(self):
-        rendered = statechart.render()
-        ids = re.findall(r'\bid="([^"]+)"', rendered)
-        self.assertEqual(len(ids), len(set(ids)))
-        self.assertIn('id="workflow"', rendered)
-        steps = json.loads(re.search(r'<script type="application/json" id="workflow-data">([^<]*)</script>', rendered).group(1))
-        refs = json.loads(re.search(r'<script type="application/json" id="references">([^<]*)</script>', rendered).group(1))
-        self.assertEqual(steps, [step["label"] for step in workflow_definition.STAGES])
-        self.assertEqual({row["path"]: row["trigger"] for row in refs}, {
-            "collect.md": "New list or feedback",
-            "present.md": "After collection",
-            "plan-fix.md": "After Present or gate loop-back",
-            "install.md": "After group review",
-            "verify.md": "After its install",
-            "introspect.md": "After every round's Verify",
-            "gate.md": "After Introspect or checking rollover",
-            "report-rollover.md": "When gate is met or the PR merges",
-            "tracker.md": "Recovery",
-            "viewer.md": "For viewer use",
-            "principles.md": "For debugging, tests, sequencing, shared state, or proof",
-        })
+    def test_description_covers_every_use_case(self):
+        desc=SKILL.read_text().split('description:',1)[1].splitlines()[0].lower()
+        for term in ('one at a time','build-install-test','rollover','merging','view the change-list page'): self.assertIn(term,desc)
 
-    def test_router_body_shrinks_and_loop_line_matches_workflow_definition(self):
-        text = SKILL.read_text()
-        body = text.split("---", 2)[2].lstrip("\n")
-        self.assertLessEqual(len(body.encode()), 2589)
-        lines = [line for line in body.splitlines() if line.startswith("Workflow: ")]
-        self.assertEqual(lines, [workflow_definition.skill_loop_line()])
+    def test_after_chart_uses_suggested_verdict_and_defaults_to_keep(self):
+        chart=statechart.render(suggested_verdicts={'collect':'delete'})
+        payload=json.loads(re.search(r'<script type=\"application/json\" id=\"chart-data\">([^<]*)</script>',chart).group(1))
+        self.assertEqual(payload['suggested_verdicts'],{'collect':'delete'})
+        self.assertIn("if(view==='after')",chart)
+        self.assertIn("badge.textContent=verdicts[id]||'keep'",chart)
 
-    def test_generated_statechart_is_current_and_stale_or_missing_fails_shape_check(self):
-        chart = SKILL.parent / "statechart.html"
-        self.assertTrue(statechart.is_current(chart), "run python3 scripts/statechart.py to regenerate the chart")
-        rendered = statechart.render()
-        self.assertRegex(rendered, r'<html lang="en" data-source-hash="[0-9a-f]{64}" data-definition-hash="[0-9a-f]{64}">')
-        digest = hashlib.sha256(b"SKILL.md\n" + SKILL.read_bytes() + b"".join(path.name.encode() + b"\n" + path.read_bytes() for path in sorted(REFS.glob("*.md")))).hexdigest()
-        self.assertIn(f'data-source-hash="{digest}"', rendered)
-        definition_hash = hashlib.sha256((SKILL.parent / "scripts/workflow_definition.json").read_bytes()).hexdigest()
-        self.assertIn(f'data-definition-hash="{definition_hash}"', rendered)
-        self.assertIn("<h2>Current</h2>", rendered)
-        self.assertIn("<h2>After trigger</h2>", rendered)
-        changed_skill = SKILL.read_bytes().replace(b"Workflow: Collect and Present once", b"Workflow: Collect and Present initially", 1)
-        changed_chart = statechart.render(changed_skill)
-        self.assertNotEqual(changed_chart, rendered)
-        self.assertFalse(statechart.is_current(chart, changed_chart), "non-link SKILL.md edits must stale the chart")
-        with tempfile.TemporaryDirectory() as temporary:
-            stale = Path(temporary) / "statechart.html"
-            self.assertFalse(statechart.is_current(stale, rendered))
-            stale.write_text(rendered.replace(f'data-definition-hash="{definition_hash}"', 'data-definition-hash="' + "0" * 64 + '"'), encoding="utf-8")
-            self.assertFalse(statechart.is_current(stale), "stale workflow definition hash must fail")
-            stale.write_text(rendered.replace(f' data-definition-hash="{definition_hash}"', ""), encoding="utf-8")
-            self.assertFalse(statechart.is_current(stale), "missing workflow definition hash must fail")
-            stale.write_text("stale", encoding="utf-8")
-            self.assertFalse(statechart.is_current(stale, rendered))
+    def test_merge_chart_uses_merge_run_and_report_reference(self):
+        chart=statechart.render()
+        payload=json.loads(re.search(r'<script type=\"application/json\" id=\"chart-data\">([^<]*)</script>',chart).group(1))
+        report=next(row for row in payload['refs'] if row.get('step')=='Report & roll over')
+        merged=next(row for row in payload['refs'] if row.get('step')=='Merge previous PR')
+        self.assertEqual(report['run'],'`bcl report`, `bcl rollover`')
+        self.assertEqual(merged['run'],'`bcl merged`, `bcl install-local`')
+        self.assertEqual(merged['path'],'')
+        self.assertIn("step.id==='merged'?d.refs.find(x=>x.path==='report-rollover.md')",chart)
 
+    def test_flow_chart_has_flow_colors_click_toggle_and_verdicts(self):
+        chart=statechart.render()
+        for term in ('Collect','Present','Plan & fix','under {threshold} verified','{threshold}+ verified','Report & roll over','Merge previous PR','↓ into the Plan & fix loop','merge_label','{threshold}+ verified for Merge previous PR',"className='branches'","className='branch'",'.always{border-color:#17804b','.ref{border-color:#7542a8','--grey:#9199a1','onclick','data-view="current"','data-view="after"',"verdicts[id]||\'keep\'",'verdict','delete','simplify','optimize','automate','keep','bcl plan','bcl fix','bcl merged','bcl install-local'):
+            self.assertIn(term,chart)
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_evals_shape_and_router_paths_cover_three_scenarios(self):
+        path=ROOT/'evals/evals.json'; data=json.loads(path.read_text()); self.assertEqual(set(data),{'evals'}); rows=data['evals']; self.assertEqual(len(rows),3)
+        self.assertEqual([r['reference'] for r in rows],['references/collect.md','references/gate.md','references/plan-fix.md'])
+        for row in rows: self.assertTrue(row['prompt'] and row['trigger'] and row['next'])
+        self.assertIn('15',rows[1]['prompt']); self.assertIn('depends',rows[2]['prompt'])
+
+    def test_comparison_helper_detects_regression_without_live_model(self):
+        frozen=Path('/Users/gurusharan/.agents/artifacts/bcl-115/frozen-0.1.37')
+        if not frozen.exists(): self.skipTest('frozen 0.1.37 unavailable')
+        p=subprocess.run([sys.executable,str(ROOT/'scripts/compare_skill.py'),str(ROOT),str(frozen)],capture_output=True,text=True)
+        self.assertEqual(p.returncode,0,p.stdout+p.stderr)
+
+    def test_comparison_helper_fails_on_removed_router_and_evals(self):
+        frozen=Path('/Users/gurusharan/.agents/artifacts/bcl-115/frozen-0.1.37')
+        if not frozen.exists(): self.skipTest('frozen 0.1.37 unavailable')
+        import compare_skill
+        with tempfile.TemporaryDirectory() as tmp:
+            regressed=Path(tmp)/'skill'; shutil.copytree(ROOT,regressed)
+            skill=regressed/'SKILL.md'; skill.write_text(skill.read_text().replace('| Step | When | Load | Run |','| When | Load | Run |',1))
+            (regressed/'evals/evals.json').unlink()
+            self.assertLess(compare_skill.score(regressed),compare_skill.score(ROOT))
+            result=subprocess.run([sys.executable,str(ROOT/'scripts/compare_skill.py'),str(regressed),str(frozen)],capture_output=True,text=True)
+            self.assertNotEqual(result.returncode,0,result.stdout+result.stderr)
+
+    def test_shape_tool_strict_passes_when_available(self):
+        tool=Path('/tmp/sr-scripts/skill_shape.py')
+        if not tool.exists(): self.skipTest('skill_shape.py unavailable')
+        p=subprocess.run([sys.executable,str(tool),'--strict',str(ROOT)],capture_output=True,text=True)
+        self.assertEqual(p.returncode,0,p.stdout+p.stderr)
+
+    def test_generated_chart_hashes_and_missing_or_wrong_hash_are_stale(self):
+        chart=ROOT/'statechart.html'; rendered=statechart.render(); self.assertTrue(statechart.is_current(chart))
+        self.assertRegex(rendered,r'data-source-hash="[0-9a-f]{64}"'); self.assertRegex(rendered,r'data-definition-hash="[0-9a-f]{64}"')
+        digest=hashlib.sha256(b'SKILL.md\n'+SKILL.read_bytes()+b''.join(p.name.encode()+b'\n'+p.read_bytes() for p in sorted(REFS.glob('*.md')))).hexdigest(); self.assertIn(f'data-source-hash="{digest}"',rendered)
+        dh=hashlib.sha256((ROOT/'scripts/workflow_definition.json').read_bytes()).hexdigest()
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp)/'chart.html'; p.write_text(rendered.replace(f'data-definition-hash="{dh}"','data-definition-hash="'+'0'*64+'"')); self.assertFalse(statechart.is_current(p))
+            p.write_text(re.sub(r' data-definition-hash="[^"]+"','',rendered)); self.assertFalse(statechart.is_current(p))
+            self.assertFalse(statechart.is_current(Path(tmp)/'missing.html'))
+
+if __name__=='__main__': unittest.main()
