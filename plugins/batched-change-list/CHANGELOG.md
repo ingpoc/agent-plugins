@@ -1,3 +1,31 @@
+## 0.1.37
+
+- Allow max Codex effort on current plan groups while keeping the about-4-issues size cap.
+- Migrate a verified legacy viewer without instance identity onto a new port without shutdown; fail closed when a running viewer cannot be identified, and do not start a replacement.
+
+## 0.1.36
+
+- Windows-safe non-destructive viewer liveness probe in live_state, with Unix behaviour preserved.
+- Named tests that Origin CI keeps running on draft pull requests and that plan-fix keeps the one-review-round policy.
+
+## 0.1.35
+
+- Draft Introspect sections from tracker-recorded work for review and editing before save; reject draft paths that alias the input or live tracker, including hard links and the in-repo snapshot, and refresh the skill statechart shape check to match the current skill text.
+
+## 0.1.34
+
+- Show one Verification-by-version row per version from the latest check with Checked, Expected, Observed, and Verdict because; reject empty reason parts, merge duplicate outcome records at write time, keep distinct checks distinct, and put earlier checks plus hashes, paths, timings, and the receipt under Details.
+
+## 0.1.33
+
+- Limit `bcl sync-main` stashing to leftover hook/check dirt, preserve unrelated work, and catch recreated hook dirt at previously stashed paths.
+- Add `bcl install-local` for installing clean plugin copies into the `~/.agents`, Cursor, and Codex caches with old-copy cleanup and tree-hash checks; install only the skill subtree at the skill destination.
+
+## 0.1.32
+
+- Flag or split plan groups that are too large or set to Luna max; determine exemptions by status, not phase.
+- Add `bcl sync-main` to merge main, resolve deleted skill references, re-render HTML, and stash hook/check dirt including changes created after the merge; refuse when `docs/triage/` is dirty.
+
 ## 0.1.31
 
 - Use the lane outcome field for the visible issue status.

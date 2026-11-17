@@ -14,6 +14,7 @@ import live_state
 import manage_findings
 import tracker_lock
 import workflow_definition
+import check_introspect
 
 def _provider(url):
     return "gh" if (urlsplit(url).hostname or "").lower() == "github.com" else "origin"
@@ -30,6 +31,9 @@ def _ensure_viewer(parser, key, record, live, plugin_version, stage):
         if stage != "plan":
             raise
         parser.error(str(error))
+
+def _verification_failure_reason(command, observed):
+    return f"Checked: {command}\nExpected: verification command exits 0\nObserved: {observed}"
 
 def _pull_request_data(provider, url, repo):
     executable = shutil.which(provider)
@@ -73,6 +77,51 @@ def _branch_name(value):
     if isinstance(value, dict):
         value = _value(value, "ref", "name", "branch")
     return value.strip() if isinstance(value, str) and value.strip() else None
+
+def _install_tree_digest(root):
+    digest = hashlib.sha256()
+    count = 0
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or "__pycache__" in path.parts or path.suffix == ".pyc" or path.name == ".DS_Store":
+            continue
+        digest.update(path.relative_to(root).as_posix().encode())
+        digest.update(b"\0")
+        with path.open("rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+        digest.update(b"\0")
+        count += 1
+    return digest.hexdigest(), count
+
+def install_local():
+    with (HERE / "plugin.json").open() as manifest:
+        version = json.load(manifest)["version"]
+    revision = subprocess.check_output(["git", "-C", str(HERE), "rev-parse", "HEAD"], text=True).strip()
+    dirty = subprocess.check_output(["git", "-C", str(HERE), "status", "--porcelain", "--untracked-files=all", "--"], text=True)
+    if dirty:
+        raise ValueError("plugin checkout has local changes; install from the merged HEAD")
+    plugin_sha, _ = _install_tree_digest(HERE)
+    skill_source = HERE / "skills/batched-change-list"
+    skill_sha, _ = _install_tree_digest(skill_source)
+    home = Path.home()
+    destinations = [
+        (HERE, home / ".agents/plugins/batched-change-list", plugin_sha),
+        (skill_source, home / ".agents/skills/batched-change-list", skill_sha),
+        *((HERE, home / f".{client}/plugins/cache/ingpoc-agent-plugins/batched-change-list/{ref}", plugin_sha)
+          for client in ("cursor", "codex") for ref in (version, revision)),
+    ]
+    print(f"bcl install-local: revision {revision}")
+    for source, destination, source_sha in destinations:
+        if destination.is_symlink():
+            destination.unlink()
+        elif destination.exists():
+            shutil.rmtree(destination)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(source, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store"))
+        installed_sha, count = _install_tree_digest(destination)
+        if installed_sha != source_sha:
+            raise SystemExit(f"bcl install-local: sha256 mismatch at {destination}")
+        print(f"  {destination} ({count} files, sha256 {installed_sha})")
 
 def _merged_details(args, tracking, repo):
     pr = tracking.get("pull_request", {})
@@ -155,17 +204,88 @@ def _new_pr_url(old_url, number, explicit):
         raise ValueError("--new-url must contain the --new-pr number in its /pull/N path")
     return url
 
+def _sync_main():
+    cwd = Path.cwd().resolve()
+    repo_root = Path(live_state.git(cwd, "rev-parse", "--show-toplevel"))
+    common = Path(live_state.git(repo_root, "rev-parse", "--git-common-dir"))
+    common = (common if common.is_absolute() else repo_root / common).resolve()
+    repo = live_state.repo_id(repo_root)
+    records = []
+    for record in live_state.registry().values():
+        home = Path(record.get("home", ""))
+        if record.get("repo") != repo or not home.exists():
+            continue
+        git_common = Path(live_state.git(home, "rev-parse", "--git-common-dir"))
+        if (git_common if git_common.is_absolute() else home / git_common).resolve() == common:
+            records.append(record)
+    homes = {Path(record["home"]).resolve() for record in records}
+    if len(homes) != 1:
+        raise ValueError("cannot identify one registered home worktree for this repository")
+    home = homes.pop()
+    def dirty_paths():
+        entries = subprocess.check_output(["git", "-C", str(home), "status", "--porcelain", "--untracked-files=all", "-z"]).decode().split("\0")
+        paths = []; index = 0
+        while index < len(entries) and entries[index]:
+            entry = entries[index]; paths.append(entry[3:]); index += 1
+            if "R" in entry[:2] or "C" in entry[:2]:
+                paths.append(entries[index]); index += 1
+        return paths
+
+    dirty = dirty_paths()
+    if any(path == "docs/triage" or path.startswith("docs/triage/") for path in dirty):
+        raise ValueError("docs/triage has uncommitted tracker or report changes; commit them or clean them before sync-main")
+    hook_check_dirt = [path for path in dirty if path.startswith(".githooks/") or path == "scripts/check.py"]
+    preexisting_work = set(dirty) - set(hook_check_dirt)
+    if hook_check_dirt:
+        subprocess.run(["git", "-C", str(home), "stash", "push", "--include-untracked", "-m", "bcl sync-main hook/check dirt", "--",
+                        *(f":(literal){path}" for path in dict.fromkeys(hook_check_dirt))], check=True)
+    merge = subprocess.run(["git", "-C", str(home), "merge", "main"], capture_output=True, text=True)
+    conflicts = [path for path in subprocess.check_output(["git", "-C", str(home), "diff", "--name-only", "--diff-filter=U", "-z"]).decode().split("\0") if path]
+    for path in conflicts:
+        if "/skills/" in f"/{path}" and "/references/" in f"/{path}":
+            exists = subprocess.run(["git", "-C", str(home), "cat-file", "-e", f"main:{path}"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if exists.returncode:
+                subprocess.run(["git", "-C", str(home), "rm", "--", path], check=True)
+    remaining = [path for path in subprocess.check_output(["git", "-C", str(home), "diff", "--name-only", "--diff-filter=U", "-z"]).decode().split("\0") if path]
+    if remaining:
+        raise ValueError(f"merge has unresolved conflicts: {', '.join(remaining)}")
+    if merge.returncode:
+        if not conflicts:
+            raise subprocess.CalledProcessError(merge.returncode, merge.args, merge.stdout, merge.stderr)
+        subprocess.run(["git", "-C", str(home), "commit", "--no-edit"], check=True)
+    import render
+    for record in records:
+        snapshot = home / record["snapshot"]
+        page = home / record["html"]
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text(render.render(json.loads(snapshot.read_text()), snapshot.parent))
+    post_merge_dirt = [path for path in dirty_paths() if path not in preexisting_work and path != "docs/triage" and not path.startswith("docs/triage/")]
+    if post_merge_dirt:
+        subprocess.run(["git", "-C", str(home), "stash", "push", "--include-untracked", "-m", "bcl sync-main hook/check dirt", "--",
+                        *(f":(literal){path}" for path in dict.fromkeys(post_merge_dirt))], check=True)
+    print(f"Synced main into {home}; refreshed {len(records)} report(s)")
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=Path); parser.add_argument("--render", type=Path)
     parser.add_argument("--progress", type=Path); parser.add_argument("--now")
     parser.add_argument("--ids", action="append", default=[]); parser.add_argument("--plan", type=Path)
-    parser.add_argument("--result"); parser.add_argument("--issues", type=Path); parser.add_argument("--sections", type=Path)
+    parser.add_argument("--result"); parser.add_argument("--issues", type=Path); parser.add_argument("--sections", type=Path); parser.add_argument("--draft", type=Path)
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
     parser.add_argument("--new-pr", type=int); parser.add_argument("--new-url"); parser.add_argument("--worktree")
     parser.add_argument("--merge-commit"); parser.add_argument("--merged-at"); parser.add_argument("--base-branch")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("stage"); args, command_args = parser.parse_known_args()
+    if args.stage == "install-local":
+        try: install_local()
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            print(f"bcl install-local: {error}", file=sys.stderr); raise SystemExit(1)
+        return
+    if args.stage == "sync-main":
+        try: _sync_main()
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            print(f"bcl sync-main: {error}", file=sys.stderr); raise SystemExit(1)
+        return
     if args.stage == "adopt" and not args.data and command_args: args.data = Path(command_args.pop(0))
     if args.stage == "install-hooks":
         root = Path(subprocess.check_output(["git", "-C", str(args.repo or Path.cwd()), "rev-parse", "--show-toplevel"], text=True).strip())
@@ -191,7 +311,8 @@ def main():
         import render
         report, base = live_state.report_paths(record, live)
         report.write_text(render.render(json.loads(live.read_text()), base))
-    if record and not record.get("rollover_pending") and args.stage != "status":
+    drafting_introspect = args.stage == "introspect" and args.draft is not None
+    if record and not record.get("rollover_pending") and args.stage != "status" and not drafting_introspect:
         _ensure_viewer(parser, key, record, live, plugin_version, args.stage)
     if args.stage == "adopt":
         if not record: parser.error("could not register tracker")
@@ -204,6 +325,19 @@ def main():
         parser.error(f"in-repo tracker differs from live state; live file: {live}")
     data = json.loads(live.read_text())
     tracking = data.get("tracking", {}); stages = tracking.get("stages_reached", [])
+    if args.draft:
+        if args.stage != "introspect" or args.sections:
+            parser.error("--draft is only valid for introspect and cannot be combined with --sections")
+        trackers = (source.resolve(), live.resolve())
+        if args.draft.resolve() in trackers or (args.draft.exists() and any(args.draft.samefile(path) for path in trackers)):
+            parser.error("Introspect draft path must differ from the input and live trackers")
+        try:
+            payload = check_introspect.draft_introspect(tracking)
+            args.draft.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        print(args.draft)
+        return
     begins_collect = args.stage == "start" and ("collect" not in stages or record.get("rollover_pending"))
     stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     if args.stage == "status":
@@ -324,7 +458,7 @@ def main():
             manage_findings.sync_plan_verify(expected_document)
             expected_verify_plan = expected_document['tracking']['plan']
     elif stage == "introspect":
-        if not args.sections: parser.error("introspect requires --sections FILE.json")
+        if not args.sections or args.draft: parser.error("introspect requires --sections FILE.json (use --draft FILE.json to prepare an editable draft)")
         payload = json.loads(args.sections.read_text())
         if not isinstance(payload, dict) or set(payload) != {"steps", "none", "sections"}:
             parser.error("introspect file must contain exactly steps, none, and ordered sections")
@@ -384,6 +518,7 @@ def main():
                 code = 127
                 reason = f"Verification command could not start: {error}"
             if code:
+                reason = _verification_failure_reason(expected, reason)
                 print(reason, file=sys.stderr)
                 previous = {item['id']: item.get('status') for item in data['findings']}
                 recorded = False

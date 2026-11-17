@@ -11,6 +11,48 @@ STATE = Path(os.environ.get("BCL_STATE_DIR", Path.home() / ".agents/state/batche
 class ViewerPIDProbeError(Exception):
     """A PID could not be checked because the process is not accessible."""
 
+def _windows_pid_status(pid):
+    """Return whether a Windows process is live, or None if it is unverifiable."""
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+    kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    kernel32.CloseHandle.restype = wintypes.BOOL
+
+    handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return False if ctypes.get_last_error() == 87 else None  # ERROR_INVALID_PARAMETER
+    try:
+        exit_code = wintypes.DWORD()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+            return None
+        return exit_code.value == 259  # STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
+
+def _pid_is_running(pid, reject_unverifiable_pid=False):
+    if os.name == "nt":
+        running = _windows_pid_status(pid)
+        if running is None:
+            if reject_unverifiable_pid:
+                raise ViewerPIDProbeError("[Errno 1] Operation not permitted")
+            return True
+        return running
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        if reject_unverifiable_pid:
+            raise ViewerPIDProbeError("[Errno 1] Operation not permitted") from None
+        return True
+
 def safe_component(value):
     return re.sub(r"[^A-Za-z0-9._-]+", "-", str(value)).strip(".-") or "list"
 
@@ -177,19 +219,18 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
     old = json.loads(state.read_text()) if state.exists() else {}
     running = False
     if old.get("pid") and int(old["pid"]) != 87005:
-        try: os.kill(int(old["pid"]), 0); running = True
-        except ProcessLookupError: running = False
-        except PermissionError:
-            if reject_unverifiable_pid:
-                raise ViewerPIDProbeError(f"[Errno 1] Operation not permitted") from None
-            running = True
+        running = _pid_is_running(int(old["pid"]), reject_unverifiable_pid)
     owns_old = bool(old.get("data")) and Path(old["data"]).resolve() == Path(live).resolve()
     old_port = int(old.get("port", 0) or 0)
-    if running and owns_old and (not old.get("instance") or not _viewer_responds(old_port, old)):
-        raise RuntimeError(f"cannot verify viewer ownership on port {old_port}; inspect its state and stop it safely before retrying")
-    if running and owns_old and old.get("version") == plugin_version:
-        return old
-    if running and owns_old:
+    legacy = running and owns_old and not old.get("instance")
+    if legacy and not _legacy_viewer_matches(old_port, old):
+        # A legacy listener has no shutdown capability; only its health response can identify it.
+        raise RuntimeError(f"cannot verify viewer ownership on port {old_port}; inspect its state before retrying")
+    if running and owns_old and not legacy:
+        if not _viewer_responds(old_port, old):
+            raise RuntimeError(f"cannot verify viewer ownership on port {old_port}; inspect its state before retrying")
+        if old.get("version") == plugin_version:
+            return old
         request = urllib.request.Request(f"http://127.0.0.1:{old_port}/__bcl_shutdown", method="POST", headers={"X-BCL-Instance": old["instance"]})
         try:
             with urllib.request.urlopen(request, timeout=2) as response:
@@ -205,7 +246,7 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
         candidates.append(old_port)
     if 53366 not in reserved:
         candidates.append(53366)
-    if not owns_old and old_port:
+    if (not owns_old or legacy) and old_port:
         reserved.add(old_port)
     port = 0
     for candidate in dict.fromkeys(candidates):
@@ -254,6 +295,17 @@ def _viewer_responds(port, expected):
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=1) as response:
             return response.status == 200 and bool(response.read(1))
     except (OSError, urllib.error.URLError, ValueError, KeyError):
+        return False
+
+def _legacy_viewer_matches(port, expected):
+    """Check legacy listener identity without sending a shutdown request."""
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/__bcl_health", timeout=0.5) as response:
+            health = json.load(response)
+            return (response.status == 200 and isinstance(health, dict) and
+                    health.get("pid") == int(expected["pid"]) and
+                    Path(health.get("path", "")).resolve() == Path(expected["data"]).resolve())
+    except (OSError, urllib.error.URLError, ValueError, TypeError):
         return False
 
 def _viewer_ready(proc, port, expected):

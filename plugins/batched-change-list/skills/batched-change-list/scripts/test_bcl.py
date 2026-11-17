@@ -2,7 +2,7 @@ import importlib.util
 import contextlib
 import io
 from importlib.machinery import SourceFileLoader
-import errno, json, os, signal, socket, subprocess, sys, tempfile, threading, time, unittest
+import errno, json, os, shutil, signal, socket, subprocess, sys, tempfile, threading, time, unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -20,6 +20,12 @@ bcl_entrypoint = importlib.util.module_from_spec(spec)
 loader.exec_module(bcl_entrypoint)
 
 class BclTests(unittest.TestCase):
+    def test_verify_failure_reason_has_checked_expected_and_observed(self):
+        reason = bcl_entrypoint._verification_failure_reason('python3 check.py', 'Verification command exited 7')
+        self.assertIn('Checked: python3 check.py', reason)
+        self.assertIn('Expected: verification command exits 0', reason)
+        self.assertIn('Observed: Verification command exited 7', reason)
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name); self.state = self.root / "state"
@@ -67,6 +73,57 @@ elif args[:2] != ['pr', 'edit']:
                     except OSError: pass
         self.addCleanup(cleanup_viewer)
 
+    def test_install_local_refreshes_only_the_requested_temp_destinations(self):
+        checkout = self.root / "checkout"
+        shutil.copytree(PLUGIN, checkout)
+        (checkout / "skills/batched-change-list/scripts/__pycache__").mkdir(exist_ok=True)
+        (checkout / "skills/batched-change-list/scripts/__pycache__/stale.pyc").write_bytes(b"cache")
+        (checkout / "bin/stale.pyc").write_bytes(b"bytecode")
+        (checkout / ".DS_Store").write_bytes(b"finder")
+        self.git(checkout, "init", "-q")
+        self.git(checkout, "config", "user.email", "test@example.com")
+        self.git(checkout, "config", "user.name", "Test")
+        self.git(checkout, "add", ".")
+        self.git(checkout, "commit", "-qm", "fixture")
+        home = self.root / "install-home"
+        old_plugin = home / ".agents/plugins/batched-change-list"
+        old_skill = home / ".agents/skills/batched-change-list"
+        for old in (old_plugin, old_skill):
+            old.mkdir(parents=True)
+            (old / "old-copy").write_text("remove")
+        plugin_sha, plugin_count = bcl_entrypoint._install_tree_digest(checkout)
+        skill_sha, skill_count = bcl_entrypoint._install_tree_digest(checkout / "skills/batched-change-list")
+        version = json.loads((checkout / "plugin.json").read_text())["version"]
+        revision = self.git(checkout, "rev-parse", "HEAD").stdout.strip()
+        with patch.object(bcl_entrypoint, "HERE", checkout), patch.dict(os.environ, {"HOME": str(home)}), \
+             patch.object(sys, "argv", [str(BCL), "install-local"]), contextlib.redirect_stdout(io.StringIO()) as receipt:
+            bcl_entrypoint.main()
+        plugin_destinations = [
+            home / ".agents/plugins/batched-change-list",
+            *(home / f".{client}/plugins/cache/ingpoc-agent-plugins/batched-change-list/{ref}"
+              for client in ("cursor", "codex") for ref in (version, revision)),
+        ]
+        skill_destination = home / ".agents/skills/batched-change-list"
+        self.assertIn(revision, receipt.getvalue())
+        self.assertEqual(receipt.getvalue().count(plugin_sha), len(plugin_destinations))
+        self.assertEqual(receipt.getvalue().count(skill_sha), 1)
+        self.assertEqual(receipt.getvalue().count(f"({plugin_count} files"), len(plugin_destinations))
+        self.assertEqual(receipt.getvalue().count(f"({skill_count} files"), 1)
+        for destination in plugin_destinations:
+            self.assertTrue((destination / "plugin.json").is_file())
+            self.assertFalse((destination / "old-copy").exists())
+            self.assertFalse(any(path.name == ".DS_Store" or path.suffix == ".pyc" or "__pycache__" in path.parts
+                                 for path in destination.rglob("*")))
+            self.assertEqual(bcl_entrypoint._install_tree_digest(destination), (plugin_sha, plugin_count))
+        self.assertTrue((skill_destination / "SKILL.md").is_file())
+        self.assertTrue((skill_destination / "scripts").is_dir())
+        self.assertFalse((skill_destination / "plugin.json").exists())
+        self.assertFalse((skill_destination / "skills").exists())
+        self.assertFalse((skill_destination / "old-copy").exists())
+        self.assertFalse(any(path.name == ".DS_Store" or path.suffix == ".pyc" or "__pycache__" in path.parts
+                             for path in skill_destination.rglob("*")))
+        self.assertEqual(bcl_entrypoint._install_tree_digest(skill_destination), (skill_sha, skill_count))
+
     def test_repo_id_uses_cursor_origin_over_github_mirror(self):
         self.git(self.home, "remote", "add", "origin", "https://origin.cursor.com/gurusharan/agent-plugins")
         self.assertEqual(live_state.repo_id(self.home), "example/project")
@@ -97,6 +154,126 @@ elif args[:2] != ['pr', 'edit']:
         self.assertNotIn("viewer PID probe failed", stderr.getvalue())
 
     def git(self, cwd, *args): return subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True)
+    def sync_main(self):
+        return subprocess.run([sys.executable, str(BCL), "sync-main"], cwd=self.home, env=self.env, capture_output=True, text=True)
+    def branch_for_sync(self):
+        self.git(self.home, "add", "docs/triage/pr-123-findings.html")
+        self.git(self.home, "commit", "-qm", "baseline rendered report")
+        self.git(self.home, "branch", "-M", "main")
+        self.git(self.home, "switch", "-c", "feature")
+
+    def test_sync_main_merges_renders_and_stashes_hook_dirt(self):
+        self.branch_for_sync()
+        (self.home / ".githooks").mkdir()
+        (self.home / ".githooks/pre-commit").write_text("leftover hook\n")
+        self.git(self.home, "add", ".githooks/pre-commit"); self.git(self.home, "commit", "-qm", "feature hook")
+        self.git(self.home, "switch", "main")
+        (self.home / "main-change.txt").write_text("from main\n")
+        self.git(self.home, "add", "main-change.txt"); self.git(self.home, "commit", "-qm", "main change")
+        self.git(self.home, "switch", "feature")
+        (self.home / ".githooks/pre-commit").write_text("leftover hook dirt\n")
+        result = self.sync_main()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((self.home / "main-change.txt").exists())
+        self.assertEqual((self.home / "docs/triage/pr-123-findings.html").read_text()[:15], "<!doctype html>")
+        self.assertEqual((self.home / ".githooks/pre-commit").read_text(), "leftover hook\n")
+        self.assertIn("bcl sync-main hook/check dirt", self.git(self.home, "stash", "list").stdout)
+
+    def test_sync_main_stashes_hook_dirt_and_preserves_unrelated_work(self):
+        self.branch_for_sync()
+        (self.home / ".githooks").mkdir()
+        (self.home / ".githooks/pre-commit").write_text("leftover hook\n")
+        self.git(self.home, "add", ".githooks/pre-commit"); self.git(self.home, "commit", "-qm", "feature hook")
+        self.git(self.home, "switch", "main")
+        (self.home / "main-change.txt").write_text("from main\n")
+        self.git(self.home, "add", "main-change.txt"); self.git(self.home, "commit", "-qm", "main change")
+        self.git(self.home, "switch", "feature")
+        (self.home / ".githooks/pre-commit").write_text("leftover hook dirt\n")
+        (self.home / "wip.txt").write_text("unrelated work\n")
+        result = self.sync_main()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.home / "wip.txt").read_text(), "unrelated work\n")
+        self.assertEqual((self.home / ".githooks/pre-commit").read_text(), "leftover hook\n")
+        stashed = self.git(self.home, "stash", "show", "--include-untracked", "--name-only").stdout
+        self.assertIn(".githooks/pre-commit", stashed)
+        self.assertNotIn("wip.txt", stashed)
+
+    def test_sync_main_refuses_dirty_tracker_without_stashing_or_merging(self):
+        self.branch_for_sync()
+        self.git(self.home, "switch", "main")
+        (self.home / "main-change.txt").write_text("from main\n")
+        self.git(self.home, "add", "main-change.txt"); self.git(self.home, "commit", "-qm", "main change")
+        self.git(self.home, "switch", "feature")
+        (self.home / "docs/triage/pr-123-findings.json").write_text("dirty tracker")
+        result = self.sync_main()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("commit them or clean them", result.stderr)
+        self.assertFalse((self.home / "main-change.txt").exists())
+        self.assertEqual(self.git(self.home, "stash", "list").stdout, "")
+
+    def test_sync_main_stashes_dirt_created_by_post_merge_hook(self):
+        self.branch_for_sync()
+        (self.home / "feature-change.txt").write_text("feature\n")
+        self.git(self.home, "add", "feature-change.txt"); self.git(self.home, "commit", "-qm", "feature change")
+        self.git(self.home, "switch", "main")
+        (self.home / "main-change.txt").write_text("main\n")
+        self.git(self.home, "add", "main-change.txt"); self.git(self.home, "commit", "-qm", "main change")
+        self.git(self.home, "switch", "feature")
+        hook = self.home / ".git/hooks/post-merge"
+        hook.write_text("#!/bin/sh\nprintf 'hook dirt\\n' > hook-output.txt\n"); hook.chmod(0o755)
+        result = self.sync_main()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.home / "hook-output.txt").exists())
+        self.assertIn("hook-output.txt", self.git(self.home, "stash", "show", "--include-untracked", "--name-only").stdout)
+
+    def test_sync_main_stashes_post_merge_dirt_recreated_at_pre_stashed_path(self):
+        self.branch_for_sync()
+        (self.home / ".githooks").mkdir()
+        (self.home / ".githooks/pre-commit").write_text("committed hook\n")
+        self.git(self.home, "add", ".githooks/pre-commit"); self.git(self.home, "commit", "-qm", "feature hook")
+        self.git(self.home, "switch", "main")
+        (self.home / "main-change.txt").write_text("main\n")
+        self.git(self.home, "add", "main-change.txt"); self.git(self.home, "commit", "-qm", "main change")
+        self.git(self.home, "switch", "feature")
+        (self.home / ".githooks/pre-commit").write_text("leftover hook dirt\n")
+        hook = self.home / ".git/hooks/post-merge"
+        hook.write_text("#!/bin/sh\nprintf 'recreated hook dirt\\n' > .githooks/pre-commit\n")
+        hook.chmod(0o755)
+        result = self.sync_main()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.home / ".githooks/pre-commit").read_text(), "committed hook\n")
+        self.assertIn(".githooks/pre-commit", self.git(self.home, "stash", "show", "--include-untracked", "--name-only").stdout)
+
+    def test_sync_main_preserves_merge_failure_without_unmerged_paths(self):
+        self.branch_for_sync()
+        original_run = subprocess.run
+        calls = []
+        def run(command, *args, **kwargs):
+            if command[-2:] == ["merge", "main"]:
+                return subprocess.CompletedProcess(command, 1, "", "merge failed without conflicts")
+            calls.append(command)
+            return original_run(command, *args, **kwargs)
+        with (patch.object(live_state, "STATE", self.state), patch.object(Path, "cwd", return_value=self.home),
+              patch.object(subprocess, "run", side_effect=run), self.assertRaises(subprocess.CalledProcessError) as failure):
+            bcl_entrypoint._sync_main()
+        self.assertEqual(failure.exception.stderr, "merge failed without conflicts")
+        self.assertFalse(any(command[-2:] == ["commit", "--no-edit"] for command in calls))
+
+    def test_sync_main_resolves_deleted_skill_reference_conflict(self):
+        self.branch_for_sync()
+        reference = self.home / "plugins/example/skills/demo/references/old.md"
+        reference.parent.mkdir(parents=True); reference.write_text("base\n")
+        self.git(self.home, "add", "plugins"); self.git(self.home, "commit", "-qm", "add reference")
+        self.git(self.home, "branch", "-f", "main")
+        self.git(self.home, "switch", "main"); reference.unlink()
+        self.git(self.home, "add", "-u"); self.git(self.home, "commit", "-qm", "delete reference")
+        self.git(self.home, "switch", "feature"); reference.write_text("feature edit\n")
+        self.git(self.home, "add", "plugins"); self.git(self.home, "commit", "-qm", "edit reference")
+        result = self.sync_main()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(reference.exists())
+        self.assertEqual(self.git(self.home, "status", "--porcelain").stdout, "")
+
     def call(self, stage, *args, cwd=None):
         data, extra = (args[0], args[1:]) if args and isinstance(args[0], Path) else (self.data, args)
         if stage == "plan" and "--plan" in extra:
@@ -109,6 +286,19 @@ elif args[:2] != ['pr', 'edit']:
                 codex.setdefault("review_status", "passed")
             plan_path.write_text(json.dumps(plan))
         return subprocess.run([sys.executable, str(BCL), "--data", str(data), *map(str, extra), stage], cwd=cwd, env=self.env, capture_output=True, text=True)
+
+    def call_without_viewer(self, stage, *args):
+        output, error = io.StringIO(), io.StringIO()
+        argv = [str(BCL), "--data", str(self.data), *map(str, args), stage]
+        with patch.object(sys, "argv", argv), patch.object(bcl_entrypoint, "_ensure_viewer"), \
+                patch.object(live_state, "STATE", self.state), patch.dict(os.environ, self.env), \
+                contextlib.redirect_stdout(output), contextlib.redirect_stderr(error):
+            try:
+                bcl_entrypoint.main()
+                code = 0
+            except SystemExit as result:
+                code = result.code if isinstance(result.code, int) else 1
+        return SimpleNamespace(returncode=code, stdout=output.getvalue(), stderr=error.getvalue())
 
     def viewer_state_path(self, live=None):
         if live is None:
@@ -136,21 +326,34 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_workflow_cycle_uses_live_tracker_and_snapshots_each_stage(self):
-        self.assertEqual(self.call("start").returncode, 0)
+        result = self.call_without_viewer("start")
+        self.assertEqual(result.returncode, 0, result.stderr)
         marker = self.root / 'proof-ran'
         proof = self.root / 'proof.py'; proof.write_text(f"from pathlib import Path\nPath({str(marker)!r}).write_text('yes')\n")
         command = f'"{sys.executable}" "{proof}"'
         plan = {"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"reason":"Same root cause","depends_on":[],"codex":{"model":"gpt-6-luna","effort":"medium","status":"running","started_at":"2026-11-14T09:00:00Z","duration_s":120,"implementer_session":"fixture-implementer","reviewer_session":"fixture-reviewer","review_status":"passed"},"verify":{"command":command,"method":"Unit tests and a live page check","status":"pending"},"status":"running"}]}
         planfile = self.root / "plan.json"; planfile.write_text(json.dumps(plan))
-        sections = {"delete":{"none":"No deletions."},"simplify":{"none":"No simplifications."},"optimize":{"none":"No optimizations."},"automate":{"none":"No automations."}}
-        steps = check_introspect.performed_round_steps({
-            "stages_reached": ["plan_fix", "install", "verify"], "plan": plan,
-        })
-        sectionfile = self.root / "sections.json"; sectionfile.write_text(json.dumps({"steps": steps, "none": steps, "sections": sections}))
+        sectionfile = self.root / "sections.json"
         self.assertNotEqual(self.call("introspect", "--result", "no issues").returncode, 0)
-        for stage, extra in (("plan", ["--plan", str(planfile), "--ids", "ISSUE-01"]), ("fix", ["--ids", "ISSUE-01"]), ("install", ["--ids", "ISSUE-01"]), ("verify", ["--ids", "ISSUE-01", "--then", command]), ("introspect", ["--sections", str(sectionfile)])):
-            result = self.call(stage, *extra); self.assertEqual(result.returncode, 0, result.stderr)
+        for stage, extra in (("plan", ["--plan", str(planfile), "--ids", "ISSUE-01"]), ("fix", ["--ids", "ISSUE-01"]), ("install", ["--ids", "ISSUE-01"]), ("verify", ["--ids", "ISSUE-01", "--then", command])):
+            result = self.call_without_viewer(stage, *extra); self.assertEqual(result.returncode, 0, result.stderr)
             if stage == "plan": self.assertIn('class="plan"', self.page.read_text())
+        result = self.call_without_viewer("introspect", "--draft", sectionfile)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        data = json.loads(self.data.read_text())
+        self.assertNotIn("introspect", data["tracking"]["stages_reached"])
+        draft = json.loads(sectionfile.read_text())
+        self.assertEqual(draft["steps"], check_introspect.performed_round_steps(data["tracking"]))
+        self.assertIn(f"Test command: A: {command}", draft["steps"])
+        self.assertEqual(list(draft["sections"]), ["delete", "simplify", "optimize", "automate"])
+        self.assertEqual(draft["none"], [])
+        result = self.call_without_viewer("introspect", "--sections", sectionfile)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("introspect", json.loads(self.data.read_text())["tracking"]["stages_reached"])
+        draft["none"] = draft["steps"]
+        sectionfile.write_text(json.dumps(draft))
+        result = self.call_without_viewer("introspect", "--sections", sectionfile)
+        self.assertEqual(result.returncode, 0, result.stderr)
         status = self.call("status")
         self.assertEqual(marker.read_text(), 'yes')
         self.assertEqual(status.returncode, 0, status.stderr)
@@ -159,6 +362,23 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(data["tracking"]["plan"]["groups"][0]["id"], "A")
         self.assertEqual(data["tracking"]["plan"]["status"], "closed")
         self.assertEqual(json.loads(status.stdout)["plan"][0]["status"], "running")
+
+    def test_introspect_draft_rejects_input_tracker_and_live_hard_link(self):
+        input_before = self.data.read_bytes()
+        result = self.call_without_viewer("introspect", "--draft", self.data)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("input and live trackers", result.stderr)
+        self.assertEqual(self.data.read_bytes(), input_before)
+
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        hard_link = self.root / "live-hard-link.json"
+        os.link(live, hard_link)
+        live_before = live.read_bytes()
+        result = self.call_without_viewer("introspect", "--draft", hard_link)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("input and live trackers", result.stderr)
+        self.assertTrue(live.samefile(hard_link))
+        self.assertEqual(live.read_bytes(), live_before)
 
     def test_verify_rejects_placeholder_and_mismatched_command(self):
         self.assertEqual(self.call('start').returncode, 0)
@@ -484,7 +704,7 @@ elif args[:2] != ['pr', 'edit']:
             apply({'action':'start-check','run_id':'new-run','id':'ISSUE-02',
                    'observation':'Retesting prerequisite','observed_at':'2026-11-15T00:01:00Z'})
             apply({'action':'finish-check','run_id':'new-run','id':'ISSUE-02','outcome':'inconclusive',
-                   'evidence':'Prerequisite could not be confirmed'})
+                   'evidence':'Checked: prerequisite evidence; Expected: confirmation; Observed: prerequisite could not be confirmed'})
         with patch.dict(os.environ, self.env), patch.object(live_state, 'STATE', self.state), \
              patch.object(live_state, 'ensure_viewer'), \
              patch.object(live_state, 'snapshot', side_effect=change_prerequisite_check), \
@@ -840,38 +1060,48 @@ elif args[:2] != ['pr', 'edit']:
     def test_unresponsive_recorded_viewer_is_not_reported_as_healthy(self):
         records = json.loads((self.state / "registry.json").read_text())
         key, record = next(iter(records.items()))
-        state = json.loads(self.viewer_state_path().read_text())
+        state_path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        state = {"pid": 28743, "port": 53367, "version": "old", "instance": "instance", "data": record["live"]}
+        state_path.write_text(json.dumps(state))
+        previous = state_path.read_bytes()
         with patch.object(live_state, "STATE", self.state), \
-             patch.object(live_state.os, "kill"), \
+             patch.object(live_state.os, "kill") as signal_process, \
              patch.object(live_state, "_viewer_responds", return_value=False):
             with self.assertRaisesRegex(RuntimeError, "cannot verify viewer ownership"):
                 live_state.ensure_viewer(key, record, Path(record["live"]), state["version"])
+        signal_process.assert_called_once_with(state["pid"], 0)
+        self.assertEqual(state_path.read_bytes(), previous)
 
     def test_unverified_viewer_is_never_signalled(self):
         records = json.loads((self.state / "registry.json").read_text())
         key, record = next(iter(records.items()))
-        state = json.loads(self.viewer_state_path().read_text())
+        state_path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        state = {"pid": 28743, "port": 53367, "version": "old", "instance": "instance", "data": record["live"]}
+        state_path.write_text(json.dumps(state))
+        previous = state_path.read_bytes()
         with patch.object(live_state, "STATE", self.state), \
              patch.object(live_state.os, "kill") as signal_process, \
              patch.object(live_state, "_viewer_responds", return_value=False):
             with self.assertRaisesRegex(RuntimeError, "cannot verify viewer ownership"):
                 live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
         signal_process.assert_called_once_with(state['pid'], 0)
+        self.assertEqual(state_path.read_bytes(), previous)
 
     def test_legacy_viewer_is_not_stopped_without_identity(self):
         records = json.loads((self.state / "registry.json").read_text())
         key, record = next(iter(records.items()))
-        path = self.viewer_state_path()
-        state = json.loads(path.read_text())
-        state.pop('instance')
+        path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        state = {"pid": 28743, "port": 53367, "version": "old", "data": record["live"]}
         path.write_text(json.dumps(state))
+        unchanged = path.read_bytes()
         with patch.object(live_state, "STATE", self.state), \
              patch.object(live_state.os, "kill") as signal_process, \
              patch.object(live_state.urllib.request, "urlopen") as request:
             with self.assertRaisesRegex(RuntimeError, "cannot verify viewer ownership"):
                 live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
         signal_process.assert_called_once_with(state['pid'], 0)
-        request.assert_not_called()
+        request.assert_called_once_with(f"http://127.0.0.1:{state['port']}/__bcl_health", timeout=0.5)
+        self.assertEqual(path.read_bytes(), unchanged)
 
     def test_status_reads_tracker_without_touching_legacy_viewer(self):
         state = self.viewer_state_path()
