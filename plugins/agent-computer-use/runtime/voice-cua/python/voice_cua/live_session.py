@@ -555,9 +555,12 @@ class LiveSession:
 
     def _refuse_access(self) -> None:
         """401/403 at the handshake: the key can't use this model — retrying can't fix it."""
+        from voice_cua.session_hub import fail_session_turns
+
         self._reconnect_gave_up = True
         self._cancel_planned_reconnect()
         self._prepare_reconnect()
+        fail_session_turns(self, "session disconnected")
         detail = f"{self.provider.name} {self.provider.model}: {self._access_refused}"[:160]
         mark("live_access_refused", status="fail", detail=detail)
         log_event("voice_access_refused", provider=self.provider.name, model=self.provider.model,
@@ -567,11 +570,14 @@ class LiveSession:
               "pick another model in Settings", flush=True)
 
     def _give_up_reconnect(self) -> None:
+        from voice_cua.session_hub import fail_session_turns
+
         self._reconnect_gave_up = True
         failures = self.RECONNECT_MAX_ATTEMPTS
         self._take_retry_hint()  # drop any pending hold with the session
         self._cancel_planned_reconnect()
         self._prepare_reconnect()
+        fail_session_turns(self, "session disconnected")
         mark("live_reconnect_gave_up", status="fail", detail=f"{failures} attempts")
         log_event("reconnect_gave_up", attempts=failures)
         # Island error copy must be a "Couldn't ..." line <= 32 chars (island_copy).
@@ -583,11 +589,8 @@ class LiveSession:
         )
 
     def _prepare_reconnect(self) -> None:
-        """Reset per-connection bookkeeping; fail outstanding text waiters."""
-        from voice_cua.session_hub import fail_session_turns
-
+        """Reset per-connection bookkeeping while typed turns survive the retry."""
         keep = (self._drop_plan or {}).get("request_id") or ""
-        fail_session_turns(self, "session disconnected")
         if self._audio is not None:
             self._audio.clear_playback()
         with self._response_condition:
@@ -1845,7 +1848,7 @@ class LiveSession:
             mark_usage_unconfirmed()
         if getattr(self, "_stop", threading.Event()).is_set():
             return
-        if not getattr(self, "_reconnect_requested", False) and code is None:
+        if not getattr(self, "_reconnect_requested", False):
             self._drop_plan = self._plan_drop_recovery()
         # Phase 1: close no longer kills the session — run() reconnects.
         island_publish("reconnecting", title="Reconnecting", detail="")
