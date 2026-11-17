@@ -18,6 +18,15 @@ import workflow_definition
 def _provider(url):
     return "gh" if (urlsplit(url).hostname or "").lower() == "github.com" else "origin"
 
+def _ensure_viewer(parser, key, record, live, plugin_version, stage):
+    try:
+        return live_state.ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=stage == "plan")
+    except OSError as error:
+        if stage != "plan":
+            raise
+        print(f"bcl: viewer PID probe failed: {error}", file=sys.stderr)
+        raise SystemExit(1)
+
 def _pull_request_data(provider, url, repo):
     executable = shutil.which(provider)
     if not executable:
@@ -179,7 +188,7 @@ def main():
         report, base = live_state.report_paths(record, live)
         report.write_text(render.render(json.loads(live.read_text()), base))
     if record and not record.get("rollover_pending") and args.stage != "status":
-        live_state.ensure_viewer(key, record, live, plugin_version)
+        _ensure_viewer(parser, key, record, live, plugin_version, args.stage)
     if args.stage == "adopt":
         if not record: parser.error("could not register tracker")
         print(live); return
@@ -344,7 +353,7 @@ def main():
             current = records[key]
             current.pop("rollover_pending", None)
             live_state.save_registry(records)
-            live_state.ensure_viewer(key, current, live, plugin_version)
+            _ensure_viewer(parser, key, current, live, plugin_version, stage)
         if stage == "verify":
             try:
                 with tracker_lock.exclusive_lock(tracker_lock.plan_lock_path(live)):

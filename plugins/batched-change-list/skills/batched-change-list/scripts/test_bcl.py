@@ -1,4 +1,6 @@
 import importlib.util
+import contextlib
+import io
 from importlib.machinery import SourceFileLoader
 import json, os, signal, socket, subprocess, sys, tempfile, threading, time, unittest
 from pathlib import Path
@@ -71,6 +73,18 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(live_state.repo_id(self.home, "origin"), "gurusharan/agent-plugins")
         self.assertEqual(bcl_entrypoint._provider("https://github.com/ingpoc/agent-plugins/pull/110"), "gh")
         self.assertEqual(bcl_entrypoint._provider("https://cursor.com/codebase/gurusharan/agent-plugins/pull/110"), "origin")
+
+    def test_plan_reports_viewer_pid_permission_error_without_traceback(self):
+        stderr = io.StringIO()
+        plan = self.root / "plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": []}))
+        with patch.object(live_state, "STATE", self.state), patch.object(sys, "argv", [str(BCL), "--data", str(self.data), "--plan", str(plan), "plan"]), \
+             patch.object(live_state.os, "kill", side_effect=PermissionError("operation not permitted")), \
+             contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit) as exit_result:
+            bcl_entrypoint.main()
+        self.assertEqual(exit_result.exception.code, 1, stderr.getvalue())
+        self.assertEqual(len(stderr.getvalue().splitlines()), 1, stderr.getvalue())
+        self.assertRegex(stderr.getvalue(), r"\Abcl: viewer PID probe failed: (?:\[Errno 1\] )?[Oo]peration not permitted\n\Z")
 
     def git(self, cwd, *args): return subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True)
     def call(self, stage, *args, cwd=None):

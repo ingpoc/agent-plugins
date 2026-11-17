@@ -500,6 +500,16 @@ setImmediate(async()=>{
         install = failed_review.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
         self.assertNotIn('wf-step done', install)
 
+    def test_failed_or_blocked_lanes_never_complete_install_tick(self):
+        for status in ('failed', 'blocked'):
+            with self.subTest(status=status):
+                page = renderer.render_workflow('verify', [{
+                    'id':'A', 'status':status, 'phase':'verify',
+                    'codex':{'reviewer_session':'reviewer', 'review_status':'passed'},
+                }], 0, 15, False, 0, 1, ['plan_fix', 'install', 'verify'])
+                install = page.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
+                self.assertNotIn('wf-step done', install)
+
     def test_merge_previous_pr_is_the_shared_gate_exit(self):
         page = renderer.render_workflow('gate', [], 15, 15, True, 0, 1)
         self.assertIn('>Merge previous PR<', page)

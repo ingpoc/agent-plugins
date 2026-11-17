@@ -416,8 +416,8 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
         past = bool(lanes) and all(position > index or status in terminal for _, status, position in lanes)
         if key == "install":
             past = bool(lanes) and all(
-                position > index and review_complete(group)
-                for group, _status, position in lanes)
+                position > index and status not in ("blocked", "failed") and review_complete(group)
+                for group, status, position in lanes)
         if key == "verify":
             past = past and any(position >= 2 or status in ("verifying", "verified")
                                 for _, status, position in lanes)
