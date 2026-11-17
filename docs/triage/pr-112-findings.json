@@ -2276,9 +2276,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-17T08:27:31Z",
-      "now": "2026-11-17T08:27:31Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-17T08:29:48Z",
+      "now": "2026-11-17T08:29:48Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 111,
@@ -2414,161 +2414,85 @@
       "cycle": 4,
       "groups": [
         {
-          "id": "RECORD",
-          "name": "Record Introspect every round",
+          "id": "CLI",
+          "name": "Fail-loud plan and honest Install ticks",
           "finding_ids": [
-            "BCL-23",
-            "BCL-22"
+            "BCL-28",
+            "BCL-29"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "pending",
           "phase": "fix",
-          "worktree": "samantha-pr112-rollover",
+          "worktree": "pr112-cli",
           "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
-            "plugins/batched-change-list/skills/batched-change-list/references/introspect.md",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_skill.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/render.py"
-          ],
-          "reason": "Top priority: require a per-round Introspect and stop lanes looking blocked after their source is already installed.",
-          "verify": {
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
-            "method": "Unit tests plus a live-page check that a new round cannot reuse an earlier Introspect record.",
-            "status": "verified",
-            "fixed": 2,
-            "failed": 0,
-            "total": 2
-          },
-          "updated_at": "2026-11-17T07:40:23Z",
-          "codex": {
-            "implementer_session": "01a1e7e1-a3dd-73d3-8297-e01673cb03e1",
-            "implementer": "luna",
-            "reviewer_session": "01a1e7de-d9ab-7941-b3cf-e447d75d46bf",
-            "reviewer_model": "gpt-6.1-terra",
-            "reviewer_effort": "medium",
-            "status": "running",
-            "started_at": "2026-11-17T04:58:23Z",
-            "updated_at": "2026-11-17T07:40:23Z",
-            "reviewer_verdict": "request-changes",
-            "implementer_model": "gpt-6-luna",
-            "implementer_effort": "medium",
-            "review_status": "passed"
-          }
-        },
-        {
-          "id": "ROUTE",
-          "name": "Delegation, skill authoring, and workflow source of truth",
-          "finding_ids": [
-            "BCL-27",
-            "BCL-24",
-            "BCL-25",
-            "BCL-26"
-          ],
-          "depends_on": [],
-          "status": "running",
-          "phase": "fix",
-          "worktree": "samantha-pr112-rollover",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts",
-            "plugins/batched-change-list/skills/batched-change-list/references",
-            "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
             "plugins/batched-change-list/bin/bcl",
-            "plugins/batched-change-list/plugin.json",
-            "plugins/batched-change-list/CHANGELOG.md"
+            "plugins/batched-change-list/skills/batched-change-list/scripts"
           ],
-          "reason": "After RECORD: enforce delegated fix/review sessions, compact skill authoring, Introspect coverage and order, and one workflow definition for the strip, skill loop, and stage guards.",
+          "reason": "Process reliability: a failed or blocked lane must not tick Install, and bcl plan must fail with one line when the viewer PID probe is denied.",
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
-            "method": "Unit tests for session install gates, Introspect coverage and order, skill shape, and generated workflow strip and loop line.",
-            "status": "verified",
-            "fixed": 4,
-            "failed": 0,
-            "total": 4
-          },
-          "codex": {
-            "implementer_session": "01a1e7f9-5b30-7180-a94f-d1ca7e6a413e",
-            "implementer": "luna",
-            "implementer_model": "gpt-6-luna",
-            "implementer_effort": "medium",
-            "reviewer_session": "01a1e838-9024-70e1-9faf-2219c89c070b",
-            "reviewer_model": "gpt-6.1-terra",
-            "reviewer_effort": "medium",
-            "reviewer_verdict": "request-changes",
-            "status": "running",
-            "updated_at": "2026-11-17T07:40:23Z",
-            "review_status": "passed"
-          },
-          "updated_at": "2026-11-17T07:40:23Z"
-        },
-        {
-          "id": "CONFIRM",
-          "name": "Safe local confirms",
-          "finding_ids": [
-            "AGENT-26",
-            "AGENT-27"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "samantha-pr112-rollover",
-          "files": [
-            "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua",
-            "plugins/agent-computer-use/runtime/voice-cua/tests"
-          ],
-          "reason": "High-impact product: safe local shells should not look risky, and a confirm timeout is never a no.",
-          "verify": {
-            "command": "python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p 'test_*.py'",
-            "method": "Unit tests plus a live or recorded session check of confirm_risky and confirm timeout.",
-            "status": "verified",
-            "fixed": 2,
+            "method": "Unit tests for failed/blocked Install ticks and a PermissionError from the viewer PID probe.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 2
           },
-          "updated_at": "2026-11-17T08:25:59Z",
-          "codex": {
-            "implementer_session": "01a1e87e-043c-7c60-8de9-f00613b234bc",
-            "implementer": "luna",
-            "implementer_model": "gpt-6-luna",
-            "implementer_effort": "medium",
-            "status": "running",
-            "started_at": "2026-11-17T07:52:28Z",
-            "updated_at": "2026-11-17T08:25:59Z",
-            "reviewer_session": "01a1e88a-e34c-7311-bd19-5cd544858d9f",
-            "reviewer_model": "gpt-6.1-terra",
-            "reviewer_effort": "medium",
-            "reviewer_verdict": "request-changes",
-            "review_status": "passed"
-          }
+          "updated_at": "2026-11-17T08:29:48Z"
         },
         {
-          "id": "SHELL",
-          "name": "Protected-path arithmetic",
+          "id": "CHART",
+          "name": "Generated skill statechart",
           "finding_ids": [
-            "SEC-01"
+            "BCL-30"
           ],
           "depends_on": [],
-          "status": "deferred",
-          "phase": "deferred",
-          "parked_to": 2,
-          "worktree": "samantha-pr112-rollover",
+          "status": "pending",
+          "phase": "fix",
+          "worktree": "pr112-chart",
           "files": [
-            "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua"
+            "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
+            "plugins/batched-change-list/skills/batched-change-list/scripts",
+            "plugins/batched-change-list/skills/batched-change-list"
           ],
-          "reason": "Likely shares the shell policy with AGENT-26; park until CONFIRM is verified.",
+          "reason": "Skill authoring: ship a generated statechart.html and fail the shape check when it is missing or stale.",
           "verify": {
-            "command": "python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p 'test_*.py'",
-            "method": "Unit tests plus a live check that arithmetic cannot hide a protected path.",
-            "status": "verified",
-            "fixed": 1,
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
+            "method": "Unit tests that the generated statechart exists, uses the required colors and current vs after views, and that a stale chart fails the shape check.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T05:44:02Z"
+          "updated_at": "2026-11-17T08:29:48Z"
+        },
+        {
+          "id": "FREEZE",
+          "name": "Freeze earlier PR triage pages",
+          "finding_ids": [
+            "BCL-31"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "fix",
+          "worktree": "pr112-freeze",
+          "files": [
+            "scripts/check.py",
+            "scripts/test_check_triage_renders.py"
+          ],
+          "reason": "Stop renderer changes on a later PR from forcing a rewrite of earlier frozen triage pages.",
+          "verify": {
+            "command": "python3 -m unittest discover -s scripts -p 'test_check_triage_renders.py'",
+            "method": "Unit tests that an older pr-N page on a later branch stays frozen, while the current PR page must still match a fresh render.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-17T08:29:48Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "stages_reached": [
       "collect",
@@ -4227,7 +4151,7 @@
       "id": "BCL-28",
       "title": "A failed or blocked lane can still mark Install done",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "The workflow strip can tick Install as done for a failed or blocked lane that already has a passing review record and a later phase.",
       "impact": "The page can show Install complete on a lane that failed or is blocked, so the strip no longer matches lane state.",
@@ -4239,7 +4163,7 @@
       "id": "BCL-29",
       "title": "bcl plan dumps a traceback when the viewer PID probe is denied",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "When the sandbox cannot probe the live viewer PID, bcl plan can hang or print a PermissionError traceback instead of exiting nonzero with one line.",
       "impact": "The coding CLI and the agent lose time on a noisy failure, and the cause is easy to miss.",
@@ -4330,7 +4254,7 @@
       "id": "BCL-30",
       "title": "The skill has no generated statechart.html, and a stale chart is not a failed check",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "batched-change-list must ship a generated statechart.html that marks always-loaded items green and trigger-loaded references purple, with current vs after views, and regenerate it on every skill change. A stale chart should fail the shape check. The #112 skill still has no such chart or check.",
       "impact": "Editors cannot see the always-loaded vs trigger-loaded layout, and a stale or missing chart can ship unnoticed.",
@@ -4342,7 +4266,7 @@
       "id": "BCL-31",
       "title": "The renderer check still rewrites earlier PR pages when render.py changes",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "scripts/check.py claims earlier PR triage pages are frozen, but it still requires docs/triage/pr-N.html to match a fresh render whenever pr-N-findings.json points at pull N. A renderer change on a later PR therefore forces a new snapshot of the previous PR's page.",
       "impact": "A later PR cannot be pushed until earlier triage HTML is regenerated, mixing unrelated snapshot commits into the new work.",
