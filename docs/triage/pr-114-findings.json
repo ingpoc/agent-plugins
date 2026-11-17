@@ -3803,9 +3803,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-17T11:33:50Z",
-      "now": "2026-11-17T11:33:50Z — Lane ILOCAL updated"
+      "stage": "install",
+      "updated_at": "2026-11-17T11:34:44Z",
+      "now": "2026-11-17T11:34:44Z — Install in progress"
     },
     "rollover": {
       "source_pr": 113,
