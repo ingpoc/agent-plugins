@@ -1,3 +1,7 @@
+## 0.1.35
+
+- Draft Introspect sections from tracker-recorded work for review and editing before save; reject draft paths that alias the input or live tracker, including hard links and the in-repo snapshot, and refresh the skill statechart shape check to match the current skill text.
+
 ## 0.1.34
 
 - Show one Verification-by-version row per version from the latest check with Checked, Expected, Observed, and Verdict because; reject empty reason parts, merge duplicate outcome records at write time, keep distinct checks distinct, and put earlier checks plus hashes, paths, timings, and the receipt under Details.
