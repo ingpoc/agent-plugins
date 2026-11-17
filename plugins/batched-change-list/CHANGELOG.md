@@ -1,3 +1,10 @@
+## 0.1.30
+
+- Advance the plan round on `set-plan` after Introspect, even when the new plan still names the current round.
+- Keep a finding's outcome separate from its lane plan state in the renderer.
+- Require a tracked HTML report for every indexed triage tracker.
+- Emit `data-definition-hash` on the generated skill statechart.
+
 ## 0.1.29
 
 - Fix statechart initialization and assign each reference its specific load trigger.
