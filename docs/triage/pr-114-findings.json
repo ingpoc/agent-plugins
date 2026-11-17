@@ -4599,6 +4599,279 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "bcl-0.1.35-b522d3b1-114",
+        "build": "batched-change-list 0.1.35",
+        "revision": "b522d3b17bb63f156af97bda05c8632d0e78dd5e",
+        "installed_at": "2026-11-17T12:53:09Z",
+        "install_evidence": "bcl install-local from worktree HEAD b522d3b17bb63f156af97bda05c8632d0e78dd5e at 18:23 IST Asia/Calcutta installed batched-change-list 0.1.35: 48 plugin files sha256 e607a3a1b6c90cc0cdbcdc939dc9f8c81e54d77715632bfe190d4f4d22c7b2cf; 41 skill files sha256 cf33d9b5fcee37f8629b20e2062e954c45fc84cba5a7e0fccd61b9fef1e944d5 with SKILL.md at the skill root. Receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.35-receipt.json.",
+        "status": "interrupted",
+        "checks": {
+          "AUTO-03": {
+            "state": "pending"
+          },
+          "AUTO-04": {
+            "state": "pending"
+          },
+          "AUTO-05": {
+            "state": "pending"
+          },
+          "AUTO-06": {
+            "state": "pending"
+          },
+          "BCL-01": {
+            "state": "pending"
+          },
+          "BCL-02": {
+            "state": "pending"
+          },
+          "BCL-03": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e is present. BCL-03 is in_progress. About to run the Introspect draft tests, including the unsavable unchanged draft and tracker-alias guards, plus the stored test_bcl.py suite on the worktree and the installed copy.",
+            "observed_at": "2026-11-17T12:53:09Z",
+            "started_at": "2026-11-17T12:53:29Z",
+            "updated_at": "2026-11-17T12:53:29Z",
+            "check_id": "1475e3865f5340248fc5a1c8dc32cde9",
+            "evidence": "Checked: Drafting Introspect sections from the recorded run, then saving only after review; Expected: bcl introspect --draft writes an editable SECTIONS.json from the tracker run, an unchanged draft cannot be saved, and a draft path cannot overwrite the input or live tracker, including a hard link; Observed: On the worktree and the installed 0.1.35 copy, test_draft_uses_performed_round_steps_and_requires_review, test_workflow_cycle_uses_live_tracker_and_snapshots_each_stage, and test_introspect_draft_rejects_input_tracker_and_live_hard_link passed; test_bcl.py 50 OK in 50.313s then 50.392s, and test_check_introspect.py 7 OK; Verdict because: Fixed because a draft can be written and edited, an unchanged draft is rejected, and tracker aliases cannot be overwritten. Installed bcl 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e via bcl install-local (48 plugin files sha256 e607a3a1b6c90cc0cdbcdc939dc9f8c81e54d77715632bfe190d4f4d22c7b2cf, 41 skill files sha256 cf33d9b5fcee37f8629b20e2062e954c45fc84cba5a7e0fccd61b9fef1e944d5, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.35-receipt.json). Worktree suites finished 18:24:29 IST Asia/Calcutta; installed copy finished 18:25:20 IST. Logs: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r4-0.1.35.log and verify-r4-0.1.35-installed.log.",
+            "finished_at": "2026-11-17T12:55:52.526978Z"
+          },
+          "PLAN-02": {
+            "state": "pending"
+          },
+          "PLAN-03": {
+            "state": "pending"
+          },
+          "OBS-23": {
+            "state": "pending"
+          },
+          "OBS-25": {
+            "state": "pending"
+          },
+          "AGENT-25": {
+            "state": "pending"
+          },
+          "WF-06": {
+            "state": "pending"
+          },
+          "PAGE-08": {
+            "state": "pending"
+          },
+          "AGENT-26": {
+            "state": "pending"
+          },
+          "AGENT-27": {
+            "state": "pending"
+          },
+          "WF-07": {
+            "state": "pending"
+          },
+          "PAGE-09": {
+            "state": "pending"
+          },
+          "PAGE-10": {
+            "state": "pending"
+          },
+          "SEC-01": {
+            "state": "pending"
+          },
+          "PAGE-11": {
+            "state": "pending"
+          },
+          "BCL-04": {
+            "state": "pending"
+          },
+          "PAGE-12": {
+            "state": "pending"
+          },
+          "FLOW-03": {
+            "state": "pending"
+          },
+          "PAGE-13": {
+            "state": "pending"
+          },
+          "PAGE-14": {
+            "state": "pending"
+          },
+          "PAGE-15": {
+            "state": "pending"
+          },
+          "PAGE-16": {
+            "state": "pending"
+          },
+          "BCL-05": {
+            "state": "pending"
+          },
+          "PAGE-17": {
+            "state": "pending"
+          },
+          "BCL-06": {
+            "state": "pending"
+          },
+          "FLOW-04": {
+            "state": "pending"
+          },
+          "PAGE-18": {
+            "state": "pending"
+          },
+          "BCL-07": {
+            "state": "pending"
+          },
+          "BCL-08": {
+            "state": "pending"
+          },
+          "PAGE-19": {
+            "state": "pending"
+          },
+          "PAGE-20": {
+            "state": "pending"
+          },
+          "BCL-09": {
+            "state": "pending"
+          },
+          "BCL-10": {
+            "state": "pending"
+          },
+          "BCL-11": {
+            "state": "pending"
+          },
+          "BCL-12": {
+            "state": "pending"
+          },
+          "BCL-13": {
+            "state": "pending"
+          },
+          "BCL-14": {
+            "state": "pending"
+          },
+          "BCL-15": {
+            "state": "pending"
+          },
+          "BCL-16": {
+            "state": "pending"
+          },
+          "BCL-17": {
+            "state": "pending"
+          },
+          "AGENT-28": {
+            "state": "pending"
+          },
+          "AGENT-29": {
+            "state": "pending"
+          },
+          "BCL-18": {
+            "state": "pending"
+          },
+          "BCL-19": {
+            "state": "pending"
+          },
+          "BCL-20": {
+            "state": "pending"
+          },
+          "BCL-21": {
+            "state": "pending"
+          },
+          "EVAL-01": {
+            "state": "pending"
+          },
+          "BCL-22": {
+            "state": "pending"
+          },
+          "BCL-23": {
+            "state": "pending"
+          },
+          "WF-08": {
+            "state": "pending"
+          },
+          "BCL-24": {
+            "state": "pending"
+          },
+          "BCL-25": {
+            "state": "pending"
+          },
+          "BCL-26": {
+            "state": "pending"
+          },
+          "BCL-27": {
+            "state": "pending"
+          },
+          "BCL-28": {
+            "state": "pending"
+          },
+          "BCL-29": {
+            "state": "pending"
+          },
+          "WF-09": {
+            "state": "pending"
+          },
+          "BCL-30": {
+            "state": "pending"
+          },
+          "BCL-31": {
+            "state": "pending"
+          },
+          "WF-10": {
+            "state": "pending"
+          },
+          "BCL-32": {
+            "state": "pending"
+          },
+          "BCL-33": {
+            "state": "pending"
+          },
+          "WF-11": {
+            "state": "pending"
+          },
+          "BCL-34": {
+            "state": "pending"
+          },
+          "WF-12": {
+            "state": "pending"
+          },
+          "BCL-35": {
+            "state": "pending"
+          },
+          "PAGE-21": {
+            "state": "pending"
+          },
+          "WF-13": {
+            "state": "pending"
+          },
+          "WF-14": {
+            "state": "pending"
+          },
+          "WF-15": {
+            "state": "pending"
+          },
+          "BCL-36": {
+            "state": "pending"
+          },
+          "WF-16": {
+            "state": "pending"
+          },
+          "PAGE-22": {
+            "state": "pending"
+          },
+          "WF-17": {
+            "state": "pending"
+          },
+          "WF-18": {
+            "state": "pending"
+          },
+          "BCL-37": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e is present. BCL-37 is in_progress. About to run test_generated_statechart_is_current_and_stale_or_missing_fails_shape_check and test_skill.py on the worktree and the installed copy.",
+            "observed_at": "2026-11-17T12:53:09Z",
+            "started_at": "2026-11-17T12:53:29Z",
+            "updated_at": "2026-11-17T12:53:29Z",
+            "check_id": "95ccf5c9dcae42e492caf4245a1dae8f",
+            "evidence": "Checked: The committed skill statechart against the official generator; Expected: statechart.html matches python3 scripts/statechart.py output, and test_generated_statechart_is_current_and_stale_or_missing_fails_shape_check passes; Observed: On the worktree and the installed 0.1.35 copy, that test passed as part of test_skill.py 5 OK in 0.004s; Verdict because: Fixed because the regenerated chart matches the generator and the shape test passed on both copies. Installed bcl 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e via bcl install-local (48 plugin files sha256 e607a3a1b6c90cc0cdbcdc939dc9f8c81e54d77715632bfe190d4f4d22c7b2cf, 41 skill files sha256 cf33d9b5fcee37f8629b20e2062e954c45fc84cba5a7e0fccd61b9fef1e944d5, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.35-receipt.json). Worktree suites finished 18:24:29 IST Asia/Calcutta; installed copy finished 18:25:20 IST. Logs: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r4-0.1.35.log and verify-r4-0.1.35-installed.log.",
+            "finished_at": "2026-11-17T12:55:52.527073Z"
+          },
+          "WF-19": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -4613,9 +4886,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-17T13:16:29Z",
-      "now": "2026-11-17T13:16:29Z — Install in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-17T13:19:42Z",
+      "now": "2026-11-17T13:19:42Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 113,
@@ -4817,8 +5090,8 @@
             "WF-06"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "review",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "samantha-pr114-rollover",
           "files": [],
           "reason": "WF-06 leftovers are hygiene scoping, Origin CI on drafts, one Terra review, and residual AGENT-28. AGENT-28 is already verified_fixed. This group reruns the named hygiene tests and checks the current CI workflow and one-review policy before any rewrite.",
@@ -4828,14 +5101,14 @@
             "review_status": "passed"
           },
           "verify": {
-            "command": "python3 -m unittest scripts.FAKESECRET_s3t4u5v6w7x8y9z0a1b2 scripts.FAKESECRET_u3v4w5x6y7z8a9b0c1d2 scripts.test_release_agent_computer_use.HygieneGateTests.test_clean_machine_passes",
-            "method": "The three named hygiene tests must pass. Also record whether ci.yml's pull_request trigger has any draft filter, and whether plan-fix.md still requires one review round with no second review. If a leftover is already present, it still needs its own named test before verified_fixed. Do not rewrite first.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "command": "python3 -m unittest discover -s scripts -p 'test_release_agent_computer_use.py'",
+            "method": "The three named hygiene tests must pass. Also record whether ci.yml's pull_request trigger has any draft filter, and whether plan-fix.md still requires one review round with no second review. If a leftover is already present, it still needs its own named test before verified_fixed. Do not rewrite first."
           },
-          "updated_at": "2026-11-17T13:16:27Z"
+          "updated_at": "2026-11-17T13:19:33Z"
         },
         {
           "id": "WINLV",
@@ -4844,8 +5117,8 @@
             "BCL-18"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "review",
+          "status": "blocked",
+          "phase": "verify",
           "worktree": "pr114-winlv",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
@@ -4862,14 +5135,15 @@
             "one_file": false
           },
           "verify": {
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
-            "method": "Tests must show a Windows-safe non-destructive liveness and ownership check (Unix os.kill path preserved). If a live Windows runtime is still unavailable, do not mark verified_fixed solely on mocks; leave it untested or blocked and say what is missing.",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
+            "method": "Tests must show a Windows-safe non-destructive liveness and ownership check (Unix os.kill path preserved). If a live Windows runtime is still unavailable, do not mark verified_fixed solely on mocks; leave it untested or blocked and say what is missing."
           },
-          "updated_at": "2026-11-17T13:16:27Z"
+          "updated_at": "2026-11-17T13:19:33Z",
+          "blocked_reason": "No live Windows runtime"
         },
         {
           "id": "HER",
@@ -4878,8 +5152,8 @@
             "AGENT-25"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "review",
+          "status": "failed",
+          "phase": "verify",
           "worktree": "samantha-pr114-rollover",
           "files": [],
           "reason": "AGENT-25 still needs a 12/12 Her-spec score with transcript evidence. Prior typed runs reached 10/12; AGENT-26 and AGENT-27 are now verified_fixed. Retest typed on the current installed ACU. Spoken scoring is not required for this group and is not a substitute later for OBS-23 or OBS-25. Do not defer solely because those items are blocked. Do not use port 8765 or ~/.cache/macos-cua/samantha-activity.jsonl.",
@@ -4889,14 +5163,14 @@
             "review_status": "passed"
           },
           "verify": {
-            "command": "python3 /Users/gurusharan/.agents/artifacts/bcl-114/her-session/score-her.py",
-            "method": "Run a typed Her-spec session on current installed ACU and score the six traits 0-2 from the transcript. verified_fixed only at 12/12. If any trait is below 2, leave AGENT-25 untested or failing and file or point to the leftover. Note spoken turns were not scored if no real microphone is present.",
-            "status": "pending",
+            "status": "failed",
             "fixed": 0,
-            "failed": 0,
-            "total": 1
+            "failed": 1,
+            "total": 1,
+            "command": "python3 /Users/gurusharan/.agents/artifacts/bcl-114/her-session/score-her.py",
+            "method": "Run a typed Her-spec session on current installed ACU and score the six traits 0-2 from the transcript. verified_fixed only at 12/12. If any trait is below 2, leave AGENT-25 untested or failing and file or point to the leftover. Note spoken turns were not scored if no real microphone is present."
           },
-          "updated_at": "2026-11-17T13:16:27Z"
+          "updated_at": "2026-11-17T13:19:33Z"
         },
         {
           "id": "EVAL",
@@ -4905,8 +5179,8 @@
             "EVAL-01"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "review",
+          "status": "done",
+          "phase": "verify",
           "worktree": "samantha-pr114-rollover",
           "files": [],
           "reason": "EVAL-01 needs a fair matched comparison of delivery speed, token efficiency, control, and status accuracy. Use the existing OpenCode smoke evaluation workflow and harness rather than inventing a new one. Freeze one slugify case and run OpenCode and a Codex counterpart on that same case.",
@@ -4916,28 +5190,31 @@
             "review_status": "passed"
           },
           "verify": {
-            "command": "bash /Users/gurusharan/.agents/artifacts/bcl-114/eval/run-matched.sh",
-            "method": "A matched run of the frozen slugify smoke case must report, for each side, wall time, token use if available, whether the test file stayed untouched (control), and whether the reported PASS/FAIL matched the actual tests (status accuracy). Record the comparison and the recommendation. If the run is incomplete or incomparable, leave EVAL-01 untested.",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "command": "bash /Users/gurusharan/.agents/artifacts/bcl-114/eval/run-matched.sh",
+            "method": "A matched run of the frozen slugify smoke case must report, for each side, wall time, token use if available, whether the test file stayed untouched (control), and whether the reported PASS/FAIL matched the actual tests (status accuracy). Record the comparison and the recommendation. If the run is incomplete or incomparable, leave EVAL-01 untested."
           },
-          "updated_at": "2026-11-17T13:16:27Z"
+          "updated_at": "2026-11-17T13:19:33Z"
         }
-      ]
+      ],
+      "status": "closed"
     },
     "stages_reached": [
       "collect",
       "plan_fix",
-      "install"
+      "install",
+      "verify",
+      "introspect"
     ],
     "verification_run": {
-      "id": "bcl-0.1.35-b522d3b1-114",
-      "build": "batched-change-list 0.1.35",
-      "revision": "b522d3b17bb63f156af97bda05c8632d0e78dd5e",
-      "installed_at": "2026-11-17T12:53:09Z",
-      "install_evidence": "bcl install-local from worktree HEAD b522d3b17bb63f156af97bda05c8632d0e78dd5e at 18:23 IST Asia/Calcutta installed batched-change-list 0.1.35: 48 plugin files sha256 e607a3a1b6c90cc0cdbcdc939dc9f8c81e54d77715632bfe190d4f4d22c7b2cf; 41 skill files sha256 cf33d9b5fcee37f8629b20e2062e954c45fc84cba5a7e0fccd61b9fef1e944d5 with SKILL.md at the skill root. Receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.35-receipt.json.",
+      "id": "bcl-0.1.36-a781916b-114",
+      "build": "batched-change-list 0.1.36",
+      "revision": "a781916b9b09493beebdb48fb7df8cef5e3fd41d",
+      "installed_at": "2026-11-17T13:16:07Z",
+      "install_evidence": "bcl install-local from worktree HEAD a781916b9b09493beebdb48fb7df8cef5e3fd41d at 18:46:07 IST Asia/Calcutta installed batched-change-list 0.1.36: 48 plugin files sha256 8cce666b628a3ae51d09cfae72e5facfd705f0730b22bcaad1cceac3ae51f08f; 41 skill files sha256 51070e0b856d89bf05b312ec5f55fd7a707304f853fd8f307c8d7f6de3668fdb with SKILL.md at the skill root. Receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.36-receipt.json.",
       "status": "active",
       "checks": {
         "AUTO-03": {
@@ -4959,14 +5236,7 @@
           "state": "pending"
         },
         "BCL-03": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e is present. BCL-03 is in_progress. About to run the Introspect draft tests, including the unsavable unchanged draft and tracker-alias guards, plus the stored test_bcl.py suite on the worktree and the installed copy.",
-          "observed_at": "2026-11-17T12:53:09Z",
-          "started_at": "2026-11-17T12:53:29Z",
-          "updated_at": "2026-11-17T12:53:29Z",
-          "check_id": "1475e3865f5340248fc5a1c8dc32cde9",
-          "evidence": "Checked: Drafting Introspect sections from the recorded run, then saving only after review; Expected: bcl introspect --draft writes an editable SECTIONS.json from the tracker run, an unchanged draft cannot be saved, and a draft path cannot overwrite the input or live tracker, including a hard link; Observed: On the worktree and the installed 0.1.35 copy, test_draft_uses_performed_round_steps_and_requires_review, test_workflow_cycle_uses_live_tracker_and_snapshots_each_stage, and test_introspect_draft_rejects_input_tracker_and_live_hard_link passed; test_bcl.py 50 OK in 50.313s then 50.392s, and test_check_introspect.py 7 OK; Verdict because: Fixed because a draft can be written and edited, an unchanged draft is rejected, and tracker aliases cannot be overwritten. Installed bcl 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e via bcl install-local (48 plugin files sha256 e607a3a1b6c90cc0cdbcdc939dc9f8c81e54d77715632bfe190d4f4d22c7b2cf, 41 skill files sha256 cf33d9b5fcee37f8629b20e2062e954c45fc84cba5a7e0fccd61b9fef1e944d5, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.35-receipt.json). Worktree suites finished 18:24:29 IST Asia/Calcutta; installed copy finished 18:25:20 IST. Logs: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r4-0.1.35.log and verify-r4-0.1.35-installed.log.",
-          "finished_at": "2026-11-17T12:55:52.526978Z"
+          "state": "pending"
         },
         "PLAN-02": {
           "state": "pending"
@@ -4981,10 +5251,24 @@
           "state": "pending"
         },
         "AGENT-25": {
-          "state": "pending"
+          "state": "not_fixed",
+          "observation": "A typed Her-spec retest already ran on installed ACU 0.2.148 at 18:36:31-18:38:42 IST Asia/Calcutta, port 65312, session 5492726e, activity log under artifacts/bcl-114/her-session. About to record the transcript score. Spoken turns were not scored (no real microphone).",
+          "observed_at": "2026-11-17T13:16:42Z",
+          "started_at": "2026-11-17T13:16:42Z",
+          "updated_at": "2026-11-17T13:16:42Z",
+          "check_id": "602487fdb2a7404ebd1c480fa4ffbcc9",
+          "evidence": "Checked: A typed Her-spec retest on current ACU, scored 0-2 on each of six traits from the transcript; Expected: 12/12 with transcript evidence; spoken scoring is not required for this check and is not a substitute for OBS-23 or OBS-25; Observed: Typed retest on installed ACU 0.2.148, port 65312, session 5492726e, 18:36:31-18:38:42 IST Asia/Calcutta, scored 7/12 after correcting the automatic scorer (it expected version 0.1.18 and treated T2 as a click because the prompt mentioned clicking). Acts directly 2 (T2 shell_run 323, T4 file_edit version 0.1.35), conversation 0 (T5 session disconnected after 82.15s during confirm_risky, SSL bad record MAC), remembers 2, initiative 0 (her-check.txt never created), warm and brief 1, many jobs 2. Spoken not scored. Transcript /Users/gurusharan/.agents/artifacts/bcl-114/her-session/SCORE-NOTE.md; Verdict because: Not fixed because the typed run scored 7/12, below the required 12/12, after T5 disconnected and her-check.txt was never created. Spoken turns were not scored (no real microphone). Activity log /Users/gurusharan/.agents/artifacts/bcl-114/her-session/samantha-activity.jsonl.",
+          "finished_at": "2026-11-17T13:18:19.273772Z"
         },
         "WF-06": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Installed batched-change-list 0.1.36 at a781916b9b09493beebdb48fb7df8cef5e3fd41d is present. WF-06 is in_progress. About to rerun the named hygiene tests and the new draft-CI and one-review regressions on the worktree and the installed copy.",
+          "observed_at": "2026-11-17T13:16:42Z",
+          "started_at": "2026-11-17T13:16:42Z",
+          "updated_at": "2026-11-17T13:16:42Z",
+          "check_id": "d7b0f39efe88498591484698f918a6e7",
+          "evidence": "Checked: Whether the WF-06 leftovers are already present and pinned by named tests; Expected: Hygiene stays scoped to the owning checkout, Origin CI has no draft skip, plan-fix requires one review round and no second review, and each leftover has a named test; AGENT-28 remains already verified_fixed; Observed: On the 0.1.36 worktree, test_release_agent_computer_use.py was 20 OK in 0.685s including the three named hygiene tests, and test_wf06_regressions.py was 2 OK: test_origin_ci_does_not_skip_draft_pull_requests and test_review_policy_allows_one_round_and_logs_leftover_nits. The installed skill's plan-fix.md still requires one review round and no second review. AGENT-28 stays verified_fixed; Verdict because: Fixed because the leftovers are present in the tree and each one is now pinned by a named test. Installed bcl 0.1.36 at a781916b9b09493beebdb48fb7df8cef5e3fd41d via bcl install-local (48 plugin files sha256 8cce666b628a3ae51d09cfae72e5facfd705f0730b22bcaad1cceac3ae51f08f, 41 skill files sha256 51070e0b856d89bf05b312ec5f55fd7a707304f853fd8f307c8d7f6de3668fdb, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.36-receipt.json). Worktree checks finished 18:47:01 IST Asia/Calcutta; installed live_state suite finished 18:47:03 IST. Logs: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r5-0.1.36.log and verify-r5-0.1.36-installed.log.",
+          "finished_at": "2026-11-17T13:18:19.273353Z"
         },
         "PAGE-08": {
           "state": "pending"
@@ -5092,7 +5376,14 @@
           "state": "pending"
         },
         "BCL-18": {
-          "state": "pending"
+          "state": "blocked",
+          "observation": "Installed batched-change-list 0.1.36 at a781916b9b09493beebdb48fb7df8cef5e3fd41d is present. BCL-18 is in_progress. About to run test_live_state.py on the worktree and the installed copy. No live Windows runtime is available on this Mac mini.",
+          "observed_at": "2026-11-17T13:16:42Z",
+          "started_at": "2026-11-17T13:16:42Z",
+          "updated_at": "2026-11-17T13:16:42Z",
+          "check_id": "7b8c93f2cf5a400dbb99f81c5d7fc9bd",
+          "evidence": "Checked: A Windows-safe non-destructive viewer liveness and ownership check, validated on Windows; Expected: ensure_viewer uses a non-destructive Windows probe, Unix os.kill behaviour is unchanged, tests cover both paths, and the Windows path is validated on a real Windows runtime; Observed: On the worktree and the installed 0.1.36 copy, test_live_state.py was 9 OK in 1.514s then 1.492s, including live subprocess liveness on macOS, Unix os.kill coverage, and mocked Windows OpenProcess/GetExitCodeProcess/CloseHandle tests. No live Windows runtime was available on this Mac mini, so the Windows probe was not exercised on Windows; Verdict because: Blocked because the code and macOS tests passed but a real Windows runtime is still required to validate the new probe. Installed bcl 0.1.36 at a781916b9b09493beebdb48fb7df8cef5e3fd41d via bcl install-local (48 plugin files sha256 8cce666b628a3ae51d09cfae72e5facfd705f0730b22bcaad1cceac3ae51f08f, 41 skill files sha256 51070e0b856d89bf05b312ec5f55fd7a707304f853fd8f307c8d7f6de3668fdb, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.36-receipt.json). Worktree checks finished 18:47:01 IST Asia/Calcutta; installed live_state suite finished 18:47:03 IST. Logs: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r5-0.1.36.log and verify-r5-0.1.36-installed.log.",
+          "finished_at": "2026-11-17T13:18:19.273470Z"
         },
         "BCL-19": {
           "state": "pending"
@@ -5104,7 +5395,14 @@
           "state": "pending"
         },
         "EVAL-01": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "A matched OpenCode vs Codex slugify comparison already ran on the frozen oc-eval smoke case. About to confirm the stored summary: OpenCode glm-5.3-flash-free PASS in about 12s, Codex Luna medium PASS in 14s, both left the test file untouched; OpenCode tokens were not exposed.",
+          "observed_at": "2026-11-17T13:16:42Z",
+          "started_at": "2026-11-17T13:16:42Z",
+          "updated_at": "2026-11-17T13:16:42Z",
+          "check_id": "9bf03fb028174c04a5fb13063017d157",
+          "evidence": "Checked: A fair matched comparison of delivery speed, token efficiency, control, and status accuracy using the existing OpenCode smoke harness; Expected: The same frozen slugify case is run on OpenCode and Codex, and all four dimensions can be compared, with a recommendation; Observed: After discarding an unavailable opencode/glm-5-flash attempt, OpenCode glm-5.3-flash-free passed in about 12s and Codex Luna medium passed in 14s; both left test_slug.py untouched and reported PASS matching the tests. Codex used 23,058 tokens; OpenCode did not expose a token count, so token efficiency is not comparable. Comparison /Users/gurusharan/.agents/artifacts/bcl-114/eval/EVAL-01-comparison.md; Verdict because: Inconclusive because speed, control, and status accuracy were comparable but token efficiency could not be matched. Recommendation: keep using the existing OpenCode smoke workflow and a currently served free model; do not treat token efficiency as settled until OpenCode tokens are captured the same way as Codex.",
+          "finished_at": "2026-11-17T13:18:19.273862Z"
         },
         "BCL-22": {
           "state": "pending"
@@ -5191,80 +5489,88 @@
           "state": "pending"
         },
         "BCL-37": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e is present. BCL-37 is in_progress. About to run test_generated_statechart_is_current_and_stale_or_missing_fails_shape_check and test_skill.py on the worktree and the installed copy.",
-          "observed_at": "2026-11-17T12:53:09Z",
-          "started_at": "2026-11-17T12:53:29Z",
-          "updated_at": "2026-11-17T12:53:29Z",
-          "check_id": "95ccf5c9dcae42e492caf4245a1dae8f",
-          "evidence": "Checked: The committed skill statechart against the official generator; Expected: statechart.html matches python3 scripts/statechart.py output, and test_generated_statechart_is_current_and_stale_or_missing_fails_shape_check passes; Observed: On the worktree and the installed 0.1.35 copy, that test passed as part of test_skill.py 5 OK in 0.004s; Verdict because: Fixed because the regenerated chart matches the generator and the shape test passed on both copies. Installed bcl 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e via bcl install-local (48 plugin files sha256 e607a3a1b6c90cc0cdbcdc939dc9f8c81e54d77715632bfe190d4f4d22c7b2cf, 41 skill files sha256 cf33d9b5fcee37f8629b20e2062e954c45fc84cba5a7e0fccd61b9fef1e944d5, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.35-receipt.json). Worktree suites finished 18:24:29 IST Asia/Calcutta; installed copy finished 18:25:20 IST. Logs: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r4-0.1.35.log and verify-r4-0.1.35-installed.log.",
-          "finished_at": "2026-11-17T12:55:52.527073Z"
+          "state": "pending"
         },
         "WF-19": {
+          "state": "pending"
+        },
+        "WF-20": {
           "state": "pending"
         }
       }
     },
     "introspect": {
-      "result": "Round 4 Introspect recorded",
-      "at": "2026-11-17T12:56:31Z",
-      "task": "WF-19",
+      "result": "Introspect recorded",
+      "at": "2026-11-17T13:19:42Z",
+      "task": "WF-20",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 2",
-        "Codex write: GATE",
-        "One-file review exemption: GATE",
-        "Polling and rework review: GATE",
-        "Test command: GATE: python3 scripts/check.py",
-        "Codex write: INTRO",
-        "Codex review: INTRO",
-        "Polling and rework review: INTRO",
-        "Test command: INTRO: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
+        "Parallel group count: 4",
+        "Codex write: WF06",
+        "One-file review exemption: WF06",
+        "Polling and rework review: WF06",
+        "Test command: WF06: python3 -m unittest discover -s scripts -p 'test_release_agent_computer_use.py'",
+        "Codex write: WINLV",
+        "Codex review: WINLV",
+        "Polling and rework review: WINLV",
+        "Test command: WINLV: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
+        "Codex write: HER",
+        "One-file review exemption: HER",
+        "Polling and rework review: HER",
+        "Test command: HER: python3 /Users/gurusharan/.agents/artifacts/bcl-114/her-session/score-her.py",
+        "Codex write: EVAL",
+        "One-file review exemption: EVAL",
+        "Polling and rework review: EVAL",
+        "Test command: EVAL: bash /Users/gurusharan/.agents/artifacts/bcl-114/eval/run-matched.sh"
       ],
       "none": [
         "Stage: Plan & fix",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 2",
-        "Codex write: GATE",
-        "One-file review exemption: GATE",
-        "Polling and rework review: GATE",
-        "Codex write: INTRO",
-        "Test command: INTRO: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
+        "Parallel group count: 4",
+        "Codex write: WF06",
+        "One-file review exemption: WF06",
+        "Polling and rework review: WF06",
+        "Test command: WF06: python3 -m unittest discover -s scripts -p 'test_release_agent_computer_use.py'",
+        "Codex write: WINLV",
+        "Codex review: WINLV",
+        "Test command: WINLV: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
+        "Codex write: HER",
+        "One-file review exemption: HER",
+        "Polling and rework review: HER",
+        "Test command: HER: python3 /Users/gurusharan/.agents/artifacts/bcl-114/her-session/score-her.py",
+        "Codex write: EVAL",
+        "One-file review exemption: EVAL",
+        "Test command: EVAL: bash /Users/gurusharan/.agents/artifacts/bcl-114/eval/run-matched.sh"
       ],
       "sections": {
         "delete": {
-          "none": "No extra process or files were dropped. GATE was test-now on the current worktree. INTRO added the planned draft command, tests, and a statechart regeneration. The 0.1.35 bump ran in a separate Luna session whose commit was blocked on the shared home worktree index; the orchestrator committed, which matches the rule that only the orchestrator commits."
+          "none": "Nothing extra was dropped. The four planned groups stayed in the round, and Luna max was not recorded because the plan cap still rejects effort max."
         },
         "simplify": {
-          "none": "The Terra P2 and the duplicate introspect.md paragraph were fixed by resuming the same Luna session, with no second review. No further process was added."
-        },
-        "optimize": {
-          "none": "GATE ran as test-now before any INTRO code, as required. One 0.1.35 install-local and one live verify then covered the worktree and the installed copy."
-        },
-        "automate": {
           "items": [
             {
-              "item": "Test command: GATE: python3 scripts/check.py",
-              "evidence": "The 17:58–18:00 IST Asia/Calcutta full scripts/check.py run passed test_claude_hook.py (20 OK in 11.754s) and the Swift service suite (608 tests in 127.2s, including testSubmitColdStartShowsWakingThenSucceeds), so AGENT-28 and AGENT-29 were verified. The same run failed only test_skill.py because statechart.html was stale. That was filed as BCL-37 and fixed in INTRO; the shape test then passed on the worktree and installed 0.1.35 copy.",
+              "item": "Polling and rework review: WINLV",
+              "evidence": "The first WINLV commit inverted the Unix os.kill skip guard. The same Luna session flipped it to skipIf win32, tests were 9 OK with 0 skipped on macOS, and Terra approved with only a non-blocking nit. There was no second review.",
               "outcome": "fixed inline"
             },
             {
-              "item": "Codex review: INTRO",
-              "evidence": "Terra r1 (session 01a1e989-5ff1-7321-b3c4-a9d4685ac458, 18:14–18:15 IST) found that bcl introspect --draft could overwrite the in-repo snapshot or a hard link of the live tracker. Luna resumed session 01a1e97f-c3ae-7461-bbe8-f4c318973f1b and committed abbafe4d, which rejects those destinations, with test_introspect_draft_rejects_input_tracker_and_live_hard_link. The duplicate introspect.md paragraph was removed in the same change. No second review.",
-              "outcome": "fixed inline"
-            },
-            {
-              "item": "Polling and rework review: INTRO",
-              "evidence": "The first INTRO commit was blocked on the shared worktree index; the orchestrator ran 232 tests outside the sandbox (all OK) and committed 81fbf13d. After the P2 fix, 233 tests passed outside the sandbox in 70.427s. review_status was set to passed with no second Terra round.",
+              "item": "Polling and rework review: EVAL",
+              "evidence": "The first OpenCode side used unavailable model opencode/glm-5-flash and was discarded. The OpenCode rerun used served model opencode/glm-5.3-flash-free on the same frozen case and passed in about 12s with the test file untouched.",
               "outcome": "fixed inline"
             }
           ]
+        },
+        "optimize": {
+          "none": "No further runtime or token change was made. The EVAL comparison reported wall time and left OpenCode token counts unavailable."
+        },
+        "automate": {
+          "none": "No new orchestration step was added. EVAL reused the existing OpenCode smoke workflow, and the WINLV tests live in test_live_state.py."
         }
       },
-      "round": 4,
+      "round": 5,
       "cycle": 6
     }
   },
@@ -5609,7 +5915,7 @@
       "id": "AGENT-25",
       "title": "Samantha meets the Her (2013) spec: 6 traits, scored 0–2 each, target 12/12",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "failing",
       "observed": "Guru (10:58 IST, 14 Nov 2026) asked for the Her spec to be tracked. Samantha should feel like the OS in the film: a capable companion who gets real work done by talking. Every test run is scored on six traits, 0–2 each (12 total), every point backed by transcript evidence. Baseline from ACU's own read of the 14 Nov typed Likeminded session (0.2.141): 1/12 (acts directly 0, conversation 0, remembers 1, initiative 0, warm and brief 0, many jobs 0).",
       "recommendation": "Keep open. Each retest records a score here with record-evidence (per-trait line + transcript refs). Report as X/12, one line per trait; file each trait scored 0 as a finding traced Guru said -> Samantha decided -> step failed -> code area. verified_fixed only at 12/12 with transcript evidence.",
       "details": {
@@ -5638,18 +5944,25 @@
           "session": "9463464a",
           "timestamp": "2026-11-14T22:36:53+05:30",
           "reference": "10/12 on typed 0.2.147 session 9463464a (corrected from an initial 8/12 auto-score that missed tool events). acts directly 2 (T2b shell_run python3=323, T4 file_edit read plugin.json=0.1.18), conversation 1 (T2 confirm timeout gap ~2 min; spoken not tested, no mic), remembers 2 (T3 path+ticket, T7 Guru+AGENT-25), initiative 1 (T5 created her-check.txt and suggested a next step, but T2 treated confirm timeout as still needing OK), warm and brief 2, many jobs 2 (T6 started job 2f1bc7bb in 7.3s, T7 during, T8 her-job.txt=job-done). Evidence: ~/.agents/artifacts/bcl-111/session/her-score.json and turns/T1-T8.json. Remaining points logged as AGENT-26 and AGENT-27. AGENT-25 stays open; not 12/12."
+        },
+        {
+          "checked": "A typed Her-spec retest on current ACU, scored 0-2 on each of six traits from the transcript",
+          "expected": "12/12 with transcript evidence; spoken scoring is not required for this check and is not a substitute for OBS-23 or OBS-25",
+          "observed": "Typed retest on installed ACU 0.2.148, port 65312, session 5492726e, 18:36:31-18:38:42 IST Asia/Calcutta, scored 7/12 after correcting the automatic scorer (it expected version 0.1.18 and treated T2 as a click because the prompt mentioned clicking). Acts directly 2 (T2 shell_run 323, T4 file_edit version 0.1.35), conversation 0 (T5 session disconnected after 82.15s during confirm_risky, SSL bad record MAC), remembers 2, initiative 0 (her-check.txt never created), warm and brief 1, many jobs 2. Spoken not scored. Transcript /Users/gurusharan/.agents/artifacts/bcl-114/her-session/SCORE-NOTE.md",
+          "verdict": "Not fixed because the typed run scored 7/12, below the required 12/12, after T5 disconnected and her-check.txt was never created",
+          "check_id": "her-r5-0.2.148",
+          "build": "batched-change-list 0.1.36",
+          "session": "installed-0.1.36-verify-114",
+          "timestamp": "2026-11-17T13:17:19Z",
+          "reference": "0.2.148:AGENT-25:typed-her-retest"
         }
       ],
       "summary": "Samantha should feel like the assistant in the film Her: warm, brief, and able to get real work done just by talking.",
       "impact": "This is the goal that every other fix is measured against.",
       "done_when": "A test run scores the full 12 out of 12 on the six traits, with proof from the conversation for every point.",
-      "verification": "ACU 0.2.143 typed retest (acu-0143-verify, 14 Nov 2026 afternoon IST) scored 6/12, up from the 1/12 baseline, not 12/12 so this stays open. 1 Acts directly 1/2: T3 used Finder with the given path; T4 used shell_run (after an unnecessary approval); T6 clicked Calculator and hit expect_unverified. 2 Conversation 2/2 (typed): every typed turn answered in 1.7–18.6s, no cutoff; spoken not scored (no mic). 3 Remembers 1/2: T3 used the given path; T2 still asked for the app name after a miss. 4 Initiative 1/2: she moved T3/T4/T6 forward, but asked confirm_risky for a read-only command. 5 Warm and brief 1/2: T1/T3/T4 were short and natural; T6 claimed the display was “confirmed” after expect_unverified. 6 Many jobs 0/2: this run did not start a long Samantha job and keep chatting. Transcripts: ~/.agents/artifacts/acu-0143/verify/turns/T1–T6.json.",
+      "verification": "Checked: A typed Her-spec retest on current ACU, scored 0-2 on each of six traits from the transcript; Expected: 12/12 with transcript evidence; spoken scoring is not required for this check and is not a substitute for OBS-23 or OBS-25; Observed: Typed retest on installed ACU 0.2.148, port 65312, session 5492726e, 18:36:31-18:38:42 IST Asia/Calcutta, scored 7/12 after correcting the automatic scorer (it expected version 0.1.18 and treated T2 as a click because the prompt mentioned clicking). Acts directly 2 (T2 shell_run 323, T4 file_edit version 0.1.35), conversation 0 (T5 session disconnected after 82.15s during confirm_risky, SSL bad record MAC), remembers 2, initiative 0 (her-check.txt never created), warm and brief 1, many jobs 2. Spoken not scored. Transcript /Users/gurusharan/.agents/artifacts/bcl-114/her-session/SCORE-NOTE.md; Verdict because: Not fixed because the typed run scored 7/12, below the required 12/12, after T5 disconnected and her-check.txt was never created. Spoken turns were not scored (no real microphone). Activity log /Users/gurusharan/.agents/artifacts/bcl-114/her-session/samantha-activity.jsonl.",
       "verification_refs": [
-        "~/.agents/artifacts/acu-0143/verify/turns/T1.json",
-        "~/.agents/artifacts/acu-0143/verify/turns/T3.json",
-        "~/.agents/artifacts/acu-0143/verify/turns/T4.json",
-        "~/.agents/artifacts/acu-0143/verify/turns/T5.json",
-        "~/.agents/artifacts/acu-0143/verify/turns/T6.json"
+        "0.2.148:AGENT-25:typed-her-retest"
       ],
       "carried_from": 110
     },
@@ -5657,10 +5970,10 @@
       "id": "WF-06",
       "title": "Introspect 2026-11-14: 5 issue(s), 3 for next cycle",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "Introspect found 5 issue(s): 2 fixed during Introspect, 3 left for the next cycle.",
       "recommendation": "ACU release hygiene gate fails on unrelated local work in the main agent-plugins checkout, forcing --hygiene-override on every install; Origin CI skips draft PRs, so fix cycles on a draft get no CI signal; Code review needed 3 Terra rounds (limit 2); residual island-auth blocker carried as AGENT-28",
-      "verification": "",
+      "verification": "Checked: Whether the WF-06 leftovers are already present and pinned by named tests; Expected: Hygiene stays scoped to the owning checkout, Origin CI has no draft skip, plan-fix requires one review round and no second review, and each leftover has a named test; AGENT-28 remains already verified_fixed; Observed: On the 0.1.36 worktree, test_release_agent_computer_use.py was 20 OK in 0.685s including the three named hygiene tests, and test_wf06_regressions.py was 2 OK: test_origin_ci_does_not_skip_draft_pull_requests and test_review_policy_allows_one_round_and_logs_leftover_nits. The installed skill's plan-fix.md still requires one review round and no second review. AGENT-28 stays verified_fixed; Verdict because: Fixed because the leftovers are present in the tree and each one is now pinned by a named test. Installed bcl 0.1.36 at a781916b9b09493beebdb48fb7df8cef5e3fd41d via bcl install-local (48 plugin files sha256 8cce666b628a3ae51d09cfae72e5facfd705f0730b22bcaad1cceac3ae51f08f, 41 skill files sha256 51070e0b856d89bf05b312ec5f55fd7a707304f853fd8f307c8d7f6de3668fdb, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.36-receipt.json). Worktree checks finished 18:47:01 IST Asia/Calcutta; installed live_state suite finished 18:47:03 IST. Logs: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r5-0.1.36.log and verify-r5-0.1.36-installed.log.",
       "issues": [
         {
           "issue": "Three interruptions mid-cycle cost re-orientation",
@@ -5691,7 +6004,23 @@
       "summary": "The last review of the fix process found a few slow or fragile steps in how fixes are built and checked.",
       "impact": "These steps cost time on every fix cycle and can hide problems from automatic checks.",
       "done_when": "The leftover process issues are fixed and the next review comes back clean.",
-      "carried_from": 110
+      "carried_from": 110,
+      "verification_evidence": [
+        {
+          "checked": "Whether the WF-06 leftovers are already present and pinned by named tests",
+          "expected": "Hygiene stays scoped to the owning checkout, Origin CI has no draft skip, plan-fix requires one review round and no second review, and each leftover has a named test; AGENT-28 remains already verified_fixed",
+          "observed": "On the 0.1.36 worktree, test_release_agent_computer_use.py was 20 OK in 0.685s including the three named hygiene tests, and test_wf06_regressions.py was 2 OK: test_origin_ci_does_not_skip_draft_pull_requests and test_review_policy_allows_one_round_and_logs_leftover_nits. The installed skill's plan-fix.md still requires one review round and no second review. AGENT-28 stays verified_fixed",
+          "verdict": "Fixed because the leftovers are present in the tree and each one is now pinned by a named test",
+          "check_id": "wf06-r5-0.1.36",
+          "build": "batched-change-list 0.1.36",
+          "session": "installed-0.1.36-verify-114",
+          "timestamp": "2026-11-17T13:17:19Z",
+          "reference": "a781916b9b09493beebdb48fb7df8cef5e3fd41d:WF-06:installed-cli-suite"
+        }
+      ],
+      "verification_refs": [
+        "a781916b9b09493beebdb48fb7df8cef5e3fd41d:WF-06:installed-cli-suite"
+      ]
     },
     {
       "id": "PAGE-08",
@@ -6668,13 +6997,30 @@
       "id": "BCL-18",
       "title": "Windows viewer liveness needs a safe platform check",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "blocked",
       "summary": "The viewer liveness check may not be safe on Windows.",
       "impact": "A viewer process could be handled incorrectly on that platform.",
       "done_when": "Use and verify a non-destructive Windows liveness and ownership check.",
       "observed": "Source review: live_state.py uses os.kill(pid, 0) for liveness; native Windows behavior was not tested.",
       "recommendation": "Implement a Windows-safe process identity check and validate on Windows.",
-      "carried_from": 111
+      "carried_from": 111,
+      "verification_evidence": [
+        {
+          "checked": "A Windows-safe non-destructive viewer liveness and ownership check, validated on Windows",
+          "expected": "ensure_viewer uses a non-destructive Windows probe, Unix os.kill behaviour is unchanged, tests cover both paths, and the Windows path is validated on a real Windows runtime",
+          "observed": "On the worktree and the installed 0.1.36 copy, test_live_state.py was 9 OK in 1.514s then 1.492s, including live subprocess liveness on macOS, Unix os.kill coverage, and mocked Windows OpenProcess/GetExitCodeProcess/CloseHandle tests. No live Windows runtime was available on this Mac mini, so the Windows probe was not exercised on Windows",
+          "verdict": "Blocked because the code and macOS tests passed but a real Windows runtime is still required to validate the new probe",
+          "check_id": "winlv-r5-0.1.36",
+          "build": "batched-change-list 0.1.36",
+          "session": "installed-0.1.36-verify-114",
+          "timestamp": "2026-11-17T13:17:19Z",
+          "reference": "a781916b9b09493beebdb48fb7df8cef5e3fd41d:BCL-18:installed-cli-suite"
+        }
+      ],
+      "verification": "Checked: A Windows-safe non-destructive viewer liveness and ownership check, validated on Windows; Expected: ensure_viewer uses a non-destructive Windows probe, Unix os.kill behaviour is unchanged, tests cover both paths, and the Windows path is validated on a real Windows runtime; Observed: On the worktree and the installed 0.1.36 copy, test_live_state.py was 9 OK in 1.514s then 1.492s, including live subprocess liveness on macOS, Unix os.kill coverage, and mocked Windows OpenProcess/GetExitCodeProcess/CloseHandle tests. No live Windows runtime was available on this Mac mini, so the Windows probe was not exercised on Windows; Verdict because: Blocked because the code and macOS tests passed but a real Windows runtime is still required to validate the new probe. Installed bcl 0.1.36 at a781916b9b09493beebdb48fb7df8cef5e3fd41d via bcl install-local (48 plugin files sha256 8cce666b628a3ae51d09cfae72e5facfd705f0730b22bcaad1cceac3ae51f08f, 41 skill files sha256 51070e0b856d89bf05b312ec5f55fd7a707304f853fd8f307c8d7f6de3668fdb, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.36-receipt.json). Worktree checks finished 18:47:01 IST Asia/Calcutta; installed live_state suite finished 18:47:03 IST. Logs: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r5-0.1.36.log and verify-r5-0.1.36-installed.log.",
+      "verification_refs": [
+        "a781916b9b09493beebdb48fb7df8cef5e3fd41d:BCL-18:installed-cli-suite"
+      ]
     },
     {
       "id": "BCL-19",
@@ -6767,13 +7113,30 @@
       "id": "EVAL-01",
       "title": "Prove delivery speed, token efficiency, control, and status accuracy",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "untested",
       "summary": "We do not yet know whether the workflow helps agents deliver accepted work faster and with fewer tokens while keeping clear, accurate status.",
       "impact": "Passing plugin tests alone cannot show that the workflow improves real feature delivery.",
       "done_when": "Run a fair matched comparison with complete end-to-end time and token accounting, independent acceptance, workflow-control checks, and independently checked HTML status accuracy.",
       "observed": "Existing OpenCode pilot reported six accepted pairs but was inconclusive on its primary endpoint and excluded verifier/orchestration tokens; rollover probes checked mechanics, not end-to-end delivery value.",
       "recommendation": "Use the existing evaluation workflow and harness; freeze cases, baseline, acceptance criteria and measurement boundaries before running.",
-      "carried_from": 111
+      "carried_from": 111,
+      "verification_evidence": [
+        {
+          "checked": "A fair matched comparison of delivery speed, token efficiency, control, and status accuracy using the existing OpenCode smoke harness",
+          "expected": "The same frozen slugify case is run on OpenCode and Codex, and all four dimensions can be compared, with a recommendation",
+          "observed": "After discarding an unavailable opencode/glm-5-flash attempt, OpenCode glm-5.3-flash-free passed in about 12s and Codex Luna medium passed in 14s; both left test_slug.py untouched and reported PASS matching the tests. Codex used 23,058 tokens; OpenCode did not expose a token count, so token efficiency is not comparable. Comparison /Users/gurusharan/.agents/artifacts/bcl-114/eval/EVAL-01-comparison.md",
+          "verdict": "Inconclusive because speed, control, and status accuracy were comparable but token efficiency could not be matched",
+          "check_id": "eval-r5-matched-slugify",
+          "build": "batched-change-list 0.1.36",
+          "session": "installed-0.1.36-verify-114",
+          "timestamp": "2026-11-17T13:17:19Z",
+          "reference": "EVAL-01:matched-slugify-20261117"
+        }
+      ],
+      "verification": "Checked: A fair matched comparison of delivery speed, token efficiency, control, and status accuracy using the existing OpenCode smoke harness; Expected: The same frozen slugify case is run on OpenCode and Codex, and all four dimensions can be compared, with a recommendation; Observed: After discarding an unavailable opencode/glm-5-flash attempt, OpenCode glm-5.3-flash-free passed in about 12s and Codex Luna medium passed in 14s; both left test_slug.py untouched and reported PASS matching the tests. Codex used 23,058 tokens; OpenCode did not expose a token count, so token efficiency is not comparable. Comparison /Users/gurusharan/.agents/artifacts/bcl-114/eval/EVAL-01-comparison.md; Verdict because: Inconclusive because speed, control, and status accuracy were comparable but token efficiency could not be matched. Recommendation: keep using the existing OpenCode smoke workflow and a currently served free model; do not treat token efficiency as settled until OpenCode tokens are captured the same way as Codex.",
+      "verification_refs": [
+        "EVAL-01:matched-slugify-20261117"
+      ]
     },
     {
       "id": "BCL-22",
@@ -8162,6 +8525,88 @@
               "outcome": "fixed inline"
             }
           ]
+        }
+      },
+      "verification_refs": [
+        "Introspect"
+      ]
+    },
+    {
+      "id": "WF-20",
+      "title": "Introspect 2026-11-17: Introspect recorded",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "Introspect recorded",
+      "recommendation": "None; all items were fixed inline or none.",
+      "verification": "Inline items were done during Introspect.",
+      "details": {
+        "fixed_in": "Introspect"
+      },
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: WF06",
+        "One-file review exemption: WF06",
+        "Polling and rework review: WF06",
+        "Test command: WF06: python3 -m unittest discover -s scripts -p 'test_release_agent_computer_use.py'",
+        "Codex write: WINLV",
+        "Codex review: WINLV",
+        "Polling and rework review: WINLV",
+        "Test command: WINLV: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
+        "Codex write: HER",
+        "One-file review exemption: HER",
+        "Polling and rework review: HER",
+        "Test command: HER: python3 /Users/gurusharan/.agents/artifacts/bcl-114/her-session/score-her.py",
+        "Codex write: EVAL",
+        "One-file review exemption: EVAL",
+        "Polling and rework review: EVAL",
+        "Test command: EVAL: bash /Users/gurusharan/.agents/artifacts/bcl-114/eval/run-matched.sh"
+      ],
+      "none": [
+        "Stage: Plan & fix",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: WF06",
+        "One-file review exemption: WF06",
+        "Polling and rework review: WF06",
+        "Test command: WF06: python3 -m unittest discover -s scripts -p 'test_release_agent_computer_use.py'",
+        "Codex write: WINLV",
+        "Codex review: WINLV",
+        "Test command: WINLV: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
+        "Codex write: HER",
+        "One-file review exemption: HER",
+        "Polling and rework review: HER",
+        "Test command: HER: python3 /Users/gurusharan/.agents/artifacts/bcl-114/her-session/score-her.py",
+        "Codex write: EVAL",
+        "One-file review exemption: EVAL",
+        "Test command: EVAL: bash /Users/gurusharan/.agents/artifacts/bcl-114/eval/run-matched.sh"
+      ],
+      "sections": {
+        "delete": {
+          "none": "Nothing extra was dropped. The four planned groups stayed in the round, and Luna max was not recorded because the plan cap still rejects effort max."
+        },
+        "simplify": {
+          "items": [
+            {
+              "item": "Polling and rework review: WINLV",
+              "evidence": "The first WINLV commit inverted the Unix os.kill skip guard. The same Luna session flipped it to skipIf win32, tests were 9 OK with 0 skipped on macOS, and Terra approved with only a non-blocking nit. There was no second review.",
+              "outcome": "fixed inline"
+            },
+            {
+              "item": "Polling and rework review: EVAL",
+              "evidence": "The first OpenCode side used unavailable model opencode/glm-5-flash and was discarded. The OpenCode rerun used served model opencode/glm-5.3-flash-free on the same frozen case and passed in about 12s with the test file untouched.",
+              "outcome": "fixed inline"
+            }
+          ]
+        },
+        "optimize": {
+          "none": "No further runtime or token change was made. The EVAL comparison reported wall time and left OpenCode token counts unavailable."
+        },
+        "automate": {
+          "none": "No new orchestration step was added. EVAL reused the existing OpenCode smoke workflow, and the WINLV tests live in test_live_state.py."
         }
       },
       "verification_refs": [
