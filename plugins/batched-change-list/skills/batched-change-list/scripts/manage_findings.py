@@ -618,12 +618,16 @@ def validate_plan_groups(plan: dict) -> None:
     for group in groups:
         if not isinstance(group, dict):
             continue
-        if (group.get("phase") or group.get("status")) in {"deferred", "done", "verified"}:
+        state = group["status"] if "status" in group else group.get("phase")
+        if state in {"deferred", "done", "verified", "parked"}:
             continue
         ids = group.get("finding_ids") or group.get("ids") or []
         if isinstance(ids, list) and len(ids) > MAX_GROUP_ISSUES:
             gid = group.get("id") or group.get("name") or "group"
             raise ValueError(f"{gid}: cap a parallel fix group at about {MAX_GROUP_ISSUES} issues (has {len(ids)}); split it")
+        if isinstance(group.get("codex"), dict) and group["codex"].get("effort") == "max":
+            gid = group.get("id") or group.get("name") or "group"
+            raise ValueError(f"{gid}: use medium effort instead of max for a fix group")
 
 
 def finding_verified(item, tracking):
