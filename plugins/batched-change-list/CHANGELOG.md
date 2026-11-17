@@ -1,6 +1,7 @@
 ## 0.1.27
 
 - Keep failed and blocked lanes from completing the Install workflow tick; report denied viewer PID probes during Plan without a traceback.
+- Generate and shape-check a skill loading statechart with current and trigger-loaded views.
 
 ## 0.1.26
 
