@@ -3243,9 +3243,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-17T10:13:28Z",
-      "now": "2026-11-17T10:13:28Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-17T10:15:13Z",
+      "now": "2026-11-17T10:15:13Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 112,
@@ -3358,7 +3358,7 @@
       }
     },
     "cycle": 5,
-    "round": 2,
+    "round": 3,
     "round_history": [
       {
         "round": 2,
@@ -3399,137 +3399,105 @@
         "round": 1,
         "fixed": 5,
         "ended_at": "2026-11-17T10:01:33Z"
+      },
+      {
+        "round": 2,
+        "fixed": 11,
+        "ended_at": "2026-11-17T10:15:13Z"
       }
     ],
     "plan": {
-      "round": 2,
+      "round": 3,
       "cycle": 5,
       "groups": [
         {
-          "id": "TMPL",
-          "name": "Wire issue status to the lane outcome field",
+          "id": "PAGE",
+          "name": "Confirm issue verification timeline already in 0.1.31",
           "finding_ids": [
-            "PAGE-21"
+            "PAGE-10",
+            "PAGE-20",
+            "BCL-02"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "pr113-tmpl",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_render.py"
-          ],
-          "reason": "PAGE-09 stored _lane_status.outcome but the template still displays item.status.",
-          "codex": {
-            "one_file": true,
-            "implementer_session": "01a1e8f4-b446-7a72-a298-fe3e38a3e581",
-            "implementer": "luna",
-            "implementer_model": "gpt-6-luna",
-            "implementer_effort": "medium",
-            "review_status": "passed",
-            "status": "running",
-            "updated_at": "2026-11-17T10:13:15Z"
-          },
-          "verify": {
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
-            "method": "Unit test asserts the visible issue status for a failing finding in a deferred lane uses the outcome field.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "updated_at": "2026-11-17T10:13:15Z"
-        },
-        {
-          "id": "RELOAD",
-          "name": "Reload the viewer renderer after install",
-          "finding_ids": [
-            "AUTO-06"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "pr113-reload",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/serve.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_serve.py"
-          ],
-          "reason": "A running list viewer keeps a stale in-memory render.py after the plugin is installed.",
-          "codex": {
-            "one_file": true,
-            "implementer_session": "01a1e8f4-b446-7723-aa32-318fe4a10eef",
-            "implementer": "luna",
-            "implementer_model": "gpt-6-luna",
-            "implementer_effort": "medium",
-            "review_status": "passed",
-            "status": "running",
-            "updated_at": "2026-11-17T10:13:15Z"
-          },
-          "verify": {
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_serve.py'",
-            "method": "Unit test that changing render.py makes the next viewer request use the new renderer.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "updated_at": "2026-11-17T10:13:15Z"
-        },
-        {
-          "id": "GATE",
-          "name": "Confirm gate exclusions already in 0.1.30",
-          "finding_ids": [
-            "FLOW-03",
-            "BCL-14"
-          ],
-          "depends_on": [],
-          "status": "verified",
+          "status": "pending",
           "phase": "verify",
           "worktree": "samantha-pr113-rollover",
           "files": [],
-          "reason": "rollover_gate already excludes Introspect WF records and unresolved rechecks; verify on the installed plugin.",
+          "reason": "The issue page already shows a version timeline, discloses undated checks, and stores each group's verify command.",
+          "codex": {
+            "one_file": true,
+            "implementer_session": "test-now-already-installed-0.1.31",
+            "review_status": "passed"
+          },
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
-            "method": "Existing tests: gate excludes WF Introspect records and does not count a verified_fixed issue during an unresolved recheck.",
-            "status": "verified",
-            "fixed": 2,
+            "method": "Existing tests cover the version timeline, undated latest-result disclosure, and stored verify commands.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
-            "total": 2
+            "total": 3
           },
-          "updated_at": "2026-11-17T10:13:15Z"
+          "updated_at": "2026-11-17T10:15:13Z"
         },
         {
-          "id": "CLOCK",
-          "name": "Confirm lane clock and unique assignments already in 0.1.30",
+          "id": "VIEW",
+          "name": "Confirm only Collect start re-points the viewer",
           "finding_ids": [
-            "PAGE-19",
-            "BCL-19"
+            "AUTO-03"
           ],
           "depends_on": [],
-          "status": "verified",
+          "status": "pending",
           "phase": "verify",
           "worktree": "samantha-pr113-rollover",
           "files": [],
-          "reason": "update-plan-group already refreshes workflow.updated_at on lane activity changes, and set-plan rejects overlapping current-round assignments.",
+          "reason": "Rollover keeps the old list's viewer; only bcl start on the new list re-points it.",
+          "codex": {
+            "one_file": true,
+            "implementer_session": "test-now-already-installed-0.1.31",
+            "review_status": "passed"
+          },
+          "verify": {
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
+            "method": "Existing test that rollover preserves the old list and defers the new viewer until Collect starts.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-17T10:15:13Z"
+        },
+        {
+          "id": "DEPS",
+          "name": "Confirm reopened prerequisites block running dependents",
+          "finding_ids": [
+            "BCL-10"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "verify",
+          "worktree": "samantha-pr113-rollover",
+          "files": [],
+          "reason": "update and delete paths already invalidate running dependents when a prerequisite is reopened.",
+          "codex": {
+            "one_file": true,
+            "implementer_session": "test-now-already-installed-0.1.31",
+            "review_status": "passed"
+          },
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
-            "method": "Existing tests: lane updates refresh the workflow clock, and overlapping current-round finding assignments are rejected.",
-            "status": "verified",
-            "fixed": 2,
+            "method": "Existing tests that a reopened or deleted prerequisite blocks a running dependent.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
-            "total": 2
+            "total": 1
           },
-          "updated_at": "2026-11-17T10:13:15Z"
+          "updated_at": "2026-11-17T10:15:13Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "stages_reached": [
       "collect",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "verification_run": {
       "id": "bcl-0.1.31-a488a4ca-113",
@@ -3891,7 +3859,7 @@
       "id": "AUTO-03",
       "title": "Only starting Collect should point the page at the new list",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "The page should stay on the old list until Collect actually starts on the new one. Only that step should move the viewer.",
       "impact": "If the viewer is moved by hand, you can be shown a new list before Collect has started, or left on a stale in-progress state after a merge.",
@@ -3983,7 +3951,7 @@
       "id": "BCL-02",
       "title": "Store the verify command for each plan group",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "Each plan group should remember the exact command used to verify it, so the next verify pass can run that command instead of reconstructing it from notes.",
       "impact": "Without a stored command, verify steps get improvised and the plan lanes cannot show what was actually run.",
       "done_when": "Each group in the plan has a stored verify command, and verify uses that command.",
@@ -4369,7 +4337,7 @@
       "id": "PAGE-10",
       "title": "The issue page hides the recorded build and latest verification",
       "source": "User reported",
-      "status": "failing",
+      "status": "in_progress",
       "priority": "high",
       "summary": "The issue page hides the last verification result and version among too much detail.",
       "impact": "You cannot quickly see what was checked, which version it was checked on, or what the check found.",
@@ -4816,7 +4784,7 @@
       "id": "PAGE-20",
       "title": "Undated checks can make the latest verification uncertain",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "An undated verification can be newer than the dated result shown as latest.",
       "impact": "The page can present an uncertain result as the last verification.",
       "done_when": "Show the latest dated result and disclose when undated results cannot be ordered.",
@@ -4854,7 +4822,7 @@
       "id": "BCL-10",
       "title": "Running dependents can outlive a reopened prerequisite",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "A dependent lane can still appear active if its prerequisite is reopened.",
       "impact": "Work may continue based on a prerequisite that no longer holds.",
       "done_when": "Record the prerequisite change and block affected active dependents with a clear reason.",
