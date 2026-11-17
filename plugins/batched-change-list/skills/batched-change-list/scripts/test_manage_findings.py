@@ -306,7 +306,7 @@ class ManageFindingsTests(unittest.TestCase):
         group = json.loads(self.data.read_text())['tracking']['plan']['groups'][0]
         self.assertEqual((group['status'], group['label'], group['verify_summary']), ('done','Updated label','Runtime check passed'))
 
-    def test_plan_check_caps_group_size_and_rejects_max_effort(self):
+    def test_plan_check_caps_group_size_and_allows_max_effort(self):
         sys.path.insert(0, str(SCRIPT.parent))
         import manage_findings
         manage_findings.validate_plan_groups({
@@ -320,11 +320,16 @@ class ManageFindingsTests(unittest.TestCase):
                 "groups": [{"id": "BIG", "finding_ids": ["A", "B", "C", "D", "E"], "status": "pending"}],
             })
         self.assertIn("cap a parallel fix group", str(err.exception))
-        with self.assertRaisesRegex(ValueError, "HARD: use medium effort instead of max"):
+        manage_findings.validate_plan_groups({
+            "round": 2,
+            "groups": [{"id": "HARD", "finding_ids": ["A", "B", "C", "D"], "status": "pending",
+                        "codex": {"model": "gpt-6-luna", "effort": "max"}}],
+        })
+        with self.assertRaisesRegex(ValueError, "cap a parallel fix group"):
             manage_findings.validate_plan_groups({
                 "round": 2,
-                "groups": [{"id": "HARD", "finding_ids": ["A"], "status": "pending",
-                            "codex": {"model": "gpt-6-luna", "effort": "max"}}],
+                "groups": [{"id": "TOO_BIG", "finding_ids": ["A", "B", "C", "D", "E"],
+                            "status": "pending", "codex": {"effort": "max"}}],
             })
         manage_findings.validate_plan_groups({
             "round": 2,
@@ -338,12 +343,11 @@ class ManageFindingsTests(unittest.TestCase):
         })
         for phase in ("done", "fix"):
             with self.subTest(status="running", phase=phase):
-                with self.assertRaisesRegex(ValueError, "use medium effort instead of max"):
-                    manage_findings.validate_plan_groups({
-                        "round": 2,
-                        "groups": [{"id": "ACTIVE", "finding_ids": ["A"], "status": "running",
-                                    "phase": phase, "codex": {"effort": "max"}}],
-                    })
+                manage_findings.validate_plan_groups({
+                    "round": 2,
+                    "groups": [{"id": "ACTIVE", "finding_ids": ["A"], "status": "running",
+                                "phase": phase, "codex": {"effort": "max"}}],
+                })
         with self.assertRaisesRegex(ValueError, "cap a parallel fix group"):
             manage_findings.validate_plan_groups({
                 "round": 2,
@@ -356,14 +360,20 @@ class ManageFindingsTests(unittest.TestCase):
                         "phase": "deferred", "codex": {"effort": "max"}}],
         })
 
-    def test_set_plan_rejects_oversized_and_max_effort_groups_without_writing(self):
+    def test_set_plan_accepts_max_effort_and_rejects_oversized_groups(self):
+        hard_group = {"id": "HARD", "finding_ids": ["ISSUE-01"],
+                      "depends_on": [], "status": "pending",
+                      "codex": {"model": "gpt-6-luna", "effort": "max"}}
+        result = self._replay_batch(json.loads(self.data.read_bytes()), {
+            "action": "set-plan", "plan": {"round": 1, "groups": [hard_group]},
+        })
+        self.assertEqual(result.returncode, 0, result.stderr)
         for group, message in (
             ({"id": "BIG", "finding_ids": ["ISSUE-01", "ISSUE-02", "ISSUE-03", "ISSUE-04", "ISSUE-05"],
               "depends_on": [], "status": "pending", "codex": {"effort": "medium"}}, "split it"),
-            ({"id": "HARD", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "pending",
-              "codex": {"model": "gpt-6-luna", "effort": "max"}}, "use medium effort"),
         ):
             with self.subTest(group=group):
+                self.data.write_text(json.dumps(json.loads(self.data.read_bytes())), encoding="utf-8")
                 before = self.data.read_bytes()
                 result = self._replay_batch(json.loads(before), {
                     "action": "set-plan", "plan": {"round": 1, "groups": [group]},
@@ -375,7 +385,7 @@ class ManageFindingsTests(unittest.TestCase):
     def test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal(self):
         for group, accepted in (
             ({"id": "ACTIVE", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "running",
-              "phase": "done", "codex": {"effort": "max"}}, False),
+              "phase": "done", "codex": {"effort": "max"}}, True),
             ({"id": "DEFERRED", "finding_ids": ["ISSUE-01"],
               "depends_on": [], "status": "deferred", "phase": "fix", "codex": {"effort": "max"}}, True),
         ):
@@ -388,7 +398,7 @@ class ManageFindingsTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 0, result.stderr)
                 else:
                     self.assertNotEqual(result.returncode, 0)
-                    self.assertIn("use medium effort", result.stderr)
+                    self.assertIn("cap a parallel fix group", result.stderr)
                     self.assertEqual(self.data.read_bytes(), before)
 
     def test_recheck_preserves_previous_result_and_other_checks(self):
