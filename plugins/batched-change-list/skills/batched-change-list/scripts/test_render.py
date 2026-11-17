@@ -639,8 +639,11 @@ setImmediate(async()=>{
         self.assertEqual(rendered['status'], 'failing')
         self.assertEqual(rendered['_lane_status']['outcome'], 'Failing')
         self.assertEqual(rendered['_lane_status']['copy'], 'Parked → Round 2')
-        self.assertIn("labels[item.status]||item.status", page)
-        self.assertIn("Issue status: ${labels[selected.status]||selected.status}", page)
+        status_expression = page.split('Issue status: ${', 1)[1].split('}`', 1)[0]
+        program = f"const selected={{status:'failing',_lane_status:{{outcome:'Failing'}}}},labels={{failing:'Failing'}};process.stdout.write(`Issue status: ${{{status_expression}}}`)"
+        self.assertEqual(subprocess.check_output(['node', '-e', program], text=True), 'Issue status: Failing')
+        fallback = f"const selected={{status:'failing'}},labels={{failing:'Failing'}};process.stdout.write(`Issue status: ${{{status_expression}}}`)"
+        self.assertEqual(subprocess.check_output(['node', '-e', fallback], text=True), 'Issue status: Failing')
         self.assertIn('.issue-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}', page)
 
     def test_all_details_are_shown_without_mutating_source(self):
