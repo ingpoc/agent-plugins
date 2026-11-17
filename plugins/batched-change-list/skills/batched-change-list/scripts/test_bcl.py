@@ -2,7 +2,7 @@ import importlib.util
 import contextlib
 import io
 from importlib.machinery import SourceFileLoader
-import errno, json, os, signal, socket, subprocess, sys, tempfile, threading, time, unittest
+import errno, json, os, shutil, signal, socket, subprocess, sys, tempfile, threading, time, unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -66,6 +66,57 @@ elif args[:2] != ['pr', 'edit']:
                     try: os.kill(pid, signal.SIGTERM)
                     except OSError: pass
         self.addCleanup(cleanup_viewer)
+
+    def test_install_local_refreshes_only_the_requested_temp_destinations(self):
+        checkout = self.root / "checkout"
+        shutil.copytree(PLUGIN, checkout)
+        (checkout / "skills/batched-change-list/scripts/__pycache__").mkdir(exist_ok=True)
+        (checkout / "skills/batched-change-list/scripts/__pycache__/stale.pyc").write_bytes(b"cache")
+        (checkout / "bin/stale.pyc").write_bytes(b"bytecode")
+        (checkout / ".DS_Store").write_bytes(b"finder")
+        self.git(checkout, "init", "-q")
+        self.git(checkout, "config", "user.email", "test@example.com")
+        self.git(checkout, "config", "user.name", "Test")
+        self.git(checkout, "add", ".")
+        self.git(checkout, "commit", "-qm", "fixture")
+        home = self.root / "install-home"
+        old_plugin = home / ".agents/plugins/batched-change-list"
+        old_skill = home / ".agents/skills/batched-change-list"
+        for old in (old_plugin, old_skill):
+            old.mkdir(parents=True)
+            (old / "old-copy").write_text("remove")
+        plugin_sha, plugin_count = bcl_entrypoint._install_tree_digest(checkout)
+        skill_sha, skill_count = bcl_entrypoint._install_tree_digest(checkout / "skills/batched-change-list")
+        version = json.loads((checkout / "plugin.json").read_text())["version"]
+        revision = self.git(checkout, "rev-parse", "HEAD").stdout.strip()
+        with patch.object(bcl_entrypoint, "HERE", checkout), patch.dict(os.environ, {"HOME": str(home)}), \
+             patch.object(sys, "argv", [str(BCL), "install-local"]), contextlib.redirect_stdout(io.StringIO()) as receipt:
+            bcl_entrypoint.main()
+        plugin_destinations = [
+            home / ".agents/plugins/batched-change-list",
+            *(home / f".{client}/plugins/cache/ingpoc-agent-plugins/batched-change-list/{ref}"
+              for client in ("cursor", "codex") for ref in (version, revision)),
+        ]
+        skill_destination = home / ".agents/skills/batched-change-list"
+        self.assertIn(revision, receipt.getvalue())
+        self.assertEqual(receipt.getvalue().count(plugin_sha), len(plugin_destinations))
+        self.assertEqual(receipt.getvalue().count(skill_sha), 1)
+        self.assertEqual(receipt.getvalue().count(f"({plugin_count} files"), len(plugin_destinations))
+        self.assertEqual(receipt.getvalue().count(f"({skill_count} files"), 1)
+        for destination in plugin_destinations:
+            self.assertTrue((destination / "plugin.json").is_file())
+            self.assertFalse((destination / "old-copy").exists())
+            self.assertFalse(any(path.name == ".DS_Store" or path.suffix == ".pyc" or "__pycache__" in path.parts
+                                 for path in destination.rglob("*")))
+            self.assertEqual(bcl_entrypoint._install_tree_digest(destination), (plugin_sha, plugin_count))
+        self.assertTrue((skill_destination / "SKILL.md").is_file())
+        self.assertTrue((skill_destination / "scripts").is_dir())
+        self.assertFalse((skill_destination / "plugin.json").exists())
+        self.assertFalse((skill_destination / "skills").exists())
+        self.assertFalse((skill_destination / "old-copy").exists())
+        self.assertFalse(any(path.name == ".DS_Store" or path.suffix == ".pyc" or "__pycache__" in path.parts
+                             for path in skill_destination.rglob("*")))
+        self.assertEqual(bcl_entrypoint._install_tree_digest(skill_destination), (skill_sha, skill_count))
 
     def test_repo_id_uses_cursor_origin_over_github_mirror(self):
         self.git(self.home, "remote", "add", "origin", "https://origin.cursor.com/gurusharan/agent-plugins")

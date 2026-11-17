@@ -2,7 +2,7 @@
 
 Run `bcl report` only when the [gate](gate.md) is met and this round's Introspect has been recorded (required after Install). This marks Report & roll over as the current stage and snapshots the report.
 
-After the PR is actually merged, run `bcl merged`. It records the merge commit SHA and time, moves the workflow to terminal Merged / Done, and retargets open stacked PRs based on this branch to `main` when the configured `gh` or Origin CLI can do so. If listing or retargeting is unavailable, the command records a pending TODO and prints the manual action.
+After the PR is actually merged, run `bcl merged`. It records the merge commit SHA and time, moves the workflow to terminal Merged / Done, and retargets open stacked PRs based on this branch to `main` when the configured `gh` or Origin CLI can do so. If listing or retargeting is unavailable, the command records a pending TODO and prints the manual action. Then run `bcl install-local` to refresh the local Agents, Cursor, and Codex copies from the merged checkout.
 
 Start a new list with `bcl rollover --new-pr N --worktree NAME` (add `--new-url URL` if the PR URL cannot be derived, or `--force` to override an unmet rollover gate). Rollover writes a separate live file and leaves the old list file and viewer untouched. It carries the old list's verified-fix exclusions and unresolved IDs, saves merge metadata as the rollover source, advances the cycle, clears cycle-only state, and resets carried `in_progress` findings to `untested`; existing `failing` and `blocked` statuses remain. The new list starts at Collect with no activity message.
 
