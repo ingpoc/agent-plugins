@@ -627,9 +627,10 @@ class LiveSessionLoopTests(_Rows):
         output = {}
         timed_out = {"ok": False, "timed_out": True, "error_type": "confirm_timed_out"}
 
-        with patch("voice_cua.live_session.SECOND_CONFIRM_SETTLE_S", 0.25), \
+        with patch("voice_cua.live_session.REPEAT_CONFIRM_SETTLE_S", 0.25), \
                 patch.object(s, "send_text", side_effect=lambda *_args, **_kwargs: sent.set()), \
-                patch("voice_cua.live_session.dispatch", side_effect=[timed_out, timed_out]), \
+                patch("voice_cua.live_session.dispatch", return_value=timed_out) as dispatch, \
+                patch.object(s, "_deliver_tool_result", side_effect=lambda _call, _name, result, **_kw: result) as deliver, \
                 patch("voice_cua.live_session.tool_context", side_effect=lambda **_kwargs: nullcontext()), \
                 patch("voice_cua.live_session.plugin_island.tool_started"), \
                 patch("voice_cua.live_session.island_publish"), \
@@ -657,7 +658,9 @@ class LiveSessionLoopTests(_Rows):
             turn.join(1)
             self.assertFalse(turn.is_alive())
 
-        self.assertIn("second unanswered confirm", output["result"]["error"])
+        self.assertIn("unanswered confirmation", output["result"]["error"])
+        self.assertEqual(dispatch.call_count, 1)
+        self.assertIn("still needs their OK", deliver.call_args.args[2]["hint"])
         self.assertFalse(s._text_request_lock.locked())
 
     def test_risky_backend_call_is_gated_and_loads_confirm(self) -> None:

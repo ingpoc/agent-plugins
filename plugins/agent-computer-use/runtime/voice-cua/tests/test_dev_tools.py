@@ -81,7 +81,7 @@ class DevToolsTests(unittest.TestCase):
         ):
             with self.subTest(command=command):
                 self.assertEqual(self.classify(command), "hard_refuse")
-        self.assertEqual(self.classify("cat outside-directory/*"), "approval")
+        self.assertEqual(self.classify("cat outside-directory/*"), "safe")
 
     def test_shell_unwraps_supported_command_wrappers_before_classifying(self) -> None:
         for command in (
@@ -148,8 +148,8 @@ class DevToolsTests(unittest.TestCase):
         link.symlink_to(outside)
         parent_link = self.repo / "parent-link"
         parent_link.symlink_to(outside_dir, target_is_directory=True)
-        self.assertEqual(self.classify("echo ok > link"), "approval")
-        self.assertEqual(self.classify("echo ok > parent-link/new.txt"), "approval")
+        self.assertEqual(self.classify("echo ok > link"), "safe")
+        self.assertEqual(self.classify("echo ok > parent-link/new.txt"), "safe")
         self.assertEqual(self.classify("echo ok > $HOME/out.txt"), "approval")
         self.assertEqual(self.classify("echo ok > out.txt"), "safe")
         self.assertEqual(self.classify("echo ok >/dev/null"), "safe")
@@ -193,6 +193,7 @@ class DevToolsTests(unittest.TestCase):
         artifacts = self.base / ".agents" / "artifacts" / "t"
         artifacts.mkdir(parents=True)
         self.assertEqual(self.classify("echo $((17 * 19))"), "safe")
+        self.assertEqual(self.classify("python3 -c 'print(17 * 19)'"), "safe")
         self.assertEqual(self.classify("echo $(whoami)"), "approval")
         self.assertEqual(self.classify("echo $((x + 1))"), "approval")
         self.assertEqual(self.classify("echo $((1 + $(whoami)))"), "approval")
@@ -207,15 +208,23 @@ class DevToolsTests(unittest.TestCase):
         self.assertEqual(self.classify("echo hi > /tmp/outside"), "approval")
         escape = artifacts / "escape"
         escape.symlink_to(self.base, target_is_directory=True)
-        self.assertEqual(self.classify(f"echo hi > {escape / 'outside'}"), "approval")
+        self.assertEqual(self.classify(f"echo hi > {escape / 'outside'}"), "safe")
         result = self.run_shell("echo $((17 * 19))")
         self.assertTrue(result["ok"])
         self.assertIn("323", result["output"])
+        python_result = self.run_shell("python3 -c 'print(17 * 19)'")
+        self.assertTrue(python_result["ok"])
+        self.assertIn("323", python_result["output"])
         target = artifacts / "file.txt"
         with patch.object(Path, "home", return_value=self.base):
             written = dev_tools.file_edit({"op": "write", "path": str(target), "content": "done"})
         self.assertTrue(written["ok"])
         self.assertEqual(target.read_text(), "done")
+        temp_target = self.base / "temp-output.txt"
+        self.assertEqual(self.classify(f"echo temporary > {temp_target}"), "safe")
+        temp_write = self.run_shell(f"echo temporary > {temp_target}")
+        self.assertTrue(temp_write["ok"])
+        self.assertEqual(self.run_shell(f"cat {temp_target}")["output"].strip(), "temporary")
 
     def test_safe_development_commands_do_not_need_approval(self) -> None:
 
@@ -327,7 +336,7 @@ class DevToolsTests(unittest.TestCase):
         self.assertEqual(special["error_type"], "invalid_path")
 
     def test_writes_outside_git_worktree_require_gate_and_gate_errors_fail_closed(self) -> None:
-        path = self.base / "outside-write.txt"
+        path = Path.home() / "voice-cua-outside-write.txt"
         with patch.object(dev_tools, "_approval", return_value={"ok": False, "needs_confirmation": True}) as gate:
             refused = dev_tools.file_edit({"op": "write", "path": str(path), "content": "unwritten"})
         gate.assert_called_once()

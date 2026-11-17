@@ -54,8 +54,7 @@ LIVE_SAMPLE_RATE = int(os.environ.get("VOICE_CUA_SAMPLE_RATE", "24000"))
 # then starts a second delegation for the same request within a fraction of a second. The
 # first recovery answer waits this long; a newer response for the same turn supersedes it.
 RECOVERY_SETTLE_S = 2.0
-# shortcut: 130s after confirm two, derive from confirm timeout if that changes.
-SECOND_CONFIRM_SETTLE_S = 130.0
+REPEAT_CONFIRM_SETTLE_S = 5.0
 # shortcut: six context turns, raise if reconnects keep dropping older relevant tasks.
 RECONNECT_CONTEXT_TURNS = 6
 # shortcut: retain 512 retired IDs, raise if late events outlive that window.
@@ -1485,12 +1484,14 @@ class LiveSession:
             task_run_id = (self._response_task_run_ids.get(response_id)
                            or (request_id if request_id in self._task_runs else ""))
             typed_turn_id = self._response_typed_turn_ids.get(response_id, "")
+            repeat_timed_out_confirm = False
             if name == "confirm_risky" and typed_turn_id:
                 waiter = next((waiter for waiter in self._text_waiters.values()
                                if waiter.get("typed_turn_id") == typed_turn_id
                                and not waiter["event"].is_set()), None)
-                if waiter and waiter.get("unanswered_confirms", 0) >= 1:
-                    waiter.setdefault("confirm_deadline", time.monotonic() + SECOND_CONFIRM_SETTLE_S)
+                repeat_timed_out_confirm = bool(waiter and waiter.get("unanswered_confirms", 0) >= 1)
+                if repeat_timed_out_confirm:
+                    waiter.setdefault("confirm_deadline", time.monotonic() + REPEAT_CONFIRM_SETTLE_S)
             tool_step_ref = new_step_ref()
             response_step_ref = self._response_step_refs.get(response_id, "")
             request_step_ref = self._task_request_step_refs.get(task_run_id, "") if task_run_id else ""
@@ -1574,6 +1575,10 @@ class LiveSession:
                                 if call_id not in self._counted_skipped_calls:
                                     self._counted_skipped_calls.add(call_id)
                                     self._skipped_calls_by_run[task_run_id] = self._skipped_calls_by_run.get(task_run_id, 0) + 1
+                        elif repeat_timed_out_confirm:
+                            result = {"ok": False, "approved": False, "timed_out": True,
+                                      "error": "confirmation timed out", "error_type": "confirm_timed_out",
+                                      "hint": "No answer yet; nothing was done. Briefly tell the user this still needs their OK, then stay ready to continue."}
                         else:
                             result = dispatch(name, arguments)
                     except Exception as exc:  # noqa: BLE001 — always answer the tool call
@@ -2062,7 +2067,7 @@ class LiveSession:
                     return {"ok": False, "error": "session disconnected", "error_type": "session_disconnected"}
                 now = time.monotonic()
                 if now >= waiter.get("confirm_deadline", float("inf")):
-                    return {"ok": False, "error": "no progress after a second unanswered confirm",
+                    return {"ok": False, "error": "no progress after an unanswered confirmation",
                             "reply": str(waiter["reply"])}
                 if now - waiter["last_progress"] >= 300:
                     return {"ok": False, "error": "no progress for 300 seconds", "reply": str(waiter["reply"])}
