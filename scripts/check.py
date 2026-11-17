@@ -1075,7 +1075,9 @@ def triage_render_pairs(triage: Path) -> list[tuple[Path, Path]]:
         if file_match and file_match.group(1) != url_match.group(1):
             continue
         pairs.append((data, triage / f"pr-{url_match.group(1)}.html"))
-    return pairs
+    # PR pages are frozen snapshots after their branch; only the newest PR
+    # represented by a matching tracker is still expected to match this renderer.
+    return [max(pairs, key=lambda pair: int(pair[1].stem.removeprefix("pr-")))] if pairs else []
 
 
 def check_triage_renders() -> list[str]:

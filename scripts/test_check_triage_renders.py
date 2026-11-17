@@ -43,6 +43,14 @@ class TriageRenderPairsTests(unittest.TestCase):
             pairs = check.triage_render_pairs(triage)
             self.assertEqual(pairs, [(data, triage / "pr-110.html")])
 
+    def test_later_branch_checks_only_newest_matching_pr_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            triage = Path(tmp)
+            _write(triage, "pr-111-findings.json", 111)
+            current = _write(triage, "pr-112-findings.json", 112)
+            pairs = check.triage_render_pairs(triage)
+            self.assertEqual(pairs, [(current, triage / "pr-112.html")])
+
 
 if __name__ == "__main__":
     unittest.main()
