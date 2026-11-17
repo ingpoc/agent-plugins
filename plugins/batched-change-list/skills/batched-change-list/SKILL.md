@@ -8,15 +8,21 @@ description: Use when collecting related findings into reviewable change lists a
 
 Workflow: Collect and Present once; then loop Plan & fix → Install → Verify → Introspect → Gate. At 15+ fixes, Report & roll over → Merge previous PR.
 
-Load references by trigger:
+1. Collect
+2. Present
+3. Plan & fix
+4. Install
+5. Verify
+6. Introspect
+7. Gate
+8. Report & roll over / Merge
 
-- New list or feedback: [collect.md](references/collect.md).
-- After collection: [present.md](references/present.md).
-- After Present or a gate loop-back: [plan-fix.md](references/plan-fix.md).
-- After a group's review: [install.md](references/install.md).
-- After its install: [verify.md](references/verify.md).
-- After every round's Verify: [introspect.md](references/introspect.md).
-- After Introspect or when checking rollover: [gate.md](references/gate.md).
-- When the gate is met or the PR merges: [report-rollover.md](references/report-rollover.md).
-- Recovery: [tracker](references/tracker.md); viewer: [viewer](references/viewer.md).
-- For debugging, tests, sequencing, shared state, or proof: [principles.md](references/principles.md).
+| When | Load |
+|---|---|
+| New list or feedback | New list or feedback: `references/collect.md`; After collection: `references/present.md` |
+| After Present or gate loop-back | After Present or gate loop-back: `references/plan-fix.md`; After group review: `references/install.md`; After its install: `references/verify.md` |
+| After every round's Verify | After every round's Verify: `references/introspect.md` |
+| After Introspect or checking rollover | After Introspect or checking rollover: `references/gate.md`; When gate is met or the PR merges: `references/report-rollover.md` |
+| Recovery, viewer use, debugging, tests, sequencing, shared state, or proof | Recovery: `references/tracker.md`; For viewer use: `references/viewer.md`; For debugging, tests, sequencing, shared state, or proof: `references/principles.md` |
+
+Install, Introspect, and Gate checks: `check_install_sessions.py`, `check_introspect.py`, `check_gate_count.py`.

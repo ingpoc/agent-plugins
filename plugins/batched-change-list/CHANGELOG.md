@@ -1,3 +1,11 @@
+## 0.1.29
+
+- Fix statechart initialization and assign each reference its specific load trigger.
+
+## 0.1.28
+
+- Keep the skill trigger map and workflow statechart current, and expose the numbered critical path and stage checks to skill-refine.
+
 ## 0.1.27
 
 - Keep failed and blocked lanes from completing the Install workflow tick; report denied viewer PID probes during Plan without a traceback.
