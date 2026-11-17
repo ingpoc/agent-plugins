@@ -31,6 +31,9 @@ def _ensure_viewer(parser, key, record, live, plugin_version, stage):
             raise
         parser.error(str(error))
 
+def _verification_failure_reason(command, observed):
+    return f"Checked: {command}\nExpected: verification command exits 0\nObserved: {observed}"
+
 def _pull_request_data(provider, url, repo):
     executable = shutil.which(provider)
     if not executable:
@@ -500,6 +503,7 @@ def main():
                 code = 127
                 reason = f"Verification command could not start: {error}"
             if code:
+                reason = _verification_failure_reason(expected, reason)
                 print(reason, file=sys.stderr)
                 previous = {item['id']: item.get('status') for item in data['findings']}
                 recorded = False
