@@ -48,16 +48,27 @@ def first_plain_sentence(text):
     return text.strip(), ""
 
 
-def latest_version_evidence(item, runs):
+def version_evidence(item, runs):
+    outcome_states = {"fixed": "fixed", "verified_fixed": "fixed", "fail": "not_fixed",
+                      "failed": "not_fixed", "failing": "not_fixed", "not_fixed": "not_fixed",
+                      "blocked": "blocked", "inconclusive": "inconclusive"}
     candidates = [{"build": r["build"], "timestamp": r["timestamp"], "outcome": r["outcome"],
-                   "check": r["check"], "state": ""} for r in item.get("verification_evidence", [])]
+                   "check": r["check"], "session": r.get("session", ""), "reference": r.get("reference", ""),
+                   "state": outcome_states.get(r["outcome"].strip().lower(), "")}
+                  for r in item.get("verification_evidence", [])]
     for run in runs:
         check = run.get("checks", {}).get(item["id"], {})
-        if check.get("state") in ("fixed", "not_fixed", "blocked", "inconclusive") and check.get("evidence"):
-            candidates.append({"build": run.get("build", "unknown"), "timestamp": check.get("finished_at", "unknown"),
-                               "outcome": check["evidence"], "check": "Installed verification", "state": check["state"]})
-    latest = {}
+        for result in [*check.get("previous_checks", []), check]:
+            if result.get("state") in ("fixed", "not_fixed", "blocked", "inconclusive") and result.get("evidence"):
+                candidates.append({"build": run.get("build", "unknown"), "timestamp": result.get("finished_at", "unknown"),
+                                   "outcome": result["evidence"], "check": "Installed verification", "state": result["state"]})
+    history = []
+    seen = set()
     for index, record in enumerate(candidates):
+        identity = tuple(record.get(key, "") for key in ("build", "timestamp", "outcome", "check", "state", "session", "reference"))
+        if identity in seen:
+            continue
+        seen.add(identity)
         match = re.search(r"\b\d+\.\d+\.\d+\b", record["build"])
         version = match.group() if match else "Version unknown"
         try:
@@ -66,9 +77,8 @@ def latest_version_evidence(item, runs):
         except (ValueError, OverflowError):
             timestamp = float("-inf")
         rank = (timestamp, index)
-        if version not in latest or rank > latest[version][0]:
-            latest[version] = (rank, {"version": version, **record})
-    return [record for _, record in sorted(latest.values(), key=lambda entry: entry[0], reverse=True)]
+        history.append((rank, {"version": version, **record}))
+    return [record for _, record in sorted(history, key=lambda entry: entry[0], reverse=True)]
 
 
 def rollover_cycle(tracking):
@@ -226,25 +236,11 @@ def carried_tag(finding):
             if carried_from not in (None, "") else "")
 
 
-def render_issue_copy(data, lanes, round_number):
-    findings = [item for item in data.get("findings", []) if isinstance(item, dict)]
-    if not findings:
-        return ""
-    cards = []
-    for item in findings:
-        state = finding_lane_status(item, lanes.get(item.get("id")), round_number)
-        cards.append(f'<li><code>{html.escape(str(item.get("id", "")))}{carried_tag(item)}</code>'
-                     f'<span class="ttl">{html.escape(str(item.get("title", "")))}</span>'
-                     f'<span class="s {state["kind"]}">{html.escape(state["copy"])}</span></li>')
-    return ('<div class="copy" aria-label="Issue status copy, derived from lane">'
-            '<h3>Issue list status · derived from lane</h3><ul>' + "".join(cards) + '</ul></div>')
-
-
 def row_phase_track(group, state):
     phase = "verify" if state == "verified" else "fix" if state == "planned" else plan_phase(group)
     phase_index = ("fix", "review", "install", "verify", "introspect").index(phase)
     dots = []
-    for index in range(5):
+    for index in range(4):
         kind = ""
         if state == "verified" and index < 4:
             kind = "d"
@@ -255,7 +251,8 @@ def row_phase_track(group, state):
         elif state not in ("planned", "verified") and index == phase_index:
             kind = "c"
         dots.append(f'<i class="{kind}"></i>' if kind else "<i></i>")
-    label = f"Phase {phase_index + 1} of 5: {LANE_PHASES[phase]}"
+    label = (f"Phase {phase_index + 1} of 4: {LANE_PHASES[phase]}" if phase_index < 4
+             else "Lane complete; Introspect is a round step")
     if state in ("blocked", "failed"):
         label += f", {state}"
     return f'<span class="track" role="img" aria-label="{html.escape(label, quote=True)}">{"".join(dots)}</span>'
@@ -267,7 +264,7 @@ def render_plan(data, tracking, plan, round_number, now):
     groups = plan_groups_for_round(plan, round_number)
     if not groups:
         empty = f'<div class="plan-empty">No fix plan for Round {round_number} yet.</div>' if has_started else ""
-        return empty + render_issue_copy(data, {}, round_number)
+        return empty
     lanes = lane_status_by_finding(data, groups, round_number)
     findings = {item.get("id"): item for item in data.get("findings", []) if isinstance(item, dict)}
     states = {group.get("id"): plan_status(group) for group in groups}
@@ -321,7 +318,8 @@ def render_plan(data, tracking, plan, round_number, now):
         if not isinstance(files, list):
             files = [str(files)]
         details = [("Fix", " · ".join(filter(None, (codex.get("job_id"), codex.get("model"), codex.get("effort"), codex.get("service_tier"), codex.get("worktree"), codex.get("status"), times)))),
-                   ("Verify", verify_info), ("Reason", group.get("reason", "")), ("Files", ", ".join(map(str, files)))]
+                   ("Verify", verify_info), ("Verify command", verify.get("command", "")),
+                   ("Reason", group.get("reason", "")), ("Files", ", ".join(map(str, files)))]
         detail_rows = []
         for finding_id in ids:
             finding = findings.get(finding_id, {})
@@ -351,14 +349,15 @@ def render_plan(data, tracking, plan, round_number, now):
     header = (f'<span><strong>Round {round_number}</strong> · {len(active_groups)} lanes · each installs and verifies when ready</span>'
               + (f'<span class="t">{" · ".join(tally)}</span>' if tally else ""))
     return (f'<div class="plan" aria-label="Fix plan, round {round_number}"><div class="plan-head">{header}</div>'
+            '<p class="close-line">Lane dots: Fix → Review → Install → Verify. Filled means completed; outlined means not completed (highlighted: current). Introspect is a round step.</p>'
             f'<div class="plan-rows">{"".join(rows)}</div>{parked}'
-            '<p class="close-line">Round closes when every lane is <b>verified, blocked or parked</b> → Introspect → gate.</p></div>'
-            + render_issue_copy(data, lanes, round_number))
+            '<p class="close-line">Round closes when every lane is <b>verified, blocked or parked</b> → Introspect → gate.</p></div>')
 
 
-def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, round_number):
+def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, round_number, reached=None):
     order = ["collect", "present", "plan_fix", "install", "verify", "introspect", "gate", "report_rollover", "merged"]
     active_index = order.index(active) if active in order else -1
+    reached = [step for step in (reached or []) if isinstance(step, str)]
 
     def simple_step(key, label):
         index = order.index(key)
@@ -388,8 +387,13 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
     steps = []
     for index, (key, label) in enumerate((("plan_fix", "Plan & fix"), ("install", "Install"), ("verify", "Verify"), ("introspect", "Introspect"))):
         count = positions.count(index)
-        state = "busy" if count else "done" if not any(position <= index for position in positions) else "upcoming"
+        past = active in order and order.index(active) > order.index(key)
+        # Empty lanes must not tick the band: a loop step is done only when this
+        # list's own stage history recorded it in the current round and we have moved past it.
         step_lanes = [(group, status) for group, status, position in lanes if position == index]
+        running = any(status in ("running", "review", "installing", "verifying") for _, status in step_lanes)
+        current = active == key and (key == "introspect" or not groups)
+        state = "busy" if running or current else "done" if key in reached and past else "upcoming"
         chips = []
         for status in ("planned", "running", "review", "installing", "verifying"):
             amount = sum(lane_status == status for _, lane_status in step_lanes)
@@ -432,7 +436,8 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
             f'<div class="wf-loop" aria-hidden="true"><svg class="wf-loop-head" width="10" height="8" viewBox="0 0 10 8"><path d="M5 0L10 8H0z"/></svg>'
             f'<span class="wf-loop-label">under {threshold} verified · back to Plan &amp; fix</span>'
             f'<span class="wf-loop-mobile">under {threshold} verified · repeat</span></div></li>'
-            f'<li class="wf-post"><ol>{post}</ol></li></ol>')
+            f'<li class="wf-post"><ol>{post}</ol></li></ol>'
+            '<p class="gate-note">Fix count excludes completed introspection workflow records and excluded issues.</p>')
 
 
 def rollover_gate(findings, tracking):
@@ -446,9 +451,16 @@ def rollover_gate(findings, tracking):
     if not isinstance(excluded, list) or any(not isinstance(item_id, str) for item_id in excluded):
         raise ValueError("tracking.rollover.excluded_ids must be a list of finding IDs")
     excluded = set(excluded)
-    counted = [item for item in findings if isinstance(item.get("id"), str) and item["id"] not in excluded]
-    fixed = sum(item.get("status") == "verified_fixed" for item in counted)
-    has_open = any(item.get("status") not in ("verified_fixed", "closed") for item in counted)
+    counted = [item for item in findings if isinstance(item.get("id"), str) and item["id"] not in excluded
+               and not (re.fullmatch(r"WF-\d+", item["id"]) and item.get("status") == "verified_fixed"
+                        and isinstance(item.get("details"), dict) and item["details"].get("fixed_in") == "Introspect")]
+    run = tracking.get("verification_run") or {}
+    checks = run.get("checks", {}) if isinstance(run, dict) else {}
+    def currently_fixed(item):
+        check = checks.get(item["id"], {}) if isinstance(checks, dict) else {}
+        return item.get("status") == "verified_fixed" and isinstance(check, dict) and check.get("state") not in {"checking", "blocked", "inconclusive", "not_fixed"}
+    fixed = sum(currently_fixed(item) for item in counted)
+    has_open = any(item.get("status") != "closed" and not currently_fixed(item) for item in counted)
     # A count at or above the threshold is always met; never render N of 15 as not met when N >= 15.
     return fixed, threshold, fixed >= threshold or not has_open
 
@@ -757,7 +769,7 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
         fields = ("check", "outcome", "build", "session", "timestamp", "reference")
         if not isinstance(records, list) or any(not isinstance(r, dict) or set(r) != set(fields) or any(not isinstance(r[k], str) or not r[k].strip() for k in fields) for r in records):
             raise ValueError(f"{item['id']}.verification_evidence has invalid records")
-        item["version_timeline"] = latest_version_evidence(item, [*tracking_data.get("verification_history", []), *([run] if run else [])])
+        item["version_timeline"] = version_evidence(item, [*tracking_data.get("verification_history", []), *([run] if run else [])])
         item.pop("verification_evidence", None)
         if item["status"] == "verified_fixed":
             item["details"] = {**details, "Verification references": "\n".join(item["verification_refs"])}
@@ -793,16 +805,16 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     render_now = reference or reported
     lanes = lane_status_by_finding(data, groups, round_number)
     in_progress = sum(item.get("status") == "in_progress" for item in findings)
-    stale = bool(reported and reference and active_lanes and (reference - reported).total_seconds() > stale_after * 60)
-    stale_tag = f'<span class="tag-stale" title="No update for over {stale_after} minutes while lanes are active"{"" if stale else " hidden"}>Stale</span>'
+    stale = bool(reported and reference and (reference - reported).total_seconds() > stale_after * 60)
+    stale_tag = f'<span class="tag-stale" title="No update for over {stale_after} minutes"{"" if stale else " hidden"}>Stale</span>'
     relative_html = f'<span data-relative-time>{html.escape(relative)}</span>'
     merge_html = f'<span class="merge-meta" title="Merge commit"><span>Merge</span> <code>{html.escape(merge_commit)}</code></span>' if merge_commit else ""
     fresh_html = (f'<span class="fresh">Updated {time_html} · {relative_html}{merge_html}{stale_tag}</span>'
                   if time_html else '<span class="fresh">No update recorded</span>')
-    timeline_steps = render_workflow(active, groups, fixed_count, threshold, gate_met, in_progress, round_number)
+    timeline_steps = render_workflow(active, groups, fixed_count, threshold, gate_met, in_progress, round_number, tracking_data.get("stages_reached") or [])
     plan_view = render_plan(data, tracking_data, plan, round_number, render_now)
-    viewer_html = (f'<p class="viewer-footer">reading {html.escape(str(viewer["path"]))}, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}</p>' if viewer else "")
-    timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow</strong>{fresh_html}</div>'
+    viewer_html = (f'<p class="viewer-footer">reading {html.escape(str(viewer["path"]))}, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}</p>' if viewer else '<p class="viewer-footer">Viewer version not recorded</p>')
+    timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow · last recorded</strong>{fresh_html}</div>'
                 f'{timeline_steps}{plan_view}{viewer_html}</section>')
     for item in output:
         item["_lane_status"] = lanes.get(item["id"], finding_lane_status(item, None, round_number))

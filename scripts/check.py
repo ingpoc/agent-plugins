@@ -1052,30 +1052,57 @@ def run_integration(plugins: list[Path]) -> int:
 TRIAGE_RENDERER = ROOT / "plugins/batched-change-list/skills/batched-change-list/scripts/render.py"
 
 
+def triage_render_pairs(triage: Path) -> list[tuple[Path, Path]]:
+    """Pair a findings file with its page only when the filename and PR URL agree.
+
+    docs/triage/pr-N-findings.json maps to docs/triage/pr-N.html when the tracker
+    URL is also pull N. A leftover snapshot whose name and URL disagree (for
+    example pr-87-findings.json still pointing at #110) is skipped so it cannot
+    invalidate a later PR's frozen page.
+    """
+    import re
+
+    pairs: list[tuple[Path, Path]] = []
+    for data in sorted(triage.glob("*-findings.json")):
+        try:
+            url = (json.loads(data.read_text()).get("tracking", {}).get("pull_request") or {}).get("url", "")
+        except (OSError, ValueError):
+            continue
+        url_match = re.search(r"/pull/(\d+)", url)
+        if not url_match:
+            continue
+        file_match = re.fullmatch(r"pr-(\d+)-findings\.json", data.name)
+        if file_match and file_match.group(1) != url_match.group(1):
+            continue
+        pairs.append((data, triage / f"pr-{url_match.group(1)}.html"))
+    return pairs
+
+
 def check_triage_renders() -> list[str]:
     """The current change-list page must be a fresh, untouched render of its tracker JSON.
 
-    For each docs/triage/*-findings.json, the page named for the tracker's current PR
-    (tracking.pull_request.url .../pull/N -> docs/triage/pr-N.html) must be byte-identical
-    to render.py's output. Earlier PR pages are frozen snapshots and are not re-rendered.
+    For each docs/triage/pr-N-findings.json whose tracker URL is also pull N, the page
+    docs/triage/pr-N.html must be byte-identical to render.py's output. Earlier PR pages
+    are frozen snapshots and are not re-rendered.
     """
-    import re
     import tempfile
 
     errors: list[str] = []
     triage = ROOT / "docs/triage"
     if not TRIAGE_RENDERER.is_file():
         return errors
+    seen: dict[Path, Path] = {}
     for data in sorted(triage.glob("*-findings.json")):
         try:
-            url = (json.loads(data.read_text()).get("tracking", {}).get("pull_request") or {}).get("url", "")
+            json.loads(data.read_text())
         except (OSError, ValueError) as exc:
             errors.append(f"{data.relative_to(ROOT)}: unreadable tracker ({exc})")
+    for data, report in triage_render_pairs(triage):
+        other = seen.get(report)
+        if other is not None:
+            errors.append(f"{report.relative_to(ROOT)}: claimed by both {other.name} and {data.name}")
             continue
-        match = re.search(r"/pull/(\d+)", url)
-        if not match:
-            continue
-        report = triage / f"pr-{match.group(1)}.html"
+        seen[report] = data
         if not report.is_file():
             errors.append(f"{report.relative_to(ROOT)}: missing; render it from {data.name} with render.py")
             continue

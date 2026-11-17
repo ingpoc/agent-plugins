@@ -1,3 +1,8 @@
+## 0.2.148
+
+- Samantha allows simple numeric shell arithmetic and writes under `~/.agents/artifacts` without an unnecessary confirmation; risky operations remain gated.
+- A confirmation timeout is reported as unanswered, with guidance to prompt briefly and stay ready to continue.
+
 ## 0.2.147
 
 - Run the GPT-Live idle-close watchdog on Grok Voice as well, so a typed text session actually closes after VOICE_CUA_LIVE_IDLE_CLOSE_S.

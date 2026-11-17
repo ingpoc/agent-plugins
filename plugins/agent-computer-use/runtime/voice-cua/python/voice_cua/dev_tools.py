@@ -221,9 +221,15 @@ def _recursive_rm_root(words: list[str], *, cwd: str, worktree_root: str, home: 
     return False
 
 
+def _strip_arithmetic(text: str) -> str:
+    if re.fullmatch(r"\s*echo\s+\$\(\([0-9\s+*/%()-]+\)\)\s*", text):
+        return "echo 0"
+    return text
+
+
 def _has_control_syntax(segments: list[str]) -> bool:
     for segment in segments:
-        words = _words(segment)
+        words = _words(_strip_arithmetic(segment))
         effective, _ = _unwrap_command(words)
         words = effective or words
         xargs_replacements: set[int] = set()
@@ -502,7 +508,8 @@ def classify_shell_command(
             continue
         if any(os.path.basename(word) == "security" or _SECRET_PATH.search(word) for word in words):
             return "hard_refuse", "secret file or Keychain access"
-        path_risks = [_shell_path_risk(word, cwd=cwd, worktree_root=worktree_root, home=home) for word in words]
+        path_words = _words(_strip_arithmetic(segment))
+        path_risks = [_shell_path_risk(word, cwd=cwd, worktree_root=worktree_root, home=home) for word in path_words]
         if "hard_refuse" in path_risks:
             return "hard_refuse", "protected secret path"
         path_approval |= "approval" in path_risks
@@ -537,7 +544,7 @@ def classify_shell_command(
         approval = "glob path outside the worktree or ambiguous"
     elif "\n" in command or "\r" in command:
         approval = "multiline shell command"
-    elif "$(" in command or "`" in command or re.search(r"[<>]\(", command):
+    elif "`" in command or re.search(r"[<>]\(", command) or "$(" in _strip_arithmetic(command):
         approval = "command substitution"
     elif re.search(r"\b(?:curl|wget)\b[^;\n]*\|\s*(?:sh|bash|zsh)(?:\s|$)", command):
         approval = "download piped to a shell"
@@ -645,6 +652,8 @@ def classify_shell_command(
                     continue
                 resolved = _resolved_path(target, cwd=cwd, home=home)
                 if resolved is None or not _inside(resolved, os.path.realpath(worktree_root)):
+                    if resolved and _is_safe_external_write(resolved, home):
+                        continue
                     approval = "redirect outside the worktree"
                     break
             if approval:
@@ -1138,8 +1147,20 @@ def _file_target(raw: Any) -> tuple[Path, Path | None] | dict[str, Any]:
         return {"ok": False, "error": "path could not be resolved safely", "error_type": "invalid_path"}
 
 
+def _is_safe_external_write(path: str, home: str) -> bool:
+    """Writes under ~/.agents/artifacts are local and do not need a risky-confirm."""
+    try:
+        real = os.path.realpath(path)
+        root = os.path.realpath(os.path.join(home, ".agents", "artifacts"))
+    except OSError:
+        return False
+    return _inside(real, root)
+
+
 def _file_gate(op: str, path: Path, root: Path | None, args: dict[str, Any]) -> dict[str, Any] | None:
     if op in {"write", "patch"} and root is None:
+        if _is_safe_external_write(str(path), str(Path.home())):
+            return None
         return _approval("file_edit", args, f"Allow {op} to {path.name} outside a git worktree?")
     return None
 

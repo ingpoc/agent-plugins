@@ -189,7 +189,36 @@ class DevToolsTests(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertEqual(self.classify(command), "approval")
 
+    def test_arithmetic_and_artifact_temp_writes_do_not_need_approval(self) -> None:
+        artifacts = self.base / ".agents" / "artifacts" / "t"
+        artifacts.mkdir(parents=True)
+        self.assertEqual(self.classify("echo $((17 * 19))"), "safe")
+        self.assertEqual(self.classify("echo $(whoami)"), "approval")
+        self.assertEqual(self.classify("echo $((x + 1))"), "approval")
+        self.assertEqual(self.classify("echo $((1 + $(whoami)))"), "approval")
+        token = self.base / '.cache' / 'macos-cua' / 'typed-approve.token'
+        token.parent.mkdir(parents=True)
+        token.write_text('dummy')
+        (self.repo / '2').symlink_to(token)
+        self.assertEqual(self.classify('cat 2'), 'hard_refuse')
+        self.assertNotEqual(self.classify('cat $((1+1))'), 'safe')
+        self.assertNotEqual(self.classify('cat "$((1+1))"'), 'safe')
+        self.assertEqual(self.classify(f"echo job-done >> {artifacts / 'her-job.txt'}"), "safe")
+        self.assertEqual(self.classify("echo hi > /tmp/outside"), "approval")
+        escape = artifacts / "escape"
+        escape.symlink_to(self.base, target_is_directory=True)
+        self.assertEqual(self.classify(f"echo hi > {escape / 'outside'}"), "approval")
+        result = self.run_shell("echo $((17 * 19))")
+        self.assertTrue(result["ok"])
+        self.assertIn("323", result["output"])
+        target = artifacts / "file.txt"
+        with patch.object(Path, "home", return_value=self.base):
+            written = dev_tools.file_edit({"op": "write", "path": str(target), "content": "done"})
+        self.assertTrue(written["ok"])
+        self.assertEqual(target.read_text(), "done")
+
     def test_safe_development_commands_do_not_need_approval(self) -> None:
+
         for command in (
             "git status --short", "git diff", "git log -1", "git add file.py", "git branch",
             "npm test", "npm run build", "python3 -m pytest -q tests", "node --version",

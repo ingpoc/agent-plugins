@@ -1,5 +1,9 @@
 import importlib.util
+import contextlib
+import io
 import json
+import os
+import socket
 from http.server import HTTPServer
 from pathlib import Path
 import tempfile
@@ -15,6 +19,86 @@ spec.loader.exec_module(server_module)
 
 
 class ServerTests(unittest.TestCase):
+    def test_idle_connection_does_not_block_report(self):
+        with tempfile.TemporaryDirectory() as directory:
+            page = Path(directory) / 'report.html'
+            page.write_text('visible report')
+            with server_module.ThreadingHTTPServer(('127.0.0.1', 0), server_module.handler_for(page)) as server:
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+                try:
+                    with socket.create_connection(('127.0.0.1', server.server_port), timeout=2):
+                        with urlopen(f'http://127.0.0.1:{server.server_port}/', timeout=2) as response:
+                            self.assertEqual(response.read(), b'visible report')
+                finally:
+                    server.shutdown()
+                    thread.join()
+
+    def test_shutdown_requires_the_instance_and_stops_server(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            page, data, metadata = root / 'report.html', root / 'data.json', root / 'viewer.json'
+            page.write_text('page')
+            data.write_text('{}')
+            metadata.write_text(json.dumps({'instance': 'specific-viewer'}))
+            with HTTPServer(('127.0.0.1', 0), server_module.handler_for(page, data, viewer_metadata=metadata)) as server:
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+                url = f'http://127.0.0.1:{server.server_port}/__bcl_shutdown'
+                try:
+                    for headers in ({}, {'X-BCL-Instance': 'wrong'}):
+                        with self.assertRaises(HTTPError) as error:
+                            urlopen(Request(url, method='POST', headers=headers))
+                        self.assertEqual(error.exception.code, 403)
+                    with urlopen(Request(url, method='POST', headers={'X-BCL-Instance': 'specific-viewer'})) as response:
+                        self.assertEqual(response.status, 204)
+                    thread.join(timeout=2)
+                    self.assertFalse(thread.is_alive())
+                finally:
+                    if thread.is_alive():
+                        server.shutdown()
+                        thread.join()
+
+    def test_health_requires_matching_instance_tracker_and_pid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            page, data, metadata = root / 'report.html', root / 'data.json', root / 'viewer.json'
+            page.write_text('page')
+            data.write_text((Path(__file__).parents[1] / 'examples/findings.json').read_text())
+            metadata.write_text(json.dumps({'instance': 'specific-viewer', 'path': str(data), 'version': 'test', 'started': 'test'}))
+            with HTTPServer(('127.0.0.1', 0), server_module.handler_for(page, data, viewer_metadata=metadata)) as server:
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+                try:
+                    expected = {'pid': os.getpid(), 'data': str(data), 'instance': 'specific-viewer'}
+                    self.assertTrue(server_module.live_state._viewer_responds(server.server_port, expected))
+                    self.assertFalse(server_module.live_state._viewer_responds(server.server_port, {**expected, 'pid': os.getpid() + 1}))
+                    self.assertFalse(server_module.live_state._viewer_responds(server.server_port, {**expected, 'instance': 'other'}))
+                    self.assertFalse(server_module.live_state._viewer_responds(server.server_port, {**expected, 'data': str(root / 'other.json')}))
+                    data.write_text('{')
+                    self.assertFalse(server_module.live_state._viewer_responds(server.server_port, expected))
+                finally:
+                    server.shutdown()
+                    thread.join()
+
+    def test_missing_data_returns_error_and_logs_cause(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            page = root / 'report.html'
+            page.write_text('fallback')
+            errors = io.StringIO()
+            with HTTPServer(('127.0.0.1', 0), server_module.handler_for(page, root / 'missing.json')) as server:
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+                try:
+                    with contextlib.redirect_stderr(errors), self.assertRaises(HTTPError) as error:
+                        urlopen(f'http://127.0.0.1:{server.server_port}/')
+                    self.assertEqual(error.exception.code, 503)
+                    self.assertIn('missing.json', errors.getvalue())
+                finally:
+                    server.shutdown()
+                    thread.join()
+
     def test_live_source_resolves_capture_from_registered_report_base(self):
         example = Path(__file__).parents[1] / 'examples/findings.json'
         with tempfile.TemporaryDirectory() as directory:

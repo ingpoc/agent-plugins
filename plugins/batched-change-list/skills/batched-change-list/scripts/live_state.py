@@ -1,5 +1,6 @@
 """Live tracker registry and per-list viewer lifecycle."""
-import hashlib, json, os, re, signal, socket, subprocess, sys, time
+import hashlib, json, os, re, socket, subprocess, sys, time, urllib.error, urllib.request, uuid
+import tracker_lock
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -115,8 +116,8 @@ def _reserved_ports(current):
             continue
         try:
             port = int(json.loads(path.read_text()).get("port", 0))
-        except (OSError, ValueError, TypeError):
-            continue
+        except (OSError, ValueError, TypeError) as error:
+            raise ValueError(f"invalid viewer state {path}; repair or remove that state file") from error
         if port:
             reserved.add(port)
     return reserved
@@ -124,6 +125,7 @@ def _reserved_ports(current):
 def _port_is_free(port):
     with socket.socket() as sock:
         try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(("127.0.0.1", port))
         except OSError:
             return False
@@ -171,14 +173,23 @@ def ensure_viewer(key, record, live, plugin_version):
     running = False
     if old.get("pid") and int(old["pid"]) != 87005:
         try: os.kill(int(old["pid"]), 0); running = True
-        except OSError: pass
+        except ProcessLookupError: running = False
     owns_old = bool(old.get("data")) and Path(old["data"]).resolve() == Path(live).resolve()
     old_port = int(old.get("port", 0) or 0)
-    if running and owns_old and old.get("version") == plugin_version: return old
+    if running and owns_old and (not old.get("instance") or not _viewer_responds(old_port, old)):
+        raise RuntimeError(f"cannot verify viewer ownership on port {old_port}; inspect its state and stop it safely before retrying")
+    if running and owns_old and old.get("version") == plugin_version:
+        return old
     if running and owns_old:
-        os.kill(int(old["pid"]), signal.SIGTERM)
-        if old_port:
-            _wait_for_port(old_port)
+        request = urllib.request.Request(f"http://127.0.0.1:{old_port}/__bcl_shutdown", method="POST", headers={"X-BCL-Instance": old["instance"]})
+        try:
+            with urllib.request.urlopen(request, timeout=2) as response:
+                if response.status != 204:
+                    raise RuntimeError("viewer refused shutdown")
+        except (OSError, urllib.error.URLError) as error:
+            raise RuntimeError(f"viewer shutdown failed on port {old_port}; inspect it before retrying") from error
+        if not _wait_for_port(old_port):
+            raise RuntimeError(f"viewer on port {old_port} did not stop; inspect it before retrying")
     reserved = _reserved_ports(state)
     candidates = []
     if owns_old and old_port:
@@ -201,19 +212,46 @@ def ensure_viewer(key, record, live, plugin_version):
             sock.bind(("127.0.0.1", 0)); port = sock.getsockname()[1]
     page, base = report_paths(record, live)
     if not page.exists():
-        print("warning: viewer not started because the report could not be rendered", file=sys.stderr)
-        return None
+        raise RuntimeError(f"viewer report missing: {page}; render the report and retry")
     started = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%b %-d, %Y, %-I:%M %p IST")
     metadata = state.with_suffix(".viewer.json")
-    metadata.write_text(json.dumps({"path": str(live), "version": plugin_version, "started": started}))
-    proc = subprocess.Popen([sys.executable, str(SCRIPTS / "serve.py"), str(page),
-                             "--port", str(port), "--data", str(live), "--base", str(base), "--viewer-metadata", str(metadata)],
-                           stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                           start_new_session=True)
-    value = {"port": port, "pid": proc.pid, "version": plugin_version,
+    instance = uuid.uuid4().hex
+    metadata.write_text(json.dumps({"path": str(live), "version": plugin_version, "started": started, "instance": instance}))
+    log = state.with_suffix(".log")
+    with log.open("a") as errors:
+        proc = subprocess.Popen([sys.executable, str(SCRIPTS / "serve.py"), str(page),
+                                 "--port", str(port), "--data", str(live), "--base", str(base), "--viewer-metadata", str(metadata)],
+                               stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=errors,
+                               start_new_session=True)
+    expected = {"pid": proc.pid, "data": str(Path(live).resolve()), "instance": instance}
+    if not _viewer_ready(proc, port, expected):
+        if proc.poll() is None:
+            proc.terminate()
+            proc.wait(timeout=5)
+        raise RuntimeError(f"viewer failed to start on port {port}; check {log} and retry")
+    value = {"port": port, "pid": proc.pid, "version": plugin_version, "instance": instance,
              "data": str(Path(live).resolve()), "started_at": started}
     state.write_text(json.dumps(value, indent=2) + "\n")
     return value
+
+def _viewer_responds(port, expected):
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/__bcl_health", timeout=0.5) as response:
+            if response.status != 200 or json.load(response) != {
+                "pid": expected["pid"], "path": str(Path(expected["data"]).resolve()), "instance": expected["instance"]}:
+                return False
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=1) as response:
+            return response.status == 200 and bool(response.read(1))
+    except (OSError, urllib.error.URLError, ValueError, KeyError):
+        return False
+
+def _viewer_ready(proc, port, expected):
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline and proc.poll() is None:
+        if _viewer_responds(port, expected):
+            return proc.poll() is None
+        time.sleep(0.05)
+    return False
 
 def snapshot(record, live):
     home = Path(record["home"])
@@ -221,22 +259,35 @@ def snapshot(record, live):
     marker = live.with_suffix(".unsnapshotted")
     if not home.exists():
         marker.write_text(hashlib.sha256(live.read_bytes()).hexdigest() + "\n")
-        return
-    import render
-    doc = json.loads(live.read_text())
-    snapshot_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        rendered = render.render(doc, snapshot_path.parent)
-    except FileNotFoundError as error:
-        missing = Path(error.filename or "")
-        if not missing.is_absolute() or not missing.resolve().is_relative_to(snapshot_path.parent.resolve()):
-            raise
-        marker.write_text(hashlib.sha256(live.read_bytes()).hexdigest() + "\n")
-        print(f"warning: snapshot skipped; report capture is missing ({missing.relative_to(snapshot_path.parent.resolve())})", file=sys.stderr)
-        return
-    snapshot_path.write_bytes(live.read_bytes())
-    html_path.write_text(rendered)
-    subprocess.run(["git", "-C", str(home), "add", record["snapshot"], record["html"]], check=True)
-    if subprocess.run(["git", "-C", str(home), "diff", "HEAD", "--quiet", "--", record["snapshot"], record["html"]]).returncode:
-        subprocess.run(["git", "-C", str(home), "commit", "--only", "-m", "Change list: snapshot live tracker", "--", record["snapshot"], record["html"]], check=True)
-    marker.unlink(missing_ok=True)
+        raise RuntimeError(f"snapshot home worktree missing: {home}; restore it and retry")
+    lock_path = Path(git(home, "rev-parse", "--git-path", "bcl-snapshot.lock"))
+    if not lock_path.is_absolute():
+        lock_path = home / lock_path
+    with tracker_lock.exclusive_lock(lock_path):
+        import render
+        captured = live.read_bytes()
+        marker.write_text(hashlib.sha256(captured).hexdigest() + "\n")
+        doc = json.loads(captured)
+        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            rendered = render.render(doc, snapshot_path.parent)
+        except FileNotFoundError as error:
+            missing = Path(error.filename or "")
+            if not missing.is_absolute() or not missing.resolve().is_relative_to(snapshot_path.parent.resolve()):
+                raise
+            marker.write_text(hashlib.sha256(live.read_bytes()).hexdigest() + "\n")
+            raise RuntimeError(f"snapshot capture missing: {missing}; restore it and retry") from error
+        snapshot_path.write_bytes(captured)
+        html_path.write_text(rendered)
+        subprocess.run(["git", "-C", str(home), "add", record["snapshot"], record["html"]], check=True)
+        changed = subprocess.run(["git", "-C", str(home), "diff", "HEAD", "--quiet", "--", record["snapshot"], record["html"]])
+        if changed.returncode not in (0, 1):
+            raise RuntimeError(f"snapshot diff failed with exit {changed.returncode}")
+        if changed.returncode == 1:
+            subprocess.run(["git", "-C", str(home), "commit", "--only", "-m", "Change list: snapshot live tracker", "--", record["snapshot"], record["html"]], check=True)
+        with tracker_lock.exclusive_lock(tracker_lock.tracker_lock_path(live)):
+            current = live.read_bytes()
+            if current != captured:
+                marker.write_text(hashlib.sha256(current).hexdigest() + "\n")
+                raise RuntimeError("live tracker changed during snapshot; retry")
+            marker.unlink(missing_ok=True)

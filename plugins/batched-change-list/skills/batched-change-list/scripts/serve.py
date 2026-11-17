@@ -2,9 +2,12 @@
 """Serve one generated change-list page on loopback for live refresh."""
 import argparse
 import hashlib
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
 import json
+import os
+import sys
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 import live_state
@@ -41,6 +44,23 @@ def response_state(page, data=None, inventory=None, viewer_metadata=None):
 
 def handler_for(page, data=None, inventory=None, viewer_metadata=None, base=None):
     class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            if self.path != '/__bcl_shutdown' or not viewer_metadata:
+                self.send_error(404)
+                return
+            try:
+                metadata = json.loads(viewer_metadata.read_text())
+                if self.headers.get('X-BCL-Instance') != metadata['instance']:
+                    self.send_error(403)
+                    return
+            except (OSError, ValueError, KeyError) as error:
+                print(f"viewer: shutdown unavailable: {error}", file=sys.stderr, flush=True)
+                self.send_error(503)
+                return
+            self.send_response(204)
+            self.end_headers()
+            threading.Thread(target=self.server.shutdown, daemon=True).start()
+
         def do_HEAD(self):
             self.respond(False)
 
@@ -48,6 +68,21 @@ def handler_for(page, data=None, inventory=None, viewer_metadata=None, base=None
             self.respond(True)
 
         def respond(self, body):
+            if self.path == '/__bcl_health' and viewer_metadata:
+                try:
+                    metadata = json.loads(viewer_metadata.read_text())
+                    content = json.dumps({'pid': os.getpid(), 'path': str(data.resolve()), 'instance': metadata['instance']}).encode()
+                except (OSError, ValueError, KeyError) as error:
+                    print(f"viewer: health unavailable: {error}", file=sys.stderr, flush=True)
+                    self.send_error(503, 'Viewer identity unavailable')
+                    return
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(content)))
+                self.end_headers()
+                if body:
+                    self.wfile.write(content)
+                return
             if self.path not in ('/', '/index.html'):
                 self.send_error(404)
                 return
@@ -60,7 +95,8 @@ def handler_for(page, data=None, inventory=None, viewer_metadata=None, base=None
                 else:
                     content = RENDERER.render(state[0], base or live_state.evidence_base(data), state[1], state[2],
                                               json.loads(viewer_metadata.read_text()) if viewer_metadata else None).encode('utf-8')
-            except (OSError, ValueError, UnicodeError, json.JSONDecodeError):
+            except (OSError, ValueError, UnicodeError, json.JSONDecodeError) as error:
+                print(f"viewer: report unavailable: {error}", file=sys.stderr, flush=True)
                 self.send_error(503, 'Report unavailable')
                 return
             self.send_response(200)
@@ -99,7 +135,7 @@ def main():
     viewer_metadata = args.viewer_metadata.resolve(strict=True) if args.viewer_metadata else None
     base = args.base.resolve(strict=True) if args.base else None
     base = base or (live_state.evidence_base(data) if data else None)
-    with HTTPServer(('127.0.0.1', args.port), handler_for(page, data, inventory, viewer_metadata, base)) as server:
+    with ThreadingHTTPServer(('127.0.0.1', args.port), handler_for(page, data, inventory, viewer_metadata, base)) as server:
         print(f'http://127.0.0.1:{server.server_port}/', flush=True)
         try:
             server.serve_forever()
