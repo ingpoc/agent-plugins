@@ -28,6 +28,9 @@ class ViewerLivenessTests(unittest.TestCase):
         with patch.object(live_state.urllib.request, 'urlopen', return_value=Response()):
             self.assertFalse(live_state._legacy_viewer_matches(5000, {**expected, 'pid': 124}))
             self.assertFalse(live_state._legacy_viewer_matches(5000, {**expected, 'data': '/tmp/other.json'}))
+        with patch.object(live_state.urllib.request, 'urlopen', return_value=Response()), \
+             patch.object(live_state.json, 'load', return_value=[]):
+            self.assertFalse(live_state._legacy_viewer_matches(5000, expected))
 
     def test_legacy_record_migrates_without_shutdown_and_starts_for_list(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -78,6 +81,28 @@ class ViewerLivenessTests(unittest.TestCase):
             verify.assert_called_once_with(5000, old)
             popen.assert_not_called()
             urlopen.assert_not_called()
+
+    def test_unresponsive_instance_viewer_is_left_running_without_replacement(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            state = root / 'viewers' / 'repo--1.json'
+            state.parent.mkdir()
+            live = root / 'correct-list.json'
+            live.write_text('{}')
+            old = {'pid': 123, 'data': str(live), 'port': 5000, 'version': 'old', 'instance': 'old-instance'}
+            state.write_text(json.dumps(old))
+            previous = state.read_bytes()
+            with patch.object(live_state, 'STATE', root), \
+                 patch.object(live_state, '_pid_is_running', return_value=True), \
+                 patch.object(live_state, '_viewer_responds', return_value=False) as verify, \
+                 patch.object(live_state.subprocess, 'Popen') as popen, \
+                 patch.object(live_state.urllib.request, 'urlopen') as urlopen:
+                with self.assertRaisesRegex(RuntimeError, 'cannot verify viewer ownership'):
+                    live_state.ensure_viewer('repo/1', {}, live, 'new')
+            verify.assert_called_once_with(5000, old)
+            popen.assert_not_called()
+            urlopen.assert_not_called()
+            self.assertEqual(state.read_bytes(), previous)
 
     def test_unix_probe_reports_missing_and_permission_denied(self):
         with patch.object(live_state.os, 'name', 'posix'), patch.object(live_state.os, 'kill', side_effect=ProcessLookupError):

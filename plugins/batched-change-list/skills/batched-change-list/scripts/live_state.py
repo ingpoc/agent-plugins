@@ -226,10 +226,11 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
     if legacy and not _legacy_viewer_matches(old_port, old):
         # A legacy listener has no shutdown capability; only its health response can identify it.
         raise RuntimeError(f"cannot verify viewer ownership on port {old_port}; inspect its state before retrying")
-    if running and owns_old and old.get("version") == plugin_version:
-        if not legacy and _viewer_responds(old_port, old):
+    if running and owns_old and not legacy:
+        if not _viewer_responds(old_port, old):
+            raise RuntimeError(f"cannot verify viewer ownership on port {old_port}; inspect its state before retrying")
+        if old.get("version") == plugin_version:
             return old
-    if running and owns_old and not legacy and _viewer_responds(old_port, old):
         request = urllib.request.Request(f"http://127.0.0.1:{old_port}/__bcl_shutdown", method="POST", headers={"X-BCL-Instance": old["instance"]})
         try:
             with urllib.request.urlopen(request, timeout=2) as response:
@@ -301,7 +302,8 @@ def _legacy_viewer_matches(port, expected):
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/__bcl_health", timeout=0.5) as response:
             health = json.load(response)
-            return (response.status == 200 and health.get("pid") == int(expected["pid"]) and
+            return (response.status == 200 and isinstance(health, dict) and
+                    health.get("pid") == int(expected["pid"]) and
                     Path(health.get("path", "")).resolve() == Path(expected["data"]).resolve())
     except (OSError, urllib.error.URLError, ValueError, TypeError):
         return False
