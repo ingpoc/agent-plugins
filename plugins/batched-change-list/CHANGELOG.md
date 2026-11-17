@@ -1,3 +1,9 @@
+## 0.1.23
+
+- Require this round's Introspect, tagged with cycle and round, before returning to Plan & fix or entering Report & roll over after Install. An earlier round's record is not enough.
+- Skill wording matches the page: run Introspect after every round's Verify. Drop the full-cycle definition and the skip for small follow-up cycles.
+- After Install, leftover issue checks show as checks pending rather than an unqualified blocked lane. A completed check pass clears that blocker.
+
 ## 0.1.22
 
 - State the delivery, status and measurement outcomes used to judge the workflow.

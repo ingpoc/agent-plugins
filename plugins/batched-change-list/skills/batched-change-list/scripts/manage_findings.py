@@ -733,6 +733,16 @@ def sync_plan_verify(document):
             status = "failed"
         else:
             status = "partial"
+        install_reached = "install" in (document.get("tracking") or {}).get("stages_reached", [])
+        checks_pending = RENDERER.checks_pending_reason(group)
+        if fixed == total and total > 0 and (
+                group.get("status") == "blocked"
+                or (group.get("status") == "verifying" and checks_pending)):
+            group["status"] = "verified"
+            group.pop("blocked_reason", None)
+        elif group.get("status") == "blocked" and checks_pending and install_reached:
+            group["status"] = "verifying"
+            group["phase"] = "verify"
         verify = group.get("verify") if isinstance(group.get("verify"), dict) else {}
         verify.update({"status": status, "fixed": fixed, "failed": failed, "total": total})
         group["verify"] = verify
@@ -777,14 +787,28 @@ def validate_merged_record(merged):
     return merged
 
 
+
+def introspect_covers_current_round(tracking):
+    record = tracking.get("introspect") if isinstance(tracking, dict) else None
+    if not isinstance(record, dict):
+        return False
+    return (record.get("round") == RENDERER.rollover_round(tracking)
+            and record.get("cycle") == RENDERER.rollover_cycle(tracking))
+
+
+def require_current_round_introspect(tracking, action):
+    if not introspect_covers_current_round(tracking):
+        raise ValueError(f"record this round's introspect with --sections before {action}")
+
+
 def prepare_rollover(document, operation, force=False):
     findings = document.get("findings")
     tracking = document.setdefault("tracking", {})
     pr, worktree = operation.get("pull_request"), operation.get("worktree")
     if not isinstance(pr, dict) or not pr.get("label") or not pr.get("url") or not isinstance(worktree, str) or not worktree.strip():
         raise ValueError("rollover requires pull_request {label,url} and worktree")
-    if "install" in tracking.get("stages_reached", []) and not tracking.get("introspect"):
-        raise ValueError("full cycle (reached install): record introspect with --sections before rollover")
+    if "install" in tracking.get("stages_reached", []):
+        require_current_round_introspect(tracking, "rollover")
     require_rollover_gate(findings, tracking, force, "rollover")
     rollover = tracking.setdefault("rollover", {})
     if not isinstance(rollover, dict):
@@ -1180,8 +1204,11 @@ def run(args, parser):
                     if isinstance(run, dict) and run.get("status") in ("active", "complete"):
                         run["status"] = "active"
                         run.setdefault("checks", {})[task_id] = {"state": "pending"}
-                    record = {"result": summary, "at": stamp, "task": task_id, "sections": sections}
-                    store["document"].setdefault("tracking", {})["introspect"] = record
+                    tracking = store["document"].setdefault("tracking", {})
+                    record = {"result": summary, "at": stamp, "task": task_id, "sections": sections,
+                              "round": RENDERER.rollover_round(tracking),
+                              "cycle": RENDERER.rollover_cycle(tracking)}
+                    tracking["introspect"] = record
                     plan = store["document"].setdefault("tracking", {}).get("plan")
                     if isinstance(plan, dict):
                         plan["status"] = "closed"
@@ -1192,8 +1219,10 @@ def run(args, parser):
                     previous_stage = tracking.get("workflow", {}).get("stage")
                     if previous_stage == "merged" and target != "merged":
                         raise ValueError("merged is terminal; start a new list with bcl rollover")
-                    if target == "report_rollover" and "install" in tracking.get("stages_reached", []) and not tracking.get("introspect"):
-                        raise ValueError("full cycle (reached install): record introspect with --sections before report_rollover")
+                    if target == "plan_fix" and previous_stage in ("verify", "introspect", "gate"):
+                        require_current_round_introspect(tracking, "returning to plan_fix")
+                    if target == "report_rollover" and "install" in tracking.get("stages_reached", []):
+                        require_current_round_introspect(tracking, "rollover" if action == "rollover" else "report_rollover")
                     if target == "report_rollover" and action != "set-activity":
                         require_rollover_gate(findings, tracking, args.force, action)
                     if target in ("plan_fix", "install", "verify") and action == "set-stage" and not any(item.get("status") == "in_progress" for item in findings):

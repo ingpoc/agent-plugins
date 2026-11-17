@@ -192,9 +192,21 @@ def plan_groups_for_round(plan, round_number):
     return [group for group in groups if isinstance(group, dict)] if isinstance(groups, list) else []
 
 
+def checks_pending_reason(group):
+    reason = str((group or {}).get("blocked_reason") or "").strip().lower()
+    return any(token in reason for token in (
+        "individual issue checks pending",
+        "remaining issue checks pending",
+        "issue checks pending",
+    ))
+
+
 def lane_issue_status(group, round_number):
     status = plan_status(group)
     group_id = str(group.get("id", "?"))
+    if checks_pending_reason(group) and status in {"blocked", "verifying"}:
+        copy = f"Checks pending · {group.get('blocked_reason')}"
+        return {"copy": copy, "kind": "run", "status": "verifying"}
     if status == "blocked":
         copy = f"Blocked · {group.get('blocked_reason') or 'blocked'}"
     elif status == "parked":

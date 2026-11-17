@@ -1,6 +1,6 @@
 # Introspect
 
-Run only after a **full cycle**: one that reached Install and live Verify. Skip it for small follow-up cycles (for example fixing findings that earlier Introspect work already logged); introspecting an introspect wastes the pass.
+Run Introspect after every round's Verify.
 
 Keep it one cheap pass over what the run already recorded (failed commands, retries, reruns, stale or contradicting reports, checks that disagreed), not a re-read of the whole run.
 
@@ -19,7 +19,7 @@ Each item has `item`, `evidence`, and `outcome`:
 
 The call always creates exactly one `WF-` task. The task is `verified_fixed` with `details.fixed_in` set to `Introspect`, and it stores the four sections on the task. Render them on the WF- task; do not list code follow-ups as `next_cycle` notes. The task's `issues` array stays empty. Linked issue ids may appear in `verification_refs`. A clean cycle (`none` in every section) still creates the WF- task and records result `Introspect: no issues`.
 
-The call also closes the current round's plan (`tracking.plan.status = "closed"`) and records `tracking.introspect`. Then move to the [gate](gate.md). `report_rollover` remains blocked until this record exists after a full cycle.
+The call also closes the current round's plan (`tracking.plan.status = "closed"`) and records `tracking.introspect`. Then move to the [gate](gate.md). `report_rollover` remains blocked until this round's Introspect record exists (required after Install).
 
 ## Rules
 

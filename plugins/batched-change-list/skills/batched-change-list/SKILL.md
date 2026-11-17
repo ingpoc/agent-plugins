@@ -21,7 +21,7 @@ Load only the reference for the current step:
 - After Present or a gate loop-back: [plan-fix.md](references/plan-fix.md); record each group's verification command.
 - After a group's review: [install.md](references/install.md).
 - After its install: [verify.md](references/verify.md).
-- After a full cycle: [introspect.md](references/introspect.md).
+- After every round's Verify: [introspect.md](references/introspect.md).
 - After introspection or when checking rollover: [gate.md](references/gate.md).
 - When the gate is met or the PR merges: [report-rollover.md](references/report-rollover.md).
 - For tracker recovery or comparing a prior PR: [tracker.md](references/tracker.md); for viewer problems: [viewer.md](references/viewer.md).

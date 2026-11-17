@@ -14,6 +14,22 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_checks_pending_lane_is_not_unqualified_blocked(self):
+        pending = renderer.lane_issue_status(
+            {"id": "CONTROL", "status": "blocked", "blocked_reason": "Individual issue checks pending"}, 1)
+        self.assertTrue(pending["copy"].startswith("Checks pending"))
+        self.assertEqual(pending["kind"], "run")
+        self.assertEqual(pending["status"], "verifying")
+        verifying = renderer.lane_issue_status(
+            {"id": "DISPLAY", "status": "verifying", "blocked_reason": "Remaining issue checks pending"}, 1)
+        self.assertTrue(verifying["copy"].startswith("Checks pending"))
+        self.assertEqual(verifying["status"], "verifying")
+        blocked = renderer.lane_issue_status(
+            {"id": "A", "status": "blocked", "blocked_reason": "no mic · needs Guru"}, 1)
+        self.assertTrue(blocked["copy"].startswith("Blocked ·"))
+        self.assertEqual(blocked["kind"], "blk")
+        self.assertEqual(blocked["status"], "blocked")
+
     def test_blocked_or_planned_lanes_do_not_make_recorded_stage_busy(self):
         groups = [{'id':'A', 'status':'blocked', 'phase':'fix'}, {'id':'B', 'status':'planned'}]
         page = renderer.render_workflow('plan_fix', groups, 0, 15, False, 0, 1)

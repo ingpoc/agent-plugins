@@ -516,7 +516,8 @@ class ManageFindingsTests(unittest.TestCase):
     def test_plan_fields_and_loopback_increment_round_history(self):
         ops, page = self.root / 'round.json', self.root / 'round.html'
         plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','name':'Plain group','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','worktree':'fix-a','codex':{'job_id':'job-1','status':'done','started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z'},'verify':{'summary':'Focused check passed','status':'pending'}}],'merge':{'status':'done','ref':'abc'}}}
-        ops.write_text(json.dumps([plan, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Plan'}, {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Install'}, {'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Verify'}, {'action':'set-activity','stage':'gate','ids':[],'now':'Gate'}, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Repeat'}]))
+        none = {'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}}
+        ops.write_text(json.dumps([plan, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Plan'}, {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Install'}, {'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Verify'}, {'action':'introspect','sections':none,'result':'round 1 done'}, {'action':'set-activity','stage':'gate','ids':[],'now':'Gate'}, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Repeat'}]))
         result = self.cli('batch', self.data, ops, '--render', page)
         self.assertEqual(result.returncode, 0, result.stderr)
         tracking = json.loads(self.data.read_text())['tracking']
@@ -1187,6 +1188,283 @@ class ManageFindingsTests(unittest.TestCase):
         full = self.cli("get", page, "USER-01", "--collection", "primary", "--include-evidence")
         self.assertEqual(full.returncode, 0, full.stderr)
         self.assertIn("data:image/png;base64,ZmFrZQ==", full.stdout)
+
+
+    def _replay_batch(self, document, *items, force=False):
+        self.data.write_text(json.dumps(document), encoding="utf-8")
+        page, ops = self.root / "replay.html", self.root / "replay.json"
+        ops.write_text(json.dumps(list(items)))
+        args = ["batch", self.data, ops, "--render", page]
+        if force:
+            args.append("--force")
+        return self.cli(*args)
+
+    def _path1_pre(self):
+        return {
+            "title": "Product issues",
+            "findings": [
+                {
+                    "id": "ISSUE-01",
+                    "title": "The selected item does not open",
+                    "source": "User reported",
+                    "status": "in_progress",
+                    "summary": "Selecting the item does not open its details.",
+                    "impact": "Readers cannot review the selected item's information.",
+                    "done_when": "Selecting the item opens its details in the installed view.",
+                    "observed": "The user reported that selecting the item had no effect.",
+                    "recommendation": "Restore the selection action and verify it on the installed build.",
+                    "details": {
+                        "Expected": "Selecting the item opens its details.",
+                        "Verification steps": "Select the item and check its details open.",
+                        "Build and time": "Unknown",
+                        "Provenance": "User report",
+                    },
+                    "evidence": [],
+                },
+                {
+                    "id": "ISSUE-02",
+                    "title": "Icon appears too small",
+                    "source": "Agent reported",
+                    "status": "verified_fixed",
+                    "observed": "The previous icon was too small.",
+                    "recommendation": "Keep the updated icon framing.",
+                    "verification": "The installed build displayed the corrected icon.",
+                    "verification_refs": ["Example live capture, build 1.2.3"],
+                    "details": {"Build and time": "Example build 1.2.3"},
+                    "evidence": [],
+                },
+            ],
+            "tracking": {
+                "rollover_threshold": 2,
+                "cycle": 1,
+                "round": 1,
+                "workflow": {
+                    "stage": "verify",
+                    "updated_at": "2026-11-17T04:36:28Z",
+                    "now": "2026-11-17T04:36:28Z — Verified icon",
+                },
+                "stages_reached": ["collect", "present", "plan_fix", "install", "verify"],
+                "pull_request": {"label": "PR #111", "url": "https://example.test/pull/111"},
+                "plan": {
+                    "round": 1,
+                    "cycle": 1,
+                    "groups": [{
+                        "id": "A",
+                        "name": "Group A",
+                        "finding_ids": ["ISSUE-01"],
+                        "depends_on": [],
+                        "status": "pending",
+                        "worktree": "fix-a",
+                        "verify": {
+                            "command": "true",
+                            "summary": "placeholder check",
+                            "status": "pending",
+                            "fixed": 0,
+                            "failed": 0,
+                            "total": 1,
+                        },
+                    }],
+                },
+            },
+        }
+
+    def _path2_pre(self):
+        return {
+            "title": "Product issues",
+            "findings": [
+                {
+                    "id": "ISSUE-01",
+                    "title": "The selected item does not open",
+                    "source": "User reported",
+                    "status": "verified_fixed",
+                    "observed": "The user reported that selecting the item had no effect.",
+                    "recommendation": "Restore the selection action and verify it on the installed build.",
+                    "verification": "Selecting the item opened its details.",
+                    "verification_refs": ["Example live capture, build 1.2.3"],
+                    "details": {"Build and time": "Example build 1.2.3"},
+                    "evidence": [],
+                },
+                {
+                    "id": "ISSUE-02",
+                    "title": "Icon appears too small",
+                    "source": "Agent reported",
+                    "status": "verified_fixed",
+                    "observed": "The previous icon was too small.",
+                    "recommendation": "Keep the updated icon framing.",
+                    "verification": "The installed build displayed the corrected icon.",
+                    "verification_refs": ["Example live capture, build 1.2.3"],
+                    "details": {"Build and time": "Example build 1.2.3"},
+                    "evidence": [],
+                },
+                {
+                    "id": "WF-01",
+                    "title": "Introspect 2026-11-17: round 1 introspect",
+                    "source": "Agent reported",
+                    "status": "verified_fixed",
+                    "observed": "round 1 introspect",
+                    "recommendation": "None; all items were fixed inline or none.",
+                    "verification": "Clean cycle; every section is none with a reason.",
+                    "details": {"fixed_in": "Introspect"},
+                    "verification_refs": ["Introspect"],
+                    "evidence": [],
+                },
+            ],
+            "tracking": {
+                "rollover_threshold": 2,
+                "cycle": 1,
+                "round": 2,
+                "workflow": {
+                    "stage": "verify",
+                    "updated_at": "2026-11-17T04:36:28Z",
+                    "now": "2026-11-17T04:36:28Z — Verified round 2",
+                },
+                "stages_reached": ["collect", "present", "plan_fix", "install", "verify"],
+                "pull_request": {"label": "PR #111", "url": "https://example.test/pull/111"},
+                "introspect": {
+                    "result": "round 1 introspect",
+                    "at": "2026-11-17T04:36:28Z",
+                    "task": "WF-01",
+                    "round": 1,
+                    "cycle": 1,
+                },
+                "plan": {
+                    "round": 2,
+                    "cycle": 1,
+                    "status": "closed",
+                    "groups": [{
+                        "id": "A",
+                        "name": "Group A",
+                        "finding_ids": ["ISSUE-01"],
+                        "depends_on": [],
+                        "status": "verified",
+                        "worktree": "fix-a",
+                    }],
+                },
+                "round_history": [{"round": 1, "fixed": 1, "ended_at": "2026-11-17T04:36:28Z"}],
+            },
+        }
+
+    def test_statechart_path1_refuses_planning_next_round_without_this_rounds_introspect(self):
+        # Mini /tmp/bcl-statechart-replay/path1-skip-introspect-then-plan: on 0.1.22,
+        # set-activity plan_fix after Install/Verify with no Introspect advanced the round.
+        document = self._path1_pre()
+        self.data.write_text(json.dumps(document), encoding="utf-8")
+        original = self.data.read_bytes()
+        result = self._replay_batch(json.loads(original), {
+            "action": "set-activity",
+            "stage": "plan_fix",
+            "ids": ["ISSUE-01"],
+            "now": "Plan round 2 without introspect",
+        })
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("this round's introspect", result.stderr)
+        self.assertIn("returning to plan_fix", result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
+        tracking = json.loads(original)["tracking"]
+        self.assertEqual(tracking["round"], 1)
+        self.assertEqual(tracking["workflow"]["stage"], "verify")
+        self.assertIsNone(tracking.get("introspect"))
+
+    def test_statechart_path2_refuses_report_rollover_on_earlier_rounds_introspect(self):
+        # Mini /tmp/bcl-statechart-replay/path2-stale-introspect-then-report: on 0.1.22,
+        # set-stage report_rollover succeeded because an earlier round's record was present.
+        document = self._path2_pre()
+        self.data.write_text(json.dumps(document), encoding="utf-8")
+        original = self.data.read_bytes()
+        result = self._replay_batch(json.loads(original), {"action": "set-stage", "stage": "report_rollover"})
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("this round's introspect", result.stderr)
+        self.assertIn("report_rollover", result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
+        tracking = json.loads(original)["tracking"]
+        self.assertEqual(tracking["round"], 2)
+        self.assertEqual(tracking["introspect"]["round"], 1)
+        self.assertEqual(tracking["workflow"]["stage"], "verify")
+
+    def test_this_rounds_introspect_allows_next_plan_and_report(self):
+        none = {
+            "delete": {"none": "No deletions this cycle."},
+            "simplify": {"none": "No simplifications this cycle."},
+            "optimize": {"none": "No optimizations this cycle."},
+            "automate": {"none": "No automations this cycle."},
+        }
+        path1 = self._replay_batch(self._path1_pre(), {"action": "introspect", "sections": none, "result": "round 1 done"}, {
+            "action": "set-activity",
+            "stage": "plan_fix",
+            "ids": ["ISSUE-01"],
+            "now": "Plan round 2 after this round's introspect",
+        })
+        self.assertEqual(path1.returncode, 0, path1.stderr)
+        tracking = json.loads(self.data.read_text())["tracking"]
+        self.assertEqual(tracking["round"], 2)
+        self.assertEqual(tracking["workflow"]["stage"], "plan_fix")
+        self.assertEqual(tracking["introspect"]["round"], 1)
+        self.assertEqual(tracking["introspect"]["cycle"], 1)
+        path2 = self._replay_batch(self._path2_pre(), {"action": "introspect", "sections": none, "result": "round 2 done"}, {
+            "action": "set-stage", "stage": "report_rollover",
+        })
+        self.assertEqual(path2.returncode, 0, path2.stderr)
+        tracking = json.loads(self.data.read_text())["tracking"]
+        self.assertEqual(tracking["workflow"]["stage"], "report_rollover")
+        self.assertEqual(tracking["introspect"]["round"], 2)
+        self.assertEqual(tracking["introspect"]["cycle"], 1)
+        self.assertEqual(tracking["introspect"]["result"], "round 2 done")
+
+    def test_completed_check_pass_clears_checks_pending_block(self):
+        document = json.loads(self.data.read_text())
+        document["findings"][0]["status"] = "verified_fixed"
+        document["findings"][0]["verification"] = "Checked on the installed build."
+        document["findings"][0]["verification_refs"] = ["receipt"]
+        document.setdefault("tracking", {})["stages_reached"] = ["collect", "present", "plan_fix", "install", "verify"]
+        document["tracking"]["plan"] = {
+            "round": 1,
+            "cycle": 1,
+            "groups": [{
+                "id": "CONTROL",
+                "finding_ids": ["ISSUE-01"],
+                "depends_on": [],
+                "status": "blocked",
+                "blocked_reason": "Individual issue checks pending",
+            }],
+        }
+        self.data.write_text(json.dumps(document), encoding="utf-8")
+        page, ops = self.root / "checks.html", self.root / "checks.json"
+        ops.write_text(json.dumps([{"action": "set-stage", "stage": "verify"}]))
+        # ISSUE-01 is verified_fixed, so set-stage verify may fail for in_progress; use a no-op batch touch via update
+        ops.write_text(json.dumps([{
+            "action": "update", "id": "ISSUE-01",
+            "patch": {"status": "verified_fixed", "verification": "Checked on the installed build.", "verification_refs": ["receipt"]},
+        }]))
+        result = self.cli("batch", self.data, ops, "--render", page)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "verified")
+        self.assertNotIn("blocked_reason", group)
+        # Re-render a still-pending checks lane to confirm the page does not say Blocked
+        pending = json.loads(self.data.read_text())
+        pending["findings"][1]["status"] = "untested"
+        pending["tracking"]["plan"]["groups"].append({
+            "id": "DISPLAY",
+            "finding_ids": ["ISSUE-02"],
+            "depends_on": [],
+            "status": "blocked",
+            "blocked_reason": "Remaining issue checks pending",
+        })
+        self.data.write_text(json.dumps(pending), encoding="utf-8")
+        # Trigger sync + render without mutating statuses unexpectedly: compact or batch empty? use list via render through a harmless update of ISSUE-02 observed
+        ops.write_text(json.dumps([{
+            "action": "update", "id": "ISSUE-02",
+            "patch": {"observed": pending["findings"][1].get("observed") or "The previous icon was too small."},
+        }]))
+        result = self.cli("batch", self.data, ops, "--render", page)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        doc = json.loads(self.data.read_text())
+        display = next(g for g in doc["tracking"]["plan"]["groups"] if g["id"] == "DISPLAY")
+        self.assertEqual(display["status"], "verifying")
+        html = page.read_text()
+        self.assertIn("Checks pending", html)
+        self.assertNotIn("Blocked · Remaining issue checks pending", html)
+
 
 
 if __name__ == "__main__":
