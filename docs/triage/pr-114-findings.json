@@ -3547,9 +3547,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-17T10:42:13Z",
-      "now": "2026-11-17T10:42:13Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-17T10:44:33Z",
+      "now": "2026-11-17T10:44:33Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 113,
@@ -3844,8 +3844,259 @@
     "stages_reached": [
       "collect",
       "plan_fix",
-      "install"
-    ]
+      "install",
+      "verify"
+    ],
+    "verification_run": {
+      "id": "bcl-0.1.31-a488a4ca-114",
+      "build": "batched-change-list 0.1.31",
+      "revision": "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec",
+      "installed_at": "2026-11-17T10:11:44Z",
+      "install_evidence": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec remains present in ~/.agents/plugins and skills (plugin.json 0.1.31, 48 files, sha256 1e7cf19621295d7d655dbd6b7bdc7e98a312f8fbbee5c5f899151918cdbe0236). Backup /tmp/bcl-install-0.1.31-backup-20261117-154144. No new install this round. Receipt /Users/gurusharan/.agents/artifacts/bcl-113/install-bcl-0.1.31-receipt.json.",
+      "status": "active",
+      "checks": {
+        "AUTO-03": {
+          "state": "pending"
+        },
+        "AUTO-04": {
+          "state": "pending"
+        },
+        "AUTO-05": {
+          "state": "pending"
+        },
+        "AUTO-06": {
+          "state": "pending"
+        },
+        "BCL-01": {
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec is present. BCL-01 is in_progress. About to run test_merge_guard_rejects_unsnapshotted_live_then_passes and test_stage_snapshots_and_commits_only_home_worktree, plus the stored test_bcl.py discover command, on the worktree and the installed copy.",
+          "observed_at": "2026-11-17T10:44:10Z",
+          "started_at": "2026-11-17T10:44:28Z",
+          "updated_at": "2026-11-17T10:44:28Z"
+        },
+        "BCL-02": {
+          "state": "pending"
+        },
+        "BCL-03": {
+          "state": "pending"
+        },
+        "PLAN-02": {
+          "state": "pending"
+        },
+        "PLAN-03": {
+          "state": "pending"
+        },
+        "OBS-23": {
+          "state": "pending"
+        },
+        "OBS-25": {
+          "state": "pending"
+        },
+        "AGENT-25": {
+          "state": "pending"
+        },
+        "WF-06": {
+          "state": "pending"
+        },
+        "PAGE-08": {
+          "state": "pending"
+        },
+        "AGENT-26": {
+          "state": "pending"
+        },
+        "AGENT-27": {
+          "state": "pending"
+        },
+        "WF-07": {
+          "state": "pending"
+        },
+        "PAGE-09": {
+          "state": "pending"
+        },
+        "PAGE-10": {
+          "state": "pending"
+        },
+        "SEC-01": {
+          "state": "pending"
+        },
+        "PAGE-11": {
+          "state": "pending"
+        },
+        "BCL-04": {
+          "state": "pending"
+        },
+        "PAGE-12": {
+          "state": "pending"
+        },
+        "FLOW-03": {
+          "state": "pending"
+        },
+        "PAGE-13": {
+          "state": "pending"
+        },
+        "PAGE-14": {
+          "state": "pending"
+        },
+        "PAGE-15": {
+          "state": "pending"
+        },
+        "PAGE-16": {
+          "state": "pending"
+        },
+        "BCL-05": {
+          "state": "pending"
+        },
+        "PAGE-17": {
+          "state": "pending"
+        },
+        "BCL-06": {
+          "state": "pending"
+        },
+        "FLOW-04": {
+          "state": "pending"
+        },
+        "PAGE-18": {
+          "state": "pending"
+        },
+        "BCL-07": {
+          "state": "pending"
+        },
+        "BCL-08": {
+          "state": "pending"
+        },
+        "PAGE-19": {
+          "state": "pending"
+        },
+        "PAGE-20": {
+          "state": "pending"
+        },
+        "BCL-09": {
+          "state": "pending"
+        },
+        "BCL-10": {
+          "state": "pending"
+        },
+        "BCL-11": {
+          "state": "pending"
+        },
+        "BCL-12": {
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec is present. BCL-12 is in_progress. About to run test_changed_tracker_keeps_one_revision_and_reports_stale_snapshot, test_snapshots_in_same_worktree_are_serialized, and the stored test_live_state.py discover command, on the worktree and the installed copy.",
+          "observed_at": "2026-11-17T10:44:10Z",
+          "started_at": "2026-11-17T10:44:28Z",
+          "updated_at": "2026-11-17T10:44:28Z"
+        },
+        "BCL-13": {
+          "state": "pending"
+        },
+        "BCL-14": {
+          "state": "pending"
+        },
+        "BCL-15": {
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec is present. BCL-15 is in_progress. About to run test_final_comparison_and_marker_removal_hold_writer_lock and the stored test_live_state.py discover command, on the worktree and the installed copy.",
+          "observed_at": "2026-11-17T10:44:10Z",
+          "started_at": "2026-11-17T10:44:28Z",
+          "updated_at": "2026-11-17T10:44:28Z"
+        },
+        "BCL-16": {
+          "state": "pending"
+        },
+        "BCL-17": {
+          "state": "pending"
+        },
+        "AGENT-28": {
+          "state": "pending"
+        },
+        "AGENT-29": {
+          "state": "pending"
+        },
+        "BCL-18": {
+          "state": "pending"
+        },
+        "BCL-19": {
+          "state": "pending"
+        },
+        "BCL-20": {
+          "state": "pending"
+        },
+        "BCL-21": {
+          "state": "pending"
+        },
+        "EVAL-01": {
+          "state": "pending"
+        },
+        "BCL-22": {
+          "state": "pending"
+        },
+        "BCL-23": {
+          "state": "pending"
+        },
+        "WF-08": {
+          "state": "pending"
+        },
+        "BCL-24": {
+          "state": "pending"
+        },
+        "BCL-25": {
+          "state": "pending"
+        },
+        "BCL-26": {
+          "state": "pending"
+        },
+        "BCL-27": {
+          "state": "pending"
+        },
+        "BCL-28": {
+          "state": "pending"
+        },
+        "BCL-29": {
+          "state": "pending"
+        },
+        "WF-09": {
+          "state": "pending"
+        },
+        "BCL-30": {
+          "state": "pending"
+        },
+        "BCL-31": {
+          "state": "pending"
+        },
+        "WF-10": {
+          "state": "pending"
+        },
+        "BCL-32": {
+          "state": "pending"
+        },
+        "BCL-33": {
+          "state": "pending"
+        },
+        "WF-11": {
+          "state": "pending"
+        },
+        "BCL-34": {
+          "state": "pending"
+        },
+        "WF-12": {
+          "state": "pending"
+        },
+        "BCL-35": {
+          "state": "pending"
+        },
+        "PAGE-21": {
+          "state": "pending"
+        },
+        "WF-13": {
+          "state": "pending"
+        },
+        "WF-14": {
+          "state": "pending"
+        },
+        "WF-15": {
+          "state": "pending"
+        }
+      }
+    }
   },
   "findings": [
     {
