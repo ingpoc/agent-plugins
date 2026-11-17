@@ -2668,7 +2668,20 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T09:01:09Z"
+          "updated_at": "2026-11-17T09:17:04Z",
+          "codex": {
+            "implementer_session": "01a1e8bd-3fa2-7ba0-a768-16d6e8ff1afe",
+            "implementer": "luna",
+            "implementer_model": "gpt-6-luna",
+            "implementer_effort": "medium",
+            "reviewer_session": "01a1e8c4-b99f-75f3-8105-c8100718dfd7",
+            "reviewer_model": "gpt-6.1-terra",
+            "reviewer_effort": "medium",
+            "reviewer_verdict": "request-changes",
+            "review_status": "passed",
+            "status": "running",
+            "updated_at": "2026-11-17T09:17:04Z"
+          }
         },
         {
           "id": "PROBE",
@@ -2693,7 +2706,20 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T09:01:09Z"
+          "updated_at": "2026-11-17T09:17:04Z",
+          "codex": {
+            "implementer_session": "01a1e8bd-3fa2-70a3-9ffe-cb225b8b6d41",
+            "implementer": "luna",
+            "implementer_model": "gpt-6-luna",
+            "implementer_effort": "medium",
+            "reviewer_session": "01a1e8c4-b99f-7012-9994-637b1aad225a",
+            "reviewer_model": "gpt-6.1-terra",
+            "reviewer_effort": "medium",
+            "reviewer_verdict": "request-changes",
+            "review_status": "passed",
+            "status": "running",
+            "updated_at": "2026-11-17T09:17:04Z"
+          }
         }
       ]
     },
