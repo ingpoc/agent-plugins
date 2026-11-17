@@ -2505,9 +2505,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-17T09:00:01Z",
-      "now": "2026-11-17T09:00:01Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-17T09:01:09Z",
+      "now": "2026-11-17T09:01:09Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 111,
@@ -2643,125 +2643,59 @@
       "cycle": 4,
       "groups": [
         {
-          "id": "CLI",
-          "name": "Fail-loud plan and honest Install ticks",
+          "id": "SHAPE",
+          "name": "Pass skill-refine --strict on the bcl skill",
           "finding_ids": [
-            "BCL-28",
-            "BCL-29"
+            "BCL-33"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "pr112-cli",
+          "status": "pending",
+          "phase": "fix",
+          "worktree": "pr112-shape",
           "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/statechart.py",
+            "plugins/batched-change-list/skills/batched-change-list/statechart.html",
+            "plugins/batched-change-list/skills/batched-change-list/scripts",
+            "plugins/batched-change-list"
+          ],
+          "reason": "Follow-up to BCL-25/27/30: the skill must pass skill-refine --strict, ship a skill-refine-accepted chart generated from workflow_definition.json, and name the check_*.py scripts.",
+          "verify": {
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
+            "method": "Unit tests plus skill_shape.py --strict: When→load table, accepted statechart hash, and check_*.py no longer orphans.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-17T09:01:09Z"
+        },
+        {
+          "id": "PROBE",
+          "name": "Label viewer setup errors honestly",
+          "finding_ids": [
+            "BCL-32"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "fix",
+          "worktree": "pr112-probe",
+          "files": [
             "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts"
           ],
-          "reason": "Process reliability: a failed or blocked lane must not tick Install, and bcl plan must fail with one line when the viewer PID probe is denied.",
+          "reason": "A non-probe OSError in ensure_viewer must not be labeled as a PID probe failure.",
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
-            "method": "Unit tests for failed/blocked Install ticks and a PermissionError from the viewer PID probe.",
-            "status": "verified",
-            "fixed": 2,
-            "failed": 0,
-            "total": 2
-          },
-          "updated_at": "2026-11-17T08:51:46Z",
-          "codex": {
-            "implementer_session": "01a1e8a0-d5b8-7da2-abc2-57ee3868425a",
-            "implementer": "luna",
-            "implementer_model": "gpt-6-luna",
-            "implementer_effort": "medium",
-            "reviewer_session": "01a1e8aa-60e7-79d3-a94a-0594982eb25d",
-            "reviewer_model": "gpt-6.1-terra",
-            "reviewer_effort": "medium",
-            "reviewer_verdict": "approve",
-            "review_status": "passed",
-            "status": "running",
-            "updated_at": "2026-11-17T08:51:46Z"
-          }
-        },
-        {
-          "id": "CHART",
-          "name": "Generated skill statechart",
-          "finding_ids": [
-            "BCL-30"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "pr112-chart",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
-            "plugins/batched-change-list/skills/batched-change-list/scripts",
-            "plugins/batched-change-list/skills/batched-change-list"
-          ],
-          "reason": "Skill authoring: ship a generated statechart.html and fail the shape check when it is missing or stale.",
-          "verify": {
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
-            "method": "Unit tests that the generated statechart exists, uses the required colors and current vs after views, and that a stale chart fails the shape check.",
-            "status": "verified",
-            "fixed": 1,
+            "method": "Unit test that a non-probe ensure_viewer OSError is reported with its actual cause.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T08:51:46Z",
-          "codex": {
-            "implementer_session": "01a1e8a0-d5b8-7870-9699-63f39dad86c9",
-            "implementer": "luna",
-            "implementer_model": "gpt-6-luna",
-            "implementer_effort": "medium",
-            "reviewer_session": "01a1e8aa-60e6-7ec1-8432-016e528b19e7",
-            "reviewer_model": "gpt-6.1-terra",
-            "reviewer_effort": "medium",
-            "reviewer_verdict": "request-changes",
-            "review_status": "passed",
-            "status": "running",
-            "updated_at": "2026-11-17T08:51:46Z"
-          }
-        },
-        {
-          "id": "FREEZE",
-          "name": "Freeze earlier PR triage pages",
-          "finding_ids": [
-            "BCL-31"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "pr112-freeze",
-          "files": [
-            "scripts/check.py",
-            "scripts/test_check_triage_renders.py"
-          ],
-          "reason": "Stop renderer changes on a later PR from forcing a rewrite of earlier frozen triage pages.",
-          "verify": {
-            "command": "python3 -m unittest discover -s scripts -p 'test_check_triage_renders.py'",
-            "method": "Unit tests that an older pr-N page on a later branch stays frozen, while the current PR page must still match a fresh render.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "updated_at": "2026-11-17T08:51:46Z",
-          "codex": {
-            "implementer_session": "01a1e8a0-d5b8-74b3-904e-272277716d80",
-            "implementer": "luna",
-            "implementer_model": "gpt-6-luna",
-            "implementer_effort": "medium",
-            "reviewer_session": "01a1e8aa-60e5-7f50-8042-9c7bdc445875",
-            "reviewer_model": "gpt-6.1-terra",
-            "reviewer_effort": "medium",
-            "reviewer_verdict": "request-changes",
-            "review_status": "passed",
-            "status": "running",
-            "updated_at": "2026-11-17T08:51:46Z"
-          }
+          "updated_at": "2026-11-17T09:01:09Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "stages_reached": [
       "collect",
@@ -4692,7 +4626,7 @@
       "id": "BCL-32",
       "title": "bcl labels every viewer setup OSError as a PID probe failure",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "low",
       "summary": "ensure_viewer catches every OSError and reports it as a viewer PID probe failure, including directory, metadata, socket, and startup errors.",
       "impact": "A real setup failure can be mislabeled, which makes the one-line cause harder to trust.",
@@ -4704,7 +4638,7 @@
       "id": "BCL-33",
       "title": "skill-refine --strict fails: no When→load table, and statechart.html is stale",
       "source": "User requested",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "Follow-up to BCL-25 and BCL-27 (and BCL-30's chart). skill-refine's strict shape check still fails on the batched-change-list skill: SKILL.md uses trigger bullets instead of a When→load table, statechart.html is stale under skill-refine's source hash, workflow_map cannot run without numbered steps, and check_*.py scripts are orphans.",
       "impact": "A compact skill can ship while failing the strict authoring gate, so editors cannot trust the trigger map or the generated chart, and workflow_map cannot close out.",
