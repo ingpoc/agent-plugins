@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-15T13:02:36Z",
-      "now": "2026-11-15T13:02:36Z — Lane DISPLAY updated"
+      "stage": "introspect",
+      "updated_at": "2026-11-17T04:21:53Z",
+      "now": "2026-11-17T04:21:53Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 110,
@@ -2123,7 +2123,8 @@
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix"
+      "plan_fix",
+      "introspect"
     ],
     "plan": {
       "round": 2,
@@ -2138,8 +2139,7 @@
             "BCL-08"
           ],
           "depends_on": [],
-          "status": "blocked",
-          "phase": "fix",
+          "status": "verified",
           "worktree": "samantha-pr111-rollover",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -2151,12 +2151,12 @@
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
             "method": "Run behavior checks; installed verification remains required.",
-            "status": "partial",
-            "fixed": 1,
-            "failed": 3,
+            "status": "verified",
+            "fixed": 4,
+            "failed": 0,
             "total": 4
           },
-          "updated_at": "2026-11-15T13:02:36Z",
+          "updated_at": "2026-11-17T04:14:32Z",
           "blocked_reason": "Individual issue checks pending"
         },
         {
@@ -2169,8 +2169,7 @@
             "PAGE-17"
           ],
           "depends_on": [],
-          "status": "blocked",
-          "phase": "fix",
+          "status": "verified",
           "worktree": "samantha-pr111-rollover",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
@@ -2180,12 +2179,12 @@
           "reason": "Make recorded and current states understandable.",
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
-            "status": "partial",
-            "fixed": 3,
-            "failed": 1,
+            "status": "verified",
+            "fixed": 4,
+            "failed": 0,
             "total": 4
           },
-          "updated_at": "2026-11-15T13:02:36Z",
+          "updated_at": "2026-11-17T04:14:32Z",
           "blocked_reason": "Remaining issue checks pending"
         },
         {
@@ -2195,8 +2194,7 @@
             "FLOW-04"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "fix",
+          "status": "verified",
           "worktree": "samantha-pr111-rollover",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
@@ -2205,12 +2203,12 @@
           "reason": "Align the skill with dependency-first product and process work.",
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_skill.py'",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-15T10:41:27Z"
+          "updated_at": "2026-11-17T04:15:49Z"
         },
         {
           "id": "IDENTITY",
@@ -2236,28 +2234,36 @@
           "updated_at": "2026-11-15T10:41:27Z"
         }
       ],
-      "cycle": 3
+      "cycle": 3,
+      "status": "closed"
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-14T17:10:56Z",
-      "task": "WF-07",
+      "at": "2026-11-17T04:21:53Z",
+      "task": "WF-08",
       "sections": {
         "delete": {
-          "none": "Round 1 did not leave unused product files on the #111 branch; the Her-score helper and transcripts live under ~/.agents/artifacts/bcl-111/session, not on the PR."
+          "none": "The 15 Nov 0.1.19-0.1.22 work and the 17 Nov CONTROL/DISPLAY unblock did not leave unused product files on the #111 branch. Disposable reproductions stayed under /tmp. The product/process gate-split was dropped before any code was written."
         },
         "simplify": {
-          "none": "PAGE-08 and PLAN-03 each landed in one commit; no failed retry or second review justified further simplification."
+          "none": "Today's unblock needed no code change: the installed 0.1.22 checks for BCL-05, BCL-06, BCL-08, PAGE-14 and FLOW-04 passed on the first attempt. Earlier simplification already landed in a8aaf883, and no failed retry or second review in these cycles justified further simplification."
         },
         "optimize": {
-          "none": "No retry or wrong-result path in this round pointed to a product optimization that was not already logged (AGENT-26, AGENT-27) or already pushed (triage render pairing in check.py)."
+          "none": "No retry or wrong-result path in the 15 Nov or 17 Nov work pointed to a product optimization that was not already logged (AGENT-26, AGENT-27, SEC-01, OBS-23, OBS-25)."
         },
         "automate": {
           "items": [
             {
-              "item": "Pre-push compared pr-110.html to a leftover pr-87-findings.json because the check used the PR URL inside every findings file",
-              "evidence": "git push of 4e74eee7 failed: docs/triage/pr-110.html differs from a fresh render of pr-87-findings.json. pr-87-findings.json still has tracking.pull_request.url for #110. Fixed in 2627fd9a: triage_render_pairs skips a findings file when the filename pr-N and URL pull/M disagree. test_check_triage_renders.py covers the mismatch. Push of 2627fd9a passed hooks at 22:29 IST on 14 Nov 2026.",
-              "outcome": "fixed inline"
+              "item": "An earlier Introspect record lets later rounds skip the pass, and the skill still describes Introspect as an optional full-cycle step instead of every round.",
+              "evidence": "On 17 Nov 2026, 111.json tracking.introspect still held only round 1's WF-07 record from 2026-11-14T17:10:56Z, after the 15 Nov 0.1.19-0.1.22 cycle and the 17 Nov CONTROL/DISPLAY unblock. manage_findings.py blocks report_rollover and rollover only when tracking.introspect is missing (around lines 787 and 1196), and rollover is the only path that clears it (around line 818). SKILL.md line 24 says 'After a full cycle' and introspect.md allows skipping small follow-up cycles, while the page and SKILL.md line 13 already show Introspect in every round.",
+              "outcome": "issue",
+              "issue_id": "BCL-23"
+            },
+            {
+              "item": "A lane can stay blocked for leftover individual checks after its source fix is already on the installed build.",
+              "evidence": "CONTROL and DISPLAY stayed blocked with 'Individual issue checks pending' and 'Remaining issue checks pending' from 15 Nov 2026 18:32 IST until installed 0.1.22 checks for BCL-05, BCL-06, BCL-08 and PAGE-14 were recorded at 2026-11-17T04:14:32Z. The 0.1.19-0.1.22 source and tests were already on the branch; BCL-06 details had noted that the source changed and an individual check was still required.",
+              "outcome": "issue",
+              "issue_id": "BCL-22"
             }
           ]
         }
@@ -2787,13 +2793,27 @@
       "id": "PAGE-14",
       "title": "Old workflow plans can appear current",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "Old plan and workflow states can be highlighted together as if work is active.",
       "impact": "You cannot tell which stage, if any, is currently running.",
       "done_when": "The page clearly distinguishes historical activity from current work and does not highlight multiple stages as active without evidence that they are running.",
       "recommendation": "Label the plan as last recorded and show staleness based on the underlying activity timestamp.",
-      "observed": "Chrome review on 15 Nov: Plan & fix and Introspect are both visually emphasized. AGENT-25 is shown as Planned, last updated 14 Nov 16:55 UTC; the workflow activity text is dated 14 Nov 17:10 UTC while updated_at was refreshed on 15 Nov without a new activity. User reported the simultaneous highlights are unclear."
+      "observed": "Chrome review on 15 Nov: Plan & fix and Introspect are both visually emphasized. AGENT-25 is shown as Planned, last updated 14 Nov 16:55 UTC; the workflow activity text is dated 14 Nov 17:10 UTC while updated_at was refreshed on 15 Nov without a new activity. User reported the simultaneous highlights are unclear.",
+      "verification_evidence": [
+        {
+          "check": "Read of the live #111 page at http://127.0.0.1:53366/ served by installed 0.1.22 (pid 38807, instance 10915c957bbf4c5ea5a27bd0413d8b02). Heading is 'Workflow · last recorded' with a visible Stale tag (updated 2026-11-15T13:02:36Z, stale_after_min=10). Plan & fix, Install, Verify, and Introspect are all wf-step upcoming; none are current or busy. Issue pages label the plan as 'Plan (last recorded)'. Unit test test_status_v2_renders_stale_clock_parked_copy_and_phase_tracks passed.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.22",
+          "session": "installed-0.1.22-individual-check-111",
+          "timestamp": "2026-11-17T04:14:32Z",
+          "reference": "77a5eb5982bd179673373068d3e2c1c2ba7348a8:PAGE-14:installed-check"
+        }
+      ],
+      "verification": "Read of the live #111 page at http://127.0.0.1:53366/ served by installed 0.1.22 (pid 38807, instance 10915c957bbf4c5ea5a27bd0413d8b02). Heading is 'Workflow · last recorded' with a visible Stale tag (updated 2026-11-15T13:02:36Z, stale_after_min=10). Plan & fix, Install, Verify, and Introspect are all wf-step upcoming; none are current or busy. Issue pages label the plan as 'Plan (last recorded)'. Unit test test_status_v2_renders_stale_clock_parked_copy_and_phase_tracks passed.",
+      "verification_refs": [
+        "77a5eb5982bd179673373068d3e2c1c2ba7348a8:PAGE-14:installed-check"
+      ]
     },
     {
       "id": "PAGE-15",
@@ -2837,13 +2857,27 @@
       "id": "BCL-05",
       "title": "A verification command can report success without verifying",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "A planned verification command can succeed while only printing instructions.",
       "impact": "A successful command could be mistaken for proof that a fix was checked.",
       "done_when": "A stored verification command is an actual check, and a placeholder or empty check cannot be presented as verification success.",
       "recommendation": "Replace the placeholder and make the verification gate reject commands that do not perform the intended check.",
-      "observed": "Chrome review on 15 Nov: the AGENT-25 plan shows verify command echo 'Score AGENT-25 Her traits 0-2 with transcript evidence; close only at 12/12'. Running echo only prints text and exits successfully; it does not run or score a conversation."
+      "observed": "Chrome review on 15 Nov: the AGENT-25 plan shows verify command echo 'Score AGENT-25 Her traits 0-2 with transcript evidence; close only at 12/12'. Running echo only prints text and exits successfully; it does not run or score a conversation.",
+      "verification_evidence": [
+        {
+          "check": "Installed 0.1.22 bcl verify of the exact AGENT-25 command echo 'Score AGENT-25 Her traits 0-2 with transcript evidence; close only at 12/12' exited 2 with 'stored verify command only prints or succeeds; record an actual check'; the disposable plan stayed pending and was not marked verified. Unit test test_verify_rejects_placeholder_and_mismatched_command passed.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.22",
+          "session": "installed-0.1.22-individual-check-111",
+          "timestamp": "2026-11-17T04:14:32Z",
+          "reference": "77a5eb5982bd179673373068d3e2c1c2ba7348a8:BCL-05:installed-check"
+        }
+      ],
+      "verification": "Installed 0.1.22 bcl verify of the exact AGENT-25 command echo 'Score AGENT-25 Her traits 0-2 with transcript evidence; close only at 12/12' exited 2 with 'stored verify command only prints or succeeds; record an actual check'; the disposable plan stayed pending and was not marked verified. Unit test test_verify_rejects_placeholder_and_mismatched_command passed.",
+      "verification_refs": [
+        "77a5eb5982bd179673373068d3e2c1c2ba7348a8:BCL-05:installed-check"
+      ]
     },
     {
       "id": "PAGE-17",
@@ -2875,7 +2909,7 @@
       "id": "BCL-06",
       "title": "Dependent work can be marked running before its prerequisite",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "The plan allows work to start even when another unfinished group is recorded as its prerequisite.",
       "impact": "Agents can work in the wrong order, repeat work, or build on an unfinished fix.",
@@ -2884,19 +2918,47 @@
       "observed": "Disposable tracker reproduction on 15 Nov: set-plan accepted group A as running and group B as running with depends_on A, returning exit 0. No live tracker was modified during the reproduction.",
       "details": {
         "Current status": "Source controls changed; the installed 0.1.19 behavior for this finding still needs an individual check."
-      }
+      },
+      "verification_evidence": [
+        {
+          "check": "Disposable tracker reproduction on installed 0.1.22: set-plan with group A running and group B running with depends_on A exited 2 with 'B must wait for verified dependencies: A'; the tracker bytes were unchanged. Unit test test_dependencies_block_early_work_and_cycles_but_allow_ready_work passed.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.22",
+          "session": "installed-0.1.22-individual-check-111",
+          "timestamp": "2026-11-17T04:14:32Z",
+          "reference": "77a5eb5982bd179673373068d3e2c1c2ba7348a8:BCL-06:installed-check"
+        }
+      ],
+      "verification": "Disposable tracker reproduction on installed 0.1.22: set-plan with group A running and group B running with depends_on A exited 2 with 'B must wait for verified dependencies: A'; the tracker bytes were unchanged. Unit test test_dependencies_block_early_work_and_cycles_but_allow_ready_work passed.",
+      "verification_refs": [
+        "77a5eb5982bd179673373068d3e2c1c2ba7348a8:BCL-06:installed-check"
+      ]
     },
     {
       "id": "FLOW-04",
       "title": "A fixed product-to-process quota can override dependency priority",
       "source": "User reported",
-      "status": "untested",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "The workflow prioritizes product findings over process findings by a fixed quota, even when the process work may unblock other issues.",
       "impact": "Important shared fixes can be delayed and agents may spend extra time coordinating around them.",
       "done_when": "Product and process work are prioritized by dependencies and impact, with bounded parallel work, and the reason for deferring a group is clear.",
       "recommendation": "Replace the blanket quota with dependency-aware prioritization and an explicit concurrency cap.",
-      "observed": "The user clarified on 15 Nov that both process and product issues should be tracked and dependency prerequisites fixed first. Current plan-fix guidance requires product work first and limits process fixes while product work is fixable."
+      "observed": "The user clarified on 15 Nov that both process and product issues should be tracked and dependency prerequisites fixed first. Current plan-fix guidance requires product work first and limits process fixes while product work is fixable.",
+      "verification_evidence": [
+        {
+          "check": "Installed 0.1.22 skill and plan-fix reference (77a5eb59) have no product-first quota. SKILL.md says 'Prioritize product and process work by dependencies and impact; run independent groups in bounded parallel lanes.' plan-fix.md Round rules prioritize prerequisites and high-impact work across product and process, defer blocked dependents with a reason, and cap parallel groups at 3-4 (and a group at about 4 issues). python3 -m unittest test_skill passed.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.22",
+          "session": "installed-0.1.22-individual-check-111",
+          "timestamp": "2026-11-17T04:15:48Z",
+          "reference": "77a5eb5982bd179673373068d3e2c1c2ba7348a8:FLOW-04:installed-check"
+        }
+      ],
+      "verification": "Installed 0.1.22 skill and plan-fix reference (77a5eb59) have no product-first quota. SKILL.md says 'Prioritize product and process work by dependencies and impact; run independent groups in bounded parallel lanes.' plan-fix.md Round rules prioritize prerequisites and high-impact work across product and process, defer blocked dependents with a reason, and cap parallel groups at 3-4 (and a group at about 4 issues). python3 -m unittest test_skill passed.",
+      "verification_refs": [
+        "77a5eb5982bd179673373068d3e2c1c2ba7348a8:FLOW-04:installed-check"
+      ]
     },
     {
       "id": "PAGE-18",
@@ -2953,12 +3015,26 @@
       "id": "BCL-08",
       "title": "Unplanned or parked issues can enter active work",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "summary": "An issue outside the current plan, or in a parked group, can be started.",
       "impact": "The tracker can give a misleading picture of progress.",
       "done_when": "Reject work on issues outside an eligible current-round lane.",
       "observed": "Source review: set-activity checks dependencies only for groups matching selected IDs.",
-      "recommendation": "Fix and test the owning tracker operation."
+      "recommendation": "Fix and test the owning tracker operation.",
+      "verification_evidence": [
+        {
+          "check": "Disposable tracker on installed 0.1.22: set-activity on a parked issue and an unplanned issue both exited 2 with 'work requires an eligible current-round plan group for every finding'; the tracker bytes were unchanged. Unit test test_activity_rejects_unplanned_or_parked_findings passed.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.22",
+          "session": "installed-0.1.22-individual-check-111",
+          "timestamp": "2026-11-17T04:14:32Z",
+          "reference": "77a5eb5982bd179673373068d3e2c1c2ba7348a8:BCL-08:installed-check"
+        }
+      ],
+      "verification": "Disposable tracker on installed 0.1.22: set-activity on a parked issue and an unplanned issue both exited 2 with 'work requires an eligible current-round plan group for every finding'; the tracker bytes were unchanged. Unit test test_activity_rejects_unplanned_or_parked_findings passed.",
+      "verification_refs": [
+        "77a5eb5982bd179673373068d3e2c1c2ba7348a8:BCL-08:installed-check"
+      ]
     },
     {
       "id": "PAGE-19",
@@ -3249,6 +3325,73 @@
       "done_when": "Run a fair matched comparison with complete end-to-end time and token accounting, independent acceptance, workflow-control checks, and independently checked HTML status accuracy.",
       "observed": "Existing OpenCode pilot reported six accepted pairs but was inconclusive on its primary endpoint and excluded verifier/orchestration tokens; rollover probes checked mechanics, not end-to-end delivery value.",
       "recommendation": "Use the existing evaluation workflow and harness; freeze cases, baseline, acceptance criteria and measurement boundaries before running."
+    },
+    {
+      "id": "BCL-22",
+      "title": "A lane can stay blocked after its source fix is already installed",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "high",
+      "summary": "A plan lane can remain marked blocked for leftover issue checks even after the source fix and tests are already on the installed build.",
+      "impact": "Finished work looks blocked for days, and the remaining checks are easy to skip.",
+      "done_when": "After a group's source is installed, remaining individual checks are an explicit next step rather than an unqualified blocked lane, and a completed check pass can clear that blocker.",
+      "observed": "CONTROL and DISPLAY stayed blocked with 'Individual issue checks pending' and 'Remaining issue checks pending' after batched-change-list 0.1.19-0.1.22 already contained the fixes and tests. BCL-06 details said the source had changed and the installed 0.1.19 behavior still needed an individual check. The lanes stayed blocked from 15 Nov 2026 18:32 IST until installed 0.1.22 checks for BCL-05, BCL-06, BCL-08 and PAGE-14 were recorded at 2026-11-17T04:14:32Z.",
+      "recommendation": "Distinguish code that has not landed from checks that are still pending, and drive or surface the remaining issue checks after install."
+    },
+    {
+      "id": "BCL-23",
+      "title": "An earlier Introspect record lets later rounds skip the pass",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "high",
+      "summary": "The tracker treats any existing Introspect record as enough to enter Report & roll over, even when that record is from an earlier cycle or round, and the skill still describes Introspect as an optional full-cycle step.",
+      "impact": "Later rounds can close without reviewing their own failures, retries, or leftover work, and the skill disagrees with the page, which shows Introspect in every round.",
+      "done_when": "Every cycle that reached Install records its own Introspect before the stage can return to Plan & fix or move to Report & roll over. The record is cleared or tagged by cycle number when a new cycle starts. The skill wording matches the page, which already shows Introspect in every round: SKILL.md line 24 changes 'After a full cycle' to 'After every round's Verify', and introspect.md deletes the 'full cycle' definition and the sentence that allows skipping Introspect for small follow-up cycles. SKILL.md line 13 already says the loop is Plan & fix → Install → Verify → Introspect → Gate.",
+      "observed": "On 17 Nov 2026, 111.json tracking.introspect still held only round 1's WF-07 record from 2026-11-14T17:10:56Z, after the 15 Nov 0.1.19-0.1.22 cycle and the 17 Nov CONTROL/DISPLAY unblock. manage_findings.py prepare_rollover (around line 787) and set-stage report_rollover (around line 1196) block only when tracking.introspect is missing, so the old record satisfied later rounds. Rollover is the only path that clears tracking.introspect (around line 818). Returning to Plan & fix does not require a current-cycle record. references/introspect.md still says to run Introspect only after a full cycle and to skip it for small follow-up cycles, while SKILL.md line 24 says 'After a full cycle' even though the page and SKILL.md line 13 already put Introspect in every round.",
+      "recommendation": "Require a current-cycle Introspect after Install before returning to Plan & fix or entering Report & roll over; clear or tag the record by cycle when a new cycle starts; change SKILL.md line 24 to 'After every round's Verify'; and delete the full-cycle definition and the small-follow-up-cycle skip from introspect.md."
+    },
+    {
+      "id": "WF-08",
+      "title": "Introspect 2026-11-17: Introspect recorded",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "Introspect recorded",
+      "recommendation": "Do the linked code issues: BCL-23, BCL-22",
+      "verification": "Inline items were done during Introspect.",
+      "details": {
+        "fixed_in": "Introspect"
+      },
+      "sections": {
+        "delete": {
+          "none": "The 15 Nov 0.1.19-0.1.22 work and the 17 Nov CONTROL/DISPLAY unblock did not leave unused product files on the #111 branch. Disposable reproductions stayed under /tmp. The product/process gate-split was dropped before any code was written."
+        },
+        "simplify": {
+          "none": "Today's unblock needed no code change: the installed 0.1.22 checks for BCL-05, BCL-06, BCL-08, PAGE-14 and FLOW-04 passed on the first attempt. Earlier simplification already landed in a8aaf883, and no failed retry or second review in these cycles justified further simplification."
+        },
+        "optimize": {
+          "none": "No retry or wrong-result path in the 15 Nov or 17 Nov work pointed to a product optimization that was not already logged (AGENT-26, AGENT-27, SEC-01, OBS-23, OBS-25)."
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "An earlier Introspect record lets later rounds skip the pass, and the skill still describes Introspect as an optional full-cycle step instead of every round.",
+              "evidence": "On 17 Nov 2026, 111.json tracking.introspect still held only round 1's WF-07 record from 2026-11-14T17:10:56Z, after the 15 Nov 0.1.19-0.1.22 cycle and the 17 Nov CONTROL/DISPLAY unblock. manage_findings.py blocks report_rollover and rollover only when tracking.introspect is missing (around lines 787 and 1196), and rollover is the only path that clears it (around line 818). SKILL.md line 24 says 'After a full cycle' and introspect.md allows skipping small follow-up cycles, while the page and SKILL.md line 13 already show Introspect in every round.",
+              "outcome": "issue",
+              "issue_id": "BCL-23"
+            },
+            {
+              "item": "A lane can stay blocked for leftover individual checks after its source fix is already on the installed build.",
+              "evidence": "CONTROL and DISPLAY stayed blocked with 'Individual issue checks pending' and 'Remaining issue checks pending' from 15 Nov 2026 18:32 IST until installed 0.1.22 checks for BCL-05, BCL-06, BCL-08 and PAGE-14 were recorded at 2026-11-17T04:14:32Z. The 0.1.19-0.1.22 source and tests were already on the branch; BCL-06 details had noted that the source changed and an individual check was still required.",
+              "outcome": "issue",
+              "issue_id": "BCL-22"
+            }
+          ]
+        }
+      },
+      "verification_refs": [
+        "BCL-23",
+        "BCL-22"
+      ]
     }
   ]
 }
