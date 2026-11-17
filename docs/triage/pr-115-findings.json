@@ -5475,9 +5475,9 @@
       }
     },
     "workflow": {
-      "stage": "present",
-      "updated_at": "2026-11-17T15:48:41Z",
-      "now": "2026-11-17T15:48:41Z — Started collection"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-17T15:49:31Z",
+      "now": "2026-11-17T15:49:31Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 114,
@@ -5689,148 +5689,55 @@
       }
     ],
     "plan": {
-      "round": 6,
-      "cycle": 6,
+      "round": 1,
+      "cycle": 7,
+      "status": "open",
       "groups": [
         {
-          "id": "PLANCAP",
-          "name": "Allow Luna max effort on current hard plan groups",
+          "id": "SKILL-REDESIGN",
+          "name": "Redesign the batched change list skill and its chart",
           "finding_ids": [
-            "PLAN-04"
+            "BCL-38"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "pr114-plancap",
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "samantha-pr115-rollover",
+          "reason": "Guru authorized one skill redesign so the always-needed rules stay in the skill file, the step workflow loads from references, the chart shows the real flow with Current and After as a toggle and verdict badges, and skill-creator plus skill-refine checks pass.",
           "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/references/plan-fix.md"
+            "plugins/batched-change-list/plugin.json",
+            "plugins/batched-change-list/CHANGELOG.md",
+            "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
+            "plugins/batched-change-list/skills/batched-change-list/statechart.html",
+            "plugins/batched-change-list/skills/batched-change-list/evals/evals.json",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/statechart.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_skill.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json",
+            "plugins/batched-change-list/skills/batched-change-list/references/gate.md",
+            "plugins/batched-change-list/skills/batched-change-list/references/report-rollover.md"
           ],
-          "reason": "validate_plan_groups currently rejects Codex effort max on current-round groups. Allow max for hard groups, keep the about-4-issues size cap, and update tests and plan-fix text.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "status": "passed",
-            "implementer_session": "01a1e9af-e5d7-78f3-bfdc-3667509769a3",
-            "reviewer_session": "01a1e9b6-9ef5-7801-89cf-2eb68faded50",
-            "review_status": "passed",
-            "one_file": false
+            "status": "pending"
           },
           "verify": {
-            "status": "verified",
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
-            "method": "A current non-deferred group with effort max must be accepted; a group with more than 4 issues must still be rejected. Tests and plan-fix text must match that rule.",
-            "fixed": 1,
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/verify-bcl38.sh",
+            "method": "Named tests, the strict shape check, and the eval benchmark must pass on the worktree and the installed copy.",
+            "summary": "Tests, shape check, and benchmark pass",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T13:53:06Z"
-        },
-        {
-          "id": "LEGACY",
-          "name": "Safe stop or migration for legacy viewers without instance identity",
-          "finding_ids": [
-            "BCL-04"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "pr114-legacy",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_live_state.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/serve.py"
-          ],
-          "reason": "Legacy 107/110/111 viewer records lack instance identity, so the new viewer refuses to restart them. Provide a verified ownership path to migrate or stop those viewers safely, then start the updated viewer on the correct list.",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "status": "passed",
-            "implementer_session": "01a1e9af-e5d6-77e0-a021-213a00036ce4",
-            "reviewer_session": "01a1e9b8-2fe5-7ae2-9cc5-d45f83996be7",
-            "review_status": "passed",
-            "one_file": false
-          },
-          "verify": {
-            "status": "verified",
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
-            "method": "Tests must show that a legacy viewer record without instance identity can be migrated or stopped only after ownership is verified, and that the updated viewer then starts and shows the correct list. Do not kill an unrelated process.",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "updated_at": "2026-11-17T13:53:06Z"
-        },
-        {
-          "id": "HERFIX",
-          "name": "Keep the typed session alive during confirm_risky, then retest AGENT-25",
-          "finding_ids": [
-            "AGENT-25"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "pr114-herfix",
-          "files": [
-            "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua"
-          ],
-          "reason": "The typed Her retest on ACU 0.2.148 scored 7/12 because T5 disconnected during confirm_risky (SSL bad record MAC) and her-check.txt was never created. Fix the disconnect during confirm, then rerun the typed Her-spec session. Spoken scoring is still out of scope.",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "status": "passed",
-            "implementer_session": "01a1e9af-e5b7-7842-879b-9cfbaa15ccb8",
-            "reviewer_session": "01a1e9b6-9eff-7291-b0cf-dd12487ef666",
-            "review_status": "passed",
-            "one_file": false
-          },
-          "verify": {
-            "status": "verified",
-            "command": "python3 /Users/gurusharan/.agents/artifacts/bcl-114/her-session/score-her.py",
-            "method": "First, tests must show a confirm_risky wait does not drop the typed session. Then rerun the typed Her-spec script on the installed ACU, score six traits 0-2 from the transcript, and mark verified_fixed only at 12/12. Spoken turns are not required.",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "updated_at": "2026-11-17T13:53:06Z"
-        },
-        {
-          "id": "EVALTOK",
-          "name": "Record OpenCode token counts in the matched EVAL-01 comparison",
-          "finding_ids": [
-            "EVAL-01"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "pr114-evaltok",
-          "files": [],
-          "reason": "The matched slugify comparison already has speed, control, and status accuracy, but OpenCode tokens were not recorded. Capture the token count from the existing OpenCode run if it is in the local OpenCode session store, otherwise rerun the same frozen case, and write tokens into the comparison and harness.",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "status": "passed",
-            "implementer_session": "01a1e9af-e5ed-7c13-8bbf-5b7eda2aab42",
-            "review_status": "passed",
-            "one_file": true
-          },
-          "verify": {
-            "status": "verified",
-            "command": "bash /Users/gurusharan/.agents/artifacts/bcl-114/eval/verify-existing.sh",
-            "method": "The stored matched comparison must include OpenCode and Codex token counts, plus wall time, test-file control, and status accuracy, on the same frozen slugify case. Leave EVAL-01 untested if tokens are still missing.",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "updated_at": "2026-11-17T13:53:06Z"
+          "updated_at": "2026-11-17T15:49:31Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "stages_reached": [
       "collect",
-      "present"
+      "present",
+      "plan_fix"
     ]
   },
   "findings": [
@@ -9026,7 +8933,7 @@
       "id": "BCL-38",
       "title": "Skill file mixes always-needed rules with the step workflow, and the chart does not show the real flow",
       "source": "User requested",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "The skill file repeats the workflow in a sentence and a list, while the rules that apply at every step are missing or written as bare commands. The chart only lists which file loads, not the loop, the gate, or which scripts run.",
       "impact": "An agent following the skill can miss the rules that apply at every step, load the wrong files, or treat the chart as the workflow when it is not. The skill also falls short of the usual skill-writing rules for descriptions, reasons, and behaviour tests.",
