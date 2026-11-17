@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "collect",
-      "updated_at": "2026-11-17T04:23:51Z",
-      "now": "2026-11-17T04:23:51Z — Started collection"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-17T04:25:45Z",
+      "now": "2026-11-17T04:25:45Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 111,
@@ -2170,118 +2170,95 @@
       }
     ],
     "plan": {
-      "round": 2,
+      "round": 1,
+      "cycle": 4,
       "groups": [
         {
-          "id": "CONTROL",
-          "name": "Dependency and proof controls",
+          "id": "RECORD",
+          "name": "Record Introspect every round",
           "finding_ids": [
-            "BCL-06",
-            "BCL-05",
-            "BCL-07",
-            "BCL-08"
+            "BCL-23",
+            "BCL-22"
           ],
           "depends_on": [],
-          "status": "verified",
-          "worktree": "samantha-pr111-rollover",
+          "status": "pending",
+          "phase": "fix",
+          "worktree": "samantha-pr112-rollover",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
-            "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
+            "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
+            "plugins/batched-change-list/skills/batched-change-list/references/introspect.md",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_skill.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/render.py"
           ],
-          "reason": "Repair verified dependencies and verification failures.",
+          "reason": "Top priority: require a per-round Introspect and stop lanes looking blocked after their source is already installed.",
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
-            "method": "Run behavior checks; installed verification remains required.",
-            "status": "verified",
-            "fixed": 4,
+            "method": "Unit tests plus a live-page check that a new round cannot reuse an earlier Introspect record.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
-            "total": 4
+            "total": 2
           },
-          "updated_at": "2026-11-17T04:14:32Z",
-          "blocked_reason": "Individual issue checks pending"
+          "updated_at": "2026-11-17T04:25:45Z"
         },
         {
-          "id": "DISPLAY",
-          "name": "Clear issue and workflow status",
+          "id": "CONFIRM",
+          "name": "Safe local confirms",
           "finding_ids": [
-            "PAGE-13",
-            "PAGE-14",
-            "PAGE-16",
-            "PAGE-17"
+            "AGENT-26",
+            "AGENT-27"
           ],
           "depends_on": [],
-          "status": "verified",
-          "worktree": "samantha-pr111-rollover",
+          "status": "pending",
+          "phase": "fix",
+          "worktree": "samantha-pr112-rollover",
           "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
-            "plugins/batched-change-list/skills/batched-change-list/templates/change-list.html",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_render.py"
+            "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua",
+            "plugins/agent-computer-use/runtime/voice-cua/tests"
           ],
-          "reason": "Make recorded and current states understandable.",
+          "reason": "High-impact product: safe local shells should not look risky, and a confirm timeout is never a no.",
           "verify": {
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
-            "status": "verified",
-            "fixed": 4,
-            "failed": 0,
-            "total": 4
+            "command": "python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p 'test_*.py'",
+            "method": "Unit tests plus a live or recorded session check of confirm_risky and confirm timeout.",
+            "status": "failed",
+            "fixed": 0,
+            "failed": 2,
+            "total": 2
           },
-          "updated_at": "2026-11-17T04:14:32Z",
-          "blocked_reason": "Remaining issue checks pending"
+          "updated_at": "2026-11-17T04:25:45Z"
         },
         {
-          "id": "GUIDANCE",
-          "name": "Prioritize dependencies",
+          "id": "SHELL",
+          "name": "Protected-path arithmetic",
           "finding_ids": [
-            "FLOW-04"
+            "SEC-01"
           ],
           "depends_on": [],
-          "status": "verified",
-          "worktree": "samantha-pr111-rollover",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
-            "plugins/batched-change-list/skills/batched-change-list/references/plan-fix.md"
-          ],
-          "reason": "Align the skill with dependency-first product and process work.",
-          "verify": {
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_skill.py'",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "updated_at": "2026-11-17T04:15:49Z"
-        },
-        {
-          "id": "IDENTITY",
-          "name": "Identify the running renderer",
-          "finding_ids": [
-            "PAGE-18"
-          ],
-          "depends_on": [
-            "DISPLAY"
-          ],
           "status": "deferred",
           "phase": "deferred",
-          "parked_to": 3,
-          "worktree": "samantha-pr111-rollover",
-          "reason": "Follow the status display work and viewer migration.",
+          "parked_to": 2,
+          "worktree": "samantha-pr112-rollover",
+          "files": [
+            "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua"
+          ],
+          "reason": "Likely shares the shell policy with AGENT-26; park until CONFIRM is verified.",
           "verify": {
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_serve.py'",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
+            "command": "python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p 'test_*.py'",
+            "method": "Unit tests plus a live check that arithmetic cannot hide a protected path.",
+            "status": "failed",
+            "fixed": 0,
+            "failed": 1,
             "total": 1
           },
-          "updated_at": "2026-11-15T10:41:27Z"
+          "updated_at": "2026-11-17T04:25:45Z"
         }
-      ],
-      "cycle": 3,
-      "status": "closed"
+      ]
     },
     "stages_reached": [
-      "collect"
+      "collect",
+      "plan_fix"
     ]
   },
   "findings": [
@@ -2614,7 +2591,8 @@
           "timestamp": "2026-11-14T16:55:59Z",
           "reference": "/tmp/pr111-page08.html; tracker PAGE-08 verification records the 10:25:59 PM IST plan transition"
         }
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "AGENT-26",
@@ -2632,7 +2610,8 @@
         "Session": "9463464a",
         "Build": "0.2.147",
         "Where to look": "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua (confirm_risky / shell_run policy)"
-      }
+      },
+      "carried_from": 111
     },
     {
       "id": "AGENT-27",
@@ -2650,7 +2629,8 @@
         "Session": "9463464a",
         "Build": "0.2.147",
         "Where to look": "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua (confirm timeout handling)"
-      }
+      },
+      "carried_from": 111
     },
     {
       "id": "WF-07",
@@ -2685,7 +2665,8 @@
       },
       "verification_refs": [
         "Introspect"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "PAGE-09",
@@ -2700,7 +2681,8 @@
       "details": {
         "Where to look": "plugins/batched-change-list/skills/batched-change-list/templates/change-list.html and scripts/render.py"
       },
-      "recommendation": "Show the issue outcome and its last recorded plan state separately."
+      "recommendation": "Show the issue outcome and its last recorded plan state separately.",
+      "carried_from": 111
     },
     {
       "id": "PAGE-10",
@@ -2715,7 +2697,8 @@
       "observed": "The user reported missing versions and requested the status and supporting reason for every version. PAGE-08 has an attributable viewer-candidate version; AGENT-25 has two recorded scored checks. Chrome review on 15 Nov: AGENT-26 and AGENT-27 show No verification result recorded even though their observed fields describe a failing live typed session on ACU 0.2.147. The page does not make those observations visible in the timeline.",
       "details": {
         "Where to look": "plugins/batched-change-list/skills/batched-change-list/scripts/render.py and templates/change-list.html"
-      }
+      },
+      "carried_from": 111
     },
     {
       "id": "SEC-01",
@@ -2727,7 +2710,8 @@
       "impact": "Samantha could read protected data without the required refusal.",
       "done_when": "Arithmetic cannot disguise a protected path, while simple numeric echo still runs without approval.",
       "recommendation": "Constrain the safe arithmetic exception to the specific harmless command.",
-      "observed": "Independent review reproduced a protected-token symlink named 2 being refused by cat 2 but allowed by cat $((1+1)); dummy data only."
+      "observed": "Independent review reproduced a protected-token symlink named 2 being refused by cat 2 but allowed by cat $((1+1)); dummy data only.",
+      "carried_from": 111
     },
     {
       "id": "PAGE-11",
@@ -2739,7 +2723,8 @@
       "impact": "The shared change list can be missing or out of date for reviewers.",
       "done_when": "The freshness hook rejects a staged tracker whose page is missing from the index.",
       "recommendation": "Check that the report is staged when its tracker is staged.",
-      "observed": "Independent review reproduced a passing freshness hook with a staged tracker and an untracked HTML report."
+      "observed": "Independent review reproduced a passing freshness hook with a staged tracker and an untracked HTML report.",
+      "carried_from": 111
     },
     {
       "id": "BCL-04",
@@ -2751,7 +2736,8 @@
       "impact": "The updated viewer cannot take over until the old one is stopped safely.",
       "done_when": "Existing viewers can be migrated or stopped with verified ownership, and the updated viewer starts and shows the correct list.",
       "recommendation": "Provide and verify a safe migration path for legacy viewer instances.",
-      "observed": "The 107, 110 and 111 viewer state records predate instance identity. The candidate refuses to signal them because the recorded PID alone is not proof of ownership."
+      "observed": "The 107, 110 and 111 viewer state records predate instance identity. The candidate refuses to signal them because the recorded PID alone is not proof of ownership.",
+      "carried_from": 111
     },
     {
       "id": "PAGE-12",
@@ -2763,7 +2749,8 @@
       "impact": "You cannot view current findings even though the server appears to be running.",
       "done_when": "The page loads while another browser connection remains idle.",
       "recommendation": "Allow independent page connections without blocking each other.",
-      "observed": "The user reported the page was not loading. The original local server accepted a connection but subsequent requests reset; a concurrent-server candidate returned HTTP 200 while an idle socket remained open."
+      "observed": "The user reported the page was not loading. The original local server accepted a connection but subsequent requests reset; a concurrent-server candidate returned HTTP 200 while an idle socket remained open.",
+      "carried_from": 111
     },
     {
       "id": "FLOW-03",
@@ -2775,7 +2762,8 @@
       "impact": "The count can suggest more fixes were delivered than actually were.",
       "done_when": "Introspection records are excluded from the fix threshold while real tracked fixes continue to count.",
       "recommendation": "Exclude the workflow review records from the rollover count.",
-      "observed": "The previous gate included each verified WF introspection record, including a clean review with no issues."
+      "observed": "The previous gate included each verified WF introspection record, including a clean review with no issues.",
+      "carried_from": 111
     },
     {
       "id": "PAGE-13",
@@ -2801,7 +2789,8 @@
       "verification": "Chrome on the installed 0.1.19 viewer showed AGENT-25 as Issue status: Untested and separately showed its last verification as Failing.",
       "verification_refs": [
         "af13e9f70a81d559e07a0292ed8ab84a9b95db08:PAGE-13:installed-check"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "PAGE-14",
@@ -2827,7 +2816,8 @@
       "verification": "Read of the live #111 page at http://127.0.0.1:53366/ served by installed 0.1.22 (pid 38807, instance 10915c957bbf4c5ea5a27bd0413d8b02). Heading is 'Workflow · last recorded' with a visible Stale tag (updated 2026-11-15T13:02:36Z, stale_after_min=10). Plan & fix, Install, Verify, and Introspect are all wf-step upcoming; none are current or busy. Issue pages label the plan as 'Plan (last recorded)'. Unit test test_status_v2_renders_stale_clock_parked_copy_and_phase_tracks passed.",
       "verification_refs": [
         "77a5eb5982bd179673373068d3e2c1c2ba7348a8:PAGE-14:installed-check"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "PAGE-15",
@@ -2839,7 +2829,8 @@
       "impact": "The page can suggest the installed product was verified when that proof is not recorded.",
       "done_when": "The label reflects the available evidence, or an installed-client verification is recorded.",
       "recommendation": "Review the existing proof and verify the installed client before claiming the fix is verified.",
-      "observed": "PLAN-03 is labeled verified_fixed; its verification text says plan-fix.md states the four-issue cap. This review did not find an installed-client verification record. The existing fixed status is preserved pending a controlled recheck."
+      "observed": "PLAN-03 is labeled verified_fixed; its verification text says plan-fix.md states the four-issue cap. This review did not find an installed-client verification record. The existing fixed status is preserved pending a controlled recheck.",
+      "carried_from": 111
     },
     {
       "id": "PAGE-16",
@@ -2865,7 +2856,8 @@
       "verification": "Chrome viewed the live tracker served by installed 0.1.19; four lane steps and their legend were visible.",
       "verification_refs": [
         "af13e9f70a81d559e07a0292ed8ab84a9b95db08:PAGE-16:installed-check"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "BCL-05",
@@ -2891,7 +2883,8 @@
       "verification": "Installed 0.1.22 bcl verify of the exact AGENT-25 command echo 'Score AGENT-25 Her traits 0-2 with transcript evidence; close only at 12/12' exited 2 with 'stored verify command only prints or succeeds; record an actual check'; the disposable plan stayed pending and was not marked verified. Unit test test_verify_rejects_placeholder_and_mismatched_command passed.",
       "verification_refs": [
         "77a5eb5982bd179673373068d3e2c1c2ba7348a8:BCL-05:installed-check"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "PAGE-17",
@@ -2917,7 +2910,8 @@
       "verification": "Chrome on the installed 0.1.19 viewer showed the 2/15 gate with an explicit note excluding completed introspection records and excluded issues, alongside the 3 verified fixed issue count.",
       "verification_refs": [
         "af13e9f70a81d559e07a0292ed8ab84a9b95db08:PAGE-17:installed-check"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "BCL-06",
@@ -2946,7 +2940,8 @@
       "verification": "Disposable tracker reproduction on installed 0.1.22: set-plan with group A running and group B running with depends_on A exited 2 with 'B must wait for verified dependencies: A'; the tracker bytes were unchanged. Unit test test_dependencies_block_early_work_and_cycles_but_allow_ready_work passed.",
       "verification_refs": [
         "77a5eb5982bd179673373068d3e2c1c2ba7348a8:BCL-06:installed-check"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "FLOW-04",
@@ -2972,7 +2967,8 @@
       "verification": "Installed 0.1.22 skill and plan-fix reference (77a5eb59) have no product-first quota. SKILL.md says 'Prioritize product and process work by dependencies and impact; run independent groups in bounded parallel lanes.' plan-fix.md Round rules prioritize prerequisites and high-impact work across product and process, defer blocked dependents with a reason, and cap parallel groups at 3-4 (and a group at about 4 issues). python3 -m unittest test_skill passed.",
       "verification_refs": [
         "77a5eb5982bd179673373068d3e2c1c2ba7348a8:FLOW-04:installed-check"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "PAGE-18",
@@ -2998,7 +2994,8 @@
       "verification": "Installed CLI started a managed disposable viewer reporting 0.1.19; the installed live tracker viewer also displayed 0.1.19 separately from inventory.",
       "verification_refs": [
         "af13e9f70a81d559e07a0292ed8ab84a9b95db08:PAGE-18:installed-check"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "BCL-07",
@@ -3023,7 +3020,8 @@
       "verification": "Installed CLI test suite passed: a failed verification marks its lane failed and its active check blocked while preserving the observation.",
       "verification_refs": [
         "af13e9f70a81d559e07a0292ed8ab84a9b95db08:BCL-07:installed-cli-suite"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "BCL-08",
@@ -3048,7 +3046,8 @@
       "verification": "Disposable tracker on installed 0.1.22: set-activity on a parked issue and an unplanned issue both exited 2 with 'work requires an eligible current-round plan group for every finding'; the tracker bytes were unchanged. Unit test test_activity_rejects_unplanned_or_parked_findings passed.",
       "verification_refs": [
         "77a5eb5982bd179673373068d3e2c1c2ba7348a8:BCL-08:installed-check"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "PAGE-19",
@@ -3059,7 +3058,8 @@
       "impact": "The tracker can give a misleading picture of progress.",
       "done_when": "Refresh the activity clock when a lane changes, without treating issue edits as workflow progress.",
       "observed": "Source review: update-plan-group stamps the group, while render uses workflow.updated_at.",
-      "recommendation": "Fix and test the owning tracker operation."
+      "recommendation": "Fix and test the owning tracker operation.",
+      "carried_from": 111
     },
     {
       "id": "PAGE-20",
@@ -3070,7 +3070,8 @@
       "impact": "The page can present an uncertain result as the last verification.",
       "done_when": "Show the latest dated result and disclose when undated results cannot be ordered.",
       "observed": "Source review: unknown timestamps sort behind dated checks; the page labels the first result latest.",
-      "recommendation": "Distinguish unknown chronology when rendering verification history."
+      "recommendation": "Distinguish unknown chronology when rendering verification history.",
+      "carried_from": 111
     },
     {
       "id": "BCL-09",
@@ -3095,7 +3096,8 @@
       "verification": "Exact open PR candidate installed via existing Codex marketplace selector; installed identity and isolated CLI/HTTP probe passed.",
       "verification_refs": [
         "af13e9f70a81d559e07a0292ed8ab84a9b95db08:BCL-09:installed-check"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "BCL-10",
@@ -3106,7 +3108,8 @@
       "impact": "Work may continue based on a prerequisite that no longer holds.",
       "done_when": "Record the prerequisite change and block affected active dependents with a clear reason.",
       "observed": "Source review: dependency checks run when plan or activity changes but do not invalidate an already active dependent when the prerequisite finding changes.",
-      "recommendation": "Update dependent lane state when prerequisite evidence becomes invalid."
+      "recommendation": "Update dependent lane state when prerequisite evidence becomes invalid.",
+      "carried_from": 111
     },
     {
       "id": "BCL-11",
@@ -3117,7 +3120,8 @@
       "impact": "A finding or status change may disappear from the tracker.",
       "done_when": "Serialize tracker writes and reject conflicting changes without losing either update.",
       "observed": "Source review: atomic_write checks original bytes before os.replace but does not hold a cross-process lock across the read and replacement.",
-      "recommendation": "Protect all tracker read-modify-write operations with a shared lock and test competing writers."
+      "recommendation": "Protect all tracker read-modify-write operations with a shared lock and test competing writers.",
+      "carried_from": 111
     },
     {
       "id": "BCL-12",
@@ -3128,7 +3132,8 @@
       "impact": "A committed page can show a status that does not match its tracker.",
       "done_when": "Snapshot a single consistent tracker revision and serialize paired snapshot commits.",
       "observed": "Source review: live_state.snapshot renders from the tracker and reads its JSON separately outside the tracker write lock.",
-      "recommendation": "Use a consistent captured tracker revision and coordinate snapshot writes."
+      "recommendation": "Use a consistent captured tracker revision and coordinate snapshot writes.",
+      "carried_from": 111
     },
     {
       "id": "BCL-13",
@@ -3142,7 +3147,8 @@
       "recommendation": "Implement and run Windows-specific locking and concurrency tests.",
       "details": {
         "Source check": "Candidate implements Unix and Windows lock paths; Windows behavior has only mocked tests and still requires a real Windows concurrency test."
-      }
+      },
+      "carried_from": 111
     },
     {
       "id": "BCL-14",
@@ -3153,7 +3159,8 @@
       "impact": "The fix gate can imply completion before current verification is complete.",
       "done_when": "Count a fix only when its current verification state supports it, while preserving prior results.",
       "observed": "Source review: a finding can retain verified_fixed during an active or inconclusive recheck; rollover_gate counts status alone.",
-      "recommendation": "Make gate eligibility reflect the current check state."
+      "recommendation": "Make gate eligibility reflect the current check state.",
+      "carried_from": 111
     },
     {
       "id": "BCL-15",
@@ -3164,7 +3171,8 @@
       "impact": "The page and committed tracker can look current when a newer update exists.",
       "done_when": "Coordinate snapshot completion with tracker writes so later changes remain detectable.",
       "observed": "Independent source review: the final live read and unsnapshotted-marker removal use a different lock from tracker mutation.",
-      "recommendation": "Use a shared tracker lock and test the exact interleaving."
+      "recommendation": "Use a shared tracker lock and test the exact interleaving.",
+      "carried_from": 111
     },
     {
       "id": "BCL-16",
@@ -3193,7 +3201,8 @@
       "verification": "Installed 0.1.20 passed plan/finding writer contention, changed-prerequisite, and plan-change-before-spawn scenarios; direct JSON edits and duplicate verify starts remain outside this check.",
       "verification_refs": [
         "dc519243fa90d83231c8d655a41dd37f30bfdfd9:BCL-16:installed-cli-suite"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "BCL-17",
@@ -3221,7 +3230,8 @@
       "verification": "Installed CLI test suite passed: an unrelated lane change does not prevent recording failure; a concurrently changed selected lane is not overwritten, and an unchanged selected lane is still marked failed.",
       "verification_refs": [
         "af13e9f70a81d559e07a0292ed8ab84a9b95db08:BCL-17:installed-cli-suite"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "AGENT-28",
@@ -3235,7 +3245,8 @@
       "recommendation": "Rerun the specific test after the full gate and investigate if it repeats.",
       "details": {
         "Focused rerun": "python3 plugins/agent-computer-use/skills/macos-cua/tests/test_claude_hook.py passed 20 tests in isolation after full-gate failure; full gate still needs a clean rerun."
-      }
+      },
+      "carried_from": 111
     },
     {
       "id": "AGENT-29",
@@ -3246,7 +3257,8 @@
       "impact": "The repository gate can fail while checking the status display.",
       "done_when": "Establish why the timing check fails under full-suite load and verify its behavior reliably.",
       "observed": "Full scripts/check.py failed IslandGateColdStartTests.testSubmitColdStartShowsWakingThenSucceeds; focused swift test rerun passed.",
-      "recommendation": "Investigate timing and scheduling in the owning test and runtime."
+      "recommendation": "Investigate timing and scheduling in the owning test and runtime.",
+      "carried_from": 111
     },
     {
       "id": "BCL-18",
@@ -3257,7 +3269,8 @@
       "impact": "A viewer process could be handled incorrectly on that platform.",
       "done_when": "Use and verify a non-destructive Windows liveness and ownership check.",
       "observed": "Source review: live_state.py uses os.kill(pid, 0) for liveness; native Windows behavior was not tested.",
-      "recommendation": "Implement a Windows-safe process identity check and validate on Windows."
+      "recommendation": "Implement a Windows-safe process identity check and validate on Windows.",
+      "carried_from": 111
     },
     {
       "id": "BCL-19",
@@ -3268,7 +3281,8 @@
       "impact": "Lane progress and verification failures can conflict or be left incomplete.",
       "done_when": "Reject overlapping active lane assignments and retain valid future-round plans.",
       "observed": "Independent review: set-plan accepts the same finding in multiple groups; an update to one may invalidate the other group’s failure precondition.",
-      "recommendation": "Validate unique current-round lane assignment before work starts."
+      "recommendation": "Validate unique current-round lane assignment before work starts.",
+      "carried_from": 111
     },
     {
       "id": "BCL-20",
@@ -3298,7 +3312,8 @@
       "verification": "Release succeeded through the existing ingpoc-agent-plugins selector; Codex reports 0.1.19 installed and enabled, and installed identity matched the PR candidate.",
       "verification_refs": [
         "af13e9f70a81d559e07a0292ed8ab84a9b95db08:BCL-20:installed-check"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "BCL-21",
@@ -3327,7 +3342,8 @@
       "verification": "Installed 0.1.21 test ran competing verification requests: the second was rejected while the first verifier updated the tracker. OS lock crash-release passed on macOS; Windows remains mocked only.",
       "verification_refs": [
         "841f0f26c944a3a2ffcba116bf020a2c15f325e8:BCL-21:installed-cli"
-      ]
+      ],
+      "carried_from": 111
     },
     {
       "id": "EVAL-01",
@@ -3338,7 +3354,8 @@
       "impact": "Passing plugin tests alone cannot show that the workflow improves real feature delivery.",
       "done_when": "Run a fair matched comparison with complete end-to-end time and token accounting, independent acceptance, workflow-control checks, and independently checked HTML status accuracy.",
       "observed": "Existing OpenCode pilot reported six accepted pairs but was inconclusive on its primary endpoint and excluded verifier/orchestration tokens; rollover probes checked mechanics, not end-to-end delivery value.",
-      "recommendation": "Use the existing evaluation workflow and harness; freeze cases, baseline, acceptance criteria and measurement boundaries before running."
+      "recommendation": "Use the existing evaluation workflow and harness; freeze cases, baseline, acceptance criteria and measurement boundaries before running.",
+      "carried_from": 111
     },
     {
       "id": "BCL-22",
@@ -3350,7 +3367,8 @@
       "impact": "Finished work looks blocked for days, and the remaining checks are easy to skip.",
       "done_when": "After a group's source is installed, remaining individual checks are an explicit next step rather than an unqualified blocked lane, and a completed check pass can clear that blocker.",
       "observed": "CONTROL and DISPLAY stayed blocked with 'Individual issue checks pending' and 'Remaining issue checks pending' after batched-change-list 0.1.19-0.1.22 already contained the fixes and tests. BCL-06 details said the source had changed and the installed 0.1.19 behavior still needed an individual check. The lanes stayed blocked from 15 Nov 2026 18:32 IST until installed 0.1.22 checks for BCL-05, BCL-06, BCL-08 and PAGE-14 were recorded at 2026-11-17T04:14:32Z.",
-      "recommendation": "Distinguish code that has not landed from checks that are still pending, and drive or surface the remaining issue checks after install."
+      "recommendation": "Distinguish code that has not landed from checks that are still pending, and drive or surface the remaining issue checks after install.",
+      "carried_from": 111
     },
     {
       "id": "BCL-23",
@@ -3362,7 +3380,8 @@
       "impact": "Later rounds can close without reviewing their own failures, retries, or leftover work, and the skill disagrees with the page, which shows Introspect in every round.",
       "done_when": "Every cycle that reached Install records its own Introspect before the stage can return to Plan & fix or move to Report & roll over. The record is cleared or tagged by cycle number when a new cycle starts. The skill wording matches the page, which already shows Introspect in every round: SKILL.md line 24 changes 'After a full cycle' to 'After every round's Verify', and introspect.md deletes the 'full cycle' definition and the sentence that allows skipping Introspect for small follow-up cycles. SKILL.md line 13 already says the loop is Plan & fix → Install → Verify → Introspect → Gate.",
       "observed": "On 17 Nov 2026, 111.json tracking.introspect still held only round 1's WF-07 record from 2026-11-14T17:10:56Z, after the 15 Nov 0.1.19-0.1.22 cycle and the 17 Nov CONTROL/DISPLAY unblock. manage_findings.py prepare_rollover (around line 787) and set-stage report_rollover (around line 1196) block only when tracking.introspect is missing, so the old record satisfied later rounds. Rollover is the only path that clears tracking.introspect (around line 818). Returning to Plan & fix does not require a current-cycle record. references/introspect.md still says to run Introspect only after a full cycle and to skip it for small follow-up cycles, while SKILL.md line 24 says 'After a full cycle' even though the page and SKILL.md line 13 already put Introspect in every round.",
-      "recommendation": "Require a current-cycle Introspect after Install before returning to Plan & fix or entering Report & roll over; clear or tag the record by cycle when a new cycle starts; change SKILL.md line 24 to 'After every round's Verify'; and delete the full-cycle definition and the small-follow-up-cycle skip from introspect.md."
+      "recommendation": "Require a current-cycle Introspect after Install before returning to Plan & fix or entering Report & roll over; clear or tag the record by cycle when a new cycle starts; change SKILL.md line 24 to 'After every round's Verify'; and delete the full-cycle definition and the small-follow-up-cycle skip from introspect.md.",
+      "carried_from": 111
     },
     {
       "id": "WF-08",
@@ -3405,7 +3424,8 @@
       "verification_refs": [
         "BCL-23",
         "BCL-22"
-      ]
+      ],
+      "carried_from": 111
     }
   ]
 }
