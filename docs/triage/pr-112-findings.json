@@ -2746,9 +2746,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-17T09:21:41Z",
-      "now": "2026-11-17T09:21:41Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-17T09:24:59Z",
+      "now": "2026-11-17T09:24:59Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 111,
@@ -2890,8 +2890,8 @@
             "BCL-33"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "fix",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "pr112-shape",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
@@ -2904,12 +2904,12 @@
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
             "method": "Unit tests plus skill_shape.py --strict: When→load table, accepted statechart hash, and check_*.py no longer orphans.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T09:17:04Z",
+          "updated_at": "2026-11-17T09:24:20Z",
           "codex": {
             "implementer_session": "01a1e8bd-3fa2-7ba0-a768-16d6e8ff1afe",
             "implementer": "luna",
@@ -2921,7 +2921,7 @@
             "reviewer_verdict": "request-changes",
             "review_status": "passed",
             "status": "running",
-            "updated_at": "2026-11-17T09:17:04Z"
+            "updated_at": "2026-11-17T09:24:20Z"
           }
         },
         {
@@ -2931,8 +2931,8 @@
             "BCL-32"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "fix",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "pr112-probe",
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -2942,12 +2942,12 @@
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
             "method": "Unit test that a non-probe ensure_viewer OSError is reported with its actual cause.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T09:17:04Z",
+          "updated_at": "2026-11-17T09:24:20Z",
           "codex": {
             "implementer_session": "01a1e8bd-3fa2-70a3-9ffe-cb225b8b6d41",
             "implementer": "luna",
@@ -2959,10 +2959,11 @@
             "reviewer_verdict": "request-changes",
             "review_status": "passed",
             "status": "running",
-            "updated_at": "2026-11-17T09:17:04Z"
+            "updated_at": "2026-11-17T09:24:20Z"
           }
         }
-      ]
+      ],
+      "status": "closed"
     },
     "stages_reached": [
       "collect",
@@ -3178,82 +3179,84 @@
           "state": "pending"
         },
         "BCL-32": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Installed batched-change-list 0.1.29 at cbb842f075537ee3ca0c8587c45d152d555887ec is present in ~/.agents/plugins and skills (plugin.json 0.1.29, 48 files, sha256 d1a9987fc702d8dfc24d7c963f4a4fba05f8cb8a406ede47b7531696f1563f0f). Findings are still in_progress.",
           "observed_at": "2026-11-17T09:21:35Z",
           "started_at": "2026-11-17T09:21:35Z",
-          "updated_at": "2026-11-17T09:21:35Z"
+          "updated_at": "2026-11-17T09:21:35Z",
+          "evidence": "Installed bcl 0.1.29 at cbb842f075537ee3ca0c8587c45d152d555887ec. Stored worktree command passed: 211 tests OK in 63.580s at 2026-11-17T09:22:44Z. Installed copy: 211 tests OK in 63.548s at 2026-11-17T09:23:58Z. Terra r1 requested two P2s; those were fixed in aa2fda2f with no second review.",
+          "finished_at": "2026-11-17T09:24:20Z"
         },
         "BCL-33": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Installed batched-change-list 0.1.29 at cbb842f075537ee3ca0c8587c45d152d555887ec is present in ~/.agents/plugins and skills (plugin.json 0.1.29, 48 files, sha256 d1a9987fc702d8dfc24d7c963f4a4fba05f8cb8a406ede47b7531696f1563f0f). Findings are still in_progress.",
           "observed_at": "2026-11-17T09:21:35Z",
           "started_at": "2026-11-17T09:21:35Z",
-          "updated_at": "2026-11-17T09:21:35Z"
+          "updated_at": "2026-11-17T09:21:35Z",
+          "evidence": "Installed bcl 0.1.29 at cbb842f075537ee3ca0c8587c45d152d555887ec. Stored worktree command passed: 211 tests OK in 63.580s at 2026-11-17T09:22:44Z. Installed copy: 211 tests OK in 63.548s at 2026-11-17T09:23:58Z. skill_shape.py --strict PASS on the installed skill; workflow_map.py --no-write-html exit 0. SKILL.md is 1528 bytes vs the 1252-byte baseline. Terra r1 requested two P2s; those were fixed in ab4ec2f7 with no second review.",
+          "finished_at": "2026-11-17T09:24:20Z"
         },
         "WF-11": {
+          "state": "pending"
+        },
+        "BCL-34": {
+          "state": "pending"
+        },
+        "WF-12": {
           "state": "pending"
         }
       }
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-17T09:00:01Z",
-      "task": "WF-11",
+      "at": "2026-11-17T09:24:59Z",
+      "task": "WF-12",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 3",
-        "Codex write: CLI",
-        "Codex review: CLI",
-        "Polling and rework review: CLI",
-        "Test command: CLI: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
-        "Codex write: CHART",
-        "Codex review: CHART",
-        "Polling and rework review: CHART",
-        "Test command: CHART: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
-        "Codex write: FREEZE",
-        "Codex review: FREEZE",
-        "Polling and rework review: FREEZE",
-        "Test command: FREEZE: python3 -m unittest discover -s scripts -p 'test_check_triage_renders.py'",
-        "skill-refine --strict fails on the shipped 0.1.27 skill"
+        "Parallel group count: 2",
+        "Codex write: SHAPE",
+        "Codex review: SHAPE",
+        "Polling and rework review: SHAPE",
+        "Test command: SHAPE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
+        "Codex write: PROBE",
+        "Codex review: PROBE",
+        "Polling and rework review: PROBE",
+        "Test command: PROBE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
+        "Next plan after Introspect kept tracking.round at 2"
       ],
       "none": [
         "Stage: Plan & fix",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 3",
-        "Codex write: CLI",
-        "Codex review: CLI",
-        "Polling and rework review: CLI",
-        "Test command: CLI: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
-        "Codex write: CHART",
-        "Codex review: CHART",
-        "Polling and rework review: CHART",
-        "Test command: CHART: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
-        "Codex write: FREEZE",
-        "Codex review: FREEZE",
-        "Polling and rework review: FREEZE",
-        "Test command: FREEZE: python3 -m unittest discover -s scripts -p 'test_check_triage_renders.py'"
+        "Parallel group count: 2",
+        "Codex write: SHAPE",
+        "Codex review: SHAPE",
+        "Polling and rework review: SHAPE",
+        "Test command: SHAPE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
+        "Codex write: PROBE",
+        "Codex review: PROBE",
+        "Polling and rework review: PROBE",
+        "Test command: PROBE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'"
       ],
       "sections": {
         "delete": {
-          "none": "No extra closeout steps or dead checks were left to remove after CLI, CHART, and FREEZE merged into one 0.1.27 install."
+          "none": "The 0.1.28 package bump was superseded by 0.1.29 for the chart P2s and shipped together; no leftover closeout steps were deleted."
         },
         "simplify": {
-          "none": "The CHANGELOG 0.1.27 collision from CLI and CHART was resolved at merge by keeping both bullets. No further simplification this closeout."
+          "none": "SKILL.md grew from 1252 to 1528 bytes for the numbered path and trigger table, still well under the strict body limit. No further simplification this closeout."
         },
         "optimize": {
-          "none": "Worktree and installed suites were already run serially outside the Codex sandbox after sandbox viewer binds failed. Long waits already replaced polling."
+          "none": "The stored worktree suite and the installed-copy suite were already run serially as install proof, with skill_shape --strict and workflow_map on the installed skill."
         },
         "automate": {
           "items": [
             {
-              "item": "skill-refine --strict fails on the shipped 0.1.27 skill",
-              "evidence": "On 17 Nov 2026 at 14:29 IST, skill_shape.py --strict failed on the #112 0.1.27 skill and the 0.1.26 backup: no When→load trigger table. The 0.1.27 statechart.html also failed as stale (source hash mismatch). workflow_map.py exited 1 with no numbered steps in SKILL.md. check_gate_count.py, check_install_sessions.py, and check_introspect.py were orphans. Filed as BCL-33; not fixed in this closeout.",
+              "item": "Next plan after Introspect kept tracking.round at 2",
+              "evidence": "On 17 Nov 2026 at 14:30 IST, after WF-11, a new plan written as round 3 was stored with tracking.round 2 and plan.round 2, so SHAPE and PROBE shared the recorded round with the earlier CLI, CHART, and FREEZE work. Filed as BCL-34; not fixed in this closeout.",
               "outcome": "issue",
-              "issue_id": "BCL-33"
+              "issue_id": "BCL-34"
             }
           ]
         }
@@ -4877,25 +4880,53 @@
       "id": "BCL-32",
       "title": "bcl labels every viewer setup OSError as a PID probe failure",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "low",
       "summary": "ensure_viewer catches every OSError and reports it as a viewer PID probe failure, including directory, metadata, socket, and startup errors.",
       "impact": "A real setup failure can be mislabeled, which makes the one-line cause harder to trust.",
       "done_when": "Errors from creating state, writing viewer metadata, binding a socket, or starting the viewer are reported with their actual cause, and only a PID probe failure is labeled as such. A unit test covers a non-probe OSError.",
       "observed": "Terra review 01a1e8aa-60e7-79d3-a94a-0594982eb25d of 23caf5c0 (14:11 IST 17 Nov 2026) approved BCL-28 and BCL-29 with this non-blocking nit in bin/bcl around line 21. No second review.",
-      "recommendation": "Catch and label PID probe errors separately from other ensure_viewer OSError cases."
+      "recommendation": "Catch and label PID probe errors separately from other ensure_viewer OSError cases.",
+      "verification_evidence": [
+        {
+          "check": "Installed bcl 0.1.29 at cbb842f075537ee3ca0c8587c45d152d555887ec. Stored worktree command passed: 211 tests OK in 63.580s at 2026-11-17T09:22:44Z. Installed copy: 211 tests OK in 63.548s at 2026-11-17T09:23:58Z. Terra r1 requested two P2s; those were fixed in aa2fda2f with no second review.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.29",
+          "session": "installed-0.1.29-verify-112",
+          "timestamp": "2026-11-17T09:24:20Z",
+          "reference": "cbb842f075537ee3ca0c8587c45d152d555887ec:BCL-32:installed-cli-suite"
+        }
+      ],
+      "verification": "Installed bcl 0.1.29 at cbb842f075537ee3ca0c8587c45d152d555887ec. Stored worktree command passed: 211 tests OK in 63.580s at 2026-11-17T09:22:44Z. Installed copy: 211 tests OK in 63.548s at 2026-11-17T09:23:58Z. Terra r1 requested two P2s; those were fixed in aa2fda2f with no second review.",
+      "verification_refs": [
+        "cbb842f075537ee3ca0c8587c45d152d555887ec:BCL-32:installed-cli-suite"
+      ]
     },
     {
       "id": "BCL-33",
       "title": "skill-refine --strict fails: no When→load table, and statechart.html is stale",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "Follow-up to BCL-25 and BCL-27 (and BCL-30's chart). skill-refine's strict shape check still fails on the batched-change-list skill: SKILL.md uses trigger bullets instead of a When→load table, statechart.html is stale under skill-refine's source hash, workflow_map cannot run without numbered steps, and check_*.py scripts are orphans.",
       "impact": "A compact skill can ship while failing the strict authoring gate, so editors cannot trust the trigger map or the generated chart, and workflow_map cannot close out.",
       "done_when": "SKILL.md has a When→load trigger table naming every references/*.md. statechart.html is generated from workflow_definition.json in a form skill-refine accepts (data-source-hash matches SKILL.md plus references/), or the workflow_map numbered-steps gap is an explicit open item. check_gate_count.py, check_install_sessions.py, and check_introspect.py are named in SKILL.md and are not orphans. skill_shape.py --strict passes, covered by a unit test.",
       "observed": "On 17 Nov 2026 at 14:29 IST, skill_shape.py --strict on the #112 0.1.27 skill (and the 0.1.26 backup) failed with no When→load trigger table. The 0.1.27 statechart.html also failed as stale (source hash mismatch: the chart embeds meta skill-sha256, not data-source-hash). workflow_map.py exited 1 with no numbered steps in SKILL.md. check_gate_count.py, check_install_sessions.py, and check_introspect.py were reported as orphans.",
-      "recommendation": "Replace the trigger bullets with a When→load table (stay at or under 5 table body rows, or use When → load lines). Teach scripts/statechart.py to emit a skill-refine-accepted chart from workflow_definition.json, or add a compact numbered critical path so workflow_map can run; otherwise file that as an open item. Name the three check_*.py scripts in SKILL.md."
+      "recommendation": "Replace the trigger bullets with a When→load table (stay at or under 5 table body rows, or use When → load lines). Teach scripts/statechart.py to emit a skill-refine-accepted chart from workflow_definition.json, or add a compact numbered critical path so workflow_map can run; otherwise file that as an open item. Name the three check_*.py scripts in SKILL.md.",
+      "verification_evidence": [
+        {
+          "check": "Installed bcl 0.1.29 at cbb842f075537ee3ca0c8587c45d152d555887ec. Stored worktree command passed: 211 tests OK in 63.580s at 2026-11-17T09:22:44Z. Installed copy: 211 tests OK in 63.548s at 2026-11-17T09:23:58Z. skill_shape.py --strict PASS on the installed skill; workflow_map.py --no-write-html exit 0. SKILL.md is 1528 bytes vs the 1252-byte baseline. Terra r1 requested two P2s; those were fixed in ab4ec2f7 with no second review.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.29",
+          "session": "installed-0.1.29-verify-112",
+          "timestamp": "2026-11-17T09:24:20Z",
+          "reference": "cbb842f075537ee3ca0c8587c45d152d555887ec:BCL-33:installed-cli-suite"
+        }
+      ],
+      "verification": "Installed bcl 0.1.29 at cbb842f075537ee3ca0c8587c45d152d555887ec. Stored worktree command passed: 211 tests OK in 63.580s at 2026-11-17T09:22:44Z. Installed copy: 211 tests OK in 63.548s at 2026-11-17T09:23:58Z. skill_shape.py --strict PASS on the installed skill; workflow_map.py --no-write-html exit 0. SKILL.md is 1528 bytes vs the 1252-byte baseline. Terra r1 requested two P2s; those were fixed in ab4ec2f7 with no second review.",
+      "verification_refs": [
+        "cbb842f075537ee3ca0c8587c45d152d555887ec:BCL-33:installed-cli-suite"
+      ]
     },
     {
       "id": "WF-11",
@@ -4968,6 +4999,83 @@
       },
       "verification_refs": [
         "BCL-33"
+      ]
+    },
+    {
+      "id": "BCL-34",
+      "title": "The next plan after Introspect keeps the current tracking.round",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "summary": "After a current-round Introspect, starting the next plan does not increment tracking.round or plan.round, so two fix cycles can share one round number and the later Introspect can overwrite the earlier round's coverage pointer.",
+      "impact": "Introspect history for a cycle can collapse two plans into one round, and coverage checks can look at the wrong plan groups.",
+      "done_when": "Starting a new plan after a current-round Introspect increments tracking.round and plan.round. A unit test covers a post-Introspect plan that must be recorded on the next round.",
+      "observed": "On 17 Nov 2026 at 14:30 IST, after WF-11, a new plan written as round 3 was stored with tracking.round 2 and plan.round 2. SHAPE and PROBE then ran in the same recorded round as the earlier CLI, CHART, and FREEZE work.",
+      "recommendation": "When set-plan or set-activity returns to plan_fix after a current-round Introspect, increment the round before storing the new plan."
+    },
+    {
+      "id": "WF-12",
+      "title": "Introspect 2026-11-17: Introspect recorded",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "Introspect recorded",
+      "recommendation": "Do the linked code issues: BCL-34",
+      "verification": "Inline items were done during Introspect.",
+      "details": {
+        "fixed_in": "Introspect"
+      },
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 2",
+        "Codex write: SHAPE",
+        "Codex review: SHAPE",
+        "Polling and rework review: SHAPE",
+        "Test command: SHAPE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
+        "Codex write: PROBE",
+        "Codex review: PROBE",
+        "Polling and rework review: PROBE",
+        "Test command: PROBE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
+        "Next plan after Introspect kept tracking.round at 2"
+      ],
+      "none": [
+        "Stage: Plan & fix",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 2",
+        "Codex write: SHAPE",
+        "Codex review: SHAPE",
+        "Polling and rework review: SHAPE",
+        "Test command: SHAPE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
+        "Codex write: PROBE",
+        "Codex review: PROBE",
+        "Polling and rework review: PROBE",
+        "Test command: PROBE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'"
+      ],
+      "sections": {
+        "delete": {
+          "none": "The 0.1.28 package bump was superseded by 0.1.29 for the chart P2s and shipped together; no leftover closeout steps were deleted."
+        },
+        "simplify": {
+          "none": "SKILL.md grew from 1252 to 1528 bytes for the numbered path and trigger table, still well under the strict body limit. No further simplification this closeout."
+        },
+        "optimize": {
+          "none": "The stored worktree suite and the installed-copy suite were already run serially as install proof, with skill_shape --strict and workflow_map on the installed skill."
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "Next plan after Introspect kept tracking.round at 2",
+              "evidence": "On 17 Nov 2026 at 14:30 IST, after WF-11, a new plan written as round 3 was stored with tracking.round 2 and plan.round 2, so SHAPE and PROBE shared the recorded round with the earlier CLI, CHART, and FREEZE work. Filed as BCL-34; not fixed in this closeout.",
+              "outcome": "issue",
+              "issue_id": "BCL-34"
+            }
+          ]
+        }
+      },
+      "verification_refs": [
+        "BCL-34"
       ]
     }
   ]
