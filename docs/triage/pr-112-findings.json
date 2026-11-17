@@ -2262,6 +2262,235 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "acu-0.2.148-19a7f1e7-112",
+        "build": "agent-computer-use 0.2.148",
+        "revision": "19a7f1e7989eaaa552670d20c66ddacc591026c5",
+        "installed_at": "2026-11-17T08:22:20Z",
+        "install_evidence": "Copied worktree plugin 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5 to ~/.agents/plugins/agent-computer-use and Codex/Cursor caches at 0.2.148 and 19a7f1e7989eaaa552670d20c66ddacc591026c5. 441 files, sha256 94377115f6c96b9886a713fe6d0eea0a620749ae8228b2d6cb302b2f59840bb6. Backup /tmp/acu-install-0.2.148-backup-20261117-135220. bcl install AGENT-26 AGENT-27 exited 0. The signed /Applications/Agent Computer Use.app was not rebuilt and remains 0.2.146.",
+        "status": "interrupted",
+        "checks": {
+          "AUTO-03": {
+            "state": "pending"
+          },
+          "AUTO-04": {
+            "state": "pending"
+          },
+          "AUTO-05": {
+            "state": "pending"
+          },
+          "AUTO-06": {
+            "state": "pending"
+          },
+          "BCL-01": {
+            "state": "pending"
+          },
+          "BCL-02": {
+            "state": "pending"
+          },
+          "BCL-03": {
+            "state": "pending"
+          },
+          "PLAN-02": {
+            "state": "pending"
+          },
+          "PLAN-03": {
+            "state": "pending"
+          },
+          "OBS-23": {
+            "state": "pending"
+          },
+          "OBS-25": {
+            "state": "pending"
+          },
+          "AGENT-25": {
+            "state": "pending"
+          },
+          "WF-06": {
+            "state": "pending"
+          },
+          "PAGE-08": {
+            "state": "pending"
+          },
+          "AGENT-26": {
+            "state": "fixed",
+            "observation": "Installed agent-computer-use 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5 is present in ~/.agents/plugins (plugin.json 0.2.148). changelog documents artifact-path and numeric-arithmetic confirms. Finding is still in_progress. Stored CONFIRM command is python3 -m unittest discover for voice-cua tests; will also run that suite against the installed copy and a programmatic path-trust probe.",
+            "observed_at": "2026-11-17T08:23:51Z",
+            "started_at": "2026-11-17T08:23:51Z",
+            "updated_at": "2026-11-17T08:23:51Z",
+            "evidence": "Installed ACU 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5. Stored worktree command passed: 561 tests OK, 1 skipped, 20.685s at 2026-11-17T08:24:13Z. The same suite on the installed plugin copy passed: 561 tests OK, 1 skipped, 19.885s at 2026-11-17T08:24:41Z. Targeted installed tests passed: test_arithmetic_and_artifact_temp_writes_do_not_need_approval and test_temp_work_allowance_requires_private_directory. Signed Agent Computer Use.app was not rebuilt and remains 0.2.146; the live Python plugin is 0.2.148.",
+            "finished_at": "2026-11-17T08:25:59Z"
+          },
+          "AGENT-27": {
+            "state": "fixed",
+            "observation": "Installed agent-computer-use 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5 is present in ~/.agents/plugins (plugin.json 0.2.148). tools.py confirm_timed_out hint now says a timeout is not a denial. Finding is still in_progress. Stored CONFIRM command is python3 -m unittest discover for voice-cua tests; will also cover first-confirm timeout recovery on the installed copy.",
+            "observed_at": "2026-11-17T08:23:51Z",
+            "started_at": "2026-11-17T08:23:51Z",
+            "updated_at": "2026-11-17T08:23:51Z",
+            "evidence": "Installed ACU 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5. Stored worktree command passed: 561 tests OK, 1 skipped, 20.685s at 2026-11-17T08:24:13Z. The same suite on the installed plugin copy passed: 561 tests OK, 1 skipped, 19.885s at 2026-11-17T08:24:41Z. Targeted installed tests passed: test_first_unanswered_confirm_prompts_and_releases_typed_turn and test_confirmation_timeout_is_not_reported_as_a_user_denial. tools.py confirm_timed_out hint says a timeout is not a denial. Signed Agent Computer Use.app was not rebuilt and remains 0.2.146; the live Python plugin is 0.2.148.",
+            "finished_at": "2026-11-17T08:25:59Z"
+          },
+          "WF-07": {
+            "state": "pending"
+          },
+          "PAGE-09": {
+            "state": "pending"
+          },
+          "PAGE-10": {
+            "state": "pending"
+          },
+          "SEC-01": {
+            "state": "fixed",
+            "observation": "Installed ACU 0.2.148 is present. CONFIRM's arithmetic exception is supposed to allow only simple numeric echo. SEC-01 is still failing in the tracker; running the installed arithmetic/protected-path test now.",
+            "observed_at": "2026-11-17T08:28:47Z",
+            "started_at": "2026-11-17T08:28:54Z",
+            "updated_at": "2026-11-17T08:28:54Z",
+            "evidence": "Installed ACU 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5 already constrains safe arithmetic to simple numeric echo. On 17 Nov 2026, test_arithmetic_and_artifact_temp_writes_do_not_need_approval passed on the installed copy (1 test, 1.031s). A protected-token symlink named 2 is hard_refuse for 'cat 2', and 'cat $((1+1))' is not safe; 'echo $((17 * 19))' remains safe. This is the SEC-01 acceptance check; no further code change is required on this install.",
+            "finished_at": "2026-11-17T08:28:54Z"
+          },
+          "PAGE-11": {
+            "state": "pending"
+          },
+          "BCL-04": {
+            "state": "pending"
+          },
+          "PAGE-12": {
+            "state": "pending"
+          },
+          "FLOW-03": {
+            "state": "pending"
+          },
+          "PAGE-13": {
+            "state": "pending"
+          },
+          "PAGE-14": {
+            "state": "pending"
+          },
+          "PAGE-15": {
+            "state": "pending"
+          },
+          "PAGE-16": {
+            "state": "pending"
+          },
+          "BCL-05": {
+            "state": "pending"
+          },
+          "PAGE-17": {
+            "state": "pending"
+          },
+          "BCL-06": {
+            "state": "pending"
+          },
+          "FLOW-04": {
+            "state": "pending"
+          },
+          "PAGE-18": {
+            "state": "pending"
+          },
+          "BCL-07": {
+            "state": "pending"
+          },
+          "BCL-08": {
+            "state": "pending"
+          },
+          "PAGE-19": {
+            "state": "pending"
+          },
+          "PAGE-20": {
+            "state": "pending"
+          },
+          "BCL-09": {
+            "state": "pending"
+          },
+          "BCL-10": {
+            "state": "pending"
+          },
+          "BCL-11": {
+            "state": "pending"
+          },
+          "BCL-12": {
+            "state": "pending"
+          },
+          "BCL-13": {
+            "state": "pending"
+          },
+          "BCL-14": {
+            "state": "pending"
+          },
+          "BCL-15": {
+            "state": "pending"
+          },
+          "BCL-16": {
+            "state": "pending"
+          },
+          "BCL-17": {
+            "state": "pending"
+          },
+          "AGENT-28": {
+            "state": "pending"
+          },
+          "AGENT-29": {
+            "state": "pending"
+          },
+          "BCL-18": {
+            "state": "pending"
+          },
+          "BCL-19": {
+            "state": "pending"
+          },
+          "BCL-20": {
+            "state": "pending"
+          },
+          "BCL-21": {
+            "state": "pending"
+          },
+          "EVAL-01": {
+            "state": "pending"
+          },
+          "BCL-22": {
+            "state": "pending"
+          },
+          "BCL-23": {
+            "state": "pending"
+          },
+          "WF-08": {
+            "state": "pending"
+          },
+          "BCL-24": {
+            "state": "pending"
+          },
+          "BCL-25": {
+            "state": "pending"
+          },
+          "BCL-26": {
+            "state": "pending"
+          },
+          "BCL-27": {
+            "state": "pending"
+          },
+          "BCL-28": {
+            "state": "pending"
+          },
+          "BCL-29": {
+            "state": "pending"
+          },
+          "WF-09": {
+            "state": "pending"
+          },
+          "BCL-30": {
+            "state": "pending"
+          },
+          "BCL-31": {
+            "state": "pending"
+          },
+          "WF-10": {
+            "state": "pending"
+          },
+          "BCL-32": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -2276,9 +2505,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-17T08:47:18Z",
-      "now": "2026-11-17T08:47:18Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-17T08:47:36Z",
+      "now": "2026-11-17T08:47:36Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 111,
@@ -2541,11 +2770,11 @@
       "introspect"
     ],
     "verification_run": {
-      "id": "acu-0.2.148-19a7f1e7-112",
-      "build": "agent-computer-use 0.2.148",
-      "revision": "19a7f1e7989eaaa552670d20c66ddacc591026c5",
-      "installed_at": "2026-11-17T08:22:20Z",
-      "install_evidence": "Copied worktree plugin 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5 to ~/.agents/plugins/agent-computer-use and Codex/Cursor caches at 0.2.148 and 19a7f1e7989eaaa552670d20c66ddacc591026c5. 441 files, sha256 94377115f6c96b9886a713fe6d0eea0a620749ae8228b2d6cb302b2f59840bb6. Backup /tmp/acu-install-0.2.148-backup-20261117-135220. bcl install AGENT-26 AGENT-27 exited 0. The signed /Applications/Agent Computer Use.app was not rebuilt and remains 0.2.146.",
+      "id": "bcl-0.1.27-22a59dd2-112",
+      "build": "batched-change-list 0.1.27",
+      "revision": "22a59dd2b50a97381418920ef1a10b0cbceebfdd",
+      "installed_at": "2026-11-17T08:47:17Z",
+      "install_evidence": "Copied worktree plugin 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd to ~/.agents/plugins/batched-change-list, ~/.agents/skills/batched-change-list, and Cursor/Codex caches at 0.1.27 and 22a59dd2b50a97381418920ef1a10b0cbceebfdd. 48 files, sha256 8f25fad48092bc6c7b22d23172b9c9943bca8eee70cfa0b1a3a5d7cec14e5dba. Backup /tmp/bcl-install-0.1.27-backup-20261117-141717. bcl install BCL-28 BCL-29 BCL-30 BCL-31 exited 0.",
       "status": "active",
       "checks": {
         "AUTO-03": {
@@ -2591,22 +2820,10 @@
           "state": "pending"
         },
         "AGENT-26": {
-          "state": "fixed",
-          "observation": "Installed agent-computer-use 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5 is present in ~/.agents/plugins (plugin.json 0.2.148). changelog documents artifact-path and numeric-arithmetic confirms. Finding is still in_progress. Stored CONFIRM command is python3 -m unittest discover for voice-cua tests; will also run that suite against the installed copy and a programmatic path-trust probe.",
-          "observed_at": "2026-11-17T08:23:51Z",
-          "started_at": "2026-11-17T08:23:51Z",
-          "updated_at": "2026-11-17T08:23:51Z",
-          "evidence": "Installed ACU 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5. Stored worktree command passed: 561 tests OK, 1 skipped, 20.685s at 2026-11-17T08:24:13Z. The same suite on the installed plugin copy passed: 561 tests OK, 1 skipped, 19.885s at 2026-11-17T08:24:41Z. Targeted installed tests passed: test_arithmetic_and_artifact_temp_writes_do_not_need_approval and test_temp_work_allowance_requires_private_directory. Signed Agent Computer Use.app was not rebuilt and remains 0.2.146; the live Python plugin is 0.2.148.",
-          "finished_at": "2026-11-17T08:25:59Z"
+          "state": "pending"
         },
         "AGENT-27": {
-          "state": "fixed",
-          "observation": "Installed agent-computer-use 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5 is present in ~/.agents/plugins (plugin.json 0.2.148). tools.py confirm_timed_out hint now says a timeout is not a denial. Finding is still in_progress. Stored CONFIRM command is python3 -m unittest discover for voice-cua tests; will also cover first-confirm timeout recovery on the installed copy.",
-          "observed_at": "2026-11-17T08:23:51Z",
-          "started_at": "2026-11-17T08:23:51Z",
-          "updated_at": "2026-11-17T08:23:51Z",
-          "evidence": "Installed ACU 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5. Stored worktree command passed: 561 tests OK, 1 skipped, 20.685s at 2026-11-17T08:24:13Z. The same suite on the installed plugin copy passed: 561 tests OK, 1 skipped, 19.885s at 2026-11-17T08:24:41Z. Targeted installed tests passed: test_first_unanswered_confirm_prompts_and_releases_typed_turn and test_confirmation_timeout_is_not_reported_as_a_user_denial. tools.py confirm_timed_out hint says a timeout is not a denial. Signed Agent Computer Use.app was not rebuilt and remains 0.2.146; the live Python plugin is 0.2.148.",
-          "finished_at": "2026-11-17T08:25:59Z"
+          "state": "pending"
         },
         "WF-07": {
           "state": "pending"
@@ -2618,13 +2835,7 @@
           "state": "pending"
         },
         "SEC-01": {
-          "state": "fixed",
-          "observation": "Installed ACU 0.2.148 is present. CONFIRM's arithmetic exception is supposed to allow only simple numeric echo. SEC-01 is still failing in the tracker; running the installed arithmetic/protected-path test now.",
-          "observed_at": "2026-11-17T08:28:47Z",
-          "started_at": "2026-11-17T08:28:54Z",
-          "updated_at": "2026-11-17T08:28:54Z",
-          "evidence": "Installed ACU 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5 already constrains safe arithmetic to simple numeric echo. On 17 Nov 2026, test_arithmetic_and_artifact_temp_writes_do_not_need_approval passed on the installed copy (1 test, 1.031s). A protected-token symlink named 2 is hard_refuse for 'cat 2', and 'cat $((1+1))' is not safe; 'echo $((17 * 19))' remains safe. This is the SEC-01 acceptance check; no further code change is required on this install.",
-          "finished_at": "2026-11-17T08:28:54Z"
+          "state": "pending"
         },
         "PAGE-11": {
           "state": "pending"
@@ -2747,19 +2958,35 @@
           "state": "pending"
         },
         "BCL-28": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd is present in ~/.agents/plugins and skills (plugin.json 0.1.27, 48 files, sha256 8f25fad48092bc6c7b22d23172b9c9943bca8eee70cfa0b1a3a5d7cec14e5dba). Findings are still in_progress.",
+          "observed_at": "2026-11-17T08:47:36Z",
+          "started_at": "2026-11-17T08:47:36Z",
+          "updated_at": "2026-11-17T08:47:36Z"
         },
         "BCL-29": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd is present in ~/.agents/plugins and skills (plugin.json 0.1.27, 48 files, sha256 8f25fad48092bc6c7b22d23172b9c9943bca8eee70cfa0b1a3a5d7cec14e5dba). Findings are still in_progress.",
+          "observed_at": "2026-11-17T08:47:36Z",
+          "started_at": "2026-11-17T08:47:36Z",
+          "updated_at": "2026-11-17T08:47:36Z"
         },
         "WF-09": {
           "state": "pending"
         },
         "BCL-30": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd is present in ~/.agents/plugins and skills (plugin.json 0.1.27, 48 files, sha256 8f25fad48092bc6c7b22d23172b9c9943bca8eee70cfa0b1a3a5d7cec14e5dba). Findings are still in_progress.",
+          "observed_at": "2026-11-17T08:47:36Z",
+          "started_at": "2026-11-17T08:47:36Z",
+          "updated_at": "2026-11-17T08:47:36Z"
         },
         "BCL-31": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd is present in ~/.agents/plugins and skills (plugin.json 0.1.27, 48 files, sha256 8f25fad48092bc6c7b22d23172b9c9943bca8eee70cfa0b1a3a5d7cec14e5dba). Findings are still in_progress.",
+          "observed_at": "2026-11-17T08:47:36Z",
+          "started_at": "2026-11-17T08:47:36Z",
+          "updated_at": "2026-11-17T08:47:36Z"
         },
         "WF-10": {
           "state": "pending"
