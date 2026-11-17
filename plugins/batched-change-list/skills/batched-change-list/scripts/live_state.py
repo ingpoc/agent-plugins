@@ -8,6 +8,9 @@ from zoneinfo import ZoneInfo
 SCRIPTS = Path(__file__).resolve().parent
 STATE = Path(os.environ.get("BCL_STATE_DIR", Path.home() / ".agents/state/batched-change-list"))
 
+class ViewerPIDProbeError(Exception):
+    """A PID could not be checked because the process is not accessible."""
+
 def safe_component(value):
     return re.sub(r"[^A-Za-z0-9._-]+", "-", str(value)).strip(".-") or "list"
 
@@ -176,7 +179,7 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
         except ProcessLookupError: running = False
         except PermissionError:
             if reject_unverifiable_pid:
-                raise
+                raise ViewerPIDProbeError(f"[Errno 1] Operation not permitted") from None
             running = True
     owns_old = bool(old.get("data")) and Path(old["data"]).resolve() == Path(live).resolve()
     old_port = int(old.get("port", 0) or 0)

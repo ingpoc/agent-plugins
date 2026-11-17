@@ -86,6 +86,16 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(len(stderr.getvalue().splitlines()), 1, stderr.getvalue())
         self.assertRegex(stderr.getvalue(), r"\Abcl: viewer PID probe failed: (?:\[Errno 1\] )?[Oo]peration not permitted\n\Z")
 
+    def test_plan_reports_non_probe_oserror_without_pid_probe_label(self):
+        stderr = io.StringIO()
+        parser = bcl_entrypoint.argparse.ArgumentParser()
+        with patch.object(live_state, "ensure_viewer", side_effect=OSError("metadata write failed")), \
+             contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit) as exit_result:
+            bcl_entrypoint._ensure_viewer(parser, "repo/123", {}, Path("tracker.json"), "0.1.17", "plan")
+        self.assertEqual(exit_result.exception.code, 2)
+        self.assertIn("metadata write failed", stderr.getvalue())
+        self.assertNotIn("viewer PID probe failed", stderr.getvalue())
+
     def git(self, cwd, *args): return subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True)
     def call(self, stage, *args, cwd=None):
         data, extra = (args[0], args[1:]) if args and isinstance(args[0], Path) else (self.data, args)

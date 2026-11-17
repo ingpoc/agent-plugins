@@ -21,11 +21,15 @@ def _provider(url):
 def _ensure_viewer(parser, key, record, live, plugin_version, stage):
     try:
         return live_state.ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=stage == "plan")
-    except OSError as error:
+    except live_state.ViewerPIDProbeError as error:
         if stage != "plan":
             raise
         print(f"bcl: viewer PID probe failed: {error}", file=sys.stderr)
         raise SystemExit(1)
+    except OSError as error:
+        if stage != "plan":
+            raise
+        parser.error(str(error))
 
 def _pull_request_data(provider, url, repo):
     executable = shutil.which(provider)
