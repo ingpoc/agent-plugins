@@ -222,15 +222,20 @@ def lane_issue_status(group, round_number):
 
 
 def finding_lane_status(finding, lane, round_number):
+    outcome = {"verified_fixed": "Verified fixed", "failing": "Failing", "untested": "Untested",
+               "in_progress": "In progress", "awaiting_user_test": "Awaiting user test",
+               "awaiting_verification": "Awaiting verification", "blocked": "Blocked",
+               "investigation": "Investigation needed"}.get(finding.get("status", "untested"),
+                                                                str(finding.get("status", "untested")).replace("_", " ").title())
     if lane:
-        return lane
+        return {**lane, "outcome": outcome}
     status = finding.get("status", "untested")
     copy = {"failing": "Failing · no lane yet", "untested": "Untested",
             "in_progress": "In progress · no lane yet", "verified_fixed": "Verified fixed",
             "awaiting_user_test": "Awaiting user test", "awaiting_verification": "Awaiting verification",
             "blocked": "Blocked", "investigation": "Investigation needed"}.get(status, str(status).replace("_", " ").title())
     kind = {"failing": "bad", "verified_fixed": "ok", "in_progress": "run", "blocked": "blk"}.get(status, "idle")
-    return {"copy": copy, "kind": kind, "status": "no_lane"}
+    return {"copy": copy, "kind": kind, "status": "no_lane", "outcome": outcome}
 
 
 def lane_status_by_finding(data, groups, round_number):

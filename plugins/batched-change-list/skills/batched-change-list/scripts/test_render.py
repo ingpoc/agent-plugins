@@ -628,6 +628,21 @@ setImmediate(async()=>{
         self.assertIn(r'\u003c/script>', page)
         self.assertNotIn('</script><script>alert(1)</script>', page)
 
+    def test_failing_finding_outcome_stays_separate_from_deferred_lane(self):
+        finding = self.data['findings'][0]
+        finding['status'] = 'failing'
+        self.data['tracking'] = {'plan': {'round': 1, 'groups': [
+            {'id': 'CORE', 'finding_ids': [finding['id']], 'status': 'deferred'}]}}
+        page = renderer.render(self.data, self.base)
+        payload = page.split('<script type="application/json" id="findings-data">', 1)[1].split('</script>', 1)[0]
+        rendered = json.loads(payload)[0]
+        self.assertEqual(rendered['status'], 'failing')
+        self.assertEqual(rendered['_lane_status']['outcome'], 'Failing')
+        self.assertEqual(rendered['_lane_status']['copy'], 'Parked → Round 2')
+        self.assertIn("labels[item.status]||item.status", page)
+        self.assertIn("Issue status: ${labels[selected.status]||selected.status}", page)
+        self.assertIn('.issue-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}', page)
+
     def test_all_details_are_shown_without_mutating_source(self):
         item = self.data['findings'][0]
         item['verification'] = 'Verified observation.'
