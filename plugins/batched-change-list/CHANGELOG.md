@@ -1,3 +1,7 @@
+## 0.1.27
+
+- Keep failed and blocked lanes from completing the Install workflow tick; report denied viewer PID probes during Plan without a traceback.
+
 ## 0.1.26
 
 - Require every current group's stored verification command in Introspect coverage after Verify.

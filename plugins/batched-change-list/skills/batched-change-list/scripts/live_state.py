@@ -166,7 +166,7 @@ def locate(path, adopt=False, render_path=None):
     if not record: return key, None, None
     return key, record, Path(record["live"]).resolve()
 
-def ensure_viewer(key, record, live, plugin_version):
+def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=False):
     state = STATE / "viewers" / (safe_component(key.replace("/", "--")) + ".json")
     state.parent.mkdir(parents=True, exist_ok=True)
     old = json.loads(state.read_text()) if state.exists() else {}
@@ -174,6 +174,10 @@ def ensure_viewer(key, record, live, plugin_version):
     if old.get("pid") and int(old["pid"]) != 87005:
         try: os.kill(int(old["pid"]), 0); running = True
         except ProcessLookupError: running = False
+        except PermissionError:
+            if reject_unverifiable_pid:
+                raise
+            running = True
     owns_old = bool(old.get("data")) and Path(old["data"]).resolve() == Path(live).resolve()
     old_port = int(old.get("port", 0) or 0)
     if running and owns_old and (not old.get("instance") or not _viewer_responds(old_port, old)):
