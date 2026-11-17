@@ -1,3 +1,8 @@
+## 0.1.31
+
+- Use the lane outcome field for the visible issue status.
+- Reload `render.py` when its contents change in a running viewer.
+
 ## 0.1.30
 
 - Advance the plan round on `set-plan` after Introspect, even when the new plan still names the current round.
