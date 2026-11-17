@@ -1,3 +1,8 @@
+## 0.2.149
+
+- Trust artifact and temporary paths for local work.
+- Release a turn after a confirmation timeout instead of stalling.
+
 ## 0.2.148
 
 - Samantha allows simple numeric shell arithmetic and writes under `~/.agents/artifacts` without an unnecessary confirmation; risky operations remain gated.
