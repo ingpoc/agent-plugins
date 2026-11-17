@@ -328,8 +328,9 @@ def main():
     if args.draft:
         if args.stage != "introspect" or args.sections:
             parser.error("--draft is only valid for introspect and cannot be combined with --sections")
-        if args.draft.resolve() == live.resolve():
-            parser.error("Introspect draft path must differ from the live tracker")
+        trackers = (source.resolve(), live.resolve())
+        if args.draft.resolve() in trackers or (args.draft.exists() and any(args.draft.samefile(path) for path in trackers)):
+            parser.error("Introspect draft path must differ from the input and live trackers")
         try:
             payload = check_introspect.draft_introspect(tracking)
             args.draft.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

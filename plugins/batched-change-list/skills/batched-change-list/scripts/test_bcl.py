@@ -363,6 +363,23 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(data["tracking"]["plan"]["status"], "closed")
         self.assertEqual(json.loads(status.stdout)["plan"][0]["status"], "running")
 
+    def test_introspect_draft_rejects_input_tracker_and_live_hard_link(self):
+        input_before = self.data.read_bytes()
+        result = self.call_without_viewer("introspect", "--draft", self.data)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("input and live trackers", result.stderr)
+        self.assertEqual(self.data.read_bytes(), input_before)
+
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        hard_link = self.root / "live-hard-link.json"
+        os.link(live, hard_link)
+        live_before = live.read_bytes()
+        result = self.call_without_viewer("introspect", "--draft", hard_link)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("input and live trackers", result.stderr)
+        self.assertTrue(live.samefile(hard_link))
+        self.assertEqual(live.read_bytes(), live_before)
+
     def test_verify_rejects_placeholder_and_mismatched_command(self):
         self.assertEqual(self.call('start').returncode, 0)
         plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending','verify':{'command':'echo verify'}}]}

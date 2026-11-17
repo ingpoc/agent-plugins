@@ -6,8 +6,6 @@ Start from the recorded run with `bcl introspect --draft SECTIONS.json`. This wr
 
 Run `python3 <skill-dir>/scripts/check_introspect.py --data <live-tracker.json> --sections SECTIONS.json`, then `bcl introspect --sections SECTIONS.json` to save after review. Both the CLI and manager check coverage against tracker-recorded work, so a self-declared steps list cannot omit plan groups or reached stages. Sections keys must be ordered `delete`, `simplify`, `optimize`, `automate`. Each section is `{"none":"reason"}` or `{"items":[...]}`. Each item has `item` (an exact `steps` entry), `evidence`, and `outcome` (`fixed inline` or `issue` plus an existing non-WF `issue_id`). Try deleting first; simplify only what remains, optimize only what was simplified, and automate last. Add a step or script only when it removes or replaces at least as much work.
 
-Run `python3 <skill-dir>/scripts/check_introspect.py --data <live-tracker.json> --sections SECTIONS.json`, then `bcl introspect --sections SECTIONS.json`. Both the CLI and manager check coverage against tracker-recorded work, so a self-declared steps list cannot omit plan groups or reached stages. Try deleting first; simplify only what remains, optimize only what was simplified, and automate last. Add a step or script only when it removes or replaces at least as much work.
-
 The call creates one `WF-` task with the ordered sections and full step coverage, closes the current round's plan, and records `tracking.introspect`. Follow [gate.md](gate.md). `report_rollover` requires this round's Introspect after Install.
 
 Do not pass `issues` or `next_cycle` notes on the Introspect call. Create code follow-ups as separate non-WF findings before linking them from a section item. The task's `issues` array stays empty.
