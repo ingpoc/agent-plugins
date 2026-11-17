@@ -5739,6 +5739,284 @@
             "finished_at": "2026-11-17T16:36:57.821221Z"
           }
         }
+      },
+      {
+        "id": "bcl-0.1.38-a1609306-115",
+        "build": "batched-change-list 0.1.38",
+        "revision": "a16093066b763cf542321103c2b3caf070979ec7",
+        "installed_at": "2026-11-17T16:49:51Z",
+        "install_evidence": "bcl install-local from worktree HEAD a16093066b763cf542321103c2b3caf070979ec7 at 2026-11-17 22:19:51 IST Asia/Calcutta installed batched-change-list 0.1.38: 50 plugin files sha256 4bc4154d62e69513034422a4c82e15b2d5fb71f4f806f6a3223b56f1687305d2; 43 skill files sha256 d54ff527d32c0aa47f885cd0ee7f1054bf19fa68a8fc6bbaa9b01364fb221e8c. Receipt /Users/gurusharan/.agents/artifacts/bcl-115/install-bcl-0.1.38-a1609306-receipt.json. This reinstall includes the test_bcl.py entrypoint fallback so the installed skill suite can load bin/bcl.",
+        "status": "interrupted",
+        "checks": {
+          "AUTO-03": {
+            "state": "pending"
+          },
+          "AUTO-04": {
+            "state": "pending"
+          },
+          "AUTO-05": {
+            "state": "pending"
+          },
+          "AUTO-06": {
+            "state": "pending"
+          },
+          "BCL-01": {
+            "state": "pending"
+          },
+          "BCL-02": {
+            "state": "pending"
+          },
+          "BCL-03": {
+            "state": "pending"
+          },
+          "PLAN-02": {
+            "state": "pending"
+          },
+          "PLAN-03": {
+            "state": "pending"
+          },
+          "OBS-23": {
+            "state": "pending"
+          },
+          "OBS-25": {
+            "state": "pending"
+          },
+          "AGENT-25": {
+            "state": "pending"
+          },
+          "WF-06": {
+            "state": "pending"
+          },
+          "PAGE-08": {
+            "state": "pending"
+          },
+          "AGENT-26": {
+            "state": "pending"
+          },
+          "AGENT-27": {
+            "state": "pending"
+          },
+          "WF-07": {
+            "state": "pending"
+          },
+          "PAGE-09": {
+            "state": "pending"
+          },
+          "PAGE-10": {
+            "state": "pending"
+          },
+          "SEC-01": {
+            "state": "pending"
+          },
+          "PAGE-11": {
+            "state": "pending"
+          },
+          "BCL-04": {
+            "state": "pending"
+          },
+          "PAGE-12": {
+            "state": "pending"
+          },
+          "FLOW-03": {
+            "state": "pending"
+          },
+          "PAGE-13": {
+            "state": "pending"
+          },
+          "PAGE-14": {
+            "state": "pending"
+          },
+          "PAGE-15": {
+            "state": "pending"
+          },
+          "PAGE-16": {
+            "state": "pending"
+          },
+          "BCL-05": {
+            "state": "pending"
+          },
+          "PAGE-17": {
+            "state": "pending"
+          },
+          "BCL-06": {
+            "state": "pending"
+          },
+          "FLOW-04": {
+            "state": "pending"
+          },
+          "PAGE-18": {
+            "state": "pending"
+          },
+          "BCL-07": {
+            "state": "pending"
+          },
+          "BCL-08": {
+            "state": "pending"
+          },
+          "PAGE-19": {
+            "state": "pending"
+          },
+          "PAGE-20": {
+            "state": "pending"
+          },
+          "BCL-09": {
+            "state": "pending"
+          },
+          "BCL-10": {
+            "state": "pending"
+          },
+          "BCL-11": {
+            "state": "pending"
+          },
+          "BCL-12": {
+            "state": "pending"
+          },
+          "BCL-13": {
+            "state": "pending"
+          },
+          "BCL-14": {
+            "state": "pending"
+          },
+          "BCL-15": {
+            "state": "pending"
+          },
+          "BCL-16": {
+            "state": "pending"
+          },
+          "BCL-17": {
+            "state": "pending"
+          },
+          "AGENT-28": {
+            "state": "pending"
+          },
+          "AGENT-29": {
+            "state": "pending"
+          },
+          "BCL-18": {
+            "state": "pending"
+          },
+          "BCL-19": {
+            "state": "pending"
+          },
+          "BCL-20": {
+            "state": "pending"
+          },
+          "BCL-21": {
+            "state": "pending"
+          },
+          "EVAL-01": {
+            "state": "pending"
+          },
+          "BCL-22": {
+            "state": "pending"
+          },
+          "BCL-23": {
+            "state": "pending"
+          },
+          "WF-08": {
+            "state": "pending"
+          },
+          "BCL-24": {
+            "state": "pending"
+          },
+          "BCL-25": {
+            "state": "pending"
+          },
+          "BCL-26": {
+            "state": "pending"
+          },
+          "BCL-27": {
+            "state": "pending"
+          },
+          "BCL-28": {
+            "state": "pending"
+          },
+          "BCL-29": {
+            "state": "pending"
+          },
+          "WF-09": {
+            "state": "pending"
+          },
+          "BCL-30": {
+            "state": "pending"
+          },
+          "BCL-31": {
+            "state": "pending"
+          },
+          "WF-10": {
+            "state": "pending"
+          },
+          "BCL-32": {
+            "state": "pending"
+          },
+          "BCL-33": {
+            "state": "pending"
+          },
+          "WF-11": {
+            "state": "pending"
+          },
+          "BCL-34": {
+            "state": "pending"
+          },
+          "WF-12": {
+            "state": "pending"
+          },
+          "BCL-35": {
+            "state": "pending"
+          },
+          "PAGE-21": {
+            "state": "pending"
+          },
+          "WF-13": {
+            "state": "pending"
+          },
+          "WF-14": {
+            "state": "pending"
+          },
+          "WF-15": {
+            "state": "pending"
+          },
+          "BCL-36": {
+            "state": "pending"
+          },
+          "WF-16": {
+            "state": "pending"
+          },
+          "PAGE-22": {
+            "state": "pending"
+          },
+          "WF-17": {
+            "state": "pending"
+          },
+          "WF-18": {
+            "state": "pending"
+          },
+          "BCL-37": {
+            "state": "pending"
+          },
+          "WF-19": {
+            "state": "pending"
+          },
+          "WF-20": {
+            "state": "pending"
+          },
+          "PLAN-04": {
+            "state": "pending"
+          },
+          "WF-21": {
+            "state": "pending"
+          },
+          "BCL-38": {
+            "state": "blocked",
+            "observation": "0.1.38 was reinstalled at a16093066b763cf542321103c2b3caf070979ec7 after fixing test_bcl.py so the installed skill copy resolves ~/.agents/plugins/batched-change-list/bin/bcl instead of /Users/plugins/batched-change-list/bin/bcl. About to rerun verify-bcl38.sh on the worktree and the installed copy.",
+            "observed_at": "2026-11-17T16:49:51Z",
+            "started_at": "2026-11-17T16:49:52Z",
+            "updated_at": "2026-11-17T16:49:52Z",
+            "check_id": "38125d12b5244eb28c77832b524b6972",
+            "evidence": "Checked: /Users/gurusharan/.agents/artifacts/bcl-115/verify-bcl38.sh\nExpected: verification command exits 0\nObserved: Verification command exited 1",
+            "finished_at": "2026-11-17T16:51:16.397024Z"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -5754,8 +6032,8 @@
     },
     "workflow": {
       "stage": "verify",
-      "updated_at": "2026-11-17T16:51:16Z",
-      "now": "2026-11-17T16:51:16Z — Lane SKILL-REDESIGN updated"
+      "updated_at": "2026-11-17T16:58:23Z",
+      "now": "2026-11-17T16:58:23Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 114,
@@ -5978,7 +6256,7 @@
             "BCL-38"
           ],
           "depends_on": [],
-          "status": "failed",
+          "status": "verifying",
           "phase": "verify",
           "worktree": "samantha-pr115-rollover",
           "reason": "Guru authorized one skill redesign so the always-needed rules stay in the skill file, the step workflow loads from references, the chart shows the real flow with Current and After as a toggle and verdict badges, and skill-creator plus skill-refine checks pass.",
@@ -6013,7 +6291,7 @@
             "total": 1,
             "failure": "Checked: /Users/gurusharan/.agents/artifacts/bcl-115/verify-bcl38.sh\nExpected: verification command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-17T16:51:16Z"
+          "updated_at": "2026-11-17T16:58:19Z"
         }
       ]
     },
@@ -6025,11 +6303,11 @@
       "verify"
     ],
     "verification_run": {
-      "id": "bcl-0.1.38-a1609306-115",
+      "id": "bcl-0.1.38-44f585be-115",
       "build": "batched-change-list 0.1.38",
-      "revision": "a16093066b763cf542321103c2b3caf070979ec7",
-      "installed_at": "2026-11-17T16:49:51Z",
-      "install_evidence": "bcl install-local from worktree HEAD a16093066b763cf542321103c2b3caf070979ec7 at 2026-11-17 22:19:51 IST Asia/Calcutta installed batched-change-list 0.1.38: 50 plugin files sha256 4bc4154d62e69513034422a4c82e15b2d5fb71f4f806f6a3223b56f1687305d2; 43 skill files sha256 d54ff527d32c0aa47f885cd0ee7f1054bf19fa68a8fc6bbaa9b01364fb221e8c. Receipt /Users/gurusharan/.agents/artifacts/bcl-115/install-bcl-0.1.38-a1609306-receipt.json. This reinstall includes the test_bcl.py entrypoint fallback so the installed skill suite can load bin/bcl.",
+      "revision": "44f585bee812d51299b87e31e2f9571a28c3345d",
+      "installed_at": "2026-11-17T16:58:19Z",
+      "install_evidence": "bcl install-local from worktree HEAD 44f585bee812d51299b87e31e2f9571a28c3345d at 2026-11-17 22:28:19 IST Asia/Calcutta installed batched-change-list 0.1.38: 50 plugin files sha256 c7aec735c4caf6e4cabd9de2fa83ed5403317153b44f085e3e198174be0ca3f8; 43 skill files sha256 43015ca99a98ab33845d064c6b34bcd84f08ecdb0c444ef3556215c913935371. Receipt /Users/gurusharan/.agents/artifacts/bcl-115/install-bcl-0.1.38-44f585be-receipt.json. This reinstall keeps installed skill tests on their own scripts path so unittest discovery does not collide with the plugin copy.",
       "status": "active",
       "checks": {
         "AUTO-03": {
@@ -6291,14 +6569,11 @@
           "state": "pending"
         },
         "BCL-38": {
-          "state": "blocked",
-          "observation": "0.1.38 was reinstalled at a16093066b763cf542321103c2b3caf070979ec7 after fixing test_bcl.py so the installed skill copy resolves ~/.agents/plugins/batched-change-list/bin/bcl instead of /Users/plugins/batched-change-list/bin/bcl. About to rerun verify-bcl38.sh on the worktree and the installed copy.",
-          "observed_at": "2026-11-17T16:49:51Z",
-          "started_at": "2026-11-17T16:49:52Z",
-          "updated_at": "2026-11-17T16:49:52Z",
-          "check_id": "38125d12b5244eb28c77832b524b6972",
-          "evidence": "Checked: /Users/gurusharan/.agents/artifacts/bcl-115/verify-bcl38.sh\nExpected: verification command exits 0\nObserved: Verification command exited 1",
-          "finished_at": "2026-11-17T16:51:16.397024Z"
+          "state": "checking",
+          "observation": "0.1.38 was reinstalled at 44f585bee812d51299b87e31e2f9571a28c3345d after test_bcl.py was changed so the installed skill suite uses its own scripts path and still loads bin/bcl from the installed plugin. About to rerun verify-bcl38.sh on the worktree and the installed copy.",
+          "observed_at": "2026-11-17T16:58:19Z",
+          "started_at": "2026-11-17T16:58:19Z",
+          "updated_at": "2026-11-17T16:58:19Z"
         }
       }
     }
@@ -9496,7 +9771,7 @@
       "id": "BCL-38",
       "title": "Skill file mixes always-needed rules with the step workflow, and the chart does not show the real flow",
       "source": "User requested",
-      "status": "blocked",
+      "status": "in_progress",
       "priority": "high",
       "summary": "The skill file repeats the workflow in a sentence and a list, while the rules that apply at every step are missing or written as bare commands. The chart only lists which file loads, not the loop, the gate, or which scripts run.",
       "impact": "An agent following the skill can miss the rules that apply at every step, load the wrong files, or treat the chart as the workflow when it is not. The skill also falls short of the usual skill-writing rules for descriptions, reasons, and behaviour tests.",
