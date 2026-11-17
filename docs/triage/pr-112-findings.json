@@ -2276,9 +2276,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-17T08:30:30Z",
-      "now": "2026-11-17T08:30:30Z — Lane FREEZE updated"
+      "stage": "install",
+      "updated_at": "2026-11-17T08:47:18Z",
+      "now": "2026-11-17T08:47:18Z — Install in progress"
     },
     "rollover": {
       "source_pr": 111,
