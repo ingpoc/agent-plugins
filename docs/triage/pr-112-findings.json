@@ -2277,8 +2277,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-17T08:29:48Z",
-      "now": "2026-11-17T08:29:48Z — Plan recorded"
+      "updated_at": "2026-11-17T08:30:16Z",
+      "now": "2026-11-17T08:30:16Z — Fix in progress"
     },
     "rollover": {
       "source_pr": 111,
