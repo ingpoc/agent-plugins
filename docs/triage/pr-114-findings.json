@@ -4337,8 +4337,8 @@
     },
     "workflow": {
       "stage": "install",
-      "updated_at": "2026-11-17T12:33:12Z",
-      "now": "2026-11-17T12:33:12Z — Lane GATE updated"
+      "updated_at": "2026-11-17T12:50:39Z",
+      "now": "2026-11-17T12:50:39Z — Lane INTRO updated"
     },
     "rollover": {
       "source_pr": 113,
@@ -4565,7 +4565,7 @@
           ],
           "depends_on": [],
           "status": "pending",
-          "phase": "pending",
+          "phase": "review",
           "worktree": "pr114-intro",
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -4579,7 +4579,11 @@
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "status": "pending"
+            "status": "passed",
+            "implementer_session": "01a1e97f-c3ae-7461-bbe8-f4c318973f1b",
+            "reviewer_session": "01a1e989-5ff1-7321-b3c4-a9d4685ac458",
+            "review_status": "passed",
+            "one_file": false
           },
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
@@ -4589,7 +4593,7 @@
             "failed": 0,
             "total": 2
           },
-          "updated_at": "2026-11-17T12:33:29Z"
+          "updated_at": "2026-11-17T12:50:39Z"
         }
       ]
     },
