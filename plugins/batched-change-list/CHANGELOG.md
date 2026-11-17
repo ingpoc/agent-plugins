@@ -1,3 +1,8 @@
+## 0.1.33
+
+- Limit `bcl sync-main` stashing to leftover hook/check dirt, preserve unrelated work, and catch recreated hook dirt at previously stashed paths.
+- Add `bcl install-local` for installing clean plugin copies into the `~/.agents`, Cursor, and Codex caches with old-copy cleanup and tree-hash checks; install only the skill subtree at the skill destination.
+
 ## 0.1.32
 
 - Flag or split plan groups that are too large or set to Luna max; determine exemptions by status, not phase.
