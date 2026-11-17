@@ -3533,6 +3533,262 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "bcl-0.1.31-a488a4ca-114",
+        "build": "batched-change-list 0.1.31",
+        "revision": "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec",
+        "installed_at": "2026-11-17T10:11:44Z",
+        "install_evidence": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec remains present in ~/.agents/plugins and skills (plugin.json 0.1.31, 48 files, sha256 1e7cf19621295d7d655dbd6b7bdc7e98a312f8fbbee5c5f899151918cdbe0236). Backup /tmp/bcl-install-0.1.31-backup-20261117-154144. No new install this round. Receipt /Users/gurusharan/.agents/artifacts/bcl-113/install-bcl-0.1.31-receipt.json.",
+        "status": "interrupted",
+        "checks": {
+          "AUTO-03": {
+            "state": "pending"
+          },
+          "AUTO-04": {
+            "state": "pending"
+          },
+          "AUTO-05": {
+            "state": "pending"
+          },
+          "AUTO-06": {
+            "state": "pending"
+          },
+          "BCL-01": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec is present. BCL-01 is in_progress. About to run test_merge_guard_rejects_unsnapshotted_live_then_passes and test_stage_snapshots_and_commits_only_home_worktree, plus the stored test_bcl.py discover command, on the worktree and the installed copy.",
+            "observed_at": "2026-11-17T10:44:10Z",
+            "started_at": "2026-11-17T10:44:28Z",
+            "updated_at": "2026-11-17T10:44:28Z",
+            "evidence": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec (already present; no new install this round). Worktree: specific tests 5 OK in 3.186s; stored test_bcl.py 40 OK in 43.477s; stored test_live_state.py 5 OK in 1.100s, first run finished 2026-11-17T10:44:01Z. Installed copy: specific tests 5 OK in 3.220s; test_bcl.py 40 OK in 43.476s; test_live_state.py 5 OK in 1.094s. bcl verify GUARD re-ran test_bcl.py 40 OK in 44.027s; SNAP re-ran test_live_state.py 5 OK in 1.107s, finished 2026-11-17T10:45:19Z. test_merge_guard_rejects_unsnapshotted_live_then_passes and test_stage_snapshots_and_commits_only_home_worktree passed on worktree and installed 0.1.31. Merge refuses an unsnapshotted live tracker; stages snapshot and commit in the home worktree. Already present; no new code this round.",
+            "finished_at": "2026-11-17T10:45:37Z"
+          },
+          "BCL-02": {
+            "state": "pending"
+          },
+          "BCL-03": {
+            "state": "pending"
+          },
+          "PLAN-02": {
+            "state": "pending"
+          },
+          "PLAN-03": {
+            "state": "pending"
+          },
+          "OBS-23": {
+            "state": "pending"
+          },
+          "OBS-25": {
+            "state": "pending"
+          },
+          "AGENT-25": {
+            "state": "pending"
+          },
+          "WF-06": {
+            "state": "pending"
+          },
+          "PAGE-08": {
+            "state": "pending"
+          },
+          "AGENT-26": {
+            "state": "pending"
+          },
+          "AGENT-27": {
+            "state": "pending"
+          },
+          "WF-07": {
+            "state": "pending"
+          },
+          "PAGE-09": {
+            "state": "pending"
+          },
+          "PAGE-10": {
+            "state": "pending"
+          },
+          "SEC-01": {
+            "state": "pending"
+          },
+          "PAGE-11": {
+            "state": "pending"
+          },
+          "BCL-04": {
+            "state": "pending"
+          },
+          "PAGE-12": {
+            "state": "pending"
+          },
+          "FLOW-03": {
+            "state": "pending"
+          },
+          "PAGE-13": {
+            "state": "pending"
+          },
+          "PAGE-14": {
+            "state": "pending"
+          },
+          "PAGE-15": {
+            "state": "pending"
+          },
+          "PAGE-16": {
+            "state": "pending"
+          },
+          "BCL-05": {
+            "state": "pending"
+          },
+          "PAGE-17": {
+            "state": "pending"
+          },
+          "BCL-06": {
+            "state": "pending"
+          },
+          "FLOW-04": {
+            "state": "pending"
+          },
+          "PAGE-18": {
+            "state": "pending"
+          },
+          "BCL-07": {
+            "state": "pending"
+          },
+          "BCL-08": {
+            "state": "pending"
+          },
+          "PAGE-19": {
+            "state": "pending"
+          },
+          "PAGE-20": {
+            "state": "pending"
+          },
+          "BCL-09": {
+            "state": "pending"
+          },
+          "BCL-10": {
+            "state": "pending"
+          },
+          "BCL-11": {
+            "state": "pending"
+          },
+          "BCL-12": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec is present. BCL-12 is in_progress. About to run test_changed_tracker_keeps_one_revision_and_reports_stale_snapshot, test_snapshots_in_same_worktree_are_serialized, and the stored test_live_state.py discover command, on the worktree and the installed copy.",
+            "observed_at": "2026-11-17T10:44:10Z",
+            "started_at": "2026-11-17T10:44:28Z",
+            "updated_at": "2026-11-17T10:44:28Z",
+            "evidence": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec (already present; no new install this round). Worktree: specific tests 5 OK in 3.186s; stored test_bcl.py 40 OK in 43.477s; stored test_live_state.py 5 OK in 1.100s, first run finished 2026-11-17T10:44:01Z. Installed copy: specific tests 5 OK in 3.220s; test_bcl.py 40 OK in 43.476s; test_live_state.py 5 OK in 1.094s. bcl verify GUARD re-ran test_bcl.py 40 OK in 44.027s; SNAP re-ran test_live_state.py 5 OK in 1.107s, finished 2026-11-17T10:45:19Z. test_changed_tracker_keeps_one_revision_and_reports_stale_snapshot and test_snapshots_in_same_worktree_are_serialized passed on worktree and installed 0.1.31. A snapshot uses one captured tracker revision and serializes snapshot work in the same worktree. Already present; no new code this round.",
+            "finished_at": "2026-11-17T10:45:37Z"
+          },
+          "BCL-13": {
+            "state": "pending"
+          },
+          "BCL-14": {
+            "state": "pending"
+          },
+          "BCL-15": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec is present. BCL-15 is in_progress. About to run test_final_comparison_and_marker_removal_hold_writer_lock and the stored test_live_state.py discover command, on the worktree and the installed copy.",
+            "observed_at": "2026-11-17T10:44:10Z",
+            "started_at": "2026-11-17T10:44:28Z",
+            "updated_at": "2026-11-17T10:44:28Z",
+            "evidence": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec (already present; no new install this round). Worktree: specific tests 5 OK in 3.186s; stored test_bcl.py 40 OK in 43.477s; stored test_live_state.py 5 OK in 1.100s, first run finished 2026-11-17T10:44:01Z. Installed copy: specific tests 5 OK in 3.220s; test_bcl.py 40 OK in 43.476s; test_live_state.py 5 OK in 1.094s. bcl verify GUARD re-ran test_bcl.py 40 OK in 44.027s; SNAP re-ran test_live_state.py 5 OK in 1.107s, finished 2026-11-17T10:45:19Z. test_final_comparison_and_marker_removal_hold_writer_lock passed on worktree and installed 0.1.31. The final comparison and marker removal hold the writer lock so a late tracker write stays detectable. Already present; no new code this round.",
+            "finished_at": "2026-11-17T10:45:37Z"
+          },
+          "BCL-16": {
+            "state": "pending"
+          },
+          "BCL-17": {
+            "state": "pending"
+          },
+          "AGENT-28": {
+            "state": "pending"
+          },
+          "AGENT-29": {
+            "state": "pending"
+          },
+          "BCL-18": {
+            "state": "pending"
+          },
+          "BCL-19": {
+            "state": "pending"
+          },
+          "BCL-20": {
+            "state": "pending"
+          },
+          "BCL-21": {
+            "state": "pending"
+          },
+          "EVAL-01": {
+            "state": "pending"
+          },
+          "BCL-22": {
+            "state": "pending"
+          },
+          "BCL-23": {
+            "state": "pending"
+          },
+          "WF-08": {
+            "state": "pending"
+          },
+          "BCL-24": {
+            "state": "pending"
+          },
+          "BCL-25": {
+            "state": "pending"
+          },
+          "BCL-26": {
+            "state": "pending"
+          },
+          "BCL-27": {
+            "state": "pending"
+          },
+          "BCL-28": {
+            "state": "pending"
+          },
+          "BCL-29": {
+            "state": "pending"
+          },
+          "WF-09": {
+            "state": "pending"
+          },
+          "BCL-30": {
+            "state": "pending"
+          },
+          "BCL-31": {
+            "state": "pending"
+          },
+          "WF-10": {
+            "state": "pending"
+          },
+          "BCL-32": {
+            "state": "pending"
+          },
+          "BCL-33": {
+            "state": "pending"
+          },
+          "WF-11": {
+            "state": "pending"
+          },
+          "BCL-34": {
+            "state": "pending"
+          },
+          "WF-12": {
+            "state": "pending"
+          },
+          "BCL-35": {
+            "state": "pending"
+          },
+          "PAGE-21": {
+            "state": "pending"
+          },
+          "WF-13": {
+            "state": "pending"
+          },
+          "WF-14": {
+            "state": "pending"
+          },
+          "WF-15": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -3547,9 +3803,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-17T11:02:20Z",
-      "now": "2026-11-17T11:02:20Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-17T11:03:53Z",
+      "now": "2026-11-17T11:03:53Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 113,
@@ -3856,18 +4112,22 @@
       "verify"
     ],
     "verification_run": {
-      "id": "bcl-0.1.31-a488a4ca-114",
-      "build": "batched-change-list 0.1.31",
-      "revision": "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec",
-      "installed_at": "2026-11-17T10:11:44Z",
-      "install_evidence": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec remains present in ~/.agents/plugins and skills (plugin.json 0.1.31, 48 files, sha256 1e7cf19621295d7d655dbd6b7bdc7e98a312f8fbbee5c5f899151918cdbe0236). Backup /tmp/bcl-install-0.1.31-backup-20261117-154144. No new install this round. Receipt /Users/gurusharan/.agents/artifacts/bcl-113/install-bcl-0.1.31-receipt.json.",
+      "id": "bcl-0.1.32-9e8efcf5-114",
+      "build": "batched-change-list 0.1.32",
+      "revision": "9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4",
+      "installed_at": "2026-11-17T11:01:50Z",
+      "install_evidence": "Copied worktree plugin 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 to ~/.agents/plugins/batched-change-list, ~/.agents/skills/batched-change-list, and Cursor/Codex caches at 0.1.32 and 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4. 48 plugin files, 41 skill files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e. Backup /tmp/bcl-install-0.1.32-backup-20261117-163138. Receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.32-receipt.json.",
       "status": "active",
       "checks": {
         "AUTO-03": {
           "state": "pending"
         },
         "AUTO-04": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 is present (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e). AUTO-04 is in_progress. Installed test_bcl.py 45 OK in 48.007s; five sync-main tests passed. About to run the stored discover command via bcl verify.",
+          "observed_at": "2026-11-17T11:03:50Z",
+          "started_at": "2026-11-17T11:03:53Z",
+          "updated_at": "2026-11-17T11:03:53Z"
         },
         "AUTO-05": {
           "state": "pending"
@@ -3876,13 +4136,7 @@
           "state": "pending"
         },
         "BCL-01": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec is present. BCL-01 is in_progress. About to run test_merge_guard_rejects_unsnapshotted_live_then_passes and test_stage_snapshots_and_commits_only_home_worktree, plus the stored test_bcl.py discover command, on the worktree and the installed copy.",
-          "observed_at": "2026-11-17T10:44:10Z",
-          "started_at": "2026-11-17T10:44:28Z",
-          "updated_at": "2026-11-17T10:44:28Z",
-          "evidence": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec (already present; no new install this round). Worktree: specific tests 5 OK in 3.186s; stored test_bcl.py 40 OK in 43.477s; stored test_live_state.py 5 OK in 1.100s, first run finished 2026-11-17T10:44:01Z. Installed copy: specific tests 5 OK in 3.220s; test_bcl.py 40 OK in 43.476s; test_live_state.py 5 OK in 1.094s. bcl verify GUARD re-ran test_bcl.py 40 OK in 44.027s; SNAP re-ran test_live_state.py 5 OK in 1.107s, finished 2026-11-17T10:45:19Z. test_merge_guard_rejects_unsnapshotted_live_then_passes and test_stage_snapshots_and_commits_only_home_worktree passed on worktree and installed 0.1.31. Merge refuses an unsnapshotted live tracker; stages snapshot and commit in the home worktree. Already present; no new code this round.",
-          "finished_at": "2026-11-17T10:45:37Z"
+          "state": "pending"
         },
         "BCL-02": {
           "state": "pending"
@@ -3891,7 +4145,11 @@
           "state": "pending"
         },
         "PLAN-02": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 is present (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e). PLAN-02 is in_progress. Installed test_manage_findings.py 73 OK in 13.752s; focused plan-check tests passed. About to run the stored discover command via bcl verify.",
+          "observed_at": "2026-11-17T11:03:50Z",
+          "started_at": "2026-11-17T11:03:53Z",
+          "updated_at": "2026-11-17T11:03:53Z"
         },
         "PLAN-03": {
           "state": "pending"
@@ -3990,13 +4248,7 @@
           "state": "pending"
         },
         "BCL-12": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec is present. BCL-12 is in_progress. About to run test_changed_tracker_keeps_one_revision_and_reports_stale_snapshot, test_snapshots_in_same_worktree_are_serialized, and the stored test_live_state.py discover command, on the worktree and the installed copy.",
-          "observed_at": "2026-11-17T10:44:10Z",
-          "started_at": "2026-11-17T10:44:28Z",
-          "updated_at": "2026-11-17T10:44:28Z",
-          "evidence": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec (already present; no new install this round). Worktree: specific tests 5 OK in 3.186s; stored test_bcl.py 40 OK in 43.477s; stored test_live_state.py 5 OK in 1.100s, first run finished 2026-11-17T10:44:01Z. Installed copy: specific tests 5 OK in 3.220s; test_bcl.py 40 OK in 43.476s; test_live_state.py 5 OK in 1.094s. bcl verify GUARD re-ran test_bcl.py 40 OK in 44.027s; SNAP re-ran test_live_state.py 5 OK in 1.107s, finished 2026-11-17T10:45:19Z. test_changed_tracker_keeps_one_revision_and_reports_stale_snapshot and test_snapshots_in_same_worktree_are_serialized passed on worktree and installed 0.1.31. A snapshot uses one captured tracker revision and serializes snapshot work in the same worktree. Already present; no new code this round.",
-          "finished_at": "2026-11-17T10:45:37Z"
+          "state": "pending"
         },
         "BCL-13": {
           "state": "pending"
@@ -4005,13 +4257,7 @@
           "state": "pending"
         },
         "BCL-15": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec is present. BCL-15 is in_progress. About to run test_final_comparison_and_marker_removal_hold_writer_lock and the stored test_live_state.py discover command, on the worktree and the installed copy.",
-          "observed_at": "2026-11-17T10:44:10Z",
-          "started_at": "2026-11-17T10:44:28Z",
-          "updated_at": "2026-11-17T10:44:28Z",
-          "evidence": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec (already present; no new install this round). Worktree: specific tests 5 OK in 3.186s; stored test_bcl.py 40 OK in 43.477s; stored test_live_state.py 5 OK in 1.100s, first run finished 2026-11-17T10:44:01Z. Installed copy: specific tests 5 OK in 3.220s; test_bcl.py 40 OK in 43.476s; test_live_state.py 5 OK in 1.094s. bcl verify GUARD re-ran test_bcl.py 40 OK in 44.027s; SNAP re-ran test_live_state.py 5 OK in 1.107s, finished 2026-11-17T10:45:19Z. test_final_comparison_and_marker_removal_hold_writer_lock passed on worktree and installed 0.1.31. The final comparison and marker removal hold the writer lock so a late tracker write stays detectable. Already present; no new code this round.",
-          "finished_at": "2026-11-17T10:45:37Z"
+          "state": "pending"
         },
         "BCL-16": {
           "state": "pending"
