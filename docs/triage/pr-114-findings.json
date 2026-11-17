@@ -4886,9 +4886,8 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-17T13:19:42Z",
-      "now": "2026-11-17T13:19:42Z — Introspection recorded"
+      "stage": "report_rollover",
+      "updated_at": "2026-11-17T13:20:07Z"
     },
     "rollover": {
       "source_pr": 113,
@@ -5207,7 +5206,8 @@
       "plan_fix",
       "install",
       "verify",
-      "introspect"
+      "introspect",
+      "report_rollover"
     ],
     "verification_run": {
       "id": "bcl-0.1.36-a781916b-114",
