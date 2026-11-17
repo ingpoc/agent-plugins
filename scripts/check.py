@@ -1116,7 +1116,21 @@ def check_triage_renders() -> list[str]:
         except (OSError, ValueError) as exc:
             errors.append(f"{data.relative_to(ROOT)}: unreadable tracker ({exc})")
     pairs = triage_render_pairs(triage)
+    try:
+        staged = set(subprocess.check_output(
+            ["git", "diff", "--cached", "--name-only", "-z"], cwd=ROOT,
+            stderr=subprocess.DEVNULL,
+        ).decode().split("\0"))
+        indexed = set(subprocess.check_output(
+            ["git", "ls-files", "-z"], cwd=ROOT, stderr=subprocess.DEVNULL
+        ).decode().split("\0"))
+    except (OSError, subprocess.CalledProcessError):
+        staged = set()
+        indexed = set()
     for data, report in pairs:
+        if (data.relative_to(ROOT).as_posix() in staged
+                and report.relative_to(ROOT).as_posix() not in indexed):
+            errors.append(f"{report.relative_to(ROOT)}: tracker {data.name} is staged but its HTML report is missing from the index")
         other = seen.get(report)
         if other is not None:
             errors.append(f"{report.relative_to(ROOT)}: claimed by both {other.name} and {data.name}")
