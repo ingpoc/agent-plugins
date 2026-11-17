@@ -2982,8 +2982,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-17T09:30:22Z",
-      "now": "2026-11-17T09:30:22Z — Plan recorded"
+      "updated_at": "2026-11-17T09:35:35Z",
+      "now": "2026-11-17T09:35:35Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 112,
@@ -3162,7 +3162,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T09:30:22Z"
+          "updated_at": "2026-11-17T09:35:35Z"
         },
         {
           "id": "HOOK",
@@ -3187,7 +3187,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T09:30:22Z"
+          "updated_at": "2026-11-17T09:35:35Z"
         },
         {
           "id": "OUTCOME",
@@ -3212,7 +3212,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T09:30:22Z"
+          "updated_at": "2026-11-17T09:35:35Z"
         },
         {
           "id": "SERVE",
@@ -3237,7 +3237,36 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T09:30:22Z"
+          "updated_at": "2026-11-17T09:35:35Z"
+        },
+        {
+          "id": "HASH",
+          "name": "Emit data-definition-hash on the statechart",
+          "finding_ids": [
+            "BCL-35"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "fix",
+          "worktree": "pr113-hash",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/statechart.py",
+            "plugins/batched-change-list/skills/batched-change-list/statechart.html",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_skill.py"
+          ],
+          "reason": "skill-refine --strict requires data-definition-hash equal to sha256 of workflow_definition.json.",
+          "codex": {
+            "one_file": true
+          },
+          "verify": {
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_skill.py'",
+            "method": "Unit test plus skill_shape.py --strict: statechart.html data-definition-hash matches sha256 of workflow_definition.json.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-17T09:35:35Z"
         }
       ]
     },
@@ -5058,6 +5087,18 @@
       "verification_refs": [
         "BCL-34"
       ]
+    },
+    {
+      "id": "BCL-35",
+      "title": "statechart.html lacks data-definition-hash for workflow_definition.json",
+      "source": "User requested",
+      "status": "in_progress",
+      "priority": "high",
+      "summary": "skill-refine's strict check requires statechart.html to embed data-definition-hash equal to the SHA-256 of scripts/workflow_definition.json. The 0.1.29 chart only has data-source-hash, so the check fails as stale.",
+      "impact": "A skill can ship a generated chart that still fails the strict authoring gate whenever the workflow definition is the source of truth.",
+      "done_when": "scripts/statechart.py emits data-definition-hash equal to sha256(scripts/workflow_definition.json), the generated statechart.html is current, and python3 /tmp/sr-scripts/skill_shape.py --strict on the skill passes. A unit test covers a missing or stale definition hash.",
+      "observed": "On 17 Nov 2026 at 15:04 IST, skill_shape.py --strict on the installed 0.1.29 skill failed with stale statechart.html (definition hash mismatch). The chart had only data-source-hash. sha256(scripts/workflow_definition.json) is 8aa644dc0242332add4ad40eef6e0f90705663a5142b04952c880a39a80db539.",
+      "recommendation": "Make statechart.py embed data-definition-hash as sha256 of scripts/workflow_definition.json and regenerate the chart."
     }
   ]
 }
