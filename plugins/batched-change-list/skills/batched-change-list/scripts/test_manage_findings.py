@@ -1386,8 +1386,20 @@ class ManageFindingsTests(unittest.TestCase):
         current["findings"][0]["status"] = "failing"
         current["tracking"]["plan"]["groups"][0].update(status="failed", phase="verify")
         current["tracking"]["plan"]["groups"][0]["verify"].update(status="failed", failed=1, total=1)
+        workflow_before_edit = current["tracking"]["workflow"].copy()
         result = self._replay_batch(current, {"action": "set-plan", "plan": current["tracking"]["plan"]})
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(self.data.read_text())["tracking"]["workflow"], workflow_before_edit)
+        before_next_plan = self.data.read_bytes()
+        next_plan_ops = self.root / "next-plan.json"
+        next_plan_ops.write_text(json.dumps([{
+            "action": "set-activity", "stage": "plan_fix", "ids": ["ISSUE-01"],
+            "now": "Try next plan without introspect",
+        }]))
+        result = self.cli("batch", self.data, next_plan_ops, "--render", self.root / "next-plan.html")
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("this round's introspect", result.stderr)
+        self.assertEqual(self.data.read_bytes(), before_next_plan)
         none = {key: {"none": f"No {key} changes."} for key in ("delete", "simplify", "optimize", "automate")}
         result = self._replay_batch(json.loads(original), {"action": "introspect", "sections": none}, plan)
         self.assertEqual(result.returncode, 0, result.stderr)

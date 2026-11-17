@@ -1116,13 +1116,14 @@ def run(args, parser):
                         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                         for group in groups: stamp_plan_group(group, stamp)
                         tracking["plan"] = plan
-                        current_workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
-                        workflow = {"stage": "plan_fix", "updated_at": stamp, "now": f"{stamp} — Plan recorded"}
-                        if current_workflow.get("stale_after_min") is not None:
-                            workflow["stale_after_min"] = current_workflow["stale_after_min"]
-                        tracking["workflow"] = workflow
-                        if "plan_fix" not in tracking.setdefault("stages_reached", []):
-                            tracking["stages_reached"].append("plan_fix")
+                        if not same_current_plan:
+                            current_workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
+                            workflow = {"stage": "plan_fix", "updated_at": stamp, "now": f"{stamp} — Plan recorded"}
+                            if current_workflow.get("stale_after_min") is not None:
+                                workflow["stale_after_min"] = current_workflow["stale_after_min"]
+                            tracking["workflow"] = workflow
+                            if "plan_fix" not in tracking.setdefault("stages_reached", []):
+                                tracking["stages_reached"].append("plan_fix")
                     else:
                         plan = tracking.get("plan")
                         if not isinstance(plan, dict) or plan.get("cycle", cycle) != cycle:
