@@ -2967,6 +2967,268 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "bcl-0.1.30-2d96d273-113",
+        "build": "batched-change-list 0.1.30",
+        "revision": "2d96d27300051efe786aa355c41e8c199cf75158",
+        "installed_at": "2026-11-17T09:52:15Z",
+        "install_evidence": "Copied worktree plugin 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158 to ~/.agents/plugins/batched-change-list, ~/.agents/skills/batched-change-list, and Cursor/Codex caches at 0.1.30 and 2d96d27300051efe786aa355c41e8c199cf75158. 48 files, sha256 08bbadde4b17459a0b329918457f83cb809138e2551355dacd3bf659d7570d6f. Backup /tmp/bcl-install-0.1.30-backup-20261117-152214. bcl install BCL-34 PAGE-11 PAGE-09 PAGE-12 BCL-35 exited 0.",
+        "status": "interrupted",
+        "checks": {
+          "AUTO-03": {
+            "state": "pending"
+          },
+          "AUTO-04": {
+            "state": "pending"
+          },
+          "AUTO-05": {
+            "state": "pending"
+          },
+          "AUTO-06": {
+            "state": "pending"
+          },
+          "BCL-01": {
+            "state": "pending"
+          },
+          "BCL-02": {
+            "state": "pending"
+          },
+          "BCL-03": {
+            "state": "pending"
+          },
+          "PLAN-02": {
+            "state": "pending"
+          },
+          "PLAN-03": {
+            "state": "pending"
+          },
+          "OBS-23": {
+            "state": "pending"
+          },
+          "OBS-25": {
+            "state": "pending"
+          },
+          "AGENT-25": {
+            "state": "pending"
+          },
+          "WF-06": {
+            "state": "pending"
+          },
+          "PAGE-08": {
+            "state": "pending"
+          },
+          "AGENT-26": {
+            "state": "pending"
+          },
+          "AGENT-27": {
+            "state": "pending"
+          },
+          "WF-07": {
+            "state": "pending"
+          },
+          "PAGE-09": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158 is present in ~/.agents/plugins and skills (plugin.json 0.1.30, 48 files, sha256 08bbadde4b17459a0b329918457f83cb809138e2551355dacd3bf659d7570d6f). Backup /tmp/bcl-install-0.1.30-backup-20261117-152214. Findings are still in_progress.",
+            "observed_at": "2026-11-17T09:53:47Z",
+            "started_at": "2026-11-17T09:53:47Z",
+            "updated_at": "2026-11-17T09:53:47Z",
+            "evidence": "Installed bcl 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158. Stored worktree command passed: 214 tests OK in 62.062s at 2026-11-17T09:54:58Z. Installed copy: 214 tests OK in 63.850s at 2026-11-17T09:56:02Z. Terra r1 approved, with a nit that _lane_status.outcome is stored but the template still displays item.status. Logged as PAGE-21.",
+            "finished_at": "2026-11-17T09:57:04Z"
+          },
+          "PAGE-10": {
+            "state": "pending"
+          },
+          "SEC-01": {
+            "state": "pending"
+          },
+          "PAGE-11": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158 is present in ~/.agents/plugins and skills (plugin.json 0.1.30, 48 files, sha256 08bbadde4b17459a0b329918457f83cb809138e2551355dacd3bf659d7570d6f). Backup /tmp/bcl-install-0.1.30-backup-20261117-152214. Findings are still in_progress.",
+            "observed_at": "2026-11-17T09:53:47Z",
+            "started_at": "2026-11-17T09:53:47Z",
+            "updated_at": "2026-11-17T09:53:47Z",
+            "evidence": "Installed bcl 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158. Stored worktree command passed: 214 tests OK in 62.062s at 2026-11-17T09:54:58Z. Installed copy: 214 tests OK in 63.850s at 2026-11-17T09:56:02Z. Repo hook tests: 8 tests OK in 0.176s. Pre-push of the #113 branch passed. Terra r1 requested a P1 (the staged-only check missed committed trackers at pre-push) and related P2s. Fixed in c8281ac2 with no second review.",
+            "finished_at": "2026-11-17T09:57:04Z"
+          },
+          "BCL-04": {
+            "state": "pending"
+          },
+          "PAGE-12": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158 is present in ~/.agents/plugins and skills (plugin.json 0.1.30, 48 files, sha256 08bbadde4b17459a0b329918457f83cb809138e2551355dacd3bf659d7570d6f). Backup /tmp/bcl-install-0.1.30-backup-20261117-152214. Findings are still in_progress.",
+            "observed_at": "2026-11-17T09:53:47Z",
+            "started_at": "2026-11-17T09:53:47Z",
+            "updated_at": "2026-11-17T09:53:47Z",
+            "evidence": "Installed bcl 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158. Stored worktree command passed: 214 tests OK in 62.062s at 2026-11-17T09:54:58Z. Installed copy: 214 tests OK in 63.850s at 2026-11-17T09:56:02Z. Already present at 0.1.29; test_serve.py is included in the 214-test worktree and installed suites and passed outside the sandbox.",
+            "finished_at": "2026-11-17T09:57:04Z"
+          },
+          "FLOW-03": {
+            "state": "pending"
+          },
+          "PAGE-13": {
+            "state": "pending"
+          },
+          "PAGE-14": {
+            "state": "pending"
+          },
+          "PAGE-15": {
+            "state": "pending"
+          },
+          "PAGE-16": {
+            "state": "pending"
+          },
+          "BCL-05": {
+            "state": "pending"
+          },
+          "PAGE-17": {
+            "state": "pending"
+          },
+          "BCL-06": {
+            "state": "pending"
+          },
+          "FLOW-04": {
+            "state": "pending"
+          },
+          "PAGE-18": {
+            "state": "pending"
+          },
+          "BCL-07": {
+            "state": "pending"
+          },
+          "BCL-08": {
+            "state": "pending"
+          },
+          "PAGE-19": {
+            "state": "pending"
+          },
+          "PAGE-20": {
+            "state": "pending"
+          },
+          "BCL-09": {
+            "state": "pending"
+          },
+          "BCL-10": {
+            "state": "pending"
+          },
+          "BCL-11": {
+            "state": "pending"
+          },
+          "BCL-12": {
+            "state": "pending"
+          },
+          "BCL-13": {
+            "state": "pending"
+          },
+          "BCL-14": {
+            "state": "pending"
+          },
+          "BCL-15": {
+            "state": "pending"
+          },
+          "BCL-16": {
+            "state": "pending"
+          },
+          "BCL-17": {
+            "state": "pending"
+          },
+          "AGENT-28": {
+            "state": "pending"
+          },
+          "AGENT-29": {
+            "state": "pending"
+          },
+          "BCL-18": {
+            "state": "pending"
+          },
+          "BCL-19": {
+            "state": "pending"
+          },
+          "BCL-20": {
+            "state": "pending"
+          },
+          "BCL-21": {
+            "state": "pending"
+          },
+          "EVAL-01": {
+            "state": "pending"
+          },
+          "BCL-22": {
+            "state": "pending"
+          },
+          "BCL-23": {
+            "state": "pending"
+          },
+          "WF-08": {
+            "state": "pending"
+          },
+          "BCL-24": {
+            "state": "pending"
+          },
+          "BCL-25": {
+            "state": "pending"
+          },
+          "BCL-26": {
+            "state": "pending"
+          },
+          "BCL-27": {
+            "state": "pending"
+          },
+          "BCL-28": {
+            "state": "pending"
+          },
+          "BCL-29": {
+            "state": "pending"
+          },
+          "WF-09": {
+            "state": "pending"
+          },
+          "BCL-30": {
+            "state": "pending"
+          },
+          "BCL-31": {
+            "state": "pending"
+          },
+          "WF-10": {
+            "state": "pending"
+          },
+          "BCL-32": {
+            "state": "pending"
+          },
+          "BCL-33": {
+            "state": "pending"
+          },
+          "WF-11": {
+            "state": "pending"
+          },
+          "BCL-34": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158 is present in ~/.agents/plugins and skills (plugin.json 0.1.30, 48 files, sha256 08bbadde4b17459a0b329918457f83cb809138e2551355dacd3bf659d7570d6f). Backup /tmp/bcl-install-0.1.30-backup-20261117-152214. Findings are still in_progress.",
+            "observed_at": "2026-11-17T09:53:47Z",
+            "started_at": "2026-11-17T09:53:47Z",
+            "updated_at": "2026-11-17T09:53:47Z",
+            "evidence": "Installed bcl 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158. Stored worktree command passed: 214 tests OK in 62.062s at 2026-11-17T09:54:58Z. Installed copy: 214 tests OK in 63.850s at 2026-11-17T09:56:02Z. Terra r1 requested a P2: set-plan after introspect did not advance when the submitted plan still named the current round, and the workflow could stay on introspect. Fixed in 2e243d36 with no second review.",
+            "finished_at": "2026-11-17T09:57:04Z"
+          },
+          "WF-12": {
+            "state": "pending"
+          },
+          "BCL-35": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158 is present in ~/.agents/plugins and skills (plugin.json 0.1.30, 48 files, sha256 08bbadde4b17459a0b329918457f83cb809138e2551355dacd3bf659d7570d6f). Backup /tmp/bcl-install-0.1.30-backup-20261117-152214. Findings are still in_progress.",
+            "observed_at": "2026-11-17T09:53:47Z",
+            "started_at": "2026-11-17T09:53:47Z",
+            "updated_at": "2026-11-17T09:53:47Z",
+            "evidence": "Installed bcl 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158. Stored worktree command passed: 214 tests OK in 62.062s at 2026-11-17T09:54:58Z. Installed copy: 214 tests OK in 63.850s at 2026-11-17T09:56:02Z. skill_shape.py --strict PASS on the installed skill. Installed statechart.html embeds data-definition-hash 8aa644dc0242332add4ad40eef6e0f90705663a5142b04952c880a39a80db539. One-file group; Terra skipped.",
+            "finished_at": "2026-11-17T09:57:04Z"
+          },
+          "PAGE-21": {
+            "state": "pending"
+          },
+          "WF-13": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -2981,9 +3243,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-17T10:11:45Z",
-      "now": "2026-11-17T10:11:45Z — Install in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-17T10:13:28Z",
+      "now": "2026-11-17T10:13:28Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 112,
@@ -3150,8 +3412,8 @@
             "PAGE-21"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "fix",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "pr113-tmpl",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
@@ -3166,17 +3428,17 @@
             "implementer_effort": "medium",
             "review_status": "passed",
             "status": "running",
-            "updated_at": "2026-11-17T10:11:27Z"
+            "updated_at": "2026-11-17T10:13:15Z"
           },
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
             "method": "Unit test asserts the visible issue status for a failing finding in a deferred lane uses the outcome field.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T10:11:27Z"
+          "updated_at": "2026-11-17T10:13:15Z"
         },
         {
           "id": "RELOAD",
@@ -3185,8 +3447,8 @@
             "AUTO-06"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "fix",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "pr113-reload",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/serve.py",
@@ -3201,17 +3463,17 @@
             "implementer_effort": "medium",
             "review_status": "passed",
             "status": "running",
-            "updated_at": "2026-11-17T10:11:27Z"
+            "updated_at": "2026-11-17T10:13:15Z"
           },
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_serve.py'",
             "method": "Unit test that changing render.py makes the next viewer request use the new renderer.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T10:11:27Z"
+          "updated_at": "2026-11-17T10:13:15Z"
         },
         {
           "id": "GATE",
@@ -3221,7 +3483,7 @@
             "BCL-14"
           ],
           "depends_on": [],
-          "status": "pending",
+          "status": "verified",
           "phase": "verify",
           "worktree": "samantha-pr113-rollover",
           "files": [],
@@ -3229,12 +3491,12 @@
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
             "method": "Existing tests: gate excludes WF Introspect records and does not count a verified_fixed issue during an unresolved recheck.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 2,
             "failed": 0,
             "total": 2
           },
-          "updated_at": "2026-11-17T10:01:33Z"
+          "updated_at": "2026-11-17T10:13:15Z"
         },
         {
           "id": "CLOCK",
@@ -3244,7 +3506,7 @@
             "BCL-19"
           ],
           "depends_on": [],
-          "status": "pending",
+          "status": "verified",
           "phase": "verify",
           "worktree": "samantha-pr113-rollover",
           "files": [],
@@ -3252,26 +3514,29 @@
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
             "method": "Existing tests: lane updates refresh the workflow clock, and overlapping current-round finding assignments are rejected.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 2,
             "failed": 0,
             "total": 2
           },
-          "updated_at": "2026-11-17T10:01:33Z"
+          "updated_at": "2026-11-17T10:13:15Z"
         }
-      ]
+      ],
+      "status": "closed"
     },
     "stages_reached": [
       "collect",
       "plan_fix",
-      "install"
+      "install",
+      "verify",
+      "introspect"
     ],
     "verification_run": {
-      "id": "bcl-0.1.30-2d96d273-113",
-      "build": "batched-change-list 0.1.30",
-      "revision": "2d96d27300051efe786aa355c41e8c199cf75158",
-      "installed_at": "2026-11-17T09:52:15Z",
-      "install_evidence": "Copied worktree plugin 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158 to ~/.agents/plugins/batched-change-list, ~/.agents/skills/batched-change-list, and Cursor/Codex caches at 0.1.30 and 2d96d27300051efe786aa355c41e8c199cf75158. 48 files, sha256 08bbadde4b17459a0b329918457f83cb809138e2551355dacd3bf659d7570d6f. Backup /tmp/bcl-install-0.1.30-backup-20261117-152214. bcl install BCL-34 PAGE-11 PAGE-09 PAGE-12 BCL-35 exited 0.",
+      "id": "bcl-0.1.31-a488a4ca-113",
+      "build": "batched-change-list 0.1.31",
+      "revision": "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec",
+      "installed_at": "2026-11-17T10:11:44Z",
+      "install_evidence": "Copied worktree plugin 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec to ~/.agents/plugins/batched-change-list, ~/.agents/skills/batched-change-list, and Cursor/Codex caches at 0.1.31 and a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. 48 files, sha256 1e7cf19621295d7d655dbd6b7bdc7e98a312f8fbbee5c5f899151918cdbe0236. Backup /tmp/bcl-install-0.1.31-backup-20261117-154144. bcl install PAGE-21 AUTO-06 exited 0.",
       "status": "active",
       "checks": {
         "AUTO-03": {
@@ -3284,7 +3549,13 @@
           "state": "pending"
         },
         "AUTO-06": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec is present in ~/.agents/plugins and skills (plugin.json 0.1.31, 48 files, sha256 1e7cf19621295d7d655dbd6b7bdc7e98a312f8fbbee5c5f899151918cdbe0236). Backup /tmp/bcl-install-0.1.31-backup-20261117-154144. Findings are still in_progress.",
+          "observed_at": "2026-11-17T10:11:56Z",
+          "started_at": "2026-11-17T10:11:56Z",
+          "updated_at": "2026-11-17T10:11:56Z",
+          "evidence": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. serve.py reloads render.py when its content hash changes, compiling a fresh module so a stale .pyc cannot hide the update. test_serve.py includes the reload regression and passed 10 tests outside the sandbox. One-file group; Terra skipped.",
+          "finished_at": "2026-11-17T10:13:15Z"
         },
         "BCL-01": {
           "state": "pending"
@@ -3326,13 +3597,7 @@
           "state": "pending"
         },
         "PAGE-09": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158 is present in ~/.agents/plugins and skills (plugin.json 0.1.30, 48 files, sha256 08bbadde4b17459a0b329918457f83cb809138e2551355dacd3bf659d7570d6f). Backup /tmp/bcl-install-0.1.30-backup-20261117-152214. Findings are still in_progress.",
-          "observed_at": "2026-11-17T09:53:47Z",
-          "started_at": "2026-11-17T09:53:47Z",
-          "updated_at": "2026-11-17T09:53:47Z",
-          "evidence": "Installed bcl 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158. Stored worktree command passed: 214 tests OK in 62.062s at 2026-11-17T09:54:58Z. Installed copy: 214 tests OK in 63.850s at 2026-11-17T09:56:02Z. Terra r1 approved, with a nit that _lane_status.outcome is stored but the template still displays item.status. Logged as PAGE-21.",
-          "finished_at": "2026-11-17T09:57:04Z"
+          "state": "pending"
         },
         "PAGE-10": {
           "state": "pending"
@@ -3341,28 +3606,22 @@
           "state": "pending"
         },
         "PAGE-11": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158 is present in ~/.agents/plugins and skills (plugin.json 0.1.30, 48 files, sha256 08bbadde4b17459a0b329918457f83cb809138e2551355dacd3bf659d7570d6f). Backup /tmp/bcl-install-0.1.30-backup-20261117-152214. Findings are still in_progress.",
-          "observed_at": "2026-11-17T09:53:47Z",
-          "started_at": "2026-11-17T09:53:47Z",
-          "updated_at": "2026-11-17T09:53:47Z",
-          "evidence": "Installed bcl 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158. Stored worktree command passed: 214 tests OK in 62.062s at 2026-11-17T09:54:58Z. Installed copy: 214 tests OK in 63.850s at 2026-11-17T09:56:02Z. Repo hook tests: 8 tests OK in 0.176s. Pre-push of the #113 branch passed. Terra r1 requested a P1 (the staged-only check missed committed trackers at pre-push) and related P2s. Fixed in c8281ac2 with no second review.",
-          "finished_at": "2026-11-17T09:57:04Z"
+          "state": "pending"
         },
         "BCL-04": {
           "state": "pending"
         },
         "PAGE-12": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158 is present in ~/.agents/plugins and skills (plugin.json 0.1.30, 48 files, sha256 08bbadde4b17459a0b329918457f83cb809138e2551355dacd3bf659d7570d6f). Backup /tmp/bcl-install-0.1.30-backup-20261117-152214. Findings are still in_progress.",
-          "observed_at": "2026-11-17T09:53:47Z",
-          "started_at": "2026-11-17T09:53:47Z",
-          "updated_at": "2026-11-17T09:53:47Z",
-          "evidence": "Installed bcl 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158. Stored worktree command passed: 214 tests OK in 62.062s at 2026-11-17T09:54:58Z. Installed copy: 214 tests OK in 63.850s at 2026-11-17T09:56:02Z. Already present at 0.1.29; test_serve.py is included in the 214-test worktree and installed suites and passed outside the sandbox.",
-          "finished_at": "2026-11-17T09:57:04Z"
+          "state": "pending"
         },
         "FLOW-03": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec is present in ~/.agents/plugins and skills (plugin.json 0.1.31, 48 files, sha256 1e7cf19621295d7d655dbd6b7bdc7e98a312f8fbbee5c5f899151918cdbe0236). Backup /tmp/bcl-install-0.1.31-backup-20261117-154144. Findings are still in_progress.",
+          "observed_at": "2026-11-17T10:11:56Z",
+          "started_at": "2026-11-17T10:11:56Z",
+          "updated_at": "2026-11-17T10:11:56Z",
+          "evidence": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. test_gate_excludes_introspection_records_and_meets_at_threshold passed in test_render.py (56 tests) on the worktree and the installed 0.1.31 copy. Already present; no new code this round.",
+          "finished_at": "2026-11-17T10:13:15Z"
         },
         "PAGE-13": {
           "state": "pending"
@@ -3398,7 +3657,13 @@
           "state": "pending"
         },
         "PAGE-19": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec is present in ~/.agents/plugins and skills (plugin.json 0.1.31, 48 files, sha256 1e7cf19621295d7d655dbd6b7bdc7e98a312f8fbbee5c5f899151918cdbe0236). Backup /tmp/bcl-install-0.1.31-backup-20261117-154144. Findings are still in_progress.",
+          "observed_at": "2026-11-17T10:11:56Z",
+          "started_at": "2026-11-17T10:11:56Z",
+          "updated_at": "2026-11-17T10:11:56Z",
+          "evidence": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. test_manage_findings.py (71 tests) on the worktree and installed copy covers the workflow clock update when a lane's activity changes. Already present; no new code this round.",
+          "finished_at": "2026-11-17T10:13:15Z"
         },
         "PAGE-20": {
           "state": "pending"
@@ -3419,7 +3684,13 @@
           "state": "pending"
         },
         "BCL-14": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec is present in ~/.agents/plugins and skills (plugin.json 0.1.31, 48 files, sha256 1e7cf19621295d7d655dbd6b7bdc7e98a312f8fbbee5c5f899151918cdbe0236). Backup /tmp/bcl-install-0.1.31-backup-20261117-154144. Findings are still in_progress.",
+          "observed_at": "2026-11-17T10:11:56Z",
+          "started_at": "2026-11-17T10:11:56Z",
+          "updated_at": "2026-11-17T10:11:56Z",
+          "evidence": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. test_gate_does_not_count_a_fixed_issue_during_an_unresolved_recheck passed in the same test_render.py runs. Already present; no new code this round.",
+          "finished_at": "2026-11-17T10:13:15Z"
         },
         "BCL-15": {
           "state": "pending"
@@ -3440,7 +3711,13 @@
           "state": "pending"
         },
         "BCL-19": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec is present in ~/.agents/plugins and skills (plugin.json 0.1.31, 48 files, sha256 1e7cf19621295d7d655dbd6b7bdc7e98a312f8fbbee5c5f899151918cdbe0236). Backup /tmp/bcl-install-0.1.31-backup-20261117-154144. Findings are still in_progress.",
+          "observed_at": "2026-11-17T10:11:56Z",
+          "started_at": "2026-11-17T10:11:56Z",
+          "updated_at": "2026-11-17T10:11:56Z",
+          "evidence": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. test_current_round_finding_assignments_are_unique passed in the same test_manage_findings.py runs. Already present; no new code this round.",
+          "finished_at": "2026-11-17T10:13:15Z"
         },
         "BCL-20": {
           "state": "pending"
@@ -3500,104 +3777,94 @@
           "state": "pending"
         },
         "BCL-34": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158 is present in ~/.agents/plugins and skills (plugin.json 0.1.30, 48 files, sha256 08bbadde4b17459a0b329918457f83cb809138e2551355dacd3bf659d7570d6f). Backup /tmp/bcl-install-0.1.30-backup-20261117-152214. Findings are still in_progress.",
-          "observed_at": "2026-11-17T09:53:47Z",
-          "started_at": "2026-11-17T09:53:47Z",
-          "updated_at": "2026-11-17T09:53:47Z",
-          "evidence": "Installed bcl 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158. Stored worktree command passed: 214 tests OK in 62.062s at 2026-11-17T09:54:58Z. Installed copy: 214 tests OK in 63.850s at 2026-11-17T09:56:02Z. Terra r1 requested a P2: set-plan after introspect did not advance when the submitted plan still named the current round, and the workflow could stay on introspect. Fixed in 2e243d36 with no second review.",
-          "finished_at": "2026-11-17T09:57:04Z"
+          "state": "pending"
         },
         "WF-12": {
           "state": "pending"
         },
         "BCL-35": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158 is present in ~/.agents/plugins and skills (plugin.json 0.1.30, 48 files, sha256 08bbadde4b17459a0b329918457f83cb809138e2551355dacd3bf659d7570d6f). Backup /tmp/bcl-install-0.1.30-backup-20261117-152214. Findings are still in_progress.",
-          "observed_at": "2026-11-17T09:53:47Z",
-          "started_at": "2026-11-17T09:53:47Z",
-          "updated_at": "2026-11-17T09:53:47Z",
-          "evidence": "Installed bcl 0.1.30 at 2d96d27300051efe786aa355c41e8c199cf75158. Stored worktree command passed: 214 tests OK in 62.062s at 2026-11-17T09:54:58Z. Installed copy: 214 tests OK in 63.850s at 2026-11-17T09:56:02Z. skill_shape.py --strict PASS on the installed skill. Installed statechart.html embeds data-definition-hash 8aa644dc0242332add4ad40eef6e0f90705663a5142b04952c880a39a80db539. One-file group; Terra skipped.",
-          "finished_at": "2026-11-17T09:57:04Z"
-        },
-        "PAGE-21": {
           "state": "pending"
         },
+        "PAGE-21": {
+          "state": "fixed",
+          "observation": "Installed batched-change-list 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec is present in ~/.agents/plugins and skills (plugin.json 0.1.31, 48 files, sha256 1e7cf19621295d7d655dbd6b7bdc7e98a312f8fbbee5c5f899151918cdbe0236). Backup /tmp/bcl-install-0.1.31-backup-20261117-154144. Findings are still in_progress.",
+          "observed_at": "2026-11-17T10:11:56Z",
+          "started_at": "2026-11-17T10:11:56Z",
+          "updated_at": "2026-11-17T10:11:56Z",
+          "evidence": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. The issue page now shows Issue status from _lane_status.outcome, with a fallback to item.status. The deferred-lane test executes the template expression and expects 'Issue status: Failing'. One-file group; Terra skipped.",
+          "finished_at": "2026-11-17T10:13:15Z"
+        },
         "WF-13": {
+          "state": "pending"
+        },
+        "WF-14": {
           "state": "pending"
         }
       }
     },
     "introspect": {
-      "result": "Round 1 of #113: five independent groups verified on installed 0.1.30; PAGE-21 filed from the OUTCOME nit.",
-      "at": "2026-11-17T09:57:38Z",
-      "task": "WF-13",
+      "result": "Round 2 of #113: six findings verified on installed 0.1.31; gate 11/15. SEC-01 and BCL-29 were not reopened.",
+      "at": "2026-11-17T10:13:28Z",
+      "task": "WF-14",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 5",
-        "Codex write: ROUND",
-        "Codex review: ROUND",
-        "Polling and rework review: ROUND",
-        "Test command: ROUND: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
-        "Codex write: HOOK",
-        "Codex review: HOOK",
-        "Polling and rework review: HOOK",
-        "Test command: HOOK: python3 -m unittest discover -s scripts -p 'test_check_triage_renders.py'",
-        "Codex write: OUTCOME",
-        "Codex review: OUTCOME",
-        "Polling and rework review: OUTCOME",
-        "Test command: OUTCOME: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
-        "Codex write: SERVE",
-        "One-file review exemption: SERVE",
-        "Polling and rework review: SERVE",
-        "Test command: SERVE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_serve.py'",
-        "Codex write: HASH",
-        "One-file review exemption: HASH",
-        "Polling and rework review: HASH",
-        "Test command: HASH: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_skill.py'"
+        "Parallel group count: 4",
+        "Codex write: TMPL",
+        "One-file review exemption: TMPL",
+        "Polling and rework review: TMPL",
+        "Test command: TMPL: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
+        "Codex write: RELOAD",
+        "One-file review exemption: RELOAD",
+        "Polling and rework review: RELOAD",
+        "Test command: RELOAD: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_serve.py'",
+        "Codex write: GATE",
+        "Codex review: GATE",
+        "Polling and rework review: GATE",
+        "Test command: GATE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
+        "Codex write: CLOCK",
+        "Codex review: CLOCK",
+        "Polling and rework review: CLOCK",
+        "Test command: CLOCK: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'"
       ],
       "none": [
         "Stage: Plan & fix",
         "Stage: Verify",
-        "Parallel group count: 5",
-        "Codex write: ROUND",
-        "Codex review: ROUND",
-        "Test command: ROUND: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
-        "Codex write: HOOK",
-        "Codex review: HOOK",
-        "Test command: HOOK: python3 -m unittest discover -s scripts -p 'test_check_triage_renders.py'",
-        "Codex write: OUTCOME",
-        "Polling and rework review: OUTCOME",
-        "Test command: OUTCOME: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
-        "Codex write: SERVE",
-        "One-file review exemption: SERVE",
-        "Polling and rework review: SERVE",
-        "Test command: SERVE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_serve.py'",
-        "Codex write: HASH",
-        "Polling and rework review: HASH",
-        "Test command: HASH: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_skill.py'"
+        "Parallel group count: 4",
+        "Codex write: TMPL",
+        "Polling and rework review: TMPL",
+        "Test command: TMPL: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
+        "Codex write: RELOAD",
+        "Test command: RELOAD: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_serve.py'",
+        "Codex write: GATE",
+        "Codex review: GATE",
+        "Polling and rework review: GATE",
+        "Test command: GATE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
+        "Codex write: CLOCK",
+        "Codex review: CLOCK",
+        "Polling and rework review: CLOCK",
+        "Test command: CLOCK: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'"
       ],
       "sections": {
         "delete": {
-          "none": "No extra process, files, or closeout steps were dropped this round. SERVE needed no new source because the ThreadingHTTPServer fix was already in 0.1.29."
+          "none": "No extra process or files were dropped this round. GATE and CLOCK needed no new source because the gate exclusions, lane clock, and unique-assignment checks were already in 0.1.30."
         },
         "simplify": {
           "items": [
             {
-              "item": "Polling and rework review: ROUND",
-              "evidence": "Terra r1 requested a P2 on set-plan after introspect. Luna resumed the same session, fixed it in 2e243d36, and a second Terra review was skipped.",
+              "item": "One-file review exemption: TMPL",
+              "evidence": "PAGE-21 stayed a template display change plus a unit test, so Terra was skipped.",
               "outcome": "fixed inline"
             },
             {
-              "item": "Polling and rework review: HOOK",
-              "evidence": "Terra r1 requested a P1 and related P2s on the triage render check. Luna resumed the same session, fixed them in c8281ac2, and a second Terra review was skipped.",
+              "item": "One-file review exemption: RELOAD",
+              "evidence": "AUTO-06 stayed in serve.py plus a unit test, so Terra was skipped.",
               "outcome": "fixed inline"
             },
             {
-              "item": "One-file review exemption: HASH",
-              "evidence": "BCL-35 stayed a generator plus generated HTML and a unit test, so Terra was skipped and review_status was recorded as passed from the one-file exemption.",
+              "item": "Polling and rework review: RELOAD",
+              "evidence": "The first outside-sandbox run of test_serve.py failed because a same-second rewrite reused stale bytecode. Luna resumed the same session and compiled changed source into a fresh module; the suite then passed 10 tests. No second review.",
               "outcome": "fixed inline"
             }
           ]
@@ -3606,23 +3873,16 @@
           "items": [
             {
               "item": "Stage: Install",
-              "evidence": "The five independent lanes were merged, the plugin was bumped to 0.1.30 in one release commit 2d96d273, and a single install went to ~/.agents, Cursor, and Codex caches (48 files, sha256 08bbadde4b17459a0b329918457f83cb809138e2551355dacd3bf659d7570d6f).",
+              "evidence": "TMPL and RELOAD were merged, the plugin was bumped to 0.1.31 in a488a4ca, and a single install went to ~/.agents, Cursor, and Codex caches (48 files, sha256 1e7cf19621295d7d655dbd6b7bdc7e98a312f8fbbee5c5f899151918cdbe0236).",
               "outcome": "fixed inline"
             }
           ]
         },
         "automate": {
-          "items": [
-            {
-              "item": "Codex review: OUTCOME",
-              "evidence": "Terra r1 approved PAGE-09 and noted that _lane_status.outcome is not read by the template, while the visible status still comes from item.status. Filed as PAGE-21 for a later round.",
-              "outcome": "issue",
-              "issue_id": "PAGE-21"
-            }
-          ]
+          "none": "No new leftover automation issue was filed this closeout. SEC-01 and BCL-29 stayed verified_fixed and excluded; they were not reopened."
         }
       },
-      "round": 1,
+      "round": 2,
       "cycle": 5
     }
   },
@@ -3680,14 +3940,28 @@
       "id": "AUTO-06",
       "title": "Installing the page plugin does not reload the running list viewer",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "After render.py is copied into the installed plugin and the 0.1.18 cache, the already-running list viewer keeps the old renderer in memory, so the live page can still show a Now line after status-v2 is installed.",
       "impact": "Live verify and anyone watching the list viewer can see a stale workflow while the on-disk HTML is already correct, so a fix looks unverified or is signed off against the wrong page.",
       "done_when": "The Install step restarts or re-execs the list viewer for that tracker so the next request is rendered with the newly installed render.py, or serve.py reloads render.py when the file changes.",
       "observed": "On 14 Nov 2026 at 9:22 PM IST, after status-v2 was rsynced into ~/.agents/plugins/batched-change-list and ~/.codex/plugins/cache/ingpoc-agent-plugins/batched-change-list/0.1.18, curl of http://127.0.0.1:53366/ still contained workflow-now and “Now 9:22 PM IST - Plan recorded”, while docs/triage/pr-110.html on disk had no workflow-now and showed Parked for Round 3. The viewer was pid 59002, started at 7:58 PM IST, before the install. 1x captures OCR’d the old Now line. Restarting only that process on the same port loaded the new renderer; the next captures and curl were status-v2.",
       "recommendation": "In the Install step, bounce the adopted list viewer after the plugin files are installed, or make serve.py reload render.py when it changes, and have the live verify command fetch the viewer URL rather than only the on-disk HTML.",
-      "carried_from": 110
+      "carried_from": 110,
+      "verification_evidence": [
+        {
+          "check": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. serve.py reloads render.py when its content hash changes, compiling a fresh module so a stale .pyc cannot hide the update. test_serve.py includes the reload regression and passed 10 tests outside the sandbox. One-file group; Terra skipped.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.31",
+          "session": "installed-0.1.31-verify-113",
+          "timestamp": "2026-11-17T10:12:58Z",
+          "reference": "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec:AUTO-06:installed-cli-suite"
+        }
+      ],
+      "verification": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. serve.py reloads render.py when its content hash changes, compiling a fresh module so a stale .pyc cannot hide the update. test_serve.py includes the reload regression and passed 10 tests outside the sandbox. One-file group; Terra skipped.",
+      "verification_refs": [
+        "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec:AUTO-06:installed-cli-suite"
+      ]
     },
     {
       "id": "BCL-01",
@@ -4205,14 +4479,28 @@
       "id": "FLOW-03",
       "title": "Introspection bookkeeping is counted as a verified fix",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "The rollover count includes an introspection record even when it does not represent a fix.",
       "impact": "The count can suggest more fixes were delivered than actually were.",
       "done_when": "Introspection records are excluded from the fix threshold while real tracked fixes continue to count.",
       "recommendation": "Exclude the workflow review records from the rollover count.",
       "observed": "The previous gate included each verified WF introspection record, including a clean review with no issues.",
-      "carried_from": 111
+      "carried_from": 111,
+      "verification_evidence": [
+        {
+          "check": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. test_gate_excludes_introspection_records_and_meets_at_threshold passed in test_render.py (56 tests) on the worktree and the installed 0.1.31 copy. Already present; no new code this round.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.31",
+          "session": "installed-0.1.31-verify-113",
+          "timestamp": "2026-11-17T10:12:58Z",
+          "reference": "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec:FLOW-03:installed-cli-suite"
+        }
+      ],
+      "verification": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. test_gate_excludes_introspection_records_and_meets_at_threshold passed in test_render.py (56 tests) on the worktree and the installed 0.1.31 copy. Already present; no new code this round.",
+      "verification_refs": [
+        "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec:FLOW-03:installed-cli-suite"
+      ]
     },
     {
       "id": "PAGE-13",
@@ -4502,13 +4790,27 @@
       "id": "PAGE-19",
       "title": "Lane updates do not refresh the workflow clock",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "summary": "The workflow may look stale even after a lane changes state.",
       "impact": "The tracker can give a misleading picture of progress.",
       "done_when": "Refresh the activity clock when a lane changes, without treating issue edits as workflow progress.",
       "observed": "Source review: update-plan-group stamps the group, while render uses workflow.updated_at.",
       "recommendation": "Fix and test the owning tracker operation.",
-      "carried_from": 111
+      "carried_from": 111,
+      "verification_evidence": [
+        {
+          "check": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. test_manage_findings.py (71 tests) on the worktree and installed copy covers the workflow clock update when a lane's activity changes. Already present; no new code this round.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.31",
+          "session": "installed-0.1.31-verify-113",
+          "timestamp": "2026-11-17T10:12:58Z",
+          "reference": "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec:PAGE-19:installed-cli-suite"
+        }
+      ],
+      "verification": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. test_manage_findings.py (71 tests) on the worktree and installed copy covers the workflow clock update when a lane's activity changes. Already present; no new code this round.",
+      "verification_refs": [
+        "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec:PAGE-19:installed-cli-suite"
+      ]
     },
     {
       "id": "PAGE-20",
@@ -4603,13 +4905,27 @@
       "id": "BCL-14",
       "title": "Rollover can count a fix while its recheck is unresolved",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "summary": "An earlier verified result can still count while a newer recheck has not passed.",
       "impact": "The fix gate can imply completion before current verification is complete.",
       "done_when": "Count a fix only when its current verification state supports it, while preserving prior results.",
       "observed": "Source review: a finding can retain verified_fixed during an active or inconclusive recheck; rollover_gate counts status alone.",
       "recommendation": "Make gate eligibility reflect the current check state.",
-      "carried_from": 111
+      "carried_from": 111,
+      "verification_evidence": [
+        {
+          "check": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. test_gate_does_not_count_a_fixed_issue_during_an_unresolved_recheck passed in the same test_render.py runs. Already present; no new code this round.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.31",
+          "session": "installed-0.1.31-verify-113",
+          "timestamp": "2026-11-17T10:12:58Z",
+          "reference": "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec:BCL-14:installed-cli-suite"
+        }
+      ],
+      "verification": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. test_gate_does_not_count_a_fixed_issue_during_an_unresolved_recheck passed in the same test_render.py runs. Already present; no new code this round.",
+      "verification_refs": [
+        "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec:BCL-14:installed-cli-suite"
+      ]
     },
     {
       "id": "BCL-15",
@@ -4725,13 +5041,27 @@
       "id": "BCL-19",
       "title": "One issue can be assigned to multiple active lanes",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "summary": "A plan can assign the same issue to more than one active lane.",
       "impact": "Lane progress and verification failures can conflict or be left incomplete.",
       "done_when": "Reject overlapping active lane assignments and retain valid future-round plans.",
       "observed": "Independent review: set-plan accepts the same finding in multiple groups; an update to one may invalidate the other group’s failure precondition.",
       "recommendation": "Validate unique current-round lane assignment before work starts.",
-      "carried_from": 111
+      "carried_from": 111,
+      "verification_evidence": [
+        {
+          "check": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. test_current_round_finding_assignments_are_unique passed in the same test_manage_findings.py runs. Already present; no new code this round.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.31",
+          "session": "installed-0.1.31-verify-113",
+          "timestamp": "2026-11-17T10:12:58Z",
+          "reference": "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec:BCL-19:installed-cli-suite"
+        }
+      ],
+      "verification": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. test_current_round_finding_assignments_are_unique passed in the same test_manage_findings.py runs. Already present; no new code this round.",
+      "verification_refs": [
+        "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec:BCL-19:installed-cli-suite"
+      ]
     },
     {
       "id": "BCL-20",
@@ -5525,13 +5855,27 @@
       "id": "PAGE-21",
       "title": "Renderer stores _lane_status.outcome but the template still uses item.status",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "low",
       "summary": "PAGE-09 added an outcome field on the rendered lane status, but the visible issue status still comes from item.status. The new test checks the payload and template strings rather than the displayed result.",
       "impact": "A later change could desync the stored outcome from what the page shows, and the regression would not catch it.",
       "done_when": "The template reads the outcome field, or the unused field is removed, and a test checks the visible issue status for a failing finding in a deferred lane.",
       "observed": "Terra r1 of commit a8cb0bee on 17 Nov 2026 at 15:08 IST approved PAGE-09 and logged this as a non-blocking nit.",
-      "recommendation": "Wire the template to _lane_status.outcome or drop the unused field, and assert the displayed issue status."
+      "recommendation": "Wire the template to _lane_status.outcome or drop the unused field, and assert the displayed issue status.",
+      "verification_evidence": [
+        {
+          "check": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. The issue page now shows Issue status from _lane_status.outcome, with a fallback to item.status. The deferred-lane test executes the template expression and expects 'Issue status: Failing'. One-file group; Terra skipped.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.31",
+          "session": "installed-0.1.31-verify-113",
+          "timestamp": "2026-11-17T10:12:58Z",
+          "reference": "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec:PAGE-21:installed-cli-suite"
+        }
+      ],
+      "verification": "Installed bcl 0.1.31 at a488a4ca445bd9df05a61ca8ced15f29fc2a7dec. Stored worktree command passed: 215 tests OK in 61.760s at 2026-11-17T10:11:11Z. Installed copy: 215 tests OK in 62.235s at 2026-11-17T10:12:58Z. The issue page now shows Issue status from _lane_status.outcome, with a fallback to item.status. The deferred-lane test executes the template expression and expects 'Issue status: Failing'. One-file group; Terra skipped.",
+      "verification_refs": [
+        "a488a4ca445bd9df05a61ca8ced15f29fc2a7dec:PAGE-21:installed-cli-suite"
+      ]
     },
     {
       "id": "WF-13",
@@ -5636,6 +5980,97 @@
       },
       "verification_refs": [
         "PAGE-21"
+      ]
+    },
+    {
+      "id": "WF-14",
+      "title": "Introspect 2026-11-17: Round 2 of #113: six findings verified on installed 0.1.31; gate 11/15. SEC-01 and BCL-29 were not reopened.",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "Round 2 of #113: six findings verified on installed 0.1.31; gate 11/15. SEC-01 and BCL-29 were not reopened.",
+      "recommendation": "None; all items were fixed inline or none.",
+      "verification": "Inline items were done during Introspect.",
+      "details": {
+        "fixed_in": "Introspect"
+      },
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: TMPL",
+        "One-file review exemption: TMPL",
+        "Polling and rework review: TMPL",
+        "Test command: TMPL: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
+        "Codex write: RELOAD",
+        "One-file review exemption: RELOAD",
+        "Polling and rework review: RELOAD",
+        "Test command: RELOAD: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_serve.py'",
+        "Codex write: GATE",
+        "Codex review: GATE",
+        "Polling and rework review: GATE",
+        "Test command: GATE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
+        "Codex write: CLOCK",
+        "Codex review: CLOCK",
+        "Polling and rework review: CLOCK",
+        "Test command: CLOCK: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'"
+      ],
+      "none": [
+        "Stage: Plan & fix",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: TMPL",
+        "Polling and rework review: TMPL",
+        "Test command: TMPL: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
+        "Codex write: RELOAD",
+        "Test command: RELOAD: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_serve.py'",
+        "Codex write: GATE",
+        "Codex review: GATE",
+        "Polling and rework review: GATE",
+        "Test command: GATE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
+        "Codex write: CLOCK",
+        "Codex review: CLOCK",
+        "Polling and rework review: CLOCK",
+        "Test command: CLOCK: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'"
+      ],
+      "sections": {
+        "delete": {
+          "none": "No extra process or files were dropped this round. GATE and CLOCK needed no new source because the gate exclusions, lane clock, and unique-assignment checks were already in 0.1.30."
+        },
+        "simplify": {
+          "items": [
+            {
+              "item": "One-file review exemption: TMPL",
+              "evidence": "PAGE-21 stayed a template display change plus a unit test, so Terra was skipped.",
+              "outcome": "fixed inline"
+            },
+            {
+              "item": "One-file review exemption: RELOAD",
+              "evidence": "AUTO-06 stayed in serve.py plus a unit test, so Terra was skipped.",
+              "outcome": "fixed inline"
+            },
+            {
+              "item": "Polling and rework review: RELOAD",
+              "evidence": "The first outside-sandbox run of test_serve.py failed because a same-second rewrite reused stale bytecode. Luna resumed the same session and compiled changed source into a fresh module; the suite then passed 10 tests. No second review.",
+              "outcome": "fixed inline"
+            }
+          ]
+        },
+        "optimize": {
+          "items": [
+            {
+              "item": "Stage: Install",
+              "evidence": "TMPL and RELOAD were merged, the plugin was bumped to 0.1.31 in a488a4ca, and a single install went to ~/.agents, Cursor, and Codex caches (48 files, sha256 1e7cf19621295d7d655dbd6b7bdc7e98a312f8fbbee5c5f899151918cdbe0236).",
+              "outcome": "fixed inline"
+            }
+          ]
+        },
+        "automate": {
+          "none": "No new leftover automation issue was filed this closeout. SEC-01 and BCL-29 stayed verified_fixed and excluded; they were not reopened."
+        }
+      },
+      "verification_refs": [
+        "Introspect"
       ]
     }
   ]
