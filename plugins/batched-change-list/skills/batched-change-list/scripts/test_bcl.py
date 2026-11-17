@@ -122,6 +122,25 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual((self.home / ".githooks/pre-commit").read_text(), "leftover hook\n")
         self.assertIn("bcl sync-main hook/check dirt", self.git(self.home, "stash", "list").stdout)
 
+    def test_sync_main_stashes_hook_dirt_and_preserves_unrelated_work(self):
+        self.branch_for_sync()
+        (self.home / ".githooks").mkdir()
+        (self.home / ".githooks/pre-commit").write_text("leftover hook\n")
+        self.git(self.home, "add", ".githooks/pre-commit"); self.git(self.home, "commit", "-qm", "feature hook")
+        self.git(self.home, "switch", "main")
+        (self.home / "main-change.txt").write_text("from main\n")
+        self.git(self.home, "add", "main-change.txt"); self.git(self.home, "commit", "-qm", "main change")
+        self.git(self.home, "switch", "feature")
+        (self.home / ".githooks/pre-commit").write_text("leftover hook dirt\n")
+        (self.home / "wip.txt").write_text("unrelated work\n")
+        result = self.sync_main()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.home / "wip.txt").read_text(), "unrelated work\n")
+        self.assertEqual((self.home / ".githooks/pre-commit").read_text(), "leftover hook\n")
+        stashed = self.git(self.home, "stash", "show", "--include-untracked", "--name-only").stdout
+        self.assertIn(".githooks/pre-commit", stashed)
+        self.assertNotIn("wip.txt", stashed)
+
     def test_sync_main_refuses_dirty_tracker_without_stashing_or_merging(self):
         self.branch_for_sync()
         self.git(self.home, "switch", "main")
