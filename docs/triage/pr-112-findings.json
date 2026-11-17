@@ -2276,9 +2276,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-17T08:23:52Z",
-      "now": "2026-11-17T08:23:52Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-17T08:27:31Z",
+      "now": "2026-11-17T08:27:31Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 111,
@@ -2510,8 +2510,8 @@
             "AGENT-27"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "fix",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "samantha-pr112-rollover",
           "files": [
             "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua",
@@ -2521,12 +2521,12 @@
           "verify": {
             "command": "python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p 'test_*.py'",
             "method": "Unit tests plus a live or recorded session check of confirm_risky and confirm timeout.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 2,
             "failed": 0,
             "total": 2
           },
-          "updated_at": "2026-11-17T08:22:06Z",
+          "updated_at": "2026-11-17T08:25:59Z",
           "codex": {
             "implementer_session": "01a1e87e-043c-7c60-8de9-f00613b234bc",
             "implementer": "luna",
@@ -2534,7 +2534,7 @@
             "implementer_effort": "medium",
             "status": "running",
             "started_at": "2026-11-17T07:52:28Z",
-            "updated_at": "2026-11-17T08:22:06Z",
+            "updated_at": "2026-11-17T08:25:59Z",
             "reviewer_session": "01a1e88a-e34c-7311-bd19-5cd544858d9f",
             "reviewer_model": "gpt-6.1-terra",
             "reviewer_effort": "medium",
@@ -2574,7 +2574,8 @@
       "collect",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "verification_run": {
       "id": "acu-0.2.148-19a7f1e7-112",
@@ -2627,18 +2628,22 @@
           "state": "pending"
         },
         "AGENT-26": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Installed agent-computer-use 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5 is present in ~/.agents/plugins (plugin.json 0.2.148). changelog documents artifact-path and numeric-arithmetic confirms. Finding is still in_progress. Stored CONFIRM command is python3 -m unittest discover for voice-cua tests; will also run that suite against the installed copy and a programmatic path-trust probe.",
           "observed_at": "2026-11-17T08:23:51Z",
           "started_at": "2026-11-17T08:23:51Z",
-          "updated_at": "2026-11-17T08:23:51Z"
+          "updated_at": "2026-11-17T08:23:51Z",
+          "evidence": "Installed ACU 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5. Stored worktree command passed: 561 tests OK, 1 skipped, 20.685s at 2026-11-17T08:24:13Z. The same suite on the installed plugin copy passed: 561 tests OK, 1 skipped, 19.885s at 2026-11-17T08:24:41Z. Targeted installed tests passed: test_arithmetic_and_artifact_temp_writes_do_not_need_approval and test_temp_work_allowance_requires_private_directory. Signed Agent Computer Use.app was not rebuilt and remains 0.2.146; the live Python plugin is 0.2.148.",
+          "finished_at": "2026-11-17T08:25:59Z"
         },
         "AGENT-27": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Installed agent-computer-use 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5 is present in ~/.agents/plugins (plugin.json 0.2.148). tools.py confirm_timed_out hint now says a timeout is not a denial. Finding is still in_progress. Stored CONFIRM command is python3 -m unittest discover for voice-cua tests; will also cover first-confirm timeout recovery on the installed copy.",
           "observed_at": "2026-11-17T08:23:51Z",
           "started_at": "2026-11-17T08:23:51Z",
-          "updated_at": "2026-11-17T08:23:51Z"
+          "updated_at": "2026-11-17T08:23:51Z",
+          "evidence": "Installed ACU 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5. Stored worktree command passed: 561 tests OK, 1 skipped, 20.685s at 2026-11-17T08:24:13Z. The same suite on the installed plugin copy passed: 561 tests OK, 1 skipped, 19.885s at 2026-11-17T08:24:41Z. Targeted installed tests passed: test_first_unanswered_confirm_prompts_and_releases_typed_turn and test_confirmation_timeout_is_not_reported_as_a_user_denial. tools.py confirm_timed_out hint says a timeout is not a denial. Signed Agent Computer Use.app was not rebuilt and remains 0.2.146; the live Python plugin is 0.2.148.",
+          "finished_at": "2026-11-17T08:25:59Z"
         },
         "WF-07": {
           "state": "pending"
@@ -2780,13 +2785,22 @@
         },
         "WF-09": {
           "state": "pending"
+        },
+        "BCL-30": {
+          "state": "pending"
+        },
+        "BCL-31": {
+          "state": "pending"
+        },
+        "WF-10": {
+          "state": "pending"
         }
       }
     },
     "introspect": {
-      "result": "Logged BCL-29 for a fail-loud bcl plan exit; no r3; two executor interrupts judged as resume-from-progress.",
-      "at": "2026-11-17T07:49:46Z",
-      "task": "WF-09",
+      "result": "Introspect recorded",
+      "at": "2026-11-17T08:27:31Z",
+      "task": "WF-10",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Install",
@@ -2804,10 +2818,9 @@
         "Codex review: CONFIRM",
         "Polling and rework review: CONFIRM",
         "Test command: CONFIRM: python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p 'test_*.py'",
-        "Executor interruption ~12:00 IST",
-        "Executor interruption ~12:50 IST",
-        "Terra r2 review: ROUTE (01a1e838)",
-        "bcl plan viewer-PID PermissionError in Codex sandbox"
+        "set-activity rejected on just-verified CONFIRM findings",
+        "Push hook rejected stale pr-111.html after renderer change",
+        "Skill shape check found no generated statechart.html"
       ],
       "none": [
         "Stage: Plan & fix",
@@ -2825,33 +2838,42 @@
         "Codex write: CONFIRM",
         "Codex review: CONFIRM",
         "Polling and rework review: CONFIRM",
-        "Test command: CONFIRM: python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p 'test_*.py'",
-        "Executor interruption ~12:00 IST",
-        "Executor interruption ~12:50 IST",
-        "Terra r2 review: ROUTE (01a1e838)"
+        "Test command: CONFIRM: python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p 'test_*.py'"
       ],
       "sections": {
         "delete": {
-          "none": "No extra parts to remove this closeout; the third Terra review was already skipped and remaining nits were logged as BCL-28."
+          "items": [
+            {
+              "item": "set-activity rejected on just-verified CONFIRM findings",
+              "evidence": "On 17 Nov 2026 at 13:55 IST, a finish-check batch that first marked AGENT-26 and AGENT-27 verified_fixed then called set-activity with those ids was rejected twice (closed findings; then missing ids). The closeout was applied without set-activity. Future closeouts will not send set-activity for findings just marked verified_fixed.",
+              "outcome": "fixed inline"
+            }
+          ]
         },
         "simplify": {
-          "none": "SKILL.md already shrunk from 2737 to 1274 bytes, and tracker and page writes stay orchestrator-only; no further simplification this closeout."
+          "none": "No remaining closeout steps needed simplification after dropping the extra set-activity call. RECORD and ROUTE work was already closed in WF-09."
         },
         "optimize": {
-          "none": "Long waits already replaced polling. The 12:00 and 12:50 IST executor interrupts were judged as resume-from-progress, not a product change."
+          "none": "The stored worktree suite, the installed-copy suite, and the targeted confirm/path tests were run serially as install proof. Long waits already replaced polling for the Luna resume."
         },
         "automate": {
           "items": [
             {
-              "item": "bcl plan viewer-PID PermissionError in Codex sandbox",
-              "evidence": "Around 11:04-11:11 IST on 17 Nov 2026, bcl plan in the Codex sandbox hit PermissionError while probing the live viewer PID and printed a traceback instead of exiting nonzero with one line. Filed as BCL-29; not fixed in this closeout.",
+              "item": "Push hook rejected stale pr-111.html after renderer change",
+              "evidence": "On 17 Nov 2026 at 13:49 IST, pushing grokbot/samantha-0145-followups failed because docs/triage/pr-111.html differed from a fresh render after the #112 renderer changes, even though check.py comments say earlier PR pages are frozen. Regenerating that snapshot unblocked the push as 3c958130. Filed as BCL-31; not fixed in this closeout.",
               "outcome": "issue",
-              "issue_id": "BCL-29"
+              "issue_id": "BCL-31"
+            },
+            {
+              "item": "Skill shape check found no generated statechart.html",
+              "evidence": "On 17 Nov 2026 at 13:56 IST, the #112 worktree and installed 0.1.26 skill tree had no statechart.html, and no batched-change-list file mentioned one, though the skill-refine rule requires a generated current-vs-after chart that fails the shape check when stale. Filed as BCL-30; not fixed in this closeout.",
+              "outcome": "issue",
+              "issue_id": "BCL-30"
             }
           ]
         }
       },
-      "round": 1,
+      "round": 2,
       "cycle": 4
     }
   },
@@ -3192,7 +3214,7 @@
       "id": "AGENT-26",
       "title": "Safe local shell commands are classified as confirm_risky",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "Harmless local commands, such as echo arithmetic or writing under ~/.agents/artifacts, stop for a risky-confirm instead of just running.",
       "impact": "Simple work stalls until someone approves, and a missed approval can leave the turn with no result.",
@@ -3205,13 +3227,27 @@
         "Build": "0.2.147",
         "Where to look": "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua (confirm_risky / shell_run policy)"
       },
-      "carried_from": 111
+      "carried_from": 111,
+      "verification_evidence": [
+        {
+          "check": "Installed ACU 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5. Stored worktree command passed: 561 tests OK, 1 skipped, 20.685s at 2026-11-17T08:24:13Z. The same suite on the installed plugin copy passed: 561 tests OK, 1 skipped, 19.885s at 2026-11-17T08:24:41Z. Targeted installed tests passed: test_arithmetic_and_artifact_temp_writes_do_not_need_approval and test_temp_work_allowance_requires_private_directory. Signed Agent Computer Use.app was not rebuilt and remains 0.2.146; the live Python plugin is 0.2.148.",
+          "outcome": "fixed",
+          "build": "agent-computer-use 0.2.148",
+          "session": "installed-0.2.148-verify-112",
+          "timestamp": "2026-11-17T08:25:27Z",
+          "reference": "19a7f1e7989eaaa552670d20c66ddacc591026c5:AGENT-26:installed-voice-cua-suite"
+        }
+      ],
+      "verification": "Installed ACU 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5. Stored worktree command passed: 561 tests OK, 1 skipped, 20.685s at 2026-11-17T08:24:13Z. The same suite on the installed plugin copy passed: 561 tests OK, 1 skipped, 19.885s at 2026-11-17T08:24:41Z. Targeted installed tests passed: test_arithmetic_and_artifact_temp_writes_do_not_need_approval and test_temp_work_allowance_requires_private_directory. Signed Agent Computer Use.app was not rebuilt and remains 0.2.146; the live Python plugin is 0.2.148.",
+      "verification_refs": [
+        "19a7f1e7989eaaa552670d20c66ddacc591026c5:AGENT-26:installed-voice-cua-suite"
+      ]
     },
     {
       "id": "AGENT-27",
       "title": "A confirmation timeout is treated as a stall, not as 'timeout is never a no'",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "When a risky-confirm times out, Samantha says it still needs your OK and stops, instead of moving the job forward.",
       "impact": "A missed or slow approval freezes the conversation for minutes and leaves the task undone.",
@@ -3224,7 +3260,21 @@
         "Build": "0.2.147",
         "Where to look": "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua (confirm timeout handling)"
       },
-      "carried_from": 111
+      "carried_from": 111,
+      "verification_evidence": [
+        {
+          "check": "Installed ACU 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5. Stored worktree command passed: 561 tests OK, 1 skipped, 20.685s at 2026-11-17T08:24:13Z. The same suite on the installed plugin copy passed: 561 tests OK, 1 skipped, 19.885s at 2026-11-17T08:24:41Z. Targeted installed tests passed: test_first_unanswered_confirm_prompts_and_releases_typed_turn and test_confirmation_timeout_is_not_reported_as_a_user_denial. tools.py confirm_timed_out hint says a timeout is not a denial. Signed Agent Computer Use.app was not rebuilt and remains 0.2.146; the live Python plugin is 0.2.148.",
+          "outcome": "fixed",
+          "build": "agent-computer-use 0.2.148",
+          "session": "installed-0.2.148-verify-112",
+          "timestamp": "2026-11-17T08:25:27Z",
+          "reference": "19a7f1e7989eaaa552670d20c66ddacc591026c5:AGENT-27:installed-voice-cua-suite"
+        }
+      ],
+      "verification": "Installed ACU 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5. Stored worktree command passed: 561 tests OK, 1 skipped, 20.685s at 2026-11-17T08:24:13Z. The same suite on the installed plugin copy passed: 561 tests OK, 1 skipped, 19.885s at 2026-11-17T08:24:41Z. Targeted installed tests passed: test_first_unanswered_confirm_prompts_and_releases_typed_turn and test_confirmation_timeout_is_not_reported_as_a_user_denial. tools.py confirm_timed_out hint says a timeout is not a denial. Signed Agent Computer Use.app was not rebuilt and remains 0.2.146; the live Python plugin is 0.2.148.",
+      "verification_refs": [
+        "19a7f1e7989eaaa552670d20c66ddacc591026c5:AGENT-27:installed-voice-cua-suite"
+      ]
     },
     {
       "id": "WF-07",
@@ -4254,6 +4304,118 @@
       },
       "verification_refs": [
         "BCL-29"
+      ]
+    },
+    {
+      "id": "BCL-30",
+      "title": "The skill has no generated statechart.html, and a stale chart is not a failed check",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "high",
+      "summary": "batched-change-list must ship a generated statechart.html that marks always-loaded items green and trigger-loaded references purple, with current vs after views, and regenerate it on every skill change. A stale chart should fail the shape check. The #112 skill still has no such chart or check.",
+      "impact": "Editors cannot see the always-loaded vs trigger-loaded layout, and a stale or missing chart can ship unnoticed.",
+      "done_when": "The skill includes a generated statechart.html with always-loaded items green, trigger-loaded references purple, and current vs after views. The chart is regenerated on every skill change, and a stale or missing chart fails the shape check. The check is covered by a unit test.",
+      "observed": "On 17 Nov 2026 at 13:56 IST, the #112 worktree and installed 0.1.26 skill tree had no statechart.html, and no batched-change-list file mentioned one.",
+      "recommendation": "Generate statechart.html from the skill and reference graph, add it to the skill, and fail the existing shape check when the file is missing or stale."
+    },
+    {
+      "id": "BCL-31",
+      "title": "The renderer check still rewrites earlier PR pages when render.py changes",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "summary": "scripts/check.py claims earlier PR triage pages are frozen, but it still requires docs/triage/pr-N.html to match a fresh render whenever pr-N-findings.json points at pull N. A renderer change on a later PR therefore forces a new snapshot of the previous PR's page.",
+      "impact": "A later PR cannot be pushed until earlier triage HTML is regenerated, mixing unrelated snapshot commits into the new work.",
+      "done_when": "Earlier PR triage pages stay frozen and are not re-rendered or required to match the current renderer. The check still requires the current PR's page to match a fresh render. A unit test covers an older pr-N pair on a later branch.",
+      "observed": "On 17 Nov 2026 at 13:49 IST, pushing grokbot/samantha-0145-followups failed because docs/triage/pr-111.html differed from a fresh render after the #112 renderer changes. Regenerating that frozen #111 snapshot unblocked the push as 3c958130.",
+      "recommendation": "Honor the frozen-snapshot rule already written in check.py: skip pr-N pages that are not the current pull, even when their findings JSON points at pull N."
+    },
+    {
+      "id": "WF-10",
+      "title": "Introspect 2026-11-17: Introspect recorded",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "Introspect recorded",
+      "recommendation": "Do the linked code issues: BCL-31, BCL-30",
+      "verification": "Inline items were done during Introspect.",
+      "details": {
+        "fixed_in": "Introspect"
+      },
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 3",
+        "Codex write: RECORD",
+        "Codex review: RECORD",
+        "Polling and rework review: RECORD",
+        "Test command: RECORD: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+        "Codex write: ROUTE",
+        "Codex review: ROUTE",
+        "Polling and rework review: ROUTE",
+        "Test command: ROUTE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
+        "Codex write: CONFIRM",
+        "Codex review: CONFIRM",
+        "Polling and rework review: CONFIRM",
+        "Test command: CONFIRM: python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p 'test_*.py'",
+        "set-activity rejected on just-verified CONFIRM findings",
+        "Push hook rejected stale pr-111.html after renderer change",
+        "Skill shape check found no generated statechart.html"
+      ],
+      "none": [
+        "Stage: Plan & fix",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 3",
+        "Codex write: RECORD",
+        "Codex review: RECORD",
+        "Polling and rework review: RECORD",
+        "Test command: RECORD: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+        "Codex write: ROUTE",
+        "Codex review: ROUTE",
+        "Polling and rework review: ROUTE",
+        "Test command: ROUTE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
+        "Codex write: CONFIRM",
+        "Codex review: CONFIRM",
+        "Polling and rework review: CONFIRM",
+        "Test command: CONFIRM: python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p 'test_*.py'"
+      ],
+      "sections": {
+        "delete": {
+          "items": [
+            {
+              "item": "set-activity rejected on just-verified CONFIRM findings",
+              "evidence": "On 17 Nov 2026 at 13:55 IST, a finish-check batch that first marked AGENT-26 and AGENT-27 verified_fixed then called set-activity with those ids was rejected twice (closed findings; then missing ids). The closeout was applied without set-activity. Future closeouts will not send set-activity for findings just marked verified_fixed.",
+              "outcome": "fixed inline"
+            }
+          ]
+        },
+        "simplify": {
+          "none": "No remaining closeout steps needed simplification after dropping the extra set-activity call. RECORD and ROUTE work was already closed in WF-09."
+        },
+        "optimize": {
+          "none": "The stored worktree suite, the installed-copy suite, and the targeted confirm/path tests were run serially as install proof. Long waits already replaced polling for the Luna resume."
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "Push hook rejected stale pr-111.html after renderer change",
+              "evidence": "On 17 Nov 2026 at 13:49 IST, pushing grokbot/samantha-0145-followups failed because docs/triage/pr-111.html differed from a fresh render after the #112 renderer changes, even though check.py comments say earlier PR pages are frozen. Regenerating that snapshot unblocked the push as 3c958130. Filed as BCL-31; not fixed in this closeout.",
+              "outcome": "issue",
+              "issue_id": "BCL-31"
+            },
+            {
+              "item": "Skill shape check found no generated statechart.html",
+              "evidence": "On 17 Nov 2026 at 13:56 IST, the #112 worktree and installed 0.1.26 skill tree had no statechart.html, and no batched-change-list file mentioned one, though the skill-refine rule requires a generated current-vs-after chart that fails the shape check when stale. Filed as BCL-30; not fixed in this closeout.",
+              "outcome": "issue",
+              "issue_id": "BCL-30"
+            }
+          ]
+        }
+      },
+      "verification_refs": [
+        "BCL-31",
+        "BCL-30"
       ]
     }
   ]
