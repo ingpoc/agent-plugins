@@ -912,7 +912,9 @@ class ManageFindingsTests(unittest.TestCase):
             evidence('manual review', 10, 'latest-manual-outcome')]
         self.data.write_text(json.dumps(self.document))
         new_record = self.root / 'evidence.json'
-        new_record.write_text(json.dumps(evidence('passed', 11, 'new-pass')))
+        record = evidence('passed', 11, 'new-pass')
+        record['check_id'] = 'check-11'
+        new_record.write_text(json.dumps(record))
         result = self.cli('record-evidence', self.data, 'ISSUE-01', new_record)
         self.assertEqual(result.returncode, 0, result.stderr)
         records = json.loads(self.data.read_text())['findings'][0]['verification_evidence']
@@ -989,7 +991,7 @@ class ManageFindingsTests(unittest.TestCase):
         operations = self.root / 'batch.json'
         page = self.root / 'batch.html'
         record = {'checked':'client behavior', 'expected':'passes', 'observed':'passed',
-                  'verdict':'Fixed because the check passed', 'build':'1', 'session':'run',
+                  'verdict':'Fixed because the check passed', 'check_id':'client-check-1','build':'1', 'session':'run',
                   'timestamp':'2026-11-06T00:00:00Z', 'reference':'receipt'}
         operations.write_text(json.dumps([
             {'action':'update','id':'ISSUE-01','patch':{'verification':'Checked'}},
@@ -1033,6 +1035,7 @@ class ManageFindingsTests(unittest.TestCase):
         record = self.root / 'record.json'
         record.write_text(json.dumps({'checked':'issue behavior', 'expected':'button remains visible',
                                       'observed':'button remained visible', 'verdict':'Fixed because behavior matched',
+                                      'check_id':'run-1-check-1',
                                       'build':'0.2.94', 'session':'run-1', 'timestamp':'2026-11-06T00:00:00Z', 'reference':'receipt'}))
         for _ in range(2):
             result = self.cli('record-evidence', self.data, 'ISSUE-01', record)
@@ -1046,11 +1049,62 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIn('Verification by version', page.read_text())
         before = self.data.read_bytes()
         record.write_text(json.dumps({'checked':'issue behavior', 'expected':'', 'observed':'passed',
-                                      'verdict':'Fixed', 'build':'0.2.94', 'session':'run-2',
+                                      'verdict':'Fixed', 'check_id':'run-2-check-1', 'build':'0.2.94', 'session':'run-2',
                                       'timestamp':'2026-11-06T00:00:00Z', 'reference':'receipt'}))
         self.assertNotEqual(self.cli('record-evidence', self.data, 'ISSUE-01', record).returncode, 0)
         self.assertEqual(before, self.data.read_bytes())
         self.assertNotEqual(self.cli('record-evidence', self.data, 'missing', record).returncode, 0)
+
+    def test_finish_check_reason_parts_are_nonempty_and_evidence_merges_by_check_id(self):
+        operations, page = self.root / 'ops.json', self.root / 'page.html'
+        def apply(*items):
+            operations.write_text(json.dumps(items))
+            return self.cli('batch', self.data, operations, '--render', page)
+        run = {'id':'run-id','build':'0.2.94','revision':'abc','installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt'}
+        self.assertEqual(apply({'action':'start-verification','run':run}).returncode, 0)
+        self.assertEqual(apply({'action':'start-check','id':'ISSUE-01','run_id':'run-id',
+                                'observation':'rechecking writers','observed_at':'2026-11-06T00:01:00Z'}).returncode, 0)
+        before = self.data.read_bytes()
+        invalid = apply({'action':'finish-check','id':'ISSUE-01','run_id':'run-id','outcome':'inconclusive',
+                         'evidence':'Checked:; Expected:; Observed:'})
+        self.assertNotEqual(invalid.returncode, 0)
+        self.assertIn('nonempty Checked, Expected and Observed', invalid.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+        reason = 'Checked: both writer updates; Expected: both updates survive; Observed: both survived on the installed copy'
+        self.assertEqual(apply({'action':'finish-check','id':'ISSUE-01','run_id':'run-id','outcome':'not_fixed',
+                                'evidence':reason}).returncode, 0)
+        data = json.loads(self.data.read_text())
+        check = data['tracking']['verification_run']['checks']['ISSUE-01']
+        record = {'check_id':check['check_id'],'checked':'both writer updates','expected':'both updates survive',
+                  'observed':'both survived on the installed copy','verdict':'Failing because both updates should survive',
+                  'build':run['build'],'session':run['id'],'timestamp':check['finished_at'],'reference':'receipt'}
+        self.assertEqual(apply({'action':'record-evidence','id':'ISSUE-01','record':record}).returncode, 0)
+        data = json.loads(self.data.read_text())
+        item = data['findings'][0]
+        check = data['tracking']['verification_run']['checks']['ISSUE-01']
+        self.assertEqual(item.get('verification_evidence', []), [])
+        self.assertEqual({key:check[key] for key in record}, record)
+        rows = manage_findings.RENDERER.version_evidence(item, [data['tracking']['verification_run']])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['verdict'], 'Failing because both survived on the installed copy')
+
+    def test_distinct_evidence_ids_survive_matching_build_session_and_timestamp(self):
+        records = self.root / 'records'
+        def record(check_id, observed):
+            return {'check_id':check_id,'checked':'writer updates','expected':'both survive','observed':observed,
+                    'verdict':f'Failing because {observed}','build':'BCL 0.2.147','session':'same-session',
+                    'timestamp':'2026-11-16T10:00:00Z','reference':check_id}
+        for check_id, observed in [('check-1','only one survived'),('check-2','both survived')]:
+            path = self.root / f'{check_id}.json'
+            path.write_text(json.dumps(record(check_id, observed)))
+            result = self.cli('record-evidence', self.data, 'ISSUE-01', path)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        item = json.loads(self.data.read_text())['findings'][0]
+        self.assertEqual([row['check_id'] for row in item['verification_evidence']], ['check-1','check-2'])
+        rows = manage_findings.RENDERER.version_evidence(item, [])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['observed'], 'both survived')
+        self.assertEqual(len(rows[0]['history']), 1)
 
     def test_rewrite_evidence_converts_one_existing_log_record(self):
         legacy = {'check':'installed-cli-suite','outcome':'commit:abc installed-cli-suite passed',
@@ -1062,7 +1116,7 @@ class ManageFindingsTests(unittest.TestCase):
         record = self.root / 'rewrite.json'
         record.write_text(json.dumps({'checked':'both tracker updates', 'expected':'both survive',
             'observed':'both survived on worktree and installed copy',
-            'verdict':'Fixed because both updates survived', 'build':'0.2.94', 'session':'run-1',
+            'verdict':'Fixed because both updates survived', 'check_id':'run-1-check-1', 'build':'0.2.94', 'session':'run-1',
             'timestamp':'2026-11-06T00:00:00Z', 'reference':'backup=/tmp/backup receipt=/tmp/receipt elapsed=4s'}))
         result = self.cli('rewrite-evidence', self.data, 'ISSUE-01', record)
         self.assertEqual(result.returncode, 0, result.stderr)

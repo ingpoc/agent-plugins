@@ -11,6 +11,7 @@ import re
 import stat
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 
 import tracker_lock
@@ -205,10 +206,11 @@ def merge_patch(target, patch):
 
 def validate_record(record):
     fields = {"checked", "expected", "observed", "verdict", "build", "session", "timestamp", "reference"}
+    identified = fields | {"check_id"}
     legacy = {"check", "outcome", "build", "session", "timestamp", "reference"}
-    if not isinstance(record, dict) or set(record) not in (fields, legacy) or any(not isinstance(record[k], str) or not record[k].strip() for k in record):
+    if not isinstance(record, dict) or set(record) not in (fields, identified, legacy) or any(not isinstance(record[k], str) or not record[k].strip() for k in record):
         raise ValueError("evidence requires nonempty verification and metadata strings")
-    if set(record) == fields and not all(record[k].strip() for k in ("checked", "expected", "observed")):
+    if set(record) in (fields, identified) and not all(record[k].strip() for k in ("checked", "expected", "observed")):
         raise ValueError("verification reason requires checked, expected and observed parts")
     if record["timestamp"] != "unknown":
         try:
@@ -218,6 +220,52 @@ def validate_record(record):
                 raise ValueError()
         except ValueError:
             raise ValueError("evidence timestamp must be ISO 8601 with timezone or unknown") from None
+
+
+def validate_verification_reason(reason):
+    parts = {match.group(1).title(): match.group(2).strip() for match in
+             re.finditer(r"(?:^|[;\n])\s*(Checked|Expected|Observed)\s*:\s*([^;\n]*)", reason, re.I)}
+    if any(not parts.get(label) for label in ("Checked", "Expected", "Observed")):
+        raise ValueError("verification reason requires nonempty Checked, Expected and Observed parts")
+
+
+def verification_check(document, finding_id, check_id):
+    tracking = document.get("tracking", {})
+    runs = [*tracking.get("verification_history", []), tracking.get("verification_run", {})]
+    matches = []
+    for run in runs:
+        if not isinstance(run, dict):
+            continue
+        check = run.get("checks", {}).get(finding_id)
+        if isinstance(check, dict):
+            if check.get("check_id") == check_id:
+                matches.append(check)
+            matches.extend(previous for previous in check.get("previous_checks", [])
+                           if isinstance(previous, dict) and previous.get("check_id") == check_id)
+    if len(matches) > 1:
+        raise ValueError("check_id matches multiple verification checks")
+    return matches[0] if matches else None
+
+
+def store_verification_evidence(document, item, record):
+    records = item.setdefault("verification_evidence", [])
+    if not isinstance(records, list):
+        raise ValueError("verification_evidence must be an array")
+    check = verification_check(document, item["id"], record["check_id"])
+    if check is not None:
+        check.update(record)
+        item["verification_evidence"] = [previous for previous in records
+                                          if not isinstance(previous, dict) or previous.get("check_id") != record["check_id"]]
+        return
+    matches = [i for i, previous in enumerate(records) if isinstance(previous, dict) and
+               previous.get("check_id") == record["check_id"]]
+    if matches:
+        records[matches[0]] = record
+        item["verification_evidence"] = [previous for i, previous in enumerate(records)
+                                          if i == matches[0] or not isinstance(previous, dict) or
+                                          previous.get("check_id") != record["check_id"]]
+    else:
+        records.append(record)
 
 
 def validate_plan_group_fields(group, round_number):
@@ -363,6 +411,8 @@ def trim_verification_evidence(item):
             latest[kind] = index
         if referenced_evidence(item, record):
             keep.add(index)
+        if record.get("check_id"):
+            keep.add(index)
     keep.update(latest_outcomes.values())
     keep.update(latest.values())
     item["verification_evidence"] = [record for index, record in enumerate(records) if index in keep]
@@ -431,8 +481,7 @@ def verification_action(document, findings, operation):
             raise ValueError("a finished check is required")
         if outcome not in ("not_fixed", "blocked", "inconclusive") or not isinstance(reason, str) or not reason.strip():
             raise ValueError("correction requires an outcome and reason")
-        if not all(re.search(rf"(?im)(?:^|[;\n])\s*{label}\s*:", reason) for label in ("Checked", "Expected", "Observed")):
-            raise ValueError("verification reason requires Checked:, Expected: and Observed: parts")
+        validate_verification_reason(reason)
         reason, _ = validate_new_observation(reason, operation, run, check.get("observed_at"), "correction reason", check)
         corrections = check.setdefault("corrections", [])
         corrections.append({"previous": copy.deepcopy({k: v for k, v in check.items() if k != "corrections"}),
@@ -502,15 +551,14 @@ def verification_action(document, findings, operation):
     evidence = operation.get("evidence")
     if outcome not in ("fixed", "not_fixed", "blocked", "inconclusive") or not isinstance(evidence, str) or not evidence.strip():
         raise ValueError("finish-check requires an outcome and evidence or reason")
-    if not all(re.search(rf"(?im)(?:^|[;\n])\s*{label}\s*:", evidence) for label in ("Checked", "Expected", "Observed")):
-        raise ValueError("verification reason requires Checked:, Expected: and Observed: parts")
+    validate_verification_reason(evidence)
     evidence, _ = validate_new_observation(evidence, operation, run, check.get("observed_at"), "finish-check evidence", check)
     if outcome == "fixed" and (item.get("status") != "verified_fixed" or not item.get("verification_refs")):
         raise ValueError("fixed requires verified_fixed status and verification references")
     if outcome == "not_fixed":
         item["status"] = "failing"
-    checks[item["id"]] = {**check, "state":outcome, "evidence":evidence,
-                           "finished_at":datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")}
+    checks[item["id"]] = {**check, "state":outcome, "check_id":uuid.uuid4().hex, "evidence":evidence,
+                           "finished_at":datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")}
 
 
 def atomic_write(path, original, content, *, tracker=True):
@@ -1435,16 +1483,9 @@ def run(args, parser):
                 elif action == "record-evidence":
                     record = operation.get("record")
                     validate_record(record)
-                    if "checked" not in record:
-                        raise ValueError("verification reason requires checked, expected and observed parts")
-                    records = findings[index].setdefault("verification_evidence", [])
-                    if not isinstance(records, list):
-                        raise ValueError("verification_evidence must be an array")
-                    identity = (record["build"], record["session"], record["timestamp"])
-                    if not any(isinstance(previous, dict) and
-                               (previous.get("build"), previous.get("session"), previous.get("timestamp")) == identity
-                               for previous in records):
-                        records.append(record)
+                    if "checked" not in record or "check_id" not in record:
+                        raise ValueError("verification evidence requires checked, expected, observed and check_id")
+                    store_verification_evidence(store["document"], findings[index], record)
                     validate_detail_limits(findings[index])
                     trim_verification_evidence(findings[index])
                 else:
@@ -1485,8 +1526,8 @@ def run(args, parser):
                 raise ValueError("record-evidence requires authoritative JSON")
             record = read_json(args.record)
             validate_record(record)
-            if "checked" not in record:
-                raise ValueError("verification reason requires checked, expected and observed parts")
+            if "checked" not in record or "check_id" not in record:
+                raise ValueError("verification evidence requires checked, expected, observed and check_id")
             item = findings[find_index(findings, args.id)]
             records = item.setdefault("verification_evidence", [])
             if not isinstance(records, list):
@@ -1499,11 +1540,7 @@ def run(args, parser):
                     raise ValueError("rewrite-evidence requires exactly one existing record with the same build, session and timestamp")
                 records[matches[0]] = record
             else:
-                identity = (record["build"], record["session"], record["timestamp"])
-                if not any(isinstance(previous, dict) and
-                           (previous.get("build"), previous.get("session"), previous.get("timestamp")) == identity
-                           for previous in records):
-                    records.append(record)
+                store_verification_evidence(store["document"], item, record)
             validate_detail_limits(item)
             trim_verification_evidence(item)
             write(path, original, store, findings)

@@ -522,7 +522,8 @@ setImmediate(async()=>{
     def test_timeline_preserves_results_in_date_order_including_runs(self):
         def evidence(build, timestamp, observed):
             return {'build':build, 'timestamp':timestamp, 'checked':'button update', 'expected':'both updates survive',
-                    'observed':observed, 'verdict':'Fixed because both updates survived', 'session':build,
+                    'observed':observed, 'verdict':'Fixed because both updates survived', 'check_id':timestamp,
+                    'session':build,
                     'reference':'receipt'}
         item = {'id': 'ISSUE-01', 'verification_evidence': [
             evidence('ACU 0.2.120', '2026-11-07T12:00:00Z', 'old'),
@@ -531,7 +532,7 @@ setImmediate(async()=>{
         runs = [{'build':'ACU 0.2.120; Ledger 0.1.39', 'checks':{'ISSUE-01': {
             'state':'inconclusive', 'finished_at':'2026-11-08T06:00:00Z', 'evidence':'Checked: button update\nExpected: both updates survive\nObserved: latest'}}}]
         timeline = renderer.version_evidence(item, runs)
-        self.assertEqual([(r['version'], r['verdict']) for r in timeline], [('0.2.120', 'inconclusive'), ('0.2.119', 'Fixed because both updates survived')])
+        self.assertEqual([(r['version'], r['verdict']) for r in timeline], [('0.2.120', 'Inconclusive because latest'), ('0.2.119', 'Fixed because both updates survived')])
         self.assertEqual(len(timeline[0]['history']), 2)
         self.assertEqual((timeline[0]['checked'], timeline[0]['expected'], timeline[0]['observed']),
                          ('button update', 'both updates survive', 'latest'))
@@ -540,7 +541,7 @@ setImmediate(async()=>{
     def test_verification_history_is_not_flattened_or_duplicated(self):
         item = self.data['findings'][0]
         item['verification_evidence'] = [{'checked':'Earlier check','expected':'success','observed':'Unique historical result',
-            'verdict':'Fixed because it passed','build':'ACU 1','session':'session','timestamp':'2026-11-08T00:00:00Z','reference':'receipt'}]
+            'verdict':'Fixed because it passed','check_id':'older-check','build':'ACU 1','session':'session','timestamp':'2026-11-08T00:00:00Z','reference':'receipt'}]
         before = copy.deepcopy(self.data)
         page = renderer.render(self.data, self.base)
         self.assertEqual(page.count('Unique historical result'), 1)
@@ -552,10 +553,10 @@ setImmediate(async()=>{
     def test_two_checks_on_one_version_render_as_one_row_with_latest_fields(self):
         records = [
             {'checked':'both tracker updates','expected':'both survive','observed':'one survived',
-             'verdict':'Failing because one update was lost','build':'BCL 0.2.147','session':'check-1',
+             'verdict':'Failing because one update was lost','check_id':'check-1','build':'BCL 0.2.147','session':'check-1',
              'timestamp':'2026-11-15T10:00:00Z','reference':'old receipt /tmp/old'},
             {'checked':'both tracker updates','expected':'both survive','observed':'both survived on worktree and installed copy',
-             'verdict':'Fixed because both updates survived','build':'BCL 0.2.147','session':'check-2',
+             'verdict':'Fixed because both updates survived','check_id':'check-2','build':'BCL 0.2.147','session':'check-2',
              'timestamp':'2026-11-16T10:00:00Z','reference':'new receipt /tmp/new'}]
         rows = renderer.version_evidence({'id':'ISSUE-01','verification_evidence':records}, [])
         self.assertEqual(len(rows), 1)
@@ -563,6 +564,20 @@ setImmediate(async()=>{
                          ('both tracker updates','both survive','both survived on worktree and installed copy',
                           'Fixed because both updates survived'))
         self.assertEqual(len(rows[0]['history']), 1)
+
+    def test_same_timestamp_checks_keep_unique_identity_and_latest_run_result(self):
+        timestamp = '2026-11-16T10:00:00.000000Z'
+        run = {'id':'run-1','build':'BCL 0.2.147','checks':{'ISSUE-01':{
+            'state':'fixed','check_id':'check-new','finished_at':timestamp,
+            'evidence':'Checked: two writers; Expected: both updates survive; Observed: both survived on the installed copy',
+            'previous_checks':[{'state':'not_fixed','check_id':'check-old','finished_at':timestamp,
+                'evidence':'Checked: two writers; Expected: both updates survive; Observed: only one survived'}]}}}
+        rows = renderer.version_evidence({'id':'ISSUE-01'}, [run])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['check_id'], 'check-new')
+        self.assertEqual(rows[0]['observed'], 'both survived on the installed copy')
+        self.assertEqual(rows[0]['verdict'], 'Fixed because both survived on the installed copy')
+        self.assertEqual([entry['check_id'] for entry in rows[0]['history']], ['check-old'])
 
     def test_latest_verification_uses_check_time_regardless_of_outcome(self):
         item = {'id': 'ISSUE-01'}
@@ -576,9 +591,9 @@ setImmediate(async()=>{
                          [('not_fixed','ACU 0.2.147'), ('blocked','ACU 0.2.146'), ('fixed','ACU 0.2.148')])
 
     def test_explicit_outcomes_and_exact_duplicate_checks(self):
-        blocked = {'build':'ACU 0.2.147', 'timestamp':'2026-11-15T10:00:00Z', 'verdict':'blocked', 'checked':'Voice check', 'expected':'pass', 'observed':'blocked', 'session':'latest'}
-        older = {**blocked, 'timestamp':'2026-11-14T10:00:00Z', 'verdict':'notes without a state', 'session':'older'}
-        distinct = {**blocked, 'timestamp':'2026-11-13T10:00:00Z', 'reference':'different receipt', 'session':'distinct'}
+        blocked = {'build':'ACU 0.2.147', 'timestamp':'2026-11-15T10:00:00Z', 'verdict':'blocked', 'checked':'Voice check', 'expected':'pass', 'observed':'blocked', 'check_id':'blocked-check', 'session':'latest'}
+        older = {**blocked, 'timestamp':'2026-11-14T10:00:00Z', 'verdict':'notes without a state', 'check_id':'older-check', 'session':'older'}
+        distinct = {**blocked, 'timestamp':'2026-11-13T10:00:00Z', 'reference':'different receipt', 'check_id':'distinct-check', 'session':'distinct'}
         history = renderer.version_evidence({'id':'ISSUE-01', 'verification_evidence':[blocked, blocked, distinct, older]}, [])
         self.assertEqual(len(history), 1)
         self.assertEqual([(r['state'], r['verdict']) for r in history[0]['history']], [('', 'notes without a state'), ('blocked', 'blocked')])

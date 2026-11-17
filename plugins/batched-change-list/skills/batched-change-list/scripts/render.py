@@ -74,17 +74,26 @@ def version_evidence(item, runs):
         for result in [*check.get("previous_checks", []), check]:
             if result.get("state") in ("fixed", "not_fixed", "blocked", "inconclusive") and result.get("evidence"):
                 fields = reason_fields(result["evidence"])
+                attached = result
+                state_label = {"fixed": "Fixed", "not_fixed": "Failing", "blocked": "Blocked",
+                               "inconclusive": "Inconclusive"}[result["state"]]
+                observed = attached.get("observed") or fields["Observed"] or "Observed behavior not recorded"
                 candidates.append({"build": run.get("build", "unknown"), "timestamp": result.get("finished_at", "unknown"),
-                                   "verdict": result["state"], "checked": fields["Checked"] or "Verification behavior not recorded",
+                                   "check_id": result.get("check_id"),
+                                   "verdict": f"{state_label} because {observed}",
+                                   "checked": attached.get("checked") or fields["Checked"] or "Verification behavior not recorded",
                                    "outcome": result["evidence"],
-                                   "expected": fields["Expected"] or "Expected behavior not recorded", "observed": fields["Observed"] or "Observed behavior not recorded",
-                                   "reference": result["evidence"], "check": "Installed verification",
+                                   "expected": attached.get("expected") or fields["Expected"] or "Expected behavior not recorded",
+                                   "observed": observed,
+                                   "reference": attached.get("reference") or result["evidence"], "check": "Installed verification",
                                    "session": run.get("id", ""), "state": result["state"]})
     history = []
     seen = set()
     for index, record in enumerate(candidates):
-        identity = tuple(record.get(key, "") for key in ("build", "session", "timestamp"))
+        identity = record.get("check_id") or ("legacy", index)
         if identity in seen:
+            existing = next(entry for _, entry in history if entry.get("check_id") == identity)
+            existing.update({key: value for key, value in record.items() if value not in (None, "")})
             continue
         seen.add(identity)
         match = re.search(r"\b\d+\.\d+\.\d+\b", record["build"])
@@ -830,8 +839,9 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
         records = item.get("verification_evidence", [])
         fields = ("check", "outcome", "build", "session", "timestamp", "reference")
         structured = {"checked", "expected", "observed", "verdict", "build", "session", "timestamp", "reference"}
+        identified = structured | {"check_id"}
         legacy = {"check", "outcome", "build", "session", "timestamp", "reference"}
-        if not isinstance(records, list) or any(not isinstance(r, dict) or set(r) not in (legacy, structured) or
+        if not isinstance(records, list) or any(not isinstance(r, dict) or set(r) not in (legacy, structured, identified) or
                 any(not isinstance(r[k], str) or not r[k].strip() for k in r) for r in records):
             raise ValueError(f"{item['id']}.verification_evidence has invalid records")
         item["version_timeline"] = version_evidence(item, [*tracking_data.get("verification_history", []), *([run] if run else [])])
