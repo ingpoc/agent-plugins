@@ -1,3 +1,8 @@
+## 0.1.32
+
+- Flag or split plan groups that are too large or set to Luna max; determine exemptions by status, not phase.
+- Add `bcl sync-main` to merge main, resolve deleted skill references, re-render HTML, and stash hook/check dirt including changes created after the merge; refuse when `docs/triage/` is dirty.
+
 ## 0.1.31
 
 - Use the lane outcome field for the visible issue status.
