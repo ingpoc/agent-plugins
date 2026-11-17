@@ -3159,7 +3159,14 @@
           ],
           "reason": "PAGE-09 stored _lane_status.outcome but the template still displays item.status.",
           "codex": {
-            "one_file": true
+            "one_file": true,
+            "implementer_session": "01a1e8f4-b446-7a72-a298-fe3e38a3e581",
+            "implementer": "luna",
+            "implementer_model": "gpt-6-luna",
+            "implementer_effort": "medium",
+            "review_status": "passed",
+            "status": "running",
+            "updated_at": "2026-11-17T10:11:27Z"
           },
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
@@ -3169,7 +3176,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T10:01:33Z"
+          "updated_at": "2026-11-17T10:11:27Z"
         },
         {
           "id": "RELOAD",
@@ -3187,7 +3194,14 @@
           ],
           "reason": "A running list viewer keeps a stale in-memory render.py after the plugin is installed.",
           "codex": {
-            "one_file": true
+            "one_file": true,
+            "implementer_session": "01a1e8f4-b446-7723-aa32-318fe4a10eef",
+            "implementer": "luna",
+            "implementer_model": "gpt-6-luna",
+            "implementer_effort": "medium",
+            "review_status": "passed",
+            "status": "running",
+            "updated_at": "2026-11-17T10:11:27Z"
           },
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_serve.py'",
@@ -3197,7 +3211,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T10:01:33Z"
+          "updated_at": "2026-11-17T10:11:27Z"
         },
         {
           "id": "GATE",
