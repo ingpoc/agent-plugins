@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-17T04:55:07Z",
-      "now": "2026-11-17T04:55:07Z — Verify in progress"
+      "stage": "install",
+      "updated_at": "2026-11-17T07:40:34Z",
+      "now": "2026-11-17T07:40:34Z — Install in progress"
     },
     "rollover": {
       "source_pr": 111,
@@ -2182,7 +2182,7 @@
           ],
           "depends_on": [],
           "status": "review",
-          "phase": "review",
+          "phase": "fix",
           "worktree": "samantha-pr112-rollover",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -2201,7 +2201,66 @@
             "failed": 0,
             "total": 2
           },
-          "updated_at": "2026-11-17T04:53:09Z"
+          "updated_at": "2026-11-17T07:40:23Z",
+          "codex": {
+            "implementer_session": "01a1e7e1-a3dd-73d3-8297-e01673cb03e1",
+            "implementer": "luna",
+            "reviewer_session": "01a1e7de-d9ab-7941-b3cf-e447d75d46bf",
+            "reviewer_model": "gpt-6.1-terra",
+            "reviewer_effort": "medium",
+            "status": "running",
+            "started_at": "2026-11-17T04:58:23Z",
+            "updated_at": "2026-11-17T07:40:23Z",
+            "reviewer_verdict": "request-changes",
+            "implementer_model": "gpt-6-luna",
+            "implementer_effort": "medium",
+            "review_status": "passed"
+          }
+        },
+        {
+          "id": "ROUTE",
+          "name": "Delegation, skill authoring, and workflow source of truth",
+          "finding_ids": [
+            "BCL-27",
+            "BCL-24",
+            "BCL-25",
+            "BCL-26"
+          ],
+          "depends_on": [],
+          "status": "running",
+          "phase": "fix",
+          "worktree": "samantha-pr112-rollover",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts",
+            "plugins/batched-change-list/skills/batched-change-list/references",
+            "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/plugin.json",
+            "plugins/batched-change-list/CHANGELOG.md"
+          ],
+          "reason": "After RECORD: enforce delegated fix/review sessions, compact skill authoring, Introspect coverage and order, and one workflow definition for the strip, skill loop, and stage guards.",
+          "verify": {
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
+            "method": "Unit tests for session install gates, Introspect coverage and order, skill shape, and generated workflow strip and loop line.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 4
+          },
+          "codex": {
+            "implementer_session": "01a1e7f9-5b30-7180-a94f-d1ca7e6a413e",
+            "implementer": "luna",
+            "implementer_model": "gpt-6-luna",
+            "implementer_effort": "medium",
+            "reviewer_session": "01a1e838-9024-70e1-9faf-2219c89c070b",
+            "reviewer_model": "gpt-6.1-terra",
+            "reviewer_effort": "medium",
+            "reviewer_verdict": "request-changes",
+            "status": "running",
+            "updated_at": "2026-11-17T07:40:23Z",
+            "review_status": "passed"
+          },
+          "updated_at": "2026-11-17T07:40:23Z"
         },
         {
           "id": "CONFIRM",
@@ -2227,7 +2286,7 @@
             "failed": 2,
             "total": 2
           },
-          "updated_at": "2026-11-17T04:25:45Z"
+          "updated_at": "2026-11-17T05:44:02Z"
         },
         {
           "id": "SHELL",
@@ -2252,7 +2311,7 @@
             "failed": 1,
             "total": 1
           },
-          "updated_at": "2026-11-17T04:25:45Z"
+          "updated_at": "2026-11-17T05:44:02Z"
         }
       ]
     },
@@ -3428,6 +3487,66 @@
         "BCL-22"
       ],
       "carried_from": 111
+    },
+    {
+      "id": "BCL-24",
+      "title": "The skill does not enforce delegated fixes and reviews",
+      "source": "User requested",
+      "status": "in_progress",
+      "priority": "high",
+      "summary": "The Plan & fix guidance lets the main agent write fix code inline and does not require each group to record its implementer and reviewer sessions.",
+      "impact": "A group can be installed without an independently recorded implementation or review, and the skill can route fixes outside the required coding CLI.",
+      "done_when": "The main agent does not write fix code; each group fix and review runs through the coding CLI set by the codex-cli skill; only one-file fixes may skip review. Plan groups record nonempty implementer and reviewer session IDs, and install rejects missing sessions except the one-file reviewer exception.",
+      "observed": "User requested this ROUTE finding on 17 Nov 2026. The current plan-fix reference says to route tasks to the cheapest model and keep small or tightly coupled work inline. The install stage has no per-group session requirement.",
+      "recommendation": "Replace inline/cheapest-model prose with portable coding-CLI routing in the triggered plan-fix reference. Record codex.implementer_session, codex.reviewer_session, and codex.one_file. Enforce install prerequisites and test the refusal and one-file exception."
+    },
+    {
+      "id": "BCL-25",
+      "title": "The skill edits do not enforce skill-authoring principles",
+      "source": "User requested",
+      "status": "in_progress",
+      "priority": "high",
+      "summary": "The skill can grow without keeping its always-loaded router compact, adding explicit triggers to references, or turning repeatable checks into tested scripts.",
+      "impact": "Every activation can carry unnecessary workflow prose, references can become undiscoverable, and agents can skip repeatable checks or apply them inconsistently.",
+      "done_when": "SKILL.md stays the same size or shrinks and contains only the loop, triggers, and one-line pointers. Every reference has an explicit trigger. Repeatable per-round Introspect, install-session, and gate-count checks run as deterministic scripts with unit tests and fail-loud errors.",
+      "observed": "User requested these skill-authoring constraints for the ROUTE implementation on 17 Nov 2026; the skill-reducer checklist defines the compact-router and progressive-disclosure requirements.",
+      "recommendation": "Apply skill-creator and skill-reducer guidance before editing. Keep long instructions in already-triggered references, point those references to deterministic scripts, and add tests for every new check."
+    },
+    {
+      "id": "BCL-26",
+      "title": "Introspect does not enforce step coverage or section order",
+      "source": "User requested",
+      "status": "in_progress",
+      "priority": "high",
+      "summary": "Introspect accepts the four required sections even when their JSON keys are shuffled, and it does not require every step performed in the round to be reviewed.",
+      "impact": "A round can pass Introspect while omitting successful work or orchestration steps, and the requested delete-first workflow order is not enforced.",
+      "done_when": "Introspect requires the section keys in delete, simplify, optimize, automate order and accounts for every performed step under at least one section or none. A deterministic tested script enforces the same rules and bcl introspect cannot bypass it.",
+      "observed": "User requested this ROUTE finding on 17 Nov 2026. The current manage_findings.py validator checks section presence and later iterates in canonical order, so input JSON with shuffled keys is accepted.",
+      "recommendation": "Use an explicit per-round steps inventory including orchestration, validate exact section order and complete step coverage in a tested script, and wire that validation into bcl introspect."
+    },
+    {
+      "id": "BCL-27",
+      "title": "The workflow strip, skill loop, and state machine can diverge",
+      "source": "User requested",
+      "priority": "high",
+      "summary": "The page workflow strip, the skill loop line, and the stage guards are written separately, so they can disagree on stages, ticks, and gate wording.",
+      "impact": "The live page can show the wrong end state, an inapplicable Present step, an Install tick before any review has passed, or a gate label that does not match the merge and rollover rules.",
+      "done_when": "One machine-readable workflow definition in scripts/ is the single source of truth for stages, the loop, the gate, transitions, and required checks. The viewer strip and the skill loop line are generated from it. A check or unit test fails if the page, the skill, or the stage guards diverge. Install is never shown done before a review has passed; the strip includes a Merge previous PR end state; after rollover Present is not shown when the flow is Collect then Plan; gate wording covers rollover at 15 and merge at 16 or more, or one reconciled label.",
+      "observed": "User requested this finding on 17 Nov 2026 after a screenshot of this list: the strip ended at Report and roll over with no Merge previous PR end state; it always showed Present; Install was ticked while RECORD was still In review; the gate said under 15 verified; the page was Stale.",
+      "recommendation": "Replace the hand-written strip with one generated from a single scripts/ definition. Add a divergence test. Keep the skill file the same size or smaller. Do not keep a second copy of the strip.",
+      "status": "in_progress"
+    },
+    {
+      "id": "BCL-28",
+      "title": "A failed or blocked lane can still mark Install done",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "summary": "The workflow strip can tick Install as done for a failed or blocked lane that already has a passing review record and a later phase.",
+      "impact": "The page can show Install complete on a lane that failed or is blocked, so the strip no longer matches lane state.",
+      "done_when": "A failed or blocked lane never renders the Install step as done. A unit test covers a failed lane with phase verify and a passing review, and a blocked lane in the same situation.",
+      "observed": "Terra review 01a1e838 r2 of 4ab29e4a (12:44 IST 17 Nov 2026) found that render.py around line 418 checks lane position and review record but ignores status. A lane with status failed, phase verify, and a passing review rendered Install as done. Logged as a follow-up; no Terra r3.",
+      "recommendation": "Make strip ticks honor lane status so failed and blocked lanes do not mark Install done, and add tests for those cases."
     }
   ]
 }
