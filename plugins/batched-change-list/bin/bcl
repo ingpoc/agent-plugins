@@ -185,8 +185,11 @@ def _sync_main():
     dirty = dirty_paths()
     if any(path == "docs/triage" or path.startswith("docs/triage/") for path in dirty):
         raise ValueError("docs/triage has uncommitted tracker or report changes; commit them or clean them before sync-main")
-    if dirty:
-        subprocess.run(["git", "-C", str(home), "stash", "push", "--include-untracked", "-m", "bcl sync-main hook/check dirt"], check=True)
+    hook_check_dirt = [path for path in dirty if path.startswith(".githooks/") or path == "scripts/check.py"]
+    preexisting_work = set(dirty) - set(hook_check_dirt)
+    if hook_check_dirt:
+        subprocess.run(["git", "-C", str(home), "stash", "push", "--include-untracked", "-m", "bcl sync-main hook/check dirt", "--",
+                        *(f":(literal){path}" for path in dict.fromkeys(hook_check_dirt))], check=True)
     merge = subprocess.run(["git", "-C", str(home), "merge", "main"], capture_output=True, text=True)
     conflicts = [path for path in subprocess.check_output(["git", "-C", str(home), "diff", "--name-only", "--diff-filter=U", "-z"]).decode().split("\0") if path]
     for path in conflicts:
@@ -207,7 +210,7 @@ def _sync_main():
         page = home / record["html"]
         page.parent.mkdir(parents=True, exist_ok=True)
         page.write_text(render.render(json.loads(snapshot.read_text()), snapshot.parent))
-    post_merge_dirt = [path for path in dirty_paths() if path != "docs/triage" and not path.startswith("docs/triage/")]
+    post_merge_dirt = [path for path in dirty_paths() if path not in preexisting_work and path != "docs/triage" and not path.startswith("docs/triage/")]
     if post_merge_dirt:
         subprocess.run(["git", "-C", str(home), "stash", "push", "--include-untracked", "-m", "bcl sync-main hook/check dirt", "--",
                         *(f":(literal){path}" for path in dict.fromkeys(post_merge_dirt))], check=True)
