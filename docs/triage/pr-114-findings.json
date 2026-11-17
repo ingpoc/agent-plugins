@@ -3789,6 +3789,277 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "bcl-0.1.32-9e8efcf5-114",
+        "build": "batched-change-list 0.1.32",
+        "revision": "9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4",
+        "installed_at": "2026-11-17T11:01:50Z",
+        "install_evidence": "Copied worktree plugin 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 to ~/.agents/plugins/batched-change-list, ~/.agents/skills/batched-change-list, and Cursor/Codex caches at 0.1.32 and 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4. 48 plugin files, 41 skill files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e. Backup /tmp/bcl-install-0.1.32-backup-20261117-163138. Receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.32-receipt.json.",
+        "status": "interrupted",
+        "checks": {
+          "AUTO-03": {
+            "state": "pending"
+          },
+          "AUTO-04": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 is present (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e). AUTO-04 is in_progress. Installed test_bcl.py 45 OK in 48.007s; five sync-main tests passed. About to run the stored discover command via bcl verify.",
+            "observed_at": "2026-11-17T11:03:50Z",
+            "started_at": "2026-11-17T11:03:53Z",
+            "updated_at": "2026-11-17T11:03:53Z",
+            "evidence": "Installed bcl 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e, backup /tmp/bcl-install-0.1.32-backup-20261117-163138). Worktree after merge: test_manage_findings.py 73 OK in 14.177s and test_bcl.py 45 OK in 47.412s at 16:30:49 IST. Installed copy: test_manage_findings.py 73 OK in 13.752s, test_bcl.py 45 OK in 48.007s, 8 focused tests OK in 3.824s, finished 16:33:35 IST Asia/Calcutta. bcl verify PLAN re-ran test_manage_findings.py 73 OK in 13.899s; SYNC re-ran test_bcl.py 45 OK in 48.036s, finished 2026-11-17T11:04:56Z. Five sync-main tests passed on worktree and installed 0.1.32, including post-merge hook dirt, a failed merge with no unmerged paths, deleted skill-reference conflict resolution, and refusal to stash a dirty docs/triage tracker.",
+            "finished_at": "2026-11-17T11:05:22Z"
+          },
+          "AUTO-05": {
+            "state": "pending"
+          },
+          "AUTO-06": {
+            "state": "pending"
+          },
+          "BCL-01": {
+            "state": "pending"
+          },
+          "BCL-02": {
+            "state": "pending"
+          },
+          "BCL-03": {
+            "state": "pending"
+          },
+          "PLAN-02": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 is present (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e). PLAN-02 is in_progress. Installed test_manage_findings.py 73 OK in 13.752s; focused plan-check tests passed. About to run the stored discover command via bcl verify.",
+            "observed_at": "2026-11-17T11:03:50Z",
+            "started_at": "2026-11-17T11:03:53Z",
+            "updated_at": "2026-11-17T11:03:53Z",
+            "evidence": "Installed bcl 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e, backup /tmp/bcl-install-0.1.32-backup-20261117-163138). Worktree after merge: test_manage_findings.py 73 OK in 14.177s and test_bcl.py 45 OK in 47.412s at 16:30:49 IST. Installed copy: test_manage_findings.py 73 OK in 13.752s, test_bcl.py 45 OK in 48.007s, 8 focused tests OK in 3.824s, finished 16:33:35 IST Asia/Calcutta. bcl verify PLAN re-ran test_manage_findings.py 73 OK in 13.899s; SYNC re-ran test_bcl.py 45 OK in 48.036s, finished 2026-11-17T11:04:56Z. test_plan_check_caps_group_size_and_rejects_max_effort, test_set_plan_rejects_oversized_and_max_effort_groups_without_writing, and test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal passed on worktree and installed 0.1.32. set-plan refuses current-round groups with more than 4 findings or effort max, using status (not phase) to decide exemptions; refused plans leave the tracker unchanged.",
+            "finished_at": "2026-11-17T11:05:22Z"
+          },
+          "PLAN-03": {
+            "state": "pending"
+          },
+          "OBS-23": {
+            "state": "pending"
+          },
+          "OBS-25": {
+            "state": "pending"
+          },
+          "AGENT-25": {
+            "state": "pending"
+          },
+          "WF-06": {
+            "state": "pending"
+          },
+          "PAGE-08": {
+            "state": "pending"
+          },
+          "AGENT-26": {
+            "state": "pending"
+          },
+          "AGENT-27": {
+            "state": "pending"
+          },
+          "WF-07": {
+            "state": "pending"
+          },
+          "PAGE-09": {
+            "state": "pending"
+          },
+          "PAGE-10": {
+            "state": "pending"
+          },
+          "SEC-01": {
+            "state": "pending"
+          },
+          "PAGE-11": {
+            "state": "pending"
+          },
+          "BCL-04": {
+            "state": "pending"
+          },
+          "PAGE-12": {
+            "state": "pending"
+          },
+          "FLOW-03": {
+            "state": "pending"
+          },
+          "PAGE-13": {
+            "state": "pending"
+          },
+          "PAGE-14": {
+            "state": "pending"
+          },
+          "PAGE-15": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 is present. PAGE-15 is in_progress. About to run test_plan_check_caps_group_size_and_rejects_max_effort, test_set_plan_rejects_oversized_and_max_effort_groups_without_writing, and test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal on the worktree and the installed copy.",
+            "observed_at": "2026-11-17T11:09:41Z",
+            "started_at": "2026-11-17T11:09:41Z",
+            "updated_at": "2026-11-17T11:09:41Z",
+            "evidence": "Installed bcl 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 remains present (48 plugin / 41 skill files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e, backup /tmp/bcl-install-0.1.32-backup-20261117-163138, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.32-receipt.json). No new install for these test-now items. Worktree: 5 named tests OK in 0.325s at 16:39:57 IST Asia/Calcutta; stored test_manage_findings.py 73 OK in 13.743s. Installed copy: 5 named tests OK in 0.332s; stored suite 73 OK in 13.737s, finished 16:40:25 IST. bcl verify LOCK re-ran test_manage_findings.py 73 OK in 13.749s; CAPEV re-ran the same suite 73 OK in 13.931s, finished 2026-11-17T11:11:33Z. test_plan_check_caps_group_size_and_rejects_max_effort, test_set_plan_rejects_oversized_and_max_effort_groups_without_writing, and test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal passed on worktree and installed 0.1.32. The installed client enforces the four-issue and Luna-max caps and refuses a bad plan without writing, which is the installed-client proof PAGE-15 required (PLAN-03 had only a source-file check).",
+            "finished_at": "2026-11-17T11:11:53Z"
+          },
+          "PAGE-16": {
+            "state": "pending"
+          },
+          "BCL-05": {
+            "state": "pending"
+          },
+          "PAGE-17": {
+            "state": "pending"
+          },
+          "BCL-06": {
+            "state": "pending"
+          },
+          "FLOW-04": {
+            "state": "pending"
+          },
+          "PAGE-18": {
+            "state": "pending"
+          },
+          "BCL-07": {
+            "state": "pending"
+          },
+          "BCL-08": {
+            "state": "pending"
+          },
+          "PAGE-19": {
+            "state": "pending"
+          },
+          "PAGE-20": {
+            "state": "pending"
+          },
+          "BCL-09": {
+            "state": "pending"
+          },
+          "BCL-10": {
+            "state": "pending"
+          },
+          "BCL-11": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 is present (already installed this cycle; no new install for test-now). BCL-11 is in_progress. About to run test_competing_writers_serialize_without_blocking_readers and test_nonblocking_lock_rejects_competitor_and_releases_after_crash on the worktree and the installed copy, plus the stored test_manage_findings.py discover command.",
+            "observed_at": "2026-11-17T11:09:41Z",
+            "started_at": "2026-11-17T11:09:41Z",
+            "updated_at": "2026-11-17T11:09:41Z",
+            "evidence": "Installed bcl 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 remains present (48 plugin / 41 skill files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e, backup /tmp/bcl-install-0.1.32-backup-20261117-163138, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.32-receipt.json). No new install for these test-now items. Worktree: 5 named tests OK in 0.325s at 16:39:57 IST Asia/Calcutta; stored test_manage_findings.py 73 OK in 13.743s. Installed copy: 5 named tests OK in 0.332s; stored suite 73 OK in 13.737s, finished 16:40:25 IST. bcl verify LOCK re-ran test_manage_findings.py 73 OK in 13.749s; CAPEV re-ran the same suite 73 OK in 13.931s, finished 2026-11-17T11:11:33Z. test_competing_writers_serialize_without_blocking_readers passed on worktree and installed 0.1.32: competing manage_findings writers serialize under the shared lock and neither update is lost. Supporting: test_nonblocking_lock_rejects_competitor_and_releases_after_crash in test_tracker_lock.py also passed on both copies.",
+            "finished_at": "2026-11-17T11:11:53Z"
+          },
+          "BCL-12": {
+            "state": "pending"
+          },
+          "BCL-13": {
+            "state": "pending"
+          },
+          "BCL-14": {
+            "state": "pending"
+          },
+          "BCL-15": {
+            "state": "pending"
+          },
+          "BCL-16": {
+            "state": "pending"
+          },
+          "BCL-17": {
+            "state": "pending"
+          },
+          "AGENT-28": {
+            "state": "pending"
+          },
+          "AGENT-29": {
+            "state": "pending"
+          },
+          "BCL-18": {
+            "state": "pending"
+          },
+          "BCL-19": {
+            "state": "pending"
+          },
+          "BCL-20": {
+            "state": "pending"
+          },
+          "BCL-21": {
+            "state": "pending"
+          },
+          "EVAL-01": {
+            "state": "pending"
+          },
+          "BCL-22": {
+            "state": "pending"
+          },
+          "BCL-23": {
+            "state": "pending"
+          },
+          "WF-08": {
+            "state": "pending"
+          },
+          "BCL-24": {
+            "state": "pending"
+          },
+          "BCL-25": {
+            "state": "pending"
+          },
+          "BCL-26": {
+            "state": "pending"
+          },
+          "BCL-27": {
+            "state": "pending"
+          },
+          "BCL-28": {
+            "state": "pending"
+          },
+          "BCL-29": {
+            "state": "pending"
+          },
+          "WF-09": {
+            "state": "pending"
+          },
+          "BCL-30": {
+            "state": "pending"
+          },
+          "BCL-31": {
+            "state": "pending"
+          },
+          "WF-10": {
+            "state": "pending"
+          },
+          "BCL-32": {
+            "state": "pending"
+          },
+          "BCL-33": {
+            "state": "pending"
+          },
+          "WF-11": {
+            "state": "pending"
+          },
+          "BCL-34": {
+            "state": "pending"
+          },
+          "WF-12": {
+            "state": "pending"
+          },
+          "BCL-35": {
+            "state": "pending"
+          },
+          "PAGE-21": {
+            "state": "pending"
+          },
+          "WF-13": {
+            "state": "pending"
+          },
+          "WF-14": {
+            "state": "pending"
+          },
+          "WF-15": {
+            "state": "pending"
+          },
+          "BCL-36": {
+            "state": "pending"
+          },
+          "WF-16": {
+            "state": "pending"
+          },
+          "PAGE-22": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -3803,9 +4074,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-17T11:34:44Z",
-      "now": "2026-11-17T11:34:44Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-17T11:37:27Z",
+      "now": "2026-11-17T11:37:27Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 113,
@@ -4116,27 +4387,25 @@
       "verify"
     ],
     "verification_run": {
-      "id": "bcl-0.1.32-9e8efcf5-114",
-      "build": "batched-change-list 0.1.32",
-      "revision": "9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4",
-      "installed_at": "2026-11-17T11:01:50Z",
-      "install_evidence": "Copied worktree plugin 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 to ~/.agents/plugins/batched-change-list, ~/.agents/skills/batched-change-list, and Cursor/Codex caches at 0.1.32 and 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4. 48 plugin files, 41 skill files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e. Backup /tmp/bcl-install-0.1.32-backup-20261117-163138. Receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.32-receipt.json.",
+      "id": "bcl-0.1.33-afc5d0a0-114",
+      "build": "batched-change-list 0.1.33",
+      "revision": "afc5d0a04dbaca20dd2d27b7bd6a048f385a506a",
+      "installed_at": "2026-11-17T11:34:45Z",
+      "install_evidence": "bcl install-local from worktree HEAD afc5d0a04dbaca20dd2d27b7bd6a048f385a506a at 17:04:45 IST Asia/Calcutta installed batched-change-list 0.1.33: 48 plugin files sha256 3241f2e1cfa5db3e46476b9adffc73e3711f70b0cc65468e279b7431ab28e038 to ~/.agents/plugins and Cursor/Codex version and revision caches; 41 skill files sha256 0e4fb47b675f5d1f5a1c5b34e48a93c317583520f4c96e9a0496b4a05fce39e6 to ~/.agents/skills/batched-change-list with SKILL.md at the skill root. Receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.33-receipt.json.",
       "status": "active",
       "checks": {
         "AUTO-03": {
           "state": "pending"
         },
         "AUTO-04": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 is present (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e). AUTO-04 is in_progress. Installed test_bcl.py 45 OK in 48.007s; five sync-main tests passed. About to run the stored discover command via bcl verify.",
-          "observed_at": "2026-11-17T11:03:50Z",
-          "started_at": "2026-11-17T11:03:53Z",
-          "updated_at": "2026-11-17T11:03:53Z",
-          "evidence": "Installed bcl 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e, backup /tmp/bcl-install-0.1.32-backup-20261117-163138). Worktree after merge: test_manage_findings.py 73 OK in 14.177s and test_bcl.py 45 OK in 47.412s at 16:30:49 IST. Installed copy: test_manage_findings.py 73 OK in 13.752s, test_bcl.py 45 OK in 48.007s, 8 focused tests OK in 3.824s, finished 16:33:35 IST Asia/Calcutta. bcl verify PLAN re-ran test_manage_findings.py 73 OK in 13.899s; SYNC re-ran test_bcl.py 45 OK in 48.036s, finished 2026-11-17T11:04:56Z. Five sync-main tests passed on worktree and installed 0.1.32, including post-merge hook dirt, a failed merge with no unmerged paths, deleted skill-reference conflict resolution, and refusal to stash a dirty docs/triage tracker.",
-          "finished_at": "2026-11-17T11:05:22Z"
+          "state": "pending"
         },
         "AUTO-05": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a is present via bcl install-local. AUTO-05 is in_progress. About to run test_install_local_refreshes_only_the_requested_temp_destinations, plus the stored test_bcl.py discover command, on the worktree and the installed copy. Live install-local already refreshed ~/.agents, Cursor, and Codex caches and placed the skill subtree at the skill destination.",
+          "observed_at": "2026-11-17T11:34:45Z",
+          "started_at": "2026-11-17T11:35:07Z",
+          "updated_at": "2026-11-17T11:35:07Z"
         },
         "AUTO-06": {
           "state": "pending"
@@ -4151,13 +4420,7 @@
           "state": "pending"
         },
         "PLAN-02": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 is present (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e). PLAN-02 is in_progress. Installed test_manage_findings.py 73 OK in 13.752s; focused plan-check tests passed. About to run the stored discover command via bcl verify.",
-          "observed_at": "2026-11-17T11:03:50Z",
-          "started_at": "2026-11-17T11:03:53Z",
-          "updated_at": "2026-11-17T11:03:53Z",
-          "evidence": "Installed bcl 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e, backup /tmp/bcl-install-0.1.32-backup-20261117-163138). Worktree after merge: test_manage_findings.py 73 OK in 14.177s and test_bcl.py 45 OK in 47.412s at 16:30:49 IST. Installed copy: test_manage_findings.py 73 OK in 13.752s, test_bcl.py 45 OK in 48.007s, 8 focused tests OK in 3.824s, finished 16:33:35 IST Asia/Calcutta. bcl verify PLAN re-ran test_manage_findings.py 73 OK in 13.899s; SYNC re-ran test_bcl.py 45 OK in 48.036s, finished 2026-11-17T11:04:56Z. test_plan_check_caps_group_size_and_rejects_max_effort, test_set_plan_rejects_oversized_and_max_effort_groups_without_writing, and test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal passed on worktree and installed 0.1.32. set-plan refuses current-round groups with more than 4 findings or effort max, using status (not phase) to decide exemptions; refused plans leave the tracker unchanged.",
-          "finished_at": "2026-11-17T11:05:22Z"
+          "state": "pending"
         },
         "PLAN-03": {
           "state": "pending"
@@ -4214,13 +4477,7 @@
           "state": "pending"
         },
         "PAGE-15": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 is present. PAGE-15 is in_progress. About to run test_plan_check_caps_group_size_and_rejects_max_effort, test_set_plan_rejects_oversized_and_max_effort_groups_without_writing, and test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal on the worktree and the installed copy.",
-          "observed_at": "2026-11-17T11:09:41Z",
-          "started_at": "2026-11-17T11:09:41Z",
-          "updated_at": "2026-11-17T11:09:41Z",
-          "evidence": "Installed bcl 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 remains present (48 plugin / 41 skill files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e, backup /tmp/bcl-install-0.1.32-backup-20261117-163138, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.32-receipt.json). No new install for these test-now items. Worktree: 5 named tests OK in 0.325s at 16:39:57 IST Asia/Calcutta; stored test_manage_findings.py 73 OK in 13.743s. Installed copy: 5 named tests OK in 0.332s; stored suite 73 OK in 13.737s, finished 16:40:25 IST. bcl verify LOCK re-ran test_manage_findings.py 73 OK in 13.749s; CAPEV re-ran the same suite 73 OK in 13.931s, finished 2026-11-17T11:11:33Z. test_plan_check_caps_group_size_and_rejects_max_effort, test_set_plan_rejects_oversized_and_max_effort_groups_without_writing, and test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal passed on worktree and installed 0.1.32. The installed client enforces the four-issue and Luna-max caps and refuses a bad plan without writing, which is the installed-client proof PAGE-15 required (PLAN-03 had only a source-file check).",
-          "finished_at": "2026-11-17T11:11:53Z"
+          "state": "pending"
         },
         "PAGE-16": {
           "state": "pending"
@@ -4259,13 +4516,7 @@
           "state": "pending"
         },
         "BCL-11": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 is present (already installed this cycle; no new install for test-now). BCL-11 is in_progress. About to run test_competing_writers_serialize_without_blocking_readers and test_nonblocking_lock_rejects_competitor_and_releases_after_crash on the worktree and the installed copy, plus the stored test_manage_findings.py discover command.",
-          "observed_at": "2026-11-17T11:09:41Z",
-          "started_at": "2026-11-17T11:09:41Z",
-          "updated_at": "2026-11-17T11:09:41Z",
-          "evidence": "Installed bcl 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 remains present (48 plugin / 41 skill files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e, backup /tmp/bcl-install-0.1.32-backup-20261117-163138, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.32-receipt.json). No new install for these test-now items. Worktree: 5 named tests OK in 0.325s at 16:39:57 IST Asia/Calcutta; stored test_manage_findings.py 73 OK in 13.743s. Installed copy: 5 named tests OK in 0.332s; stored suite 73 OK in 13.737s, finished 16:40:25 IST. bcl verify LOCK re-ran test_manage_findings.py 73 OK in 13.749s; CAPEV re-ran the same suite 73 OK in 13.931s, finished 2026-11-17T11:11:33Z. test_competing_writers_serialize_without_blocking_readers passed on worktree and installed 0.1.32: competing manage_findings writers serialize under the shared lock and neither update is lost. Supporting: test_nonblocking_lock_rejects_competitor_and_releases_after_crash in test_tracker_lock.py also passed on both copies.",
-          "finished_at": "2026-11-17T11:11:53Z"
+          "state": "pending"
         },
         "BCL-12": {
           "state": "pending"
@@ -4376,7 +4627,11 @@
           "state": "pending"
         },
         "BCL-36": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a is present. BCL-36 is in_progress. About to run test_sync_main_stashes_hook_dirt_and_preserves_unrelated_work and test_sync_main_stashes_post_merge_dirt_recreated_at_pre_stashed_path, plus the stored test_bcl.py discover command, on the worktree and the installed copy.",
+          "observed_at": "2026-11-17T11:34:45Z",
+          "started_at": "2026-11-17T11:35:07Z",
+          "updated_at": "2026-11-17T11:35:07Z"
         },
         "WF-16": {
           "state": "pending"
