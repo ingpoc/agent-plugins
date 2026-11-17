@@ -1848,7 +1848,7 @@ class LiveSession:
             mark_usage_unconfirmed()
         if getattr(self, "_stop", threading.Event()).is_set():
             return
-        if not getattr(self, "_reconnect_requested", False) and code is None:
+        if not getattr(self, "_reconnect_requested", False):
             self._drop_plan = self._plan_drop_recovery()
         # Phase 1: close no longer kills the session — run() reconnects.
         island_publish("reconnecting", title="Reconnecting", detail="")
