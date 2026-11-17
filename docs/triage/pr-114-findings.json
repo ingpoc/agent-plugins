@@ -4337,8 +4337,8 @@
     },
     "workflow": {
       "stage": "install",
-      "updated_at": "2026-11-17T12:28:05Z",
-      "now": "2026-11-17T12:28:05Z — Install in progress"
+      "updated_at": "2026-11-17T12:32:18Z",
+      "now": "2026-11-17T12:32:18Z — Lane GATE updated"
     },
     "rollover": {
       "source_pr": 113,
@@ -4536,8 +4536,8 @@
             "AGENT-29"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "pending",
+          "status": "verifying",
+          "phase": "verify",
           "worktree": "samantha-pr114-rollover",
           "files": [],
           "reason": "AGENT-28 and AGENT-29 failed once under the full scripts/check.py gate, then passed in focused reruns. This group reruns the full gate on the current worktree and records pass or fail, with no code change first.",
@@ -4554,7 +4554,7 @@
             "failed": 0,
             "total": 2
           },
-          "updated_at": "2026-11-17T12:27:33Z"
+          "updated_at": "2026-11-17T12:32:18Z"
         },
         {
           "id": "INTRO",
@@ -4743,10 +4743,18 @@
           "state": "pending"
         },
         "AGENT-28": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.34 at a4fa850811d8fb9380ac7d2aa1ab68468ec7941a is present. AGENT-28 is in_progress. About to run the full scripts/check.py gate on worktree samantha-pr114-rollover, which includes test_known_notification_types_post_exact_needs_you_args in plugins/agent-computer-use/skills/macos-cua/tests/test_claude_hook.py.",
+          "observed_at": "2026-11-17T12:28:14Z",
+          "started_at": "2026-11-17T12:32:18Z",
+          "updated_at": "2026-11-17T12:32:18Z"
         },
         "AGENT-29": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.34 at a4fa850811d8fb9380ac7d2aa1ab68468ec7941a is present. AGENT-29 is in_progress. About to run the full scripts/check.py gate on worktree samantha-pr114-rollover, which includes IslandGateColdStartTests.testSubmitColdStartShowsWakingThenSucceeds in the macOS Swift service suite.",
+          "observed_at": "2026-11-17T12:28:14Z",
+          "started_at": "2026-11-17T12:32:18Z",
+          "updated_at": "2026-11-17T12:32:18Z"
         },
         "BCL-18": {
           "state": "pending"
