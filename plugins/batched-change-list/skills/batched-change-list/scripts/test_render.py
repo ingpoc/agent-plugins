@@ -308,8 +308,8 @@ const history=sections.find(e=>e.children[0].text==='Verification by version');
 if(!sections.some(e=>e.children[0].text==='Status of last verification'&&e.children[1].text==='No verification result recorded.'))process.exit(6);
 if(!history||history.children[1].text!=='No versioned verification recorded.')process.exit(4);
 findings[0].version_timeline=[
- {version:'0.2.147',build:'ACU 0.2.147',state:'not_fixed',outcome:'fail',reference:'10/12 on typed session; not 12/12.',timestamp:'2026-11-14T17:06:53Z'},
- {version:'0.2.143',build:'ACU 0.2.143',state:'not_fixed',outcome:'failing',reference:'6/12 on typed turns; not 12/12',timestamp:'2026-11-14T10:30:44Z'}];
+ {version:'0.2.147',build:'ACU 0.2.147',state:'not_fixed',verdict:'Failing because 10/12 passed',checked:'typed session',expected:'12/12 pass',observed:'10/12 on typed session',timestamp:'2026-11-14T17:06:53Z'},
+ {version:'0.2.143',build:'ACU 0.2.143',state:'not_fixed',verdict:'Failing because 6/12 passed',checked:'typed turns',expected:'12/12 pass',observed:'6/12 on typed turns',timestamp:'2026-11-14T10:30:44Z'}];
 show();
 const list=panel.article.children.find(e=>e.cls==='issue-part version-history').children.find(e=>e.tag==='ol');
 if(!list||list.children.length!==2||list.children[0].children[0].text!=='0.2.147'||list.children[1].children[0].text!=='0.2.143')process.exit(5);
@@ -321,7 +321,7 @@ show();
 if(!panel.article.children.some(e=>e.tag==='section'&&e.children[0].text==='Status of last verification'&&e.children[1].text==='Latest result cannot be determined; some verification dates are unavailable. Latest dated: Failing.'))process.exit(12);
 if(panel.article.children.find(e=>e.cls==='issue-part version-history').children.find(e=>e.tag==='ol').children.length!==3)process.exit(13);
 
-if(list.children[0].children[2].children[1].text!=='Reason: 10/12 on typed session; not 12/12.'||list.children[1].children[2].children[1].text!=='Reason: 6/12 on typed turns; not 12/12')process.exit(11);
+if(list.children[0].children[2].children[0].text!=='Checked: typed session'||list.children[0].children[2].children[1].text!=='Expected: 12/12 pass'||list.children[0].children[2].children[2].text!=='Observed: 10/12 on typed session'||list.children[0].children[2].children[3].text!=='Verdict because: Failing because 10/12 passed')process.exit(11);
 findings[0].version_timeline=[{version:'0.2.143',build:'ACU 0.2.143',state:'blocked',outcome:'blocked',timestamp:'2026-11-14T10:30:44Z'}];
 show();
 const blocked=panel.article.children.find(e=>e.cls==='issue-part version-history').children.find(e=>e.tag==='ol').children[0];
@@ -329,7 +329,7 @@ if(blocked.children[1].text!=='Blocked')process.exit(9);
 findings[0].version_timeline[0].state='';findings[0].version_timeline[0].outcome='reviewed';
 show();
 const ambiguous=panel.article.children.find(e=>e.cls==='issue-part version-history').children.find(e=>e.tag==='ol').children[0];
-if(ambiguous.children[1].text!=='Status not recorded'||ambiguous.children[2].children[0].text!=='Outcome: reviewed'||ambiguous.children[2].children[1].text!=='Reason not recorded.')process.exit(10);
+if(ambiguous.children[1].text!=='Status not recorded'||ambiguous.children[2].children[3].text!=='Verdict because: reviewed')process.exit(10);
 findings[0].version_timeline=[{version:'Version unknown',build:'unknown',state:'fixed',outcome:'fixed',timestamp:'unknown'}];
 show();
 const undated=panel.article.children.find(e=>e.cls==='issue-part version-history').children.find(e=>e.tag==='ol').children[0];
@@ -353,7 +353,9 @@ if(!panel.article.children.some(e=>e.tag==='section'&&e.children[0].text==='Stat
             'previous_checks': [{'state': 'not_fixed', 'evidence': 'Display showed the wrong value', 'finished_at': '2026-11-15T01:00:00Z'}]}}}]
         timeline = renderer.version_evidence(item, runs)
         self.assertEqual([(entry['state'], entry['outcome']) for entry in timeline], [
-            ('fixed', 'Display now shows the correct value'), ('not_fixed', 'Display showed the wrong value')])
+            ('fixed', 'Display now shows the correct value')])
+        self.assertEqual([(entry['state'], entry['outcome']) for entry in timeline[0]['history']], [
+            ('not_fixed', 'Display showed the wrong value')])
 
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
     def test_fingerprint_poll_reloads_once_only_after_change_and_preserves_view(self):
@@ -518,25 +520,49 @@ setImmediate(async()=>{
         self.assertIn('>Merged / Done<', merged)
 
     def test_timeline_preserves_results_in_date_order_including_runs(self):
+        def evidence(build, timestamp, observed):
+            return {'build':build, 'timestamp':timestamp, 'checked':'button update', 'expected':'both updates survive',
+                    'observed':observed, 'verdict':'Fixed because both updates survived', 'session':build,
+                    'reference':'receipt'}
         item = {'id': 'ISSUE-01', 'verification_evidence': [
-            {'build':'ACU 0.2.120', 'timestamp':'2026-11-07T12:00:00Z', 'outcome':'old', 'check':'check'},
-            {'build':'ACU 0.2.119', 'timestamp':'2026-11-07T15:00:00Z', 'outcome':'other', 'check':'check'},
-            {'build':'ACU 0.2.120', 'timestamp':'unknown', 'outcome':'undated', 'check':'check'}]}
+            evidence('ACU 0.2.120', '2026-11-07T12:00:00Z', 'old'),
+            evidence('ACU 0.2.119', '2026-11-07T15:00:00Z', 'other'),
+            evidence('ACU 0.2.120', 'unknown', 'undated')]}
         runs = [{'build':'ACU 0.2.120; Ledger 0.1.39', 'checks':{'ISSUE-01': {
-            'state':'inconclusive', 'finished_at':'2026-11-08T06:00:00Z', 'evidence':'latest'}}}]
+            'state':'inconclusive', 'finished_at':'2026-11-08T06:00:00Z', 'evidence':'Checked: button update\nExpected: both updates survive\nObserved: latest'}}}]
         timeline = renderer.version_evidence(item, runs)
-        self.assertEqual([(r['version'], r['outcome']) for r in timeline], [('0.2.120', 'latest'), ('0.2.119', 'other'), ('0.2.120', 'old'), ('0.2.120', 'undated')])
+        self.assertEqual([(r['version'], r['verdict']) for r in timeline], [('0.2.120', 'inconclusive'), ('0.2.119', 'Fixed because both updates survived')])
+        self.assertEqual(len(timeline[0]['history']), 2)
+        self.assertEqual((timeline[0]['checked'], timeline[0]['expected'], timeline[0]['observed']),
+                         ('button update', 'both updates survive', 'latest'))
         self.assertEqual(timeline[0]['state'], 'inconclusive')
 
     def test_verification_history_is_not_flattened_or_duplicated(self):
         item = self.data['findings'][0]
-        item['verification_evidence'] = [{'check':'Earlier check','outcome':'Unique historical result',
-            'build':'ACU 1','session':'session','timestamp':'2026-11-08T00:00:00Z','reference':'receipt'}]
+        item['verification_evidence'] = [{'checked':'Earlier check','expected':'success','observed':'Unique historical result',
+            'verdict':'Fixed because it passed','build':'ACU 1','session':'session','timestamp':'2026-11-08T00:00:00Z','reference':'receipt'}]
         before = copy.deepcopy(self.data)
         page = renderer.render(self.data, self.base)
         self.assertEqual(page.count('Unique historical result'), 1)
+        for label in ("['Checked',record.checked]", "['Expected',record.expected]", "['Observed',record.observed]", "['Verdict because',record.verdict||record.outcome]"):
+            self.assertIn(label, page)
         self.assertIn('Status of last verification', page)
         self.assertEqual(self.data, before)
+
+    def test_two_checks_on_one_version_render_as_one_row_with_latest_fields(self):
+        records = [
+            {'checked':'both tracker updates','expected':'both survive','observed':'one survived',
+             'verdict':'Failing because one update was lost','build':'BCL 0.2.147','session':'check-1',
+             'timestamp':'2026-11-15T10:00:00Z','reference':'old receipt /tmp/old'},
+            {'checked':'both tracker updates','expected':'both survive','observed':'both survived on worktree and installed copy',
+             'verdict':'Fixed because both updates survived','build':'BCL 0.2.147','session':'check-2',
+             'timestamp':'2026-11-16T10:00:00Z','reference':'new receipt /tmp/new'}]
+        rows = renderer.version_evidence({'id':'ISSUE-01','verification_evidence':records}, [])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual((rows[0]['checked'], rows[0]['expected'], rows[0]['observed'], rows[0]['verdict']),
+                         ('both tracker updates','both survive','both survived on worktree and installed copy',
+                          'Fixed because both updates survived'))
+        self.assertEqual(len(rows[0]['history']), 1)
 
     def test_latest_verification_uses_check_time_regardless_of_outcome(self):
         item = {'id': 'ISSUE-01'}
@@ -550,11 +576,12 @@ setImmediate(async()=>{
                          [('not_fixed','ACU 0.2.147'), ('blocked','ACU 0.2.146'), ('fixed','ACU 0.2.148')])
 
     def test_explicit_outcomes_and_exact_duplicate_checks(self):
-        blocked = {'build':'ACU 0.2.147', 'timestamp':'2026-11-15T10:00:00Z', 'outcome':'blocked', 'check':'Voice check'}
-        older = {**blocked, 'timestamp':'2026-11-14T10:00:00Z', 'outcome':'notes without a state'}
-        distinct = {**blocked, 'reference':'different receipt'}
+        blocked = {'build':'ACU 0.2.147', 'timestamp':'2026-11-15T10:00:00Z', 'verdict':'blocked', 'checked':'Voice check', 'expected':'pass', 'observed':'blocked', 'session':'latest'}
+        older = {**blocked, 'timestamp':'2026-11-14T10:00:00Z', 'verdict':'notes without a state', 'session':'older'}
+        distinct = {**blocked, 'timestamp':'2026-11-13T10:00:00Z', 'reference':'different receipt', 'session':'distinct'}
         history = renderer.version_evidence({'id':'ISSUE-01', 'verification_evidence':[blocked, blocked, distinct, older]}, [])
-        self.assertEqual([(r['state'], r['outcome']) for r in history], [('blocked','blocked'), ('blocked','blocked'), ('','notes without a state')])
+        self.assertEqual(len(history), 1)
+        self.assertEqual([(r['state'], r['verdict']) for r in history[0]['history']], [('', 'notes without a state'), ('blocked', 'blocked')])
 
     def test_introspect_stage_renders_between_verify_and_report(self):
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())

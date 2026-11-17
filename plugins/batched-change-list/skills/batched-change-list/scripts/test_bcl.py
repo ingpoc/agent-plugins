@@ -20,6 +20,12 @@ bcl_entrypoint = importlib.util.module_from_spec(spec)
 loader.exec_module(bcl_entrypoint)
 
 class BclTests(unittest.TestCase):
+    def test_verify_failure_reason_has_checked_expected_and_observed(self):
+        reason = bcl_entrypoint._verification_failure_reason('python3 check.py', 'Verification command exited 7')
+        self.assertIn('Checked: python3 check.py', reason)
+        self.assertIn('Expected: verification command exits 0', reason)
+        self.assertIn('Observed: Verification command exited 7', reason)
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name); self.state = self.root / "state"
