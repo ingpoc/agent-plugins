@@ -4074,9 +4074,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-17T11:38:19Z",
-      "now": "2026-11-17T11:38:19Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-17T11:40:05Z",
+      "now": "2026-11-17T11:40:05Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 113,
@@ -4317,8 +4317,8 @@
             "BCL-36"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "review",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "pr114-stash",
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -4337,12 +4337,12 @@
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
             "method": "A new test must show sync-main leaves unrelated non-triage dirty files in the worktree or restores them, while still stashing leftover hook or check dirt.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T11:33:50Z"
+          "updated_at": "2026-11-17T11:39:36Z"
         },
         {
           "id": "ILOCAL",
@@ -4351,8 +4351,8 @@
             "AUTO-05"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "review",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "pr114-install",
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -4371,20 +4371,22 @@
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
             "method": "A new test must show bcl install-local installs into ~/.agents, the Codex cache, and the Cursor cache, removes old copies, and checks the sha against the merge revision.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T11:33:50Z"
+          "updated_at": "2026-11-17T11:39:36Z"
         }
-      ]
+      ],
+      "status": "closed"
     },
     "stages_reached": [
       "collect",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "verification_run": {
       "id": "bcl-0.1.33-afc5d0a0-114",
@@ -4401,11 +4403,13 @@
           "state": "pending"
         },
         "AUTO-05": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Installed batched-change-list 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a is present via bcl install-local. AUTO-05 is in_progress. About to run test_install_local_refreshes_only_the_requested_temp_destinations, plus the stored test_bcl.py discover command, on the worktree and the installed copy. Live install-local already refreshed ~/.agents, Cursor, and Codex caches and placed the skill subtree at the skill destination.",
           "observed_at": "2026-11-17T11:34:45Z",
           "started_at": "2026-11-17T11:35:07Z",
-          "updated_at": "2026-11-17T11:35:07Z"
+          "updated_at": "2026-11-17T11:35:07Z",
+          "evidence": "Checked: bcl install-local onto Agents, Cursor, and Codex destinations. Expected: the plugin root is installed to plugin and cache paths, only the skill subtree is installed at the skill destination, old copies are removed, generated files are skipped, and tree hashes match. Observed: test_install_local_refreshes_only_the_requested_temp_destinations passed on the worktree and the installed 0.1.33 copy, and a live install-local wrote 48 plugin files and 41 skill files with SKILL.md at the skill root, so it's fixed. Installed bcl 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a via bcl install-local (48 plugin files sha256 3241f2e1cfa5db3e46476b9adffc73e3711f70b0cc65468e279b7431ab28e038, 41 skill files sha256 0e4fb47b675f5d1f5a1c5b34e48a93c317583520f4c96e9a0496b4a05fce39e6, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.33-receipt.json). Worktree: 3 named tests OK in 2.647s; test_bcl.py 48 OK in 50.258s, finished 17:06 IST Asia/Calcutta. Installed plugin copy: 3 named tests OK in 2.616s; test_bcl.py 48 OK in 50.755s, finished 17:07:18 IST. bcl verify STASH re-ran test_bcl.py 48 OK in 51.004s; ILOCAL re-ran it 48 OK in 50.642s, finished 2026-11-17T11:39:09Z.",
+          "finished_at": "2026-11-17T11:39:36Z"
         },
         "AUTO-06": {
           "state": "pending"
@@ -4627,94 +4631,97 @@
           "state": "pending"
         },
         "BCL-36": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Installed batched-change-list 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a is present. BCL-36 is in_progress. About to run test_sync_main_stashes_hook_dirt_and_preserves_unrelated_work and test_sync_main_stashes_post_merge_dirt_recreated_at_pre_stashed_path, plus the stored test_bcl.py discover command, on the worktree and the installed copy.",
           "observed_at": "2026-11-17T11:34:45Z",
           "started_at": "2026-11-17T11:35:07Z",
-          "updated_at": "2026-11-17T11:35:07Z"
+          "updated_at": "2026-11-17T11:35:07Z",
+          "evidence": "Checked: sync-main with hook dirt and an unrelated dirty file, including hook dirt recreated after the merge at a previously stashed path. Expected: only hook or check dirt is stashed, unrelated work stays, and recreated hook dirt is stashed too. Observed: test_sync_main_stashes_hook_dirt_and_preserves_unrelated_work and test_sync_main_stashes_post_merge_dirt_recreated_at_pre_stashed_path passed on the worktree and the installed 0.1.33 copy, so it's fixed. Installed bcl 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a via bcl install-local (48 plugin files sha256 3241f2e1cfa5db3e46476b9adffc73e3711f70b0cc65468e279b7431ab28e038, 41 skill files sha256 0e4fb47b675f5d1f5a1c5b34e48a93c317583520f4c96e9a0496b4a05fce39e6, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.33-receipt.json). Worktree: 3 named tests OK in 2.647s; test_bcl.py 48 OK in 50.258s, finished 17:06 IST Asia/Calcutta. Installed plugin copy: 3 named tests OK in 2.616s; test_bcl.py 48 OK in 50.755s, finished 17:07:18 IST. bcl verify STASH re-ran test_bcl.py 48 OK in 51.004s; ILOCAL re-ran it 48 OK in 50.642s, finished 2026-11-17T11:39:09Z.",
+          "finished_at": "2026-11-17T11:39:36Z"
         },
         "WF-16": {
           "state": "pending"
         },
         "PAGE-22": {
           "state": "pending"
+        },
+        "WF-17": {
+          "state": "pending"
         }
       }
     },
     "introspect": {
-      "result": "Round 1 Introspect recorded",
-      "at": "2026-11-17T11:05:46Z",
-      "task": "WF-16",
+      "result": "Round 2 Introspect recorded",
+      "at": "2026-11-17T11:40:05Z",
+      "task": "WF-17",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Install",
         "Stage: Verify",
         "Parallel group count: 4",
-        "Codex write: GUARD",
-        "One-file review exemption: GUARD",
-        "Polling and rework review: GUARD",
-        "Test command: GUARD: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
-        "Codex write: SNAP",
-        "One-file review exemption: SNAP",
-        "Polling and rework review: SNAP",
-        "Test command: SNAP: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
-        "Codex write: PLAN",
-        "Codex review: PLAN",
-        "Polling and rework review: PLAN",
-        "Test command: PLAN: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
-        "Codex write: SYNC",
-        "Codex review: SYNC",
-        "Polling and rework review: SYNC",
-        "Test command: SYNC: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
+        "Codex write: LOCK",
+        "One-file review exemption: LOCK",
+        "Polling and rework review: LOCK",
+        "Test command: LOCK: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+        "Codex write: CAPEV",
+        "One-file review exemption: CAPEV",
+        "Polling and rework review: CAPEV",
+        "Test command: CAPEV: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+        "Codex write: STASH",
+        "Codex review: STASH",
+        "Polling and rework review: STASH",
+        "Test command: STASH: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
+        "Codex write: ILOCAL",
+        "Codex review: ILOCAL",
+        "Polling and rework review: ILOCAL",
+        "Test command: ILOCAL: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
       ],
       "none": [
         "Stage: Plan & fix",
         "Stage: Install",
         "Stage: Verify",
         "Parallel group count: 4",
-        "Codex write: GUARD",
-        "One-file review exemption: GUARD",
-        "Polling and rework review: GUARD",
-        "Test command: GUARD: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
-        "Codex write: SNAP",
-        "One-file review exemption: SNAP",
-        "Polling and rework review: SNAP",
-        "Test command: SNAP: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
-        "Codex write: PLAN",
-        "Codex review: PLAN",
-        "Test command: PLAN: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
-        "Codex write: SYNC",
-        "Polling and rework review: SYNC",
-        "Test command: SYNC: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
+        "Codex write: LOCK",
+        "One-file review exemption: LOCK",
+        "Polling and rework review: LOCK",
+        "Test command: LOCK: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+        "Codex write: CAPEV",
+        "One-file review exemption: CAPEV",
+        "Polling and rework review: CAPEV",
+        "Test command: CAPEV: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+        "Codex write: STASH",
+        "Polling and rework review: STASH",
+        "Test command: STASH: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
+        "Codex write: ILOCAL",
+        "Polling and rework review: ILOCAL",
+        "Test command: ILOCAL: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
       ],
       "sections": {
         "delete": {
-          "none": "No extra process or files were dropped. Test-now groups used already-present 0.1.31; PLAN and SYNC added only the planned source and tests, then a 0.1.32 version bump."
+          "none": "No extra process or files were dropped. LOCK and CAPEV were test-now on already-installed 0.1.32; STASH and ILOCAL added only the planned commands and tests, then a 0.1.33 version bump."
         },
         "simplify": {
-          "items": [
-            {
-              "item": "Polling and rework review: PLAN",
-              "evidence": "Terra r1 (session 01a1e922-03dc-70d3-aabf-0abb9881fb39, 16:22 IST) found that phase took precedence over status, so a running group with phase done could bypass the max-effort and size caps, and a deferred group with phase fix could be rejected. Luna resumed session 01a1e91d-41fa-78f0-901a-873a5443e074 and now uses status first, falling back to phase only when status is missing, with tests in test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal. 73 manage_findings tests OK in 13.843s at 16:25 IST. No second review.",
-              "outcome": "fixed inline"
-            }
-          ]
+          "none": "The two review P2s were fixed in the same sessions without adding process. No further simplification was logged."
         },
         "optimize": {
-          "none": "PLAN and SYNC shared one 0.1.32 install and one live verify pass after both reviews passed. No further process change was logged."
+          "none": "STASH and ILOCAL shared one 0.1.33 install-local and one live test_bcl.py verify pass after both reviews passed. No further process change was logged."
         },
         "automate": {
           "items": [
             {
-              "item": "Codex review: SYNC",
-              "evidence": "Terra r1 (session 01a1e924-626f-7392-b9aa-41a3c94cd1a9, 16:24 IST) found two blocking P2s, now fixed (post-merge hook dirt is stashed; empty NUL-split conflict lists no longer look like unresolved conflicts), and a leftover: the pre-merge stash still captures all non-triage dirty files, not only hook or check dirt. Filed as BCL-36.",
-              "outcome": "issue",
-              "issue_id": "BCL-36"
+              "item": "Codex review: STASH",
+              "evidence": "Terra r1 (session 01a1e93d-13b4-7fd3-a8cb-45be7d6661f8, 16:51 IST) found that post-merge hook dirt at a path already dirty before the merge was skipped. Luna resumed session 01a1e935-727d-75e3-9a4e-d59c4134393f and now stashes recreated hook dirt while leaving unrelated pre-existing work. test_sync_main_stashes_post_merge_dirt_recreated_at_pre_stashed_path and the rest of test_bcl.py (47 then 48 tests) passed outside the sandbox at 16:55 IST. No second review.",
+              "outcome": "fixed inline"
+            },
+            {
+              "item": "Codex review: ILOCAL",
+              "evidence": "Terra r1 (session 01a1e93e-1df3-7a70-af7f-d15e0a56f19e, 16:52 IST) found that install-local copied the plugin root into the skill destination, so SKILL.md was nested. Luna resumed session 01a1e935-727d-7991-96f2-0fee89635710 and now copies only the skill subtree there, with a matching digest. The updated test and live install-local (48 plugin files, 41 skill files, SKILL.md at the skill root) passed at 17:04–17:07 IST. No second review.",
+              "outcome": "fixed inline"
             }
           ]
         }
       },
-      "round": 1,
+      "round": 2,
       "cycle": 6
     }
   },
@@ -4785,7 +4792,7 @@
       "id": "AUTO-05",
       "title": "Installing a merged plugin still has to be copied into several local places by hand",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "summary": "After a merge, installing the plugin locally still means copying it into several caches and checking the revision by hand.",
       "impact": "Old copies can be left behind, and an install can silently not match the merge.",
       "done_when": "`bcl install-local` installs to ~/.agents, the Codex cache and the Cursor cache, removes old copies, and checks the sha against the merge.",
@@ -4794,7 +4801,21 @@
       "details": {
         "Evidence": "0.1.17 hand install to ~/.agents, Codex cache, Cursor cache; Guru 17:20 IST"
       },
-      "carried_from": 110
+      "carried_from": 110,
+      "verification_evidence": [
+        {
+          "check": "Checked: bcl install-local onto Agents, Cursor, and Codex destinations. Expected: the plugin root is installed to plugin and cache paths, only the skill subtree is installed at the skill destination, old copies are removed, generated files are skipped, and tree hashes match. Observed: test_install_local_refreshes_only_the_requested_temp_destinations passed on the worktree and the installed 0.1.33 copy, and a live install-local wrote 48 plugin files and 41 skill files with SKILL.md at the skill root, so it's fixed. Installed bcl 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a via bcl install-local (48 plugin files sha256 3241f2e1cfa5db3e46476b9adffc73e3711f70b0cc65468e279b7431ab28e038, 41 skill files sha256 0e4fb47b675f5d1f5a1c5b34e48a93c317583520f4c96e9a0496b4a05fce39e6, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.33-receipt.json). Worktree: 3 named tests OK in 2.647s; test_bcl.py 48 OK in 50.258s, finished 17:06 IST Asia/Calcutta. Installed plugin copy: 3 named tests OK in 2.616s; test_bcl.py 48 OK in 50.755s, finished 17:07:18 IST. bcl verify STASH re-ran test_bcl.py 48 OK in 51.004s; ILOCAL re-ran it 48 OK in 50.642s, finished 2026-11-17T11:39:09Z.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.33",
+          "session": "installed-0.1.33-verify-114",
+          "timestamp": "2026-11-17T11:39:09Z",
+          "reference": "afc5d0a04dbaca20dd2d27b7bd6a048f385a506a:AUTO-05:installed-cli-suite"
+        }
+      ],
+      "verification": "Checked: bcl install-local onto Agents, Cursor, and Codex destinations. Expected: the plugin root is installed to plugin and cache paths, only the skill subtree is installed at the skill destination, old copies are removed, generated files are skipped, and tree hashes match. Observed: test_install_local_refreshes_only_the_requested_temp_destinations passed on the worktree and the installed 0.1.33 copy, and a live install-local wrote 48 plugin files and 41 skill files with SKILL.md at the skill root, so it's fixed. Installed bcl 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a via bcl install-local (48 plugin files sha256 3241f2e1cfa5db3e46476b9adffc73e3711f70b0cc65468e279b7431ab28e038, 41 skill files sha256 0e4fb47b675f5d1f5a1c5b34e48a93c317583520f4c96e9a0496b4a05fce39e6, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.33-receipt.json). Worktree: 3 named tests OK in 2.647s; test_bcl.py 48 OK in 50.258s, finished 17:06 IST Asia/Calcutta. Installed plugin copy: 3 named tests OK in 2.616s; test_bcl.py 48 OK in 50.755s, finished 17:07:18 IST. bcl verify STASH re-ran test_bcl.py 48 OK in 51.004s; ILOCAL re-ran it 48 OK in 50.642s, finished 2026-11-17T11:39:09Z.",
+      "verification_refs": [
+        "afc5d0a04dbaca20dd2d27b7bd6a048f385a506a:AUTO-05:installed-cli-suite"
+      ]
     },
     {
       "id": "AUTO-06",
@@ -7147,13 +7168,27 @@
       "id": "BCL-36",
       "title": "bcl sync-main stashes all non-triage dirty files, not only hook or check dirt",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "Before merging main, sync-main stashes every tracked and untracked change outside docs/triage, including unrelated local work, and does not restore it.",
       "impact": "Unrelated in-progress work in the home worktree can disappear into a stash when someone only meant to clear hook or check leftovers.",
       "done_when": "sync-main stashes only leftover hook or check dirt, or clearly names and restores any broader stash, and a test covers unrelated dirty files being left alone or restored.",
       "observed": "Terra r1 on AUTO-04 (16:24 IST, 17 Nov 2026, session 01a1e924-626f-7392-b9aa-41a3c94cd1a9) noted that the pre-merge stash includes all non-triage changes. The two blocking P2s were fixed; this leftover was not.",
-      "recommendation": "Limit the pre-merge stash to hook/check dirt, or restore unrelated work after the merge, and add a test."
+      "recommendation": "Limit the pre-merge stash to hook/check dirt, or restore unrelated work after the merge, and add a test.",
+      "verification_evidence": [
+        {
+          "check": "Checked: sync-main with hook dirt and an unrelated dirty file, including hook dirt recreated after the merge at a previously stashed path. Expected: only hook or check dirt is stashed, unrelated work stays, and recreated hook dirt is stashed too. Observed: test_sync_main_stashes_hook_dirt_and_preserves_unrelated_work and test_sync_main_stashes_post_merge_dirt_recreated_at_pre_stashed_path passed on the worktree and the installed 0.1.33 copy, so it's fixed. Installed bcl 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a via bcl install-local (48 plugin files sha256 3241f2e1cfa5db3e46476b9adffc73e3711f70b0cc65468e279b7431ab28e038, 41 skill files sha256 0e4fb47b675f5d1f5a1c5b34e48a93c317583520f4c96e9a0496b4a05fce39e6, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.33-receipt.json). Worktree: 3 named tests OK in 2.647s; test_bcl.py 48 OK in 50.258s, finished 17:06 IST Asia/Calcutta. Installed plugin copy: 3 named tests OK in 2.616s; test_bcl.py 48 OK in 50.755s, finished 17:07:18 IST. bcl verify STASH re-ran test_bcl.py 48 OK in 51.004s; ILOCAL re-ran it 48 OK in 50.642s, finished 2026-11-17T11:39:09Z.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.33",
+          "session": "installed-0.1.33-verify-114",
+          "timestamp": "2026-11-17T11:39:09Z",
+          "reference": "afc5d0a04dbaca20dd2d27b7bd6a048f385a506a:BCL-36:installed-cli-suite"
+        }
+      ],
+      "verification": "Checked: sync-main with hook dirt and an unrelated dirty file, including hook dirt recreated after the merge at a previously stashed path. Expected: only hook or check dirt is stashed, unrelated work stays, and recreated hook dirt is stashed too. Observed: test_sync_main_stashes_hook_dirt_and_preserves_unrelated_work and test_sync_main_stashes_post_merge_dirt_recreated_at_pre_stashed_path passed on the worktree and the installed 0.1.33 copy, so it's fixed. Installed bcl 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a via bcl install-local (48 plugin files sha256 3241f2e1cfa5db3e46476b9adffc73e3711f70b0cc65468e279b7431ab28e038, 41 skill files sha256 0e4fb47b675f5d1f5a1c5b34e48a93c317583520f4c96e9a0496b4a05fce39e6, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.33-receipt.json). Worktree: 3 named tests OK in 2.647s; test_bcl.py 48 OK in 50.258s, finished 17:06 IST Asia/Calcutta. Installed plugin copy: 3 named tests OK in 2.616s; test_bcl.py 48 OK in 50.755s, finished 17:07:18 IST. bcl verify STASH re-ran test_bcl.py 48 OK in 51.004s; ILOCAL re-ran it 48 OK in 50.642s, finished 2026-11-17T11:39:09Z.",
+      "verification_refs": [
+        "afc5d0a04dbaca20dd2d27b7bd6a048f385a506a:BCL-36:installed-cli-suite"
+      ]
     },
     {
       "id": "WF-16",
@@ -7250,6 +7285,88 @@
       "done_when": "Each version has one row, built from the latest check only, with four plain fields: Checked (the behaviour), Expected, Observed, and Verdict because. Inconclusive names what is missing; failing names what broke. Earlier checks on that version sit under Details as history, along with hashes, paths, timings and the receipt. Writing a check does not leave a duplicate outcome record for the same check, or the two are merged at write time. bcl verify rejects a reason that has no checked, expected and observed parts. A test shows that one check gives one row. Verified items already on this open list are backfilled to the new shape.",
       "observed": "Guru, 17 Nov 2026 about 16:58–16:59 IST Asia/Calcutta, on the #114 page: Verification by version reasons were raw run logs of hashes, backup and receipt paths, timings and test counts; a duplicate Outcome row used only a commit:id:installed-cli-suite token; and one 0.1.32 check showed as two rows because the verify record and the outcome record were rendered separately. He gave this BCL-11 example: 'Two writers updated the tracker at once; both updates should survive; both did, on the worktree and the installed copy, so it's fixed.'",
       "recommendation": "Show one row per version from the latest check, with Checked, Expected, Observed, and Verdict because. Put earlier checks, hashes, paths, timings and the receipt under Details and evidence. Stop writing a duplicate outcome record for the same check, or merge the two at write time, and add a test that one check gives one row. Make verify reject a reason missing the three parts. Backfill this list's verified items, using the BCL-11 example as the tone."
+    },
+    {
+      "id": "WF-17",
+      "title": "Introspect 2026-11-17: Round 2 Introspect recorded",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "Round 2 Introspect recorded",
+      "recommendation": "None; all items were fixed inline or none.",
+      "verification": "Inline items were done during Introspect.",
+      "details": {
+        "fixed_in": "Introspect"
+      },
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: LOCK",
+        "One-file review exemption: LOCK",
+        "Polling and rework review: LOCK",
+        "Test command: LOCK: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+        "Codex write: CAPEV",
+        "One-file review exemption: CAPEV",
+        "Polling and rework review: CAPEV",
+        "Test command: CAPEV: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+        "Codex write: STASH",
+        "Codex review: STASH",
+        "Polling and rework review: STASH",
+        "Test command: STASH: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
+        "Codex write: ILOCAL",
+        "Codex review: ILOCAL",
+        "Polling and rework review: ILOCAL",
+        "Test command: ILOCAL: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
+      ],
+      "none": [
+        "Stage: Plan & fix",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: LOCK",
+        "One-file review exemption: LOCK",
+        "Polling and rework review: LOCK",
+        "Test command: LOCK: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+        "Codex write: CAPEV",
+        "One-file review exemption: CAPEV",
+        "Polling and rework review: CAPEV",
+        "Test command: CAPEV: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+        "Codex write: STASH",
+        "Polling and rework review: STASH",
+        "Test command: STASH: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
+        "Codex write: ILOCAL",
+        "Polling and rework review: ILOCAL",
+        "Test command: ILOCAL: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
+      ],
+      "sections": {
+        "delete": {
+          "none": "No extra process or files were dropped. LOCK and CAPEV were test-now on already-installed 0.1.32; STASH and ILOCAL added only the planned commands and tests, then a 0.1.33 version bump."
+        },
+        "simplify": {
+          "none": "The two review P2s were fixed in the same sessions without adding process. No further simplification was logged."
+        },
+        "optimize": {
+          "none": "STASH and ILOCAL shared one 0.1.33 install-local and one live test_bcl.py verify pass after both reviews passed. No further process change was logged."
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "Codex review: STASH",
+              "evidence": "Terra r1 (session 01a1e93d-13b4-7fd3-a8cb-45be7d6661f8, 16:51 IST) found that post-merge hook dirt at a path already dirty before the merge was skipped. Luna resumed session 01a1e935-727d-75e3-9a4e-d59c4134393f and now stashes recreated hook dirt while leaving unrelated pre-existing work. test_sync_main_stashes_post_merge_dirt_recreated_at_pre_stashed_path and the rest of test_bcl.py (47 then 48 tests) passed outside the sandbox at 16:55 IST. No second review.",
+              "outcome": "fixed inline"
+            },
+            {
+              "item": "Codex review: ILOCAL",
+              "evidence": "Terra r1 (session 01a1e93e-1df3-7a70-af7f-d15e0a56f19e, 16:52 IST) found that install-local copied the plugin root into the skill destination, so SKILL.md was nested. Luna resumed session 01a1e935-727d-7991-96f2-0fee89635710 and now copies only the skill subtree there, with a matching digest. The updated test and live install-local (48 plugin files, 41 skill files, SKILL.md at the skill root) passed at 17:04–17:07 IST. No second review.",
+              "outcome": "fixed inline"
+            }
+          ]
+        }
+      },
+      "verification_refs": [
+        "Introspect"
+      ]
     }
   ]
 }
