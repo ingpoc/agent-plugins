@@ -4060,6 +4060,268 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "bcl-0.1.33-afc5d0a0-114",
+        "build": "batched-change-list 0.1.33",
+        "revision": "afc5d0a04dbaca20dd2d27b7bd6a048f385a506a",
+        "installed_at": "2026-11-17T11:34:45Z",
+        "install_evidence": "bcl install-local from worktree HEAD afc5d0a04dbaca20dd2d27b7bd6a048f385a506a at 17:04:45 IST Asia/Calcutta installed batched-change-list 0.1.33: 48 plugin files sha256 3241f2e1cfa5db3e46476b9adffc73e3711f70b0cc65468e279b7431ab28e038 to ~/.agents/plugins and Cursor/Codex version and revision caches; 41 skill files sha256 0e4fb47b675f5d1f5a1c5b34e48a93c317583520f4c96e9a0496b4a05fce39e6 to ~/.agents/skills/batched-change-list with SKILL.md at the skill root. Receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.33-receipt.json.",
+        "status": "interrupted",
+        "checks": {
+          "AUTO-03": {
+            "state": "pending"
+          },
+          "AUTO-04": {
+            "state": "pending"
+          },
+          "AUTO-05": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a is present via bcl install-local. AUTO-05 is in_progress. About to run test_install_local_refreshes_only_the_requested_temp_destinations, plus the stored test_bcl.py discover command, on the worktree and the installed copy. Live install-local already refreshed ~/.agents, Cursor, and Codex caches and placed the skill subtree at the skill destination.",
+            "observed_at": "2026-11-17T11:34:45Z",
+            "started_at": "2026-11-17T11:35:07Z",
+            "updated_at": "2026-11-17T11:35:07Z",
+            "evidence": "Checked: bcl install-local onto Agents, Cursor, and Codex destinations. Expected: the plugin root is installed to plugin and cache paths, only the skill subtree is installed at the skill destination, old copies are removed, generated files are skipped, and tree hashes match. Observed: test_install_local_refreshes_only_the_requested_temp_destinations passed on the worktree and the installed 0.1.33 copy, and a live install-local wrote 48 plugin files and 41 skill files with SKILL.md at the skill root, so it's fixed. Installed bcl 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a via bcl install-local (48 plugin files sha256 3241f2e1cfa5db3e46476b9adffc73e3711f70b0cc65468e279b7431ab28e038, 41 skill files sha256 0e4fb47b675f5d1f5a1c5b34e48a93c317583520f4c96e9a0496b4a05fce39e6, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.33-receipt.json). Worktree: 3 named tests OK in 2.647s; test_bcl.py 48 OK in 50.258s, finished 17:06 IST Asia/Calcutta. Installed plugin copy: 3 named tests OK in 2.616s; test_bcl.py 48 OK in 50.755s, finished 17:07:18 IST. bcl verify STASH re-ran test_bcl.py 48 OK in 51.004s; ILOCAL re-ran it 48 OK in 50.642s, finished 2026-11-17T11:39:09Z.",
+            "finished_at": "2026-11-17T11:39:36Z"
+          },
+          "AUTO-06": {
+            "state": "pending"
+          },
+          "BCL-01": {
+            "state": "pending"
+          },
+          "BCL-02": {
+            "state": "pending"
+          },
+          "BCL-03": {
+            "state": "pending"
+          },
+          "PLAN-02": {
+            "state": "pending"
+          },
+          "PLAN-03": {
+            "state": "pending"
+          },
+          "OBS-23": {
+            "state": "pending"
+          },
+          "OBS-25": {
+            "state": "pending"
+          },
+          "AGENT-25": {
+            "state": "pending"
+          },
+          "WF-06": {
+            "state": "pending"
+          },
+          "PAGE-08": {
+            "state": "pending"
+          },
+          "AGENT-26": {
+            "state": "pending"
+          },
+          "AGENT-27": {
+            "state": "pending"
+          },
+          "WF-07": {
+            "state": "pending"
+          },
+          "PAGE-09": {
+            "state": "pending"
+          },
+          "PAGE-10": {
+            "state": "pending"
+          },
+          "SEC-01": {
+            "state": "pending"
+          },
+          "PAGE-11": {
+            "state": "pending"
+          },
+          "BCL-04": {
+            "state": "pending"
+          },
+          "PAGE-12": {
+            "state": "pending"
+          },
+          "FLOW-03": {
+            "state": "pending"
+          },
+          "PAGE-13": {
+            "state": "pending"
+          },
+          "PAGE-14": {
+            "state": "pending"
+          },
+          "PAGE-15": {
+            "state": "pending"
+          },
+          "PAGE-16": {
+            "state": "pending"
+          },
+          "BCL-05": {
+            "state": "pending"
+          },
+          "PAGE-17": {
+            "state": "pending"
+          },
+          "BCL-06": {
+            "state": "pending"
+          },
+          "FLOW-04": {
+            "state": "pending"
+          },
+          "PAGE-18": {
+            "state": "pending"
+          },
+          "BCL-07": {
+            "state": "pending"
+          },
+          "BCL-08": {
+            "state": "pending"
+          },
+          "PAGE-19": {
+            "state": "pending"
+          },
+          "PAGE-20": {
+            "state": "pending"
+          },
+          "BCL-09": {
+            "state": "pending"
+          },
+          "BCL-10": {
+            "state": "pending"
+          },
+          "BCL-11": {
+            "state": "pending"
+          },
+          "BCL-12": {
+            "state": "pending"
+          },
+          "BCL-13": {
+            "state": "pending"
+          },
+          "BCL-14": {
+            "state": "pending"
+          },
+          "BCL-15": {
+            "state": "pending"
+          },
+          "BCL-16": {
+            "state": "pending"
+          },
+          "BCL-17": {
+            "state": "pending"
+          },
+          "AGENT-28": {
+            "state": "pending"
+          },
+          "AGENT-29": {
+            "state": "pending"
+          },
+          "BCL-18": {
+            "state": "pending"
+          },
+          "BCL-19": {
+            "state": "pending"
+          },
+          "BCL-20": {
+            "state": "pending"
+          },
+          "BCL-21": {
+            "state": "pending"
+          },
+          "EVAL-01": {
+            "state": "pending"
+          },
+          "BCL-22": {
+            "state": "pending"
+          },
+          "BCL-23": {
+            "state": "pending"
+          },
+          "WF-08": {
+            "state": "pending"
+          },
+          "BCL-24": {
+            "state": "pending"
+          },
+          "BCL-25": {
+            "state": "pending"
+          },
+          "BCL-26": {
+            "state": "pending"
+          },
+          "BCL-27": {
+            "state": "pending"
+          },
+          "BCL-28": {
+            "state": "pending"
+          },
+          "BCL-29": {
+            "state": "pending"
+          },
+          "WF-09": {
+            "state": "pending"
+          },
+          "BCL-30": {
+            "state": "pending"
+          },
+          "BCL-31": {
+            "state": "pending"
+          },
+          "WF-10": {
+            "state": "pending"
+          },
+          "BCL-32": {
+            "state": "pending"
+          },
+          "BCL-33": {
+            "state": "pending"
+          },
+          "WF-11": {
+            "state": "pending"
+          },
+          "BCL-34": {
+            "state": "pending"
+          },
+          "WF-12": {
+            "state": "pending"
+          },
+          "BCL-35": {
+            "state": "pending"
+          },
+          "PAGE-21": {
+            "state": "pending"
+          },
+          "WF-13": {
+            "state": "pending"
+          },
+          "WF-14": {
+            "state": "pending"
+          },
+          "WF-15": {
+            "state": "pending"
+          },
+          "BCL-36": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a is present. BCL-36 is in_progress. About to run test_sync_main_stashes_hook_dirt_and_preserves_unrelated_work and test_sync_main_stashes_post_merge_dirt_recreated_at_pre_stashed_path, plus the stored test_bcl.py discover command, on the worktree and the installed copy.",
+            "observed_at": "2026-11-17T11:34:45Z",
+            "started_at": "2026-11-17T11:35:07Z",
+            "updated_at": "2026-11-17T11:35:07Z",
+            "evidence": "Checked: sync-main with hook dirt and an unrelated dirty file, including hook dirt recreated after the merge at a previously stashed path. Expected: only hook or check dirt is stashed, unrelated work stays, and recreated hook dirt is stashed too. Observed: test_sync_main_stashes_hook_dirt_and_preserves_unrelated_work and test_sync_main_stashes_post_merge_dirt_recreated_at_pre_stashed_path passed on the worktree and the installed 0.1.33 copy, so it's fixed. Installed bcl 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a via bcl install-local (48 plugin files sha256 3241f2e1cfa5db3e46476b9adffc73e3711f70b0cc65468e279b7431ab28e038, 41 skill files sha256 0e4fb47b675f5d1f5a1c5b34e48a93c317583520f4c96e9a0496b4a05fce39e6, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.33-receipt.json). Worktree: 3 named tests OK in 2.647s; test_bcl.py 48 OK in 50.258s, finished 17:06 IST Asia/Calcutta. Installed plugin copy: 3 named tests OK in 2.616s; test_bcl.py 48 OK in 50.755s, finished 17:07:18 IST. bcl verify STASH re-ran test_bcl.py 48 OK in 51.004s; ILOCAL re-ran it 48 OK in 50.642s, finished 2026-11-17T11:39:09Z.",
+            "finished_at": "2026-11-17T11:39:36Z"
+          },
+          "WF-16": {
+            "state": "pending"
+          },
+          "PAGE-22": {
+            "state": "pending"
+          },
+          "WF-17": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -4074,9 +4336,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-17T12:13:30Z",
-      "now": "2026-11-17T12:13:30Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-17T12:17:25Z",
+      "now": "2026-11-17T12:17:25Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 113,
@@ -4304,14 +4566,15 @@
     "stages_reached": [
       "collect",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "verification_run": {
-      "id": "bcl-0.1.33-afc5d0a0-114",
-      "build": "batched-change-list 0.1.33",
-      "revision": "afc5d0a04dbaca20dd2d27b7bd6a048f385a506a",
-      "installed_at": "2026-11-17T11:34:45Z",
-      "install_evidence": "bcl install-local from worktree HEAD afc5d0a04dbaca20dd2d27b7bd6a048f385a506a at 17:04:45 IST Asia/Calcutta installed batched-change-list 0.1.33: 48 plugin files sha256 3241f2e1cfa5db3e46476b9adffc73e3711f70b0cc65468e279b7431ab28e038 to ~/.agents/plugins and Cursor/Codex version and revision caches; 41 skill files sha256 0e4fb47b675f5d1f5a1c5b34e48a93c317583520f4c96e9a0496b4a05fce39e6 to ~/.agents/skills/batched-change-list with SKILL.md at the skill root. Receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.33-receipt.json.",
+      "id": "bcl-0.1.34-a4fa8508-114",
+      "build": "batched-change-list 0.1.34",
+      "revision": "a4fa850811d8fb9380ac7d2aa1ab68468ec7941a",
+      "installed_at": "2026-11-17T12:13:30Z",
+      "install_evidence": "bcl install-local from worktree HEAD a4fa850811d8fb9380ac7d2aa1ab68468ec7941a at 17:43:30 IST Asia/Calcutta installed batched-change-list 0.1.34: 48 plugin files sha256 58fc87d98df6bb1a0bfef33452cdd5ad38183a6f832b902992a5b0cd358dfa92; 41 skill files sha256 cd8d69cbd9b1dcdfa902cc45bf5329620c1c3b8a836ab1f9e3d571f1d7089918 with SKILL.md at the skill root. Receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.34-receipt.json.",
       "status": "active",
       "checks": {
         "AUTO-03": {
@@ -4321,13 +4584,7 @@
           "state": "pending"
         },
         "AUTO-05": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a is present via bcl install-local. AUTO-05 is in_progress. About to run test_install_local_refreshes_only_the_requested_temp_destinations, plus the stored test_bcl.py discover command, on the worktree and the installed copy. Live install-local already refreshed ~/.agents, Cursor, and Codex caches and placed the skill subtree at the skill destination.",
-          "observed_at": "2026-11-17T11:34:45Z",
-          "started_at": "2026-11-17T11:35:07Z",
-          "updated_at": "2026-11-17T11:35:07Z",
-          "evidence": "Checked: bcl install-local onto Agents, Cursor, and Codex destinations. Expected: the plugin root is installed to plugin and cache paths, only the skill subtree is installed at the skill destination, old copies are removed, generated files are skipped, and tree hashes match. Observed: test_install_local_refreshes_only_the_requested_temp_destinations passed on the worktree and the installed 0.1.33 copy, and a live install-local wrote 48 plugin files and 41 skill files with SKILL.md at the skill root, so it's fixed. Installed bcl 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a via bcl install-local (48 plugin files sha256 3241f2e1cfa5db3e46476b9adffc73e3711f70b0cc65468e279b7431ab28e038, 41 skill files sha256 0e4fb47b675f5d1f5a1c5b34e48a93c317583520f4c96e9a0496b4a05fce39e6, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.33-receipt.json). Worktree: 3 named tests OK in 2.647s; test_bcl.py 48 OK in 50.258s, finished 17:06 IST Asia/Calcutta. Installed plugin copy: 3 named tests OK in 2.616s; test_bcl.py 48 OK in 50.755s, finished 17:07:18 IST. bcl verify STASH re-ran test_bcl.py 48 OK in 51.004s; ILOCAL re-ran it 48 OK in 50.642s, finished 2026-11-17T11:39:09Z.",
-          "finished_at": "2026-11-17T11:39:36Z"
+          "state": "pending"
         },
         "AUTO-06": {
           "state": "pending"
@@ -4549,19 +4806,17 @@
           "state": "pending"
         },
         "BCL-36": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a is present. BCL-36 is in_progress. About to run test_sync_main_stashes_hook_dirt_and_preserves_unrelated_work and test_sync_main_stashes_post_merge_dirt_recreated_at_pre_stashed_path, plus the stored test_bcl.py discover command, on the worktree and the installed copy.",
-          "observed_at": "2026-11-17T11:34:45Z",
-          "started_at": "2026-11-17T11:35:07Z",
-          "updated_at": "2026-11-17T11:35:07Z",
-          "evidence": "Checked: sync-main with hook dirt and an unrelated dirty file, including hook dirt recreated after the merge at a previously stashed path. Expected: only hook or check dirt is stashed, unrelated work stays, and recreated hook dirt is stashed too. Observed: test_sync_main_stashes_hook_dirt_and_preserves_unrelated_work and test_sync_main_stashes_post_merge_dirt_recreated_at_pre_stashed_path passed on the worktree and the installed 0.1.33 copy, so it's fixed. Installed bcl 0.1.33 at afc5d0a04dbaca20dd2d27b7bd6a048f385a506a via bcl install-local (48 plugin files sha256 3241f2e1cfa5db3e46476b9adffc73e3711f70b0cc65468e279b7431ab28e038, 41 skill files sha256 0e4fb47b675f5d1f5a1c5b34e48a93c317583520f4c96e9a0496b4a05fce39e6, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.33-receipt.json). Worktree: 3 named tests OK in 2.647s; test_bcl.py 48 OK in 50.258s, finished 17:06 IST Asia/Calcutta. Installed plugin copy: 3 named tests OK in 2.616s; test_bcl.py 48 OK in 50.755s, finished 17:07:18 IST. bcl verify STASH re-ran test_bcl.py 48 OK in 51.004s; ILOCAL re-ran it 48 OK in 50.642s, finished 2026-11-17T11:39:09Z.",
-          "finished_at": "2026-11-17T11:39:36Z"
+          "state": "pending"
         },
         "WF-16": {
           "state": "pending"
         },
         "PAGE-22": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.34 at a4fa850811d8fb9380ac7d2aa1ab68468ec7941a is present. PAGE-22 is in_progress. About to run test_two_checks_on_one_version_render_as_one_row_with_latest_fields, test_finish_check_reason_parts_are_nonempty_and_evidence_merges_by_check_id, test_verify_failure_reason_has_checked_expected_and_observed, and the stored test_render.py suite on the worktree and the installed copy.",
+          "observed_at": "2026-11-17T12:13:30Z",
+          "started_at": "2026-11-17T12:14:38Z",
+          "updated_at": "2026-11-17T12:14:38Z"
         },
         "WF-17": {
           "state": "pending"
