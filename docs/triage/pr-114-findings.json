@@ -3803,9 +3803,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-17T11:09:03Z",
-      "now": "2026-11-17T11:09:03Z — Plan recorded"
+      "stage": "install",
+      "updated_at": "2026-11-17T11:11:00Z",
+      "now": "2026-11-17T11:11:00Z — Install in progress"
     },
     "rollover": {
       "source_pr": 113,
@@ -3992,8 +3992,8 @@
             "BCL-11"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "pending",
+          "status": "verifying",
+          "phase": "verify",
           "worktree": "samantha-pr114-rollover",
           "files": [],
           "reason": "0.1.32 already serializes competing manage_findings writers under a shared lock and rejects a conflicting non-blocking lock, so neither update is lost.",
@@ -4010,7 +4010,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T11:09:03Z"
+          "updated_at": "2026-11-17T11:09:41Z"
         },
         {
           "id": "CAPEV",
@@ -4019,8 +4019,8 @@
             "PAGE-15"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "pending",
+          "status": "verifying",
+          "phase": "verify",
           "worktree": "samantha-pr114-rollover",
           "files": [],
           "reason": "PAGE-15 noted that PLAN-03 was marked fixed from a source-file check only. Installed 0.1.32 now enforces the four-issue and Luna-max caps in set-plan, so this group records that installed-client proof.",
@@ -4037,7 +4037,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T11:09:03Z"
+          "updated_at": "2026-11-17T11:09:41Z"
         },
         {
           "id": "STASH",
@@ -4103,7 +4103,8 @@
     },
     "stages_reached": [
       "collect",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "verification_run": {
       "id": "bcl-0.1.32-9e8efcf5-114",
@@ -4204,7 +4205,11 @@
           "state": "pending"
         },
         "PAGE-15": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 is present. PAGE-15 is in_progress. About to run test_plan_check_caps_group_size_and_rejects_max_effort, test_set_plan_rejects_oversized_and_max_effort_groups_without_writing, and test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal on the worktree and the installed copy.",
+          "observed_at": "2026-11-17T11:09:41Z",
+          "started_at": "2026-11-17T11:09:41Z",
+          "updated_at": "2026-11-17T11:09:41Z"
         },
         "PAGE-16": {
           "state": "pending"
@@ -4243,7 +4248,11 @@
           "state": "pending"
         },
         "BCL-11": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 is present (already installed this cycle; no new install for test-now). BCL-11 is in_progress. About to run test_competing_writers_serialize_without_blocking_readers and test_nonblocking_lock_rejects_competitor_and_releases_after_crash on the worktree and the installed copy, plus the stored test_manage_findings.py discover command.",
+          "observed_at": "2026-11-17T11:09:41Z",
+          "started_at": "2026-11-17T11:09:41Z",
+          "updated_at": "2026-11-17T11:09:41Z"
         },
         "BCL-12": {
           "state": "pending"
@@ -5196,7 +5205,7 @@
       "id": "PAGE-15",
       "title": "A fixed label lacks installed verification evidence",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "A change-list item is marked verified fixed, but its recorded proof only describes a source-file check.",
       "impact": "The page can suggest the installed product was verified when that proof is not recorded.",
@@ -5530,7 +5539,7 @@
       "id": "BCL-11",
       "title": "Concurrent tracker writes can overwrite each other",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "Two simultaneous updates can overwrite one another.",
       "impact": "A finding or status change may disappear from the tracker.",
       "done_when": "Serialize tracker writes and reject conflicting changes without losing either update.",
