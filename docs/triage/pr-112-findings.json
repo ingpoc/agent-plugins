@@ -2491,6 +2491,247 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "bcl-0.1.27-22a59dd2-112",
+        "build": "batched-change-list 0.1.27",
+        "revision": "22a59dd2b50a97381418920ef1a10b0cbceebfdd",
+        "installed_at": "2026-11-17T08:47:17Z",
+        "install_evidence": "Copied worktree plugin 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd to ~/.agents/plugins/batched-change-list, ~/.agents/skills/batched-change-list, and Cursor/Codex caches at 0.1.27 and 22a59dd2b50a97381418920ef1a10b0cbceebfdd. 48 files, sha256 8f25fad48092bc6c7b22d23172b9c9943bca8eee70cfa0b1a3a5d7cec14e5dba. Backup /tmp/bcl-install-0.1.27-backup-20261117-141717. bcl install BCL-28 BCL-29 BCL-30 BCL-31 exited 0.",
+        "status": "interrupted",
+        "checks": {
+          "AUTO-03": {
+            "state": "pending"
+          },
+          "AUTO-04": {
+            "state": "pending"
+          },
+          "AUTO-05": {
+            "state": "pending"
+          },
+          "AUTO-06": {
+            "state": "pending"
+          },
+          "BCL-01": {
+            "state": "pending"
+          },
+          "BCL-02": {
+            "state": "pending"
+          },
+          "BCL-03": {
+            "state": "pending"
+          },
+          "PLAN-02": {
+            "state": "pending"
+          },
+          "PLAN-03": {
+            "state": "pending"
+          },
+          "OBS-23": {
+            "state": "pending"
+          },
+          "OBS-25": {
+            "state": "pending"
+          },
+          "AGENT-25": {
+            "state": "pending"
+          },
+          "WF-06": {
+            "state": "pending"
+          },
+          "PAGE-08": {
+            "state": "pending"
+          },
+          "AGENT-26": {
+            "state": "pending"
+          },
+          "AGENT-27": {
+            "state": "pending"
+          },
+          "WF-07": {
+            "state": "pending"
+          },
+          "PAGE-09": {
+            "state": "pending"
+          },
+          "PAGE-10": {
+            "state": "pending"
+          },
+          "SEC-01": {
+            "state": "pending"
+          },
+          "PAGE-11": {
+            "state": "pending"
+          },
+          "BCL-04": {
+            "state": "pending"
+          },
+          "PAGE-12": {
+            "state": "pending"
+          },
+          "FLOW-03": {
+            "state": "pending"
+          },
+          "PAGE-13": {
+            "state": "pending"
+          },
+          "PAGE-14": {
+            "state": "pending"
+          },
+          "PAGE-15": {
+            "state": "pending"
+          },
+          "PAGE-16": {
+            "state": "pending"
+          },
+          "BCL-05": {
+            "state": "pending"
+          },
+          "PAGE-17": {
+            "state": "pending"
+          },
+          "BCL-06": {
+            "state": "pending"
+          },
+          "FLOW-04": {
+            "state": "pending"
+          },
+          "PAGE-18": {
+            "state": "pending"
+          },
+          "BCL-07": {
+            "state": "pending"
+          },
+          "BCL-08": {
+            "state": "pending"
+          },
+          "PAGE-19": {
+            "state": "pending"
+          },
+          "PAGE-20": {
+            "state": "pending"
+          },
+          "BCL-09": {
+            "state": "pending"
+          },
+          "BCL-10": {
+            "state": "pending"
+          },
+          "BCL-11": {
+            "state": "pending"
+          },
+          "BCL-12": {
+            "state": "pending"
+          },
+          "BCL-13": {
+            "state": "pending"
+          },
+          "BCL-14": {
+            "state": "pending"
+          },
+          "BCL-15": {
+            "state": "pending"
+          },
+          "BCL-16": {
+            "state": "pending"
+          },
+          "BCL-17": {
+            "state": "pending"
+          },
+          "AGENT-28": {
+            "state": "pending"
+          },
+          "AGENT-29": {
+            "state": "pending"
+          },
+          "BCL-18": {
+            "state": "pending"
+          },
+          "BCL-19": {
+            "state": "pending"
+          },
+          "BCL-20": {
+            "state": "pending"
+          },
+          "BCL-21": {
+            "state": "pending"
+          },
+          "EVAL-01": {
+            "state": "pending"
+          },
+          "BCL-22": {
+            "state": "pending"
+          },
+          "BCL-23": {
+            "state": "pending"
+          },
+          "WF-08": {
+            "state": "pending"
+          },
+          "BCL-24": {
+            "state": "pending"
+          },
+          "BCL-25": {
+            "state": "pending"
+          },
+          "BCL-26": {
+            "state": "pending"
+          },
+          "BCL-27": {
+            "state": "pending"
+          },
+          "BCL-28": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd is present in ~/.agents/plugins and skills (plugin.json 0.1.27, 48 files, sha256 8f25fad48092bc6c7b22d23172b9c9943bca8eee70cfa0b1a3a5d7cec14e5dba). Findings are still in_progress.",
+            "observed_at": "2026-11-17T08:47:36Z",
+            "started_at": "2026-11-17T08:47:36Z",
+            "updated_at": "2026-11-17T08:47:36Z",
+            "evidence": "Installed bcl 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd. Stored worktree command passed: 207 tests OK in 62.216s at 2026-11-17T08:50:20Z. The same suite on the installed plugin copy passed: 207 tests OK in 62.631s at 2026-11-17T08:51:23Z. Terra r1 approved; leftover nit logged as BCL-32. No second review.",
+            "finished_at": "2026-11-17T08:51:46Z"
+          },
+          "BCL-29": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd is present in ~/.agents/plugins and skills (plugin.json 0.1.27, 48 files, sha256 8f25fad48092bc6c7b22d23172b9c9943bca8eee70cfa0b1a3a5d7cec14e5dba). Findings are still in_progress.",
+            "observed_at": "2026-11-17T08:47:36Z",
+            "started_at": "2026-11-17T08:47:36Z",
+            "updated_at": "2026-11-17T08:47:36Z",
+            "evidence": "Installed bcl 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd. Stored worktree command passed: 207 tests OK in 62.216s at 2026-11-17T08:50:20Z. Installed copy: 207 tests OK in 62.631s. test_plan_reports_viewer_pid_permission_error_without_traceback is in that suite. Terra r1 approved; leftover nit logged as BCL-32. No second review.",
+            "finished_at": "2026-11-17T08:51:46Z"
+          },
+          "WF-09": {
+            "state": "pending"
+          },
+          "BCL-30": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd is present in ~/.agents/plugins and skills (plugin.json 0.1.27, 48 files, sha256 8f25fad48092bc6c7b22d23172b9c9943bca8eee70cfa0b1a3a5d7cec14e5dba). Findings are still in_progress.",
+            "observed_at": "2026-11-17T08:47:36Z",
+            "started_at": "2026-11-17T08:47:36Z",
+            "updated_at": "2026-11-17T08:47:36Z",
+            "evidence": "Installed bcl 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd. Stored worktree command passed: 207 tests OK in 62.216s at 2026-11-17T08:50:20Z. Installed copy: 207 tests OK in 62.631s. statechart.html is present on the installed skill; SKILL.md is 1252 bytes vs the 1274-byte baseline. Terra r1 requested a freshness-check P2; that was fixed in 85e97c00 (full-skill fingerprint) with no second review.",
+            "finished_at": "2026-11-17T08:51:46Z"
+          },
+          "BCL-31": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd is present in ~/.agents/plugins and skills (plugin.json 0.1.27, 48 files, sha256 8f25fad48092bc6c7b22d23172b9c9943bca8eee70cfa0b1a3a5d7cec14e5dba). Findings are still in_progress.",
+            "observed_at": "2026-11-17T08:47:36Z",
+            "started_at": "2026-11-17T08:47:36Z",
+            "updated_at": "2026-11-17T08:47:36Z",
+            "evidence": "Installed bcl 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd includes the updated scripts/check.py at this PR head. Stored command passed: 5 tests OK in 0.044s at 2026-11-17T08:50:21Z. Pre-push contract check also passed on this head. Terra r1 P2s (current PR identity and duplicate-tracker detection) were fixed in c320eb32 with no second review.",
+            "finished_at": "2026-11-17T08:51:46Z"
+          },
+          "WF-10": {
+            "state": "pending"
+          },
+          "BCL-32": {
+            "state": "pending"
+          },
+          "BCL-33": {
+            "state": "pending"
+          },
+          "WF-11": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -2505,9 +2746,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-17T09:20:02Z",
-      "now": "2026-11-17T09:20:02Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-17T09:21:41Z",
+      "now": "2026-11-17T09:21:41Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 111,
@@ -2731,11 +2972,11 @@
       "introspect"
     ],
     "verification_run": {
-      "id": "bcl-0.1.27-22a59dd2-112",
-      "build": "batched-change-list 0.1.27",
-      "revision": "22a59dd2b50a97381418920ef1a10b0cbceebfdd",
-      "installed_at": "2026-11-17T08:47:17Z",
-      "install_evidence": "Copied worktree plugin 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd to ~/.agents/plugins/batched-change-list, ~/.agents/skills/batched-change-list, and Cursor/Codex caches at 0.1.27 and 22a59dd2b50a97381418920ef1a10b0cbceebfdd. 48 files, sha256 8f25fad48092bc6c7b22d23172b9c9943bca8eee70cfa0b1a3a5d7cec14e5dba. Backup /tmp/bcl-install-0.1.27-backup-20261117-141717. bcl install BCL-28 BCL-29 BCL-30 BCL-31 exited 0.",
+      "id": "bcl-0.1.29-cbb842f0-112",
+      "build": "batched-change-list 0.1.29",
+      "revision": "cbb842f075537ee3ca0c8587c45d152d555887ec",
+      "installed_at": "2026-11-17T09:19:53Z",
+      "install_evidence": "Copied worktree plugin 0.1.29 at cbb842f075537ee3ca0c8587c45d152d555887ec to ~/.agents/plugins/batched-change-list, ~/.agents/skills/batched-change-list, and Cursor/Codex caches at 0.1.29 and cbb842f075537ee3ca0c8587c45d152d555887ec. 48 files, sha256 d1a9987fc702d8dfc24d7c963f4a4fba05f8cb8a406ede47b7531696f1563f0f. Backup /tmp/bcl-install-0.1.29-backup-20261117-144953. bcl install BCL-32 BCL-33 exited 0.",
       "status": "active",
       "checks": {
         "AUTO-03": {
@@ -2919,52 +3160,36 @@
           "state": "pending"
         },
         "BCL-28": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd is present in ~/.agents/plugins and skills (plugin.json 0.1.27, 48 files, sha256 8f25fad48092bc6c7b22d23172b9c9943bca8eee70cfa0b1a3a5d7cec14e5dba). Findings are still in_progress.",
-          "observed_at": "2026-11-17T08:47:36Z",
-          "started_at": "2026-11-17T08:47:36Z",
-          "updated_at": "2026-11-17T08:47:36Z",
-          "evidence": "Installed bcl 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd. Stored worktree command passed: 207 tests OK in 62.216s at 2026-11-17T08:50:20Z. The same suite on the installed plugin copy passed: 207 tests OK in 62.631s at 2026-11-17T08:51:23Z. Terra r1 approved; leftover nit logged as BCL-32. No second review.",
-          "finished_at": "2026-11-17T08:51:46Z"
+          "state": "pending"
         },
         "BCL-29": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd is present in ~/.agents/plugins and skills (plugin.json 0.1.27, 48 files, sha256 8f25fad48092bc6c7b22d23172b9c9943bca8eee70cfa0b1a3a5d7cec14e5dba). Findings are still in_progress.",
-          "observed_at": "2026-11-17T08:47:36Z",
-          "started_at": "2026-11-17T08:47:36Z",
-          "updated_at": "2026-11-17T08:47:36Z",
-          "evidence": "Installed bcl 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd. Stored worktree command passed: 207 tests OK in 62.216s at 2026-11-17T08:50:20Z. Installed copy: 207 tests OK in 62.631s. test_plan_reports_viewer_pid_permission_error_without_traceback is in that suite. Terra r1 approved; leftover nit logged as BCL-32. No second review.",
-          "finished_at": "2026-11-17T08:51:46Z"
+          "state": "pending"
         },
         "WF-09": {
           "state": "pending"
         },
         "BCL-30": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd is present in ~/.agents/plugins and skills (plugin.json 0.1.27, 48 files, sha256 8f25fad48092bc6c7b22d23172b9c9943bca8eee70cfa0b1a3a5d7cec14e5dba). Findings are still in_progress.",
-          "observed_at": "2026-11-17T08:47:36Z",
-          "started_at": "2026-11-17T08:47:36Z",
-          "updated_at": "2026-11-17T08:47:36Z",
-          "evidence": "Installed bcl 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd. Stored worktree command passed: 207 tests OK in 62.216s at 2026-11-17T08:50:20Z. Installed copy: 207 tests OK in 62.631s. statechart.html is present on the installed skill; SKILL.md is 1252 bytes vs the 1274-byte baseline. Terra r1 requested a freshness-check P2; that was fixed in 85e97c00 (full-skill fingerprint) with no second review.",
-          "finished_at": "2026-11-17T08:51:46Z"
+          "state": "pending"
         },
         "BCL-31": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd is present in ~/.agents/plugins and skills (plugin.json 0.1.27, 48 files, sha256 8f25fad48092bc6c7b22d23172b9c9943bca8eee70cfa0b1a3a5d7cec14e5dba). Findings are still in_progress.",
-          "observed_at": "2026-11-17T08:47:36Z",
-          "started_at": "2026-11-17T08:47:36Z",
-          "updated_at": "2026-11-17T08:47:36Z",
-          "evidence": "Installed bcl 0.1.27 at 22a59dd2b50a97381418920ef1a10b0cbceebfdd includes the updated scripts/check.py at this PR head. Stored command passed: 5 tests OK in 0.044s at 2026-11-17T08:50:21Z. Pre-push contract check also passed on this head. Terra r1 P2s (current PR identity and duplicate-tracker detection) were fixed in c320eb32 with no second review.",
-          "finished_at": "2026-11-17T08:51:46Z"
+          "state": "pending"
         },
         "WF-10": {
           "state": "pending"
         },
         "BCL-32": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.29 at cbb842f075537ee3ca0c8587c45d152d555887ec is present in ~/.agents/plugins and skills (plugin.json 0.1.29, 48 files, sha256 d1a9987fc702d8dfc24d7c963f4a4fba05f8cb8a406ede47b7531696f1563f0f). Findings are still in_progress.",
+          "observed_at": "2026-11-17T09:21:35Z",
+          "started_at": "2026-11-17T09:21:35Z",
+          "updated_at": "2026-11-17T09:21:35Z"
         },
         "BCL-33": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Installed batched-change-list 0.1.29 at cbb842f075537ee3ca0c8587c45d152d555887ec is present in ~/.agents/plugins and skills (plugin.json 0.1.29, 48 files, sha256 d1a9987fc702d8dfc24d7c963f4a4fba05f8cb8a406ede47b7531696f1563f0f). Findings are still in_progress.",
+          "observed_at": "2026-11-17T09:21:35Z",
+          "started_at": "2026-11-17T09:21:35Z",
+          "updated_at": "2026-11-17T09:21:35Z"
         },
         "WF-11": {
           "state": "pending"
