@@ -12,8 +12,10 @@ class IntrospectCheckTests(unittest.TestCase):
     def tracking(self):
         return {"round": 1, "cycle": 1, "stages_reached": ["plan_fix", "install", "verify"],
                 "plan": {"round": 1, "cycle": 1, "groups": [
-                    {"id": "A", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer"}},
-                    {"id": "B", "codex": {"implementer_session": "writer-b", "one_file": True}},
+                    {"id": "A", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer"},
+                     "verify": {"command": "python3 -m unittest test_a.py"}},
+                    {"id": "B", "codex": {"implementer_session": "writer-b", "one_file": True},
+                     "verify": {"command": "python3 -m unittest test_b.py"}},
                 ]}}
 
     def payload(self, tracking=None):
@@ -39,6 +41,14 @@ class IntrospectCheckTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Parallel group count"):
             check.validate_introspect(sections, steps, steps, tracking)
 
+    def test_broad_labels_cannot_omit_recorded_test_commands(self):
+        tracking = self.tracking()
+        steps = [step for step in check.performed_round_steps(tracking)
+                 if not step.startswith("Test command:")]
+        sections = {name: {"none": "Reviewed."} for name in ("delete", "simplify", "optimize", "automate")}
+        with self.assertRaisesRegex(ValueError, "Test command: A"):
+            check.validate_introspect(sections, steps, steps, tracking)
+
     def test_performed_step_must_be_covered(self):
         payload = self.payload()
         payload["none"].remove("polling")
@@ -52,6 +62,8 @@ class IntrospectCheckTests(unittest.TestCase):
         self.assertIn("Parallel group count: 2", covered["none"])
         self.assertIn("Codex write: A", covered["steps"])
         self.assertIn("Codex review: A", covered["steps"])
+        self.assertIn("Test command: A: python3 -m unittest test_a.py", covered["steps"])
+        self.assertIn("Test command: B: python3 -m unittest test_b.py", covered["steps"])
 
     def test_script_refuses_missing_coverage_with_one_line(self):
         payload = self.payload()

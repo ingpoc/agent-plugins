@@ -44,6 +44,11 @@ def performed_round_steps(tracking):
                     steps.append(f"One-file review exemption: {group_id}" if one_file
                                  else f"Codex review: {group_id}")
                     steps.append(f"Polling and rework review: {group_id}")
+                    if "verify" in reached:
+                        verification = group.get("verify")
+                        command = verification.get("command") if isinstance(verification, dict) else None
+                        if isinstance(command, str) and command.strip():
+                            steps.append(f"Test command: {group_id}: {command.strip()}")
     return steps
 
 

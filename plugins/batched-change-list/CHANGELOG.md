@@ -1,3 +1,7 @@
+## 0.1.26
+
+- Require every current group's stored verification command in Introspect coverage after Verify.
+
 ## 0.1.25
 
 - Require a recorded passing review before install, except for one-file groups, and keep Install progress pending until lanes actually pass review and complete installation.
