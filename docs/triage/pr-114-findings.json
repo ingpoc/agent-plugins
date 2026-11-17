@@ -4337,8 +4337,8 @@
     },
     "workflow": {
       "stage": "install",
-      "updated_at": "2026-11-17T12:50:39Z",
-      "now": "2026-11-17T12:50:39Z — Lane INTRO updated"
+      "updated_at": "2026-11-17T12:53:28Z",
+      "now": "2026-11-17T12:53:28Z — Install in progress"
     },
     "rollover": {
       "source_pr": 113,
