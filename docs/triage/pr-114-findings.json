@@ -5179,9 +5179,8 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-17T13:53:47Z",
-      "now": "2026-11-17T13:53:47Z — Introspection recorded"
+      "stage": "report_rollover",
+      "updated_at": "2026-11-17T13:54:22Z"
     },
     "rollover": {
       "source_pr": 113,
