@@ -10,19 +10,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote, urlsplit
 from zoneinfo import ZoneInfo
+import workflow_definition as WF
 
 STATUSES = {"verified_fixed", "failing", "untested", "in_progress", "awaiting_user_test",
             "awaiting_verification", "blocked", "investigation"}
 SOURCES = {"User reported", "User requested", "Agent reported", "Telemetry lead", "Source hypothesis"}
 CHECK_STATES = {"pending", "checking", "fixed", "not_fixed", "blocked", "inconclusive"}
-WORKFLOW_STAGES = {"collect": "Collect", "present": "Present", "plan_fix": "Plan & fix", "install": "Install", "verify": "Verify", "introspect": "Introspect", "gate": "Fixes", "report_rollover": "Report & roll over", "merged": "Merged / Done"}
+WORKFLOW_STAGES = {**WF.STAGE_LABELS, "gate": WF.DEFINITION["gate"]["badge_label"]}
 PLAN_STATUSES = {"planned", "running", "review", "installing", "verifying", "verified", "blocked", "failed", "parked"}
 PLAN_STATUS_ALIASES = {"pending": "planned", "queued": "planned", "deferred": "parked", "install": "installing", "fixed": "installing", "partial": "verifying"}
 PLAN_PHASES = {"fix", "review", "install", "verify", "introspect"}
 PLAN_PHASE_ALIASES = {"pending": "fix", "done": "verify"}
 LANE_PHASES = {"fix": "Plan & fix", "review": "Plan & fix", "install": "Install", "verify": "Verify", "introspect": "Introspect"}
 STALE_LANE_STATUSES = {"running", "review", "installing", "verifying"}
-DEFAULT_ROLLOVER_THRESHOLD = 15
+DEFAULT_ROLLOVER_THRESHOLD = WF.DEFAULT_ROLLOVER_THRESHOLD
 AGENT_COLLECTION_PLUGINS = ("agent-computer-use", "batched-change-list", "comet-control",
                             "context-ledger", "developer-observability")
 TEMPLATE = Path(__file__).resolve().parent.parent / "templates/change-list.html"
@@ -366,16 +367,20 @@ def render_plan(data, tracking, plan, round_number, now):
             '<p class="close-line">Round closes when every lane is <b>verified, blocked or parked</b> → Introspect → gate.</p></div>')
 
 
-def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, round_number, reached=None):
-    order = ["collect", "present", "plan_fix", "install", "verify", "introspect", "gate", "report_rollover", "merged"]
+def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, round_number, reached=None,
+                    cycle=1, introspect_record=None):
+    order = [stage["id"] for stage in WF.STAGES]
     active_index = order.index(active) if active in order else -1
     reached = [step for step in (reached or []) if isinstance(step, str)]
 
-    def simple_step(key, label):
+    def simple_step(stage):
+        key, label = stage["id"], stage["label"]
         index = order.index(key)
         state = "done" if active == "merged" or (active_index >= 0 and index < active_index) else "current" if active == key else "upcoming"
+        if key == "merged" and active == "merged":
+            label = stage.get("completed_label", label)
         current = ' aria-current="step"' if state == "current" else ""
-        exit_mark = (f'<span class="wf-exit" aria-hidden="true"><span class="wf-exit-label">{threshold} verified</span>'
+        exit_mark = (f'<span class="wf-exit" aria-hidden="true"><span class="wf-exit-label">{threshold}+ verified</span>'
                      '<svg width="7" height="8" viewBox="0 0 7 8"><path d="M0 0L7 4L0 8z"/></svg></span>' if key == "report_rollover" else "")
         return (f'<li data-stage="{key}" class="wf-step {state}"{current}><span class="wf-dot"><i></i></span>'
                 f'<span class="wf-label">{html.escape(label)}</span>{exit_mark}</li>')
@@ -391,21 +396,32 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
             text = f"{count} {label}" if label else str(count)
         return f'<span class="lc {kind}" aria-label="{html.escape(aria, quote=True)}"><span class="d">{dots}</span>{more}{text}</span>'
 
-    phase_steps = {"fix": 0, "review": 0, "install": 1, "verify": 2, "introspect": 3}
+    phase_steps = WF.DEFINITION["lane_phase_rank"]
     lanes = [(group, plan_status(group), phase_steps[plan_phase(group)])
-             for group in groups if plan_status(group) not in ("parked", "verified")]
+             for group in groups if plan_status(group) != "parked"]
     positions = [position for _, _, position in lanes]
     occupied = len(set(positions))
     steps = []
-    for index, (key, label) in enumerate((("plan_fix", "Plan & fix"), ("install", "Install"), ("verify", "Verify"), ("introspect", "Introspect"))):
-        count = positions.count(index)
-        past = active in order and order.index(active) > order.index(key)
-        # Empty lanes must not tick the band: a loop step is done only when this
-        # list's own stage history recorded it in the current round and we have moved past it.
+    for index, stage in enumerate(stage for stage in WF.LOOP if stage.get("lane_phase")):
+        key, label = stage["id"], stage["label"]
         step_lanes = [(group, status) for group, status, position in lanes if position == index]
+        terminal = ("blocked", "failed", "parked", "verified")
+        past = bool(lanes) and all(position > index or status in terminal for _, status, position in lanes)
+        if key == "install":
+            past = past and any(position >= 1 or status in ("installing", "verifying", "verified")
+                                for _, status, position in lanes)
+        if key == "verify":
+            past = past and any(position >= 2 or status in ("verifying", "verified")
+                                for _, status, position in lanes)
+        if key == "introspect":
+            past = (isinstance(introspect_record, dict)
+                    and introspect_record.get("cycle") == cycle
+                    and introspect_record.get("round") == round_number)
         running = any(status in ("running", "review", "installing", "verifying") for _, status in step_lanes)
-        current = active == key and (key == "introspect" or not groups)
-        state = "busy" if running or current else "done" if key in reached and past else "upcoming"
+        if not lanes:
+            past = key in reached and active_index > order.index(key)
+        current = active == key and (running or not lanes or key == "introspect")
+        state = "busy" if running and active == key else "done" if past else "current" if current else "upcoming"
         chips = []
         for status in ("planned", "running", "review", "installing", "verifying"):
             amount = sum(lane_status == status for _, lane_status in step_lanes)
@@ -417,10 +433,10 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
             chips.append(f'<span class="lc blk" aria-label="{blocked} lane{"s" if blocked != 1 else ""} blocked"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><rect x="1" y="1" width="2" height="6" fill="currentColor"/><rect x="5" y="1" width="2" height="6" fill="currentColor"/></svg>{blocked}</span>')
         if failed:
             chips.append(chip(failed, "failed", "bad"))
-        steps.append(f'<li class="wf-step {state}"><span class="wf-dot"><i></i></span><span class="wf-label">{html.escape(label)}</span>'
+        steps.append(f'<li data-stage="{key}" class="wf-step {state}"><span class="wf-dot"><i></i></span><span class="wf-label">{html.escape(label)}</span>'
                      f'<span class="lanes">{"".join(chips)}</span></li>')
 
-    gate_state = "done" if gate_met else "upcoming"
+    gate_state = "done" if gate_met else "current" if active == "gate" else "upcoming"
     accessible = f"{fixed} of {threshold} fixes verified, {in_progress} in progress, gate {'met' if gate_met else 'not met'}"
     amount = min(100, round(100 * fixed / threshold))
     if gate_met:
@@ -432,24 +448,25 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
         icon = (f'<svg width="22" height="22" viewBox="0 0 22 22" role="img" aria-label="{html.escape(accessible, quote=True)}">'
                 '<circle cx="11" cy="11" r="8.5" fill="#fff" stroke="var(--sage-line)" stroke-width="3"/>' + arc + '</svg>')
     gate = (f'<li data-stage="gate" class="wf-step {gate_state} wf-gate"><span class="wf-dot">{icon}</span>'
-            f'<span class="wf-label">Fixes <b>{fixed}/{threshold}</b> verified<small>{in_progress} in progress</small></span>'
+            f'<span class="wf-label">{WF.DEFINITION["gate"]["badge_label"]} <b>{fixed}/{threshold}</b> verified<small>{in_progress} in progress</small></span>'
             '<span class="lanes"></span></li>')
     pips = "".join("<i></i>" for _ in range(min(round_number, 5)))
     spread = f'<span class="spread">· {len(lanes)} lanes across {occupied} steps</span>' if occupied > 1 else ""
-    pre = simple_step("collect", "Collect") + simple_step("present", "Present")
-    post = simple_step("report_rollover", "Report & roll over")
-    if active == "merged":
-        post += simple_step("merged", WORKFLOW_STAGES["merged"])
+    entry = [stage for stage in WF.ENTRY if not (
+        stage.get("hide_after_rollover_until_reached") and cycle > 1 and stage["id"] not in reached)]
+    pre = "".join(simple_step(stage) for stage in entry)
+    post = "".join(simple_step(stage) for stage in WF.EXIT)
+    gate_note = WF.DEFINITION["gate"]["note"].format(threshold=threshold)
     return (f'<ol class="wf" aria-label="Workflow steps"><li class="wf-pre"><ol>{pre}</ol></li>'
             f'<li class="wf-band {"gate-met" if gate_met else "gate-pending"}" role="group" aria-label="Repeats each round. Round {round_number}. {len(lanes)} lanes across {occupied} steps.">'
             f'<div class="wf-band-head"><span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M10 6a4 4 0 1 1-1.2-2.85" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M9.6 1v2.6H7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Repeats each round{spread}</span>'
             f'<span class="wf-round">Round {round_number} <span class="wf-pips">{pips}</span></span></div>'
             f'<ol class="wf-band-steps">{"".join(steps)}{gate}</ol>'
             f'<div class="wf-loop" aria-hidden="true"><svg class="wf-loop-head" width="10" height="8" viewBox="0 0 10 8"><path d="M5 0L10 8H0z"/></svg>'
-            f'<span class="wf-loop-label">under {threshold} verified · back to Plan &amp; fix</span>'
-            f'<span class="wf-loop-mobile">under {threshold} verified · repeat</span></div></li>'
+            f'<span class="wf-loop-label">{html.escape(WF.DEFINITION["gate"]["loop_label"].format(threshold=threshold))}</span>'
+            f'<span class="wf-loop-mobile">{html.escape(WF.DEFINITION["gate"]["mobile_loop_label"].format(threshold=threshold))}</span></div></li>'
             f'<li class="wf-post"><ol>{post}</ol></li></ol>'
-            '<p class="gate-note">Fix count excludes completed introspection workflow records and excluded issues.</p>')
+            f'<p class="gate-note">{html.escape(gate_note)} Fix count excludes completed introspection workflow records and excluded issues.</p>')
 
 
 def rollover_gate(findings, tracking):
@@ -823,7 +840,9 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     merge_html = f'<span class="merge-meta" title="Merge commit"><span>Merge</span> <code>{html.escape(merge_commit)}</code></span>' if merge_commit else ""
     fresh_html = (f'<span class="fresh">Updated {time_html} · {relative_html}{merge_html}{stale_tag}</span>'
                   if time_html else '<span class="fresh">No update recorded</span>')
-    timeline_steps = render_workflow(active, groups, fixed_count, threshold, gate_met, in_progress, round_number, tracking_data.get("stages_reached") or [])
+    timeline_steps = render_workflow(active, groups, fixed_count, threshold, gate_met, in_progress, round_number,
+                                    tracking_data.get("stages_reached") or [], rollover_cycle(tracking_data),
+                                    tracking_data.get("introspect"))
     plan_view = render_plan(data, tracking_data, plan, round_number, render_now)
     viewer_html = (f'<p class="viewer-footer">reading {html.escape(str(viewer["path"]))}, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}</p>' if viewer else '<p class="viewer-footer">Viewer version not recorded</p>')
     timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow · last recorded</strong>{fresh_html}</div>'

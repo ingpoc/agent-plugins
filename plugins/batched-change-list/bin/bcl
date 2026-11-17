@@ -13,6 +13,7 @@ sys.path.insert(0, str(SCRIPTS))
 import live_state
 import manage_findings
 import tracker_lock
+import workflow_definition
 
 def _provider(url):
     return "gh" if (urlsplit(url).hostname or "").lower() == "github.com" else "origin"
@@ -193,8 +194,7 @@ def main():
     begins_collect = args.stage == "start" and ("collect" not in stages or record.get("rollover_pending"))
     stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     if args.stage == "status":
-        import render
-        fixed, threshold, met = render.rollover_gate(data.get("findings", []), tracking)
+        fixed, threshold, met = workflow_definition.run_check("gate", data)
         print(json.dumps({"adopted": True, "live": str(live), "stage": tracking.get("workflow", {}).get("stage"), "cycle": tracking.get("cycle", 1), "gate": {"fixed": fixed, "threshold": threshold, "met": met}, "plan": [{"id": g.get("id"), "status": g.get("status")} for g in tracking.get("plan", {}).get("groups", [])]}, indent=2)); return
     if record.get("rollover_pending") and (args.stage != "start" or not begins_collect):
         parser.error("run bcl start to begin Collect before using the new list")
@@ -312,7 +312,14 @@ def main():
             expected_verify_plan = expected_document['tracking']['plan']
     elif stage == "introspect":
         if not args.sections: parser.error("introspect requires --sections FILE.json")
-        op = {"action":"introspect","sections": json.loads(args.sections.read_text())}
+        payload = json.loads(args.sections.read_text())
+        if not isinstance(payload, dict) or set(payload) != {"steps", "none", "sections"}:
+            parser.error("introspect file must contain exactly steps, none, and ordered sections")
+        try:
+            workflow_definition.run_check("introspect", payload["sections"], payload["steps"], payload["none"])
+        except ValueError as error:
+            parser.error(str(error))
+        op = {"action":"introspect", "sections":payload["sections"], "steps":payload["steps"], "none":payload["none"]}
         if args.result: op["result"] = args.result
         ids = args.ids or [x["id"] for x in data.get("findings", []) if x.get("status") == "in_progress"]
         operations = [op,{"action":"set-activity","stage":"introspect","ids":ids,"now":"Introspection recorded"}]

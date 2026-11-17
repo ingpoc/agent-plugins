@@ -1,6 +1,6 @@
 # Install
 
-Run `bcl install` after a nonempty plan is recorded for the current cycle. The tracker rejects Install without that plan. A group enters Install as soon as its review passes; use `bcl install --ids …` for that group or wave, and do not wait for other lanes still in fix or review. Installs and builds are serialized through one queue; groups that finish close together share one build. `bcl install` updates the stage and the live page before any optional `--then` command runs.
+Run `python3 <skill-dir>/scripts/check_install_sessions.py --data <live-tracker.json> --ids ID` before Install; repeat `--ids ID` for each finding in the group. It checks the implementer and reviewer session; only a group marked `codex.one_file: true` may omit review. `bcl install` runs the same check and refuses invalid groups. Start Install after a group's review passes with `bcl install --ids ID` (repeat the flag per finding); other groups still fixing or reviewing do not block it. The tracker also requires a nonempty current-cycle plan. Installs and builds share one queue. `bcl install` updates the stage and live page before an optional `--then` command.
 
 An authorized PR is created or updated before installing when project policy requires an open PR head; install that exact head and verify its identity. Do not merge, publish, install, send messages, or run intrusive tests unless authorized by the user or applicable instructions.
 

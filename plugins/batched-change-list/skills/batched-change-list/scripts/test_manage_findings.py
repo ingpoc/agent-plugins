@@ -1,4 +1,5 @@
 import json
+import copy
 import hashlib
 import os
 import subprocess
@@ -359,7 +360,7 @@ class ManageFindingsTests(unittest.TestCase):
         for stage in ('collect', 'present', 'plan_fix', 'install', 'verify', 'introspect', 'gate', 'report_rollover', None):
             pre = [{'action':'introspect','sections':{'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}},'result':'no issues'}] if stage == 'report_rollover' else []
             if stage in ('plan_fix', 'install', 'verify'):
-                pre.insert(0, {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}})
+                pre.insert(0, {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','codex':{'implementer_session':'writer','reviewer_session':'reviewer'}}]}})
                 if stage == 'verify':
                     pre.insert(1, {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'})
             if stage in ('plan_fix', 'install', 'verify'):
@@ -390,7 +391,7 @@ class ManageFindingsTests(unittest.TestCase):
         result = run({'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Starting a fix cycle'})
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('requires a plan', result.stderr)
-        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','codex':{'implementer_session':'writer','reviewer_session':'reviewer'}}]}}
         result = run(plan, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Starting a fix cycle'})
         self.assertEqual(result.returncode, 0, result.stderr)
         data = json.loads(self.data.read_text())
@@ -400,7 +401,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIn('class="fresh">Updated', html)
         self.assertNotIn('class="workflow-now"', html)
         self.assertIn('Plan &amp; fix', html)
-        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','codex':{'implementer_session':'writer','reviewer_session':'reviewer'}}]}}
         self.assertEqual(run(plan).returncode, 0)
         self.assertEqual(run({'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'}).returncode, 0)
         before = self.data.read_bytes()
@@ -423,7 +424,8 @@ class ManageFindingsTests(unittest.TestCase):
                 self.assertTrue('in_progress' in result.stderr or 'recorded plan' in result.stderr or 'requires install' in result.stderr or 'requires a plan' in result.stderr)
                 self.assertEqual(self.data.read_bytes(), before)
         operations = self.root / 'guard.json'
-        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','codex':{'implementer_session':'writer','reviewer_session':'reviewer'}}]}}
+        plan['plan']['groups'][0]['codex'] = {'implementer_session':'writer','reviewer_session':'reviewer'}
         operations.write_text(json.dumps([plan, {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'}, {'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Starting verification'}]))
         result = self.cli('batch', self.data, operations, '--render', self.root / 'guard.html')
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -515,7 +517,7 @@ class ManageFindingsTests(unittest.TestCase):
 
     def test_plan_fields_and_loopback_increment_round_history(self):
         ops, page = self.root / 'round.json', self.root / 'round.html'
-        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','name':'Plain group','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','worktree':'fix-a','codex':{'job_id':'job-1','status':'done','started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z'},'verify':{'summary':'Focused check passed','status':'pending'}}],'merge':{'status':'done','ref':'abc'}}}
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','name':'Plain group','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','worktree':'fix-a','codex':{'job_id':'job-1','status':'done','started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z','implementer_session':'writer','reviewer_session':'reviewer'},'verify':{'summary':'Focused check passed','status':'pending'}}],'merge':{'status':'done','ref':'abc'}}}
         none = {'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}}
         ops.write_text(json.dumps([plan, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Plan'}, {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Install'}, {'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Verify'}, {'action':'introspect','sections':none,'result':'round 1 done'}, {'action':'set-activity','stage':'gate','ids':[],'now':'Gate'}, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Repeat'}]))
         result = self.cli('batch', self.data, ops, '--render', page)
@@ -535,7 +537,7 @@ class ManageFindingsTests(unittest.TestCase):
 
     def test_set_activity_marks_group_and_renders_single_now_line(self):
         operations, page = self.root / 'activity.json', self.root / 'activity.html'
-        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','codex':{'implementer_session':'writer','reviewer_session':'reviewer'}}]}}
         operations.write_text(json.dumps([plan, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],
                                            'now':'Inspecting the shared root cause'}]))
         result = self.cli('batch', self.data, operations, '--render', page)
@@ -598,7 +600,7 @@ class ManageFindingsTests(unittest.TestCase):
             if force:
                 args.append('--force')
             return self.cli(*args)
-        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','codex':{'implementer_session':'writer','reviewer_session':'reviewer'}}]}}
         install = {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'}
         self.assertEqual(batch(plan, install, {'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Starting verification'}, {'action':'introspect','sections':{'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}},'result':'no issues'}, {'action':'set-stage','stage':'report_rollover'}, force=True).returncode, 0)
         self.assertEqual(batch(plan, {'action':'set-stage','stage':'install'}).returncode, 0)
@@ -983,6 +985,21 @@ class ManageFindingsTests(unittest.TestCase):
         self.data.write_text(json.dumps(self.document), encoding="utf-8")
 
     def cli(self, *args, env=None):
+        if len(args) > 2 and args[0] == 'batch':
+            operations_path = Path(args[2])
+            operations = json.loads(operations_path.read_text())
+            for operation in operations:
+                if operation.get('action') != 'introspect' or 'steps' in operation or not isinstance(operation.get('sections'), dict):
+                    continue
+                steps = [item.get('item') or item.get('step') for section in operation['sections'].values()
+                         for item in section.get('items', []) if isinstance(item, dict)]
+                if not steps:
+                    steps = ['review the recorded round']
+                    operation['none'] = steps.copy()
+                else:
+                    operation['none'] = []
+                operation['steps'] = steps
+            operations_path.write_text(json.dumps(operations))
         return subprocess.run([sys.executable, str(SCRIPT), *map(str, args)],
                               text=True, capture_output=True,
                               env={**os.environ, "BCL_STATE_DIR": str(self.state), **(env or {})})
@@ -1478,6 +1495,129 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(tracking["introspect"]["round"], 2)
         self.assertEqual(tracking["introspect"]["cycle"], 1)
         self.assertEqual(tracking["introspect"]["result"], "round 2 done")
+
+    def test_install_requires_implementer_and_leaves_document_unchanged(self):
+        document = copy.deepcopy(self.document)
+        document["findings"][0]["status"] = "in_progress"
+        plan = {"action": "set-plan", "plan": {"round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "review", "phase": "review",
+        }]}}
+        before = json.dumps(document).encode()
+        result = self._replay_batch(document, plan, {
+            "action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Install",
+        })
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("implementer_session", result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
+    def test_install_requires_reviewer_for_multifile_or_unmarked_group(self):
+        for codex in ({"implementer_session": "writer"},
+                      {"implementer_session": "writer", "one_file": False}):
+            with self.subTest(codex=codex):
+                document = copy.deepcopy(self.document)
+                document["findings"][0]["status"] = "in_progress"
+                plan = {"action": "set-plan", "plan": {"round": 1, "groups": [{
+                    "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "review",
+                    "phase": "review", "codex": codex,
+                }]}}
+                before = json.dumps(document).encode()
+                result = self._replay_batch(document, plan, {
+                    "action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Install",
+                })
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("reviewer_session", result.stderr)
+                self.assertEqual(self.data.read_bytes(), before)
+
+    def test_install_allows_one_file_without_reviewer(self):
+        document = copy.deepcopy(self.document)
+        document["findings"][0]["status"] = "in_progress"
+        plan = {"action": "set-plan", "plan": {"round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "review",
+            "phase": "review", "codex": {"implementer_session": "writer", "one_file": True},
+        }]}}
+        result = self._replay_batch(document, plan, {
+            "action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Install",
+        })
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("install", json.loads(self.data.read_text())["tracking"]["stages_reached"])
+
+    def test_install_allows_both_sessions_and_ignores_unselected_group(self):
+        document = copy.deepcopy(self.document)
+        document["findings"][0]["status"] = "in_progress"
+        document["findings"][1]["status"] = "untested"
+        plan = {"action": "set-plan", "plan": {"round": 1, "groups": [
+            {"id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "review",
+             "phase": "review", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer"}},
+            {"id": "B", "finding_ids": ["ISSUE-02"], "depends_on": [], "status": "planned", "phase": "fix"},
+        ]}}
+        result = self._replay_batch(document, plan, {
+            "action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Install A",
+        })
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved = json.loads(self.data.read_text())
+        self.assertEqual(saved["tracking"]["plan"]["groups"][1]["status"], "planned")
+
+    def test_set_stage_install_checks_every_active_group(self):
+        document = copy.deepcopy(self.document)
+        document["findings"][0]["status"] = "in_progress"
+        plan = {"action": "set-plan", "plan": {"round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "review", "phase": "review",
+        }]}}
+        before = json.dumps(document).encode()
+        result = self._replay_batch(document, plan, {"action": "set-stage", "stage": "install"})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("implementer_session", result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
+    def test_plan_rejects_invalid_one_file_and_empty_session_fields(self):
+        for codex, message in (({"one_file": 1}, "one_file"),
+                               ({"implementer_session": " "}, "implementer_session")):
+            with self.subTest(codex=codex):
+                plan = {"action": "set-plan", "plan": {"round": 1, "groups": [{
+                    "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "planned", "codex": codex,
+                }]}}
+                before = self.data.read_bytes()
+                result = self._replay_batch(json.loads(before), plan)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(message, result.stderr)
+                self.assertEqual(self.data.read_bytes(), before)
+
+    def test_introspect_rejects_uncovered_steps_and_out_of_order_sections(self):
+        document = self._path1_pre()
+        steps = ["Codex write", "Codex review"]
+        sections = {name: {"none": f"No {name} changes."}
+                    for name in ("delete", "simplify", "optimize", "automate")}
+        original = json.dumps(document).encode()
+        result = self._replay_batch(document, {"action": "introspect", "sections": sections,
+                                                "steps": steps, "none": ["Codex write"]})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Codex review", result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
+        shuffled = {name: sections[name] for name in ("simplify", "delete", "optimize", "automate")}
+        result = self._replay_batch(document, {"action": "introspect", "sections": shuffled,
+                                                "steps": steps, "none": steps})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("order", result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
+
+    def test_introspect_records_complete_orchestration_coverage(self):
+        document = self._path1_pre()
+        steps = ["Codex wrote group A", "Codex reviewed group A", "parallel group count: 1",
+                 "polling", "rework", "focused tests", "install", "verify", "no-op cleanup"]
+        sections = {
+            "delete": {"items": [{"item": steps[0], "evidence": "Fix diff recorded.", "outcome": "fixed inline"}]},
+            "simplify": {"none": "No simplification warranted."},
+            "optimize": {"none": "No optimization warranted."},
+            "automate": {"none": "No additional automation warranted."},
+        }
+        none = steps[1:]
+        result = self._replay_batch(document, {"action": "introspect", "sections": sections,
+                                                "steps": steps, "none": none})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved = json.loads(self.data.read_text())
+        task = next(item for item in saved["findings"] if item["id"] == "WF-01")
+        self.assertEqual(task["steps"], steps)
+        self.assertEqual(saved["tracking"]["introspect"]["none"], none)
 
     def test_completed_check_pass_clears_checks_pending_block(self):
         document = json.loads(self.data.read_text())

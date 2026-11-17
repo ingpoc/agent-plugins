@@ -1,6 +1,7 @@
 import re
 import unittest
 from pathlib import Path
+import workflow_definition
 
 SKILL = Path(__file__).resolve().parents[1] / "SKILL.md"
 REFS = SKILL.parent / "references"
@@ -26,12 +27,12 @@ class SkillLayoutTests(unittest.TestCase):
             self.assertTrue((REFS / name).is_file())
             self.assertIn(f"references/{name}", text)
 
-    def test_feedback_and_failure_contract_is_always_loaded(self):
+    def test_router_body_shrinks_and_loop_line_matches_workflow_definition(self):
         text = SKILL.read_text()
-        for required in ("new messages throughout the cycle", "record new findings before fixing",
-                         "changed requirement invalidates", "last verified outcome", "Never invent missing evidence",
-                         "failed script", "stop that lane"):
-            self.assertIn(required, text)
+        body = text.split("---", 2)[2].lstrip("\n")
+        self.assertLessEqual(len(body.encode()), 2589)
+        lines = [line for line in body.splitlines() if line.startswith("Workflow: ")]
+        self.assertEqual(lines, [workflow_definition.skill_loop_line()])
 
 
 if __name__ == "__main__":

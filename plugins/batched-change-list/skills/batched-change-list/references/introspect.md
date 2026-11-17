@@ -1,28 +1,11 @@
 # Introspect
 
-Run Introspect after every round's Verify.
+After every round's Verify, review every step performed, including successes and orchestration: each group's coding-CLI write and review, parallel group count, polling, rework, tests, install, and verify. Record uneventful steps under `none`.
 
-Keep it one cheap pass over what the run already recorded (failed commands, retries, reruns, stale or contradicting reports, checks that disagreed), not a re-read of the whole run.
+Prepare `SECTIONS.json` with exactly `steps`, `none`, and `sections`. `steps` lists every performed step once; `none` lists steps reviewed with no change. `sections` keys must be ordered `delete`, `simplify`, `optimize`, `automate`. Each section is `{"none":"reason"}` or `{"items":[...]}`. Each item has `item` (an exact `steps` entry), `evidence`, and `outcome` (`fixed inline` or `issue` plus an existing non-WF `issue_id`).
 
-`bcl introspect --sections SECTIONS.json` is required. The command refuses a missing, incomplete, or invalid `--sections` file. Do not pass an `issues` array or `next_cycle` notes on the Introspect call or on the WF- task.
+Run `python3 <skill-dir>/scripts/check_introspect.py --sections SECTIONS.json`, then `bcl introspect --sections SECTIONS.json`. The manager runs the same check, so invalid or uncovered steps cannot be recorded. Try deleting first; simplify only what remains, optimize only what was simplified, and automate last. Add a step or script only when it removes or replaces at least as much work.
 
-## Four sections
+The call creates one `WF-` task with the ordered sections and full step coverage, closes the current round's plan, and records `tracking.introspect`. Follow [gate.md](gate.md). `report_rollover` requires this round's Introspect after Install.
 
-`SECTIONS.json` must contain exactly these four keys: `delete`, `simplify`, `optimize`, and `automate`. Each section is either `{"none": "<reason>"}` or `{"items":[...]}` — never both, and never empty.
-
-Each item has `item`, `evidence`, and `outcome`:
-
-- `fixed inline` — the change was made during this Introspect pass (a few lines, no release, checkable at once).
-- `issue` — anything needing code, a release, or a live test. Create that follow-up as a **separate non-WF issue** first, then link it with `issue_id`. The linked id must already exist and must not be a `WF-` id.
-
-## One WF- task
-
-The call always creates exactly one `WF-` task. The task is `verified_fixed` with `details.fixed_in` set to `Introspect`, and it stores the four sections on the task. Render them on the WF- task; do not list code follow-ups as `next_cycle` notes. The task's `issues` array stays empty. Linked issue ids may appear in `verification_refs`. A clean cycle (`none` in every section) still creates the WF- task and records result `Introspect: no issues`.
-
-The call also closes the current round's plan (`tracking.plan.status = "closed"`) and records `tracking.introspect`. Then move to the [gate](gate.md). `report_rollover` remains blocked until this round's Introspect record exists (required after Install).
-
-## Rules
-
-1. **No evidence, no issue.** Flag a step only when the run shows a concrete sign: a failure, a retry, a rerun, a silent failure (no error, wrong result shown as success, swallowed exception), or a stale or contradicting report.
-2. **Silent failures are always addressed:** the owning script must exit non-zero with a one-line cause.
-3. **Tell the owner of a tool when its output is wrong.** Send the exact run id, field and line; reinstall and re-run that same run to confirm.
+Do not pass `issues` or `next_cycle` notes on the Introspect call. Create code follow-ups as separate non-WF findings before linking them from a section item. The task's `issues` array stays empty.

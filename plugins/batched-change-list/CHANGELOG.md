@@ -1,3 +1,9 @@
+## 0.1.24
+
+- Route each group's fix and review through the configured coding CLI; require implementer and reviewer session records before install, except review may be skipped for a marked one-file group.
+- Require ordered, complete Introspect coverage of every performed step and expose tested session, coverage, and gate-count checks as scripts.
+- Generate the skill loop and workflow strip from one workflow definition; show lane progress and merge state from tracker state.
+
 ## 0.1.23
 
 - Require this round's Introspect, tagged with cycle and round, before returning to Plan & fix or entering Report & roll over after Install. An earlier round's record is not enough.

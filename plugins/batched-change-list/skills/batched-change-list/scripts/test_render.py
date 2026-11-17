@@ -61,7 +61,7 @@ class RenderTests(unittest.TestCase):
         self.assertNotIn('var(--amber)', gate_node)
         self.assertIn('Fixes <b>1/1000</b> verified<small>0 in progress</small>', gate_node)
         self.assertNotIn('excludes completed introspection', gate_node)
-        self.assertIn('<p class="gate-note">Fix count excludes completed introspection workflow records and excluded issues.</p>', page)
+        self.assertIn('1000+ verified: report, roll over, or merge previous PR', page)
 
     def test_gate_does_not_count_a_fixed_issue_during_an_unresolved_recheck(self):
         finding = {'id':'ISSUE-01', 'status':'verified_fixed', 'verification_refs':['old receipt']}
@@ -458,12 +458,33 @@ setImmediate(async()=>{
         self.assertIn('class="wf-exit"', page)
         self.assertIn('gate-met .wf-loop', page)
         timeline = page
-        stages = ['>Collect<','>Present<','>Plan &amp; fix<','>Install<','>Verify<',
-                  '>Introspect<','Fixes <b>7/15</b> verified','>Report &amp; roll over<']
+        stages = ['>Collect<','>Plan &amp; fix<','>Install<','>Verify<',
+                  '>Introspect<','Fixes <b>7/15</b> verified','>Report &amp; roll over<','>Merge previous PR<']
         positions = [timeline.index(stage) for stage in stages]
         self.assertEqual(positions, sorted(positions))
+        self.assertNotIn('>Present<', timeline)
         self.assertEqual(page.count('aria-label="Workflow progress"'), 1)
         self.assertEqual(renderer.render(data, Path(__file__).parents[1]), page)
+
+    def test_rollover_entry_hides_present_until_current_cycle_reaches_it(self):
+        hidden = renderer.render_workflow('plan_fix', [], 0, 15, False, 0, 1, ['collect'], cycle=2)
+        self.assertNotIn('>Present<', hidden)
+        shown = renderer.render_workflow('present', [], 0, 15, False, 0, 1, ['collect', 'present'], cycle=2)
+        self.assertIn('>Present<', shown)
+
+    def test_install_tick_waits_for_a_group_to_pass_review(self):
+        page = renderer.render_workflow('verify', [{'id':'A', 'status':'planned', 'phase':'fix'}],
+                                        0, 15, False, 0, 1, ['plan_fix', 'install', 'verify'])
+        install = page.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('wf-step upcoming', install)
+        self.assertNotIn('wf-step done', install)
+
+    def test_merge_previous_pr_is_the_shared_gate_exit(self):
+        page = renderer.render_workflow('gate', [], 15, 15, True, 0, 1)
+        self.assertIn('>Merge previous PR<', page)
+        self.assertIn('15+ verified: report, roll over, or merge previous PR', page)
+        merged = renderer.render_workflow('merged', [], 15, 15, True, 0, 1)
+        self.assertIn('>Merged / Done<', merged)
 
     def test_timeline_preserves_results_in_date_order_including_runs(self):
         item = {'id': 'ISSUE-01', 'verification_evidence': [
@@ -865,7 +886,8 @@ setImmediate(async()=>{
         self.assertIn('class="grp running"', page)
         self.assertIn('Phase 3 of 4: Install', page)
         self.assertIn('data-stage="gate"', page)
-        self.assertNotIn('data-stage="install"', page)
+        install = page.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
+        self.assertNotIn('wf-step done', install)
         self.assertIn('class="wf-step busy"', page)
         data['tracking']['plan']['groups'][0]['status'] = 'verified'
         data['tracking']['plan']['groups'][0].pop('phase')
