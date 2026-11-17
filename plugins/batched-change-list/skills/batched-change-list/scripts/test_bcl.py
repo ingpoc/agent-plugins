@@ -97,6 +97,59 @@ elif args[:2] != ['pr', 'edit']:
         self.assertNotIn("viewer PID probe failed", stderr.getvalue())
 
     def git(self, cwd, *args): return subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True)
+    def sync_main(self):
+        return subprocess.run([sys.executable, str(BCL), "sync-main"], cwd=self.home, env=self.env, capture_output=True, text=True)
+    def branch_for_sync(self):
+        self.git(self.home, "add", "docs/triage/pr-123-findings.html")
+        self.git(self.home, "commit", "-qm", "baseline rendered report")
+        self.git(self.home, "branch", "-M", "main")
+        self.git(self.home, "switch", "-c", "feature")
+
+    def test_sync_main_merges_renders_and_stashes_hook_dirt(self):
+        self.branch_for_sync()
+        (self.home / ".githooks").mkdir()
+        (self.home / ".githooks/pre-commit").write_text("leftover hook\n")
+        self.git(self.home, "add", ".githooks/pre-commit"); self.git(self.home, "commit", "-qm", "feature hook")
+        self.git(self.home, "switch", "main")
+        (self.home / "main-change.txt").write_text("from main\n")
+        self.git(self.home, "add", "main-change.txt"); self.git(self.home, "commit", "-qm", "main change")
+        self.git(self.home, "switch", "feature")
+        (self.home / ".githooks/pre-commit").write_text("leftover hook dirt\n")
+        result = self.sync_main()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((self.home / "main-change.txt").exists())
+        self.assertEqual((self.home / "docs/triage/pr-123-findings.html").read_text()[:15], "<!doctype html>")
+        self.assertEqual((self.home / ".githooks/pre-commit").read_text(), "leftover hook\n")
+        self.assertIn("bcl sync-main hook/check dirt", self.git(self.home, "stash", "list").stdout)
+
+    def test_sync_main_refuses_dirty_tracker_without_stashing_or_merging(self):
+        self.branch_for_sync()
+        self.git(self.home, "switch", "main")
+        (self.home / "main-change.txt").write_text("from main\n")
+        self.git(self.home, "add", "main-change.txt"); self.git(self.home, "commit", "-qm", "main change")
+        self.git(self.home, "switch", "feature")
+        (self.home / "docs/triage/pr-123-findings.json").write_text("dirty tracker")
+        result = self.sync_main()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("commit them or clean them", result.stderr)
+        self.assertFalse((self.home / "main-change.txt").exists())
+        self.assertEqual(self.git(self.home, "stash", "list").stdout, "")
+
+    def test_sync_main_resolves_deleted_skill_reference_conflict(self):
+        self.branch_for_sync()
+        reference = self.home / "plugins/example/skills/demo/references/old.md"
+        reference.parent.mkdir(parents=True); reference.write_text("base\n")
+        self.git(self.home, "add", "plugins"); self.git(self.home, "commit", "-qm", "add reference")
+        self.git(self.home, "branch", "-f", "main")
+        self.git(self.home, "switch", "main"); reference.unlink()
+        self.git(self.home, "add", "-u"); self.git(self.home, "commit", "-qm", "delete reference")
+        self.git(self.home, "switch", "feature"); reference.write_text("feature edit\n")
+        self.git(self.home, "add", "plugins"); self.git(self.home, "commit", "-qm", "edit reference")
+        result = self.sync_main()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(reference.exists())
+        self.assertEqual(self.git(self.home, "status", "--porcelain").stdout, "")
+
     def call(self, stage, *args, cwd=None):
         data, extra = (args[0], args[1:]) if args and isinstance(args[0], Path) else (self.data, args)
         if stage == "plan" and "--plan" in extra:
