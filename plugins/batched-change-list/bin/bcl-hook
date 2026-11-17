@@ -17,6 +17,8 @@ def main():
         match = re.search(r"/pull/(\d+)", url)
         if not match: continue
         report = triage / f"pr-{match.group(1)}.html"
+        if not report.is_file():
+            print(f"bcl-hook: missing report {report}; render the tracker and stage the report", file=sys.stderr); return 1
         with tempfile.TemporaryDirectory() as temp:
             fresh = Path(temp) / report.name
             proc = subprocess.run([sys.executable, str(RENDER), str(tracker), str(fresh)], capture_output=True, text=True)
@@ -26,6 +28,12 @@ def main():
         if report.exists() and report.read_bytes() != expected: report.write_bytes(expected)
         try:
             indexed = subprocess.run(["git", "-C", str(root), "show", f":{report.relative_to(root)}"], capture_output=True)
+            if indexed.returncode:
+                staged = subprocess.run(["git", "-C", str(root), "diff", "--cached", "--name-only", "--", str(tracker.relative_to(root))], capture_output=True, text=True)
+                if staged.returncode:
+                    print(f"bcl-hook: cannot inspect staged tracker: {staged.stderr.strip()}", file=sys.stderr); return 1
+                if staged.stdout.strip():
+                    print(f"bcl-hook: staged tracker requires {report.relative_to(root)} in the index; stage the report", file=sys.stderr); return 1
             if indexed.returncode == 0 and indexed.stdout != expected:
                 print(f"bcl-hook: staged {report.relative_to(root)} is stale; stage the refreshed report", file=sys.stderr); return 1
         except OSError as error:

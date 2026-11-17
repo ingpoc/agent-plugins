@@ -14,6 +14,21 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_blocked_or_planned_lanes_do_not_make_recorded_stage_busy(self):
+        groups = [{'id':'A', 'status':'blocked', 'phase':'fix'}, {'id':'B', 'status':'planned'}]
+        page = renderer.render_workflow('plan_fix', groups, 0, 15, False, 0, 1)
+        plan = page.split('>Plan &amp; fix<', 1)[0].rsplit('<li ', 1)[-1]
+        self.assertIn('wf-step upcoming', plan)
+        track = renderer.row_phase_track({'id':'A', 'status':'verified'}, 'verified')
+        self.assertEqual(track.count('<i'), 4)
+        self.assertEqual(track.count('class="d"'), 4)
+
+    def test_planned_lane_does_not_look_active_during_introspection(self):
+        page = renderer.render_workflow('introspect', [{'id':'A', 'status':'planned'}], 0, 15, False, 0, 1)
+        plan = page.split('>Plan &amp; fix<', 1)[0].rsplit('<li ', 1)[-1]
+        self.assertNotIn('wf-step busy', plan)
+        self.assertIn('1 planned', page)
+
     def test_gate_uses_verified_count_and_never_shows_a_now_line(self):
         self.data['tracking'] = {'workflow': {'stage':'collect','updated_at':'2026-11-14T07:00:00Z'},
                                  'rollover_threshold': 1000}
@@ -29,10 +44,23 @@ class RenderTests(unittest.TestCase):
         self.assertIn('stroke="var(--sage-line)" stroke-width="3"', gate_node)
         self.assertNotIn('var(--amber)', gate_node)
         self.assertIn('Fixes <b>1/1000</b> verified<small>0 in progress</small>', gate_node)
+        self.assertNotIn('excludes completed introspection', gate_node)
+        self.assertIn('<p class="gate-note">Fix count excludes completed introspection workflow records and excluded issues.</p>', page)
+
+    def test_gate_does_not_count_a_fixed_issue_during_an_unresolved_recheck(self):
+        finding = {'id':'ISSUE-01', 'status':'verified_fixed', 'verification_refs':['old receipt']}
+        tracking = {'rollover_threshold':1, 'verification_run':{'checks':{'ISSUE-01':{'state':'fixed'}}}}
+        self.assertEqual(renderer.rollover_gate([finding], tracking), (1, 1, True))
+        for state in ('checking', 'blocked', 'inconclusive', 'not_fixed'):
+            with self.subTest(state=state):
+                tracking['verification_run']['checks']['ISSUE-01']['state'] = state
+                self.assertEqual(renderer.rollover_gate([finding], tracking), (0, 1, False))
+        self.assertEqual(finding['verification_refs'], ['old receipt'])
 
         self.data['findings'][0]['status'] = 'verified_fixed'
         self.data['findings'][0]['verification'] = 'Verified on the installed build.'
         self.data['findings'][0]['verification_refs'] = ['Example receipt']
+        self.data['tracking'] = {'workflow': {'stage':'collect','updated_at':'2026-11-14T07:00:00Z'}}
         self.data['tracking']['rollover_threshold'] = 1
         page = renderer.render(self.data, self.base)
         self.assertIn('data-stage="collect" class="wf-step current" aria-current="step"', page)
@@ -41,7 +69,27 @@ class RenderTests(unittest.TestCase):
         self.assertIn('<svg width="22" height="22" viewBox="0 0 22 22"', gate_node)
         self.assertIn('stroke-width="3"', gate_node)
 
+
+    def test_fresh_rollover_collect_leaves_loop_steps_empty_and_can_go_stale(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {
+            'round': 1,
+            'stages_reached': ['collect'],
+            'workflow': {'stage': 'collect', 'updated_at': '2026-11-14T11:00:00Z'},
+        }
+        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+        band = page.split('class="wf-band-steps"', 1)[1].split('</ol>', 1)[0]
+        for label in ('Plan &amp; fix', 'Install', 'Verify', 'Introspect'):
+            self.assertIn(f'class="wf-step upcoming"><span class="wf-dot"><i></i></span><span class="wf-label">{label}</span>', band)
+        self.assertNotIn('class="wf-step done">', band)
+        self.assertIn('data-stage="collect" class="wf-step current" aria-current="step"', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale</span>', page)
+        self.assertNotIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
+        fresh = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:05:00Z'))
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', fresh)
+
     def test_merged_page_shows_commit_and_ist_time(self):
+
         sha = 'a' * 40
         self.data['tracking'] = {'workflow': {'stage':'merged','updated_at':'2026-11-14T11:44:49Z'},
                                  'merged': {'commit_sha':sha,'merged_at':'2026-11-14T11:44:49Z'}}
@@ -103,11 +151,10 @@ class RenderTests(unittest.TestCase):
         self.assertIn('<b>1</b> blocked', page)
         self.assertIn('Parked for Round 2', page)
         self.assertIn('CORE · 1', page)
-        self.assertIn('aria-label="Phase 3 of 5: Install"', page)
-        self.assertIn('aria-label="Phase 4 of 5: Verify, blocked"', page)
+        self.assertIn('aria-label="Phase 3 of 4: Install"', page)
+        self.assertIn('aria-label="Phase 4 of 4: Verify, blocked"', page)
         self.assertIn('In install · INSTALL', page)
         self.assertIn('Blocked · no mic · needs Guru', page)
-        self.assertIn('Parked → Round 2', page)
         self.assertIn('CARRIED', page)
         self.assertIn('Fixes <b>0/15</b> verified<small>1 in progress</small>', page)
         self.assertIn('Round closes when every lane is <b>verified, blocked or parked</b> → Introspect → gate.', page)
@@ -135,21 +182,21 @@ class RenderTests(unittest.TestCase):
         self.assertIn('Group B', page)
 
 
-    def test_viewer_footer_is_opt_in_and_deterministic_without_metadata(self):
+    def test_viewer_footer_reports_missing_identity_deterministically(self):
         plain = renderer.render(self.data, self.base)
         self.assertEqual(plain, renderer.render(self.data, self.base))
-        self.assertNotIn('<p class="viewer-footer">', plain)
+        self.assertIn('Viewer version not recorded', plain)
         live = renderer.render(self.data, self.base, viewer={'path':'/tmp/list.json','version':'0.1.17','started':'Nov 14, 2026, 3:00 PM IST'})
         self.assertIn('reading /tmp/list.json, viewer 0.1.17, started Nov 14, 2026, 3:00 PM IST', live)
 
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
     def test_version_timeline_shows_status_and_evidence_together(self):
         template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
-        self.assertIn("history.append(node('h3','Verification by version'))", template)
+        self.assertIn("part('Status of last verification'", template)
         self.assertIn("node('span',record.version,'version-chip')", template)
-        self.assertIn("`Installed ${ist(record.timestamp)} · ${record.build}`", template)
+        self.assertIn("`Checked ${ist(record.timestamp)} · ${record.build}`", template)
         # Shown in the main card after Done when, never inside the collapsed Evidence section.
-        self.assertLess(template.index("part('Done when'"), template.index("'Verification by version'"))
+        self.assertLess(template.index("'Status of last verification'"), template.index("'Verification by version'"))
         self.assertLess(template.index("'Verification by version'"), template.index("node('details',null,'evidence')"))
         evidence_builder = next(line for line in template.splitlines() if line.startswith(' const detail=node(\'details\''))
         self.assertNotIn('Verification by version', evidence_builder)
@@ -211,10 +258,86 @@ class RenderTests(unittest.TestCase):
 
     def test_evidence_is_one_flat_disclosure(self):
         template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
-        self.assertIn("`Evidence (${evidenceCount} ${evidenceCount===1?'row':'rows'})`", template)
+        self.assertIn("node('summary','Details and evidence')", template)
         self.assertNotIn('Agent details', template)
         self.assertNotIn('Additional details', template)
         self.assertIn("const detail=node('details',null,'evidence')", template)
+
+    @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
+    def test_issue_shows_outcome_separately_from_recorded_plan(self):
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        show = template.split('function show(){', 1)[1].split('\nsearch.addEventListener', 1)[0]
+        program = r"""
+class Element {
+ constructor(tag,text='',cls=''){this.tag=tag;this.text=text;this.cls=cls;this.children=[];this.dataset={}}
+ append(...children){this.children.push(...children)}
+ setAttribute(){}
+ removeAttribute(){}
+}
+const node=(tag,text,cls)=>new Element(tag,text,cls);
+const findings=[{id:'A',title:'Issue',status:'failing',details:{Build:'0.2.147'},_lane_status:{copy:'Parked → Round 2',kind:'prk',status:'parked'}}];
+const labels={failing:'Failing'},location={hash:'#A'},run=null;
+const nav={querySelectorAll:()=>[]},panel={replaceChildren(value){this.article=value}};
+const document={createTextNode:text=>text};
+function show(){
+""" + show + r"""
+show();
+const heading=panel.article.children[0];
+if(heading.children[1].text!=='Issue status: Failing')process.exit(1);
+const detail=panel.article.children.find(e=>e.tag==='details'&&e.cls==='evidence');
+if(!detail.children.some(e=>e.tag==='section'&&e.children[0].text==='Plan (last recorded)'&&e.children[1].text==='Parked → Round 2'))process.exit(2);
+const sections=panel.article.children.filter(e=>e.tag==='section');
+if(!sections.some(e=>e.children[0].text==='Build recorded with issue'&&e.children[1].text==='0.2.147'))process.exit(3);
+const history=sections.find(e=>e.children[0].text==='Verification by version');
+if(!sections.some(e=>e.children[0].text==='Status of last verification'&&e.children[1].text==='No verification result recorded.'))process.exit(6);
+if(!history||history.children[1].text!=='No versioned verification recorded.')process.exit(4);
+findings[0].version_timeline=[
+ {version:'0.2.147',build:'ACU 0.2.147',state:'not_fixed',outcome:'fail',reference:'10/12 on typed session; not 12/12.',timestamp:'2026-11-14T17:06:53Z'},
+ {version:'0.2.143',build:'ACU 0.2.143',state:'not_fixed',outcome:'failing',reference:'6/12 on typed turns; not 12/12',timestamp:'2026-11-14T10:30:44Z'}];
+show();
+const list=panel.article.children.find(e=>e.cls==='issue-part version-history').children.find(e=>e.tag==='ol');
+if(!list||list.children.length!==2||list.children[0].children[0].text!=='0.2.147'||list.children[1].children[0].text!=='0.2.143')process.exit(5);
+if(!panel.article.children.some(e=>e.tag==='section'&&e.children[0].text==='Status of last verification'&&e.children[1].text==='Failing'))process.exit(7);
+if(list.children[0].children[1].text!=='Failing'||list.children[1].children[1].text!=='Failing')process.exit(8);
+
+findings[0].version_timeline.push({version:'0.2.148',build:'ACU 0.2.148',state:'fixed',outcome:'fixed',timestamp:'unknown'});
+show();
+if(!panel.article.children.some(e=>e.tag==='section'&&e.children[0].text==='Status of last verification'&&e.children[1].text==='Latest result cannot be determined; some verification dates are unavailable. Latest dated: Failing.'))process.exit(12);
+if(panel.article.children.find(e=>e.cls==='issue-part version-history').children.find(e=>e.tag==='ol').children.length!==3)process.exit(13);
+
+if(list.children[0].children[2].children[1].text!=='Reason: 10/12 on typed session; not 12/12.'||list.children[1].children[2].children[1].text!=='Reason: 6/12 on typed turns; not 12/12')process.exit(11);
+findings[0].version_timeline=[{version:'0.2.143',build:'ACU 0.2.143',state:'blocked',outcome:'blocked',timestamp:'2026-11-14T10:30:44Z'}];
+show();
+const blocked=panel.article.children.find(e=>e.cls==='issue-part version-history').children.find(e=>e.tag==='ol').children[0];
+if(blocked.children[1].text!=='Blocked')process.exit(9);
+findings[0].version_timeline[0].state='';findings[0].version_timeline[0].outcome='reviewed';
+show();
+const ambiguous=panel.article.children.find(e=>e.cls==='issue-part version-history').children.find(e=>e.tag==='ol').children[0];
+if(ambiguous.children[1].text!=='Status not recorded'||ambiguous.children[2].children[0].text!=='Outcome: reviewed'||ambiguous.children[2].children[1].text!=='Reason not recorded.')process.exit(10);
+findings[0].version_timeline=[{version:'Version unknown',build:'unknown',state:'fixed',outcome:'fixed',timestamp:'unknown'}];
+show();
+const undated=panel.article.children.find(e=>e.cls==='issue-part version-history').children.find(e=>e.tag==='ol').children[0];
+if(undated.children[0].text!=='Version unknown'||undated.children[1].text!=='Fixed')process.exit(14);
+if(!panel.article.children.some(e=>e.tag==='section'&&e.children[0].text==='Status of last verification'&&e.children[1].text==='Fixed · Date unavailable'))process.exit(15);
+"""
+        subprocess.run(['node', '-e', program], check=True)
+
+    def test_plan_keeps_verify_command_in_collapsed_details(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}, 'plan': {'round':1,'groups':[
+            {'id':'A','finding_ids':['ISSUE-01'],'status':'running','verify':{'command':'python3 check.py --id ISSUE-01'}}]}}
+        page = renderer.render(data, self.base)
+        self.assertIn('<dt>Verify command</dt><dd>python3 check.py --id ISSUE-01</dd>', page)
+        self.assertNotIn('Issue list status · derived from lane', page)
+
+    def test_rechecks_on_one_build_keep_each_recorded_outcome(self):
+        item = {'id': 'ISSUE-01'}
+        runs = [{'build': 'ACU 1.2.3', 'checks': {'ISSUE-01': {
+            'state': 'fixed', 'evidence': 'Display now shows the correct value', 'finished_at': '2026-11-15T02:00:00Z',
+            'previous_checks': [{'state': 'not_fixed', 'evidence': 'Display showed the wrong value', 'finished_at': '2026-11-15T01:00:00Z'}]}}}]
+        timeline = renderer.version_evidence(item, runs)
+        self.assertEqual([(entry['state'], entry['outcome']) for entry in timeline], [
+            ('fixed', 'Display now shows the correct value'), ('not_fixed', 'Display showed the wrong value')])
 
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
     def test_fingerprint_poll_reloads_once_only_after_change_and_preserves_view(self):
@@ -225,10 +348,11 @@ class RenderTests(unittest.TestCase):
         self.assertIn('setInterval(refresh,5000)', refresh)
         self.assertNotIn("fetch(location.href,{cache:'no-store'})", refresh)
         program = """
-let etag='one', reloads=0, saved=null, poll;
+let etag='one', reloads=0, saved=null, poll, offline=false;
 const search={value:'query',selectionStart:2,selectionEnd:4};
 const evidence={open:true,querySelector(){return null}};
-const document={hidden:false,activeElement:search};
+const warning={hidden:true};
+const document={hidden:false,activeElement:search,getElementById(){return warning}};
 const location={protocol:'http:',href:'http://example.test/',hash:'',reload(){reloads++}};
 const history={replaceState(_state,_title,hash){location.hash=hash}};
 const selected={hash:'#ISSUE-01'};
@@ -237,7 +361,7 @@ const panel={querySelector(){return evidence}};
 const window={scrollX:12,scrollY:345};
 const sessionStorage={setItem(_key,value){saved=value}};
 const run={status:'complete'};
-const fetch=async()=>({ok:true,headers:{get(){return etag}}});
+const fetch=async()=>{if(offline)throw new Error('offline');return {ok:true,headers:{get(){return etag}}}};
 const setInterval=fn=>{poll=fn};
 """ + save_view + "\n" + refresh + "\n" + """
 setImmediate(async()=>{
@@ -245,6 +369,8 @@ setImmediate(async()=>{
  if(reloads!==0)process.exit(1);
  await poll();
  if(reloads!==0)process.exit(2);
+ offline=true;await poll();if(warning.hidden)process.exit(6);
+ offline=false;await poll();if(!warning.hidden)process.exit(7);
  etag='two';
  await poll();
  if(reloads!==1)process.exit(3);
@@ -323,15 +449,15 @@ setImmediate(async()=>{
         self.assertEqual(page.count('aria-label="Workflow progress"'), 1)
         self.assertEqual(renderer.render(data, Path(__file__).parents[1]), page)
 
-    def test_timeline_selects_latest_dated_result_per_version_including_runs(self):
+    def test_timeline_preserves_results_in_date_order_including_runs(self):
         item = {'id': 'ISSUE-01', 'verification_evidence': [
             {'build':'ACU 0.2.120', 'timestamp':'2026-11-07T12:00:00Z', 'outcome':'old', 'check':'check'},
             {'build':'ACU 0.2.119', 'timestamp':'2026-11-07T15:00:00Z', 'outcome':'other', 'check':'check'},
             {'build':'ACU 0.2.120', 'timestamp':'unknown', 'outcome':'undated', 'check':'check'}]}
         runs = [{'build':'ACU 0.2.120; Ledger 0.1.39', 'checks':{'ISSUE-01': {
             'state':'inconclusive', 'finished_at':'2026-11-08T06:00:00Z', 'evidence':'latest'}}}]
-        timeline = renderer.latest_version_evidence(item, runs)
-        self.assertEqual([(r['version'], r['outcome']) for r in timeline], [('0.2.120', 'latest'), ('0.2.119', 'other')])
+        timeline = renderer.version_evidence(item, runs)
+        self.assertEqual([(r['version'], r['outcome']) for r in timeline], [('0.2.120', 'latest'), ('0.2.119', 'other'), ('0.2.120', 'old'), ('0.2.120', 'undated')])
         self.assertEqual(timeline[0]['state'], 'inconclusive')
 
     def test_verification_history_is_not_flattened_or_duplicated(self):
@@ -341,8 +467,26 @@ setImmediate(async()=>{
         before = copy.deepcopy(self.data)
         page = renderer.render(self.data, self.base)
         self.assertEqual(page.count('Unique historical result'), 1)
-        self.assertIn('Verification by version', page)
+        self.assertIn('Status of last verification', page)
         self.assertEqual(self.data, before)
+
+    def test_latest_verification_uses_check_time_regardless_of_outcome(self):
+        item = {'id': 'ISSUE-01'}
+        runs = [
+            {'build':'ACU 0.2.147', 'checks':{'ISSUE-01':{'state':'not_fixed','finished_at':'2026-11-15T10:00:00Z','evidence':'Still failing'}}},
+            {'build':'ACU 0.2.148', 'checks':{'ISSUE-01':{'state':'fixed','finished_at':'2026-11-14T10:00:00Z','evidence':'Earlier pass'}}},
+            {'build':'ACU 0.2.146', 'checks':{'ISSUE-01':{'state':'blocked','finished_at':'2026-11-15T09:00:00Z','evidence':'Blocked'}}},
+        ]
+        history = renderer.version_evidence(item, runs)
+        self.assertEqual([(r['state'], r['build']) for r in history],
+                         [('not_fixed','ACU 0.2.147'), ('blocked','ACU 0.2.146'), ('fixed','ACU 0.2.148')])
+
+    def test_explicit_outcomes_and_exact_duplicate_checks(self):
+        blocked = {'build':'ACU 0.2.147', 'timestamp':'2026-11-15T10:00:00Z', 'outcome':'blocked', 'check':'Voice check'}
+        older = {**blocked, 'timestamp':'2026-11-14T10:00:00Z', 'outcome':'notes without a state'}
+        distinct = {**blocked, 'reference':'different receipt'}
+        history = renderer.version_evidence({'id':'ISSUE-01', 'verification_evidence':[blocked, blocked, distinct, older]}, [])
+        self.assertEqual([(r['state'], r['outcome']) for r in history], [('blocked','blocked'), ('blocked','blocked'), ('','notes without a state')])
 
     def test_introspect_stage_renders_between_verify_and_report(self):
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
@@ -580,7 +724,7 @@ setImmediate(async()=>{
 
 
 
-    def test_gate_counts_all_prefixes_and_meets_at_threshold(self):
+    def test_gate_excludes_introspection_records_and_meets_at_threshold(self):
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
         data['tracking'] = {'workflow': {'stage':'gate','updated_at':'2026-11-14T07:00:00Z'},
                             'cycle':2,'round':2,'rollover_threshold':15}
@@ -589,15 +733,17 @@ setImmediate(async()=>{
             row.update(id=identifier, status=status, verification='Verified on the installed build.',
                        verification_refs=['Example receipt'])
             return row
-        # 8 product VF, 9 page-tool VF, leftover open product, plus a WF VF: all 18 count, so the gate is met.
+        # Introspection is a record, not a fix; actual page-tool fixes still count.
+        introspect = item('WF-07', 'verified_fixed')
+        introspect['details'] = {'fixed_in': 'Introspect'}
         data['findings'] = (
             [item(f'AGENT-{i:02d}') for i in range(1, 9)]
             + [item('PAGE-01'), item('PAGE-02'), item('TRACK-01'), item('FLOW-01'),
                item('PLAN-01'), item('RUN-01'), item('HOOK-01'), item('TEST-01'), item('BCL-01')]
-            + [item('AGENT-18', 'untested'), item('WF-07', 'verified_fixed')]
+            + [item('AGENT-18', 'untested'), introspect]
         )
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes <b>18/15</b> verified', page)
+        self.assertIn('Fixes <b>17/15</b> verified', page)
         self.assertIn('class="wf-band gate-met"', page)
         self.assertNotIn('class="wf-band gate-pending"', page)
         # 14 VF with an open page-tool finding stays short of the threshold and is not met.
@@ -606,6 +752,9 @@ setImmediate(async()=>{
         self.assertIn('Fixes <b>14/15</b> verified', page)
         self.assertIn('class="wf-band gate-pending"', page)
         self.assertNotIn('class="wf-band gate-met"', page)
+        fixed, _, met = renderer.rollover_gate([item('WF-06', 'untested'), introspect], {})
+        self.assertEqual(fixed, 0)
+        self.assertFalse(met)
         # 15 product VF with leftover open page-tool and WF items: still met at the threshold.
         data['findings'] = (
             [item(f'AGENT-{i:02d}') for i in range(1, 16)]
@@ -651,7 +800,7 @@ setImmediate(async()=>{
         ]}}
         page = renderer.render(data, self.base)
         self.assertIn('class="grp failed"', page)
-        self.assertIn('Phase 4 of 5: Verify, failed', page)
+        self.assertIn('Phase 4 of 4: Verify, failed', page)
         self.assertIn('Fix failed · F', page)
         self.assertIn('Fix failed · D', page)
         data['tracking']['plan']['groups'][0]['status'] = 'unknown'
@@ -663,7 +812,7 @@ setImmediate(async()=>{
         group = {'id':'A','status':'installing','phase':'fix','finding_ids':['ISSUE-01']}
         self.assertEqual(renderer.plan_phase(group), 'install')
         track = renderer.row_phase_track(group, 'installing')
-        self.assertIn('Phase 3 of 5: Install', track)
+        self.assertIn('Phase 3 of 4: Install', track)
         workflow = renderer.render_workflow('plan_fix',
             [{**group, 'id':f'G{i}'} for i in range(6)], 0, 15, False, 0, 1)
         self.assertIn('aria-label="6 lanes"', workflow)
@@ -698,7 +847,7 @@ setImmediate(async()=>{
         self.assertIn('class="grp installing"', page)
         self.assertIn('>Installing</span>', page)
         self.assertIn('class="grp running"', page)
-        self.assertIn('Phase 3 of 5: Install', page)
+        self.assertIn('Phase 3 of 4: Install', page)
         self.assertIn('data-stage="gate"', page)
         self.assertNotIn('data-stage="install"', page)
         self.assertIn('class="wf-step busy"', page)
@@ -707,13 +856,13 @@ setImmediate(async()=>{
         data['tracking']['plan']['groups'][0]['verify'] = {'status':'verified','method':'Unit tests'}
         page = renderer.render(data, self.base)
         self.assertIn('class="grp verified"', page)
-        self.assertIn('Phase 4 of 5: Verify', page)
+        self.assertIn('Phase 4 of 4: Verify', page)
         self.assertIn('class="wf-step done"', page)
         data['tracking']['plan']['groups'][0].update(status='review', phase='review', verify={'status':'pending'})
         page = renderer.render(data, self.base)
         self.assertIn('class="grp review"', page)
         self.assertIn('>In review</span>', page)
-        self.assertIn('Phase 2 of 5: Plan &amp; fix', page)
+        self.assertIn('Phase 2 of 4: Plan &amp; fix', page)
         data['tracking']['workflow']['stage'] = 'install'
         data['tracking']['plan']['groups'] = [
             {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'done','phase':'install','verify':{'status':'pending'}},

@@ -1,8 +1,14 @@
 # Tracker operations
 
+Every mutation must either finish its snapshot and report success or exit nonzero with a recovery action. A missing home worktree or capture leaves the live tracker and unsnapshotted marker intact; restore the missing item and retry before merge. A viewer start must confirm it serves the report; on failure, inspect the named log and retry. Do not count a failed or empty command as verification.
+
+Viewer restarts require a matching instance, process and tracker identity. A legacy or stale viewer whose ownership cannot be verified is never signalled; inspect its state and stop it safely before retrying.
+
+Set `SKILL_DIR` to the absolute batched-change-list skill directory. To compare a prior PR's committed page, run `python3 "$SKILL_DIR/scripts/previous_report.py" PR_NUMBER /absolute/path/to/new-report.html` from the repository. It searches available local Git refs, prints the source commit, and refuses to overwrite a file. A missing report requires fetching the relevant refs or checking the PR number. This historical snapshot is not current verification.
+
 Adopt an in-repo tracker once with `bcl --data FINDINGS.json adopt`. The live JSON is authoritative under `$BCL_STATE_DIR/<repo>/<list-id>.json` (`~/.agents/state/batched-change-list` by default); the registry records the home worktree and JSON/HTML snapshot paths. Tests must set `BCL_STATE_DIR` to a temporary directory. The in-repo JSON and HTML are snapshots for review; they are not the live source after adopt. Successful stages snapshot both files and commit them only in the home worktree. A second worktree must use the live path, or an in-repo snapshot that still matches it. Provide `tracking.pull_request.label`, `tracking.pull_request.url`, and `tracking.worktree` where applicable.
 
-Use `plugins/batched-change-list/bin/bcl --data FINDINGS.json <stage>` for workflow stages. Every call resolves the live file and starts or restarts its per-list viewer. `plan --plan PLAN.json` records the current cycle and loop round. `update-plan-group` accepts status, Codex, and verify updates. Install requires a nonempty current-cycle plan, and Verify requires Install to have been reached. `bcl merge` refuses unsnapshotted live changes and never merges branches. `bcl install-hooks` adds repository pre-commit and pre-push report freshness checks.
+Use `plugins/batched-change-list/bin/bcl --data FINDINGS.json <stage>` for workflow stages. Commands resolve the live file; `status` is read-only and does not start a viewer. Other adopted-list commands start or restart the per-list viewer. `plan --plan PLAN.json` records the current cycle and loop round. `update-plan-group` accepts status, Codex, and verify updates. Install requires a nonempty current-cycle plan, and Verify requires Install to have been reached. `bcl merge` refuses unsnapshotted live changes and never merges branches. `bcl install-hooks` adds repository pre-commit and pre-push report freshness checks.
 
 `get` omits large inline screenshot payloads by default; pass `--include-evidence` only when you need the image bytes. `list` stays compact.
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Stage-oriented entrypoint for batched-change-list."""
-import argparse, json, re, shutil, subprocess, sys
+import argparse, hashlib, json, re, shlex, shutil, subprocess, sys
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -12,6 +12,7 @@ MANAGE = SCRIPTS / "manage_findings.py"
 sys.path.insert(0, str(SCRIPTS))
 import live_state
 import manage_findings
+import tracker_lock
 
 def _provider(url):
     return "gh" if (urlsplit(url).hostname or "").lower() == "github.com" else "origin"
@@ -176,7 +177,7 @@ def main():
         import render
         report, base = live_state.report_paths(record, live)
         report.write_text(render.render(json.loads(live.read_text()), base))
-    if record and not record.get("rollover_pending"):
+    if record and not record.get("rollover_pending") and args.stage != "status":
         live_state.ensure_viewer(key, record, live, plugin_version)
     if args.stage == "adopt":
         if not record: parser.error("could not register tracker")
@@ -246,14 +247,54 @@ def main():
         return
     stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     stage = args.stage
+    expected_verify_plan = None
     if stage == "start": operations = [{"action":"set-activity","stage":"collect" if record.get("rollover_pending") else "present" if "collect" in stages else "collect","ids":args.ids,"now":"Started collection"}]
     elif stage == "plan":
         plan = json.loads(args.plan.read_text()) if args.plan else tracking.get("plan")
         if not plan: parser.error("plan requires --plan or an existing tracking.plan")
-        operations = [{"action":"set-plan","plan":plan},{"action":"set-activity","stage":"plan_fix","ids":args.ids,"now":"Plan recorded"}]
+        operations = [{"action":"set-plan","plan":plan}]
+        if args.ids:
+            operations.append({"action":"set-activity","stage":"plan_fix","ids":args.ids,"now":"Plan recorded"})
     elif stage in ("fix", "install", "verify"):
         ids = args.ids or [x["id"] for x in data.get("findings", []) if x.get("status") == "in_progress"]
+        if stage == "verify":
+            groups = [g for g in tracking.get("plan", {}).get("groups", []) if set(ids).intersection(g.get("finding_ids", []))]
+            covered = {identifier for group in groups for identifier in group.get("finding_ids", [])}
+            if not groups or not set(ids).issubset(covered):
+                parser.error("verify requires IDs covered by the current plan")
+            if any(g.get('status') in ('blocked', 'failed', 'parked', 'deferred') for g in groups):
+                parser.error("verify cannot start a blocked, failed, or parked lane")
+            values = [g.get("verify", {}).get("command", "") for g in groups]
+            if any(not isinstance(value, str) for value in values):
+                parser.error("stored verify command must be text")
+            commands = set(values)
+            if len(commands) != 1 or not next(iter(commands), "").strip():
+                parser.error("verify requires one stored command; verify groups with different commands separately")
+            expected = next(iter(commands))
+            try:
+                lexer = shlex.shlex(expected, posix=True, punctuation_chars='|&;<>')
+                lexer.whitespace_split = True
+                lexer.commenters = ''
+                words = list(lexer)
+            except ValueError:
+                parser.error("stored verify command has invalid quoting")
+            if '\n' in expected or '\r' in expected or any(word and set(word) <= set('|&;<>') for word in words):
+                parser.error("verify does not support shell operators; record one executable command")
+            if words and Path(words[0]).name in {"sh", "bash", "zsh", "ksh", "dash", "fish", "env"}:
+                parser.error("verify cannot run a shell or env wrapper; record one executable command")
+            if not words or Path(words[0]).name in {"echo", "printf", "true", ":"}:
+                parser.error("stored verify command only prints or succeeds; record an actual check")
+            if args.then_command != expected or command_args:
+                parser.error("verify requires --then with the exact stored command; review it before running")
         operations = [{"action":"set-activity","stage":{"fix":"plan_fix","install":"install","verify":"verify"}[stage],"ids":ids,"now":f"{stage.title()} in progress"}]
+        if stage == 'verify':
+            operations[0]['expected_plan_sha256'] = hashlib.sha256(json.dumps(tracking['plan'], sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
+            expected_document = json.loads(json.dumps(data))
+            for finding in expected_document['findings']:
+                if finding['id'] in ids:
+                    finding['status'] = 'in_progress'
+            manage_findings.sync_plan_verify(expected_document)
+            expected_verify_plan = expected_document['tracking']['plan']
     elif stage == "introspect":
         if not args.sections: parser.error("introspect requires --sections FILE.json")
         op = {"action":"introspect","sections": json.loads(args.sections.read_text())}
@@ -264,19 +305,90 @@ def main():
     else: parser.error("unknown stage")
     report, base = live_state.report_paths(record, live)
     command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
-    result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
-    if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
-    live_state.snapshot(record, live)
-    if record.get("rollover_pending") and begins_collect:
-        records = live_state.registry()
-        current = records[key]
-        current.pop("rollover_pending", None)
-        live_state.save_registry(records)
-        live_state.ensure_viewer(key, current, live, plugin_version)
-    if args.then_command: subprocess.run(args.then_command, shell=True, check=True)
-    elif command_args: subprocess.run(command_args, check=True)
-    if args.progress:
-        args.progress.parent.mkdir(parents=True, exist_ok=True)
-        with args.progress.open("a") as out: out.write(f"{stamp} {stage}\n")
+    verification_claim = None
+    if stage == "verify":
+        verification_claim = tracker_lock.exclusive_lock(tracker_lock.verify_lock_path(live), blocking=False)
+        try:
+            verification_claim.__enter__()
+        except tracker_lock.LockBusyError:
+            raise SystemExit("verification already in progress for this tracker")
+    try:
+        result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
+        if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
+        live_state.snapshot(record, live)
+        if record.get("rollover_pending") and begins_collect:
+            records = live_state.registry()
+            current = records[key]
+            current.pop("rollover_pending", None)
+            live_state.save_registry(records)
+            live_state.ensure_viewer(key, current, live, plugin_version)
+        if stage == "verify":
+            try:
+                with tracker_lock.exclusive_lock(tracker_lock.plan_lock_path(live)):
+                    current = json.loads(live.read_text())
+                    current_tracking = current.get('tracking', {})
+                    started_plan = current_tracking['plan']
+                    started_groups = {group['id']: group for group in started_plan['groups']}
+                    if started_plan != expected_verify_plan or any(group['id'] not in started_groups or
+                           started_groups[group['id']].get('finding_ids') != group.get('finding_ids') or
+                           started_groups[group['id']].get('verify', {}).get('command') != expected
+                           for group in groups) or any(started_plan.get(k) != tracking['plan'].get(k) for k in ('cycle', 'round')):
+                        raise SystemExit('plan changed before verification command started; reload and retry')
+                    try:
+                        manage_findings.validate_dependencies(
+                            started_plan['groups'], current['findings'], current_tracking)
+                    except ValueError as error:
+                        raise SystemExit(f'verification prerequisites changed before command started: {error}') from error
+                    process = subprocess.Popen(words)
+                # Release the reservation immediately after successful spawn so the
+                # verifier can use the managed tracker writers itself.
+                code = process.wait()
+                reason = f"Verification command exited {code}" if code else ""
+            except OSError as error:
+                code = 127
+                reason = f"Verification command could not start: {error}"
+            if code:
+                print(reason, file=sys.stderr)
+                previous = {item['id']: item.get('status') for item in data['findings']}
+                recorded = False
+                for group in groups:
+                    current = json.loads(live.read_text())
+                    lane = {"action":"update-plan-group", "id":group['id'],
+                        "expected_cycle":started_plan.get('cycle'), "expected_round":started_plan.get('round'),
+                        "expected_group":started_groups[group['id']], "patch":{
+                        "status":"failed", "phase":"verify",
+                        "verify":{**started_groups[group['id']].get('verify', {}), "failure":reason}}}
+                    failed = [lane]
+                    current_status = {item['id']: item.get('status') for item in current['findings']}
+                    run = current['tracking'].get('verification_run', {})
+                    for identifier in ids:
+                        if identifier not in group.get('finding_ids', []) or current_status.get(identifier) != 'in_progress':
+                            continue
+                        status = previous.get(identifier)
+                        failed.append({"action":"update", "id":identifier, "expected_status":"in_progress", "patch":{
+                            "status": "blocked" if status == "in_progress" else status}})
+                        if run.get('status') == 'active' and run.get('checks', {}).get(identifier, {}).get('state') == 'checking':
+                            failed.append({"action":"finish-check", "run_id":run['id'], "id":identifier,
+                                           "outcome":"blocked", "evidence":reason})
+                    saved = subprocess.run(command, input=json.dumps(failed), text=True, capture_output=True)
+                    if saved.returncode and len(failed) > 1:
+                        sys.stderr.write(f"Could not update verification findings for {group['id']}: " + (saved.stderr or saved.stdout))
+                        saved = subprocess.run(command, input=json.dumps([lane]), text=True, capture_output=True)
+                    if saved.returncode:
+                        sys.stderr.write(f"Could not record failed lanes ({group['id']}): " + (saved.stderr or saved.stdout))
+                    else:
+                        recorded = True
+                if recorded:
+                    live_state.snapshot(record, live)
+                raise SystemExit(code if code > 0 else 128 - code)
+        elif args.then_command: subprocess.run(args.then_command, shell=True, check=True)
+        elif command_args: subprocess.run(command_args, check=True)
+        if args.progress:
+            args.progress.parent.mkdir(parents=True, exist_ok=True)
+            with args.progress.open("a") as out: out.write(f"{stamp} {stage}\n")
+
+    finally:
+        if verification_claim is not None:
+            verification_claim.__exit__(None, None, None)
 
 if __name__ == "__main__": main()

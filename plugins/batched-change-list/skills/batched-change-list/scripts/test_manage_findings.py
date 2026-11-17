@@ -1,4 +1,5 @@
 import json
+import hashlib
 import os
 import subprocess
 import sys
@@ -6,12 +7,272 @@ import tempfile
 import unittest
 from pathlib import Path
 
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+
 SCRIPT = Path(__file__).with_name("manage_findings.py")
 EXAMPLE = Path(__file__).parents[1] / "examples/findings.json"
 RENDERER = Path(__file__).with_name("render.py")
 
 
 class ManageFindingsTests(unittest.TestCase):
+    def test_current_round_finding_assignments_are_unique(self):
+        ops, page = self.root / 'overlap.json', self.root / 'overlap.html'
+        def apply(*rows):
+            ops.write_text(json.dumps(rows))
+            return self.cli('batch', self.data, ops, '--render', page)
+        first = {'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}
+        second = {'id':'B','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}
+        before = self.data.read_bytes()
+        result = apply({'action':'set-plan','plan':{'round':1,'groups':[first, second]}})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('multiple current-round groups', result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+        second.update(status='deferred', phase='deferred', parked_to=2)
+        self.assertEqual(apply({'action':'set-plan','plan':{'round':1,'groups':[first, second]}}).returncode, 0)
+        self.assertEqual(apply({'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Starting'}).returncode, 0)
+        before = self.data.read_bytes()
+        result = apply({'action':'update-plan-group','id':'B','patch':{'status':'pending'}})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('multiple current-round groups', result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+        historical = json.loads(self.data.read_text())
+        historical['tracking']['plan']['groups'][1].update(status='pending', phase='fix')
+        self.data.write_text(json.dumps(historical))
+        before = self.data.read_bytes()
+        result = apply({'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Starting'})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('multiple current-round groups', result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
+    def test_dependencies_block_early_work_and_cycles_but_allow_ready_work(self):
+        ops, page = self.root / 'dependencies.json', self.root / 'page.html'
+        def apply(*operations):
+            ops.write_text(json.dumps(operations))
+            return self.cli('batch', self.data, ops, '--render', page)
+        groups = [
+            {'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'running'},
+            {'id':'B','finding_ids':['ISSUE-02'],'depends_on':['A'],'status':'running'},
+        ]
+        before = self.data.read_bytes()
+        result = apply({'action':'set-plan','plan':{'round':1,'groups':groups}})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('must wait', result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+        groups[1]['status'] = 'pending'
+        self.assertEqual(apply({'action':'set-plan','plan':{'round':1,'groups':groups}}).returncode, 0)
+        before = self.data.read_bytes()
+        self.assertNotEqual(apply({'action':'update-plan-group','id':'B','patch':{'status':'running'}}).returncode, 0)
+        self.assertNotEqual(apply({'action':'set-activity','stage':'plan_fix','ids':['ISSUE-02'],'now':'Starting B'}).returncode, 0)
+        self.assertEqual(self.data.read_bytes(), before)
+        forged = apply({'action':'update-plan-group','id':'A','patch':{'status':'verified'}})
+        self.assertNotEqual(forged.returncode, 0)
+        self.assertIn('requires verified findings', forged.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+        proof = {'status':'verified_fixed','verification':'Checked on installed build','verification_refs':['receipt']}
+        self.assertEqual(apply({'action':'update','id':'ISSUE-01','patch':proof}).returncode, 0)
+        self.assertEqual(apply({'action':'update-plan-group','id':'A','patch':{'status':'verified'}}).returncode, 0)
+        self.assertEqual(apply({'action':'update-plan-group','id':'B','patch':{'status':'running'}}).returncode, 0)
+        cyclic = [{'id':'A','finding_ids':['ISSUE-01'],'depends_on':['B'],'status':'pending'},
+                  {'id':'B','finding_ids':['ISSUE-02'],'depends_on':['A'],'status':'pending'}]
+        result = apply({'action':'set-plan','plan':{'round':1,'groups':cyclic}})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('dependency cycle', result.stderr)
+
+    def test_activity_rejects_unplanned_or_parked_findings(self):
+        ops, page = self.root / 'eligible.json', self.root / 'eligible.html'
+        def apply(*rows):
+            ops.write_text(json.dumps(rows))
+            return self.cli('batch', self.data, ops, '--render', page)
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'},
+                {'id':'B','finding_ids':['ISSUE-02'],'depends_on':[],'status':'deferred','phase':'deferred','parked_to':2}]}
+        entry = {'id':'ISSUE-03','title':'Unplanned issue','source':'Agent reported','status':'untested',
+                 'observed':'An issue exists.','recommendation':'Investigate.'}
+        self.assertEqual(apply({'action':'add','entry':entry}, {'action':'set-plan','plan':plan}).returncode, 0)
+        before = self.data.read_bytes()
+        for identifier in ('ISSUE-02', 'ISSUE-03'):
+            result = apply({'action':'set-activity','stage':'plan_fix','ids':[identifier],'now':'Starting'})
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('eligible current-round plan group', result.stderr)
+            self.assertEqual(self.data.read_bytes(), before)
+
+    def test_lane_state_update_refreshes_workflow_clock(self):
+        ops, page = self.root / 'clock.json', self.root / 'clock.html'
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}
+        ops.write_text(json.dumps([{'action':'set-plan','plan':plan}]))
+        self.assertEqual(self.cli('batch', self.data, ops, '--render', page).returncode, 0)
+        document = json.loads(self.data.read_text())
+        document['tracking']['workflow']['updated_at'] = '2020-01-01T00:00:00Z'
+        self.data.write_text(json.dumps(document))
+        ops.write_text(json.dumps([{'action':'update-plan-group','id':'A','patch':{'status':'running'}}]))
+        self.assertEqual(self.cli('batch', self.data, ops, '--render', page).returncode, 0)
+        workflow = json.loads(self.data.read_text())['tracking']['workflow']
+        self.assertGreater(workflow['updated_at'], '2020-01-01T00:00:00Z')
+        self.assertIn('Lane A updated', workflow['now'])
+        document = json.loads(self.data.read_text())
+        document['tracking']['workflow']['updated_at'] = '2020-01-01T00:00:00Z'
+        self.data.write_text(json.dumps(document))
+        self.assertEqual(self.cli('batch', self.data, ops, '--render', page).returncode, 0)
+        self.assertEqual(json.loads(self.data.read_text())['tracking']['workflow']['updated_at'], '2020-01-01T00:00:00Z')
+
+    def test_reopened_prerequisite_blocks_running_dependent(self):
+        ops, page = self.root / 'reopen.json', self.root / 'reopen.html'
+        def apply(*rows):
+            ops.write_text(json.dumps(rows))
+            return self.cli('batch', self.data, ops, '--render', page)
+        proof = {'status':'verified_fixed','verification':'Checked on installed build','verification_refs':['receipt']}
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'verified'},
+                {'id':'B','finding_ids':['ISSUE-02'],'depends_on':['A'],'status':'running'},
+                {'id':'C','finding_ids':['ISSUE-03'],'depends_on':['A'],'status':'verified'}]}
+        entry = {'id':'ISSUE-03','title':'Dependent issue','source':'Agent reported','status':'untested',
+                 'observed':'An issue exists.','recommendation':'Investigate.'}
+        self.assertEqual(apply({'action':'add','entry':entry}, {'action':'update','id':'ISSUE-01','patch':proof},
+                               {'action':'update','id':'ISSUE-03','patch':proof}, {'action':'set-plan','plan':plan}).returncode, 0)
+        result = apply({'action':'update','id':'ISSUE-01','patch':{'status':'failing'}})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        document = json.loads(self.data.read_text())
+        self.assertEqual(document['findings'][0]['status'], 'failing')
+        groups = {group['id']:group for group in document['tracking']['plan']['groups']}
+        self.assertEqual(groups['A']['status'], 'blocked')
+        self.assertEqual(groups['B']['status'], 'blocked')
+        self.assertEqual(groups['C']['status'], 'blocked')
+        dependent = document['findings'][2]
+        self.assertEqual(dependent['status'], 'blocked')
+        self.assertEqual(dependent['verification_refs'], ['receipt'])
+        self.assertEqual(groups['B']['blocked_reason'], 'Prerequisite verification changed')
+        self.assertIn('Prerequisite verification changed', page.read_text())
+
+    def test_current_recheck_invalidates_verified_prerequisite(self):
+        ops, page = self.root / 'recheck-plan.json', self.root / 'recheck-plan.html'
+        def apply(*rows):
+            ops.write_text(json.dumps(rows))
+            return self.cli('batch', self.data, ops, '--render', page)
+        proof = {'status':'verified_fixed','verification':'Checked on installed build','verification_refs':['receipt']}
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'verified'},
+                {'id':'B','finding_ids':['ISSUE-02'],'depends_on':['A'],'status':'running'}]}
+        self.assertEqual(apply({'action':'update','id':'ISSUE-01','patch':proof}, {'action':'set-plan','plan':plan}).returncode, 0)
+        run = {'id':'run-1','build':'ACU 1.2.3','revision':'abc','installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt'}
+        self.assertEqual(apply({'action':'start-verification','run':run}).returncode, 0)
+        result = apply({'action':'start-check','id':'ISSUE-01','run_id':'run-1',
+                        'observation':'Observed again','observed_at':'2026-11-06T00:01:00Z'})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        document = json.loads(self.data.read_text())
+        self.assertEqual(document['tracking']['plan']['groups'][1]['status'], 'blocked')
+
+    def test_standalone_update_invalidates_running_dependent(self):
+        document = json.loads(self.data.read_text())
+        document['findings'][0].update(status='verified_fixed', verification='Checked', verification_refs=['receipt'])
+        document['tracking'] = {'plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'verified'},
+                                  {'id':'B','finding_ids':['ISSUE-02'],'depends_on':['A'],'status':'running'}]}}
+        self.data.write_text(json.dumps(document))
+        patch = self.root / 'standalone-patch.json'
+        patch.write_text(json.dumps({'status':'failing'}))
+        result = self.cli('update', self.data, 'ISSUE-01', patch)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        document = json.loads(self.data.read_text())
+        self.assertEqual(document['findings'][0]['status'], 'failing')
+        self.assertEqual(document['tracking']['plan']['groups'][1]['status'], 'blocked')
+
+    def test_standalone_delete_invalidates_running_dependent(self):
+        document = json.loads(self.data.read_text())
+        document['findings'][0].update(status='verified_fixed', verification='Checked', verification_refs=['receipt'])
+        document['tracking'] = {'plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'verified'},
+                                  {'id':'B','finding_ids':['ISSUE-02'],'depends_on':['A'],'status':'running'}]}}
+        self.data.write_text(json.dumps(document))
+        result = self.cli('delete', self.data, 'ISSUE-01')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        document = json.loads(self.data.read_text())
+        self.assertEqual([item['id'] for item in document['findings']], ['ISSUE-02'])
+        self.assertEqual(document['tracking']['plan']['groups'][1]['status'], 'blocked')
+
+    def test_batch_update_expected_status_rejects_mismatch_without_writing(self):
+        ops, page = self.root / 'expected.json', self.root / 'expected.html'
+        before = self.data.read_bytes()
+        ops.write_text(json.dumps([{'action':'update','id':'ISSUE-01','expected_status':'in_progress',
+                                   'patch':{'status':'failing'}}]))
+        result = self.cli('batch', self.data, ops, '--render', page)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('status changed; refusing update', result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
+    def test_plan_precondition_checks_original_plan_across_batch(self):
+        ops, page = self.root / 'fingerprint.json', self.root / 'fingerprint.html'
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'},
+                {'id':'B','finding_ids':['ISSUE-02'],'depends_on':[],'status':'pending'}]}
+        ops.write_text(json.dumps([{'action':'set-plan','plan':plan}]))
+        self.assertEqual(self.cli('batch', self.data, ops, '--render', page).returncode, 0)
+        current = json.loads(self.data.read_text())['tracking']['plan']
+        digest = hashlib.sha256(json.dumps(current, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
+        ops.write_text(json.dumps([{'action':'update-plan-group','id':group,'expected_plan_sha256':digest,'patch':{'status':'running'}} for group in ('A','B')]))
+        self.assertEqual(self.cli('batch', self.data, ops, '--render', page).returncode, 0)
+        before = self.data.read_bytes()
+        result = self.cli('batch', self.data, ops, '--render', page)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('plan changed; refusing group update', result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+        ops.write_text(json.dumps([{'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],
+                                    'now':'Starting','expected_plan_sha256':digest}]))
+        result = self.cli('batch', self.data, ops, '--render', page)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('plan changed; refusing activity update', result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
+    def test_group_precondition_allows_other_lane_updates_but_not_selected_lane_change(self):
+        ops, page = self.root / 'group-precondition.json', self.root / 'group-precondition.html'
+        def apply(*rows):
+            ops.write_text(json.dumps(rows))
+            return self.cli('batch', self.data, ops, '--render', page)
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'},
+                {'id':'B','finding_ids':['ISSUE-02'],'depends_on':[],'status':'pending'}]}
+        self.assertEqual(apply({'action':'set-plan','plan':plan}).returncode, 0)
+        saved = json.loads(self.data.read_text())['tracking']['plan']
+        precondition = {'expected_group':saved['groups'][0], 'expected_cycle':saved['cycle'], 'expected_round':saved['round']}
+        self.assertEqual(apply({'action':'update-plan-group','id':'B','patch':{'status':'running'}}).returncode, 0)
+        self.assertEqual(apply({'action':'update-plan-group','id':'A','patch':{'status':'running'},**precondition}).returncode, 0)
+        before = self.data.read_bytes()
+        result = apply({'action':'update-plan-group','id':'A','patch':{'status':'review'},**precondition})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('plan group changed', result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
+    @unittest.skipIf(fcntl is None, 'requires Unix flock')
+    def test_competing_writers_serialize_without_blocking_readers(self):
+        lock_dir = Path('/tmp') / f'bcl-tracker-locks-{os.getuid()}'
+        lock_dir.mkdir(mode=0o700, exist_ok=True)
+        lock_name = hashlib.sha256(str(self.data.resolve()).encode()).hexdigest() + '.lock'
+        original = json.loads(self.data.read_text())['findings'][0]['status']
+        processes = []
+        with (lock_dir / lock_name).open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            for index, status in enumerate(('failing', 'in_progress')):
+                ops = self.root / f'compete-{index}.json'
+                ops.write_text(json.dumps([{'action':'update','id':'ISSUE-01','expected_status':original,
+                                            'patch':{'status':status}}]))
+                processes.append(subprocess.Popen([sys.executable, str(SCRIPT), 'batch', str(self.data), str(ops),
+                                                   '--render', str(self.root / f'compete-{index}.html')],
+                                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True))
+            read = self.cli('list', self.data)
+            self.assertEqual(read.returncode, 0, read.stderr)
+            self.assertTrue(all(process.poll() is None for process in processes))
+            fcntl.flock(lock, fcntl.LOCK_UN)
+        outputs = [process.communicate(timeout=10) for process in processes]
+        self.assertEqual(sorted(process.returncode for process in processes), [0, 2], outputs)
+        self.assertIn('status changed; refusing update', ''.join(stderr for _, stderr in outputs))
+
+    def test_verification_rejects_unknown_build_or_revision_without_writing(self):
+        ops = self.root / 'run.json'
+        run = {'id':'run-1','build':'ACU 1.2.3','revision':'abc','installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt'}
+        before = self.data.read_bytes()
+        for field in ('build', 'revision'):
+            candidate = {**run, field:'unknown'}
+            ops.write_text(json.dumps([{'action':'start-verification','run':candidate}]))
+            result = self.cli('batch', self.data, ops, '--render', self.root / 'page.html')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('known build and revision', result.stderr)
+            self.assertEqual(self.data.read_bytes(), before)
+
     def test_plan_validation_replacement_and_group_patch(self):
         ops, page = self.root / 'plan.json', self.root / 'plan.html'
         def batch(*rows):
@@ -29,9 +290,39 @@ class ManageFindingsTests(unittest.TestCase):
             self.assertEqual(self.data.read_bytes(), before)
         plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','label':'Settings behavior','verify_summary':'Check the selected panel'}]}
         self.assertEqual(batch({'action':'set-plan','plan':plan}).returncode, 0)
+        planned = json.loads(self.data.read_text())['tracking']
+        self.assertEqual(planned['workflow']['stage'], 'plan_fix')
+        self.assertTrue(planned['workflow']['updated_at'].endswith('Z'))
+        self.assertIn('Plan recorded', planned['workflow']['now'])
+        self.assertIn('plan_fix', planned['stages_reached'])
         self.assertEqual(batch({'action':'set-plan','plan':plan}, {'action':'update-plan-group','id':'A','patch':{'status':'done','label':'Updated label','verify_summary':'Runtime check passed'}}).returncode, 0)
         group = json.loads(self.data.read_text())['tracking']['plan']['groups'][0]
         self.assertEqual((group['status'], group['label'], group['verify_summary']), ('done','Updated label','Runtime check passed'))
+
+    def test_plan_check_caps_group_size_without_rejecting_effort(self):
+        sys.path.insert(0, str(SCRIPT.parent))
+        import manage_findings
+        manage_findings.validate_plan_groups({
+            "round": 2,
+            "groups": [{"id": "A", "finding_ids": ["I1", "I2", "I3", "I4"], "status": "pending",
+                        "codex": {"effort": "medium"}}],
+        })
+        with self.assertRaises(ValueError) as err:
+            manage_findings.validate_plan_groups({
+                "round": 2,
+                "groups": [{"id": "BIG", "finding_ids": ["A", "B", "C", "D", "E"], "status": "pending"}],
+            })
+        self.assertIn("cap a parallel fix group", str(err.exception))
+        manage_findings.validate_plan_groups({
+            "round": 2,
+            "groups": [{"id": "HARD", "finding_ids": ["A"], "status": "pending",
+                        "codex": {"model": "gpt-6-luna", "effort": "max"}}],
+        })
+        manage_findings.validate_plan_groups({
+            "round": 2,
+            "groups": [{"id": "OLD", "finding_ids": ["A", "B", "C", "D", "E"], "status": "deferred",
+                        "codex": {"effort": "max"}}],
+        })
 
     def test_recheck_preserves_previous_result_and_other_checks(self):
         ops, page = self.root / 'ops.json', self.root / 'page.html'
@@ -67,7 +358,7 @@ class ManageFindingsTests(unittest.TestCase):
         ops, page = self.root / 'phase.json', self.root / 'report.html'
         for stage in ('collect', 'present', 'plan_fix', 'install', 'verify', 'introspect', 'gate', 'report_rollover', None):
             pre = [{'action':'introspect','sections':{'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}},'result':'no issues'}] if stage == 'report_rollover' else []
-            if stage in ('install', 'verify', 'report_rollover'):
+            if stage in ('plan_fix', 'install', 'verify', 'report_rollover'):
                 pre.insert(0, {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}})
                 if stage in ('verify', 'report_rollover'):
                     pre.insert(1, {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'})
@@ -97,6 +388,10 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIn('in_progress', result.stderr)
         self.assertEqual(self.data.read_bytes(), before)
         result = run({'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Starting a fix cycle'})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('requires a plan', result.stderr)
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
+        result = run(plan, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Starting a fix cycle'})
         self.assertEqual(result.returncode, 0, result.stderr)
         data = json.loads(self.data.read_text())
         self.assertEqual(data['findings'][0]['status'], 'in_progress')
@@ -125,7 +420,7 @@ class ManageFindingsTests(unittest.TestCase):
                 operations.write_text(json.dumps([operation]))
                 result = self.cli('batch', self.data, operations, '--render', self.root / 'guard.html')
                 self.assertNotEqual(result.returncode, 0, (stage, operation))
-                self.assertTrue('in_progress' in result.stderr or 'recorded plan' in result.stderr or 'requires install' in result.stderr)
+                self.assertTrue('in_progress' in result.stderr or 'recorded plan' in result.stderr or 'requires install' in result.stderr or 'requires a plan' in result.stderr)
                 self.assertEqual(self.data.read_bytes(), before)
         operations = self.root / 'guard.json'
         plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
@@ -140,7 +435,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIn('nonempty ID list', empty.stderr)
         self.assertEqual(self.data.read_bytes(), before)
 
-    def test_finding_write_advances_workflow_updated_at(self):
+    def test_finding_write_preserves_last_workflow_activity(self):
         document = json.loads(self.data.read_text())
         document['tracking'] = {'workflow': {'stage':'collect','updated_at':'2020-01-01T00:00:00Z','now':'Last activity'}}
         self.data.write_text(json.dumps(document))
@@ -151,7 +446,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         written = json.loads(self.data.read_text())
         self.assertEqual(written['tracking']['workflow']['stage'], 'collect')
-        self.assertGreater(written['tracking']['workflow']['updated_at'], '2020-01-01T00:00:00Z')
+        self.assertEqual(written['tracking']['workflow']['updated_at'], '2020-01-01T00:00:00Z')
         self.assertEqual(written['tracking']['cycle'], 1)
 
     def test_audit_flags_stale_and_duplicate_without_writing(self):
@@ -228,12 +523,19 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(tracking['round'], 2)
         self.assertEqual(tracking['round_history'][0]['round'], 1)
         self.assertEqual(tracking['plan']['round'], 2)
+        self.assertEqual(tracking['workflow']['stage'], 'plan_fix')
+        self.assertIn('plan_fix', tracking['stages_reached'])
+        self.assertNotIn('install', tracking['stages_reached'])
+        self.assertNotIn('verify', tracking['stages_reached'])
+        self.assertNotIn('introspect', tracking['stages_reached'])
+        self.assertNotIn('gate', tracking['stages_reached'])
         group = tracking['plan']['groups'][0]
         self.assertEqual((group['name'], group['worktree'], group['codex']['job_id'], group['codex']['duration_s']), ('Plain group','fix-a','job-1',300))
 
     def test_set_activity_marks_group_and_renders_single_now_line(self):
         operations, page = self.root / 'activity.json', self.root / 'activity.html'
-        operations.write_text(json.dumps([{'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
+        operations.write_text(json.dumps([plan, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],
                                            'now':'Inspecting the shared root cause'}]))
         result = self.cli('batch', self.data, operations, '--render', page)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -398,6 +700,9 @@ class ManageFindingsTests(unittest.TestCase):
 
     def test_set_activity_requires_reopen_for_closed_findings(self):
         operations, page = self.root / 'closed-activity.json', self.root / 'closed-activity.html'
+        document = json.loads(self.data.read_text())
+        document['tracking'] = {'plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-02'],'depends_on':[],'status':'pending'}]}}
+        self.data.write_text(json.dumps(document))
         for status in ('verified_fixed', 'closed'):
             document = json.loads(self.data.read_text())
             document['findings'][1]['status'] = status
@@ -675,7 +980,30 @@ class ManageFindingsTests(unittest.TestCase):
                               text=True, capture_output=True,
                               env={**os.environ, "BCL_STATE_DIR": str(self.state), **(env or {})})
 
-    def test_add_update_and_batch_use_report_capture_base_and_warn_when_missing(self):
+    def test_only_registered_live_mutations_create_unsnapshotted_marker(self):
+        self.state.mkdir()
+        live = self.state / '110.json'
+        live.write_bytes(self.data.read_bytes())
+        (self.state / 'registry.json').write_text(json.dumps({'repo/110': {'live':str(live), 'home':str(self.root),
+            'snapshot':'snapshot.json', 'html':'report.html'}}))
+        patch = self.root / 'patch.json'
+        patch.write_text(json.dumps({'status':'in_progress'}))
+        result = self.cli('update', live, 'ISSUE-01', patch)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        marker = live.with_suffix('.unsnapshotted')
+        self.assertEqual(marker.read_text().strip(), hashlib.sha256(live.read_bytes()).hexdigest())
+        result = self.cli('update', self.data, 'ISSUE-01', patch)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(self.data.with_suffix('.unsnapshotted').exists())
+        unregistered = self.state / '111.json'
+        unregistered.write_bytes(self.data.read_bytes())
+        before = unregistered.read_bytes()
+        result = self.cli('update', unregistered, 'ISSUE-01', patch)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('not registered', result.stderr)
+        self.assertEqual(unregistered.read_bytes(), before)
+
+    def test_add_update_and_batch_preserve_changes_but_fail_when_capture_missing(self):
         home = self.root / "project"
         base = home / "docs/triage"
         capture = base / "captures/proof.png"
@@ -704,15 +1032,17 @@ class ManageFindingsTests(unittest.TestCase):
         added.write_text(json.dumps({"id": "ISSUE-03", "title": "New", "evidence": [
             {"src": "captures/missing.png", "alt": "missing", "caption": "missing"}]}))
         add_result = self.cli("add", live, added)
-        self.assertEqual(add_result.returncode, 0, add_result.stderr)
-        self.assertIn("missing report capture", add_result.stderr)
+        self.assertNotEqual(add_result.returncode, 0)
+        self.assertIn("JSON saved but report capture is missing", add_result.stderr)
+        self.assertTrue(live.with_suffix(".unsnapshotted").exists())
+        self.assertTrue(any(item["id"] == "ISSUE-03" for item in json.loads(live.read_text())["findings"]))
 
         operations = self.root / "ops.json"
         operations.write_text(json.dumps([{"action": "set-activity", "stage": "collect", "ids": [], "now": "Collecting"}]))
         page = base / "110.html"
         batch = self.cli("batch", live, operations, "--render", page)
-        self.assertEqual(batch.returncode, 0, batch.stderr)
-        self.assertIn("missing report capture", batch.stderr)
+        self.assertNotEqual(batch.returncode, 0)
+        self.assertIn("JSON saved but report capture is missing", batch.stderr)
         self.assertFalse(page.exists())
 
     def test_list_and_get_return_only_requested_records(self):

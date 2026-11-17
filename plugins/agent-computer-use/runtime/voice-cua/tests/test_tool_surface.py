@@ -167,6 +167,9 @@ class RiskGateTests(_Fresh):
         self.assertTrue(result["timed_out"])
         self.assertEqual(result["error_type"], "confirm_timed_out")
         self.assertIn("No answer before the confirm timed out", result["hint"])
+        self.assertIn("A timeout is not a no", result["hint"])
+        self.assertNotIn("still needs their OK", result["hint"])
+        self.assertNotIn("Tell the user it still needs", result["hint"])
         answer = next(fields for kind, fields in events if kind == "confirm_answer")
         self.assertEqual((answer["outcome"], answer["reason"], answer["approved"], answer["timed_out"]),
                          ("timed_out", "timed_out", False, True))
