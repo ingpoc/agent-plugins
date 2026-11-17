@@ -2505,9 +2505,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-17T09:01:09Z",
-      "now": "2026-11-17T09:01:09Z — Plan recorded"
+      "stage": "install",
+      "updated_at": "2026-11-17T09:20:02Z",
+      "now": "2026-11-17T09:20:02Z — Install in progress"
     },
     "rollover": {
       "source_pr": 111,
