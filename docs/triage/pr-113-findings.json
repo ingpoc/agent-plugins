@@ -3162,7 +3162,20 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T09:35:35Z"
+          "updated_at": "2026-11-17T09:51:38Z",
+          "codex": {
+            "implementer_session": "01a1e8d8-57f4-7311-8a9b-ba4375f82069",
+            "implementer": "luna",
+            "implementer_model": "gpt-6-luna",
+            "implementer_effort": "medium",
+            "reviewer_session": "01a1e8de-8775-78e3-9893-85e06478de73",
+            "reviewer_model": "gpt-6.1-terra",
+            "reviewer_effort": "medium",
+            "reviewer_verdict": "request-changes",
+            "review_status": "passed",
+            "status": "running",
+            "updated_at": "2026-11-17T09:51:38Z"
+          }
         },
         {
           "id": "HOOK",
@@ -3187,7 +3200,20 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T09:35:35Z"
+          "updated_at": "2026-11-17T09:51:38Z",
+          "codex": {
+            "implementer_session": "01a1e8d8-57f5-7ad3-9b71-68c9c3b0e3cd",
+            "implementer": "luna",
+            "implementer_model": "gpt-6-luna",
+            "implementer_effort": "medium",
+            "reviewer_session": "01a1e8de-8775-7731-ba22-0c55ce536cad",
+            "reviewer_model": "gpt-6.1-terra",
+            "reviewer_effort": "medium",
+            "reviewer_verdict": "request-changes",
+            "review_status": "passed",
+            "status": "running",
+            "updated_at": "2026-11-17T09:51:38Z"
+          }
         },
         {
           "id": "OUTCOME",
@@ -3212,7 +3238,20 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T09:35:35Z"
+          "updated_at": "2026-11-17T09:51:38Z",
+          "codex": {
+            "implementer_session": "01a1e8d8-57f6-7d13-ad18-66ebe04aaa1a",
+            "implementer": "luna",
+            "implementer_model": "gpt-6-luna",
+            "implementer_effort": "medium",
+            "reviewer_session": "01a1e8de-877e-7403-a0e8-e238c8dae1a1",
+            "reviewer_model": "gpt-6.1-terra",
+            "reviewer_effort": "medium",
+            "reviewer_verdict": "approve",
+            "review_status": "passed",
+            "status": "running",
+            "updated_at": "2026-11-17T09:51:38Z"
+          }
         },
         {
           "id": "SERVE",
@@ -3237,7 +3276,17 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T09:35:35Z"
+          "updated_at": "2026-11-17T09:51:38Z",
+          "codex": {
+            "one_file": true,
+            "implementer_session": "01a1e8d8-57f2-75b1-bacc-3d22bd9b369e",
+            "implementer": "luna",
+            "implementer_model": "gpt-6-luna",
+            "implementer_effort": "medium",
+            "review_status": "passed",
+            "status": "running",
+            "updated_at": "2026-11-17T09:51:38Z"
+          }
         },
         {
           "id": "HASH",
@@ -3256,7 +3305,14 @@
           ],
           "reason": "skill-refine --strict requires data-definition-hash equal to sha256 of workflow_definition.json.",
           "codex": {
-            "one_file": true
+            "one_file": true,
+            "implementer_session": "01a1e8dc-ebd5-7811-b208-0ae7e473d373",
+            "implementer": "luna",
+            "implementer_model": "gpt-6-luna",
+            "implementer_effort": "medium",
+            "review_status": "passed",
+            "status": "running",
+            "updated_at": "2026-11-17T09:51:38Z"
           },
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_skill.py'",
@@ -3266,7 +3322,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T09:35:35Z"
+          "updated_at": "2026-11-17T09:51:38Z"
         }
       ]
     },
