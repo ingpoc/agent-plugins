@@ -3803,9 +3803,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-17T11:04:07Z",
-      "now": "2026-11-17T11:04:07Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-17T11:05:46Z",
+      "now": "2026-11-17T11:05:46Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 113,
@@ -4042,8 +4042,8 @@
             "PLAN-02"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "review",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "samantha-pr114-rollover",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -4062,12 +4062,12 @@
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
             "method": "New and existing manage_findings tests must reject or split an oversized or Luna-max group.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T11:02:18Z"
+          "updated_at": "2026-11-17T11:05:22Z"
         },
         {
           "id": "SYNC",
@@ -4076,8 +4076,8 @@
             "AUTO-04"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "review",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "samantha-pr114-rollover",
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -4096,20 +4096,22 @@
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
             "method": "A new test must show bcl sync-main merges main, resolves skill-ref deletions, re-renders HTML, and stashes hook dirt.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T11:02:18Z"
+          "updated_at": "2026-11-17T11:05:22Z"
         }
-      ]
+      ],
+      "status": "closed"
     },
     "stages_reached": [
       "collect",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "verification_run": {
       "id": "bcl-0.1.32-9e8efcf5-114",
@@ -4123,11 +4125,13 @@
           "state": "pending"
         },
         "AUTO-04": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Installed batched-change-list 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 is present (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e). AUTO-04 is in_progress. Installed test_bcl.py 45 OK in 48.007s; five sync-main tests passed. About to run the stored discover command via bcl verify.",
           "observed_at": "2026-11-17T11:03:50Z",
           "started_at": "2026-11-17T11:03:53Z",
-          "updated_at": "2026-11-17T11:03:53Z"
+          "updated_at": "2026-11-17T11:03:53Z",
+          "evidence": "Installed bcl 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e, backup /tmp/bcl-install-0.1.32-backup-20261117-163138). Worktree after merge: test_manage_findings.py 73 OK in 14.177s and test_bcl.py 45 OK in 47.412s at 16:30:49 IST. Installed copy: test_manage_findings.py 73 OK in 13.752s, test_bcl.py 45 OK in 48.007s, 8 focused tests OK in 3.824s, finished 16:33:35 IST Asia/Calcutta. bcl verify PLAN re-ran test_manage_findings.py 73 OK in 13.899s; SYNC re-ran test_bcl.py 45 OK in 48.036s, finished 2026-11-17T11:04:56Z. Five sync-main tests passed on worktree and installed 0.1.32, including post-merge hook dirt, a failed merge with no unmerged paths, deleted skill-reference conflict resolution, and refusal to stash a dirty docs/triage tracker.",
+          "finished_at": "2026-11-17T11:05:22Z"
         },
         "AUTO-05": {
           "state": "pending"
@@ -4145,11 +4149,13 @@
           "state": "pending"
         },
         "PLAN-02": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Installed batched-change-list 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 is present (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e). PLAN-02 is in_progress. Installed test_manage_findings.py 73 OK in 13.752s; focused plan-check tests passed. About to run the stored discover command via bcl verify.",
           "observed_at": "2026-11-17T11:03:50Z",
           "started_at": "2026-11-17T11:03:53Z",
-          "updated_at": "2026-11-17T11:03:53Z"
+          "updated_at": "2026-11-17T11:03:53Z",
+          "evidence": "Installed bcl 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e, backup /tmp/bcl-install-0.1.32-backup-20261117-163138). Worktree after merge: test_manage_findings.py 73 OK in 14.177s and test_bcl.py 45 OK in 47.412s at 16:30:49 IST. Installed copy: test_manage_findings.py 73 OK in 13.752s, test_bcl.py 45 OK in 48.007s, 8 focused tests OK in 3.824s, finished 16:33:35 IST Asia/Calcutta. bcl verify PLAN re-ran test_manage_findings.py 73 OK in 13.899s; SYNC re-ran test_bcl.py 45 OK in 48.036s, finished 2026-11-17T11:04:56Z. test_plan_check_caps_group_size_and_rejects_max_effort, test_set_plan_rejects_oversized_and_max_effort_groups_without_writing, and test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal passed on worktree and installed 0.1.32. set-plan refuses current-round groups with more than 4 findings or effort max, using status (not phase) to decide exemptions; refused plans leave the tracker unchanged.",
+          "finished_at": "2026-11-17T11:05:22Z"
         },
         "PLAN-03": {
           "state": "pending"
@@ -4354,8 +4360,90 @@
         },
         "WF-15": {
           "state": "pending"
+        },
+        "BCL-36": {
+          "state": "pending"
+        },
+        "WF-16": {
+          "state": "pending"
         }
       }
+    },
+    "introspect": {
+      "result": "Round 1 Introspect recorded",
+      "at": "2026-11-17T11:05:46Z",
+      "task": "WF-16",
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: GUARD",
+        "One-file review exemption: GUARD",
+        "Polling and rework review: GUARD",
+        "Test command: GUARD: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
+        "Codex write: SNAP",
+        "One-file review exemption: SNAP",
+        "Polling and rework review: SNAP",
+        "Test command: SNAP: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
+        "Codex write: PLAN",
+        "Codex review: PLAN",
+        "Polling and rework review: PLAN",
+        "Test command: PLAN: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+        "Codex write: SYNC",
+        "Codex review: SYNC",
+        "Polling and rework review: SYNC",
+        "Test command: SYNC: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
+      ],
+      "none": [
+        "Stage: Plan & fix",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: GUARD",
+        "One-file review exemption: GUARD",
+        "Polling and rework review: GUARD",
+        "Test command: GUARD: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
+        "Codex write: SNAP",
+        "One-file review exemption: SNAP",
+        "Polling and rework review: SNAP",
+        "Test command: SNAP: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
+        "Codex write: PLAN",
+        "Codex review: PLAN",
+        "Test command: PLAN: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+        "Codex write: SYNC",
+        "Polling and rework review: SYNC",
+        "Test command: SYNC: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
+      ],
+      "sections": {
+        "delete": {
+          "none": "No extra process or files were dropped. Test-now groups used already-present 0.1.31; PLAN and SYNC added only the planned source and tests, then a 0.1.32 version bump."
+        },
+        "simplify": {
+          "items": [
+            {
+              "item": "Polling and rework review: PLAN",
+              "evidence": "Terra r1 (session 01a1e922-03dc-70d3-aabf-0abb9881fb39, 16:22 IST) found that phase took precedence over status, so a running group with phase done could bypass the max-effort and size caps, and a deferred group with phase fix could be rejected. Luna resumed session 01a1e91d-41fa-78f0-901a-873a5443e074 and now uses status first, falling back to phase only when status is missing, with tests in test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal. 73 manage_findings tests OK in 13.843s at 16:25 IST. No second review.",
+              "outcome": "fixed inline"
+            }
+          ]
+        },
+        "optimize": {
+          "none": "PLAN and SYNC shared one 0.1.32 install and one live verify pass after both reviews passed. No further process change was logged."
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "Codex review: SYNC",
+              "evidence": "Terra r1 (session 01a1e924-626f-7392-b9aa-41a3c94cd1a9, 16:24 IST) found two blocking P2s, now fixed (post-merge hook dirt is stashed; empty NUL-split conflict lists no longer look like unresolved conflicts), and a leftover: the pre-merge stash still captures all non-triage dirty files, not only hook or check dirt. Filed as BCL-36.",
+              "outcome": "issue",
+              "issue_id": "BCL-36"
+            }
+          ]
+        }
+      },
+      "round": 1,
+      "cycle": 6
     }
   },
   "findings": [
@@ -4395,7 +4483,7 @@
       "id": "AUTO-04",
       "title": "Syncing main after a merge is still a set of hand steps",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "summary": "After a merge, catching the local branch up to main still takes several manual sync and render steps.",
       "impact": "Those steps are easy to miss or do inconsistently, which leaves the worktree dirty or the page out of date.",
       "done_when": "`bcl sync-main` merges main, resolves deletions of skill references, re-renders HTML, and stashes hook dirt in one scripted step.",
@@ -4405,7 +4493,21 @@
         "Evidence": "Hand steps for #107; Guru 17:20 IST",
         "Already tracked": "BCL-02 covers stored verify commands"
       },
-      "carried_from": 110
+      "carried_from": 110,
+      "verification_evidence": [
+        {
+          "check": "Installed bcl 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e, backup /tmp/bcl-install-0.1.32-backup-20261117-163138). Worktree after merge: test_manage_findings.py 73 OK in 14.177s and test_bcl.py 45 OK in 47.412s at 16:30:49 IST. Installed copy: test_manage_findings.py 73 OK in 13.752s, test_bcl.py 45 OK in 48.007s, 8 focused tests OK in 3.824s, finished 16:33:35 IST Asia/Calcutta. bcl verify PLAN re-ran test_manage_findings.py 73 OK in 13.899s; SYNC re-ran test_bcl.py 45 OK in 48.036s, finished 2026-11-17T11:04:56Z. Five sync-main tests passed on worktree and installed 0.1.32, including post-merge hook dirt, a failed merge with no unmerged paths, deleted skill-reference conflict resolution, and refusal to stash a dirty docs/triage tracker.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.32",
+          "session": "installed-0.1.32-verify-114",
+          "timestamp": "2026-11-17T11:04:56Z",
+          "reference": "9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4:AUTO-04:installed-cli-suite"
+        }
+      ],
+      "verification": "Installed bcl 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e, backup /tmp/bcl-install-0.1.32-backup-20261117-163138). Worktree after merge: test_manage_findings.py 73 OK in 14.177s and test_bcl.py 45 OK in 47.412s at 16:30:49 IST. Installed copy: test_manage_findings.py 73 OK in 13.752s, test_bcl.py 45 OK in 48.007s, 8 focused tests OK in 3.824s, finished 16:33:35 IST Asia/Calcutta. bcl verify PLAN re-ran test_manage_findings.py 73 OK in 13.899s; SYNC re-ran test_bcl.py 45 OK in 48.036s, finished 2026-11-17T11:04:56Z. Five sync-main tests passed on worktree and installed 0.1.32, including post-merge hook dirt, a failed merge with no unmerged paths, deleted skill-reference conflict resolution, and refusal to stash a dirty docs/triage tracker.",
+      "verification_refs": [
+        "9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4:AUTO-04:installed-cli-suite"
+      ]
     },
     {
       "id": "AUTO-05",
@@ -4521,13 +4623,27 @@
       "id": "PLAN-02",
       "title": "Split heavy Luna-max jobs into medium jobs (plan check)",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "summary": "The plan should catch a too-heavy group, especially a Luna-max job, and split it into medium jobs before it is launched.",
       "impact": "One Luna-max island job in this cycle took about 25 minutes and about 11 million tokens, which delayed the rest of the parallel round.",
       "done_when": "A plan check flags or splits a group that is too large or set to Luna max, preferring medium jobs of about 4 issues.",
       "observed": "In the 0.2.143 parallel fix round on PR #107, the island group (ISLAND-01, ISLAND-03, AGENT-28) ran as a Luna-max Fast job and took about 25 minutes / 11M tokens, while the tools group finished in about 5 minutes and the session group in about 10.",
       "recommendation": "Add a plan check that caps groups at about 4 issues and splits Luna-max work into medium jobs. The practice note is already in fix-and-verify.md.",
-      "carried_from": 110
+      "carried_from": 110,
+      "verification_evidence": [
+        {
+          "check": "Installed bcl 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e, backup /tmp/bcl-install-0.1.32-backup-20261117-163138). Worktree after merge: test_manage_findings.py 73 OK in 14.177s and test_bcl.py 45 OK in 47.412s at 16:30:49 IST. Installed copy: test_manage_findings.py 73 OK in 13.752s, test_bcl.py 45 OK in 48.007s, 8 focused tests OK in 3.824s, finished 16:33:35 IST Asia/Calcutta. bcl verify PLAN re-ran test_manage_findings.py 73 OK in 13.899s; SYNC re-ran test_bcl.py 45 OK in 48.036s, finished 2026-11-17T11:04:56Z. test_plan_check_caps_group_size_and_rejects_max_effort, test_set_plan_rejects_oversized_and_max_effort_groups_without_writing, and test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal passed on worktree and installed 0.1.32. set-plan refuses current-round groups with more than 4 findings or effort max, using status (not phase) to decide exemptions; refused plans leave the tracker unchanged.",
+          "outcome": "fixed",
+          "build": "batched-change-list 0.1.32",
+          "session": "installed-0.1.32-verify-114",
+          "timestamp": "2026-11-17T11:04:56Z",
+          "reference": "9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4:PLAN-02:installed-cli-suite"
+        }
+      ],
+      "verification": "Installed bcl 0.1.32 at 9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4 (48 files, sha256 a4a47b22d6efa3bef01f358ecac177a10ee48dd9485aeefea6d3af7ed3004b7e, backup /tmp/bcl-install-0.1.32-backup-20261117-163138). Worktree after merge: test_manage_findings.py 73 OK in 14.177s and test_bcl.py 45 OK in 47.412s at 16:30:49 IST. Installed copy: test_manage_findings.py 73 OK in 13.752s, test_bcl.py 45 OK in 48.007s, 8 focused tests OK in 3.824s, finished 16:33:35 IST Asia/Calcutta. bcl verify PLAN re-ran test_manage_findings.py 73 OK in 13.899s; SYNC re-ran test_bcl.py 45 OK in 48.036s, finished 2026-11-17T11:04:56Z. test_plan_check_caps_group_size_and_rejects_max_effort, test_set_plan_rejects_oversized_and_max_effort_groups_without_writing, and test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal passed on worktree and installed 0.1.32. set-plan refuses current-round groups with more than 4 findings or effort max, using status (not phase) to decide exemptions; refused plans leave the tracker unchanged.",
+      "verification_refs": [
+        "9e8efcf5f8fb71f0d650d9bc8700c9934c83fef4:PLAN-02:installed-cli-suite"
+      ]
     },
     {
       "id": "PLAN-03",
@@ -6725,6 +6841,102 @@
       },
       "verification_refs": [
         "Introspect"
+      ]
+    },
+    {
+      "id": "BCL-36",
+      "title": "bcl sync-main stashes all non-triage dirty files, not only hook or check dirt",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "summary": "Before merging main, sync-main stashes every tracked and untracked change outside docs/triage, including unrelated local work, and does not restore it.",
+      "impact": "Unrelated in-progress work in the home worktree can disappear into a stash when someone only meant to clear hook or check leftovers.",
+      "done_when": "sync-main stashes only leftover hook or check dirt, or clearly names and restores any broader stash, and a test covers unrelated dirty files being left alone or restored.",
+      "observed": "Terra r1 on AUTO-04 (16:24 IST, 17 Nov 2026, session 01a1e924-626f-7392-b9aa-41a3c94cd1a9) noted that the pre-merge stash includes all non-triage changes. The two blocking P2s were fixed; this leftover was not.",
+      "recommendation": "Limit the pre-merge stash to hook/check dirt, or restore unrelated work after the merge, and add a test."
+    },
+    {
+      "id": "WF-16",
+      "title": "Introspect 2026-11-17: Round 1 Introspect recorded",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "Round 1 Introspect recorded",
+      "recommendation": "Do the linked code issues: BCL-36",
+      "verification": "Inline items were done during Introspect.",
+      "details": {
+        "fixed_in": "Introspect"
+      },
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: GUARD",
+        "One-file review exemption: GUARD",
+        "Polling and rework review: GUARD",
+        "Test command: GUARD: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
+        "Codex write: SNAP",
+        "One-file review exemption: SNAP",
+        "Polling and rework review: SNAP",
+        "Test command: SNAP: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
+        "Codex write: PLAN",
+        "Codex review: PLAN",
+        "Polling and rework review: PLAN",
+        "Test command: PLAN: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+        "Codex write: SYNC",
+        "Codex review: SYNC",
+        "Polling and rework review: SYNC",
+        "Test command: SYNC: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
+      ],
+      "none": [
+        "Stage: Plan & fix",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: GUARD",
+        "One-file review exemption: GUARD",
+        "Polling and rework review: GUARD",
+        "Test command: GUARD: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
+        "Codex write: SNAP",
+        "One-file review exemption: SNAP",
+        "Polling and rework review: SNAP",
+        "Test command: SNAP: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
+        "Codex write: PLAN",
+        "Codex review: PLAN",
+        "Test command: PLAN: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+        "Codex write: SYNC",
+        "Polling and rework review: SYNC",
+        "Test command: SYNC: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
+      ],
+      "sections": {
+        "delete": {
+          "none": "No extra process or files were dropped. Test-now groups used already-present 0.1.31; PLAN and SYNC added only the planned source and tests, then a 0.1.32 version bump."
+        },
+        "simplify": {
+          "items": [
+            {
+              "item": "Polling and rework review: PLAN",
+              "evidence": "Terra r1 (session 01a1e922-03dc-70d3-aabf-0abb9881fb39, 16:22 IST) found that phase took precedence over status, so a running group with phase done could bypass the max-effort and size caps, and a deferred group with phase fix could be rejected. Luna resumed session 01a1e91d-41fa-78f0-901a-873a5443e074 and now uses status first, falling back to phase only when status is missing, with tests in test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal. 73 manage_findings tests OK in 13.843s at 16:25 IST. No second review.",
+              "outcome": "fixed inline"
+            }
+          ]
+        },
+        "optimize": {
+          "none": "PLAN and SYNC shared one 0.1.32 install and one live verify pass after both reviews passed. No further process change was logged."
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "Codex review: SYNC",
+              "evidence": "Terra r1 (session 01a1e924-626f-7392-b9aa-41a3c94cd1a9, 16:24 IST) found two blocking P2s, now fixed (post-merge hook dirt is stashed; empty NUL-split conflict lists no longer look like unresolved conflicts), and a leftover: the pre-merge stash still captures all non-triage dirty files, not only hook or check dirt. Filed as BCL-36.",
+              "outcome": "issue",
+              "issue_id": "BCL-36"
+            }
+          ]
+        }
+      },
+      "verification_refs": [
+        "BCL-36"
       ]
     }
   ]
