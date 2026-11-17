@@ -2,14 +2,72 @@ import json
 import hashlib
 import os
 import subprocess
+import sys
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 import live_state
 import render
+
+
+class ViewerLivenessTests(unittest.TestCase):
+    def test_unix_probe_reports_missing_and_permission_denied(self):
+        with patch.object(live_state.os, 'name', 'posix'), patch.object(live_state.os, 'kill', side_effect=ProcessLookupError):
+            self.assertFalse(live_state._pid_is_running(123))
+        with patch.object(live_state.os, 'name', 'posix'), patch.object(live_state.os, 'kill', side_effect=PermissionError):
+            self.assertTrue(live_state._pid_is_running(123))
+            with self.assertRaises(live_state.ViewerPIDProbeError):
+                live_state._pid_is_running(123, reject_unverifiable_pid=True)
+
+    @unittest.skipIf(sys.platform == 'win32', 'Unix os.kill probe')
+    def test_unix_probe_uses_os_kill_zero(self):
+        with patch.object(live_state.os, 'name', 'posix'), patch.object(live_state.os, 'kill') as kill:
+            self.assertTrue(live_state._pid_is_running(123))
+        kill.assert_called_once_with(123, 0)
+
+    def test_windows_probe_queries_and_closes_without_terminating(self):
+        import ctypes
+        from ctypes import wintypes
+        kernel = type('Kernel', (), {})()
+        kernel.OpenProcess = unittest.mock.Mock(return_value=42)
+        def get_exit_code(handle, output):
+            ctypes.cast(output, ctypes.POINTER(wintypes.DWORD))[0] = 259
+            return 1
+        kernel.GetExitCodeProcess = unittest.mock.Mock(side_effect=get_exit_code)
+        kernel.CloseHandle = unittest.mock.Mock(return_value=1)
+        with patch.object(ctypes, 'WinDLL', return_value=kernel, create=True):
+            self.assertTrue(live_state._windows_pid_status(123))
+        kernel.OpenProcess.assert_called_once_with(0x1000, False, 123)
+        kernel.CloseHandle.assert_called_once_with(42)
+        self.assertFalse(hasattr(kernel, 'TerminateProcess'))
+
+        def get_exit_code(handle, output):
+            ctypes.cast(output, ctypes.POINTER(wintypes.DWORD))[0] = 0
+            return 1
+        kernel.GetExitCodeProcess.side_effect = get_exit_code
+        with patch.object(ctypes, 'WinDLL', return_value=kernel, create=True):
+            self.assertFalse(live_state._windows_pid_status(123))
+        kernel.CloseHandle.assert_called_with(42)
+
+        kernel.OpenProcess.return_value = 0
+        with patch.object(ctypes, 'WinDLL', return_value=kernel, create=True), \
+             patch.object(ctypes, 'get_last_error', return_value=87, create=True):
+            self.assertFalse(live_state._windows_pid_status(123))
+
+    def test_subprocess_liveness_before_and_after_exit(self):
+        process = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(0.3)'])
+        try:
+            self.assertTrue(live_state._pid_is_running(process.pid))
+            self.assertEqual(process.wait(timeout=5), 0)
+            self.assertFalse(live_state._pid_is_running(process.pid))
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
 
 
 class SnapshotTests(unittest.TestCase):

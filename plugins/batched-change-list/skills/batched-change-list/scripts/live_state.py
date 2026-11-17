@@ -11,6 +11,48 @@ STATE = Path(os.environ.get("BCL_STATE_DIR", Path.home() / ".agents/state/batche
 class ViewerPIDProbeError(Exception):
     """A PID could not be checked because the process is not accessible."""
 
+def _windows_pid_status(pid):
+    """Return whether a Windows process is live, or None if it is unverifiable."""
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+    kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    kernel32.CloseHandle.restype = wintypes.BOOL
+
+    handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return False if ctypes.get_last_error() == 87 else None  # ERROR_INVALID_PARAMETER
+    try:
+        exit_code = wintypes.DWORD()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+            return None
+        return exit_code.value == 259  # STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
+
+def _pid_is_running(pid, reject_unverifiable_pid=False):
+    if os.name == "nt":
+        running = _windows_pid_status(pid)
+        if running is None:
+            if reject_unverifiable_pid:
+                raise ViewerPIDProbeError("[Errno 1] Operation not permitted")
+            return True
+        return running
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        if reject_unverifiable_pid:
+            raise ViewerPIDProbeError("[Errno 1] Operation not permitted") from None
+        return True
+
 def safe_component(value):
     return re.sub(r"[^A-Za-z0-9._-]+", "-", str(value)).strip(".-") or "list"
 
@@ -177,12 +219,7 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
     old = json.loads(state.read_text()) if state.exists() else {}
     running = False
     if old.get("pid") and int(old["pid"]) != 87005:
-        try: os.kill(int(old["pid"]), 0); running = True
-        except ProcessLookupError: running = False
-        except PermissionError:
-            if reject_unverifiable_pid:
-                raise ViewerPIDProbeError(f"[Errno 1] Operation not permitted") from None
-            running = True
+        running = _pid_is_running(int(old["pid"]), reject_unverifiable_pid)
     owns_old = bool(old.get("data")) and Path(old["data"]).resolve() == Path(live).resolve()
     old_port = int(old.get("port", 0) or 0)
     if running and owns_old and (not old.get("instance") or not _viewer_responds(old_port, old)):
