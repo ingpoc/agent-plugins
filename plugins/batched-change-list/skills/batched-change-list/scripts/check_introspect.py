@@ -7,6 +7,8 @@ from pathlib import Path
 import workflow_definition as WF
 
 SECTION_ORDER = ("delete", "simplify", "optimize", "automate")
+SECTION_NOUNS = {"delete": "deletion", "simplify": "simplification",
+                 "optimize": "optimization", "automate": "automation"}
 
 
 def performed_round_steps(tracking):
@@ -50,6 +52,18 @@ def performed_round_steps(tracking):
                         if isinstance(command, str) and command.strip():
                             steps.append(f"Test command: {group_id}: {command.strip()}")
     return steps
+
+
+def draft_introspect(tracking):
+    """Build an editable, deliberately incomplete draft from recorded work."""
+    return {
+        "steps": performed_round_steps(tracking),
+        "none": [],
+        "sections": {
+            name: {"none": f"Review performed steps; no {SECTION_NOUNS[name]} can be inferred from the tracker alone."}
+            for name in SECTION_ORDER
+        },
+    }
 
 
 def validate_introspect(sections, steps, none_steps, tracking):
