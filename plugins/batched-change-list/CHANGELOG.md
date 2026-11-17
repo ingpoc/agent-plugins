@@ -1,3 +1,8 @@
+## 0.1.36
+
+- Windows-safe non-destructive viewer liveness probe in live_state, with Unix behaviour preserved.
+- Named tests that Origin CI keeps running on draft pull requests and that plan-fix keeps the one-review-round policy.
+
 ## 0.1.35
 
 - Draft Introspect sections from tracker-recorded work for review and editing before save; reject draft paths that alias the input or live tracker, including hard links and the in-repo snapshot, and refresh the skill statechart shape check to match the current skill text.
