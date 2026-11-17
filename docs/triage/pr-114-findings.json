@@ -4075,8 +4075,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-17T11:41:12Z",
-      "now": "2026-11-17T11:41:12Z — Plan recorded"
+      "updated_at": "2026-11-17T12:12:16Z",
+      "now": "2026-11-17T12:12:16Z — Lane PAGE updated"
     },
     "rollover": {
       "source_pr": 113,
@@ -4268,8 +4268,8 @@
             "PAGE-22"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "pending",
+          "status": "running",
+          "phase": "review",
           "worktree": "pr114-page",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
@@ -4283,7 +4283,11 @@
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "status": "pending"
+            "status": "passed",
+            "implementer_session": "01a1e94f-d4df-7d63-b0cb-3937ff0b0a0f",
+            "reviewer_session": "01a1e960-15de-7cd2-b5b6-beb1ce84cd3c",
+            "review_status": "passed",
+            "one_file": false
           },
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
@@ -4293,7 +4297,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T11:41:12Z"
+          "updated_at": "2026-11-17T12:12:16Z"
         }
       ]
     },
@@ -7191,7 +7195,7 @@
       "id": "PAGE-22",
       "title": "Verification by version shows raw logs and splits one check into two rows",
       "source": "User reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "On the page, each Verification by version reason is a raw run log, with the actual behaviour test buried in the middle, and one check appears as two rows because the verify record and the outcome record are shown separately.",
       "impact": "A reader cannot tell what was checked, what was expected, or why the verdict is fixed, inconclusive, or failing, and one check looks like two separate results.",
