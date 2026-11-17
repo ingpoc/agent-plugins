@@ -11,6 +11,7 @@ import os
 import json
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -22,6 +23,8 @@ sys.path.insert(0, str(ROOT / "python"))
 sys.path.insert(0, str(ROOT / "tests"))
 
 from voice_cua import live_session  # noqa: E402
+from voice_cua import session_hub  # noqa: E402
+from voice_cua.island_state import IslandBus  # noqa: E402
 from test_phase1_reliability import make_session  # noqa: E402
 
 
@@ -66,6 +69,53 @@ class HandshakeAccess(unittest.TestCase):
         self.assertEqual(session._access_refused, "")
         session._on_error(None, BadStatus(503, b"busy"))
         self.assertEqual(session._access_refused, "")
+
+    def test_pending_confirmation_survives_transport_reconnect(self) -> None:
+        session = make_session()
+        session._session_ready.set()
+        send_started, release_send = threading.Event(), threading.Event()
+
+        def wait_for_reply(_text, *, timeout, cancel_event, typed_turn_id):
+            send_started.set()
+            release_send.wait(2)
+            return {"ok": True, "reply": "Done"}
+
+        session.send_text_and_wait = wait_for_reply
+        bus = IslandBus()
+        result = {}
+        turn_id_ref = {}
+        confirm_thread = threading.Thread(
+            target=lambda: result.setdefault("outcome", bus.request_confirm(
+                "confirm-reconnect", "Create file?", timeout=2, origin_turn_id=turn_id_ref["id"],
+            )), daemon=True,
+        )
+        with patch.object(session_hub, "_active", session), \
+                patch("voice_cua.island_state.ISLAND", bus):
+            turn = session_hub.start_turn("create harmless file", asynchronous=True)
+            turn_id = turn["turn_id"]
+            turn_id_ref["id"] = turn_id
+            confirm_thread.start()
+            deadline = time.monotonic() + 1
+            while bus.pending_confirm() is None and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertTrue(send_started.wait(1))
+            self.assertEqual(bus.pending_confirm()["confirm_id"], "confirm-reconnect")
+
+            session._on_error(None, ConnectionError("TLS websocket dropped"))
+            session._on_close(None, 1006, "transport dropped")
+            session._prepare_reconnect()
+
+            self.assertEqual(session_hub.get_turn(turn_id)["status"], "running")
+            self.assertFalse(session_hub._turns[turn_id]["cancel_event"].is_set())
+            self.assertEqual(bus.pending_confirm()["confirm_id"], "confirm-reconnect")
+            self.assertTrue(bus.resolve_confirm("confirm-reconnect", True))
+            confirm_thread.join(timeout=1)
+            self.assertEqual(result.get("outcome"), "approved")
+            release_send.set()
+            deadline = time.monotonic() + 1
+            while session_hub.get_turn(turn_id)["status"] == "running" and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertEqual(session_hub.get_turn(turn_id)["status"], "done")
 
     def test_unframed_drop_preserves_safe_trace_ids_and_event_type(self) -> None:
         session = make_session()
