@@ -3547,9 +3547,9 @@
       }
     },
     "workflow": {
-      "stage": "collect",
-      "updated_at": "2026-11-17T10:25:28Z",
-      "now": "2026-11-17T10:25:28Z — Started collection"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-17T10:41:47Z",
+      "now": "2026-11-17T10:41:47Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 113,
@@ -3721,50 +3721,21 @@
       }
     ],
     "plan": {
-      "round": 3,
-      "cycle": 5,
+      "round": 1,
+      "cycle": 6,
       "groups": [
         {
-          "id": "PAGE",
-          "name": "Confirm issue verification timeline already in 0.1.31",
+          "id": "GUARD",
+          "name": "Confirm merge refuses a dirty live tracker already in 0.1.31",
           "finding_ids": [
-            "PAGE-10",
-            "PAGE-20",
-            "BCL-02"
+            "BCL-01"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "samantha-pr113-rollover",
+          "status": "pending",
+          "phase": "pending",
+          "worktree": "samantha-pr114-rollover",
           "files": [],
-          "reason": "The issue page already shows a version timeline, discloses undated checks, and stores each group's verify command.",
-          "codex": {
-            "one_file": true,
-            "implementer_session": "test-now-already-installed-0.1.31",
-            "review_status": "passed"
-          },
-          "verify": {
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
-            "method": "Existing tests cover the version timeline, undated latest-result disclosure, and stored verify commands.",
-            "status": "verified",
-            "fixed": 3,
-            "failed": 0,
-            "total": 3
-          },
-          "updated_at": "2026-11-17T10:17:37Z"
-        },
-        {
-          "id": "VIEW",
-          "name": "Confirm only Collect start re-points the viewer",
-          "finding_ids": [
-            "AUTO-03"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "samantha-pr113-rollover",
-          "files": [],
-          "reason": "Rollover keeps the old list's viewer; only bcl start on the new list re-points it.",
+          "reason": "0.1.31 already snapshots each stage in the home worktree and bcl merge rejects an unsnapshotted live tracker.",
           "codex": {
             "one_file": true,
             "implementer_session": "test-now-already-installed-0.1.31",
@@ -3772,46 +3743,107 @@
           },
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
-            "method": "Existing test that rollover preserves the old list and defers the new viewer until Collect starts.",
-            "status": "verified",
-            "fixed": 1,
+            "method": "test_merge_guard_rejects_unsnapshotted_live_then_passes and test_stage_snapshots_and_commits_only_home_worktree prove the merge guard and per-stage snapshot commit.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T10:17:37Z"
+          "updated_at": "2026-11-17T10:41:47Z"
         },
         {
-          "id": "DEPS",
-          "name": "Confirm reopened prerequisites block running dependents",
+          "id": "SNAP",
+          "name": "Confirm consistent snapshots and late-write detection already in 0.1.31",
           "finding_ids": [
-            "BCL-10"
+            "BCL-12",
+            "BCL-15"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "samantha-pr113-rollover",
+          "status": "pending",
+          "phase": "pending",
+          "worktree": "samantha-pr114-rollover",
           "files": [],
-          "reason": "update and delete paths already invalidate running dependents when a prerequisite is reopened.",
+          "reason": "live_state already snapshots one captured tracker revision, serializes snapshot work, and holds the writer lock through the final comparison so a late write stays detectable.",
           "codex": {
             "one_file": true,
             "implementer_session": "test-now-already-installed-0.1.31",
             "review_status": "passed"
           },
           "verify": {
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
+            "method": "test_changed_tracker_keeps_one_revision_and_reports_stale_snapshot, test_snapshots_in_same_worktree_are_serialized, and test_final_comparison_and_marker_removal_hold_writer_lock.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "updated_at": "2026-11-17T10:41:47Z"
+        },
+        {
+          "id": "PLAN",
+          "name": "Flag or split oversized or Luna-max plan groups",
+          "finding_ids": [
+            "PLAN-02"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "pending",
+          "worktree": "samantha-pr114-rollover",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py"
+          ],
+          "reason": "set-plan should reject or split a group that is too large or set to Luna max, preferring medium jobs of about 4 issues.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "status": "pending"
+          },
+          "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
-            "method": "Existing tests that a reopened or deleted prerequisite blocks a running dependent.",
-            "status": "verified",
-            "fixed": 1,
+            "method": "New and existing manage_findings tests must reject or split an oversized or Luna-max group.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T10:17:37Z"
+          "updated_at": "2026-11-17T10:41:47Z"
+        },
+        {
+          "id": "SYNC",
+          "name": "Add bcl sync-main after a merge",
+          "finding_ids": [
+            "AUTO-04"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "pending",
+          "worktree": "samantha-pr114-rollover",
+          "files": [
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
+          ],
+          "reason": "After a merge, catching the branch up to main still takes hand steps. bcl sync-main should merge main, resolve skill-reference deletions, re-render HTML, and stash hook dirt in one command.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "status": "pending"
+          },
+          "verify": {
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
+            "method": "A new test must show bcl sync-main merges main, resolves skill-ref deletions, re-renders HTML, and stashes hook dirt.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-17T10:41:47Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "stages_reached": [
-      "collect"
+      "collect",
+      "plan_fix"
     ]
   },
   "findings": [
@@ -3851,7 +3883,7 @@
       "id": "AUTO-04",
       "title": "Syncing main after a merge is still a set of hand steps",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "After a merge, catching the local branch up to main still takes several manual sync and render steps.",
       "impact": "Those steps are easy to miss or do inconsistently, which leaves the worktree dirty or the page out of date.",
       "done_when": "`bcl sync-main` merges main, resolves deletions of skill references, re-renders HTML, and stashes hook dirt in one scripted step.",
@@ -3909,7 +3941,7 @@
       "id": "BCL-01",
       "title": "Merging fix branches hid the live tracker (stashed), so the page went stale",
       "source": "User reported",
-      "status": "failing",
+      "status": "in_progress",
       "summary": "The live change-list was put in a git stash so fix branches could be merged, and the open page went back to an old committed snapshot.",
       "impact": "You cannot trust the page during a merge: it shows an old stage, an old fix count, and none of the current plan lanes.",
       "done_when": "Each bcl stage commits the tracker itself, and a merge of fix branches is refused while the tracker is dirty, so the open page keeps showing the current stage, plan and gate.",
@@ -3963,7 +3995,7 @@
       "id": "PLAN-02",
       "title": "Split heavy Luna-max jobs into medium jobs (plan check)",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "The plan should catch a too-heavy group, especially a Luna-max job, and split it into medium jobs before it is launched.",
       "impact": "One Luna-max island job in this cycle took about 25 minutes and about 11 million tokens, which delayed the rest of the parallel round.",
       "done_when": "A plan check flags or splits a group that is too large or set to Luna max, preferring medium jobs of about 4 issues.",
@@ -4876,7 +4908,7 @@
       "id": "BCL-12",
       "title": "Snapshots can pair tracker data with an older page",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "A tracker change during a snapshot can produce an HTML page and JSON from different updates.",
       "impact": "A committed page can show a status that does not match its tracker.",
       "done_when": "Snapshot a single consistent tracker revision and serialize paired snapshot commits.",
@@ -4929,7 +4961,7 @@
       "id": "BCL-15",
       "title": "A late tracker write can leave a snapshot falsely current",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "An update arriving as a snapshot finishes can leave an older snapshot without a warning.",
       "impact": "The page and committed tracker can look current when a newer update exists.",
       "done_when": "Coordinate snapshot completion with tracker writes so later changes remain detectable.",
