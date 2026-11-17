@@ -74,6 +74,49 @@ def _branch_name(value):
         value = _value(value, "ref", "name", "branch")
     return value.strip() if isinstance(value, str) and value.strip() else None
 
+def _install_tree_digest(root):
+    digest = hashlib.sha256()
+    count = 0
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or "__pycache__" in path.parts or path.suffix == ".pyc" or path.name == ".DS_Store":
+            continue
+        digest.update(path.relative_to(root).as_posix().encode())
+        digest.update(b"\0")
+        with path.open("rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+        digest.update(b"\0")
+        count += 1
+    return digest.hexdigest(), count
+
+def install_local():
+    with (HERE / "plugin.json").open() as manifest:
+        version = json.load(manifest)["version"]
+    revision = subprocess.check_output(["git", "-C", str(HERE), "rev-parse", "HEAD"], text=True).strip()
+    dirty = subprocess.check_output(["git", "-C", str(HERE), "status", "--porcelain", "--untracked-files=all", "--"], text=True)
+    if dirty:
+        raise ValueError("plugin checkout has local changes; install from the merged HEAD")
+    source_sha, _ = _install_tree_digest(HERE)
+    home = Path.home()
+    destinations = [
+        home / ".agents/plugins/batched-change-list",
+        home / ".agents/skills/batched-change-list",
+        *(home / f".{client}/plugins/cache/ingpoc-agent-plugins/batched-change-list/{ref}"
+          for client in ("cursor", "codex") for ref in (version, revision)),
+    ]
+    print(f"bcl install-local: revision {revision}")
+    for destination in destinations:
+        if destination.is_symlink():
+            destination.unlink()
+        elif destination.exists():
+            shutil.rmtree(destination)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(HERE, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store"))
+        installed_sha, count = _install_tree_digest(destination)
+        if installed_sha != source_sha:
+            raise SystemExit(f"bcl install-local: sha256 mismatch at {destination}")
+        print(f"  {destination} ({count} files, sha256 {installed_sha})")
+
 def _merged_details(args, tracking, repo):
     pr = tracking.get("pull_request", {})
     url = pr.get("url") if isinstance(pr, dict) else None
@@ -224,6 +267,11 @@ def main():
     parser.add_argument("--merge-commit"); parser.add_argument("--merged-at"); parser.add_argument("--base-branch")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("stage"); args, command_args = parser.parse_known_args()
+    if args.stage == "install-local":
+        try: install_local()
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            print(f"bcl install-local: {error}", file=sys.stderr); raise SystemExit(1)
+        return
     if args.stage == "sync-main":
         try: _sync_main()
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
