@@ -4613,9 +4613,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-17T12:56:31Z",
-      "now": "2026-11-17T12:56:31Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-17T13:03:40Z",
+      "now": "2026-11-17T13:03:40Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 113,
@@ -4733,7 +4733,7 @@
       }
     },
     "cycle": 6,
-    "round": 4,
+    "round": 5,
     "round_history": [
       {
         "round": 2,
@@ -4799,88 +4799,133 @@
         "round": 3,
         "fixed": 10,
         "ended_at": "2026-11-17T12:27:33Z"
+      },
+      {
+        "round": 4,
+        "fixed": 14,
+        "ended_at": "2026-11-17T13:03:40Z"
       }
     ],
     "plan": {
-      "round": 4,
+      "round": 5,
       "cycle": 6,
       "groups": [
         {
-          "id": "GATE",
-          "name": "Rerun the full repository gate for the two hook and cold-start test failures",
+          "id": "WF06",
+          "name": "Prove WF-06 leftovers with named tests and draft-CI evidence, no rewrite first",
           "finding_ids": [
-            "AGENT-28",
-            "AGENT-29"
+            "WF-06"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
+          "status": "pending",
+          "phase": "pending",
           "worktree": "samantha-pr114-rollover",
           "files": [],
-          "reason": "AGENT-28 and AGENT-29 failed once under the full scripts/check.py gate, then passed in focused reruns. This group reruns the full gate on the current worktree and records pass or fail, with no code change first.",
+          "reason": "WF-06 leftovers are hygiene scoping, Origin CI on drafts, one Terra review, and residual AGENT-28. AGENT-28 is already verified_fixed. This group reruns the named hygiene tests and checks the current CI workflow and one-review policy before any rewrite.",
           "codex": {
             "one_file": true,
-            "implementer_session": "test-now-full-check-py",
+            "implementer_session": "test-now-wf06",
             "review_status": "passed"
           },
           "verify": {
-            "command": "python3 scripts/check.py",
-            "method": "A clean full scripts/check.py run on this worktree must include test_known_notification_types_post_exact_needs_you_args and IslandGateColdStartTests.testSubmitColdStartShowsWakingThenSucceeds. If either fails, record the failure and leave the item untested or failing.",
-            "status": "verified",
-            "fixed": 2,
+            "command": "python3 -m unittest scripts.FAKESECRET_s3t4u5v6w7x8y9z0a1b2 scripts.FAKESECRET_u3v4w5x6y7z8a9b0c1d2 scripts.test_release_agent_computer_use.HygieneGateTests.test_clean_machine_passes",
+            "method": "The three named hygiene tests must pass. Also record whether ci.yml's pull_request trigger has any draft filter, and whether plan-fix.md still requires one review round with no second review. If a leftover is already present, it still needs its own named test before verified_fixed. Do not rewrite first.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
-            "total": 2
+            "total": 1
           },
-          "updated_at": "2026-11-17T12:33:12Z"
+          "updated_at": "2026-11-17T13:03:40Z"
         },
         {
-          "id": "INTRO",
-          "name": "Draft Introspect sections from the run log for confirmation",
+          "id": "WINLV",
+          "name": "Windows-safe non-destructive viewer liveness and ownership check",
           "finding_ids": [
-            "BCL-03",
-            "BCL-37"
+            "BCL-18"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "pr114-intro",
+          "status": "pending",
+          "phase": "pending",
+          "worktree": "pr114-winlv",
           "files": [
-            "plugins/batched-change-list/bin/bcl",
-            "plugins/batched-change-list/skills/batched-change-list/references/introspect.md",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/check_introspect.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_check_introspect.py",
-            "plugins/batched-change-list/skills/batched-change-list/statechart.html"
+            "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_live_state.py"
           ],
-          "reason": "bcl introspect should draft the delete, simplify, optimize, and automate sections from the recorded run, so the agent only has to check and edit them before they are saved. Saving still requires that confirmation step. The same skill change must regenerate the stale statechart so the shape test passes.",
+          "reason": "live_state.ensure_viewer still probes liveness with os.kill(pid, 0), which is not a safe Windows check. Implement a non-destructive Windows liveness and ownership probe, keep the Unix path, and cover both in tests. This does not depend on BCL-13's lock concurrency runtime.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "status": "passed",
-            "implementer_session": "01a1e97f-c3ae-7461-bbe8-f4c318973f1b",
-            "reviewer_session": "01a1e989-5ff1-7321-b3c4-a9d4685ac458",
-            "review_status": "passed",
-            "one_file": false
+            "status": "pending"
           },
           "verify": {
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
-            "method": "A test must show that bcl introspect can write a draft SECTIONS.json from the tracker run, that the agent can edit it, and that saving still requires the confirmation step rather than writing the draft blindly.",
-            "status": "verified",
-            "fixed": 2,
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
+            "method": "Tests must show a Windows-safe non-destructive liveness and ownership check (Unix os.kill path preserved). If a live Windows runtime is still unavailable, do not mark verified_fixed solely on mocks; leave it untested or blocked and say what is missing.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
-            "total": 2
+            "total": 1
           },
-          "updated_at": "2026-11-17T12:55:52Z"
+          "updated_at": "2026-11-17T13:03:40Z"
+        },
+        {
+          "id": "HER",
+          "name": "Typed Her-spec retest of AGENT-25 on current ACU",
+          "finding_ids": [
+            "AGENT-25"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "pending",
+          "worktree": "samantha-pr114-rollover",
+          "files": [],
+          "reason": "AGENT-25 still needs a 12/12 Her-spec score with transcript evidence. Prior typed runs reached 10/12; AGENT-26 and AGENT-27 are now verified_fixed. Retest typed on the current installed ACU. Spoken scoring is not required for this group and is not a substitute later for OBS-23 or OBS-25. Do not defer solely because those items are blocked. Do not use port 8765 or ~/.cache/macos-cua/samantha-activity.jsonl.",
+          "codex": {
+            "one_file": true,
+            "implementer_session": "test-now-her-typed",
+            "review_status": "passed"
+          },
+          "verify": {
+            "command": "python3 /Users/gurusharan/.agents/artifacts/bcl-114/her-session/score-her.py",
+            "method": "Run a typed Her-spec session on current installed ACU and score the six traits 0-2 from the transcript. verified_fixed only at 12/12. If any trait is below 2, leave AGENT-25 untested or failing and file or point to the leftover. Note spoken turns were not scored if no real microphone is present.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-17T13:03:40Z"
+        },
+        {
+          "id": "EVAL",
+          "name": "Fair matched evaluation of delivery using the existing OpenCode smoke harness",
+          "finding_ids": [
+            "EVAL-01"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "pending",
+          "worktree": "samantha-pr114-rollover",
+          "files": [],
+          "reason": "EVAL-01 needs a fair matched comparison of delivery speed, token efficiency, control, and status accuracy. Use the existing OpenCode smoke evaluation workflow and harness rather than inventing a new one. Freeze one slugify case and run OpenCode and a Codex counterpart on that same case.",
+          "codex": {
+            "one_file": true,
+            "implementer_session": "test-now-eval-matched",
+            "review_status": "passed"
+          },
+          "verify": {
+            "command": "bash /Users/gurusharan/.agents/artifacts/bcl-114/eval/run-matched.sh",
+            "method": "A matched run of the frozen slugify smoke case must report, for each side, wall time, token use if available, whether the test file stayed untouched (control), and whether the reported PASS/FAIL matched the actual tests (status accuracy). Record the comparison and the recommendation. If the run is incomplete or incomparable, leave EVAL-01 untested.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-17T13:03:40Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "stages_reached": [
       "collect",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "verification_run": {
       "id": "bcl-0.1.35-b522d3b1-114",
