@@ -19,10 +19,10 @@ Workflow: Collect and Present once; then loop Plan & fix → Install → Verify 
 
 | When | Load |
 |---|---|
-| New list or feedback | `references/collect.md`; after collection, `references/present.md` |
-| After Present or gate loop-back | `references/plan-fix.md`; after group review, `references/install.md`; after install, `references/verify.md` |
-| After every round's Verify | `references/introspect.md` |
-| After Introspect, checking rollover, gate met, or PR merge | `references/gate.md`; `references/report-rollover.md` |
-| Recovery, viewer use, debugging, tests, sequencing, shared state, or proof | `references/tracker.md`; `references/viewer.md`; `references/principles.md` |
+| New list or feedback | New list or feedback: `references/collect.md`; After collection: `references/present.md` |
+| After Present or gate loop-back | After Present or gate loop-back: `references/plan-fix.md`; After group review: `references/install.md`; After its install: `references/verify.md` |
+| After every round's Verify | After every round's Verify: `references/introspect.md` |
+| After Introspect or checking rollover | After Introspect or checking rollover: `references/gate.md`; When gate is met or the PR merges: `references/report-rollover.md` |
+| Recovery, viewer use, debugging, tests, sequencing, shared state, or proof | Recovery: `references/tracker.md`; For viewer use: `references/viewer.md`; For debugging, tests, sequencing, shared state, or proof: `references/principles.md` |
 
 Install, Introspect, and Gate checks: `check_install_sessions.py`, `check_introspect.py`, `check_gate_count.py`.

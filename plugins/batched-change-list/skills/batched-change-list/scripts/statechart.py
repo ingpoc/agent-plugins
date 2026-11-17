@@ -24,8 +24,12 @@ def references(skill_text: str) -> list[dict[str, str]]:
         cells = [cell.strip() for cell in line.strip("|").split("|")]
         if len(cells) < 2 or cells[0].lower() == "when":
             continue
-        for path in re.findall(r"references/([A-Za-z0-9_.-]+\.md)", cells[1]):
-            entries.append({"trigger": cells[0], "label": Path(path).stem.replace("-", " ").title(), "path": path})
+        for item in cells[1].split(";"):
+            match = re.search(r"references/([A-Za-z0-9_.-]+\.md)", item)
+            if match:
+                trigger = item[:match.start()].strip().rstrip(":→ `") or cells[0]
+                path = match.group(1)
+                entries.append({"trigger": trigger, "label": Path(path).stem.replace("-", " ").title(), "path": path})
     return entries
 
 
@@ -60,9 +64,9 @@ body{{max-width:1120px;margin:2rem auto;padding:0 1rem}}h1{{font-size:1.7rem}}h2
 <body><h1>Batched Change List skill loading</h1><p>Green items load with the skill. Purple references load only when their trigger fires.</p><small>SKILL.md SHA-256: {fingerprint}</small>
 <main class="views"><section><h2>Current</h2><div class="node always"><strong>SKILL.md</strong><br><small>Always loaded · trigger router</small></div><ol id="workflow"></ol><div class="arrow">↓ awaiting a workflow trigger</div><div id="current-refs"></div></section>
 <section><h2>After trigger</h2><label for="trigger">Choose a trigger</label><select id="trigger"></select><div class="node always"><strong>SKILL.md</strong><br><small>Always loaded · trigger router</small></div><div class="arrow">↓ selected reference(s) load</div><div id="after-refs"></div></section></main>
-<script type="application/json" id="references">{data}</script><script type="application/json" id="workflow">{workflow}</script>
+<script type="application/json" id="references">{data}</script><script type="application/json" id="workflow-data">{workflow}</script>
 <script>
-const refs=JSON.parse(document.querySelector('#references').textContent), steps=JSON.parse(document.querySelector('#workflow').textContent), select=document.querySelector('#trigger');
+const refs=JSON.parse(document.querySelector('#references').textContent), steps=JSON.parse(document.querySelector('#workflow-data').textContent), select=document.querySelector('#trigger');
 for(const label of steps){{const li=document.createElement('li');li.textContent=label;document.querySelector('#workflow').append(li)}}
 const triggers=[...new Set(refs.map(x=>x.trigger))];
 for(const trigger of triggers){{const option=document.createElement('option');option.textContent=trigger;select.append(option)}}

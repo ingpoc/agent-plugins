@@ -1,3 +1,4 @@
+import json
 import re
 import hashlib
 import tempfile
@@ -31,6 +32,28 @@ class SkillLayoutTests(unittest.TestCase):
         self.assertEqual(numbered, expected)
         for name in ("check_gate_count.py", "check_install_sessions.py", "check_introspect.py"):
             self.assertIn(name, text)
+
+    def test_statechart_json_payloads_initialize_unique_ids_and_map_each_reference_trigger(self):
+        rendered = statechart.render()
+        ids = re.findall(r'\bid="([^"]+)"', rendered)
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertIn('id="workflow"', rendered)
+        steps = json.loads(re.search(r'<script type="application/json" id="workflow-data">([^<]*)</script>', rendered).group(1))
+        refs = json.loads(re.search(r'<script type="application/json" id="references">([^<]*)</script>', rendered).group(1))
+        self.assertEqual(steps, [step["label"] for step in workflow_definition.STAGES])
+        self.assertEqual({row["path"]: row["trigger"] for row in refs}, {
+            "collect.md": "New list or feedback",
+            "present.md": "After collection",
+            "plan-fix.md": "After Present or gate loop-back",
+            "install.md": "After group review",
+            "verify.md": "After its install",
+            "introspect.md": "After every round's Verify",
+            "gate.md": "After Introspect or checking rollover",
+            "report-rollover.md": "When gate is met or the PR merges",
+            "tracker.md": "Recovery",
+            "viewer.md": "For viewer use",
+            "principles.md": "For debugging, tests, sequencing, shared state, or proof",
+        })
 
     def test_router_body_shrinks_and_loop_line_matches_workflow_definition(self):
         text = SKILL.read_text()
