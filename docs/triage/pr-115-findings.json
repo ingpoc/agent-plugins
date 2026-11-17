@@ -5475,9 +5475,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-17T16:34:53Z",
-      "now": "2026-11-17T16:34:53Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-17T16:35:23Z",
+      "now": "2026-11-17T16:35:23Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 114,
@@ -5742,7 +5742,8 @@
       "collect",
       "present",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "verification_run": {
       "id": "installed-0.1.38-verify-115",
