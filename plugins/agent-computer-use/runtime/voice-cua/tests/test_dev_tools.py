@@ -23,6 +23,12 @@ class DevToolsTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(prefix="voice-cua-dev-tools-")
         self.addCleanup(self.tmp.cleanup)
         self.base = Path(self.tmp.name)
+        self.temp_work = self.base / "trusted-temp"
+        self.temp_work.mkdir(mode=0o700)
+        os.chmod(self.temp_work, 0o700)
+        temp_work = patch.object(dev_tools, "_USER_TEMP_WORK_DIR", self.temp_work)
+        temp_work.start()
+        self.addCleanup(temp_work.stop)
         self.repo = self.base / "repo"
         self.repo.mkdir()
         subprocess.run(["/usr/bin/git", "init", "-q", str(self.repo)], check=True)
@@ -81,7 +87,7 @@ class DevToolsTests(unittest.TestCase):
         ):
             with self.subTest(command=command):
                 self.assertEqual(self.classify(command), "hard_refuse")
-        self.assertEqual(self.classify("cat outside-directory/*"), "safe")
+        self.assertEqual(self.classify("cat outside-directory/*"), "approval")
 
     def test_shell_unwraps_supported_command_wrappers_before_classifying(self) -> None:
         for command in (
@@ -148,8 +154,8 @@ class DevToolsTests(unittest.TestCase):
         link.symlink_to(outside)
         parent_link = self.repo / "parent-link"
         parent_link.symlink_to(outside_dir, target_is_directory=True)
-        self.assertEqual(self.classify("echo ok > link"), "safe")
-        self.assertEqual(self.classify("echo ok > parent-link/new.txt"), "safe")
+        self.assertEqual(self.classify("echo ok > link"), "approval")
+        self.assertEqual(self.classify("echo ok > parent-link/new.txt"), "approval")
         self.assertEqual(self.classify("echo ok > $HOME/out.txt"), "approval")
         self.assertEqual(self.classify("echo ok > out.txt"), "safe")
         self.assertEqual(self.classify("echo ok >/dev/null"), "safe")
@@ -208,7 +214,7 @@ class DevToolsTests(unittest.TestCase):
         self.assertEqual(self.classify("echo hi > /tmp/outside"), "approval")
         escape = artifacts / "escape"
         escape.symlink_to(self.base, target_is_directory=True)
-        self.assertEqual(self.classify(f"echo hi > {escape / 'outside'}"), "safe")
+        self.assertEqual(self.classify(f"echo hi > {escape / 'outside'}"), "approval")
         result = self.run_shell("echo $((17 * 19))")
         self.assertTrue(result["ok"])
         self.assertIn("323", result["output"])
@@ -220,11 +226,18 @@ class DevToolsTests(unittest.TestCase):
             written = dev_tools.file_edit({"op": "write", "path": str(target), "content": "done"})
         self.assertTrue(written["ok"])
         self.assertEqual(target.read_text(), "done")
-        temp_target = self.base / "temp-output.txt"
+        temp_target = self.temp_work / "temp-output.txt"
         self.assertEqual(self.classify(f"echo temporary > {temp_target}"), "safe")
         temp_write = self.run_shell(f"echo temporary > {temp_target}")
         self.assertTrue(temp_write["ok"])
         self.assertEqual(self.run_shell(f"cat {temp_target}")["output"].strip(), "temporary")
+
+    def test_temp_work_allowance_requires_private_directory(self) -> None:
+        target = self.temp_work / "temporary.txt"
+        command = f"echo private > {target}"
+        self.assertEqual(self.classify(command), "safe")
+        os.chmod(self.temp_work, 0o755)
+        self.assertEqual(self.classify(command), "approval")
 
     def test_safe_development_commands_do_not_need_approval(self) -> None:
 
@@ -336,7 +349,7 @@ class DevToolsTests(unittest.TestCase):
         self.assertEqual(special["error_type"], "invalid_path")
 
     def test_writes_outside_git_worktree_require_gate_and_gate_errors_fail_closed(self) -> None:
-        path = Path.home() / "voice-cua-outside-write.txt"
+        path = self.base / "outside-write.txt"
         with patch.object(dev_tools, "_approval", return_value={"ok": False, "needs_confirmation": True}) as gate:
             refused = dev_tools.file_edit({"op": "write", "path": str(path), "content": "unwritten"})
         gate.assert_called_once()

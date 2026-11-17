@@ -29,6 +29,7 @@ MAX_TIMEOUT_S = 900.0
 TURN_PORTS = ("8765", "8787", "8766")
 _SECRET_ENV_PARTS = ("KEY", "TOKEN", "SECRET", "PASSWORD", "AUTH", "COOKIE")
 _STANDARD_BIN_DIRS = ("/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin", "/opt/homebrew/bin")
+_USER_TEMP_WORK_DIR = Path(tempfile.gettempdir()) / "voice-cua"
 _SHELL_CONTROL = {"if", "then", "else", "elif", "fi", "for", "while", "until", "do", "done",
                   "case", "esac", "function", "{", "}", "(", ")", "()"}
 _SECRET_PATH = re.compile(
@@ -1150,14 +1151,21 @@ def _file_target(raw: Any) -> tuple[Path, Path | None] | dict[str, Any]:
 
 
 def _is_safe_local_path(path: str, home: str) -> bool:
-    """Paths under the user's artifacts or temp directory are local."""
+    """Paths under artifacts or the private voice-cua temp workspace are local."""
     try:
         real = os.path.realpath(path)
-        roots = (os.path.realpath(os.path.join(home, ".agents", "artifacts")),
-                 os.path.realpath(tempfile.gettempdir()))
     except OSError:
         return False
-    return any(_inside(real, root) for root in roots)
+    if _inside(real, os.path.realpath(os.path.join(home, ".agents", "artifacts"))):
+        return True
+    try:
+        temp_info = _USER_TEMP_WORK_DIR.lstat()
+    except OSError:
+        return False
+    temp_mode = stat.S_IMODE(temp_info.st_mode)
+    return (stat.S_ISDIR(temp_info.st_mode) and temp_info.st_uid == os.getuid()
+            and temp_mode & 0o300 == 0o300 and temp_mode & 0o077 == 0
+            and _inside(real, os.path.realpath(_USER_TEMP_WORK_DIR)))
 
 
 def _file_gate(op: str, path: Path, root: Path | None, args: dict[str, Any]) -> dict[str, Any] | None:

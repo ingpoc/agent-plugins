@@ -54,7 +54,7 @@ LIVE_SAMPLE_RATE = int(os.environ.get("VOICE_CUA_SAMPLE_RATE", "24000"))
 # then starts a second delegation for the same request within a fraction of a second. The
 # first recovery answer waits this long; a newer response for the same turn supersedes it.
 RECOVERY_SETTLE_S = 2.0
-REPEAT_CONFIRM_SETTLE_S = 5.0
+CONFIRM_TIMEOUT_SETTLE_S = 5.0
 # shortcut: six context turns, raise if reconnects keep dropping older relevant tasks.
 RECONNECT_CONTEXT_TURNS = 6
 # shortcut: retain 512 retired IDs, raise if late events outlive that window.
@@ -1490,8 +1490,6 @@ class LiveSession:
                                if waiter.get("typed_turn_id") == typed_turn_id
                                and not waiter["event"].is_set()), None)
                 repeat_timed_out_confirm = bool(waiter and waiter.get("unanswered_confirms", 0) >= 1)
-                if repeat_timed_out_confirm:
-                    waiter.setdefault("confirm_deadline", time.monotonic() + REPEAT_CONFIRM_SETTLE_S)
             tool_step_ref = new_step_ref()
             response_step_ref = self._response_step_refs.get(response_id, "")
             request_step_ref = self._task_request_step_refs.get(task_run_id, "") if task_run_id else ""
@@ -1578,7 +1576,7 @@ class LiveSession:
                         elif repeat_timed_out_confirm:
                             result = {"ok": False, "approved": False, "timed_out": True,
                                       "error": "confirmation timed out", "error_type": "confirm_timed_out",
-                                      "hint": "No answer yet; nothing was done. Briefly tell the user this still needs their OK, then stay ready to continue."}
+                                      "hint": "A timeout is not a denial; nothing was done. Reassess and retry work that is safe. For risky work, briefly say it was not run and stay ready for a fresh approval."}
                         else:
                             result = dispatch(name, arguments)
                     except Exception as exc:  # noqa: BLE001 — always answer the tool call
@@ -1616,6 +1614,7 @@ class LiveSession:
                         if waiter:
                             if result.get("timed_out") is True or result.get("error_type") == "confirm_timed_out":
                                 waiter["unanswered_confirms"] = waiter.get("unanswered_confirms", 0) + 1
+                                waiter.setdefault("confirm_deadline", time.monotonic() + CONFIRM_TIMEOUT_SETTLE_S)
                             elif result.get("approved") is True or result.get("error_type") == "user_denied":
                                 waiter["unanswered_confirms"] = 0
                                 waiter.pop("confirm_deadline", None)
