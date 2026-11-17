@@ -2,7 +2,7 @@ import importlib.util
 import contextlib
 import io
 from importlib.machinery import SourceFileLoader
-import json, os, signal, socket, subprocess, sys, tempfile, threading, time, unittest
+import errno, json, os, signal, socket, subprocess, sys, tempfile, threading, time, unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -85,6 +85,16 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(exit_result.exception.code, 1, stderr.getvalue())
         self.assertEqual(len(stderr.getvalue().splitlines()), 1, stderr.getvalue())
         self.assertRegex(stderr.getvalue(), r"\Abcl: viewer PID probe failed: (?:\[Errno 1\] )?[Oo]peration not permitted\n\Z")
+
+    def test_plan_reports_non_probe_oserror_without_pid_probe_label(self):
+        stderr = io.StringIO()
+        parser = bcl_entrypoint.argparse.ArgumentParser()
+        with patch.object(live_state, "ensure_viewer", side_effect=OSError("metadata write failed")), \
+             contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit) as exit_result:
+            bcl_entrypoint._ensure_viewer(parser, "repo/123", {}, Path("tracker.json"), "0.1.17", "plan")
+        self.assertEqual(exit_result.exception.code, 2)
+        self.assertIn("metadata write failed", stderr.getvalue())
+        self.assertNotIn("viewer PID probe failed", stderr.getvalue())
 
     def git(self, cwd, *args): return subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True)
     def call(self, stage, *args, cwd=None):
@@ -680,6 +690,17 @@ elif args[:2] != ['pr', 'edit']:
             except OSError: time.sleep(.05)
         else: self.fail("viewer did not bind its recorded loopback port")
 
+    def test_port_probe_propagates_non_occupancy_socket_error(self):
+        class FailedSocket:
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def setsockopt(self, *args): pass
+            def bind(self, *args): raise OSError(errno.EACCES, "permission denied")
+
+        with patch.object(live_state.socket, "socket", return_value=FailedSocket()):
+            with self.assertRaisesRegex(OSError, "permission denied"):
+                live_state._port_is_free(53366)
+
     def test_corrupt_other_viewer_state_is_reported(self):
         state = self.state / "viewers" / "other-list.json"
         state.write_text("{")
@@ -794,17 +815,26 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(binds, [])
 
     def test_viewer_start_failure_is_reported_and_not_recorded(self):
-        records = json.loads((self.state / "registry.json").read_text())
-        key, record = next(iter(records.items()))
-        state = self.viewer_state_path()
+        state = self.state / "viewers/test-1.json"
+        state.parent.mkdir(parents=True, exist_ok=True)
+        state.write_text(json.dumps({"pid": 87005}))
         previous = state.read_bytes()
+        live = self.root / "live.json"
+        live.write_text("{}")
+        page = self.root / "page.html"
+        page.write_text("viewer")
         process = SimpleNamespace(pid=99999, poll=lambda: 1)
+        def fail_start(*args, **kwargs):
+            kwargs["stderr"].write("Traceback (most recent call last):\nOSError: child startup cause\n")
+            return process
         with patch.object(live_state, "STATE", self.state), \
-             patch.object(live_state.os, "kill", side_effect=ProcessLookupError), \
-             patch.object(live_state.subprocess, "Popen", return_value=process), \
+             patch.object(live_state, "report_paths", return_value=(page, self.root)), \
+             patch.object(live_state, "_reserved_ports", return_value=set()), \
+             patch.object(live_state, "_port_is_free", return_value=True), \
+             patch.object(live_state.subprocess, "Popen", side_effect=fail_start), \
              patch.object(live_state, "_viewer_ready", return_value=False):
-            with self.assertRaisesRegex(RuntimeError, "viewer failed to start"):
-                live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
+            with self.assertRaisesRegex(RuntimeError, "(?s)viewer failed to start.*OSError: child startup cause"):
+                live_state.ensure_viewer("test/1", {"repo": "test", "id": "1"}, live, "new-version")
         self.assertEqual(state.read_bytes(), previous)
 
     def test_unresponsive_recorded_viewer_is_not_reported_as_healthy(self):
