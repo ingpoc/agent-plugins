@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-17T07:40:34Z",
-      "now": "2026-11-17T07:40:34Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-17T07:40:54Z",
+      "now": "2026-11-17T07:40:54Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 111,
