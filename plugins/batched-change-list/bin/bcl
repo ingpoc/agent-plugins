@@ -173,27 +173,30 @@ def _sync_main():
     if len(homes) != 1:
         raise ValueError("cannot identify one registered home worktree for this repository")
     home = homes.pop()
-    entries = subprocess.check_output(["git", "-C", str(home), "status", "--porcelain", "--untracked-files=all", "-z"]).decode().split("\0")
-    dirty = []
-    index = 0
-    while index < len(entries) and entries[index]:
-        entry = entries[index]; dirty.append(entry[3:]); index += 1
-        if "R" in entry[:2] or "C" in entry[:2]:
-            dirty.append(entries[index]); index += 1
+    def dirty_paths():
+        entries = subprocess.check_output(["git", "-C", str(home), "status", "--porcelain", "--untracked-files=all", "-z"]).decode().split("\0")
+        paths = []; index = 0
+        while index < len(entries) and entries[index]:
+            entry = entries[index]; paths.append(entry[3:]); index += 1
+            if "R" in entry[:2] or "C" in entry[:2]:
+                paths.append(entries[index]); index += 1
+        return paths
+
+    dirty = dirty_paths()
     if any(path == "docs/triage" or path.startswith("docs/triage/") for path in dirty):
         raise ValueError("docs/triage has uncommitted tracker or report changes; commit them or clean them before sync-main")
     if dirty:
         subprocess.run(["git", "-C", str(home), "stash", "push", "--include-untracked", "-m", "bcl sync-main hook/check dirt"], check=True)
     merge = subprocess.run(["git", "-C", str(home), "merge", "main"], capture_output=True, text=True)
-    conflicts = subprocess.check_output(["git", "-C", str(home), "diff", "--name-only", "--diff-filter=U", "-z"]).decode().split("\0")
-    for path in filter(None, conflicts):
+    conflicts = [path for path in subprocess.check_output(["git", "-C", str(home), "diff", "--name-only", "--diff-filter=U", "-z"]).decode().split("\0") if path]
+    for path in conflicts:
         if "/skills/" in f"/{path}" and "/references/" in f"/{path}":
             exists = subprocess.run(["git", "-C", str(home), "cat-file", "-e", f"main:{path}"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if exists.returncode:
                 subprocess.run(["git", "-C", str(home), "rm", "--", path], check=True)
-    remaining = subprocess.check_output(["git", "-C", str(home), "diff", "--name-only", "--diff-filter=U", "-z"]).decode().split("\0")
-    if any(remaining):
-        raise ValueError(f"merge has unresolved conflicts: {', '.join(filter(None, remaining))}")
+    remaining = [path for path in subprocess.check_output(["git", "-C", str(home), "diff", "--name-only", "--diff-filter=U", "-z"]).decode().split("\0") if path]
+    if remaining:
+        raise ValueError(f"merge has unresolved conflicts: {', '.join(remaining)}")
     if merge.returncode:
         if not conflicts:
             raise subprocess.CalledProcessError(merge.returncode, merge.args, merge.stdout, merge.stderr)
@@ -204,6 +207,10 @@ def _sync_main():
         page = home / record["html"]
         page.parent.mkdir(parents=True, exist_ok=True)
         page.write_text(render.render(json.loads(snapshot.read_text()), snapshot.parent))
+    post_merge_dirt = [path for path in dirty_paths() if path != "docs/triage" and not path.startswith("docs/triage/")]
+    if post_merge_dirt:
+        subprocess.run(["git", "-C", str(home), "stash", "push", "--include-untracked", "-m", "bcl sync-main hook/check dirt", "--",
+                        *(f":(literal){path}" for path in dict.fromkeys(post_merge_dirt))], check=True)
     print(f"Synced main into {home}; refreshed {len(records)} report(s)")
 
 def main():

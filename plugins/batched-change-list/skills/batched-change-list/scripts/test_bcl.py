@@ -135,6 +135,36 @@ elif args[:2] != ['pr', 'edit']:
         self.assertFalse((self.home / "main-change.txt").exists())
         self.assertEqual(self.git(self.home, "stash", "list").stdout, "")
 
+    def test_sync_main_stashes_dirt_created_by_post_merge_hook(self):
+        self.branch_for_sync()
+        (self.home / "feature-change.txt").write_text("feature\n")
+        self.git(self.home, "add", "feature-change.txt"); self.git(self.home, "commit", "-qm", "feature change")
+        self.git(self.home, "switch", "main")
+        (self.home / "main-change.txt").write_text("main\n")
+        self.git(self.home, "add", "main-change.txt"); self.git(self.home, "commit", "-qm", "main change")
+        self.git(self.home, "switch", "feature")
+        hook = self.home / ".git/hooks/post-merge"
+        hook.write_text("#!/bin/sh\nprintf 'hook dirt\\n' > hook-output.txt\n"); hook.chmod(0o755)
+        result = self.sync_main()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.home / "hook-output.txt").exists())
+        self.assertIn("hook-output.txt", self.git(self.home, "stash", "show", "--include-untracked", "--name-only").stdout)
+
+    def test_sync_main_preserves_merge_failure_without_unmerged_paths(self):
+        self.branch_for_sync()
+        original_run = subprocess.run
+        calls = []
+        def run(command, *args, **kwargs):
+            if command[-2:] == ["merge", "main"]:
+                return subprocess.CompletedProcess(command, 1, "", "merge failed without conflicts")
+            calls.append(command)
+            return original_run(command, *args, **kwargs)
+        with (patch.object(live_state, "STATE", self.state), patch.object(Path, "cwd", return_value=self.home),
+              patch.object(subprocess, "run", side_effect=run), self.assertRaises(subprocess.CalledProcessError) as failure):
+            bcl_entrypoint._sync_main()
+        self.assertEqual(failure.exception.stderr, "merge failed without conflicts")
+        self.assertFalse(any(command[-2:] == ["commit", "--no-edit"] for command in calls))
+
     def test_sync_main_resolves_deleted_skill_reference_conflict(self):
         self.branch_for_sync()
         reference = self.home / "plugins/example/skills/demo/references/old.md"
