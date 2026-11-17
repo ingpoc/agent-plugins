@@ -1,3 +1,7 @@
+## 0.1.34
+
+- Show one Verification-by-version row per version from the latest check with Checked, Expected, Observed, and Verdict because; reject empty reason parts, merge duplicate outcome records at write time, keep distinct checks distinct, and put earlier checks plus hashes, paths, timings, and the receipt under Details.
+
 ## 0.1.33
 
 - Limit `bcl sync-main` stashing to leftover hook/check dirt, preserve unrelated work, and catch recreated hook dirt at previously stashed paths.
