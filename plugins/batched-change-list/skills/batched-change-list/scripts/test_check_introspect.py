@@ -28,6 +28,16 @@ class IntrospectCheckTests(unittest.TestCase):
         }
         return {"steps": steps, "none": steps[1:], "sections": sections}
 
+    def test_draft_uses_performed_round_steps_and_requires_review(self):
+        draft = check.draft_introspect(self.tracking())
+        self.assertEqual(draft["steps"], check.performed_round_steps(self.tracking()))
+        self.assertEqual(draft["none"], [])
+        self.assertEqual(list(draft["sections"]), list(check.SECTION_ORDER))
+        self.assertTrue(all(section["none"].startswith("Review performed steps")
+                            for section in draft["sections"].values()))
+        with self.assertRaisesRegex(ValueError, "lack section or none coverage"):
+            check.validate_introspect(draft["sections"], draft["steps"], draft["none"], self.tracking())
+
     def test_out_of_order_sections_are_refused(self):
         payload = self.payload()
         payload["sections"] = {key: payload["sections"][key] for key in ("simplify", "delete", "optimize", "automate")}

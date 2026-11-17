@@ -287,6 +287,19 @@ elif args[:2] != ['pr', 'edit']:
             plan_path.write_text(json.dumps(plan))
         return subprocess.run([sys.executable, str(BCL), "--data", str(data), *map(str, extra), stage], cwd=cwd, env=self.env, capture_output=True, text=True)
 
+    def call_without_viewer(self, stage, *args):
+        output, error = io.StringIO(), io.StringIO()
+        argv = [str(BCL), "--data", str(self.data), *map(str, args), stage]
+        with patch.object(sys, "argv", argv), patch.object(bcl_entrypoint, "_ensure_viewer"), \
+                patch.object(live_state, "STATE", self.state), patch.dict(os.environ, self.env), \
+                contextlib.redirect_stdout(output), contextlib.redirect_stderr(error):
+            try:
+                bcl_entrypoint.main()
+                code = 0
+            except SystemExit as result:
+                code = result.code if isinstance(result.code, int) else 1
+        return SimpleNamespace(returncode=code, stdout=output.getvalue(), stderr=error.getvalue())
+
     def viewer_state_path(self, live=None):
         if live is None:
             live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
@@ -313,21 +326,34 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_workflow_cycle_uses_live_tracker_and_snapshots_each_stage(self):
-        self.assertEqual(self.call("start").returncode, 0)
+        result = self.call_without_viewer("start")
+        self.assertEqual(result.returncode, 0, result.stderr)
         marker = self.root / 'proof-ran'
         proof = self.root / 'proof.py'; proof.write_text(f"from pathlib import Path\nPath({str(marker)!r}).write_text('yes')\n")
         command = f'"{sys.executable}" "{proof}"'
         plan = {"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"reason":"Same root cause","depends_on":[],"codex":{"model":"gpt-6-luna","effort":"medium","status":"running","started_at":"2026-11-14T09:00:00Z","duration_s":120,"implementer_session":"fixture-implementer","reviewer_session":"fixture-reviewer","review_status":"passed"},"verify":{"command":command,"method":"Unit tests and a live page check","status":"pending"},"status":"running"}]}
         planfile = self.root / "plan.json"; planfile.write_text(json.dumps(plan))
-        sections = {"delete":{"none":"No deletions."},"simplify":{"none":"No simplifications."},"optimize":{"none":"No optimizations."},"automate":{"none":"No automations."}}
-        steps = check_introspect.performed_round_steps({
-            "stages_reached": ["plan_fix", "install", "verify"], "plan": plan,
-        })
-        sectionfile = self.root / "sections.json"; sectionfile.write_text(json.dumps({"steps": steps, "none": steps, "sections": sections}))
+        sectionfile = self.root / "sections.json"
         self.assertNotEqual(self.call("introspect", "--result", "no issues").returncode, 0)
-        for stage, extra in (("plan", ["--plan", str(planfile), "--ids", "ISSUE-01"]), ("fix", ["--ids", "ISSUE-01"]), ("install", ["--ids", "ISSUE-01"]), ("verify", ["--ids", "ISSUE-01", "--then", command]), ("introspect", ["--sections", str(sectionfile)])):
-            result = self.call(stage, *extra); self.assertEqual(result.returncode, 0, result.stderr)
+        for stage, extra in (("plan", ["--plan", str(planfile), "--ids", "ISSUE-01"]), ("fix", ["--ids", "ISSUE-01"]), ("install", ["--ids", "ISSUE-01"]), ("verify", ["--ids", "ISSUE-01", "--then", command])):
+            result = self.call_without_viewer(stage, *extra); self.assertEqual(result.returncode, 0, result.stderr)
             if stage == "plan": self.assertIn('class="plan"', self.page.read_text())
+        result = self.call_without_viewer("introspect", "--draft", sectionfile)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        data = json.loads(self.data.read_text())
+        self.assertNotIn("introspect", data["tracking"]["stages_reached"])
+        draft = json.loads(sectionfile.read_text())
+        self.assertEqual(draft["steps"], check_introspect.performed_round_steps(data["tracking"]))
+        self.assertIn(f"Test command: A: {command}", draft["steps"])
+        self.assertEqual(list(draft["sections"]), ["delete", "simplify", "optimize", "automate"])
+        self.assertEqual(draft["none"], [])
+        result = self.call_without_viewer("introspect", "--sections", sectionfile)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("introspect", json.loads(self.data.read_text())["tracking"]["stages_reached"])
+        draft["none"] = draft["steps"]
+        sectionfile.write_text(json.dumps(draft))
+        result = self.call_without_viewer("introspect", "--sections", sectionfile)
+        self.assertEqual(result.returncode, 0, result.stderr)
         status = self.call("status")
         self.assertEqual(marker.read_text(), 'yes')
         self.assertEqual(status.returncode, 0, status.stderr)
@@ -336,6 +362,23 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(data["tracking"]["plan"]["groups"][0]["id"], "A")
         self.assertEqual(data["tracking"]["plan"]["status"], "closed")
         self.assertEqual(json.loads(status.stdout)["plan"][0]["status"], "running")
+
+    def test_introspect_draft_rejects_input_tracker_and_live_hard_link(self):
+        input_before = self.data.read_bytes()
+        result = self.call_without_viewer("introspect", "--draft", self.data)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("input and live trackers", result.stderr)
+        self.assertEqual(self.data.read_bytes(), input_before)
+
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        hard_link = self.root / "live-hard-link.json"
+        os.link(live, hard_link)
+        live_before = live.read_bytes()
+        result = self.call_without_viewer("introspect", "--draft", hard_link)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("input and live trackers", result.stderr)
+        self.assertTrue(live.samefile(hard_link))
+        self.assertEqual(live.read_bytes(), live_before)
 
     def test_verify_rejects_placeholder_and_mismatched_command(self):
         self.assertEqual(self.call('start').returncode, 0)

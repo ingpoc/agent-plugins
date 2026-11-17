@@ -14,6 +14,7 @@ import live_state
 import manage_findings
 import tracker_lock
 import workflow_definition
+import check_introspect
 
 def _provider(url):
     return "gh" if (urlsplit(url).hostname or "").lower() == "github.com" else "origin"
@@ -269,7 +270,7 @@ def main():
     parser.add_argument("--data", type=Path); parser.add_argument("--render", type=Path)
     parser.add_argument("--progress", type=Path); parser.add_argument("--now")
     parser.add_argument("--ids", action="append", default=[]); parser.add_argument("--plan", type=Path)
-    parser.add_argument("--result"); parser.add_argument("--issues", type=Path); parser.add_argument("--sections", type=Path)
+    parser.add_argument("--result"); parser.add_argument("--issues", type=Path); parser.add_argument("--sections", type=Path); parser.add_argument("--draft", type=Path)
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
     parser.add_argument("--new-pr", type=int); parser.add_argument("--new-url"); parser.add_argument("--worktree")
     parser.add_argument("--merge-commit"); parser.add_argument("--merged-at"); parser.add_argument("--base-branch")
@@ -310,7 +311,8 @@ def main():
         import render
         report, base = live_state.report_paths(record, live)
         report.write_text(render.render(json.loads(live.read_text()), base))
-    if record and not record.get("rollover_pending") and args.stage != "status":
+    drafting_introspect = args.stage == "introspect" and args.draft is not None
+    if record and not record.get("rollover_pending") and args.stage != "status" and not drafting_introspect:
         _ensure_viewer(parser, key, record, live, plugin_version, args.stage)
     if args.stage == "adopt":
         if not record: parser.error("could not register tracker")
@@ -323,6 +325,19 @@ def main():
         parser.error(f"in-repo tracker differs from live state; live file: {live}")
     data = json.loads(live.read_text())
     tracking = data.get("tracking", {}); stages = tracking.get("stages_reached", [])
+    if args.draft:
+        if args.stage != "introspect" or args.sections:
+            parser.error("--draft is only valid for introspect and cannot be combined with --sections")
+        trackers = (source.resolve(), live.resolve())
+        if args.draft.resolve() in trackers or (args.draft.exists() and any(args.draft.samefile(path) for path in trackers)):
+            parser.error("Introspect draft path must differ from the input and live trackers")
+        try:
+            payload = check_introspect.draft_introspect(tracking)
+            args.draft.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        print(args.draft)
+        return
     begins_collect = args.stage == "start" and ("collect" not in stages or record.get("rollover_pending"))
     stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     if args.stage == "status":
@@ -443,7 +458,7 @@ def main():
             manage_findings.sync_plan_verify(expected_document)
             expected_verify_plan = expected_document['tracking']['plan']
     elif stage == "introspect":
-        if not args.sections: parser.error("introspect requires --sections FILE.json")
+        if not args.sections or args.draft: parser.error("introspect requires --sections FILE.json (use --draft FILE.json to prepare an editable draft)")
         payload = json.loads(args.sections.read_text())
         if not isinstance(payload, dict) or set(payload) != {"steps", "none", "sections"}:
             parser.error("introspect file must contain exactly steps, none, and ordered sections")
