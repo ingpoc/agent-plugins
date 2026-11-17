@@ -2981,9 +2981,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-17T10:01:33Z",
-      "now": "2026-11-17T10:01:33Z — Plan recorded"
+      "stage": "install",
+      "updated_at": "2026-11-17T10:11:45Z",
+      "now": "2026-11-17T10:11:45Z — Install in progress"
     },
     "rollover": {
       "source_pr": 112,
@@ -3263,7 +3263,8 @@
     },
     "stages_reached": [
       "collect",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "verification_run": {
       "id": "bcl-0.1.30-2d96d273-113",
