@@ -42,6 +42,10 @@ class SkillLayoutTests(unittest.TestCase):
         rendered = statechart.render()
         self.assertIn("<h2>Current</h2>", rendered)
         self.assertIn("<h2>After trigger</h2>", rendered)
+        changed_skill = SKILL.read_bytes().replace(b"Workflow: Collect and Present once", b"Workflow: Collect and Present initially", 1)
+        changed_chart = statechart.render(changed_skill)
+        self.assertNotEqual(changed_chart, rendered)
+        self.assertFalse(statechart.is_current(chart, changed_chart), "non-link SKILL.md edits must stale the chart")
         with tempfile.TemporaryDirectory() as temporary:
             stale = Path(temporary) / "statechart.html"
             self.assertFalse(statechart.is_current(stale, rendered))
