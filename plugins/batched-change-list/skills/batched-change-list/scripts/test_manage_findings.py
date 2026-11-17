@@ -1562,6 +1562,25 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(tracking["plan"]["round"], 2)
         self.assertEqual(tracking["round_history"][0]["round"], 1)
 
+    def test_set_plan_after_introspect_advances_even_when_plan_says_current_round(self):
+        none = {
+            "delete": {"none": "No deletions this cycle."},
+            "simplify": {"none": "No simplifications this cycle."},
+            "optimize": {"none": "No optimizations this cycle."},
+            "automate": {"none": "No automations this cycle."},
+        }
+        document = self._path1_pre()
+        current_round_plan = copy.deepcopy(document["tracking"]["plan"])
+        result = self._replay_batch(document,
+            {"action": "introspect", "sections": none, "result": "round 1 done"},
+            {"action": "set-plan", "plan": current_round_plan})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        tracking = json.loads(self.data.read_text())["tracking"]
+        self.assertEqual(tracking["round"], 2)
+        self.assertEqual(tracking["plan"]["round"], 2)
+        self.assertEqual(tracking["round_history"][0]["round"], 1)
+        self.assertEqual(tracking["workflow"]["stage"], "plan_fix")
+
     def test_install_requires_implementer_and_leaves_document_unchanged(self):
         document = copy.deepcopy(self.document)
         document["findings"][0]["status"] = "in_progress"

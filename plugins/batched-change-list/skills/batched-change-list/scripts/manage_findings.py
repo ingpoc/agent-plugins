@@ -1094,7 +1094,11 @@ def run(args, parser):
                             and type(requested_plan.get("round")) is int
                             and requested_plan["round"] == current_round
                         )
-                        if previous_stage in ("verify", "introspect", "gate") and not same_current_plan:
+                        starting_new_round = (
+                            previous_stage in ("verify", "introspect", "gate")
+                            and (not same_current_plan or introspect_covers_current_round(tracking))
+                        )
+                        if starting_new_round:
                             require_current_round_introspect(tracking, "returning to plan_fix")
                             advance_plan_round(tracking, findings,
                                                datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
@@ -1135,7 +1139,7 @@ def run(args, parser):
                         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                         for group in groups: stamp_plan_group(group, stamp)
                         tracking["plan"] = plan
-                        if not same_current_plan:
+                        if not same_current_plan or starting_new_round:
                             current_workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
                             workflow = {"stage": "plan_fix", "updated_at": stamp, "now": f"{stamp} — Plan recorded"}
                             if current_workflow.get("stale_after_min") is not None:
