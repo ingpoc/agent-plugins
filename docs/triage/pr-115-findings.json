@@ -5476,8 +5476,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-17T15:49:31Z",
-      "now": "2026-11-17T15:49:31Z — Fix in progress"
+      "updated_at": "2026-11-17T16:34:22Z",
+      "now": "2026-11-17T16:34:22Z — Lane SKILL-REDESIGN updated"
     },
     "rollover": {
       "source_pr": 114,
@@ -5700,8 +5700,8 @@
             "BCL-38"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "samantha-pr115-rollover",
           "reason": "Guru authorized one skill redesign so the always-needed rules stay in the skill file, the step workflow loads from references, the chart shows the real flow with Current and After as a toggle and verdict badges, and skill-creator plus skill-refine checks pass.",
           "files": [
@@ -5719,7 +5719,11 @@
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "status": "pending"
+            "status": "passed",
+            "implementer_session": "01a1ea33-d32c-75c2-b12a-284d0b47e5cd",
+            "reviewer_session": "01a1ea4b-843b-7682-ba8b-43af52dfa5ce",
+            "review_status": "passed",
+            "one_file": false
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-115/verify-bcl38.sh",
@@ -5730,7 +5734,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T15:49:31Z"
+          "updated_at": "2026-11-17T16:34:22Z"
         }
       ]
     },
