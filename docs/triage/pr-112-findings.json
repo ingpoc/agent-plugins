@@ -2478,7 +2478,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T08:42:25Z",
+          "updated_at": "2026-11-17T08:46:52Z",
           "codex": {
             "implementer_session": "01a1e8a0-d5b8-7870-9699-63f39dad86c9",
             "implementer": "luna",
@@ -2488,8 +2488,9 @@
             "reviewer_model": "gpt-6.1-terra",
             "reviewer_effort": "medium",
             "reviewer_verdict": "request-changes",
+            "review_status": "passed",
             "status": "running",
-            "updated_at": "2026-11-17T08:42:25Z"
+            "updated_at": "2026-11-17T08:46:52Z"
           }
         },
         {
@@ -2515,7 +2516,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T08:42:25Z",
+          "updated_at": "2026-11-17T08:46:52Z",
           "codex": {
             "implementer_session": "01a1e8a0-d5b8-74b3-904e-272277716d80",
             "implementer": "luna",
@@ -2525,8 +2526,9 @@
             "reviewer_model": "gpt-6.1-terra",
             "reviewer_effort": "medium",
             "reviewer_verdict": "request-changes",
+            "review_status": "passed",
             "status": "running",
-            "updated_at": "2026-11-17T08:42:25Z"
+            "updated_at": "2026-11-17T08:46:52Z"
           }
         }
       ]
