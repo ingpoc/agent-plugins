@@ -329,7 +329,31 @@ class ManageFindingsTests(unittest.TestCase):
         manage_findings.validate_plan_groups({
             "round": 2,
             "groups": [{"id": "OLD", "finding_ids": ["A", "B", "C", "D", "E"], "status": "deferred",
-                        "codex": {"effort": "max"}}],
+                        "phase": "fix", "codex": {"effort": "max"}}],
+        })
+        manage_findings.validate_plan_groups({
+            "round": 2,
+            "groups": [{"id": "PARKED", "finding_ids": ["A", "B", "C", "D", "E"], "status": "parked",
+                        "phase": "fix", "codex": {"effort": "max"}}],
+        })
+        for phase in ("done", "fix"):
+            with self.subTest(status="running", phase=phase):
+                with self.assertRaisesRegex(ValueError, "use medium effort instead of max"):
+                    manage_findings.validate_plan_groups({
+                        "round": 2,
+                        "groups": [{"id": "ACTIVE", "finding_ids": ["A"], "status": "running",
+                                    "phase": phase, "codex": {"effort": "max"}}],
+                    })
+        with self.assertRaisesRegex(ValueError, "cap a parallel fix group"):
+            manage_findings.validate_plan_groups({
+                "round": 2,
+                "groups": [{"id": "ACTIVE", "finding_ids": ["A", "B", "C", "D", "E"],
+                            "status": "running", "phase": "done", "codex": {"effort": "medium"}}],
+            })
+        manage_findings.validate_plan_groups({
+            "round": 2,
+            "groups": [{"id": "PHASE", "finding_ids": ["A", "B", "C", "D", "E"],
+                        "phase": "deferred", "codex": {"effort": "max"}}],
         })
 
     def test_set_plan_rejects_oversized_and_max_effort_groups_without_writing(self):
@@ -347,6 +371,25 @@ class ManageFindingsTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(message, result.stderr)
                 self.assertEqual(self.data.read_bytes(), before)
+
+    def test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal(self):
+        for group, accepted in (
+            ({"id": "ACTIVE", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "running",
+              "phase": "done", "codex": {"effort": "max"}}, False),
+            ({"id": "DEFERRED", "finding_ids": ["ISSUE-01"],
+              "depends_on": [], "status": "deferred", "phase": "fix", "codex": {"effort": "max"}}, True),
+        ):
+            with self.subTest(group=group):
+                before = self.data.read_bytes()
+                result = self._replay_batch(json.loads(before), {
+                    "action": "set-plan", "plan": {"round": 1, "groups": [group]},
+                })
+                if accepted:
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                else:
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("use medium effort", result.stderr)
+                    self.assertEqual(self.data.read_bytes(), before)
 
     def test_recheck_preserves_previous_result_and_other_checks(self):
         ops, page = self.root / 'ops.json', self.root / 'page.html'
