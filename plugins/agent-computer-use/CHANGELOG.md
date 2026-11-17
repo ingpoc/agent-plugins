@@ -1,3 +1,7 @@
+## 0.2.150
+
+- Keep a typed confirm_risky turn alive across a transport reconnect, including abnormal close code 1006, so the real waiter is not failed with a reconnected error.
+
 ## 0.2.149
 
 - Trust artifact and temporary paths for local work.

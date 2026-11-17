@@ -1,3 +1,8 @@
+## 0.1.37
+
+- Allow max Codex effort on current plan groups while keeping the about-4-issues size cap.
+- Migrate a verified legacy viewer without instance identity onto a new port without shutdown; fail closed when a running viewer cannot be identified, and do not start a replacement.
+
 ## 0.1.36
 
 - Windows-safe non-destructive viewer liveness probe in live_state, with Unix behaviour preserved.
