@@ -15,13 +15,16 @@ BCL = PLUGIN / "bin/bcl"
 if not BCL.is_file():
     raise unittest.SkipTest("plugin bin is not shipped beside the skill and is not installed")
 EXAMPLE = PLUGIN / "skills/batched-change-list/examples/findings.json"
-sys.path.insert(0, str(PLUGIN / "skills/batched-change-list/scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import live_state
 import check_introspect
 loader = SourceFileLoader("bcl_entrypoint", str(BCL))
 spec = importlib.util.spec_from_loader("bcl_entrypoint", loader)
 bcl_entrypoint = importlib.util.module_from_spec(spec)
-loader.exec_module(bcl_entrypoint)
+try:
+    loader.exec_module(bcl_entrypoint)
+finally:
+    sys.path.remove(str(bcl_entrypoint.SCRIPTS))
 
 class BclTests(unittest.TestCase):
     def test_verify_failure_reason_has_checked_expected_and_observed(self):
