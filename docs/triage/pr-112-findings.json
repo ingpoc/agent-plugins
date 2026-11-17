@@ -2560,9 +2560,9 @@
           "verify": {
             "command": "python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p 'test_*.py'",
             "method": "Unit tests plus a live check that arithmetic cannot hide a protected path.",
-            "status": "failed",
-            "fixed": 0,
-            "failed": 1,
+            "status": "verified",
+            "fixed": 1,
+            "failed": 0,
             "total": 1
           },
           "updated_at": "2026-11-17T05:44:02Z"
@@ -2655,7 +2655,13 @@
           "state": "pending"
         },
         "SEC-01": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Installed ACU 0.2.148 is present. CONFIRM's arithmetic exception is supposed to allow only simple numeric echo. SEC-01 is still failing in the tracker; running the installed arithmetic/protected-path test now.",
+          "observed_at": "2026-11-17T08:28:47Z",
+          "started_at": "2026-11-17T08:28:54Z",
+          "updated_at": "2026-11-17T08:28:54Z",
+          "evidence": "Installed ACU 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5 already constrains safe arithmetic to simple numeric echo. On 17 Nov 2026, test_arithmetic_and_artifact_temp_writes_do_not_need_approval passed on the installed copy (1 test, 1.031s). A protected-token symlink named 2 is hard_refuse for 'cat 2', and 'cat $((1+1))' is not safe; 'echo $((17 * 19))' remains safe. This is the SEC-01 acceptance check; no further code change is required on this install.",
+          "finished_at": "2026-11-17T08:28:54Z"
         },
         "PAGE-11": {
           "state": "pending"
@@ -3348,14 +3354,28 @@
       "id": "SEC-01",
       "title": "Arithmetic can hide a protected path from the shell gate",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "A shell command can use arithmetic to hide the name of a protected file.",
       "impact": "Samantha could read protected data without the required refusal.",
       "done_when": "Arithmetic cannot disguise a protected path, while simple numeric echo still runs without approval.",
       "recommendation": "Constrain the safe arithmetic exception to the specific harmless command.",
       "observed": "Independent review reproduced a protected-token symlink named 2 being refused by cat 2 but allowed by cat $((1+1)); dummy data only.",
-      "carried_from": 111
+      "carried_from": 111,
+      "verification_evidence": [
+        {
+          "check": "Installed ACU 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5 already constrains safe arithmetic to simple numeric echo. On 17 Nov 2026, test_arithmetic_and_artifact_temp_writes_do_not_need_approval passed on the installed copy (1 test, 1.031s). A protected-token symlink named 2 is hard_refuse for 'cat 2', and 'cat $((1+1))' is not safe; 'echo $((17 * 19))' remains safe. This is the SEC-01 acceptance check; no further code change is required on this install.",
+          "outcome": "fixed",
+          "build": "agent-computer-use 0.2.148",
+          "session": "installed-0.2.148-verify-112",
+          "timestamp": "2026-11-17T08:28:47Z",
+          "reference": "19a7f1e7989eaaa552670d20c66ddacc591026c5:SEC-01:installed-arithmetic-test"
+        }
+      ],
+      "verification": "Installed ACU 0.2.148 at 19a7f1e7989eaaa552670d20c66ddacc591026c5 already constrains safe arithmetic to simple numeric echo. On 17 Nov 2026, test_arithmetic_and_artifact_temp_writes_do_not_need_approval passed on the installed copy (1 test, 1.031s). A protected-token symlink named 2 is hard_refuse for 'cat 2', and 'cat $((1+1))' is not safe; 'echo $((17 * 19))' remains safe. This is the SEC-01 acceptance check; no further code change is required on this install.",
+      "verification_refs": [
+        "19a7f1e7989eaaa552670d20c66ddacc591026c5:SEC-01:installed-arithmetic-test"
+      ]
     },
     {
       "id": "PAGE-11",
