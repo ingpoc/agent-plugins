@@ -3803,9 +3803,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-17T11:05:46Z",
-      "now": "2026-11-17T11:05:46Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-17T11:09:03Z",
+      "now": "2026-11-17T11:09:03Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 113,
@@ -3923,7 +3923,7 @@
       }
     },
     "cycle": 6,
-    "round": 1,
+    "round": 2,
     "round_history": [
       {
         "round": 2,
@@ -3974,144 +3974,136 @@
         "round": 3,
         "fixed": 57,
         "ended_at": "2026-11-17T10:25:18Z"
+      },
+      {
+        "round": 1,
+        "fixed": 5,
+        "ended_at": "2026-11-17T11:09:03Z"
       }
     ],
     "plan": {
-      "round": 1,
+      "round": 2,
       "cycle": 6,
       "groups": [
         {
-          "id": "GUARD",
-          "name": "Confirm merge refuses a dirty live tracker already in 0.1.31",
+          "id": "LOCK",
+          "name": "Confirm competing tracker writers already serialize in 0.1.32",
           "finding_ids": [
-            "BCL-01"
+            "BCL-11"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
+          "status": "pending",
+          "phase": "pending",
           "worktree": "samantha-pr114-rollover",
           "files": [],
-          "reason": "0.1.31 already snapshots each stage in the home worktree and bcl merge rejects an unsnapshotted live tracker.",
+          "reason": "0.1.32 already serializes competing manage_findings writers under a shared lock and rejects a conflicting non-blocking lock, so neither update is lost.",
           "codex": {
             "one_file": true,
-            "implementer_session": "test-now-already-installed-0.1.31",
+            "implementer_session": "test-now-already-installed-0.1.32",
             "review_status": "passed"
-          },
-          "verify": {
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
-            "method": "test_merge_guard_rejects_unsnapshotted_live_then_passes and test_stage_snapshots_and_commits_only_home_worktree prove the merge guard and per-stage snapshot commit.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "updated_at": "2026-11-17T10:45:37Z"
-        },
-        {
-          "id": "SNAP",
-          "name": "Confirm consistent snapshots and late-write detection already in 0.1.31",
-          "finding_ids": [
-            "BCL-12",
-            "BCL-15"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "samantha-pr114-rollover",
-          "files": [],
-          "reason": "live_state already snapshots one captured tracker revision, serializes snapshot work, and holds the writer lock through the final comparison so a late write stays detectable.",
-          "codex": {
-            "one_file": true,
-            "implementer_session": "test-now-already-installed-0.1.31",
-            "review_status": "passed"
-          },
-          "verify": {
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
-            "method": "test_changed_tracker_keeps_one_revision_and_reports_stale_snapshot, test_snapshots_in_same_worktree_are_serialized, and test_final_comparison_and_marker_removal_hold_writer_lock.",
-            "status": "verified",
-            "fixed": 2,
-            "failed": 0,
-            "total": 2
-          },
-          "updated_at": "2026-11-17T10:45:37Z"
-        },
-        {
-          "id": "PLAN",
-          "name": "Flag or split oversized or Luna-max plan groups",
-          "finding_ids": [
-            "PLAN-02"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "samantha-pr114-rollover",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py"
-          ],
-          "reason": "set-plan should reject or split a group that is too large or set to Luna max, preferring medium jobs of about 4 issues.",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "status": "passed",
-            "implementer_session": "01a1e91d-41fa-78f0-901a-873a5443e074",
-            "reviewer_session": "01a1e922-03dc-70d3-aabf-0abb9881fb39",
-            "review_status": "passed",
-            "one_file": false
           },
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
-            "method": "New and existing manage_findings tests must reject or split an oversized or Luna-max group.",
-            "status": "verified",
-            "fixed": 1,
+            "method": "test_competing_writers_serialize_without_blocking_readers proves competing tracker writes serialize without losing either update. test_nonblocking_lock_rejects_competitor_and_releases_after_crash in test_tracker_lock.py is supporting proof.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T11:05:22Z"
+          "updated_at": "2026-11-17T11:09:03Z"
         },
         {
-          "id": "SYNC",
-          "name": "Add bcl sync-main after a merge",
+          "id": "CAPEV",
+          "name": "Record installed proof for the four-issue plan cap",
           "finding_ids": [
-            "AUTO-04"
+            "PAGE-15"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
+          "status": "pending",
+          "phase": "pending",
           "worktree": "samantha-pr114-rollover",
+          "files": [],
+          "reason": "PAGE-15 noted that PLAN-03 was marked fixed from a source-file check only. Installed 0.1.32 now enforces the four-issue and Luna-max caps in set-plan, so this group records that installed-client proof.",
+          "codex": {
+            "one_file": true,
+            "implementer_session": "test-now-already-installed-0.1.32",
+            "review_status": "passed"
+          },
+          "verify": {
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+            "method": "test_plan_check_caps_group_size_and_rejects_max_effort, test_set_plan_rejects_oversized_and_max_effort_groups_without_writing, and test_set_plan_uses_status_before_phase_and_preserves_tracker_on_refusal prove the installed client enforces the cap and refuses a bad plan without writing.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-17T11:09:03Z"
+        },
+        {
+          "id": "STASH",
+          "name": "Limit sync-main stash to hook or check dirt",
+          "finding_ids": [
+            "BCL-36"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "pending",
+          "worktree": "pr114-stash",
           "files": [
             "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
           ],
-          "reason": "After a merge, catching the branch up to main still takes hand steps. bcl sync-main should merge main, resolve skill-reference deletions, re-render HTML, and stash hook dirt in one command.",
+          "reason": "sync-main currently stashes every non-triage dirty path before merging main. It should stash only leftover hook or check dirt, or restore unrelated work, and a test must cover unrelated dirty files being left alone or restored.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "status": "passed",
-            "implementer_session": "01a1e91d-41fa-7b50-be96-546630e1ab6a",
-            "reviewer_session": "01a1e924-626f-7392-b9aa-41a3c94cd1a9",
-            "review_status": "passed",
-            "one_file": false
+            "status": "pending"
           },
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
-            "method": "A new test must show bcl sync-main merges main, resolves skill-ref deletions, re-renders HTML, and stashes hook dirt.",
-            "status": "verified",
-            "fixed": 1,
+            "method": "A new test must show sync-main leaves unrelated non-triage dirty files in the worktree or restores them, while still stashing leftover hook or check dirt.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T11:05:22Z"
+          "updated_at": "2026-11-17T11:09:03Z"
+        },
+        {
+          "id": "ILOCAL",
+          "name": "Add bcl install-local for the post-merge install step",
+          "finding_ids": [
+            "AUTO-05"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "pending",
+          "worktree": "pr114-install",
+          "files": [
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
+          ],
+          "reason": "After a merge, installing still means copying into ~/.agents, the Codex cache, and the Cursor cache, removing old copies, and checking the sha by hand. bcl install-local should do that as one scripted Install step.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "status": "pending"
+          },
+          "verify": {
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
+            "method": "A new test must show bcl install-local installs into ~/.agents, the Codex cache, and the Cursor cache, removes old copies, and checks the sha against the merge revision.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-17T11:09:03Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "stages_reached": [
       "collect",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "verification_run": {
       "id": "bcl-0.1.32-9e8efcf5-114",
