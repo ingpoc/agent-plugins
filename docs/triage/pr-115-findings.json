@@ -5743,7 +5743,282 @@
       "present",
       "plan_fix",
       "install"
-    ]
+    ],
+    "verification_run": {
+      "id": "installed-0.1.38-verify-115",
+      "build": "batched-change-list 0.1.38",
+      "revision": "516bdc080e7319f01d4c046f26d1cb868c3e22c8",
+      "installed_at": "2026-11-17T16:35:13Z",
+      "install_evidence": "bcl install-local revision 516bdc080e7319f01d4c046f26d1cb868c3e22c8; plugin 50 files sha256 ff303709be82f9f68e91d11169c6bbd68eeb38d2e4f342711fc9304c200f4db9; skill 43 files sha256 0b498059c77b6aaa1162c8be2924fff37adfbc9829729ed9be17c44da27880ac; destinations ~/.agents/plugins, ~/.agents/skills, Cursor and Codex caches for 0.1.38 and that revision",
+      "status": "active",
+      "checks": {
+        "AUTO-03": {
+          "state": "pending"
+        },
+        "AUTO-04": {
+          "state": "pending"
+        },
+        "AUTO-05": {
+          "state": "pending"
+        },
+        "AUTO-06": {
+          "state": "pending"
+        },
+        "BCL-01": {
+          "state": "pending"
+        },
+        "BCL-02": {
+          "state": "pending"
+        },
+        "BCL-03": {
+          "state": "pending"
+        },
+        "PLAN-02": {
+          "state": "pending"
+        },
+        "PLAN-03": {
+          "state": "pending"
+        },
+        "OBS-23": {
+          "state": "pending"
+        },
+        "OBS-25": {
+          "state": "pending"
+        },
+        "AGENT-25": {
+          "state": "pending"
+        },
+        "WF-06": {
+          "state": "pending"
+        },
+        "PAGE-08": {
+          "state": "pending"
+        },
+        "AGENT-26": {
+          "state": "pending"
+        },
+        "AGENT-27": {
+          "state": "pending"
+        },
+        "WF-07": {
+          "state": "pending"
+        },
+        "PAGE-09": {
+          "state": "pending"
+        },
+        "PAGE-10": {
+          "state": "pending"
+        },
+        "SEC-01": {
+          "state": "pending"
+        },
+        "PAGE-11": {
+          "state": "pending"
+        },
+        "BCL-04": {
+          "state": "pending"
+        },
+        "PAGE-12": {
+          "state": "pending"
+        },
+        "FLOW-03": {
+          "state": "pending"
+        },
+        "PAGE-13": {
+          "state": "pending"
+        },
+        "PAGE-14": {
+          "state": "pending"
+        },
+        "PAGE-15": {
+          "state": "pending"
+        },
+        "PAGE-16": {
+          "state": "pending"
+        },
+        "BCL-05": {
+          "state": "pending"
+        },
+        "PAGE-17": {
+          "state": "pending"
+        },
+        "BCL-06": {
+          "state": "pending"
+        },
+        "FLOW-04": {
+          "state": "pending"
+        },
+        "PAGE-18": {
+          "state": "pending"
+        },
+        "BCL-07": {
+          "state": "pending"
+        },
+        "BCL-08": {
+          "state": "pending"
+        },
+        "PAGE-19": {
+          "state": "pending"
+        },
+        "PAGE-20": {
+          "state": "pending"
+        },
+        "BCL-09": {
+          "state": "pending"
+        },
+        "BCL-10": {
+          "state": "pending"
+        },
+        "BCL-11": {
+          "state": "pending"
+        },
+        "BCL-12": {
+          "state": "pending"
+        },
+        "BCL-13": {
+          "state": "pending"
+        },
+        "BCL-14": {
+          "state": "pending"
+        },
+        "BCL-15": {
+          "state": "pending"
+        },
+        "BCL-16": {
+          "state": "pending"
+        },
+        "BCL-17": {
+          "state": "pending"
+        },
+        "AGENT-28": {
+          "state": "pending"
+        },
+        "AGENT-29": {
+          "state": "pending"
+        },
+        "BCL-18": {
+          "state": "pending"
+        },
+        "BCL-19": {
+          "state": "pending"
+        },
+        "BCL-20": {
+          "state": "pending"
+        },
+        "BCL-21": {
+          "state": "pending"
+        },
+        "EVAL-01": {
+          "state": "pending"
+        },
+        "BCL-22": {
+          "state": "pending"
+        },
+        "BCL-23": {
+          "state": "pending"
+        },
+        "WF-08": {
+          "state": "pending"
+        },
+        "BCL-24": {
+          "state": "pending"
+        },
+        "BCL-25": {
+          "state": "pending"
+        },
+        "BCL-26": {
+          "state": "pending"
+        },
+        "BCL-27": {
+          "state": "pending"
+        },
+        "BCL-28": {
+          "state": "pending"
+        },
+        "BCL-29": {
+          "state": "pending"
+        },
+        "WF-09": {
+          "state": "pending"
+        },
+        "BCL-30": {
+          "state": "pending"
+        },
+        "BCL-31": {
+          "state": "pending"
+        },
+        "WF-10": {
+          "state": "pending"
+        },
+        "BCL-32": {
+          "state": "pending"
+        },
+        "BCL-33": {
+          "state": "pending"
+        },
+        "WF-11": {
+          "state": "pending"
+        },
+        "BCL-34": {
+          "state": "pending"
+        },
+        "WF-12": {
+          "state": "pending"
+        },
+        "BCL-35": {
+          "state": "pending"
+        },
+        "PAGE-21": {
+          "state": "pending"
+        },
+        "WF-13": {
+          "state": "pending"
+        },
+        "WF-14": {
+          "state": "pending"
+        },
+        "WF-15": {
+          "state": "pending"
+        },
+        "BCL-36": {
+          "state": "pending"
+        },
+        "WF-16": {
+          "state": "pending"
+        },
+        "PAGE-22": {
+          "state": "pending"
+        },
+        "WF-17": {
+          "state": "pending"
+        },
+        "WF-18": {
+          "state": "pending"
+        },
+        "BCL-37": {
+          "state": "pending"
+        },
+        "WF-19": {
+          "state": "pending"
+        },
+        "WF-20": {
+          "state": "pending"
+        },
+        "PLAN-04": {
+          "state": "pending"
+        },
+        "WF-21": {
+          "state": "pending"
+        },
+        "BCL-38": {
+          "state": "checking",
+          "observation": "0.1.38 is installed locally after the skill redesign commit. Checks of the worktree and installed copy have not been run yet on this install.",
+          "observed_at": "2026-11-17T16:35:13Z",
+          "started_at": "2026-11-17T16:35:13Z",
+          "updated_at": "2026-11-17T16:35:13Z"
+        }
+      }
+    }
   },
   "findings": [
     {
