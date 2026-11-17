@@ -15,6 +15,70 @@ import render
 
 
 class ViewerLivenessTests(unittest.TestCase):
+    def test_legacy_health_requires_pid_and_data_path(self):
+        class Response:
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def read(self): return json.dumps({'pid': 123, 'path': '/tmp/list.json'}).encode()
+
+        expected = {'pid': 123, 'data': '/tmp/list.json'}
+        with patch.object(live_state.urllib.request, 'urlopen', return_value=Response()):
+            self.assertTrue(live_state._legacy_viewer_matches(5000, expected))
+        with patch.object(live_state.urllib.request, 'urlopen', return_value=Response()):
+            self.assertFalse(live_state._legacy_viewer_matches(5000, {**expected, 'pid': 124}))
+            self.assertFalse(live_state._legacy_viewer_matches(5000, {**expected, 'data': '/tmp/other.json'}))
+
+    def test_legacy_record_migrates_without_shutdown_and_starts_for_list(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            state = root / 'viewers' / 'repo--1.json'
+            state.parent.mkdir()
+            live = root / 'correct-list.json'
+            live.write_text('{}')
+            page = root / 'report.html'
+            page.write_text('<html></html>')
+            old = {'pid': 123, 'data': str(live), 'port': 5000, 'version': 'old'}
+            state.write_text(json.dumps(old))
+            proc = unittest.mock.Mock(pid=456, poll=lambda: None)
+            with patch.object(live_state, 'STATE', root), \
+                 patch.object(live_state, 'report_paths', return_value=(page, root)), \
+                 patch.object(live_state, '_pid_is_running', return_value=True), \
+                 patch.object(live_state, '_legacy_viewer_matches', return_value=True) as verify, \
+                 patch.object(live_state, '_reserved_ports', return_value=set()), \
+                 patch.object(live_state, '_port_is_free', side_effect=lambda port: port == 53366), \
+                 patch.object(live_state.subprocess, 'Popen', return_value=proc) as popen, \
+                 patch.object(live_state, '_viewer_ready', return_value=True), \
+                 patch.object(live_state.urllib.request, 'urlopen') as urlopen:
+                result = live_state.ensure_viewer('repo/1', {}, live, 'new')
+            verify.assert_called_once_with(5000, old)
+            urlopen.assert_not_called()
+            command = popen.call_args.args[0]
+            self.assertEqual(Path(command[command.index('--data') + 1]).resolve(), live.resolve())
+            self.assertEqual(result['data'], str(live.resolve()))
+            self.assertEqual(result['pid'], 456)
+            self.assertEqual(json.loads(state.read_text())['instance'], result['instance'])
+
+    def test_unverified_legacy_record_is_left_running_without_replacement(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            state = root / 'viewers' / 'repo--1.json'
+            state.parent.mkdir()
+            live = root / 'correct-list.json'
+            live.write_text('{}')
+            old = {'pid': 123, 'data': str(live), 'port': 5000, 'version': 'old'}
+            state.write_text(json.dumps(old))
+            with patch.object(live_state, 'STATE', root), \
+                 patch.object(live_state, '_pid_is_running', return_value=True), \
+                 patch.object(live_state, '_legacy_viewer_matches', return_value=False) as verify, \
+                 patch.object(live_state.subprocess, 'Popen') as popen, \
+                 patch.object(live_state.urllib.request, 'urlopen') as urlopen:
+                with self.assertRaisesRegex(RuntimeError, 'cannot verify viewer ownership'):
+                    live_state.ensure_viewer('repo/1', {}, live, 'new')
+            verify.assert_called_once_with(5000, old)
+            popen.assert_not_called()
+            urlopen.assert_not_called()
+
     def test_unix_probe_reports_missing_and_permission_denied(self):
         with patch.object(live_state.os, 'name', 'posix'), patch.object(live_state.os, 'kill', side_effect=ProcessLookupError):
             self.assertFalse(live_state._pid_is_running(123))
