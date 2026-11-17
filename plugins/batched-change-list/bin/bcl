@@ -96,22 +96,24 @@ def install_local():
     dirty = subprocess.check_output(["git", "-C", str(HERE), "status", "--porcelain", "--untracked-files=all", "--"], text=True)
     if dirty:
         raise ValueError("plugin checkout has local changes; install from the merged HEAD")
-    source_sha, _ = _install_tree_digest(HERE)
+    plugin_sha, _ = _install_tree_digest(HERE)
+    skill_source = HERE / "skills/batched-change-list"
+    skill_sha, _ = _install_tree_digest(skill_source)
     home = Path.home()
     destinations = [
-        home / ".agents/plugins/batched-change-list",
-        home / ".agents/skills/batched-change-list",
-        *(home / f".{client}/plugins/cache/ingpoc-agent-plugins/batched-change-list/{ref}"
+        (HERE, home / ".agents/plugins/batched-change-list", plugin_sha),
+        (skill_source, home / ".agents/skills/batched-change-list", skill_sha),
+        *((HERE, home / f".{client}/plugins/cache/ingpoc-agent-plugins/batched-change-list/{ref}", plugin_sha)
           for client in ("cursor", "codex") for ref in (version, revision)),
     ]
     print(f"bcl install-local: revision {revision}")
-    for destination in destinations:
+    for source, destination, source_sha in destinations:
         if destination.is_symlink():
             destination.unlink()
         elif destination.exists():
             shutil.rmtree(destination)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(HERE, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store"))
+        shutil.copytree(source, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store"))
         installed_sha, count = _install_tree_digest(destination)
         if installed_sha != source_sha:
             raise SystemExit(f"bcl install-local: sha256 mismatch at {destination}")

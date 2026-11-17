@@ -80,30 +80,43 @@ elif args[:2] != ['pr', 'edit']:
         self.git(checkout, "add", ".")
         self.git(checkout, "commit", "-qm", "fixture")
         home = self.root / "install-home"
-        old = home / ".agents/plugins/batched-change-list"
-        old.mkdir(parents=True)
-        (old / "old-copy").write_text("remove")
-        expected_sha, expected_count = bcl_entrypoint._install_tree_digest(checkout)
+        old_plugin = home / ".agents/plugins/batched-change-list"
+        old_skill = home / ".agents/skills/batched-change-list"
+        for old in (old_plugin, old_skill):
+            old.mkdir(parents=True)
+            (old / "old-copy").write_text("remove")
+        plugin_sha, plugin_count = bcl_entrypoint._install_tree_digest(checkout)
+        skill_sha, skill_count = bcl_entrypoint._install_tree_digest(checkout / "skills/batched-change-list")
         version = json.loads((checkout / "plugin.json").read_text())["version"]
         revision = self.git(checkout, "rev-parse", "HEAD").stdout.strip()
         with patch.object(bcl_entrypoint, "HERE", checkout), patch.dict(os.environ, {"HOME": str(home)}), \
              patch.object(sys, "argv", [str(BCL), "install-local"]), contextlib.redirect_stdout(io.StringIO()) as receipt:
             bcl_entrypoint.main()
-        destinations = [
+        plugin_destinations = [
             home / ".agents/plugins/batched-change-list",
-            home / ".agents/skills/batched-change-list",
             *(home / f".{client}/plugins/cache/ingpoc-agent-plugins/batched-change-list/{ref}"
               for client in ("cursor", "codex") for ref in (version, revision)),
         ]
+        skill_destination = home / ".agents/skills/batched-change-list"
         self.assertIn(revision, receipt.getvalue())
-        self.assertEqual(receipt.getvalue().count(expected_sha), len(destinations))
-        self.assertEqual(receipt.getvalue().count(f"({expected_count} files"), len(destinations))
-        for destination in destinations:
+        self.assertEqual(receipt.getvalue().count(plugin_sha), len(plugin_destinations))
+        self.assertEqual(receipt.getvalue().count(skill_sha), 1)
+        self.assertEqual(receipt.getvalue().count(f"({plugin_count} files"), len(plugin_destinations))
+        self.assertEqual(receipt.getvalue().count(f"({skill_count} files"), 1)
+        for destination in plugin_destinations:
             self.assertTrue((destination / "plugin.json").is_file())
             self.assertFalse((destination / "old-copy").exists())
             self.assertFalse(any(path.name == ".DS_Store" or path.suffix == ".pyc" or "__pycache__" in path.parts
                                  for path in destination.rglob("*")))
-            self.assertEqual(bcl_entrypoint._install_tree_digest(destination), (expected_sha, expected_count))
+            self.assertEqual(bcl_entrypoint._install_tree_digest(destination), (plugin_sha, plugin_count))
+        self.assertTrue((skill_destination / "SKILL.md").is_file())
+        self.assertTrue((skill_destination / "scripts").is_dir())
+        self.assertFalse((skill_destination / "plugin.json").exists())
+        self.assertFalse((skill_destination / "skills").exists())
+        self.assertFalse((skill_destination / "old-copy").exists())
+        self.assertFalse(any(path.name == ".DS_Store" or path.suffix == ".pyc" or "__pycache__" in path.parts
+                             for path in skill_destination.rglob("*")))
+        self.assertEqual(bcl_entrypoint._install_tree_digest(skill_destination), (skill_sha, skill_count))
 
     def test_repo_id_uses_cursor_origin_over_github_mirror(self):
         self.git(self.home, "remote", "add", "origin", "https://origin.cursor.com/gurusharan/agent-plugins")
