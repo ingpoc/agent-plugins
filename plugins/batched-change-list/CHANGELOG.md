@@ -1,3 +1,8 @@
+## 0.1.25
+
+- Require a recorded passing review before install, except for one-file groups, and keep Install progress pending until lanes actually pass review and complete installation.
+- Validate Introspect coverage against the current plan groups and reached stages; route stage checks through the workflow definition.
+
 ## 0.1.24
 
 - Route each group's fix and review through the configured coding CLI; require implementer and reviewer session records before install, except review may be skipped for a marked one-file group.

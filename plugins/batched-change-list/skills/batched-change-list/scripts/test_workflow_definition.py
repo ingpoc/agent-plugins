@@ -1,6 +1,7 @@
 import re
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import render
@@ -9,7 +10,6 @@ import workflow_definition as workflow
 SKILL = Path(__file__).resolve().parents[1] / "SKILL.md"
 REFERENCES = SKILL.parent / "references"
 SCRIPTS = Path(__file__).resolve().parent
-MANAGER = SCRIPTS / "manage_findings.py"
 
 
 class WorkflowDefinitionTests(unittest.TestCase):
@@ -49,11 +49,14 @@ class WorkflowDefinitionTests(unittest.TestCase):
                     workflow.require_transition(stage, [])
                 workflow.require_transition(stage, requires)
 
-    def test_install_and_introspect_guards_use_the_workflow_checks(self):
-        source = MANAGER.read_text()
-        self.assertIn('workflow_definition.require_transition(target', source)
-        self.assertIn('workflow_definition.run_check("install"', source)
-        self.assertIn('workflow_definition.run_check("introspect"', source)
+    def test_stage_checks_dispatch_through_each_declared_check(self):
+        for stage in workflow.STAGES:
+            check_name = stage.get("check")
+            if not check_name:
+                continue
+            with self.subTest(stage=stage["id"]), patch.object(workflow, "run_check", return_value="ok") as run:
+                self.assertEqual(workflow.run_stage_check(stage["id"], "fixture"), "ok")
+                run.assert_called_once_with(check_name, "fixture")
 
 
 if __name__ == "__main__":

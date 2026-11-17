@@ -9,9 +9,15 @@ import check_introspect as check
 
 
 class IntrospectCheckTests(unittest.TestCase):
-    def payload(self):
-        steps = ["ROUTE coding-CLI implementation", "ROUTE coding-CLI review", "parallel group count",
-                 "polling", "rework", "install", "verify", "no change needed"]
+    def tracking(self):
+        return {"round": 1, "cycle": 1, "stages_reached": ["plan_fix", "install", "verify"],
+                "plan": {"round": 1, "cycle": 1, "groups": [
+                    {"id": "A", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer"}},
+                    {"id": "B", "codex": {"implementer_session": "writer-b", "one_file": True}},
+                ]}}
+
+    def payload(self, tracking=None):
+        steps = [*check.performed_round_steps(tracking or self.tracking()), "polling", "rework", "tests"]
         sections = {
             "delete": {"items": [{"item": steps[0], "evidence": "The one-line replacement is enough.", "outcome": "fixed inline"}]},
             "simplify": {"none": "No separate simplification."},
@@ -24,28 +30,39 @@ class IntrospectCheckTests(unittest.TestCase):
         payload = self.payload()
         payload["sections"] = {key: payload["sections"][key] for key in ("simplify", "delete", "optimize", "automate")}
         with self.assertRaisesRegex(ValueError, "order"):
-            check.validate_introspect(payload["sections"], payload["steps"], payload["none"])
+            check.validate_introspect(payload["sections"], payload["steps"], payload["none"], self.tracking())
+
+    def test_omitted_tracker_recorded_orchestration_step_is_refused(self):
+        tracking = self.tracking()
+        steps = ["Stage: Verify"]
+        sections = {name: {"none": "Reviewed."} for name in ("delete", "simplify", "optimize", "automate")}
+        with self.assertRaisesRegex(ValueError, "Parallel group count"):
+            check.validate_introspect(sections, steps, steps, tracking)
 
     def test_performed_step_must_be_covered(self):
         payload = self.payload()
         payload["none"].remove("polling")
         with self.assertRaisesRegex(ValueError, "polling"):
-            check.validate_introspect(payload["sections"], payload["steps"], payload["none"])
+            check.validate_introspect(payload["sections"], payload["steps"], payload["none"], self.tracking())
 
     def test_ordered_sections_cover_orchestration_and_none_steps(self):
         payload = self.payload()
-        covered = check.validate_introspect(payload["sections"], payload["steps"], payload["none"])
+        covered = check.validate_introspect(payload["sections"], payload["steps"], payload["none"], self.tracking())
         self.assertEqual(covered["steps"], payload["steps"])
-        self.assertIn("parallel group count", covered["none"])
+        self.assertIn("Parallel group count: 2", covered["none"])
+        self.assertIn("Codex write: A", covered["steps"])
+        self.assertIn("Codex review: A", covered["steps"])
 
     def test_script_refuses_missing_coverage_with_one_line(self):
         payload = self.payload()
         payload["none"].remove("polling")
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "sections.json"
+            tracker = Path(directory) / "tracker.json"
             source.write_text(json.dumps(payload))
+            tracker.write_text(json.dumps({"tracking": self.tracking()}))
             result = subprocess.run([sys.executable, str(Path(__file__).with_name("check_introspect.py")),
-                                     "--sections", str(source)], text=True, capture_output=True)
+                                     "--data", str(tracker), "--sections", str(source)], text=True, capture_output=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("polling", result.stderr)
         self.assertEqual(len(result.stderr.strip().splitlines()), 1)

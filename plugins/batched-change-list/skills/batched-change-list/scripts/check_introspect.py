@@ -4,17 +4,60 @@ import argparse
 import json
 import sys
 from pathlib import Path
+import workflow_definition as WF
 
 SECTION_ORDER = ("delete", "simplify", "optimize", "automate")
 
 
-def validate_introspect(sections, steps, none_steps):
+def performed_round_steps(tracking):
+    if not isinstance(tracking, dict):
+        raise ValueError("tracker tracking must be an object")
+    reached = tracking.get("stages_reached", [])
+    if not isinstance(reached, list) or any(not isinstance(stage, str) for stage in reached):
+        raise ValueError("tracking.stages_reached must be a list of stage names")
+    steps = [f"Stage: {WF.STAGE_LABELS[stage]}" for stage in WF.ROUND_IDS
+             if stage != "introspect" and stage in reached]
+    plan = tracking.get("plan")
+    current_round = tracking.get("round", plan.get("round", 1) if isinstance(plan, dict) else 1)
+    current_cycle = tracking.get("cycle", 1)
+    if set(reached) & {"plan_fix", "install", "verify"}:
+        if not isinstance(plan, dict) or not isinstance(plan.get("groups"), list) or not plan["groups"]:
+            raise ValueError("tracking.plan with current-round groups is required to introspect performed fix work")
+        if plan.get("round", current_round) != current_round or plan.get("cycle", current_cycle) != current_cycle:
+            raise ValueError("tracking.plan must match the current round and cycle for Introspect coverage")
+    if plan is not None:
+        if not isinstance(plan, dict) or not isinstance(plan.get("groups"), list):
+            raise ValueError("tracking.plan must contain groups for Introspect")
+        if plan.get("round", current_round) == current_round and plan.get("cycle", current_cycle) == current_cycle:
+            groups = [group for group in plan["groups"] if isinstance(group, dict)
+                      and group.get("status") not in ("deferred", "parked")
+                      and group.get("phase") not in ("deferred", "parked")]
+            if groups:
+                steps.append(f"Parallel group count: {len(groups)}")
+                for group in groups:
+                    group_id = group.get("id")
+                    if not isinstance(group_id, str) or not group_id.strip():
+                        raise ValueError("current plan groups need IDs for Introspect coverage")
+                    codex = group.get("codex", {})
+                    one_file = isinstance(codex, dict) and codex.get("one_file") is True
+                    steps.append(f"Codex write: {group_id}")
+                    steps.append(f"One-file review exemption: {group_id}" if one_file
+                                 else f"Codex review: {group_id}")
+                    steps.append(f"Polling and rework review: {group_id}")
+    return steps
+
+
+def validate_introspect(sections, steps, none_steps, tracking):
     if not isinstance(sections, dict) or list(sections) != list(SECTION_ORDER):
         raise ValueError("sections must appear in order: delete, simplify, optimize, automate")
     if not isinstance(steps, list) or not steps or any(not isinstance(step, str) or not step.strip() for step in steps):
         raise ValueError("steps must list every nonempty step performed this round")
     if len(steps) != len(set(steps)):
         raise ValueError("steps must be unique")
+    recorded = performed_round_steps(tracking)
+    omitted = set(recorded) - set(steps)
+    if omitted:
+        raise ValueError("performed-step list omits tracker-recorded work: " + ", ".join(sorted(omitted)))
     if not isinstance(none_steps, list) or any(not isinstance(step, str) or not step.strip() for step in none_steps):
         raise ValueError("none must be a list of reviewed steps with no change")
     if len(none_steps) != len(set(none_steps)):
@@ -51,13 +94,15 @@ def validate_introspect(sections, steps, none_steps):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data", required=True, type=Path, help="live BCL tracker JSON")
     parser.add_argument("--sections", required=True, type=Path, help="Introspect JSON containing steps, none, and ordered sections")
     args = parser.parse_args(argv)
     try:
+        tracker = json.loads(args.data.read_text(encoding="utf-8"))
         payload = json.loads(args.sections.read_text(encoding="utf-8"))
         if not isinstance(payload, dict) or set(payload) != {"steps", "none", "sections"}:
             raise ValueError("input must contain exactly steps, none, and sections")
-        validate_introspect(payload["sections"], payload["steps"], payload["none"])
+        validate_introspect(payload["sections"], payload["steps"], payload["none"], tracker.get("tracking"))
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"FAIL: {error}; fix: list every performed step under a section or none, then rerun Introspect", file=sys.stderr)
         return 1

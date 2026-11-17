@@ -472,11 +472,32 @@ setImmediate(async()=>{
         shown = renderer.render_workflow('present', [], 0, 15, False, 0, 1, ['collect', 'present'], cycle=2)
         self.assertIn('>Present<', shown)
 
-    def test_install_tick_waits_for_a_group_to_pass_review(self):
-        page = renderer.render_workflow('verify', [{'id':'A', 'status':'planned', 'phase':'fix'}],
-                                        0, 15, False, 0, 1, ['plan_fix', 'install', 'verify'])
-        install = page.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
-        self.assertIn('wf-step upcoming', install)
+    def test_install_tick_requires_review_and_a_completed_install_lane(self):
+        failed = renderer.render_workflow('verify', [{
+            'id':'A', 'status':'failed', 'phase':'install',
+            'codex':{'review_status':'failed'},
+        }], 0, 15, False, 0, 1, ['plan_fix', 'install', 'verify'])
+        install = failed.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
+        self.assertNotIn('wf-step done', install)
+
+        passed = renderer.render_workflow('verify', [{
+            'id':'A', 'status':'verifying', 'phase':'verify',
+            'codex':{'reviewer_session':'reviewer', 'review_status':'passed'},
+        }], 0, 15, False, 0, 1, ['plan_fix', 'install', 'verify'])
+        install = passed.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('wf-step done', install)
+
+        one_file = renderer.render_workflow('verify', [{
+            'id':'A', 'status':'verifying', 'phase':'verify', 'codex':{'one_file':True},
+        }], 0, 15, False, 0, 1, ['plan_fix', 'install', 'verify'])
+        install = one_file.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('wf-step done', install)
+
+        failed_review = renderer.render_workflow('verify', [{
+            'id':'A', 'status':'verifying', 'phase':'verify',
+            'codex':{'one_file':True, 'reviewer_session':'reviewer', 'review_status':'failed'},
+        }], 0, 15, False, 0, 1, ['plan_fix', 'install', 'verify'])
+        install = failed_review.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
         self.assertNotIn('wf-step done', install)
 
     def test_merge_previous_pr_is_the_shared_gate_exit(self):

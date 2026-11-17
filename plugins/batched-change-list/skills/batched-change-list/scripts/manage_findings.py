@@ -756,7 +756,8 @@ def touch_workflow(document):
 
 
 def require_rollover_gate(findings, tracking, force, action):
-    fixed, threshold, met = RENDERER.rollover_gate(findings, tracking)
+    fixed, threshold, met = workflow_definition.run_stage_check(
+        "report_rollover", {"findings": findings, "tracking": tracking})
     if met:
         return
     if not force:
@@ -1186,20 +1187,20 @@ def run(args, parser):
                     if target == "install" and (not isinstance(tracking.get("plan"), dict) or tracking["plan"].get("cycle", cycle) != cycle or not tracking["plan"].get("groups")):
                         raise ValueError("install requires a recorded plan with at least one group for the current cycle")
                     if target == "install" and action == "set-stage":
-                        workflow_definition.run_check("install", tracking["plan"])
+                        workflow_definition.run_stage_check("install", tracking["plan"])
                     if target in workflow_definition.TRANSITIONS:
                         workflow_definition.require_transition(target, tracking.get("stages_reached", []))
                     if target == "merged":
-                        _fixed, _threshold, met = workflow_definition.run_check(
-                            "gate", {"findings": findings, "tracking": tracking})
+                        _fixed, _threshold, met = workflow_definition.run_stage_check(
+                            "merged", {"findings": findings, "tracking": tracking})
                         if not met:
                             raise ValueError("merge requires the shared exit gate to be met")
                 if action == "introspect":
                     # One Introspect = one WF- task with four sections. Code follow-ups are separate non-WF issues.
                     tracking = store["document"].setdefault("tracking", {})
                     workflow_definition.require_transition("introspect", tracking.get("stages_reached", []))
-                    coverage = workflow_definition.run_check("introspect",
-                        operation.get("sections"), operation.get("steps"), operation.get("none"))
+                    coverage = workflow_definition.run_stage_check("introspect",
+                        operation.get("sections"), operation.get("steps"), operation.get("none"), tracking)
                     sections = validate_introspect_sections(operation.get("sections"))
                     issues = operation.get("issues") or []
                     if issues:
@@ -1321,7 +1322,7 @@ def run(args, parser):
                                 raise ValueError('work requires an eligible current-round plan group for every finding')
                             validate_dependencies(groups, findings, tracking)
                             if stage == 'install':
-                                check_install_sessions.validate_install_sessions(plan, ids)
+                                workflow_definition.run_stage_check('install', plan, ids)
                         by_id = {group['id']: group for group in groups}
                         for group in matched:
                             if set(ids).intersection(group.get('finding_ids', [])):

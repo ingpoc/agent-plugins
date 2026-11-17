@@ -16,6 +16,8 @@ def validate_group_codex(group):
     for name in ("implementer_session", "reviewer_session"):
         if name in codex and (not isinstance(codex[name], str) or not codex[name].strip()):
             raise ValueError(f"{group.get('id', 'group')}: codex.{name} must be a nonempty string when present")
+    if "review_status" in codex and codex["review_status"] not in ("pending", "passed", "failed"):
+        raise ValueError(f"{group.get('id', 'group')}: codex.review_status must be pending, passed, or failed")
 
 
 def install_groups(plan, finding_ids=None):
@@ -47,9 +49,12 @@ def validate_install_sessions(plan, finding_ids=None):
         name = group.get("id", "group")
         if not isinstance(codex.get("implementer_session"), str) or not codex["implementer_session"].strip():
             raise ValueError(f"{name}: install requires codex.implementer_session; record the session with bcl plan")
-        if not codex.get("one_file") and (not isinstance(codex.get("reviewer_session"), str)
-                                           or not codex["reviewer_session"].strip()):
+        if codex.get("one_file") and not codex.get("reviewer_session"):
+            continue
+        if not isinstance(codex.get("reviewer_session"), str) or not codex["reviewer_session"].strip():
             raise ValueError(f"{name}: install requires codex.reviewer_session unless codex.one_file is true; record the session with bcl plan")
+        if codex.get("review_status") != "passed":
+            raise ValueError(f"{name}: install requires codex.review_status='passed'; record a passing review with bcl plan")
     return [group.get("id", "group") for group in selected]
 
 

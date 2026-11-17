@@ -399,6 +399,13 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
     phase_steps = WF.DEFINITION["lane_phase_rank"]
     lanes = [(group, plan_status(group), phase_steps[plan_phase(group)])
              for group in groups if plan_status(group) != "parked"]
+
+    def review_complete(group):
+        codex = group.get("codex")
+        return (isinstance(codex, dict)
+                and (codex.get("one_file") is True and not codex.get("reviewer_session")
+                     or codex.get("reviewer_session") and codex.get("review_status") == "passed"))
+
     positions = [position for _, _, position in lanes]
     occupied = len(set(positions))
     steps = []
@@ -408,8 +415,9 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
         terminal = ("blocked", "failed", "parked", "verified")
         past = bool(lanes) and all(position > index or status in terminal for _, status, position in lanes)
         if key == "install":
-            past = past and any(position >= 1 or status in ("installing", "verifying", "verified")
-                                for _, status, position in lanes)
+            past = bool(lanes) and all(
+                position > index and review_complete(group)
+                for group, _status, position in lanes)
         if key == "verify":
             past = past and any(position >= 2 or status in ("verifying", "verified")
                                 for _, status, position in lanes)

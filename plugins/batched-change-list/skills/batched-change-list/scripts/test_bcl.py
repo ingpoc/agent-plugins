@@ -11,6 +11,7 @@ BCL = PLUGIN / "bin/bcl"
 EXAMPLE = PLUGIN / "skills/batched-change-list/examples/findings.json"
 sys.path.insert(0, str(PLUGIN / "skills/batched-change-list/scripts"))
 import live_state
+import check_introspect
 loader = SourceFileLoader("bcl_entrypoint", str(BCL))
 spec = importlib.util.spec_from_loader("bcl_entrypoint", loader)
 bcl_entrypoint = importlib.util.module_from_spec(spec)
@@ -81,6 +82,7 @@ elif args[:2] != ['pr', 'edit']:
                 codex = group.setdefault("codex", {})
                 codex.setdefault("implementer_session", "fixture-implementer")
                 codex.setdefault("reviewer_session", "fixture-reviewer")
+                codex.setdefault("review_status", "passed")
             plan_path.write_text(json.dumps(plan))
         return subprocess.run([sys.executable, str(BCL), "--data", str(data), *map(str, extra), stage], cwd=cwd, env=self.env, capture_output=True, text=True)
 
@@ -114,10 +116,12 @@ elif args[:2] != ['pr', 'edit']:
         marker = self.root / 'proof-ran'
         proof = self.root / 'proof.py'; proof.write_text(f"from pathlib import Path\nPath({str(marker)!r}).write_text('yes')\n")
         command = f'"{sys.executable}" "{proof}"'
-        plan = {"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"reason":"Same root cause","depends_on":[],"codex":{"model":"gpt-6-luna","effort":"medium","status":"running","started_at":"2026-11-14T09:00:00Z","duration_s":120,"implementer_session":"fixture-implementer","reviewer_session":"fixture-reviewer"},"verify":{"command":command,"method":"Unit tests and a live page check","status":"pending"},"status":"running"}]}
+        plan = {"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"reason":"Same root cause","depends_on":[],"codex":{"model":"gpt-6-luna","effort":"medium","status":"running","started_at":"2026-11-14T09:00:00Z","duration_s":120,"implementer_session":"fixture-implementer","reviewer_session":"fixture-reviewer","review_status":"passed"},"verify":{"command":command,"method":"Unit tests and a live page check","status":"pending"},"status":"running"}]}
         planfile = self.root / "plan.json"; planfile.write_text(json.dumps(plan))
         sections = {"delete":{"none":"No deletions."},"simplify":{"none":"No simplifications."},"optimize":{"none":"No optimizations."},"automate":{"none":"No automations."}}
-        steps = ["install", "verify"]
+        steps = check_introspect.performed_round_steps({
+            "stages_reached": ["plan_fix", "install", "verify"], "plan": plan,
+        })
         sectionfile = self.root / "sections.json"; sectionfile.write_text(json.dumps({"steps": steps, "none": steps, "sections": sections}))
         self.assertNotEqual(self.call("introspect", "--result", "no issues").returncode, 0)
         for stage, extra in (("plan", ["--plan", str(planfile), "--ids", "ISSUE-01"]), ("fix", ["--ids", "ISSUE-01"]), ("install", ["--ids", "ISSUE-01"]), ("verify", ["--ids", "ISSUE-01", "--then", command]), ("introspect", ["--sections", str(sectionfile)])):
@@ -437,7 +441,7 @@ elif args[:2] != ['pr', 'edit']:
         plan = {'round':1,'groups':[
             {'id':'A','finding_ids':['ISSUE-02'],'status':'verified','verify':{'command':'python3 proof-a.py'}},
             {'id':'B','finding_ids':['ISSUE-01'],'depends_on':['A'],'status':'pending',
-             'codex':{'implementer_session':'fixture-implementer','reviewer_session':'fixture-reviewer'},
+             'codex':{'implementer_session':'fixture-implementer','reviewer_session':'fixture-reviewer','review_status':'passed'},
              'verify':{'command':command}},
         ]}
         path = self.root / 'dependency-plan.json'; path.write_text(json.dumps(plan))
@@ -478,7 +482,7 @@ elif args[:2] != ['pr', 'edit']:
         live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
         tracker = json.loads(live.read_text())
         tracker["findings"][0]["status"] = "in_progress"
-        tracker["tracking"]["plan"] = {"cycle": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "codex": {"implementer_session": "fixture-implementer", "reviewer_session": "fixture-reviewer"}}]}
+        tracker["tracking"]["plan"] = {"cycle": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "codex": {"implementer_session": "fixture-implementer", "reviewer_session": "fixture-reviewer", "review_status": "passed"}}]}
         live.write_text(json.dumps(tracker)); self.data.write_text(json.dumps(tracker))
         stub = self.root / "check_stage.py"
         stub.write_text("import json, sys\nfrom pathlib import Path\ndata, page = map(Path, sys.argv[1:])\nhtml = page.read_text()\nassert json.loads(data.read_text())['tracking']['workflow']['stage'] == 'install'\nassert 'Install' in html\nassert 'class=\"workflow-now\"' not in html\n")

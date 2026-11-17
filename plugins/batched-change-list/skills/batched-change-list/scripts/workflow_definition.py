@@ -42,6 +42,13 @@ def run_check(name, *args, **kwargs):
     return function(*args, **kwargs)
 
 
+def run_stage_check(stage, *args, **kwargs):
+    spec = next((row for row in STAGES if row["id"] == stage), None)
+    if spec is None or "check" not in spec:
+        raise ValueError(f"workflow stage has no declared check: {stage}")
+    return run_check(spec["check"], *args, **kwargs)
+
+
 def require_transition(stage, reached):
     transition = TRANSITIONS.get(stage, [])
     if isinstance(transition, dict):

@@ -316,7 +316,8 @@ def main():
         if not isinstance(payload, dict) or set(payload) != {"steps", "none", "sections"}:
             parser.error("introspect file must contain exactly steps, none, and ordered sections")
         try:
-            workflow_definition.run_check("introspect", payload["sections"], payload["steps"], payload["none"])
+            workflow_definition.run_stage_check("introspect", payload["sections"], payload["steps"],
+                                                payload["none"], data.get("tracking", {}))
         except ValueError as error:
             parser.error(str(error))
         op = {"action":"introspect", "sections":payload["sections"], "steps":payload["steps"], "none":payload["none"]}
