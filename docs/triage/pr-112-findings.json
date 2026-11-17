@@ -2042,8 +2042,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-17T04:25:45Z",
-      "now": "2026-11-17T04:25:45Z — Plan recorded"
+      "updated_at": "2026-11-17T04:43:11Z",
+      "now": "2026-11-17T04:43:11Z — Fix in progress"
     },
     "rollover": {
       "source_pr": 111,
@@ -3361,7 +3361,7 @@
       "id": "BCL-22",
       "title": "A lane can stay blocked after its source fix is already installed",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "A plan lane can remain marked blocked for leftover issue checks even after the source fix and tests are already on the installed build.",
       "impact": "Finished work looks blocked for days, and the remaining checks are easy to skip.",
@@ -3374,7 +3374,7 @@
       "id": "BCL-23",
       "title": "An earlier Introspect record lets later rounds skip the pass",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "The tracker treats any existing Introspect record as enough to enter Report & roll over, even when that record is from an earlier cycle or round, and the skill still describes Introspect as an optional full-cycle step.",
       "impact": "Later rounds can close without reviewing their own failures, retries, or leftover work, and the skill disagrees with the page, which shows Introspect in every round.",
