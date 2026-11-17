@@ -4322,6 +4322,283 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "bcl-0.1.34-a4fa8508-114",
+        "build": "batched-change-list 0.1.34",
+        "revision": "a4fa850811d8fb9380ac7d2aa1ab68468ec7941a",
+        "installed_at": "2026-11-17T12:13:30Z",
+        "install_evidence": "bcl install-local from worktree HEAD a4fa850811d8fb9380ac7d2aa1ab68468ec7941a at 17:43:30 IST Asia/Calcutta installed batched-change-list 0.1.34: 48 plugin files sha256 58fc87d98df6bb1a0bfef33452cdd5ad38183a6f832b902992a5b0cd358dfa92; 41 skill files sha256 cd8d69cbd9b1dcdfa902cc45bf5329620c1c3b8a836ab1f9e3d571f1d7089918 with SKILL.md at the skill root. Receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.34-receipt.json.",
+        "status": "interrupted",
+        "checks": {
+          "AUTO-03": {
+            "state": "pending"
+          },
+          "AUTO-04": {
+            "state": "pending"
+          },
+          "AUTO-05": {
+            "state": "pending"
+          },
+          "AUTO-06": {
+            "state": "pending"
+          },
+          "BCL-01": {
+            "state": "pending"
+          },
+          "BCL-02": {
+            "state": "pending"
+          },
+          "BCL-03": {
+            "state": "pending"
+          },
+          "PLAN-02": {
+            "state": "pending"
+          },
+          "PLAN-03": {
+            "state": "pending"
+          },
+          "OBS-23": {
+            "state": "pending"
+          },
+          "OBS-25": {
+            "state": "pending"
+          },
+          "AGENT-25": {
+            "state": "pending"
+          },
+          "WF-06": {
+            "state": "pending"
+          },
+          "PAGE-08": {
+            "state": "pending"
+          },
+          "AGENT-26": {
+            "state": "pending"
+          },
+          "AGENT-27": {
+            "state": "pending"
+          },
+          "WF-07": {
+            "state": "pending"
+          },
+          "PAGE-09": {
+            "state": "pending"
+          },
+          "PAGE-10": {
+            "state": "pending"
+          },
+          "SEC-01": {
+            "state": "pending"
+          },
+          "PAGE-11": {
+            "state": "pending"
+          },
+          "BCL-04": {
+            "state": "pending"
+          },
+          "PAGE-12": {
+            "state": "pending"
+          },
+          "FLOW-03": {
+            "state": "pending"
+          },
+          "PAGE-13": {
+            "state": "pending"
+          },
+          "PAGE-14": {
+            "state": "pending"
+          },
+          "PAGE-15": {
+            "state": "pending"
+          },
+          "PAGE-16": {
+            "state": "pending"
+          },
+          "BCL-05": {
+            "state": "pending"
+          },
+          "PAGE-17": {
+            "state": "pending"
+          },
+          "BCL-06": {
+            "state": "pending"
+          },
+          "FLOW-04": {
+            "state": "pending"
+          },
+          "PAGE-18": {
+            "state": "pending"
+          },
+          "BCL-07": {
+            "state": "pending"
+          },
+          "BCL-08": {
+            "state": "pending"
+          },
+          "PAGE-19": {
+            "state": "pending"
+          },
+          "PAGE-20": {
+            "state": "pending"
+          },
+          "BCL-09": {
+            "state": "pending"
+          },
+          "BCL-10": {
+            "state": "pending"
+          },
+          "BCL-11": {
+            "state": "pending"
+          },
+          "BCL-12": {
+            "state": "pending"
+          },
+          "BCL-13": {
+            "state": "pending"
+          },
+          "BCL-14": {
+            "state": "pending"
+          },
+          "BCL-15": {
+            "state": "pending"
+          },
+          "BCL-16": {
+            "state": "pending"
+          },
+          "BCL-17": {
+            "state": "pending"
+          },
+          "AGENT-28": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.34 at a4fa850811d8fb9380ac7d2aa1ab68468ec7941a is present. AGENT-28 is in_progress. About to run the full scripts/check.py gate on worktree samantha-pr114-rollover, which includes test_known_notification_types_post_exact_needs_you_args in plugins/agent-computer-use/skills/macos-cua/tests/test_claude_hook.py.",
+            "observed_at": "2026-11-17T12:28:14Z",
+            "started_at": "2026-11-17T12:32:18Z",
+            "updated_at": "2026-11-17T12:32:18Z",
+            "check_id": "a5e941f68aa44caf90716892732dca3b",
+            "evidence": "Checked: The notification hook test under the full scripts/check.py gate; Expected: test_known_notification_types_post_exact_needs_you_args should pass as part of the full gate, not only in a focused rerun; Observed: In the 17:58–18:00 IST Asia/Calcutta full gate on samantha-pr114-rollover, test_claude_hook.py ran 20 tests in 11.754s and exited 0 while other test processes ran with it; Verdict because: Fixed because the hook test passed under the full parallel gate, so the earlier empty-posts failure did not repeat. The full scripts/check.py run was not otherwise clean: test_skill.py failed because statechart.html is stale (AssertionError: run python3 scripts/statechart.py to regenerate the chart). That failure is filed separately and does not change these two test results. Log: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r4-gate-check.log.",
+            "finished_at": "2026-11-17T12:33:12.366756Z"
+          },
+          "AGENT-29": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.34 at a4fa850811d8fb9380ac7d2aa1ab68468ec7941a is present. AGENT-29 is in_progress. About to run the full scripts/check.py gate on worktree samantha-pr114-rollover, which includes IslandGateColdStartTests.testSubmitColdStartShowsWakingThenSucceeds in the macOS Swift service suite.",
+            "observed_at": "2026-11-17T12:28:14Z",
+            "started_at": "2026-11-17T12:32:18Z",
+            "updated_at": "2026-11-17T12:32:18Z",
+            "check_id": "8e47fe1c5c3a43349ed929025718422b",
+            "evidence": "Checked: The cold-start waking-indicator test under the full scripts/check.py gate; Expected: IslandGateColdStartTests.testSubmitColdStartShowsWakingThenSucceeds should pass under full-suite load, not only in a focused rerun; Observed: In the same 17:58–18:00 IST Asia/Calcutta full gate, the macOS Swift service suite ran 608 tests in 127.2s and exited 0, including testSubmitColdStartShowsWakingThenSucceeds; Verdict because: Fixed because the cold-start test passed under full-suite load, so the earlier timing failure did not repeat. The full scripts/check.py run was not otherwise clean: test_skill.py failed because statechart.html is stale (AssertionError: run python3 scripts/statechart.py to regenerate the chart). That failure is filed separately and does not change these two test results. Log: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r4-gate-check.log.",
+            "finished_at": "2026-11-17T12:33:12.367000Z"
+          },
+          "BCL-18": {
+            "state": "pending"
+          },
+          "BCL-19": {
+            "state": "pending"
+          },
+          "BCL-20": {
+            "state": "pending"
+          },
+          "BCL-21": {
+            "state": "pending"
+          },
+          "EVAL-01": {
+            "state": "pending"
+          },
+          "BCL-22": {
+            "state": "pending"
+          },
+          "BCL-23": {
+            "state": "pending"
+          },
+          "WF-08": {
+            "state": "pending"
+          },
+          "BCL-24": {
+            "state": "pending"
+          },
+          "BCL-25": {
+            "state": "pending"
+          },
+          "BCL-26": {
+            "state": "pending"
+          },
+          "BCL-27": {
+            "state": "pending"
+          },
+          "BCL-28": {
+            "state": "pending"
+          },
+          "BCL-29": {
+            "state": "pending"
+          },
+          "WF-09": {
+            "state": "pending"
+          },
+          "BCL-30": {
+            "state": "pending"
+          },
+          "BCL-31": {
+            "state": "pending"
+          },
+          "WF-10": {
+            "state": "pending"
+          },
+          "BCL-32": {
+            "state": "pending"
+          },
+          "BCL-33": {
+            "state": "pending"
+          },
+          "WF-11": {
+            "state": "pending"
+          },
+          "BCL-34": {
+            "state": "pending"
+          },
+          "WF-12": {
+            "state": "pending"
+          },
+          "BCL-35": {
+            "state": "pending"
+          },
+          "PAGE-21": {
+            "state": "pending"
+          },
+          "WF-13": {
+            "state": "pending"
+          },
+          "WF-14": {
+            "state": "pending"
+          },
+          "WF-15": {
+            "state": "pending"
+          },
+          "BCL-36": {
+            "state": "pending"
+          },
+          "WF-16": {
+            "state": "pending"
+          },
+          "PAGE-22": {
+            "state": "fixed",
+            "observation": "Installed batched-change-list 0.1.34 at a4fa850811d8fb9380ac7d2aa1ab68468ec7941a is present. PAGE-22 is in_progress. About to run test_two_checks_on_one_version_render_as_one_row_with_latest_fields, test_finish_check_reason_parts_are_nonempty_and_evidence_merges_by_check_id, test_verify_failure_reason_has_checked_expected_and_observed, and the stored test_render.py suite on the worktree and the installed copy.",
+            "observed_at": "2026-11-17T12:13:30Z",
+            "started_at": "2026-11-17T12:14:38Z",
+            "updated_at": "2026-11-17T12:14:38Z",
+            "check_id": "1968b94d9a6f4d518fd3b6d3337137f0",
+            "evidence": "Checked: One check's verify and outcome records on the Verification by version block; Expected: One row per version from the latest check, with the four plain fields, earlier checks and hashes under Details, and a reason missing those parts rejected; Observed: test_two_checks_on_one_version_render_as_one_row_with_latest_fields, test_finish_check_reason_parts_are_nonempty_and_evidence_merges_by_check_id, test_rewrite_evidence_converts_one_existing_log_record, and test_verify_failure_reason_has_checked_expected_and_observed passed on the worktree and the installed 0.1.34 copy; Verdict because: Fixed because one check now gives one row with the four plain fields, and an incomplete reason is rejected. Installed bcl 0.1.34 at a4fa850811d8fb9380ac7d2aa1ab68468ec7941a via bcl install-local (48 plugin files sha256 58fc87d98df6bb1a0bfef33452cdd5ad38183a6f832b902992a5b0cd358dfa92, 41 skill files sha256 cd8d69cbd9b1dcdfa902cc45bf5329620c1c3b8a836ab1f9e3d571f1d7089918, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.34-receipt.json). Worktree named tests plus test_render.py 58 OK in 0.298s, test_manage_findings.py 76 OK in 14.321s, test_bcl.py 49 OK in 50.918s. Installed copy named tests plus test_render.py 58 OK in 0.307s, test_manage_findings.py 76 OK in 14.467s, test_bcl.py 49 OK in 51.220s, finished 17:47:14 IST Asia/Calcutta. bcl verify PAGE re-ran test_render.py 58 OK in 0.305s, finished 2026-11-17T12:17:25Z.",
+            "finished_at": "2026-11-17T12:18:41.610254Z"
+          },
+          "WF-17": {
+            "state": "pending"
+          },
+          "WF-18": {
+            "state": "pending"
+          },
+          "BCL-37": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -4336,9 +4613,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-17T12:53:28Z",
-      "now": "2026-11-17T12:53:28Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-17T12:55:52Z",
+      "now": "2026-11-17T12:55:52Z — Lane INTRO updated"
     },
     "rollover": {
       "source_pr": 113,
@@ -4564,8 +4841,8 @@
             "BCL-37"
           ],
           "depends_on": [],
-          "status": "pending",
-          "phase": "review",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "pr114-intro",
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -4588,26 +4865,27 @@
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
             "method": "A test must show that bcl introspect can write a draft SECTIONS.json from the tracker run, that the agent can edit it, and that saving still requires the confirmation step rather than writing the draft blindly.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 2,
             "failed": 0,
             "total": 2
           },
-          "updated_at": "2026-11-17T12:50:39Z"
+          "updated_at": "2026-11-17T12:55:52Z"
         }
       ]
     },
     "stages_reached": [
       "collect",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "verification_run": {
-      "id": "bcl-0.1.34-a4fa8508-114",
-      "build": "batched-change-list 0.1.34",
-      "revision": "a4fa850811d8fb9380ac7d2aa1ab68468ec7941a",
-      "installed_at": "2026-11-17T12:13:30Z",
-      "install_evidence": "bcl install-local from worktree HEAD a4fa850811d8fb9380ac7d2aa1ab68468ec7941a at 17:43:30 IST Asia/Calcutta installed batched-change-list 0.1.34: 48 plugin files sha256 58fc87d98df6bb1a0bfef33452cdd5ad38183a6f832b902992a5b0cd358dfa92; 41 skill files sha256 cd8d69cbd9b1dcdfa902cc45bf5329620c1c3b8a836ab1f9e3d571f1d7089918 with SKILL.md at the skill root. Receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.34-receipt.json.",
+      "id": "bcl-0.1.35-b522d3b1-114",
+      "build": "batched-change-list 0.1.35",
+      "revision": "b522d3b17bb63f156af97bda05c8632d0e78dd5e",
+      "installed_at": "2026-11-17T12:53:09Z",
+      "install_evidence": "bcl install-local from worktree HEAD b522d3b17bb63f156af97bda05c8632d0e78dd5e at 18:23 IST Asia/Calcutta installed batched-change-list 0.1.35: 48 plugin files sha256 e607a3a1b6c90cc0cdbcdc939dc9f8c81e54d77715632bfe190d4f4d22c7b2cf; 41 skill files sha256 cf33d9b5fcee37f8629b20e2062e954c45fc84cba5a7e0fccd61b9fef1e944d5 with SKILL.md at the skill root. Receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.35-receipt.json.",
       "status": "active",
       "checks": {
         "AUTO-03": {
@@ -4629,7 +4907,14 @@
           "state": "pending"
         },
         "BCL-03": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Installed batched-change-list 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e is present. BCL-03 is in_progress. About to run the Introspect draft tests, including the unsavable unchanged draft and tracker-alias guards, plus the stored test_bcl.py suite on the worktree and the installed copy.",
+          "observed_at": "2026-11-17T12:53:09Z",
+          "started_at": "2026-11-17T12:53:29Z",
+          "updated_at": "2026-11-17T12:53:29Z",
+          "check_id": "1475e3865f5340248fc5a1c8dc32cde9",
+          "evidence": "Checked: Drafting Introspect sections from the recorded run, then saving only after review; Expected: bcl introspect --draft writes an editable SECTIONS.json from the tracker run, an unchanged draft cannot be saved, and a draft path cannot overwrite the input or live tracker, including a hard link; Observed: On the worktree and the installed 0.1.35 copy, test_draft_uses_performed_round_steps_and_requires_review, test_workflow_cycle_uses_live_tracker_and_snapshots_each_stage, and test_introspect_draft_rejects_input_tracker_and_live_hard_link passed; test_bcl.py 50 OK in 50.313s then 50.392s, and test_check_introspect.py 7 OK; Verdict because: Fixed because a draft can be written and edited, an unchanged draft is rejected, and tracker aliases cannot be overwritten. Installed bcl 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e via bcl install-local (48 plugin files sha256 e607a3a1b6c90cc0cdbcdc939dc9f8c81e54d77715632bfe190d4f4d22c7b2cf, 41 skill files sha256 cf33d9b5fcee37f8629b20e2062e954c45fc84cba5a7e0fccd61b9fef1e944d5, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.35-receipt.json). Worktree suites finished 18:24:29 IST Asia/Calcutta; installed copy finished 18:25:20 IST. Logs: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r4-0.1.35.log and verify-r4-0.1.35-installed.log.",
+          "finished_at": "2026-11-17T12:55:52.526978Z"
         },
         "PLAN-02": {
           "state": "pending"
@@ -4749,24 +5034,10 @@
           "state": "pending"
         },
         "AGENT-28": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.34 at a4fa850811d8fb9380ac7d2aa1ab68468ec7941a is present. AGENT-28 is in_progress. About to run the full scripts/check.py gate on worktree samantha-pr114-rollover, which includes test_known_notification_types_post_exact_needs_you_args in plugins/agent-computer-use/skills/macos-cua/tests/test_claude_hook.py.",
-          "observed_at": "2026-11-17T12:28:14Z",
-          "started_at": "2026-11-17T12:32:18Z",
-          "updated_at": "2026-11-17T12:32:18Z",
-          "check_id": "a5e941f68aa44caf90716892732dca3b",
-          "evidence": "Checked: The notification hook test under the full scripts/check.py gate; Expected: test_known_notification_types_post_exact_needs_you_args should pass as part of the full gate, not only in a focused rerun; Observed: In the 17:58–18:00 IST Asia/Calcutta full gate on samantha-pr114-rollover, test_claude_hook.py ran 20 tests in 11.754s and exited 0 while other test processes ran with it; Verdict because: Fixed because the hook test passed under the full parallel gate, so the earlier empty-posts failure did not repeat. The full scripts/check.py run was not otherwise clean: test_skill.py failed because statechart.html is stale (AssertionError: run python3 scripts/statechart.py to regenerate the chart). That failure is filed separately and does not change these two test results. Log: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r4-gate-check.log.",
-          "finished_at": "2026-11-17T12:33:12.366756Z"
+          "state": "pending"
         },
         "AGENT-29": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.34 at a4fa850811d8fb9380ac7d2aa1ab68468ec7941a is present. AGENT-29 is in_progress. About to run the full scripts/check.py gate on worktree samantha-pr114-rollover, which includes IslandGateColdStartTests.testSubmitColdStartShowsWakingThenSucceeds in the macOS Swift service suite.",
-          "observed_at": "2026-11-17T12:28:14Z",
-          "started_at": "2026-11-17T12:32:18Z",
-          "updated_at": "2026-11-17T12:32:18Z",
-          "check_id": "8e47fe1c5c3a43349ed929025718422b",
-          "evidence": "Checked: The cold-start waking-indicator test under the full scripts/check.py gate; Expected: IslandGateColdStartTests.testSubmitColdStartShowsWakingThenSucceeds should pass under full-suite load, not only in a focused rerun; Observed: In the same 17:58–18:00 IST Asia/Calcutta full gate, the macOS Swift service suite ran 608 tests in 127.2s and exited 0, including testSubmitColdStartShowsWakingThenSucceeds; Verdict because: Fixed because the cold-start test passed under full-suite load, so the earlier timing failure did not repeat. The full scripts/check.py run was not otherwise clean: test_skill.py failed because statechart.html is stale (AssertionError: run python3 scripts/statechart.py to regenerate the chart). That failure is filed separately and does not change these two test results. Log: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r4-gate-check.log.",
-          "finished_at": "2026-11-17T12:33:12.367000Z"
+          "state": "pending"
         },
         "BCL-18": {
           "state": "pending"
@@ -4859,14 +5130,7 @@
           "state": "pending"
         },
         "PAGE-22": {
-          "state": "fixed",
-          "observation": "Installed batched-change-list 0.1.34 at a4fa850811d8fb9380ac7d2aa1ab68468ec7941a is present. PAGE-22 is in_progress. About to run test_two_checks_on_one_version_render_as_one_row_with_latest_fields, test_finish_check_reason_parts_are_nonempty_and_evidence_merges_by_check_id, test_verify_failure_reason_has_checked_expected_and_observed, and the stored test_render.py suite on the worktree and the installed copy.",
-          "observed_at": "2026-11-17T12:13:30Z",
-          "started_at": "2026-11-17T12:14:38Z",
-          "updated_at": "2026-11-17T12:14:38Z",
-          "check_id": "1968b94d9a6f4d518fd3b6d3337137f0",
-          "evidence": "Checked: One check's verify and outcome records on the Verification by version block; Expected: One row per version from the latest check, with the four plain fields, earlier checks and hashes under Details, and a reason missing those parts rejected; Observed: test_two_checks_on_one_version_render_as_one_row_with_latest_fields, test_finish_check_reason_parts_are_nonempty_and_evidence_merges_by_check_id, test_rewrite_evidence_converts_one_existing_log_record, and test_verify_failure_reason_has_checked_expected_and_observed passed on the worktree and the installed 0.1.34 copy; Verdict because: Fixed because one check now gives one row with the four plain fields, and an incomplete reason is rejected. Installed bcl 0.1.34 at a4fa850811d8fb9380ac7d2aa1ab68468ec7941a via bcl install-local (48 plugin files sha256 58fc87d98df6bb1a0bfef33452cdd5ad38183a6f832b902992a5b0cd358dfa92, 41 skill files sha256 cd8d69cbd9b1dcdfa902cc45bf5329620c1c3b8a836ab1f9e3d571f1d7089918, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.34-receipt.json). Worktree named tests plus test_render.py 58 OK in 0.298s, test_manage_findings.py 76 OK in 14.321s, test_bcl.py 49 OK in 50.918s. Installed copy named tests plus test_render.py 58 OK in 0.307s, test_manage_findings.py 76 OK in 14.467s, test_bcl.py 49 OK in 51.220s, finished 17:47:14 IST Asia/Calcutta. bcl verify PAGE re-ran test_render.py 58 OK in 0.305s, finished 2026-11-17T12:17:25Z.",
-          "finished_at": "2026-11-17T12:18:41.610254Z"
+          "state": "pending"
         },
         "WF-17": {
           "state": "pending"
@@ -4875,7 +5139,14 @@
           "state": "pending"
         },
         "BCL-37": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Installed batched-change-list 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e is present. BCL-37 is in_progress. About to run test_generated_statechart_is_current_and_stale_or_missing_fails_shape_check and test_skill.py on the worktree and the installed copy.",
+          "observed_at": "2026-11-17T12:53:09Z",
+          "started_at": "2026-11-17T12:53:29Z",
+          "updated_at": "2026-11-17T12:53:29Z",
+          "check_id": "95ccf5c9dcae42e492caf4245a1dae8f",
+          "evidence": "Checked: The committed skill statechart against the official generator; Expected: statechart.html matches python3 scripts/statechart.py output, and test_generated_statechart_is_current_and_stale_or_missing_fails_shape_check passes; Observed: On the worktree and the installed 0.1.35 copy, that test passed as part of test_skill.py 5 OK in 0.004s; Verdict because: Fixed because the regenerated chart matches the generator and the shape test passed on both copies. Installed bcl 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e via bcl install-local (48 plugin files sha256 e607a3a1b6c90cc0cdbcdc939dc9f8c81e54d77715632bfe190d4f4d22c7b2cf, 41 skill files sha256 cf33d9b5fcee37f8629b20e2062e954c45fc84cba5a7e0fccd61b9fef1e944d5, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.35-receipt.json). Worktree suites finished 18:24:29 IST Asia/Calcutta; installed copy finished 18:25:20 IST. Logs: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r4-0.1.35.log and verify-r4-0.1.35-installed.log.",
+          "finished_at": "2026-11-17T12:55:52.527073Z"
         }
       }
     },
@@ -5123,13 +5394,30 @@
       "id": "BCL-03",
       "title": "Introspect auto-fills the four sections from the run log",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "summary": "Introspect should draft the delete, simplify, optimize, and automate sections from the cycle's run log, so the agent only has to check and edit them.",
       "impact": "Filling the four sections by hand is slow and easy to skip, so the review is missed or incomplete.",
       "done_when": "bcl introspect can draft the four sections from the run log, and the agent can confirm or edit them before they are saved.",
       "observed": "The 0.2.143 Introspect on PR #107 had to be assembled by hand from progress logs and commit messages after the run.",
       "recommendation": "Teach bcl introspect to draft delete, simplify, optimize, and automate from the run log, still requiring evidence and a human confirmation step.",
-      "carried_from": 110
+      "carried_from": 110,
+      "verification_evidence": [
+        {
+          "checked": "Drafting Introspect sections from the recorded run, then saving only after review",
+          "expected": "bcl introspect --draft writes an editable SECTIONS.json from the tracker run, an unchanged draft cannot be saved, and a draft path cannot overwrite the input or live tracker, including a hard link",
+          "observed": "On the worktree and the installed 0.1.35 copy, test_draft_uses_performed_round_steps_and_requires_review, test_workflow_cycle_uses_live_tracker_and_snapshots_each_stage, and test_introspect_draft_rejects_input_tracker_and_live_hard_link passed; test_bcl.py 50 OK in 50.313s then 50.392s, and test_check_introspect.py 7 OK",
+          "verdict": "Fixed because a draft can be written and edited, an unchanged draft is rejected, and tracker aliases cannot be overwritten",
+          "check_id": "intro-r4-bcl-03-0.1.35",
+          "build": "batched-change-list 0.1.35",
+          "session": "installed-0.1.35-verify-114",
+          "timestamp": "2026-11-17T12:55:20Z",
+          "reference": "b522d3b17bb63f156af97bda05c8632d0e78dd5e:BCL-03:installed-cli-suite"
+        }
+      ],
+      "verification": "Checked: Drafting Introspect sections from the recorded run, then saving only after review; Expected: bcl introspect --draft writes an editable SECTIONS.json from the tracker run, an unchanged draft cannot be saved, and a draft path cannot overwrite the input or live tracker, including a hard link; Observed: On the worktree and the installed 0.1.35 copy, test_draft_uses_performed_round_steps_and_requires_review, test_workflow_cycle_uses_live_tracker_and_snapshots_each_stage, and test_introspect_draft_rejects_input_tracker_and_live_hard_link passed; test_bcl.py 50 OK in 50.313s then 50.392s, and test_check_introspect.py 7 OK; Verdict because: Fixed because a draft can be written and edited, an unchanged draft is rejected, and tracker aliases cannot be overwritten. Installed bcl 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e via bcl install-local (48 plugin files sha256 e607a3a1b6c90cc0cdbcdc939dc9f8c81e54d77715632bfe190d4f4d22c7b2cf, 41 skill files sha256 cf33d9b5fcee37f8629b20e2062e954c45fc84cba5a7e0fccd61b9fef1e944d5, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.35-receipt.json). Worktree suites finished 18:24:29 IST Asia/Calcutta; installed copy finished 18:25:20 IST. Logs: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r4-0.1.35.log and verify-r4-0.1.35-installed.log.",
+      "verification_refs": [
+        "b522d3b17bb63f156af97bda05c8632d0e78dd5e:BCL-03:installed-cli-suite"
+      ]
     },
     {
       "id": "PLAN-02",
@@ -7723,13 +8011,30 @@
       "id": "BCL-37",
       "title": "The generated skill statechart is stale and fails the shape check",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "The committed skill statechart no longer matches the generator, so the skill shape test fails.",
       "impact": "The repository gate cannot pass, and a stale chart no longer matches the skill text the agent is told to follow.",
       "done_when": "statechart.html is regenerated with python3 scripts/statechart.py, test_generated_statechart_is_current_and_stale_or_missing_fails_shape_check passes, and a full scripts/check.py run is otherwise green for this failure.",
       "observed": "A full scripts/check.py run on the #114 worktree from 17:58 to 18:00 IST Asia/Calcutta failed only the skill shape test, which said to regenerate the statechart. The notification hook tests and the Swift cold-start test in that same run passed. The log is in the bcl-114 artifacts folder.",
-      "recommendation": "Regenerate plugins/batched-change-list/skills/batched-change-list/statechart.html with the official generator and keep the stale-chart test. Any later skill or reference edit must regenerate the chart."
+      "recommendation": "Regenerate plugins/batched-change-list/skills/batched-change-list/statechart.html with the official generator and keep the stale-chart test. Any later skill or reference edit must regenerate the chart.",
+      "verification_evidence": [
+        {
+          "checked": "The committed skill statechart against the official generator",
+          "expected": "statechart.html matches python3 scripts/statechart.py output, and test_generated_statechart_is_current_and_stale_or_missing_fails_shape_check passes",
+          "observed": "On the worktree and the installed 0.1.35 copy, that test passed as part of test_skill.py 5 OK in 0.004s",
+          "verdict": "Fixed because the regenerated chart matches the generator and the shape test passed on both copies",
+          "check_id": "intro-r4-bcl-37-0.1.35",
+          "build": "batched-change-list 0.1.35",
+          "session": "installed-0.1.35-verify-114",
+          "timestamp": "2026-11-17T12:55:20Z",
+          "reference": "b522d3b17bb63f156af97bda05c8632d0e78dd5e:BCL-37:installed-cli-suite"
+        }
+      ],
+      "verification": "Checked: The committed skill statechart against the official generator; Expected: statechart.html matches python3 scripts/statechart.py output, and test_generated_statechart_is_current_and_stale_or_missing_fails_shape_check passes; Observed: On the worktree and the installed 0.1.35 copy, that test passed as part of test_skill.py 5 OK in 0.004s; Verdict because: Fixed because the regenerated chart matches the generator and the shape test passed on both copies. Installed bcl 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e via bcl install-local (48 plugin files sha256 e607a3a1b6c90cc0cdbcdc939dc9f8c81e54d77715632bfe190d4f4d22c7b2cf, 41 skill files sha256 cf33d9b5fcee37f8629b20e2062e954c45fc84cba5a7e0fccd61b9fef1e944d5, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.35-receipt.json). Worktree suites finished 18:24:29 IST Asia/Calcutta; installed copy finished 18:25:20 IST. Logs: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r4-0.1.35.log and verify-r4-0.1.35-installed.log.",
+      "verification_refs": [
+        "b522d3b17bb63f156af97bda05c8632d0e78dd5e:BCL-37:installed-cli-suite"
+      ]
     }
   ]
 }
