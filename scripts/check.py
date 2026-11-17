@@ -1117,20 +1117,30 @@ def check_triage_renders() -> list[str]:
             errors.append(f"{data.relative_to(ROOT)}: unreadable tracker ({exc})")
     pairs = triage_render_pairs(triage)
     try:
-        staged = set(subprocess.check_output(
-            ["git", "diff", "--cached", "--name-only", "-z"], cwd=ROOT,
+        indexed = set(subprocess.check_output(
+            ["git", "ls-files", "-z", "--", "docs/triage"], cwd=ROOT,
             stderr=subprocess.DEVNULL,
         ).decode().split("\0"))
-        indexed = set(subprocess.check_output(
-            ["git", "ls-files", "-z"], cwd=ROOT, stderr=subprocess.DEVNULL
-        ).decode().split("\0"))
-    except (OSError, subprocess.CalledProcessError):
-        staged = set()
+    except (OSError, subprocess.CalledProcessError) as exc:
         indexed = set()
+        errors.append(f"docs/triage: could not read Git index ({exc})")
+    for relative in sorted(path for path in indexed if path.endswith("-findings.json")):
+        try:
+            indexed_data = json.loads(subprocess.check_output(
+                ["git", "show", f":{relative}"], cwd=ROOT, stderr=subprocess.DEVNULL,
+            ))
+        except (OSError, subprocess.CalledProcessError, ValueError) as exc:
+            errors.append(f"{relative}: could not read indexed tracker ({exc})")
+            continue
+        url = (indexed_data.get("tracking", {}).get("pull_request") or {}).get("url", "")
+        url_match = re.search(r"/pull/(\d+)", url)
+        file_match = re.fullmatch(r"docs/triage/pr-(\d+)-findings\.json", relative)
+        if not url_match or (file_match and file_match.group(1) != url_match.group(1)):
+            continue
+        report = f"docs/triage/pr-{url_match.group(1)}.html"
+        if report not in indexed:
+            errors.append(f"{report}: tracker {Path(relative).name} is in the index but its HTML report is missing from the index")
     for data, report in pairs:
-        if (data.relative_to(ROOT).as_posix() in staged
-                and report.relative_to(ROOT).as_posix() not in indexed):
-            errors.append(f"{report.relative_to(ROOT)}: tracker {data.name} is staged but its HTML report is missing from the index")
         other = seen.get(report)
         if other is not None:
             errors.append(f"{report.relative_to(ROOT)}: claimed by both {other.name} and {data.name}")
