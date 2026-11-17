@@ -3804,8 +3804,8 @@
     },
     "workflow": {
       "stage": "verify",
-      "updated_at": "2026-11-17T11:13:07Z",
-      "now": "2026-11-17T11:13:07Z — Lane ILOCAL updated"
+      "updated_at": "2026-11-17T11:33:50Z",
+      "now": "2026-11-17T11:33:50Z — Lane ILOCAL updated"
     },
     "rollover": {
       "source_pr": 113,
@@ -4047,7 +4047,7 @@
           ],
           "depends_on": [],
           "status": "running",
-          "phase": "fix",
+          "phase": "review",
           "worktree": "pr114-stash",
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -4057,9 +4057,11 @@
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "status": "running",
+            "status": "passed",
             "implementer_session": "01a1e935-727d-75e3-9a4e-d59c4134393f",
-            "updated_at": "2026-11-17T11:13:07Z"
+            "reviewer_session": "01a1e93d-13b4-7fd3-a8cb-45be7d6661f8",
+            "review_status": "passed",
+            "one_file": false
           },
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
@@ -4069,7 +4071,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T11:13:07Z"
+          "updated_at": "2026-11-17T11:33:50Z"
         },
         {
           "id": "ILOCAL",
@@ -4079,7 +4081,7 @@
           ],
           "depends_on": [],
           "status": "running",
-          "phase": "fix",
+          "phase": "review",
           "worktree": "pr114-install",
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -4089,9 +4091,11 @@
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "status": "running",
+            "status": "passed",
             "implementer_session": "01a1e935-727d-7991-96f2-0fee89635710",
-            "updated_at": "2026-11-17T11:13:07Z"
+            "reviewer_session": "01a1e93e-1df3-7a70-af7f-d15e0a56f19e",
+            "review_status": "passed",
+            "one_file": false
           },
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
@@ -4101,7 +4105,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T11:13:07Z"
+          "updated_at": "2026-11-17T11:33:50Z"
         }
       ]
     },
