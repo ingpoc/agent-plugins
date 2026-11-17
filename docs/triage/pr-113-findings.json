@@ -2981,9 +2981,9 @@
       }
     },
     "workflow": {
-      "stage": "collect",
-      "updated_at": "2026-11-17T09:29:49Z",
-      "now": "2026-11-17T09:29:49Z — Started collection"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-17T09:30:22Z",
+      "now": "2026-11-17T09:30:22Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 112,
@@ -3135,93 +3135,115 @@
       }
     ],
     "plan": {
-      "round": 2,
-      "cycle": 4,
+      "round": 1,
+      "cycle": 5,
       "groups": [
         {
-          "id": "SHAPE",
-          "name": "Pass skill-refine --strict on the bcl skill",
+          "id": "ROUND",
+          "name": "Increment the round after Introspect",
           "finding_ids": [
-            "BCL-33"
+            "BCL-34"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "pr112-shape",
+          "status": "pending",
+          "phase": "fix",
+          "worktree": "pr113-round",
           "files": [
-            "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/statechart.py",
-            "plugins/batched-change-list/skills/batched-change-list/statechart.html",
-            "plugins/batched-change-list/skills/batched-change-list/scripts",
-            "plugins/batched-change-list"
+            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
+            "plugins/batched-change-list/bin/bcl"
           ],
-          "reason": "Follow-up to BCL-25/27/30: the skill must pass skill-refine --strict, ship a skill-refine-accepted chart generated from workflow_definition.json, and name the check_*.py scripts.",
+          "reason": "A new plan after current-round Introspect must advance tracking.round and plan.round so the next Introspect covers only that plan.",
           "verify": {
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
-            "method": "Unit tests plus skill_shape.py --strict: When→load table, accepted statechart hash, and check_*.py no longer orphans.",
-            "status": "verified",
-            "fixed": 1,
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+            "method": "Unit test that a post-Introspect set-plan is recorded on the next round.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T09:24:20Z",
-          "codex": {
-            "implementer_session": "01a1e8bd-3fa2-7ba0-a768-16d6e8ff1afe",
-            "implementer": "luna",
-            "implementer_model": "gpt-6-luna",
-            "implementer_effort": "medium",
-            "reviewer_session": "01a1e8c4-b99f-75f3-8105-c8100718dfd7",
-            "reviewer_model": "gpt-6.1-terra",
-            "reviewer_effort": "medium",
-            "reviewer_verdict": "request-changes",
-            "review_status": "passed",
-            "status": "running",
-            "updated_at": "2026-11-17T09:24:20Z"
-          }
+          "updated_at": "2026-11-17T09:30:22Z"
         },
         {
-          "id": "PROBE",
-          "name": "Label viewer setup errors honestly",
+          "id": "HOOK",
+          "name": "Reject a staged tracker without its report",
           "finding_ids": [
-            "BCL-32"
+            "PAGE-11"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "pr112-probe",
+          "status": "pending",
+          "phase": "fix",
+          "worktree": "pr113-hook",
           "files": [
-            "plugins/batched-change-list/bin/bcl",
-            "plugins/batched-change-list/skills/batched-change-list/scripts"
+            "scripts/check.py",
+            "scripts/test_check_triage_renders.py"
           ],
-          "reason": "A non-probe OSError in ensure_viewer must not be labeled as a PID probe failure.",
+          "reason": "A staged change-list tracker must not pass the freshness hook when its HTML report is missing from the index.",
           "verify": {
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_*.py'",
-            "method": "Unit test that a non-probe ensure_viewer OSError is reported with its actual cause.",
-            "status": "verified",
-            "fixed": 1,
+            "command": "python3 -m unittest discover -s scripts -p 'test_check_triage_renders.py'",
+            "method": "Unit test that a staged tracker with an unstaged or untracked report is rejected.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T09:24:20Z",
-          "codex": {
-            "implementer_session": "01a1e8bd-3fa2-70a3-9ffe-cb225b8b6d41",
-            "implementer": "luna",
-            "implementer_model": "gpt-6-luna",
-            "implementer_effort": "medium",
-            "reviewer_session": "01a1e8c4-b99f-7012-9994-637b1aad225a",
-            "reviewer_model": "gpt-6.1-terra",
-            "reviewer_effort": "medium",
-            "reviewer_verdict": "request-changes",
-            "review_status": "passed",
-            "status": "running",
-            "updated_at": "2026-11-17T09:24:20Z"
-          }
+          "updated_at": "2026-11-17T09:30:22Z"
+        },
+        {
+          "id": "OUTCOME",
+          "name": "Show finding outcome apart from plan state",
+          "finding_ids": [
+            "PAGE-09"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "fix",
+          "worktree": "pr113-outcome",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_render.py"
+          ],
+          "reason": "The issue list and detail must show the finding outcome separately from its last recorded plan state, including on a narrow screen.",
+          "verify": {
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
+            "method": "Unit test that a failing finding with a deferred or parked lane still shows its failing outcome separately from the plan state.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-17T09:30:22Z"
+        },
+        {
+          "id": "SERVE",
+          "name": "Keep idle connections from blocking the live page",
+          "finding_ids": [
+            "PAGE-12"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "fix",
+          "worktree": "pr113-serve",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/serve.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_serve.py"
+          ],
+          "reason": "An idle browser connection must not prevent the live change-list page from loading for other requests.",
+          "verify": {
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_serve.py'",
+            "method": "Unit test that a request returns while another connection remains idle.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-17T09:30:22Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "stages_reached": [
-      "collect"
+      "collect",
+      "plan_fix"
     ]
   },
   "findings": [
@@ -3663,7 +3685,7 @@
       "id": "PAGE-09",
       "title": "Finding outcome is hidden by its plan state",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "priority": "high",
       "summary": "A failing issue can appear only as parked in the issue list and its heading.",
       "impact": "You cannot tell whether an issue has been fixed or is still failing.",
@@ -3722,7 +3744,7 @@
       "id": "PAGE-11",
       "title": "A tracker can be committed without its report",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "priority": "high",
       "summary": "A change-list tracker can be staged while its page is left out of the commit.",
       "impact": "The shared change list can be missing or out of date for reviewers.",
@@ -3748,7 +3770,7 @@
       "id": "PAGE-12",
       "title": "An idle browser connection can block the live page",
       "source": "User reported",
-      "status": "failing",
+      "status": "in_progress",
       "priority": "high",
       "summary": "The live change-list page can stop loading when a browser connection sits idle.",
       "impact": "You cannot view current findings even though the server appears to be running.",
@@ -4964,7 +4986,7 @@
       "id": "BCL-34",
       "title": "The next plan after Introspect keeps the current tracking.round",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "After a current-round Introspect, starting the next plan does not increment tracking.round or plan.round, so two fix cycles can share one round number and the later Introspect can overwrite the earlier round's coverage pointer.",
       "impact": "Introspect history for a cycle can collapse two plans into one round, and coverage checks can look at the wrong plan groups.",
