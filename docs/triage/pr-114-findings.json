@@ -3804,8 +3804,8 @@
     },
     "workflow": {
       "stage": "verify",
-      "updated_at": "2026-11-17T11:03:53Z",
-      "now": "2026-11-17T11:03:53Z — Verify in progress"
+      "updated_at": "2026-11-17T11:04:07Z",
+      "now": "2026-11-17T11:04:07Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 113,
