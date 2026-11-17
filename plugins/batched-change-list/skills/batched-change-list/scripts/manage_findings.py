@@ -804,6 +804,19 @@ def require_current_round_introspect(tracking, action):
         raise ValueError(f"record this round's introspect with --sections before {action}")
 
 
+def advance_plan_round(tracking, findings, timestamp):
+    round_number = RENDERER.rollover_round(tracking)
+    fixed = RENDERER.rollover_gate(findings, tracking)[0]
+    tracking.setdefault("round_history", []).append(
+        {"round": round_number, "fixed": fixed, "ended_at": timestamp})
+    tracking["round"] = round_number + 1
+    if isinstance(tracking.get("plan"), dict):
+        tracking["plan"]["round"] = round_number + 1
+    loop = {"plan_fix", "install", "verify", "introspect", "gate"}
+    tracking["stages_reached"] = [step for step in tracking.get("stages_reached", []) if step not in loop]
+    tracking["stages_reached"].append("plan_fix")
+
+
 def prepare_rollover(document, operation, force=False):
     findings = document.get("findings")
     tracking = document.setdefault("tracking", {})
@@ -1083,6 +1096,8 @@ def run(args, parser):
                         )
                         if previous_stage in ("verify", "introspect", "gate") and not same_current_plan:
                             require_current_round_introspect(tracking, "returning to plan_fix")
+                            advance_plan_round(tracking, findings,
+                                               datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
                         plan = copy.deepcopy(operation.get("plan"))
                         if not isinstance(plan, dict) or type(plan.get("round")) is not int or not isinstance(plan.get("groups"), list):
                             raise ValueError("set-plan requires plan {round, groups}")
@@ -1341,16 +1356,9 @@ def run(args, parser):
                         raise ValueError(f"set-activity for {stage} requires a nonempty ID list and an in_progress finding; log a finding and set it in progress first")
                     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                     if (stage == "plan_fix" and previous_stage in ("verify", "introspect", "gate")
-                            and not RENDERER.rollover_gate(findings, tracking)[2]):
-                        round_number = RENDERER.rollover_round(tracking)
-                        history = tracking.setdefault("round_history", [])
-                        history.append({"round": round_number, "fixed": RENDERER.rollover_gate(findings, tracking)[0], "ended_at": timestamp})
-                        tracking["round"] = round_number + 1
-                        if isinstance(tracking.get("plan"), dict): tracking["plan"]["round"] = round_number + 1
-                        loop = {"plan_fix", "install", "verify", "introspect", "gate"}
-                        tracking["stages_reached"] = [step for step in tracking.get("stages_reached", []) if step not in loop]
-                        if "plan_fix" not in tracking["stages_reached"]:
-                            tracking["stages_reached"].append("plan_fix")
+                            and (introspect_covers_current_round(tracking)
+                                 or not RENDERER.rollover_gate(findings, tracking)[2])):
+                        advance_plan_round(tracking, findings, timestamp)
                     tracking["workflow"] = {"stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
                     if stale_after is not None:
                         tracking["workflow"]["stale_after_min"] = stale_after
