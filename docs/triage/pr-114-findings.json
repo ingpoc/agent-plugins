@@ -4886,8 +4886,9 @@
       }
     },
     "workflow": {
-      "stage": "report_rollover",
-      "updated_at": "2026-11-17T13:20:07Z"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-17T13:25:40Z",
+      "now": "2026-11-17T13:25:40Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 113,
@@ -5005,7 +5006,7 @@
       }
     },
     "cycle": 6,
-    "round": 5,
+    "round": 6,
     "round_history": [
       {
         "round": 2,
@@ -5076,138 +5077,141 @@
         "round": 4,
         "fixed": 14,
         "ended_at": "2026-11-17T13:03:40Z"
+      },
+      {
+        "round": 5,
+        "fixed": 15,
+        "ended_at": "2026-11-17T13:25:40Z"
       }
     ],
     "plan": {
-      "round": 5,
+      "round": 6,
       "cycle": 6,
       "groups": [
         {
-          "id": "WF06",
-          "name": "Prove WF-06 leftovers with named tests and draft-CI evidence, no rewrite first",
+          "id": "PLANCAP",
+          "name": "Allow Luna max effort on current hard plan groups",
           "finding_ids": [
-            "WF-06"
+            "PLAN-04"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "samantha-pr114-rollover",
-          "files": [],
-          "reason": "WF-06 leftovers are hygiene scoping, Origin CI on drafts, one Terra review, and residual AGENT-28. AGENT-28 is already verified_fixed. This group reruns the named hygiene tests and checks the current CI workflow and one-review policy before any rewrite.",
-          "codex": {
-            "one_file": true,
-            "implementer_session": "01a1e9a3-9b15-74a1-9391-479b232d8cd3",
-            "review_status": "passed"
-          },
-          "verify": {
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "command": "python3 -m unittest discover -s scripts -p 'test_release_agent_computer_use.py'",
-            "method": "The three named hygiene tests must pass. Also record whether ci.yml's pull_request trigger has any draft filter, and whether plan-fix.md still requires one review round with no second review. If a leftover is already present, it still needs its own named test before verified_fixed. Do not rewrite first."
-          },
-          "updated_at": "2026-11-17T13:19:33Z"
-        },
-        {
-          "id": "WINLV",
-          "name": "Windows-safe non-destructive viewer liveness and ownership check",
-          "finding_ids": [
-            "BCL-18"
-          ],
-          "depends_on": [],
-          "status": "blocked",
-          "phase": "verify",
-          "worktree": "pr114-winlv",
+          "status": "pending",
+          "phase": "pending",
+          "worktree": "pr114-plancap",
           "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_live_state.py"
+            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/references/plan-fix.md"
           ],
-          "reason": "live_state.ensure_viewer still probes liveness with os.kill(pid, 0), which is not a safe Windows check. Implement a non-destructive Windows liveness and ownership probe, keep the Unix path, and cover both in tests. This does not depend on BCL-13's lock concurrency runtime.",
+          "reason": "validate_plan_groups currently rejects Codex effort max on current-round groups. Allow max for hard groups, keep the about-4-issues size cap, and update tests and plan-fix text.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "status": "passed",
-            "implementer_session": "01a1e99e-5895-7162-a5f4-b7b49a8200ee",
-            "reviewer_session": "01a1e9a3-928b-7050-8223-e13ef8e11988",
-            "review_status": "passed",
-            "one_file": false
+            "status": "pending"
           },
           "verify": {
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_manage_findings.py'",
+            "method": "A current non-deferred group with effort max must be accepted; a group with more than 4 issues must still be rejected. Tests and plan-fix text must match that rule.",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1,
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
-            "method": "Tests must show a Windows-safe non-destructive liveness and ownership check (Unix os.kill path preserved). If a live Windows runtime is still unavailable, do not mark verified_fixed solely on mocks; leave it untested or blocked and say what is missing."
+            "total": 1
           },
-          "updated_at": "2026-11-17T13:19:33Z",
-          "blocked_reason": "No live Windows runtime"
+          "updated_at": "2026-11-17T13:25:40Z"
         },
         {
-          "id": "HER",
-          "name": "Typed Her-spec retest of AGENT-25 on current ACU",
+          "id": "LEGACY",
+          "name": "Safe stop or migration for legacy viewers without instance identity",
+          "finding_ids": [
+            "BCL-04"
+          ],
+          "depends_on": [],
+          "status": "pending",
+          "phase": "pending",
+          "worktree": "pr114-legacy",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_live_state.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/serve.py"
+          ],
+          "reason": "Legacy 107/110/111 viewer records lack instance identity, so the new viewer refuses to restart them. Provide a verified ownership path to migrate or stop those viewers safely, then start the updated viewer on the correct list.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "status": "pending"
+          },
+          "verify": {
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
+            "method": "Tests must show that a legacy viewer record without instance identity can be migrated or stopped only after ownership is verified, and that the updated viewer then starts and shows the correct list. Do not kill an unrelated process.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-17T13:25:40Z"
+        },
+        {
+          "id": "HERFIX",
+          "name": "Keep the typed session alive during confirm_risky, then retest AGENT-25",
           "finding_ids": [
             "AGENT-25"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "verify",
-          "worktree": "samantha-pr114-rollover",
-          "files": [],
-          "reason": "AGENT-25 still needs a 12/12 Her-spec score with transcript evidence. Prior typed runs reached 10/12; AGENT-26 and AGENT-27 are now verified_fixed. Retest typed on the current installed ACU. Spoken scoring is not required for this group and is not a substitute later for OBS-23 or OBS-25. Do not defer solely because those items are blocked. Do not use port 8765 or ~/.cache/macos-cua/samantha-activity.jsonl.",
+          "status": "pending",
+          "phase": "pending",
+          "worktree": "pr114-herfix",
+          "files": [
+            "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua"
+          ],
+          "reason": "The typed Her retest on ACU 0.2.148 scored 7/12 because T5 disconnected during confirm_risky (SSL bad record MAC) and her-check.txt was never created. Fix the disconnect during confirm, then rerun the typed Her-spec session. Spoken scoring is still out of scope.",
           "codex": {
-            "one_file": true,
-            "implementer_session": "test-now-her-typed",
-            "review_status": "passed"
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "status": "pending"
           },
           "verify": {
+            "command": "python3 /Users/gurusharan/.agents/artifacts/bcl-114/her-session/score-her.py",
+            "method": "First, tests must show a confirm_risky wait does not drop the typed session. Then rerun the typed Her-spec script on the installed ACU, score six traits 0-2 from the transcript, and mark verified_fixed only at 12/12. Spoken turns are not required.",
             "status": "failed",
             "fixed": 0,
             "failed": 1,
-            "total": 1,
-            "command": "python3 /Users/gurusharan/.agents/artifacts/bcl-114/her-session/score-her.py",
-            "method": "Run a typed Her-spec session on current installed ACU and score the six traits 0-2 from the transcript. verified_fixed only at 12/12. If any trait is below 2, leave AGENT-25 untested or failing and file or point to the leftover. Note spoken turns were not scored if no real microphone is present."
+            "total": 1
           },
-          "updated_at": "2026-11-17T13:19:33Z"
+          "updated_at": "2026-11-17T13:25:40Z"
         },
         {
-          "id": "EVAL",
-          "name": "Fair matched evaluation of delivery using the existing OpenCode smoke harness",
+          "id": "EVALTOK",
+          "name": "Record OpenCode token counts in the matched EVAL-01 comparison",
           "finding_ids": [
             "EVAL-01"
           ],
           "depends_on": [],
-          "status": "done",
-          "phase": "verify",
-          "worktree": "samantha-pr114-rollover",
+          "status": "pending",
+          "phase": "pending",
+          "worktree": "pr114-evaltok",
           "files": [],
-          "reason": "EVAL-01 needs a fair matched comparison of delivery speed, token efficiency, control, and status accuracy. Use the existing OpenCode smoke evaluation workflow and harness rather than inventing a new one. Freeze one slugify case and run OpenCode and a Codex counterpart on that same case.",
+          "reason": "The matched slugify comparison already has speed, control, and status accuracy, but OpenCode tokens were not recorded. Capture the token count from the existing OpenCode run if it is in the local OpenCode session store, otherwise rerun the same frozen case, and write tokens into the comparison and harness.",
           "codex": {
-            "one_file": true,
-            "implementer_session": "test-now-eval-matched",
-            "review_status": "passed"
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "status": "pending"
           },
           "verify": {
+            "command": "bash /Users/gurusharan/.agents/artifacts/bcl-114/eval/verify-existing.sh",
+            "method": "The stored matched comparison must include OpenCode and Codex token counts, plus wall time, test-file control, and status accuracy, on the same frozen slugify case. Leave EVAL-01 untested if tokens are still missing.",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1,
-            "command": "bash /Users/gurusharan/.agents/artifacts/bcl-114/eval/run-matched.sh",
-            "method": "A matched run of the frozen slugify smoke case must report, for each side, wall time, token use if available, whether the test file stayed untouched (control), and whether the reported PASS/FAIL matched the actual tests (status accuracy). Record the comparison and the recommendation. If the run is incomplete or incomparable, leave EVAL-01 untested."
+            "total": 1
           },
-          "updated_at": "2026-11-17T13:19:33Z"
+          "updated_at": "2026-11-17T13:25:40Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "stages_reached": [
       "collect",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect",
-      "report_rollover"
+      "report_rollover",
+      "plan_fix"
     ],
     "verification_run": {
       "id": "bcl-0.1.36-a781916b-114",
@@ -5495,6 +5499,9 @@
           "state": "pending"
         },
         "WF-20": {
+          "state": "pending"
+        },
+        "PLAN-04": {
           "state": "pending"
         }
       }
@@ -8612,6 +8619,18 @@
       "verification_refs": [
         "Introspect"
       ]
+    },
+    {
+      "id": "PLAN-04",
+      "title": "Plan cap rejects Luna max effort for hard groups",
+      "source": "User requested",
+      "status": "untested",
+      "priority": "high",
+      "summary": "set-plan refuses a current-round group with Codex effort max, so a hard group cannot be planned at Luna max.",
+      "impact": "Hard work is forced to medium in the recorded plan, or the plan is rejected, even when the owner asked for Luna max.",
+      "done_when": "A current, non-deferred fix group can be planned with Codex effort max, the about-4-issues group size cap remains, and a test shows both.",
+      "recommendation": "Allow effort max for current fix groups in validate_plan_groups, update the tests and plan-fix text, and keep the group-size cap of about 4.",
+      "observed": "Guru, 17 Nov 2026 about 18:52 IST Asia/Calcutta, asked for another #114 round before rollover, including a new item for 'plan cap rejects Luna max effort', because rolling over at exactly 15 left #112 stuck unmergeable."
     }
   ]
 }
