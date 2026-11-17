@@ -2041,9 +2041,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-17T07:49:46Z",
-      "now": "2026-11-17T07:49:46Z — Introspection recorded"
+      "stage": "install",
+      "updated_at": "2026-11-17T08:23:09Z",
+      "now": "2026-11-17T08:23:09Z — Install in progress"
     },
     "rollover": {
       "source_pr": 111,
@@ -2141,7 +2141,7 @@
       }
     },
     "cycle": 4,
-    "round": 1,
+    "round": 2,
     "round_history": [
       {
         "round": 2,
@@ -2167,10 +2167,15 @@
         "round": 2,
         "fixed": 19,
         "ended_at": "2026-11-17T04:23:38Z"
+      },
+      {
+        "round": 1,
+        "fixed": 6,
+        "ended_at": "2026-11-17T07:50:53Z"
       }
     ],
     "plan": {
-      "round": 1,
+      "round": 2,
       "cycle": 4,
       "groups": [
         {
@@ -2270,7 +2275,7 @@
             "AGENT-27"
           ],
           "depends_on": [],
-          "status": "pending",
+          "status": "running",
           "phase": "fix",
           "worktree": "samantha-pr112-rollover",
           "files": [
@@ -2286,7 +2291,21 @@
             "failed": 0,
             "total": 2
           },
-          "updated_at": "2026-11-17T05:44:02Z"
+          "updated_at": "2026-11-17T08:22:06Z",
+          "codex": {
+            "implementer_session": "01a1e87e-043c-7c60-8de9-f00613b234bc",
+            "implementer": "luna",
+            "implementer_model": "gpt-6-luna",
+            "implementer_effort": "medium",
+            "status": "running",
+            "started_at": "2026-11-17T07:52:28Z",
+            "updated_at": "2026-11-17T08:22:06Z",
+            "reviewer_session": "01a1e88a-e34c-7311-bd19-5cd544858d9f",
+            "reviewer_model": "gpt-6.1-terra",
+            "reviewer_effort": "medium",
+            "reviewer_verdict": "request-changes",
+            "review_status": "passed"
+          }
         },
         {
           "id": "SHELL",
@@ -2319,9 +2338,7 @@
     "stages_reached": [
       "collect",
       "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "install"
     ],
     "verification_run": {
       "id": "bcl-0.1.26-8c673671-112",
