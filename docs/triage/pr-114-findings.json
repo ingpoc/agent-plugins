@@ -4560,7 +4560,8 @@
           "id": "INTRO",
           "name": "Draft Introspect sections from the run log for confirmation",
           "finding_ids": [
-            "BCL-03"
+            "BCL-03",
+            "BCL-37"
           ],
           "depends_on": [],
           "status": "pending",
@@ -4571,9 +4572,10 @@
             "plugins/batched-change-list/skills/batched-change-list/references/introspect.md",
             "plugins/batched-change-list/skills/batched-change-list/scripts/check_introspect.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_check_introspect.py"
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_check_introspect.py",
+            "plugins/batched-change-list/skills/batched-change-list/statechart.html"
           ],
-          "reason": "bcl introspect should draft the delete, simplify, optimize, and automate sections from the recorded run, so the agent only has to check and edit them before they are saved. Saving still requires that confirmation step.",
+          "reason": "bcl introspect should draft the delete, simplify, optimize, and automate sections from the recorded run, so the agent only has to check and edit them before they are saved. Saving still requires that confirmation step. The same skill change must regenerate the stale statechart so the shape test passes.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
@@ -4585,9 +4587,9 @@
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1
+            "total": 2
           },
-          "updated_at": "2026-11-17T12:27:33Z"
+          "updated_at": "2026-11-17T12:33:29Z"
         }
       ]
     },
@@ -7717,7 +7719,7 @@
       "id": "BCL-37",
       "title": "The generated skill statechart is stale and fails the shape check",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "The committed skill statechart no longer matches the generator, so the skill shape test fails.",
       "impact": "The repository gate cannot pass, and a stale chart no longer matches the skill text the agent is told to follow.",
