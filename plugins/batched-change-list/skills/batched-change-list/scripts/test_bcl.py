@@ -1060,38 +1060,48 @@ elif args[:2] != ['pr', 'edit']:
     def test_unresponsive_recorded_viewer_is_not_reported_as_healthy(self):
         records = json.loads((self.state / "registry.json").read_text())
         key, record = next(iter(records.items()))
-        state = json.loads(self.viewer_state_path().read_text())
+        state_path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        state = {"pid": 28743, "port": 53367, "version": "old", "instance": "instance", "data": record["live"]}
+        state_path.write_text(json.dumps(state))
+        previous = state_path.read_bytes()
         with patch.object(live_state, "STATE", self.state), \
-             patch.object(live_state.os, "kill"), \
+             patch.object(live_state.os, "kill") as signal_process, \
              patch.object(live_state, "_viewer_responds", return_value=False):
             with self.assertRaisesRegex(RuntimeError, "cannot verify viewer ownership"):
                 live_state.ensure_viewer(key, record, Path(record["live"]), state["version"])
+        signal_process.assert_called_once_with(state["pid"], 0)
+        self.assertEqual(state_path.read_bytes(), previous)
 
     def test_unverified_viewer_is_never_signalled(self):
         records = json.loads((self.state / "registry.json").read_text())
         key, record = next(iter(records.items()))
-        state = json.loads(self.viewer_state_path().read_text())
+        state_path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        state = {"pid": 28743, "port": 53367, "version": "old", "instance": "instance", "data": record["live"]}
+        state_path.write_text(json.dumps(state))
+        previous = state_path.read_bytes()
         with patch.object(live_state, "STATE", self.state), \
              patch.object(live_state.os, "kill") as signal_process, \
              patch.object(live_state, "_viewer_responds", return_value=False):
             with self.assertRaisesRegex(RuntimeError, "cannot verify viewer ownership"):
                 live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
         signal_process.assert_called_once_with(state['pid'], 0)
+        self.assertEqual(state_path.read_bytes(), previous)
 
     def test_legacy_viewer_is_not_stopped_without_identity(self):
         records = json.loads((self.state / "registry.json").read_text())
         key, record = next(iter(records.items()))
-        path = self.viewer_state_path()
-        state = json.loads(path.read_text())
-        state.pop('instance')
+        path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        state = {"pid": 28743, "port": 53367, "version": "old", "data": record["live"]}
         path.write_text(json.dumps(state))
+        unchanged = path.read_bytes()
         with patch.object(live_state, "STATE", self.state), \
              patch.object(live_state.os, "kill") as signal_process, \
              patch.object(live_state.urllib.request, "urlopen") as request:
             with self.assertRaisesRegex(RuntimeError, "cannot verify viewer ownership"):
                 live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
         signal_process.assert_called_once_with(state['pid'], 0)
-        request.assert_not_called()
+        request.assert_called_once_with(f"http://127.0.0.1:{state['port']}/__bcl_health", timeout=0.5)
+        self.assertEqual(path.read_bytes(), unchanged)
 
     def test_status_reads_tracker_without_touching_legacy_viewer(self):
         state = self.viewer_state_path()
