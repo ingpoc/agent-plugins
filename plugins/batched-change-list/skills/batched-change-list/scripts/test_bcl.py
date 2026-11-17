@@ -661,7 +661,7 @@ elif args[:2] != ['pr', 'edit']:
             apply({'action':'start-check','run_id':'new-run','id':'ISSUE-02',
                    'observation':'Retesting prerequisite','observed_at':'2026-11-15T00:01:00Z'})
             apply({'action':'finish-check','run_id':'new-run','id':'ISSUE-02','outcome':'inconclusive',
-                   'evidence':'Prerequisite could not be confirmed'})
+                   'evidence':'Checked: prerequisite evidence; Expected: confirmation; Observed: prerequisite could not be confirmed'})
         with patch.dict(os.environ, self.env), patch.object(live_state, 'STATE', self.state), \
              patch.object(live_state, 'ensure_viewer'), \
              patch.object(live_state, 'snapshot', side_effect=change_prerequisite_check), \

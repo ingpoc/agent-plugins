@@ -981,7 +981,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(self.cli('batch', self.data, ops, '--render', self.root / 'verify.html').returncode, 0)
         before = self.data.read_bytes()
         ops.write_text(json.dumps([{'action':'start-check','id':'ISSUE-01','run_id':'install-1','observation':'checking begins','observed_at':'2026-11-06T00:01:00Z'},
-                                   {'action':'finish-check','id':'ISSUE-01','run_id':'install-1','outcome':'not_fixed','evidence':'failed'}]))
+                                   {'action':'finish-check','id':'ISSUE-01','run_id':'install-1','outcome':'not_fixed','evidence':'Checked: issue behavior; Expected: fixed; Observed: failed'}]))
         self.assertNotEqual(self.cli('batch', self.data, ops, '--render', self.root / 'verify.html').returncode, 0)
         self.assertEqual(self.data.read_bytes(), before)
 
