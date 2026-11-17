@@ -9,7 +9,11 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[5]
 PLUGIN = ROOT / "plugins/batched-change-list"
+if not (PLUGIN / "bin/bcl").is_file():
+    PLUGIN = Path.home() / ".agents/plugins/batched-change-list"
 BCL = PLUGIN / "bin/bcl"
+if not BCL.is_file():
+    raise unittest.SkipTest("plugin bin is not shipped beside the skill and is not installed")
 EXAMPLE = PLUGIN / "skills/batched-change-list/examples/findings.json"
 sys.path.insert(0, str(PLUGIN / "skills/batched-change-list/scripts"))
 import live_state
