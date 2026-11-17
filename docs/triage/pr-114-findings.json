@@ -4613,9 +4613,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-17T13:03:40Z",
-      "now": "2026-11-17T13:03:40Z — Plan recorded"
+      "stage": "install",
+      "updated_at": "2026-11-17T13:16:29Z",
+      "now": "2026-11-17T13:16:29Z — Install in progress"
     },
     "rollover": {
       "source_pr": 113,
@@ -4818,13 +4818,13 @@
           ],
           "depends_on": [],
           "status": "pending",
-          "phase": "pending",
+          "phase": "review",
           "worktree": "samantha-pr114-rollover",
           "files": [],
           "reason": "WF-06 leftovers are hygiene scoping, Origin CI on drafts, one Terra review, and residual AGENT-28. AGENT-28 is already verified_fixed. This group reruns the named hygiene tests and checks the current CI workflow and one-review policy before any rewrite.",
           "codex": {
             "one_file": true,
-            "implementer_session": "test-now-wf06",
+            "implementer_session": "01a1e9a3-9b15-74a1-9391-479b232d8cd3",
             "review_status": "passed"
           },
           "verify": {
@@ -4835,7 +4835,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T13:03:40Z"
+          "updated_at": "2026-11-17T13:16:27Z"
         },
         {
           "id": "WINLV",
@@ -4845,7 +4845,7 @@
           ],
           "depends_on": [],
           "status": "pending",
-          "phase": "pending",
+          "phase": "review",
           "worktree": "pr114-winlv",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
@@ -4855,7 +4855,11 @@
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "status": "pending"
+            "status": "passed",
+            "implementer_session": "01a1e99e-5895-7162-a5f4-b7b49a8200ee",
+            "reviewer_session": "01a1e9a3-928b-7050-8223-e13ef8e11988",
+            "review_status": "passed",
+            "one_file": false
           },
           "verify": {
             "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_live_state.py'",
@@ -4865,7 +4869,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T13:03:40Z"
+          "updated_at": "2026-11-17T13:16:27Z"
         },
         {
           "id": "HER",
@@ -4875,7 +4879,7 @@
           ],
           "depends_on": [],
           "status": "pending",
-          "phase": "pending",
+          "phase": "review",
           "worktree": "samantha-pr114-rollover",
           "files": [],
           "reason": "AGENT-25 still needs a 12/12 Her-spec score with transcript evidence. Prior typed runs reached 10/12; AGENT-26 and AGENT-27 are now verified_fixed. Retest typed on the current installed ACU. Spoken scoring is not required for this group and is not a substitute later for OBS-23 or OBS-25. Do not defer solely because those items are blocked. Do not use port 8765 or ~/.cache/macos-cua/samantha-activity.jsonl.",
@@ -4892,7 +4896,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T13:03:40Z"
+          "updated_at": "2026-11-17T13:16:27Z"
         },
         {
           "id": "EVAL",
@@ -4902,7 +4906,7 @@
           ],
           "depends_on": [],
           "status": "pending",
-          "phase": "pending",
+          "phase": "review",
           "worktree": "samantha-pr114-rollover",
           "files": [],
           "reason": "EVAL-01 needs a fair matched comparison of delivery speed, token efficiency, control, and status accuracy. Use the existing OpenCode smoke evaluation workflow and harness rather than inventing a new one. Freeze one slugify case and run OpenCode and a Codex counterpart on that same case.",
@@ -4919,13 +4923,14 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T13:03:40Z"
+          "updated_at": "2026-11-17T13:16:27Z"
         }
       ]
     },
     "stages_reached": [
       "collect",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "verification_run": {
       "id": "bcl-0.1.35-b522d3b1-114",
@@ -5604,7 +5609,7 @@
       "id": "AGENT-25",
       "title": "Samantha meets the Her (2013) spec: 6 traits, scored 0–2 each, target 12/12",
       "source": "User requested",
-      "status": "untested",
+      "status": "in_progress",
       "observed": "Guru (10:58 IST, 14 Nov 2026) asked for the Her spec to be tracked. Samantha should feel like the OS in the film: a capable companion who gets real work done by talking. Every test run is scored on six traits, 0–2 each (12 total), every point backed by transcript evidence. Baseline from ACU's own read of the 14 Nov typed Likeminded session (0.2.141): 1/12 (acts directly 0, conversation 0, remembers 1, initiative 0, warm and brief 0, many jobs 0).",
       "recommendation": "Keep open. Each retest records a score here with record-evidence (per-trait line + transcript refs). Report as X/12, one line per trait; file each trait scored 0 as a finding traced Guru said -> Samantha decided -> step failed -> code area. verified_fixed only at 12/12 with transcript evidence.",
       "details": {
@@ -5652,7 +5657,7 @@
       "id": "WF-06",
       "title": "Introspect 2026-11-14: 5 issue(s), 3 for next cycle",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "observed": "Introspect found 5 issue(s): 2 fixed during Introspect, 3 left for the next cycle.",
       "recommendation": "ACU release hygiene gate fails on unrelated local work in the main agent-plugins checkout, forcing --hygiene-override on every install; Origin CI skips draft PRs, so fix cycles on a draft get no CI signal; Code review needed 3 Terra rounds (limit 2); residual island-auth blocker carried as AGENT-28",
       "verification": "",
@@ -6663,7 +6668,7 @@
       "id": "BCL-18",
       "title": "Windows viewer liveness needs a safe platform check",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "The viewer liveness check may not be safe on Windows.",
       "impact": "A viewer process could be handled incorrectly on that platform.",
       "done_when": "Use and verify a non-destructive Windows liveness and ownership check.",
@@ -6762,7 +6767,7 @@
       "id": "EVAL-01",
       "title": "Prove delivery speed, token efficiency, control, and status accuracy",
       "source": "User requested",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "We do not yet know whether the workflow helps agents deliver accepted work faster and with fewer tokens while keeping clear, accurate status.",
       "impact": "Passing plugin tests alone cannot show that the workflow improves real feature delivery.",
       "done_when": "Run a fair matched comparison with complete end-to-end time and token accounting, independent acceptance, workflow-control checks, and independently checked HTML status accuracy.",
