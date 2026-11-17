@@ -2277,8 +2277,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-17T08:30:16Z",
-      "now": "2026-11-17T08:30:16Z — Fix in progress"
+      "updated_at": "2026-11-17T08:30:30Z",
+      "now": "2026-11-17T08:30:30Z — Lane FREEZE updated"
     },
     "rollover": {
       "source_pr": 111,
@@ -2421,7 +2421,7 @@
             "BCL-29"
           ],
           "depends_on": [],
-          "status": "pending",
+          "status": "running",
           "phase": "fix",
           "worktree": "pr112-cli",
           "files": [
@@ -2439,7 +2439,20 @@
             "failed": 0,
             "total": 2
           },
-          "updated_at": "2026-11-17T08:29:48Z"
+          "updated_at": "2026-11-17T08:42:25Z",
+          "codex": {
+            "implementer_session": "01a1e8a0-d5b8-7da2-abc2-57ee3868425a",
+            "implementer": "luna",
+            "implementer_model": "gpt-6-luna",
+            "implementer_effort": "medium",
+            "reviewer_session": "01a1e8aa-60e7-79d3-a94a-0594982eb25d",
+            "reviewer_model": "gpt-6.1-terra",
+            "reviewer_effort": "medium",
+            "reviewer_verdict": "approve",
+            "review_status": "passed",
+            "status": "running",
+            "updated_at": "2026-11-17T08:42:25Z"
+          }
         },
         {
           "id": "CHART",
@@ -2448,7 +2461,7 @@
             "BCL-30"
           ],
           "depends_on": [],
-          "status": "pending",
+          "status": "running",
           "phase": "fix",
           "worktree": "pr112-chart",
           "files": [
@@ -2465,7 +2478,19 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T08:29:48Z"
+          "updated_at": "2026-11-17T08:42:25Z",
+          "codex": {
+            "implementer_session": "01a1e8a0-d5b8-7870-9699-63f39dad86c9",
+            "implementer": "luna",
+            "implementer_model": "gpt-6-luna",
+            "implementer_effort": "medium",
+            "reviewer_session": "01a1e8aa-60e6-7ec1-8432-016e528b19e7",
+            "reviewer_model": "gpt-6.1-terra",
+            "reviewer_effort": "medium",
+            "reviewer_verdict": "request-changes",
+            "status": "running",
+            "updated_at": "2026-11-17T08:42:25Z"
+          }
         },
         {
           "id": "FREEZE",
@@ -2474,7 +2499,7 @@
             "BCL-31"
           ],
           "depends_on": [],
-          "status": "pending",
+          "status": "running",
           "phase": "fix",
           "worktree": "pr112-freeze",
           "files": [
@@ -2490,7 +2515,19 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T08:29:48Z"
+          "updated_at": "2026-11-17T08:42:25Z",
+          "codex": {
+            "implementer_session": "01a1e8a0-d5b8-74b3-904e-272277716d80",
+            "implementer": "luna",
+            "implementer_model": "gpt-6-luna",
+            "implementer_effort": "medium",
+            "reviewer_session": "01a1e8aa-60e5-7f50-8042-9c7bdc445875",
+            "reviewer_model": "gpt-6.1-terra",
+            "reviewer_effort": "medium",
+            "reviewer_verdict": "request-changes",
+            "status": "running",
+            "updated_at": "2026-11-17T08:42:25Z"
+          }
         }
       ]
     },
@@ -2723,6 +2760,9 @@
           "state": "pending"
         },
         "WF-10": {
+          "state": "pending"
+        },
+        "BCL-32": {
           "state": "pending"
         }
       }
@@ -4361,6 +4401,18 @@
         "BCL-31",
         "BCL-30"
       ]
+    },
+    {
+      "id": "BCL-32",
+      "title": "bcl labels every viewer setup OSError as a PID probe failure",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "low",
+      "summary": "ensure_viewer catches every OSError and reports it as a viewer PID probe failure, including directory, metadata, socket, and startup errors.",
+      "impact": "A real setup failure can be mislabeled, which makes the one-line cause harder to trust.",
+      "done_when": "Errors from creating state, writing viewer metadata, binding a socket, or starting the viewer are reported with their actual cause, and only a PID probe failure is labeled as such. A unit test covers a non-probe OSError.",
+      "observed": "Terra review 01a1e8aa-60e7-79d3-a94a-0594982eb25d of 23caf5c0 (14:11 IST 17 Nov 2026) approved BCL-28 and BCL-29 with this non-blocking nit in bin/bcl around line 21. No second review.",
+      "recommendation": "Catch and label PID probe errors separately from other ensure_viewer OSError cases."
     }
   ]
 }
