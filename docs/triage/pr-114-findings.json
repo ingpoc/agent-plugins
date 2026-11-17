@@ -4613,9 +4613,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-17T12:55:52Z",
-      "now": "2026-11-17T12:55:52Z — Lane INTRO updated"
+      "stage": "introspect",
+      "updated_at": "2026-11-17T12:56:31Z",
+      "now": "2026-11-17T12:56:31Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 113,
@@ -4872,13 +4872,15 @@
           },
           "updated_at": "2026-11-17T12:55:52Z"
         }
-      ]
+      ],
+      "status": "closed"
     },
     "stages_reached": [
       "collect",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "verification_run": {
       "id": "bcl-0.1.35-b522d3b1-114",
@@ -5147,62 +5149,72 @@
           "check_id": "95ccf5c9dcae42e492caf4245a1dae8f",
           "evidence": "Checked: The committed skill statechart against the official generator; Expected: statechart.html matches python3 scripts/statechart.py output, and test_generated_statechart_is_current_and_stale_or_missing_fails_shape_check passes; Observed: On the worktree and the installed 0.1.35 copy, that test passed as part of test_skill.py 5 OK in 0.004s; Verdict because: Fixed because the regenerated chart matches the generator and the shape test passed on both copies. Installed bcl 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e via bcl install-local (48 plugin files sha256 e607a3a1b6c90cc0cdbcdc939dc9f8c81e54d77715632bfe190d4f4d22c7b2cf, 41 skill files sha256 cf33d9b5fcee37f8629b20e2062e954c45fc84cba5a7e0fccd61b9fef1e944d5, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.35-receipt.json). Worktree suites finished 18:24:29 IST Asia/Calcutta; installed copy finished 18:25:20 IST. Logs: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r4-0.1.35.log and verify-r4-0.1.35-installed.log.",
           "finished_at": "2026-11-17T12:55:52.527073Z"
+        },
+        "WF-19": {
+          "state": "pending"
         }
       }
     },
     "introspect": {
-      "result": "Round 3 Introspect recorded",
-      "at": "2026-11-17T12:24:26Z",
-      "task": "WF-18",
+      "result": "Round 4 Introspect recorded",
+      "at": "2026-11-17T12:56:31Z",
+      "task": "WF-19",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 1",
-        "Codex write: PAGE",
-        "Codex review: PAGE",
-        "Polling and rework review: PAGE",
-        "Test command: PAGE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'"
+        "Parallel group count: 2",
+        "Codex write: GATE",
+        "One-file review exemption: GATE",
+        "Polling and rework review: GATE",
+        "Test command: GATE: python3 scripts/check.py",
+        "Codex write: INTRO",
+        "Codex review: INTRO",
+        "Polling and rework review: INTRO",
+        "Test command: INTRO: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
       ],
       "none": [
         "Stage: Plan & fix",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 1",
-        "Test command: PAGE: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'"
+        "Parallel group count: 2",
+        "Codex write: GATE",
+        "One-file review exemption: GATE",
+        "Polling and rework review: GATE",
+        "Codex write: INTRO",
+        "Test command: INTRO: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
       ],
       "sections": {
         "delete": {
-          "none": "No extra process or files were dropped. PAGE-22 added the planned render and write-boundary changes, then a 0.1.34 version bump. The bump ran in a separate Luna session whose commit was blocked on the shared home worktree index; the orchestrator committed, which matches the rule that only the orchestrator commits. The fixture resume and P2 rework stayed in the same Luna session."
+          "none": "No extra process or files were dropped. GATE was test-now on the current worktree. INTRO added the planned draft command, tests, and a statechart regeneration. The 0.1.35 bump ran in a separate Luna session whose commit was blocked on the shared home worktree index; the orchestrator committed, which matches the rule that only the orchestrator commits."
         },
         "simplify": {
-          "items": [
-            {
-              "item": "Codex write: PAGE",
-              "evidence": "The first Luna commit 37c23e62 (session 01a1e94f-d4df-7d63-b0cb-3937ff0b0a0f, 17:11–17:24 IST) left a test_bcl.py finish-check fixture in the old reason shape, so test_verify_rechecks_prerequisite_evidence_before_spawn failed when the orchestrator ran the full suite outside the sandbox. The same session was resumed at 17:26 IST and committed fixture-only 80fae65e without loosening validation.",
-              "outcome": "fixed inline"
-            }
-          ]
+          "none": "The Terra P2 and the duplicate introspect.md paragraph were fixed by resuming the same Luna session, with no second review. No further process was added."
         },
         "optimize": {
-          "none": "Only PAGE-22 was planned this round. One 0.1.34 install-local and one live verify covered the worktree and the installed copy, and this list's earlier verification reasons were backfilled in the same verify window. Remaining ready items go to the next plan."
+          "none": "GATE ran as test-now before any INTRO code, as required. One 0.1.35 install-local and one live verify then covered the worktree and the installed copy."
         },
         "automate": {
           "items": [
             {
-              "item": "Codex review: PAGE",
-              "evidence": "Terra r1 (session 01a1e960-15de-7cd2-b5b6-beb1ce84cd3c, 17:29–17:30 IST) found four P2s: empty reason parts accepted, check identity collisions within the same second, duplicate verify and outcome records left in storage, and Verdict because showing only the state. Luna resumed session 01a1e94f-d4df-7d63-b0cb-3937ff0b0a0f and committed 73fe3ad2, which requires nonempty reason parts, unique check IDs, write-time merge of duplicates, and a reason on the verdict. No second review.",
+              "item": "Test command: GATE: python3 scripts/check.py",
+              "evidence": "The 17:58–18:00 IST Asia/Calcutta full scripts/check.py run passed test_claude_hook.py (20 OK in 11.754s) and the Swift service suite (608 tests in 127.2s, including testSubmitColdStartShowsWakingThenSucceeds), so AGENT-28 and AGENT-29 were verified. The same run failed only test_skill.py because statechart.html was stale. That was filed as BCL-37 and fixed in INTRO; the shape test then passed on the worktree and installed 0.1.35 copy.",
               "outcome": "fixed inline"
             },
             {
-              "item": "Polling and rework review: PAGE",
-              "evidence": "The P2 rework was checked by the orchestrator against the four findings and the named tests on the worktree and the installed 0.1.34 copy (test_render.py 58 OK, test_manage_findings.py 76 OK, test_bcl.py 49 OK). review_status was set to passed with no second Terra round.",
+              "item": "Codex review: INTRO",
+              "evidence": "Terra r1 (session 01a1e989-5ff1-7321-b3c4-a9d4685ac458, 18:14–18:15 IST) found that bcl introspect --draft could overwrite the in-repo snapshot or a hard link of the live tracker. Luna resumed session 01a1e97f-c3ae-7461-bbe8-f4c318973f1b and committed abbafe4d, which rejects those destinations, with test_introspect_draft_rejects_input_tracker_and_live_hard_link. The duplicate introspect.md paragraph was removed in the same change. No second review.",
+              "outcome": "fixed inline"
+            },
+            {
+              "item": "Polling and rework review: INTRO",
+              "evidence": "The first INTRO commit was blocked on the shared worktree index; the orchestrator ran 232 tests outside the sandbox (all OK) and committed 81fbf13d. After the P2 fix, 233 tests passed outside the sandbox in 70.427s. review_status was set to passed with no second Terra round.",
               "outcome": "fixed inline"
             }
           ]
         }
       },
-      "round": 3,
+      "round": 4,
       "cycle": 6
     }
   },
@@ -8034,6 +8046,76 @@
       "verification": "Checked: The committed skill statechart against the official generator; Expected: statechart.html matches python3 scripts/statechart.py output, and test_generated_statechart_is_current_and_stale_or_missing_fails_shape_check passes; Observed: On the worktree and the installed 0.1.35 copy, that test passed as part of test_skill.py 5 OK in 0.004s; Verdict because: Fixed because the regenerated chart matches the generator and the shape test passed on both copies. Installed bcl 0.1.35 at b522d3b17bb63f156af97bda05c8632d0e78dd5e via bcl install-local (48 plugin files sha256 e607a3a1b6c90cc0cdbcdc939dc9f8c81e54d77715632bfe190d4f4d22c7b2cf, 41 skill files sha256 cf33d9b5fcee37f8629b20e2062e954c45fc84cba5a7e0fccd61b9fef1e944d5, receipt /Users/gurusharan/.agents/artifacts/bcl-114/install-bcl-0.1.35-receipt.json). Worktree suites finished 18:24:29 IST Asia/Calcutta; installed copy finished 18:25:20 IST. Logs: /Users/gurusharan/.agents/artifacts/bcl-114/verify-r4-0.1.35.log and verify-r4-0.1.35-installed.log.",
       "verification_refs": [
         "b522d3b17bb63f156af97bda05c8632d0e78dd5e:BCL-37:installed-cli-suite"
+      ]
+    },
+    {
+      "id": "WF-19",
+      "title": "Introspect 2026-11-17: Round 4 Introspect recorded",
+      "source": "Agent reported",
+      "status": "verified_fixed",
+      "observed": "Round 4 Introspect recorded",
+      "recommendation": "None; all items were fixed inline or none.",
+      "verification": "Inline items were done during Introspect.",
+      "details": {
+        "fixed_in": "Introspect"
+      },
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 2",
+        "Codex write: GATE",
+        "One-file review exemption: GATE",
+        "Polling and rework review: GATE",
+        "Test command: GATE: python3 scripts/check.py",
+        "Codex write: INTRO",
+        "Codex review: INTRO",
+        "Polling and rework review: INTRO",
+        "Test command: INTRO: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
+      ],
+      "none": [
+        "Stage: Plan & fix",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 2",
+        "Codex write: GATE",
+        "One-file review exemption: GATE",
+        "Polling and rework review: GATE",
+        "Codex write: INTRO",
+        "Test command: INTRO: python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'"
+      ],
+      "sections": {
+        "delete": {
+          "none": "No extra process or files were dropped. GATE was test-now on the current worktree. INTRO added the planned draft command, tests, and a statechart regeneration. The 0.1.35 bump ran in a separate Luna session whose commit was blocked on the shared home worktree index; the orchestrator committed, which matches the rule that only the orchestrator commits."
+        },
+        "simplify": {
+          "none": "The Terra P2 and the duplicate introspect.md paragraph were fixed by resuming the same Luna session, with no second review. No further process was added."
+        },
+        "optimize": {
+          "none": "GATE ran as test-now before any INTRO code, as required. One 0.1.35 install-local and one live verify then covered the worktree and the installed copy."
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "Test command: GATE: python3 scripts/check.py",
+              "evidence": "The 17:58–18:00 IST Asia/Calcutta full scripts/check.py run passed test_claude_hook.py (20 OK in 11.754s) and the Swift service suite (608 tests in 127.2s, including testSubmitColdStartShowsWakingThenSucceeds), so AGENT-28 and AGENT-29 were verified. The same run failed only test_skill.py because statechart.html was stale. That was filed as BCL-37 and fixed in INTRO; the shape test then passed on the worktree and installed 0.1.35 copy.",
+              "outcome": "fixed inline"
+            },
+            {
+              "item": "Codex review: INTRO",
+              "evidence": "Terra r1 (session 01a1e989-5ff1-7321-b3c4-a9d4685ac458, 18:14–18:15 IST) found that bcl introspect --draft could overwrite the in-repo snapshot or a hard link of the live tracker. Luna resumed session 01a1e97f-c3ae-7461-bbe8-f4c318973f1b and committed abbafe4d, which rejects those destinations, with test_introspect_draft_rejects_input_tracker_and_live_hard_link. The duplicate introspect.md paragraph was removed in the same change. No second review.",
+              "outcome": "fixed inline"
+            },
+            {
+              "item": "Polling and rework review: INTRO",
+              "evidence": "The first INTRO commit was blocked on the shared worktree index; the orchestrator ran 232 tests outside the sandbox (all OK) and committed 81fbf13d. After the P2 fix, 233 tests passed outside the sandbox in 70.427s. review_status was set to passed with no second Terra round.",
+              "outcome": "fixed inline"
+            }
+          ]
+        }
+      },
+      "verification_refs": [
+        "Introspect"
       ]
     }
   ]
