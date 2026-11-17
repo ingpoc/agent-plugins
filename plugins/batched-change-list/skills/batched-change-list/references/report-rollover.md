@@ -1,6 +1,6 @@
 # Report and roll over
 
-Run `bcl report` only when the [gate](gate.md) is met and, after a full cycle, Introspect has been recorded. This marks Report & roll over as the current stage and snapshots the report.
+Run `bcl report` only when the [gate](gate.md) is met and this round's Introspect has been recorded (required after Install). This marks Report & roll over as the current stage and snapshots the report.
 
 After the PR is actually merged, run `bcl merged`. It records the merge commit SHA and time, moves the workflow to terminal Merged / Done, and retargets open stacked PRs based on this branch to `main` when the configured `gh` or Origin CLI can do so. If listing or retargeting is unavailable, the command records a pending TODO and prints the manual action.
 

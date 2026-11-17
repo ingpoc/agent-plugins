@@ -14,6 +14,22 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_checks_pending_lane_is_not_unqualified_blocked(self):
+        pending = renderer.lane_issue_status(
+            {"id": "CONTROL", "status": "blocked", "blocked_reason": "Individual issue checks pending"}, 1)
+        self.assertTrue(pending["copy"].startswith("Checks pending"))
+        self.assertEqual(pending["kind"], "run")
+        self.assertEqual(pending["status"], "verifying")
+        verifying = renderer.lane_issue_status(
+            {"id": "DISPLAY", "status": "verifying", "blocked_reason": "Remaining issue checks pending"}, 1)
+        self.assertTrue(verifying["copy"].startswith("Checks pending"))
+        self.assertEqual(verifying["status"], "verifying")
+        blocked = renderer.lane_issue_status(
+            {"id": "A", "status": "blocked", "blocked_reason": "no mic · needs Guru"}, 1)
+        self.assertTrue(blocked["copy"].startswith("Blocked ·"))
+        self.assertEqual(blocked["kind"], "blk")
+        self.assertEqual(blocked["status"], "blocked")
+
     def test_blocked_or_planned_lanes_do_not_make_recorded_stage_busy(self):
         groups = [{'id':'A', 'status':'blocked', 'phase':'fix'}, {'id':'B', 'status':'planned'}]
         page = renderer.render_workflow('plan_fix', groups, 0, 15, False, 0, 1)
@@ -45,7 +61,7 @@ class RenderTests(unittest.TestCase):
         self.assertNotIn('var(--amber)', gate_node)
         self.assertIn('Fixes <b>1/1000</b> verified<small>0 in progress</small>', gate_node)
         self.assertNotIn('excludes completed introspection', gate_node)
-        self.assertIn('<p class="gate-note">Fix count excludes completed introspection workflow records and excluded issues.</p>', page)
+        self.assertIn('1000+ verified: report, roll over, or merge previous PR', page)
 
     def test_gate_does_not_count_a_fixed_issue_during_an_unresolved_recheck(self):
         finding = {'id':'ISSUE-01', 'status':'verified_fixed', 'verification_refs':['old receipt']}
@@ -442,12 +458,64 @@ setImmediate(async()=>{
         self.assertIn('class="wf-exit"', page)
         self.assertIn('gate-met .wf-loop', page)
         timeline = page
-        stages = ['>Collect<','>Present<','>Plan &amp; fix<','>Install<','>Verify<',
-                  '>Introspect<','Fixes <b>7/15</b> verified','>Report &amp; roll over<']
+        stages = ['>Collect<','>Plan &amp; fix<','>Install<','>Verify<',
+                  '>Introspect<','Fixes <b>7/15</b> verified','>Report &amp; roll over<','>Merge previous PR<']
         positions = [timeline.index(stage) for stage in stages]
         self.assertEqual(positions, sorted(positions))
+        self.assertNotIn('>Present<', timeline)
         self.assertEqual(page.count('aria-label="Workflow progress"'), 1)
         self.assertEqual(renderer.render(data, Path(__file__).parents[1]), page)
+
+    def test_rollover_entry_hides_present_until_current_cycle_reaches_it(self):
+        hidden = renderer.render_workflow('plan_fix', [], 0, 15, False, 0, 1, ['collect'], cycle=2)
+        self.assertNotIn('>Present<', hidden)
+        shown = renderer.render_workflow('present', [], 0, 15, False, 0, 1, ['collect', 'present'], cycle=2)
+        self.assertIn('>Present<', shown)
+
+    def test_install_tick_requires_review_and_a_completed_install_lane(self):
+        failed = renderer.render_workflow('verify', [{
+            'id':'A', 'status':'failed', 'phase':'install',
+            'codex':{'review_status':'failed'},
+        }], 0, 15, False, 0, 1, ['plan_fix', 'install', 'verify'])
+        install = failed.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
+        self.assertNotIn('wf-step done', install)
+
+        passed = renderer.render_workflow('verify', [{
+            'id':'A', 'status':'verifying', 'phase':'verify',
+            'codex':{'reviewer_session':'reviewer', 'review_status':'passed'},
+        }], 0, 15, False, 0, 1, ['plan_fix', 'install', 'verify'])
+        install = passed.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('wf-step done', install)
+
+        one_file = renderer.render_workflow('verify', [{
+            'id':'A', 'status':'verifying', 'phase':'verify', 'codex':{'one_file':True},
+        }], 0, 15, False, 0, 1, ['plan_fix', 'install', 'verify'])
+        install = one_file.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('wf-step done', install)
+
+        failed_review = renderer.render_workflow('verify', [{
+            'id':'A', 'status':'verifying', 'phase':'verify',
+            'codex':{'one_file':True, 'reviewer_session':'reviewer', 'review_status':'failed'},
+        }], 0, 15, False, 0, 1, ['plan_fix', 'install', 'verify'])
+        install = failed_review.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
+        self.assertNotIn('wf-step done', install)
+
+    def test_failed_or_blocked_lanes_never_complete_install_tick(self):
+        for status in ('failed', 'blocked'):
+            with self.subTest(status=status):
+                page = renderer.render_workflow('verify', [{
+                    'id':'A', 'status':status, 'phase':'verify',
+                    'codex':{'reviewer_session':'reviewer', 'review_status':'passed'},
+                }], 0, 15, False, 0, 1, ['plan_fix', 'install', 'verify'])
+                install = page.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
+                self.assertNotIn('wf-step done', install)
+
+    def test_merge_previous_pr_is_the_shared_gate_exit(self):
+        page = renderer.render_workflow('gate', [], 15, 15, True, 0, 1)
+        self.assertIn('>Merge previous PR<', page)
+        self.assertIn('15+ verified: report, roll over, or merge previous PR', page)
+        merged = renderer.render_workflow('merged', [], 15, 15, True, 0, 1)
+        self.assertIn('>Merged / Done<', merged)
 
     def test_timeline_preserves_results_in_date_order_including_runs(self):
         item = {'id': 'ISSUE-01', 'verification_evidence': [
@@ -559,6 +627,24 @@ setImmediate(async()=>{
         self.assertIn('&lt;title&gt;{{FINDINGS_JSON}}&lt;/title&gt;', page)
         self.assertIn(r'\u003c/script>', page)
         self.assertNotIn('</script><script>alert(1)</script>', page)
+
+    def test_failing_finding_outcome_stays_separate_from_deferred_lane(self):
+        finding = self.data['findings'][0]
+        finding['status'] = 'failing'
+        self.data['tracking'] = {'plan': {'round': 1, 'groups': [
+            {'id': 'CORE', 'finding_ids': [finding['id']], 'status': 'deferred'}]}}
+        page = renderer.render(self.data, self.base)
+        payload = page.split('<script type="application/json" id="findings-data">', 1)[1].split('</script>', 1)[0]
+        rendered = json.loads(payload)[0]
+        self.assertEqual(rendered['status'], 'failing')
+        self.assertEqual(rendered['_lane_status']['outcome'], 'Failing')
+        self.assertEqual(rendered['_lane_status']['copy'], 'Parked → Round 2')
+        status_expression = page.split('Issue status: ${', 1)[1].split('}`', 1)[0]
+        program = f"const selected={{status:'failing',_lane_status:{{outcome:'Failing'}}}},labels={{failing:'Failing'}};process.stdout.write(`Issue status: ${{{status_expression}}}`)"
+        self.assertEqual(subprocess.check_output(['node', '-e', program], text=True), 'Issue status: Failing')
+        fallback = f"const selected={{status:'failing'}},labels={{failing:'Failing'}};process.stdout.write(`Issue status: ${{{status_expression}}}`)"
+        self.assertEqual(subprocess.check_output(['node', '-e', fallback], text=True), 'Issue status: Failing')
+        self.assertIn('.issue-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}', page)
 
     def test_all_details_are_shown_without_mutating_source(self):
         item = self.data['findings'][0]
@@ -849,7 +935,8 @@ setImmediate(async()=>{
         self.assertIn('class="grp running"', page)
         self.assertIn('Phase 3 of 4: Install', page)
         self.assertIn('data-stage="gate"', page)
-        self.assertNotIn('data-stage="install"', page)
+        install = page.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
+        self.assertNotIn('wf-step done', install)
         self.assertIn('class="wf-step busy"', page)
         data['tracking']['plan']['groups'][0]['status'] = 'verified'
         data['tracking']['plan']['groups'][0].pop('phase')

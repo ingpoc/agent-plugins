@@ -29,6 +29,7 @@ MAX_TIMEOUT_S = 900.0
 TURN_PORTS = ("8765", "8787", "8766")
 _SECRET_ENV_PARTS = ("KEY", "TOKEN", "SECRET", "PASSWORD", "AUTH", "COOKIE")
 _STANDARD_BIN_DIRS = ("/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin", "/opt/homebrew/bin")
+_USER_TEMP_WORK_DIR = Path(tempfile.gettempdir()) / "voice-cua"
 _SHELL_CONTROL = {"if", "then", "else", "elif", "fi", "for", "while", "until", "do", "done",
                   "case", "esac", "function", "{", "}", "(", ")", "()"}
 _SECRET_PATH = re.compile(
@@ -172,7 +173,8 @@ def _shell_path_risk(word: str, *, cwd: str, worktree_root: str, home: str) -> s
         resolved_pattern = os.path.join(resolved_prefix, pattern[len(prefix):].lstrip(os.sep))
         if any(fnmatch.fnmatchcase(str(path), resolved_pattern) for path in protected):
             return "hard_refuse"
-        if not _inside(resolved_prefix, os.path.realpath(worktree_root)):
+        if (not _inside(resolved_prefix, os.path.realpath(worktree_root))
+                and not _is_safe_local_path(resolved_prefix, home)):
             return "approval"
         try:
             matches = glob.glob(pattern, recursive=True)
@@ -185,7 +187,8 @@ def _shell_path_risk(word: str, *, cwd: str, worktree_root: str, home: str) -> s
                 return "approval"
             if _touches_protected_path(resolved_match, home=home):
                 return "hard_refuse"
-            if not _inside(resolved_match, os.path.realpath(worktree_root)):
+            if (not _inside(resolved_match, os.path.realpath(worktree_root))
+                    and not _is_safe_local_path(resolved_match, home)):
                 return "approval"
         return "safe"
 
@@ -652,7 +655,7 @@ def classify_shell_command(
                     continue
                 resolved = _resolved_path(target, cwd=cwd, home=home)
                 if resolved is None or not _inside(resolved, os.path.realpath(worktree_root)):
-                    if resolved and _is_safe_external_write(resolved, home):
+                    if resolved and _is_safe_local_path(resolved, home):
                         continue
                     approval = "redirect outside the worktree"
                     break
@@ -1147,19 +1150,27 @@ def _file_target(raw: Any) -> tuple[Path, Path | None] | dict[str, Any]:
         return {"ok": False, "error": "path could not be resolved safely", "error_type": "invalid_path"}
 
 
-def _is_safe_external_write(path: str, home: str) -> bool:
-    """Writes under ~/.agents/artifacts are local and do not need a risky-confirm."""
+def _is_safe_local_path(path: str, home: str) -> bool:
+    """Paths under artifacts or the private voice-cua temp workspace are local."""
     try:
         real = os.path.realpath(path)
-        root = os.path.realpath(os.path.join(home, ".agents", "artifacts"))
     except OSError:
         return False
-    return _inside(real, root)
+    if _inside(real, os.path.realpath(os.path.join(home, ".agents", "artifacts"))):
+        return True
+    try:
+        temp_info = _USER_TEMP_WORK_DIR.lstat()
+    except OSError:
+        return False
+    temp_mode = stat.S_IMODE(temp_info.st_mode)
+    return (stat.S_ISDIR(temp_info.st_mode) and temp_info.st_uid == os.getuid()
+            and temp_mode & 0o300 == 0o300 and temp_mode & 0o077 == 0
+            and _inside(real, os.path.realpath(_USER_TEMP_WORK_DIR)))
 
 
 def _file_gate(op: str, path: Path, root: Path | None, args: dict[str, Any]) -> dict[str, Any] | None:
     if op in {"write", "patch"} and root is None:
-        if _is_safe_external_write(str(path), str(Path.home())):
+        if _is_safe_local_path(str(path), str(Path.home())):
             return None
         return _approval("file_edit", args, f"Allow {op} to {path.name} outside a git worktree?")
     return None

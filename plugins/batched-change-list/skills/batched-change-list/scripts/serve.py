@@ -16,6 +16,20 @@ RENDERER_PATH = Path(__file__).with_name("render.py")
 SPEC = importlib.util.spec_from_file_location("change_list_renderer", RENDERER_PATH)
 RENDERER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RENDERER)
+RENDERER_HASH = hashlib.sha256(RENDERER_PATH.read_bytes()).digest()
+RENDERER_LOCK = threading.Lock()
+
+
+def reload_renderer():
+    global RENDERER, RENDERER_HASH
+    source_hash = hashlib.sha256(RENDERER_PATH.read_bytes()).digest()
+    if source_hash != RENDERER_HASH:
+        with RENDERER_LOCK:
+            if source_hash != RENDERER_HASH:
+                spec = importlib.util.spec_from_file_location("change_list_renderer", RENDERER_PATH)
+                renderer = importlib.util.module_from_spec(spec)
+                exec(compile(RENDERER_PATH.read_bytes(), str(RENDERER_PATH), "exec"), renderer.__dict__)
+                RENDERER, RENDERER_HASH = renderer, source_hash
 
 
 def response_state(page, data=None, inventory=None, viewer_metadata=None):
@@ -68,6 +82,12 @@ def handler_for(page, data=None, inventory=None, viewer_metadata=None, base=None
             self.respond(True)
 
         def respond(self, body):
+            try:
+                reload_renderer()
+            except (OSError, ImportError, SyntaxError, UnicodeError) as error:
+                print(f"viewer: renderer unavailable: {error}", file=sys.stderr, flush=True)
+                self.send_error(503, 'Renderer unavailable')
+                return
             if self.path == '/__bcl_health' and viewer_metadata:
                 try:
                     metadata = json.loads(viewer_metadata.read_text())

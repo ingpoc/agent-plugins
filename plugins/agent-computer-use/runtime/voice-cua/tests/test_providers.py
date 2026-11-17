@@ -619,6 +619,45 @@ class LiveSessionLoopTests(_Rows):
         })
         self.assertTrue(all(not item["event"].is_set() for item in waiters))
 
+    def test_first_unanswered_confirm_prompts_and_releases_typed_turn(self) -> None:
+        from contextlib import ExitStack, nullcontext
+
+        s = live_session()
+        sent = threading.Event()
+        output = {}
+        timed_out = {
+            "ok": False, "timed_out": True, "error_type": "confirm_timed_out",
+            "hint": "A timeout is not a denial; nothing was done. Reassess and retry work that is safe.",
+        }
+        with ExitStack() as stack:
+            stack.enter_context(patch("voice_cua.live_session.CONFIRM_TIMEOUT_SETTLE_S", 0.25))
+            stack.enter_context(patch.object(s, "send_text", side_effect=lambda *_args, **_kwargs: sent.set()))
+            dispatch = stack.enter_context(patch("voice_cua.live_session.dispatch", return_value=timed_out))
+            deliver = stack.enter_context(patch.object(
+                s, "_deliver_tool_result", side_effect=lambda _call, _name, result, **_kw: result,
+            ))
+            stack.enter_context(patch("voice_cua.live_session.tool_context",
+                                      side_effect=lambda **_kwargs: nullcontext()))
+            stack.enter_context(patch("voice_cua.live_session.plugin_island.tool_started"))
+            stack.enter_context(patch("voice_cua.live_session.island_publish"))
+            stack.enter_context(patch.object(s, "_wait_for_responses_idle", return_value=True))
+            turn = threading.Thread(target=lambda: output.setdefault(
+                "result", s.send_text_and_wait("Run it", timeout=None, typed_turn_id="typed-timeout"),
+            ), daemon=True)
+            turn.start()
+            self.assertTrue(sent.wait(1))
+            with s._response_lock:
+                s._response_typed_turn_ids["confirm-first"] = "typed-timeout"
+
+            s._run_tool("confirm-first", "confirm_risky", "{}", response_id="confirm-first")
+            turn.join(1)
+            self.assertFalse(turn.is_alive())
+
+        self.assertIn("unanswered confirmation", output["result"]["error"])
+        self.assertEqual(dispatch.call_count, 1)
+        self.assertIn("Reassess and retry work that is safe", deliver.call_args.args[2]["hint"])
+        self.assertFalse(s._text_request_lock.locked())
+
     def test_second_unanswered_confirm_releases_typed_text_lock(self) -> None:
         from contextlib import nullcontext
 
@@ -627,9 +666,10 @@ class LiveSessionLoopTests(_Rows):
         output = {}
         timed_out = {"ok": False, "timed_out": True, "error_type": "confirm_timed_out"}
 
-        with patch("voice_cua.live_session.SECOND_CONFIRM_SETTLE_S", 0.25), \
+        with patch("voice_cua.live_session.CONFIRM_TIMEOUT_SETTLE_S", 0.25), \
                 patch.object(s, "send_text", side_effect=lambda *_args, **_kwargs: sent.set()), \
-                patch("voice_cua.live_session.dispatch", side_effect=[timed_out, timed_out]), \
+                patch("voice_cua.live_session.dispatch", return_value=timed_out) as dispatch, \
+                patch.object(s, "_deliver_tool_result", side_effect=lambda _call, _name, result, **_kw: result) as deliver, \
                 patch("voice_cua.live_session.tool_context", side_effect=lambda **_kwargs: nullcontext()), \
                 patch("voice_cua.live_session.plugin_island.tool_started"), \
                 patch("voice_cua.live_session.island_publish"), \
@@ -657,7 +697,9 @@ class LiveSessionLoopTests(_Rows):
             turn.join(1)
             self.assertFalse(turn.is_alive())
 
-        self.assertIn("second unanswered confirm", output["result"]["error"])
+        self.assertIn("unanswered confirmation", output["result"]["error"])
+        self.assertEqual(dispatch.call_count, 1)
+        self.assertIn("A timeout is not a denial", deliver.call_args.args[2]["hint"])
         self.assertFalse(s._text_request_lock.locked())
 
     def test_risky_backend_call_is_gated_and_loads_confirm(self) -> None:

@@ -19,6 +19,36 @@ spec.loader.exec_module(server_module)
 
 
 class ServerTests(unittest.TestCase):
+    def test_running_server_reloads_changed_renderer(self):
+        def renderer_source(marker):
+            return ("from pathlib import Path\n"
+                    "TEMPLATE = Path(__file__)\n"
+                    "def discover_installed_plugins(now=None): return {}\n"
+                    f"def render(*args): return {marker!r}\n")
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            renderer = root / 'render.py'
+            renderer.write_text(renderer_source('old renderer'))
+            data, inventory = root / 'findings.json', root / 'inventory.json'
+            data.write_text('{}')
+            inventory.write_text('{}')
+            with patch.object(server_module, 'RENDERER_PATH', renderer):
+                with server_module.ThreadingHTTPServer(
+                        ('127.0.0.1', 0), server_module.handler_for(root / 'report.html', data, inventory)) as server:
+                    thread = threading.Thread(target=server.serve_forever, daemon=True)
+                    thread.start()
+                    try:
+                        url = f'http://127.0.0.1:{server.server_port}/'
+                        with urlopen(url) as response:
+                            self.assertEqual(response.read(), b'old renderer')
+                        renderer.write_text(renderer_source('new renderer'))
+                        with urlopen(url) as response:
+                            self.assertEqual(response.read(), b'new renderer')
+                    finally:
+                        server.shutdown()
+                        thread.join()
+
     def test_idle_connection_does_not_block_report(self):
         with tempfile.TemporaryDirectory() as directory:
             page = Path(directory) / 'report.html'

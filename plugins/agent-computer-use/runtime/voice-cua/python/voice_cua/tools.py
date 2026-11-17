@@ -597,7 +597,7 @@ FAIL_HINTS = {
     "expect_unverified": ("It ran but isn't confirmed: read the settled state in this result (no cua_state); don't repeat it.", False),
     "allow_unverified": ("Action dispatched without verification; inspect its result or current state before proceeding, and do not repeat it.", False),
     "user_denied": ("The user denied this action; do not retry.", False),
-    "confirm_timed_out": ("No answer before the confirm timed out; nothing was done. Tell the user it still needs their OK.", False),
+    "confirm_timed_out": ("A timeout is not a denial; nothing was done. Reassess and retry work that is safe. For risky work, briefly say it was not run and stay ready for a fresh approval.", False),
     "confirm_transport_error": ("Confirmation could not be delivered; nothing was done. Tell the user it still needs their OK.", False),
     "screen_locked": ("Mac is locked: tell the user to unlock it; don't retry until they say it's unlocked.", False),
     "app_not_running": ("That app is not running. Open it by its application name (never its bundle ID), or tell the user it is not installed.", False),

@@ -6,7 +6,7 @@ When the scope is agreed or already authorized, group related fixes into one coh
 
 When debugging, follow [fix root causes](principles.md#fix-root-causes): reproduce, trace the first wrong decision or mishandled legitimate state, fix its owner, and check for the same fault elsewhere. When writing or changing tests, follow [test behavior, not implementation](principles.md#test-behavior-not-implementation). For ordering a multi-step batch, see [sequence verifiable units](principles.md#sequence-verifiable-units).
 
-The main agent owns the issue list, batch plan, integration, report, and final evidence review. Route each task to the cheapest model and effort that can do it. Reuse a session when continuity helps; start fresh only when isolation or independent review requires it. Delegate independent, bounded investigations or fixes when the expected benefit exceeds coordination and review costs; give each worker issue IDs, owned files, acceptance criteria, and focused checks. Keep small or tightly coupled work inline. Use one operator at a time for each shared tracker, app, browser session, or device. Escalate uncertain root causes, conflicting evidence, or expanding scope to the main agent. Review worker results before updating issue status; source tests do not replace installed verification.
+The main agent owns the issue list, plan, integration, report, and final evidence review; it never writes fix code. Each group's fix and review run in the coding CLI set by the `codex-cli` skill. Record `group.codex.implementer_session` and `group.codex.reviewer_session`; after approval set `group.codex.review_status` to `passed`. Review may be skipped only when `group.codex.one_file` is `true`. The main agent reviews results before updating issue status; source tests do not replace installed verification.
 
 When concurrent workers could write the same state, see [separate before serializing shared state](principles.md#separate-before-serializing-shared-state). While waiting for user input, continue independent authorized work; see [never block on the human](principles.md#never-block-on-the-human).
 
@@ -19,10 +19,10 @@ Before fixing a group, `bcl fix` (or `set-activity`) marks the affected findings
 Do not fix and test one issue at a time.
 
 1. **Triage once.** Label every open issue `test-now` (the installed build can already show pass or fail), `code-fix`, `needs-user`, or `blocked`. Run all `test-now` checks in one live run before writing any code.
-2. **Fix in parallel.** Give each independent `code-fix` group to its own coding job on disjoint files, with the cheapest model and effort that fits it. Put coupled issues in one job. The brief names the files, the exact strings or behavior wanted, the targeted test commands (never a known-hanging full suite) and a report under 12 lines. Run the jobs together. A round runs only independent groups; cap parallel groups at about 3–4.
+2. **Fix in parallel.** Run each independent group through the coding CLI set by `codex-cli`; put coupled issues in one job. The brief names files, behavior, focused checks, and a report under 12 lines. Run only independent groups together; cap parallel groups at about 3–4.
 3. **Review once, then install that lane.** Each group is its own lane: fix → review → install → verify. A group enters Install as soon as its review passes; do not hold a finished group until every group has finished Plan & fix. Use one review round per group; log leftover nits as new issues and do not start a second review.
 4. **Serialize builds and live verify.** Installs and builds share one queue; groups that finish close together share one build. Live verify is serialized too (one Mini, island, and Comet) and runs each group's stored `verify.command`. Mark `verified_fixed` as evidence lands. The gate counts those fixes immediately. The round ends when all lanes finish or block.
-5. **Automate what repeats.** Anything done twice becomes a script, and the removed or automated step is logged on the list.
+5. **Automate last.** Script a repeated step only when automation removes or replaces at least as much work; log the removed step.
 6. **Tell the owner of a tool when its output is wrong.** Send the exact run id, field and line; reinstall and re-run that same run to confirm.
 
 ## Plan check
@@ -32,6 +32,6 @@ A round runs only independent groups. At Plan, if a group would do better after 
 ## Round rules
 
 1. Prioritize prerequisites and high-impact work across product and process findings. Run only independent ready groups in parallel; defer blocked dependents with a reason.
-2. Choose the least expensive available model and effort that fit the task's difficulty and risk; escalate when needed. Briefs name exact file paths.
+2. Use the coding CLI route selected by `codex-cli`; briefs name exact file paths.
 3. Run tests and a diff check before independent review. Scale review to the change's risk.
 4. Job reports are 10 lines or fewer. Re-read only the tracker parts that changed.

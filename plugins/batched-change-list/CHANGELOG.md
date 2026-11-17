@@ -1,3 +1,50 @@
+## 0.1.31
+
+- Use the lane outcome field for the visible issue status.
+- Reload `render.py` when its contents change in a running viewer.
+
+## 0.1.30
+
+- Advance the plan round on `set-plan` after Introspect, even when the new plan still names the current round.
+- Keep a finding's outcome separate from its lane plan state in the renderer.
+- Require a tracked HTML report for every indexed triage tracker.
+- Emit `data-definition-hash` on the generated skill statechart.
+
+## 0.1.29
+
+- Fix statechart initialization and assign each reference its specific load trigger.
+
+## 0.1.28
+
+- Keep the skill trigger map and workflow statechart current, and expose the numbered critical path and stage checks to skill-refine.
+
+## 0.1.27
+
+- Keep failed and blocked lanes from completing the Install workflow tick; report denied viewer PID probes during Plan without a traceback.
+- Generate and shape-check a skill loading statechart with current and trigger-loaded views.
+
+## 0.1.26
+
+- Require every current group's stored verification command in Introspect coverage after Verify.
+
+## 0.1.25
+
+- Require a recorded passing review before install, except for one-file groups, and keep Install progress pending until lanes actually pass review and complete installation.
+- Validate Introspect coverage against the current plan groups and reached stages; route stage checks through the workflow definition.
+
+## 0.1.24
+
+- Route each group's fix and review through the configured coding CLI; require implementer and reviewer session records before install, except review may be skipped for a marked one-file group.
+- Require ordered, complete Introspect coverage of every performed step and expose tested session, coverage, and gate-count checks as scripts.
+- Generate the skill loop and workflow strip from one workflow definition; show lane progress and merge state from tracker state.
+
+## 0.1.23
+
+- Require this round's Introspect, tagged with cycle and round, before returning to Plan & fix or entering Report & roll over after Install. An earlier round's record is not enough.
+- Skill wording matches the page: run Introspect after every round's Verify. Drop the full-cycle definition and the skip for small follow-up cycles.
+- After Install, leftover issue checks show as checks pending rather than an unqualified blocked lane. A completed check pass clears that blocker.
+- Require Verify before recording Introspect, guard new-round `set-plan` returns while allowing current-round plan edits without rewinding the workflow stage, and preserve unrelated blocked lanes after checks pass.
+
 ## 0.1.22
 
 - State the delivery, status and measurement outcomes used to judge the workflow.

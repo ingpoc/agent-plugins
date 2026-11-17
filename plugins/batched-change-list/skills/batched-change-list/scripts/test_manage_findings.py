@@ -1,11 +1,18 @@
 import json
+import copy
 import hashlib
+import io
 import os
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
+from unittest.mock import patch
+import check_introspect
+import manage_findings
+import workflow_definition
 
 try:
     import fcntl
@@ -358,9 +365,9 @@ class ManageFindingsTests(unittest.TestCase):
         ops, page = self.root / 'phase.json', self.root / 'report.html'
         for stage in ('collect', 'present', 'plan_fix', 'install', 'verify', 'introspect', 'gate', 'report_rollover', None):
             pre = [{'action':'introspect','sections':{'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}},'result':'no issues'}] if stage == 'report_rollover' else []
-            if stage in ('plan_fix', 'install', 'verify', 'report_rollover'):
-                pre.insert(0, {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}})
-                if stage in ('verify', 'report_rollover'):
+            if stage in ('plan_fix', 'install', 'verify'):
+                pre.insert(0, {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','codex':{'implementer_session':'writer','reviewer_session':'reviewer','review_status':'passed'}}]}})
+                if stage == 'verify':
                     pre.insert(1, {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'})
             if stage in ('plan_fix', 'install', 'verify'):
                 pre.append({'action':'set-activity','stage':stage,'ids':['ISSUE-01'],'now':'Starting the checked stage'})
@@ -390,7 +397,7 @@ class ManageFindingsTests(unittest.TestCase):
         result = run({'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Starting a fix cycle'})
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('requires a plan', result.stderr)
-        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','codex':{'implementer_session':'writer','reviewer_session':'reviewer','review_status':'passed'}}]}}
         result = run(plan, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Starting a fix cycle'})
         self.assertEqual(result.returncode, 0, result.stderr)
         data = json.loads(self.data.read_text())
@@ -400,7 +407,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIn('class="fresh">Updated', html)
         self.assertNotIn('class="workflow-now"', html)
         self.assertIn('Plan &amp; fix', html)
-        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','codex':{'implementer_session':'writer','reviewer_session':'reviewer','review_status':'passed'}}]}}
         self.assertEqual(run(plan).returncode, 0)
         self.assertEqual(run({'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'}).returncode, 0)
         before = self.data.read_bytes()
@@ -423,13 +430,13 @@ class ManageFindingsTests(unittest.TestCase):
                 self.assertTrue('in_progress' in result.stderr or 'recorded plan' in result.stderr or 'requires install' in result.stderr or 'requires a plan' in result.stderr)
                 self.assertEqual(self.data.read_bytes(), before)
         operations = self.root / 'guard.json'
-        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','codex':{'implementer_session':'writer','reviewer_session':'reviewer','review_status':'passed'}}]}}
         operations.write_text(json.dumps([plan, {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'}, {'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Starting verification'}]))
         result = self.cli('batch', self.data, operations, '--render', self.root / 'guard.html')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(self.data.read_text())['findings'][0]['status'], 'in_progress')
         before = self.data.read_bytes()
-        operations.write_text(json.dumps([plan, {'action':'set-activity','stage':'install','ids':[],'now':'No selected finding'}]))
+        operations.write_text(json.dumps([{'action':'set-activity','stage':'install','ids':[],'now':'No selected finding'}]))
         empty = self.cli('batch', self.data, operations, '--render', self.root / 'empty.html')
         self.assertNotEqual(empty.returncode, 0)
         self.assertIn('nonempty ID list', empty.stderr)
@@ -515,8 +522,9 @@ class ManageFindingsTests(unittest.TestCase):
 
     def test_plan_fields_and_loopback_increment_round_history(self):
         ops, page = self.root / 'round.json', self.root / 'round.html'
-        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','name':'Plain group','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','worktree':'fix-a','codex':{'job_id':'job-1','status':'done','started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z'},'verify':{'summary':'Focused check passed','status':'pending'}}],'merge':{'status':'done','ref':'abc'}}}
-        ops.write_text(json.dumps([plan, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Plan'}, {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Install'}, {'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Verify'}, {'action':'set-activity','stage':'gate','ids':[],'now':'Gate'}, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Repeat'}]))
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','name':'Plain group','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','worktree':'fix-a','codex':{'job_id':'job-1','status':'done','started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z','implementer_session':'writer','reviewer_session':'reviewer','review_status':'passed'},'verify':{'summary':'Focused check passed','status':'pending'}}],'merge':{'status':'done','ref':'abc'}}}
+        none = {'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}}
+        ops.write_text(json.dumps([plan, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Plan'}, {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Install'}, {'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Verify'}, {'action':'introspect','sections':none,'result':'round 1 done'}, {'action':'set-activity','stage':'gate','ids':[],'now':'Gate'}, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],'now':'Repeat'}]))
         result = self.cli('batch', self.data, ops, '--render', page)
         self.assertEqual(result.returncode, 0, result.stderr)
         tracking = json.loads(self.data.read_text())['tracking']
@@ -534,7 +542,7 @@ class ManageFindingsTests(unittest.TestCase):
 
     def test_set_activity_marks_group_and_renders_single_now_line(self):
         operations, page = self.root / 'activity.json', self.root / 'activity.html'
-        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','codex':{'implementer_session':'writer','reviewer_session':'reviewer'}}]}}
         operations.write_text(json.dumps([plan, {'action':'set-activity','stage':'plan_fix','ids':['ISSUE-01'],
                                            'now':'Inspecting the shared root cause'}]))
         result = self.cli('batch', self.data, operations, '--render', page)
@@ -597,9 +605,10 @@ class ManageFindingsTests(unittest.TestCase):
             if force:
                 args.append('--force')
             return self.cli(*args)
-        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending'}]}}
+        plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','codex':{'implementer_session':'writer','reviewer_session':'reviewer','review_status':'passed'}}]}}
         install = {'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'}
-        self.assertEqual(batch(plan, install, {'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Starting verification'}, {'action':'introspect','sections':{'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}},'result':'no issues'}, {'action':'set-stage','stage':'report_rollover'}, force=True).returncode, 0)
+        result = batch(plan, install, {'action':'set-activity','stage':'verify','ids':['ISSUE-01'],'now':'Starting verification'}, {'action':'introspect','sections':{'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}},'result':'no issues'}, {'action':'set-stage','stage':'report_rollover'}, force=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(batch(plan, {'action':'set-stage','stage':'install'}).returncode, 0)
         blocked = batch({'action':'set-stage','stage':'report_rollover'})
         self.assertNotEqual(blocked.returncode, 0)
@@ -626,6 +635,12 @@ class ManageFindingsTests(unittest.TestCase):
             ops.write_text(json.dumps(list(items)))
             return self.cli('batch', self.data, ops, '--render', page)
         none = {'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}}
+        doc = json.loads(self.data.read_text())
+        doc.setdefault('tracking', {})['stages_reached'] = ['collect', 'present', 'plan_fix', 'install', 'verify']
+        doc['tracking']['plan'] = {'round': 1, 'cycle': 1, 'groups': [{
+            'id': 'A', 'finding_ids': ['ISSUE-01'], 'codex': {
+                'implementer_session': 'writer', 'reviewer_session': 'reviewer', 'review_status': 'passed'}}]}
+        self.data.write_text(json.dumps(doc), encoding='utf-8')
         self.assertNotEqual(batch({'action':'introspect','result':'no issues'}).returncode, 0)
         self.assertNotEqual(batch({'action':'introspect','issues':[{'issue':'x','evidence':'e','outcome':'fixed'}]}).returncode, 0)
         self.assertNotEqual(batch({'action':'introspect','sections':none,'issues':[{'issue':'x','evidence':'e','outcome':'fixed'}]}).returncode, 0)
@@ -661,6 +676,12 @@ class ManageFindingsTests(unittest.TestCase):
             ops.write_text(json.dumps(list(items)))
             return self.cli('batch', self.data, ops, '--render', page)
         none = {'delete':{'none':'No deletions this cycle.'},'simplify':{'none':'No simplifications this cycle.'},'optimize':{'none':'No optimizations this cycle.'},'automate':{'none':'No automations this cycle.'}}
+        doc = json.loads(self.data.read_text())
+        doc.setdefault('tracking', {})['stages_reached'] = ['collect', 'present', 'plan_fix', 'install', 'verify']
+        doc['tracking']['plan'] = {'round': 1, 'cycle': 1, 'groups': [{
+            'id': 'A', 'finding_ids': ['ISSUE-01'], 'codex': {
+                'implementer_session': 'writer', 'reviewer_session': 'reviewer', 'review_status': 'passed'}}]}
+        self.data.write_text(json.dumps(doc), encoding='utf-8')
         run = {'id':'r9','build':'b9','revision':'abc','installed_at':'2026-11-14T12:05:10+05:30','install_evidence':'log'}
         self.assertEqual(batch({'action':'start-verification','run':run}).returncode, 0)
         result = batch({'action':'introspect','sections':none})
@@ -976,6 +997,37 @@ class ManageFindingsTests(unittest.TestCase):
         self.data.write_text(json.dumps(self.document), encoding="utf-8")
 
     def cli(self, *args, env=None):
+        if len(args) > 2 and args[0] == 'batch':
+            operations_path = Path(args[2])
+            operations = json.loads(operations_path.read_text())
+            tracker = json.loads(Path(args[1]).read_text())
+            tracking = tracker.get("tracking", {})
+            for index, operation in enumerate(operations):
+                if operation.get('action') != 'introspect' or 'steps' in operation or not isinstance(operation.get('sections'), dict):
+                    continue
+                steps = [item.get('item') or item.get('step') for section in operation['sections'].values()
+                         for item in section.get('items', []) if isinstance(item, dict)]
+                prior_tracking = copy.deepcopy(tracking)
+                for prior in operations[:index]:
+                    if prior.get("action") == "set-plan":
+                        prior_tracking["plan"] = prior.get("plan")
+                        prior_tracking.setdefault("stages_reached", [])
+                        if "plan_fix" not in prior_tracking["stages_reached"]:
+                            prior_tracking["stages_reached"].append("plan_fix")
+                    if prior.get("action") in ("set-stage", "set-activity"):
+                        prior_tracking.setdefault("stages_reached", [])
+                        stage = prior.get("stage")
+                        if isinstance(stage, str) and stage not in prior_tracking["stages_reached"]:
+                            prior_tracking["stages_reached"].append(stage)
+                recorded = check_introspect.performed_round_steps(prior_tracking)
+                steps = list(dict.fromkeys([*steps, *recorded]))
+                if not steps:
+                    steps = ['review the recorded round']
+                    operation['none'] = steps.copy()
+                else:
+                    operation['none'] = recorded
+                operation['steps'] = steps
+            operations_path.write_text(json.dumps(operations))
         return subprocess.run([sys.executable, str(SCRIPT), *map(str, args)],
                               text=True, capture_output=True,
                               env={**os.environ, "BCL_STATE_DIR": str(self.state), **(env or {})})
@@ -1187,6 +1239,587 @@ class ManageFindingsTests(unittest.TestCase):
         full = self.cli("get", page, "USER-01", "--collection", "primary", "--include-evidence")
         self.assertEqual(full.returncode, 0, full.stderr)
         self.assertIn("data:image/png;base64,ZmFrZQ==", full.stdout)
+
+
+    def _replay_batch(self, document, *items, force=False):
+        self.data.write_text(json.dumps(document), encoding="utf-8")
+        page, ops = self.root / "replay.html", self.root / "replay.json"
+        ops.write_text(json.dumps(list(items)))
+        args = ["batch", self.data, ops, "--render", page]
+        if force:
+            args.append("--force")
+        return self.cli(*args)
+
+    def _path1_pre(self):
+        return {
+            "title": "Product issues",
+            "findings": [
+                {
+                    "id": "ISSUE-01",
+                    "title": "The selected item does not open",
+                    "source": "User reported",
+                    "status": "in_progress",
+                    "summary": "Selecting the item does not open its details.",
+                    "impact": "Readers cannot review the selected item's information.",
+                    "done_when": "Selecting the item opens its details in the installed view.",
+                    "observed": "The user reported that selecting the item had no effect.",
+                    "recommendation": "Restore the selection action and verify it on the installed build.",
+                    "details": {
+                        "Expected": "Selecting the item opens its details.",
+                        "Verification steps": "Select the item and check its details open.",
+                        "Build and time": "Unknown",
+                        "Provenance": "User report",
+                    },
+                    "evidence": [],
+                },
+                {
+                    "id": "ISSUE-02",
+                    "title": "Icon appears too small",
+                    "source": "Agent reported",
+                    "status": "verified_fixed",
+                    "observed": "The previous icon was too small.",
+                    "recommendation": "Keep the updated icon framing.",
+                    "verification": "The installed build displayed the corrected icon.",
+                    "verification_refs": ["Example live capture, build 1.2.3"],
+                    "details": {"Build and time": "Example build 1.2.3"},
+                    "evidence": [],
+                },
+            ],
+            "tracking": {
+                "rollover_threshold": 2,
+                "cycle": 1,
+                "round": 1,
+                "workflow": {
+                    "stage": "verify",
+                    "updated_at": "2026-11-17T04:36:28Z",
+                    "now": "2026-11-17T04:36:28Z — Verified icon",
+                },
+                "stages_reached": ["collect", "present", "plan_fix", "install", "verify"],
+                "pull_request": {"label": "PR #111", "url": "https://example.test/pull/111"},
+                "plan": {
+                    "round": 1,
+                    "cycle": 1,
+                    "groups": [{
+                        "id": "A",
+                        "name": "Group A",
+                        "finding_ids": ["ISSUE-01"],
+                        "depends_on": [],
+                        "status": "pending",
+                        "worktree": "fix-a",
+                        "codex": {"implementer_session": "writer", "reviewer_session": "reviewer",
+                                  "review_status": "passed"},
+                        "verify": {
+                            "command": "true",
+                            "summary": "placeholder check",
+                            "status": "pending",
+                            "fixed": 0,
+                            "failed": 0,
+                            "total": 1,
+                        },
+                    }],
+                },
+            },
+        }
+
+    def _path2_pre(self):
+        return {
+            "title": "Product issues",
+            "findings": [
+                {
+                    "id": "ISSUE-01",
+                    "title": "The selected item does not open",
+                    "source": "User reported",
+                    "status": "verified_fixed",
+                    "observed": "The user reported that selecting the item had no effect.",
+                    "recommendation": "Restore the selection action and verify it on the installed build.",
+                    "verification": "Selecting the item opened its details.",
+                    "verification_refs": ["Example live capture, build 1.2.3"],
+                    "details": {"Build and time": "Example build 1.2.3"},
+                    "evidence": [],
+                },
+                {
+                    "id": "ISSUE-02",
+                    "title": "Icon appears too small",
+                    "source": "Agent reported",
+                    "status": "verified_fixed",
+                    "observed": "The previous icon was too small.",
+                    "recommendation": "Keep the updated icon framing.",
+                    "verification": "The installed build displayed the corrected icon.",
+                    "verification_refs": ["Example live capture, build 1.2.3"],
+                    "details": {"Build and time": "Example build 1.2.3"},
+                    "evidence": [],
+                },
+                {
+                    "id": "WF-01",
+                    "title": "Introspect 2026-11-17: round 1 introspect",
+                    "source": "Agent reported",
+                    "status": "verified_fixed",
+                    "observed": "round 1 introspect",
+                    "recommendation": "None; all items were fixed inline or none.",
+                    "verification": "Clean cycle; every section is none with a reason.",
+                    "details": {"fixed_in": "Introspect"},
+                    "verification_refs": ["Introspect"],
+                    "evidence": [],
+                },
+            ],
+            "tracking": {
+                "rollover_threshold": 2,
+                "cycle": 1,
+                "round": 2,
+                "workflow": {
+                    "stage": "verify",
+                    "updated_at": "2026-11-17T04:36:28Z",
+                    "now": "2026-11-17T04:36:28Z — Verified round 2",
+                },
+                "stages_reached": ["collect", "present", "plan_fix", "install", "verify"],
+                "pull_request": {"label": "PR #111", "url": "https://example.test/pull/111"},
+                "introspect": {
+                    "result": "round 1 introspect",
+                    "at": "2026-11-17T04:36:28Z",
+                    "task": "WF-01",
+                    "round": 1,
+                    "cycle": 1,
+                },
+                "plan": {
+                    "round": 2,
+                    "cycle": 1,
+                    "status": "closed",
+                    "groups": [{
+                        "id": "A",
+                        "name": "Group A",
+                        "finding_ids": ["ISSUE-01"],
+                        "depends_on": [],
+                        "status": "verified",
+                        "worktree": "fix-a",
+                        "codex": {"implementer_session": "writer", "reviewer_session": "reviewer",
+                                  "review_status": "passed"},
+                    }],
+                },
+                "round_history": [{"round": 1, "fixed": 1, "ended_at": "2026-11-17T04:36:28Z"}],
+            },
+        }
+
+    def test_statechart_path1_refuses_planning_next_round_without_this_rounds_introspect(self):
+        # Mini /tmp/bcl-statechart-replay/path1-skip-introspect-then-plan: on 0.1.22,
+        # set-activity plan_fix after Install/Verify with no Introspect advanced the round.
+        document = self._path1_pre()
+        self.data.write_text(json.dumps(document), encoding="utf-8")
+        original = self.data.read_bytes()
+        result = self._replay_batch(json.loads(original), {
+            "action": "set-activity",
+            "stage": "plan_fix",
+            "ids": ["ISSUE-01"],
+            "now": "Plan round 2 without introspect",
+        })
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("this round's introspect", result.stderr)
+        self.assertIn("returning to plan_fix", result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
+        tracking = json.loads(original)["tracking"]
+        self.assertEqual(tracking["round"], 1)
+        self.assertEqual(tracking["workflow"]["stage"], "verify")
+        self.assertIsNone(tracking.get("introspect"))
+
+    def test_set_plan_requires_this_rounds_introspect_when_returning_from_verify(self):
+        document = self._path1_pre()
+        self.data.write_text(json.dumps(document), encoding="utf-8")
+        original = self.data.read_bytes()
+        plan = {"action": "set-plan", "plan": {"round": 2, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "pending",
+        }]}}
+        result = self._replay_batch(json.loads(original), plan)
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("this round's introspect", result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
+        current = json.loads(original)
+        current["findings"][0]["status"] = "failing"
+        current["tracking"]["plan"]["groups"][0].update(status="failed", phase="verify")
+        current["tracking"]["plan"]["groups"][0]["verify"].update(status="failed", failed=1, total=1)
+        workflow_before_edit = current["tracking"]["workflow"].copy()
+        result = self._replay_batch(current, {"action": "set-plan", "plan": current["tracking"]["plan"]})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(self.data.read_text())["tracking"]["workflow"], workflow_before_edit)
+        before_next_plan = self.data.read_bytes()
+        next_plan_ops = self.root / "next-plan.json"
+        next_plan_ops.write_text(json.dumps([{
+            "action": "set-activity", "stage": "plan_fix", "ids": ["ISSUE-01"],
+            "now": "Try next plan without introspect",
+        }]))
+        result = self.cli("batch", self.data, next_plan_ops, "--render", self.root / "next-plan.html")
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("this round's introspect", result.stderr)
+        self.assertEqual(self.data.read_bytes(), before_next_plan)
+        none = {key: {"none": f"No {key} changes."} for key in ("delete", "simplify", "optimize", "automate")}
+        result = self._replay_batch(json.loads(original), {"action": "introspect", "sections": none}, plan)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(self.data.read_text())["tracking"]["introspect"]["round"], 1)
+        self.assertEqual(json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["id"], "A")
+        present = json.loads(original)
+        present["tracking"]["workflow"]["stage"] = "present"
+        present["tracking"]["stages_reached"] = ["collect", "present"]
+        result = self._replay_batch(present, {"action": "set-plan", "plan": {
+            "round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "pending"}],
+        }})
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_introspect_cannot_authorize_plan_or_report_before_verify(self):
+        document = self._path1_pre()
+        document["tracking"]["stages_reached"].remove("verify")
+        self.data.write_text(json.dumps(document), encoding="utf-8")
+        original = self.data.read_bytes()
+        none = {key: {"none": f"No {key} changes."} for key in ("delete", "simplify", "optimize", "automate")}
+        result = self._replay_batch(json.loads(original), {"action": "introspect", "sections": none})
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("requires verify", result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
+        premature_plan = {"action": "set-plan", "plan": {"round": 2, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "pending",
+        }]}}
+        result = self._replay_batch(json.loads(original), {"action": "set-stage", "stage": "report_rollover"})
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("this round's introspect", result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
+        document["tracking"]["stages_reached"].append("verify")
+        result = self._replay_batch(document, {"action": "introspect", "sections": none}, premature_plan)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_verify_stage_guards_follow_the_declared_prerequisite(self):
+        prerequisite = workflow_definition.TRANSITIONS["verify"][0]
+        for action in ("set-stage", "set-activity"):
+            with self.subTest(action=action):
+                document = self._path1_pre()
+                document["tracking"]["stages_reached"].remove(prerequisite)
+                original = json.dumps(document).encode()
+                operation = {"action": action, "stage": "verify"}
+                if action == "set-activity":
+                    operation.update(ids=["ISSUE-01"], now="Verify")
+                result = self._replay_batch(document, operation)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"verify requires {prerequisite}", result.stderr)
+                self.assertEqual(self.data.read_bytes(), original)
+
+    def test_statechart_path2_refuses_report_rollover_on_earlier_rounds_introspect(self):
+        # Mini /tmp/bcl-statechart-replay/path2-stale-introspect-then-report: on 0.1.22,
+        # set-stage report_rollover succeeded because an earlier round's record was present.
+        document = self._path2_pre()
+        self.data.write_text(json.dumps(document), encoding="utf-8")
+        original = self.data.read_bytes()
+        result = self._replay_batch(json.loads(original), {"action": "set-stage", "stage": "report_rollover"})
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("this round's introspect", result.stderr)
+        self.assertIn("report_rollover", result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
+        tracking = json.loads(original)["tracking"]
+        self.assertEqual(tracking["round"], 2)
+        self.assertEqual(tracking["introspect"]["round"], 1)
+        self.assertEqual(tracking["workflow"]["stage"], "verify")
+
+    def test_this_rounds_introspect_allows_next_plan_and_report(self):
+        none = {
+            "delete": {"none": "No deletions this cycle."},
+            "simplify": {"none": "No simplifications this cycle."},
+            "optimize": {"none": "No optimizations this cycle."},
+            "automate": {"none": "No automations this cycle."},
+        }
+        path1 = self._replay_batch(self._path1_pre(), {"action": "introspect", "sections": none, "result": "round 1 done"}, {
+            "action": "set-activity",
+            "stage": "plan_fix",
+            "ids": ["ISSUE-01"],
+            "now": "Plan round 2 after this round's introspect",
+        })
+        self.assertEqual(path1.returncode, 0, path1.stderr)
+        tracking = json.loads(self.data.read_text())["tracking"]
+        self.assertEqual(tracking["round"], 2)
+        self.assertEqual(tracking["workflow"]["stage"], "plan_fix")
+        self.assertEqual(tracking["introspect"]["round"], 1)
+        self.assertEqual(tracking["introspect"]["cycle"], 1)
+        path2 = self._replay_batch(self._path2_pre(), {"action": "introspect", "sections": none, "result": "round 2 done"}, {
+            "action": "set-stage", "stage": "report_rollover",
+        })
+        self.assertEqual(path2.returncode, 0, path2.stderr)
+        tracking = json.loads(self.data.read_text())["tracking"]
+        self.assertEqual(tracking["workflow"]["stage"], "report_rollover")
+        self.assertEqual(tracking["introspect"]["round"], 2)
+        self.assertEqual(tracking["introspect"]["cycle"], 1)
+        self.assertEqual(tracking["introspect"]["result"], "round 2 done")
+
+    def test_set_plan_after_current_round_introspect_advances_round(self):
+        none = {
+            "delete": {"none": "No deletions this cycle."},
+            "simplify": {"none": "No simplifications this cycle."},
+            "optimize": {"none": "No optimizations this cycle."},
+            "automate": {"none": "No automations this cycle."},
+        }
+        document = self._path1_pre()
+        next_plan = copy.deepcopy(document["tracking"]["plan"])
+        next_plan["round"] = 2
+        result = self._replay_batch(document,
+            {"action": "introspect", "sections": none, "result": "round 1 done"},
+            {"action": "set-plan", "plan": next_plan})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        tracking = json.loads(self.data.read_text())["tracking"]
+        self.assertEqual(tracking["round"], 2)
+        self.assertEqual(tracking["plan"]["round"], 2)
+        self.assertEqual(tracking["round_history"][0]["round"], 1)
+
+    def test_set_plan_after_introspect_advances_even_when_plan_says_current_round(self):
+        none = {
+            "delete": {"none": "No deletions this cycle."},
+            "simplify": {"none": "No simplifications this cycle."},
+            "optimize": {"none": "No optimizations this cycle."},
+            "automate": {"none": "No automations this cycle."},
+        }
+        document = self._path1_pre()
+        current_round_plan = copy.deepcopy(document["tracking"]["plan"])
+        result = self._replay_batch(document,
+            {"action": "introspect", "sections": none, "result": "round 1 done"},
+            {"action": "set-plan", "plan": current_round_plan})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        tracking = json.loads(self.data.read_text())["tracking"]
+        self.assertEqual(tracking["round"], 2)
+        self.assertEqual(tracking["plan"]["round"], 2)
+        self.assertEqual(tracking["round_history"][0]["round"], 1)
+        self.assertEqual(tracking["workflow"]["stage"], "plan_fix")
+
+    def test_install_requires_implementer_and_leaves_document_unchanged(self):
+        document = copy.deepcopy(self.document)
+        document["findings"][0]["status"] = "in_progress"
+        plan = {"action": "set-plan", "plan": {"round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "review", "phase": "review",
+        }]}}
+        before = json.dumps(document).encode()
+        result = self._replay_batch(document, plan, {
+            "action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Install",
+        })
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("implementer_session", result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
+    def test_install_requires_reviewer_for_multifile_or_unmarked_group(self):
+        for codex in ({"implementer_session": "writer"},
+                      {"implementer_session": "writer", "one_file": False}):
+            with self.subTest(codex=codex):
+                document = copy.deepcopy(self.document)
+                document["findings"][0]["status"] = "in_progress"
+                plan = {"action": "set-plan", "plan": {"round": 1, "groups": [{
+                    "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "review",
+                    "phase": "review", "codex": codex,
+                }]}}
+                before = json.dumps(document).encode()
+                result = self._replay_batch(document, plan, {
+                    "action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Install",
+                })
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("reviewer_session", result.stderr)
+                self.assertEqual(self.data.read_bytes(), before)
+
+    def test_install_requires_a_passing_recorded_review(self):
+        document = copy.deepcopy(self.document)
+        document["findings"][0]["status"] = "in_progress"
+        plan = {"action": "set-plan", "plan": {"round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "review",
+            "codex": {"implementer_session": "writer", "reviewer_session": "reviewer"},
+        }]}}
+        before = json.dumps(document).encode()
+        result = self._replay_batch(document, plan, {
+            "action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Install",
+        })
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("review_status='passed'", result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
+    def test_install_allows_one_file_without_reviewer(self):
+        document = copy.deepcopy(self.document)
+        document["findings"][0]["status"] = "in_progress"
+        plan = {"action": "set-plan", "plan": {"round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "review",
+            "phase": "review", "codex": {"implementer_session": "writer", "one_file": True},
+        }]}}
+        result = self._replay_batch(document, plan, {
+            "action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Install",
+        })
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("install", json.loads(self.data.read_text())["tracking"]["stages_reached"])
+
+    def test_install_allows_both_sessions_and_ignores_unselected_group(self):
+        document = copy.deepcopy(self.document)
+        document["findings"][0]["status"] = "in_progress"
+        document["findings"][1]["status"] = "untested"
+        plan = {"action": "set-plan", "plan": {"round": 1, "groups": [
+            {"id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "review",
+             "phase": "review", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer",
+                                             "review_status": "passed"}},
+            {"id": "B", "finding_ids": ["ISSUE-02"], "depends_on": [], "status": "planned", "phase": "fix"},
+        ]}}
+        result = self._replay_batch(document, plan, {
+            "action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Install A",
+        })
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved = json.loads(self.data.read_text())
+        self.assertEqual(saved["tracking"]["plan"]["groups"][1]["status"], "planned")
+
+    def test_set_stage_install_checks_every_active_group(self):
+        document = copy.deepcopy(self.document)
+        document["findings"][0]["status"] = "in_progress"
+        plan = {"action": "set-plan", "plan": {"round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "review", "phase": "review",
+        }]}}
+        before = json.dumps(document).encode()
+        result = self._replay_batch(document, plan, {"action": "set-stage", "stage": "install"})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("implementer_session", result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
+    def test_set_activity_install_dispatches_through_declared_workflow_check(self):
+        document = copy.deepcopy(self.document)
+        document["findings"][0]["status"] = "in_progress"
+        plan = {"cycle": 1, "round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "running",
+            "codex": {"implementer_session": "writer", "reviewer_session": "reviewer",
+                      "review_status": "passed"},
+        }]}
+        document["tracking"] = {"cycle": 1, "round": 1, "stages_reached": ["plan_fix"], "plan": plan}
+        self.data.write_text(json.dumps(document), encoding="utf-8")
+        operations = self.root / "install.json"
+        operations.write_text(json.dumps([{
+            "action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Install",
+        }]), encoding="utf-8")
+        with patch.object(workflow_definition, "run_check", side_effect=ValueError("declared install check")) as run_check:
+            errors = io.StringIO()
+            with redirect_stderr(errors), self.assertRaises(SystemExit) as result:
+                manage_findings.main(["batch", str(self.data), str(operations), "--render", str(self.root / "page.html")])
+        self.assertEqual(result.exception.code, 2)
+        self.assertIn("declared install check", errors.getvalue())
+        run_check.assert_called_once_with("install", plan, ["ISSUE-01"])
+
+    def test_plan_rejects_invalid_one_file_and_empty_session_fields(self):
+        for codex, message in (({"one_file": 1}, "one_file"),
+                               ({"implementer_session": " "}, "implementer_session")):
+            with self.subTest(codex=codex):
+                plan = {"action": "set-plan", "plan": {"round": 1, "groups": [{
+                    "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "planned", "codex": codex,
+                }]}}
+                before = self.data.read_bytes()
+                result = self._replay_batch(json.loads(before), plan)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(message, result.stderr)
+                self.assertEqual(self.data.read_bytes(), before)
+
+    def test_introspect_rejects_uncovered_steps_and_out_of_order_sections(self):
+        document = self._path1_pre()
+        recorded = check_introspect.performed_round_steps(document["tracking"])
+        sections = {name: {"none": f"No {name} changes."}
+                    for name in ("delete", "simplify", "optimize", "automate")}
+        original = json.dumps(document).encode()
+        result = self._replay_batch(document, {"action": "introspect", "sections": sections,
+                                                "steps": ["Stage: Verify"], "none": ["Stage: Verify"]})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Parallel group count", result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
+        shuffled = {name: sections[name] for name in ("simplify", "delete", "optimize", "automate")}
+        result = self._replay_batch(document, {"action": "introspect", "sections": shuffled,
+                                                "steps": recorded, "none": recorded})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("order", result.stderr)
+        self.assertEqual(self.data.read_bytes(), original)
+
+    def test_introspect_records_complete_orchestration_coverage(self):
+        document = self._path1_pre()
+        steps = [*check_introspect.performed_round_steps(document["tracking"]), "polling", "rework", "focused tests"]
+        sections = {
+            "delete": {"items": [{"item": steps[0], "evidence": "Fix diff recorded.", "outcome": "fixed inline"}]},
+            "simplify": {"none": "No simplification warranted."},
+            "optimize": {"none": "No optimization warranted."},
+            "automate": {"none": "No additional automation warranted."},
+        }
+        none = steps[1:]
+        result = self._replay_batch(document, {"action": "introspect", "sections": sections,
+                                                "steps": steps, "none": none})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved = json.loads(self.data.read_text())
+        task = next(item for item in saved["findings"] if item["id"] == "WF-01")
+        self.assertEqual(task["steps"], steps)
+        self.assertIn("Parallel group count: 1", task["steps"])
+        self.assertIn("Codex write: A", task["steps"])
+        self.assertIn("Codex review: A", task["steps"])
+        self.assertEqual(saved["tracking"]["introspect"]["none"], none)
+
+    def test_merged_stage_uses_the_declared_report_transition(self):
+        document = copy.deepcopy(self.document)
+        document["tracking"] = {"stages_reached": [], "workflow": {
+            "stage": "verify", "updated_at": "2026-11-17T00:00:00Z"}}
+        before = json.dumps(document).encode()
+        result = self._replay_batch(document, {"action": "set-stage", "stage": "merged", "merged": {
+            "commit_sha": "a" * 40, "merged_at": "2026-11-17T00:00:00Z",
+            "stacked_prs": {"status": "complete"},
+        }})
+        self.assertNotEqual(result.returncode, 0)
+        required = workflow_definition.TRANSITIONS["merged"][0]
+        self.assertIn(f"merged requires {required}", result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
+    def test_completed_check_pass_clears_checks_pending_block(self):
+        document = json.loads(self.data.read_text())
+        document["findings"][0]["status"] = "verified_fixed"
+        document["findings"][0]["verification"] = "Checked on the installed build."
+        document["findings"][0]["verification_refs"] = ["receipt"]
+        document.setdefault("tracking", {})["stages_reached"] = ["collect", "present", "plan_fix", "install", "verify"]
+        document["tracking"]["plan"] = {
+            "round": 1,
+            "cycle": 1,
+            "groups": [{
+                "id": "CONTROL",
+                "finding_ids": ["ISSUE-01"],
+                "depends_on": [],
+                "status": "blocked",
+                "blocked_reason": "Individual issue checks pending",
+            }],
+        }
+        document["tracking"]["plan"]["groups"].append({
+            "id": "UNRELATED", "finding_ids": ["ISSUE-01"], "depends_on": [],
+            "status": "blocked", "blocked_reason": "Waiting for an external dependency",
+        })
+        self.data.write_text(json.dumps(document), encoding="utf-8")
+        page, ops = self.root / "checks.html", self.root / "checks.json"
+        ops.write_text(json.dumps([{"action": "set-stage", "stage": "verify"}]))
+        # ISSUE-01 is verified_fixed, so set-stage verify may fail for in_progress; use a no-op batch touch via update
+        ops.write_text(json.dumps([{
+            "action": "update", "id": "ISSUE-01",
+            "patch": {"status": "verified_fixed", "verification": "Checked on the installed build.", "verification_refs": ["receipt"]},
+        }]))
+        result = self.cli("batch", self.data, ops, "--render", page)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "verified")
+        self.assertNotIn("blocked_reason", group)
+        unrelated = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][1]
+        self.assertEqual(unrelated["status"], "blocked")
+        self.assertEqual(unrelated["blocked_reason"], "Waiting for an external dependency")
+        # Re-render a still-pending checks lane to confirm the page does not say Blocked
+        pending = json.loads(self.data.read_text())
+        pending["findings"][1]["status"] = "untested"
+        pending["tracking"]["plan"]["groups"].append({
+            "id": "DISPLAY",
+            "finding_ids": ["ISSUE-02"],
+            "depends_on": [],
+            "status": "blocked",
+            "blocked_reason": "Remaining issue checks pending",
+        })
+        self.data.write_text(json.dumps(pending), encoding="utf-8")
+        # Trigger sync + render without mutating statuses unexpectedly: compact or batch empty? use list via render through a harmless update of ISSUE-02 observed
+        ops.write_text(json.dumps([{
+            "action": "update", "id": "ISSUE-02",
+            "patch": {"observed": pending["findings"][1].get("observed") or "The previous icon was too small."},
+        }]))
+        result = self.cli("batch", self.data, ops, "--render", page)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        doc = json.loads(self.data.read_text())
+        display = next(g for g in doc["tracking"]["plan"]["groups"] if g["id"] == "DISPLAY")
+        self.assertEqual(display["status"], "verifying")
+        html = page.read_text()
+        self.assertIn("Checks pending", html)
+        self.assertNotIn("Blocked · Remaining issue checks pending", html)
+
 
 
 if __name__ == "__main__":

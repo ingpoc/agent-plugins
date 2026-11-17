@@ -1,5 +1,5 @@
 """Live tracker registry and per-list viewer lifecycle."""
-import hashlib, json, os, re, socket, subprocess, sys, time, urllib.error, urllib.request, uuid
+import errno, hashlib, json, os, re, socket, subprocess, sys, time, urllib.error, urllib.request, uuid
 import tracker_lock
 from datetime import datetime
 from pathlib import Path
@@ -7,6 +7,9 @@ from zoneinfo import ZoneInfo
 
 SCRIPTS = Path(__file__).resolve().parent
 STATE = Path(os.environ.get("BCL_STATE_DIR", Path.home() / ".agents/state/batched-change-list"))
+
+class ViewerPIDProbeError(Exception):
+    """A PID could not be checked because the process is not accessible."""
 
 def safe_component(value):
     return re.sub(r"[^A-Za-z0-9._-]+", "-", str(value)).strip(".-") or "list"
@@ -124,11 +127,13 @@ def _reserved_ports(current):
 
 def _port_is_free(port):
     with socket.socket() as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(("127.0.0.1", port))
-        except OSError:
-            return False
+        except OSError as error:
+            if error.errno == errno.EADDRINUSE:
+                return False
+            raise
     return True
 
 def _wait_for_port(port):
@@ -166,7 +171,7 @@ def locate(path, adopt=False, render_path=None):
     if not record: return key, None, None
     return key, record, Path(record["live"]).resolve()
 
-def ensure_viewer(key, record, live, plugin_version):
+def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=False):
     state = STATE / "viewers" / (safe_component(key.replace("/", "--")) + ".json")
     state.parent.mkdir(parents=True, exist_ok=True)
     old = json.loads(state.read_text()) if state.exists() else {}
@@ -174,6 +179,10 @@ def ensure_viewer(key, record, live, plugin_version):
     if old.get("pid") and int(old["pid"]) != 87005:
         try: os.kill(int(old["pid"]), 0); running = True
         except ProcessLookupError: running = False
+        except PermissionError:
+            if reject_unverifiable_pid:
+                raise ViewerPIDProbeError(f"[Errno 1] Operation not permitted") from None
+            running = True
     owns_old = bool(old.get("data")) and Path(old["data"]).resolve() == Path(live).resolve()
     old_port = int(old.get("port", 0) or 0)
     if running and owns_old and (not old.get("instance") or not _viewer_responds(old_port, old)):
@@ -228,7 +237,9 @@ def ensure_viewer(key, record, live, plugin_version):
         if proc.poll() is None:
             proc.terminate()
             proc.wait(timeout=5)
-        raise RuntimeError(f"viewer failed to start on port {port}; check {log} and retry")
+        cause = log.read_text().strip()
+        detail = f": {cause}" if cause else ""
+        raise RuntimeError(f"viewer failed to start on port {port}{detail}; check {log} and retry")
     value = {"port": port, "pid": proc.pid, "version": plugin_version, "instance": instance,
              "data": str(Path(live).resolve()), "started_at": started}
     state.write_text(json.dumps(value, indent=2) + "\n")

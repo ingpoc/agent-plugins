@@ -13,9 +13,23 @@ sys.path.insert(0, str(SCRIPTS))
 import live_state
 import manage_findings
 import tracker_lock
+import workflow_definition
 
 def _provider(url):
     return "gh" if (urlsplit(url).hostname or "").lower() == "github.com" else "origin"
+
+def _ensure_viewer(parser, key, record, live, plugin_version, stage):
+    try:
+        return live_state.ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=stage == "plan")
+    except live_state.ViewerPIDProbeError as error:
+        if stage != "plan":
+            raise
+        print(f"bcl: viewer PID probe failed: {error}", file=sys.stderr)
+        raise SystemExit(1)
+    except OSError as error:
+        if stage != "plan":
+            raise
+        parser.error(str(error))
 
 def _pull_request_data(provider, url, repo):
     executable = shutil.which(provider)
@@ -178,7 +192,7 @@ def main():
         report, base = live_state.report_paths(record, live)
         report.write_text(render.render(json.loads(live.read_text()), base))
     if record and not record.get("rollover_pending") and args.stage != "status":
-        live_state.ensure_viewer(key, record, live, plugin_version)
+        _ensure_viewer(parser, key, record, live, plugin_version, args.stage)
     if args.stage == "adopt":
         if not record: parser.error("could not register tracker")
         print(live); return
@@ -193,8 +207,7 @@ def main():
     begins_collect = args.stage == "start" and ("collect" not in stages or record.get("rollover_pending"))
     stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     if args.stage == "status":
-        import render
-        fixed, threshold, met = render.rollover_gate(data.get("findings", []), tracking)
+        fixed, threshold, met = workflow_definition.run_check("gate", data)
         print(json.dumps({"adopted": True, "live": str(live), "stage": tracking.get("workflow", {}).get("stage"), "cycle": tracking.get("cycle", 1), "gate": {"fixed": fixed, "threshold": threshold, "met": met}, "plan": [{"id": g.get("id"), "status": g.get("status")} for g in tracking.get("plan", {}).get("groups", [])]}, indent=2)); return
     if record.get("rollover_pending") and (args.stage != "start" or not begins_collect):
         parser.error("run bcl start to begin Collect before using the new list")
@@ -253,7 +266,22 @@ def main():
         plan = json.loads(args.plan.read_text()) if args.plan else tracking.get("plan")
         if not plan: parser.error("plan requires --plan or an existing tracking.plan")
         operations = [{"action":"set-plan","plan":plan}]
-        if args.ids:
+        current_plan = tracking.get("plan")
+        current_round = tracking.get("round")
+        if current_round is None:
+            current_round = current_plan.get("round", 1) if isinstance(current_plan, dict) else 1
+        current_cycle = tracking.get("cycle", 1)
+        same_current_plan = (
+            isinstance(current_plan, dict)
+            and type(current_cycle) is int and type(current_round) is int
+            and current_plan.get("cycle", current_cycle) == current_cycle
+            and type(current_plan.get("round", current_round)) is int
+            and current_plan.get("round", current_round) == current_round
+            and isinstance(plan, dict)
+            and type(plan.get("round")) is int and plan["round"] == current_round
+        )
+        late_stage = tracking.get("workflow", {}).get("stage") in ("verify", "introspect", "gate")
+        if args.ids and not (late_stage and same_current_plan):
             operations.append({"action":"set-activity","stage":"plan_fix","ids":args.ids,"now":"Plan recorded"})
     elif stage in ("fix", "install", "verify"):
         ids = args.ids or [x["id"] for x in data.get("findings", []) if x.get("status") == "in_progress"]
@@ -297,7 +325,15 @@ def main():
             expected_verify_plan = expected_document['tracking']['plan']
     elif stage == "introspect":
         if not args.sections: parser.error("introspect requires --sections FILE.json")
-        op = {"action":"introspect","sections": json.loads(args.sections.read_text())}
+        payload = json.loads(args.sections.read_text())
+        if not isinstance(payload, dict) or set(payload) != {"steps", "none", "sections"}:
+            parser.error("introspect file must contain exactly steps, none, and ordered sections")
+        try:
+            workflow_definition.run_stage_check("introspect", payload["sections"], payload["steps"],
+                                                payload["none"], data.get("tracking", {}))
+        except ValueError as error:
+            parser.error(str(error))
+        op = {"action":"introspect", "sections":payload["sections"], "steps":payload["steps"], "none":payload["none"]}
         if args.result: op["result"] = args.result
         ids = args.ids or [x["id"] for x in data.get("findings", []) if x.get("status") == "in_progress"]
         operations = [op,{"action":"set-activity","stage":"introspect","ids":ids,"now":"Introspection recorded"}]
@@ -321,7 +357,7 @@ def main():
             current = records[key]
             current.pop("rollover_pending", None)
             live_state.save_registry(records)
-            live_state.ensure_viewer(key, current, live, plugin_version)
+            _ensure_viewer(parser, key, current, live, plugin_version, stage)
         if stage == "verify":
             try:
                 with tracker_lock.exclusive_lock(tracker_lock.plan_lock_path(live)):

@@ -16,6 +16,8 @@ from pathlib import Path
 import tracker_lock
 
 import live_state
+import check_install_sessions
+import workflow_definition
 
 RENDERER_PATH = Path(__file__).with_name("render.py")
 SPEC = importlib.util.spec_from_file_location("change_list_renderer", RENDERER_PATH)
@@ -564,8 +566,8 @@ INTROSPECT_SECTIONS = ("delete", "simplify", "optimize", "automate")
 
 
 def validate_introspect_sections(sections):
-    if not isinstance(sections, dict) or any(name not in sections for name in INTROSPECT_SECTIONS):
-        raise ValueError("introspect requires sections delete, simplify, optimize, automate")
+    if not isinstance(sections, dict) or list(sections) != list(INTROSPECT_SECTIONS):
+        raise ValueError("introspect sections must be ordered delete, simplify, optimize, automate")
     cleaned = {}
     for name in INTROSPECT_SECTIONS:
         section = sections[name]
@@ -733,6 +735,16 @@ def sync_plan_verify(document):
             status = "failed"
         else:
             status = "partial"
+        install_reached = "install" in (document.get("tracking") or {}).get("stages_reached", [])
+        checks_pending = RENDERER.checks_pending_reason(group)
+        if fixed == total and total > 0 and (
+                (group.get("status") == "blocked" and checks_pending)
+                or (group.get("status") == "verifying" and checks_pending)):
+            group["status"] = "verified"
+            group.pop("blocked_reason", None)
+        elif group.get("status") == "blocked" and checks_pending and install_reached:
+            group["status"] = "verifying"
+            group["phase"] = "verify"
         verify = group.get("verify") if isinstance(group.get("verify"), dict) else {}
         verify.update({"status": status, "fixed": fixed, "failed": failed, "total": total})
         group["verify"] = verify
@@ -744,7 +756,8 @@ def touch_workflow(document):
 
 
 def require_rollover_gate(findings, tracking, force, action):
-    fixed, threshold, met = RENDERER.rollover_gate(findings, tracking)
+    fixed, threshold, met = workflow_definition.run_stage_check(
+        "report_rollover", {"findings": findings, "tracking": tracking})
     if met:
         return
     if not force:
@@ -777,14 +790,41 @@ def validate_merged_record(merged):
     return merged
 
 
+
+def introspect_covers_current_round(tracking):
+    record = tracking.get("introspect") if isinstance(tracking, dict) else None
+    if not isinstance(record, dict):
+        return False
+    return (record.get("round") == RENDERER.rollover_round(tracking)
+            and record.get("cycle") == RENDERER.rollover_cycle(tracking))
+
+
+def require_current_round_introspect(tracking, action):
+    if not introspect_covers_current_round(tracking):
+        raise ValueError(f"record this round's introspect with --sections before {action}")
+
+
+def advance_plan_round(tracking, findings, timestamp):
+    round_number = RENDERER.rollover_round(tracking)
+    fixed = RENDERER.rollover_gate(findings, tracking)[0]
+    tracking.setdefault("round_history", []).append(
+        {"round": round_number, "fixed": fixed, "ended_at": timestamp})
+    tracking["round"] = round_number + 1
+    if isinstance(tracking.get("plan"), dict):
+        tracking["plan"]["round"] = round_number + 1
+    loop = {"plan_fix", "install", "verify", "introspect", "gate"}
+    tracking["stages_reached"] = [step for step in tracking.get("stages_reached", []) if step not in loop]
+    tracking["stages_reached"].append("plan_fix")
+
+
 def prepare_rollover(document, operation, force=False):
     findings = document.get("findings")
     tracking = document.setdefault("tracking", {})
     pr, worktree = operation.get("pull_request"), operation.get("worktree")
     if not isinstance(pr, dict) or not pr.get("label") or not pr.get("url") or not isinstance(worktree, str) or not worktree.strip():
         raise ValueError("rollover requires pull_request {label,url} and worktree")
-    if "install" in tracking.get("stages_reached", []) and not tracking.get("introspect"):
-        raise ValueError("full cycle (reached install): record introspect with --sections before rollover")
+    if "install" in tracking.get("stages_reached", []):
+        require_current_round_introspect(tracking, "rollover")
     require_rollover_gate(findings, tracking, force, "rollover")
     rollover = tracking.setdefault("rollover", {})
     if not isinstance(rollover, dict):
@@ -1041,6 +1081,27 @@ def run(args, parser):
                     tracking = store["document"].setdefault("tracking", {})
                     cycle = RENDERER.rollover_cycle(tracking)
                     if action == "set-plan":
+                        previous_stage = tracking.get("workflow", {}).get("stage")
+                        current_round = RENDERER.rollover_round(tracking)
+                        current_plan = tracking.get("plan")
+                        requested_plan = operation.get("plan")
+                        same_current_plan = (
+                            isinstance(current_plan, dict)
+                            and current_plan.get("cycle", cycle) == cycle
+                            and type(current_plan.get("round", current_round)) is int
+                            and current_plan.get("round", current_round) == current_round
+                            and isinstance(requested_plan, dict)
+                            and type(requested_plan.get("round")) is int
+                            and requested_plan["round"] == current_round
+                        )
+                        starting_new_round = (
+                            previous_stage in ("verify", "introspect", "gate")
+                            and (not same_current_plan or introspect_covers_current_round(tracking))
+                        )
+                        if starting_new_round:
+                            require_current_round_introspect(tracking, "returning to plan_fix")
+                            advance_plan_round(tracking, findings,
+                                               datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
                         plan = copy.deepcopy(operation.get("plan"))
                         if not isinstance(plan, dict) or type(plan.get("round")) is not int or not isinstance(plan.get("groups"), list):
                             raise ValueError("set-plan requires plan {round, groups}")
@@ -1065,6 +1126,7 @@ def run(args, parser):
                                 raise ValueError(f"plan group {group['id']} verify_summary must be at most 10 words")
                             if not isinstance(group.get("codex", {}), dict) or not isinstance(group.get("verify", {}), dict):
                                 raise ValueError(f"plan group {group['id']} codex and verify must be objects")
+                            check_install_sessions.validate_group_codex(group)
                             verify_data = group.get("verify", {})
                             if verify_data.get("summary") is not None and (not isinstance(verify_data["summary"], str) or len(verify_data["summary"].split()) > 10):
                                 raise ValueError(f"plan group {group['id']} verify.summary must be at most 10 words")
@@ -1077,13 +1139,14 @@ def run(args, parser):
                         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                         for group in groups: stamp_plan_group(group, stamp)
                         tracking["plan"] = plan
-                        current_workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
-                        workflow = {"stage": "plan_fix", "updated_at": stamp, "now": f"{stamp} — Plan recorded"}
-                        if current_workflow.get("stale_after_min") is not None:
-                            workflow["stale_after_min"] = current_workflow["stale_after_min"]
-                        tracking["workflow"] = workflow
-                        if "plan_fix" not in tracking.setdefault("stages_reached", []):
-                            tracking["stages_reached"].append("plan_fix")
+                        if not same_current_plan or starting_new_round:
+                            current_workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
+                            workflow = {"stage": "plan_fix", "updated_at": stamp, "now": f"{stamp} — Plan recorded"}
+                            if current_workflow.get("stale_after_min") is not None:
+                                workflow["stale_after_min"] = current_workflow["stale_after_min"]
+                            tracking["workflow"] = workflow
+                            if "plan_fix" not in tracking.setdefault("stages_reached", []):
+                                tracking["stages_reached"].append("plan_fix")
                     else:
                         plan = tracking.get("plan")
                         if not isinstance(plan, dict) or plan.get("cycle", cycle) != cycle:
@@ -1121,6 +1184,7 @@ def run(args, parser):
                         group.update(patch)
                         if "status" in patch and "phase" not in patch and patch["status"] not in ("blocked", "failed"):
                             group.pop("phase", None)
+                        check_install_sessions.validate_group_codex(group)
                         validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
                         validate_plan_groups(plan)
                         validate_dependencies(plan['groups'], findings, tracking)
@@ -1137,12 +1201,25 @@ def run(args, parser):
                     target = operation.get("stage")
                     tracking = store["document"].setdefault("tracking", {})
                     cycle = RENDERER.rollover_cycle(tracking)
+                    if target == "report_rollover" and "install" in tracking.get("stages_reached", []):
+                        require_current_round_introspect(tracking, "report_rollover")
                     if target == "install" and (not isinstance(tracking.get("plan"), dict) or tracking["plan"].get("cycle", cycle) != cycle or not tracking["plan"].get("groups")):
                         raise ValueError("install requires a recorded plan with at least one group for the current cycle")
-                    if target == "verify" and "install" not in tracking.get("stages_reached", []):
-                        raise ValueError("verify requires install to be reached in the current cycle")
+                    if target == "install" and action == "set-stage":
+                        workflow_definition.run_stage_check("install", tracking["plan"])
+                    if target in workflow_definition.TRANSITIONS:
+                        workflow_definition.require_transition(target, tracking.get("stages_reached", []))
+                    if target == "merged":
+                        _fixed, _threshold, met = workflow_definition.run_stage_check(
+                            "merged", {"findings": findings, "tracking": tracking})
+                        if not met:
+                            raise ValueError("merge requires the shared exit gate to be met")
                 if action == "introspect":
                     # One Introspect = one WF- task with four sections. Code follow-ups are separate non-WF issues.
+                    tracking = store["document"].setdefault("tracking", {})
+                    workflow_definition.require_transition("introspect", tracking.get("stages_reached", []))
+                    coverage = workflow_definition.run_stage_check("introspect",
+                        operation.get("sections"), operation.get("steps"), operation.get("none"), tracking)
                     sections = validate_introspect_sections(operation.get("sections"))
                     issues = operation.get("issues") or []
                     if issues:
@@ -1171,6 +1248,7 @@ def run(args, parser):
                             "recommendation": "Do the linked code issues: " + ", ".join(linked) if linked else "None; all items were fixed inline or none.",
                             "verification": "Inline items were done during Introspect." if not all_none else "Clean cycle; every section is none with a reason.",
                             "details": {"fixed_in": "Introspect"},
+                            "steps": coverage["steps"], "none": coverage["none"],
                             "sections": sections}
                     task["verification_refs"] = linked or ["Introspect"]
                     validate_detail_limits(task)
@@ -1180,8 +1258,15 @@ def run(args, parser):
                     if isinstance(run, dict) and run.get("status") in ("active", "complete"):
                         run["status"] = "active"
                         run.setdefault("checks", {})[task_id] = {"state": "pending"}
-                    record = {"result": summary, "at": stamp, "task": task_id, "sections": sections}
-                    store["document"].setdefault("tracking", {})["introspect"] = record
+                    tracking = store["document"].setdefault("tracking", {})
+                    record = {"result": summary, "at": stamp, "task": task_id, "steps": coverage["steps"],
+                              "none": coverage["none"], "sections": sections,
+                              "round": RENDERER.rollover_round(tracking),
+                              "cycle": RENDERER.rollover_cycle(tracking)}
+                    tracking["introspect"] = record
+                    reached = tracking.setdefault("stages_reached", [])
+                    if "introspect" not in reached:
+                        reached.append("introspect")
                     plan = store["document"].setdefault("tracking", {}).get("plan")
                     if isinstance(plan, dict):
                         plan["status"] = "closed"
@@ -1192,8 +1277,10 @@ def run(args, parser):
                     previous_stage = tracking.get("workflow", {}).get("stage")
                     if previous_stage == "merged" and target != "merged":
                         raise ValueError("merged is terminal; start a new list with bcl rollover")
-                    if target == "report_rollover" and "install" in tracking.get("stages_reached", []) and not tracking.get("introspect"):
-                        raise ValueError("full cycle (reached install): record introspect with --sections before report_rollover")
+                    if target == "plan_fix" and previous_stage in ("verify", "introspect", "gate"):
+                        require_current_round_introspect(tracking, "returning to plan_fix")
+                    if target == "report_rollover" and "install" in tracking.get("stages_reached", []):
+                        require_current_round_introspect(tracking, "rollover" if action == "rollover" else "report_rollover")
                     if target == "report_rollover" and action != "set-activity":
                         require_rollover_gate(findings, tracking, args.force, action)
                     if target in ("plan_fix", "install", "verify") and action == "set-stage" and not any(item.get("status") == "in_progress" for item in findings):
@@ -1221,6 +1308,8 @@ def run(args, parser):
                     continue
                 if action == "set-activity":
                     stage, ids, activity = operation.get("stage"), operation.get("ids"), operation.get("now")
+                    if stage == "install" and isinstance(ids, list) and not ids:
+                        raise ValueError("set-activity for install requires a nonempty ID list and an in_progress finding; log a finding and set it in progress first")
                     if 'expected_plan_sha256' in operation:
                         actual = hashlib.sha256(json.dumps(original_plan, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
                         if operation['expected_plan_sha256'] != actual:
@@ -1251,6 +1340,8 @@ def run(args, parser):
                             if any(identifier not in covered for identifier in ids):
                                 raise ValueError('work requires an eligible current-round plan group for every finding')
                             validate_dependencies(groups, findings, tracking)
+                            if stage == 'install':
+                                workflow_definition.run_stage_check('install', plan, ids)
                         by_id = {group['id']: group for group in groups}
                         for group in matched:
                             if set(ids).intersection(group.get('finding_ids', [])):
@@ -1269,16 +1360,9 @@ def run(args, parser):
                         raise ValueError(f"set-activity for {stage} requires a nonempty ID list and an in_progress finding; log a finding and set it in progress first")
                     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                     if (stage == "plan_fix" and previous_stage in ("verify", "introspect", "gate")
-                            and not RENDERER.rollover_gate(findings, tracking)[2]):
-                        round_number = RENDERER.rollover_round(tracking)
-                        history = tracking.setdefault("round_history", [])
-                        history.append({"round": round_number, "fixed": RENDERER.rollover_gate(findings, tracking)[0], "ended_at": timestamp})
-                        tracking["round"] = round_number + 1
-                        if isinstance(tracking.get("plan"), dict): tracking["plan"]["round"] = round_number + 1
-                        loop = {"plan_fix", "install", "verify", "introspect", "gate"}
-                        tracking["stages_reached"] = [step for step in tracking.get("stages_reached", []) if step not in loop]
-                        if "plan_fix" not in tracking["stages_reached"]:
-                            tracking["stages_reached"].append("plan_fix")
+                            and (introspect_covers_current_round(tracking)
+                                 or not RENDERER.rollover_gate(findings, tracking)[2])):
+                        advance_plan_round(tracking, findings, timestamp)
                     tracking["workflow"] = {"stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
                     if stale_after is not None:
                         tracking["workflow"]["stale_after_min"] = stale_after

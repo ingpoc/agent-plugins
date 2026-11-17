@@ -1,6 +1,8 @@
 import importlib.util
+import contextlib
+import io
 from importlib.machinery import SourceFileLoader
-import json, os, signal, socket, subprocess, sys, tempfile, threading, time, unittest
+import errno, json, os, signal, socket, subprocess, sys, tempfile, threading, time, unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -11,6 +13,7 @@ BCL = PLUGIN / "bin/bcl"
 EXAMPLE = PLUGIN / "skills/batched-change-list/examples/findings.json"
 sys.path.insert(0, str(PLUGIN / "skills/batched-change-list/scripts"))
 import live_state
+import check_introspect
 loader = SourceFileLoader("bcl_entrypoint", str(BCL))
 spec = importlib.util.spec_from_loader("bcl_entrypoint", loader)
 bcl_entrypoint = importlib.util.module_from_spec(spec)
@@ -71,9 +74,40 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(bcl_entrypoint._provider("https://github.com/ingpoc/agent-plugins/pull/110"), "gh")
         self.assertEqual(bcl_entrypoint._provider("https://cursor.com/codebase/gurusharan/agent-plugins/pull/110"), "origin")
 
+    def test_plan_reports_viewer_pid_permission_error_without_traceback(self):
+        stderr = io.StringIO()
+        plan = self.root / "plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": []}))
+        with patch.object(live_state, "STATE", self.state), patch.object(sys, "argv", [str(BCL), "--data", str(self.data), "--plan", str(plan), "plan"]), \
+             patch.object(live_state.os, "kill", side_effect=PermissionError("operation not permitted")), \
+             contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit) as exit_result:
+            bcl_entrypoint.main()
+        self.assertEqual(exit_result.exception.code, 1, stderr.getvalue())
+        self.assertEqual(len(stderr.getvalue().splitlines()), 1, stderr.getvalue())
+        self.assertRegex(stderr.getvalue(), r"\Abcl: viewer PID probe failed: (?:\[Errno 1\] )?[Oo]peration not permitted\n\Z")
+
+    def test_plan_reports_non_probe_oserror_without_pid_probe_label(self):
+        stderr = io.StringIO()
+        parser = bcl_entrypoint.argparse.ArgumentParser()
+        with patch.object(live_state, "ensure_viewer", side_effect=OSError("metadata write failed")), \
+             contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit) as exit_result:
+            bcl_entrypoint._ensure_viewer(parser, "repo/123", {}, Path("tracker.json"), "0.1.17", "plan")
+        self.assertEqual(exit_result.exception.code, 2)
+        self.assertIn("metadata write failed", stderr.getvalue())
+        self.assertNotIn("viewer PID probe failed", stderr.getvalue())
+
     def git(self, cwd, *args): return subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True)
     def call(self, stage, *args, cwd=None):
         data, extra = (args[0], args[1:]) if args and isinstance(args[0], Path) else (self.data, args)
+        if stage == "plan" and "--plan" in extra:
+            plan_path = Path(extra[extra.index("--plan") + 1])
+            plan = json.loads(plan_path.read_text())
+            for group in plan.get("groups", []):
+                codex = group.setdefault("codex", {})
+                codex.setdefault("implementer_session", "fixture-implementer")
+                codex.setdefault("reviewer_session", "fixture-reviewer")
+                codex.setdefault("review_status", "passed")
+            plan_path.write_text(json.dumps(plan))
         return subprocess.run([sys.executable, str(BCL), "--data", str(data), *map(str, extra), stage], cwd=cwd, env=self.env, capture_output=True, text=True)
 
     def viewer_state_path(self, live=None):
@@ -106,10 +140,13 @@ elif args[:2] != ['pr', 'edit']:
         marker = self.root / 'proof-ran'
         proof = self.root / 'proof.py'; proof.write_text(f"from pathlib import Path\nPath({str(marker)!r}).write_text('yes')\n")
         command = f'"{sys.executable}" "{proof}"'
-        plan = {"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"reason":"Same root cause","depends_on":[],"codex":{"model":"gpt-6-luna","effort":"medium","status":"running","started_at":"2026-11-14T09:00:00Z","duration_s":120},"verify":{"command":command,"method":"Unit tests and a live page check","status":"pending"},"status":"running"}]}
+        plan = {"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"reason":"Same root cause","depends_on":[],"codex":{"model":"gpt-6-luna","effort":"medium","status":"running","started_at":"2026-11-14T09:00:00Z","duration_s":120,"implementer_session":"fixture-implementer","reviewer_session":"fixture-reviewer","review_status":"passed"},"verify":{"command":command,"method":"Unit tests and a live page check","status":"pending"},"status":"running"}]}
         planfile = self.root / "plan.json"; planfile.write_text(json.dumps(plan))
         sections = {"delete":{"none":"No deletions."},"simplify":{"none":"No simplifications."},"optimize":{"none":"No optimizations."},"automate":{"none":"No automations."}}
-        sectionfile = self.root / "sections.json"; sectionfile.write_text(json.dumps(sections))
+        steps = check_introspect.performed_round_steps({
+            "stages_reached": ["plan_fix", "install", "verify"], "plan": plan,
+        })
+        sectionfile = self.root / "sections.json"; sectionfile.write_text(json.dumps({"steps": steps, "none": steps, "sections": sections}))
         self.assertNotEqual(self.call("introspect", "--result", "no issues").returncode, 0)
         for stage, extra in (("plan", ["--plan", str(planfile), "--ids", "ISSUE-01"]), ("fix", ["--ids", "ISSUE-01"]), ("install", ["--ids", "ISSUE-01"]), ("verify", ["--ids", "ISSUE-01", "--then", command]), ("introspect", ["--sections", str(sectionfile)])):
             result = self.call(stage, *extra); self.assertEqual(result.returncode, 0, result.stderr)
@@ -427,7 +464,9 @@ elif args[:2] != ['pr', 'edit']:
         command = f'"{sys.executable}" "{proof}"'
         plan = {'round':1,'groups':[
             {'id':'A','finding_ids':['ISSUE-02'],'status':'verified','verify':{'command':'python3 proof-a.py'}},
-            {'id':'B','finding_ids':['ISSUE-01'],'depends_on':['A'],'status':'pending','verify':{'command':command}},
+            {'id':'B','finding_ids':['ISSUE-01'],'depends_on':['A'],'status':'pending',
+             'codex':{'implementer_session':'fixture-implementer','reviewer_session':'fixture-reviewer','review_status':'passed'},
+             'verify':{'command':command}},
         ]}
         path = self.root / 'dependency-plan.json'; path.write_text(json.dumps(plan))
         invoke('plan','--plan',str(path),'--ids','ISSUE-01')
@@ -467,7 +506,7 @@ elif args[:2] != ['pr', 'edit']:
         live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
         tracker = json.loads(live.read_text())
         tracker["findings"][0]["status"] = "in_progress"
-        tracker["tracking"]["plan"] = {"cycle": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "running"}]}
+        tracker["tracking"]["plan"] = {"cycle": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "codex": {"implementer_session": "fixture-implementer", "reviewer_session": "fixture-reviewer", "review_status": "passed"}}]}
         live.write_text(json.dumps(tracker)); self.data.write_text(json.dumps(tracker))
         stub = self.root / "check_stage.py"
         stub.write_text("import json, sys\nfrom pathlib import Path\ndata, page = map(Path, sys.argv[1:])\nhtml = page.read_text()\nassert json.loads(data.read_text())['tracking']['workflow']['stage'] == 'install'\nassert 'Install' in html\nassert 'class=\"workflow-now\"' not in html\n")
@@ -573,6 +612,13 @@ elif args[:2] != ['pr', 'edit']:
 
     def test_merged_records_terminal_state_and_retargets_stacked_prs(self):
         sha = "a" * 40; merged_at = "2026-11-14T12:00:00Z"
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        doc = json.loads(self.data.read_text())
+        doc["tracking"].update(stages_reached=["report_rollover"], rollover_threshold=1)
+        doc["tracking"]["workflow"] = {"stage": "report_rollover", "updated_at": "2026-11-14T11:00:00Z"}
+        contents = json.dumps(doc)
+        self.data.write_text(contents)
+        live.write_text(contents)
         result = self.call("merged")
         self.assertEqual(result.returncode, 0, result.stderr)
         doc = json.loads(Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"]).read_text())
@@ -592,6 +638,8 @@ elif args[:2] != ['pr', 'edit']:
     def test_merged_keeps_terminal_data_and_emits_todo_when_retarget_api_fails(self):
         doc = json.loads(self.data.read_text())
         doc["tracking"]["pull_request"]["url"] = "https://origin.example/example/project/pull/123"
+        doc["tracking"].update(stages_reached=["report_rollover"], rollover_threshold=1)
+        doc["tracking"]["workflow"] = {"stage": "report_rollover", "updated_at": "2026-11-14T11:00:00Z"}
         contents = (json.dumps(doc, indent=2) + "\n").encode()
         self.data.write_bytes(contents)
         live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
@@ -641,6 +689,17 @@ elif args[:2] != ['pr', 'edit']:
                 with socket.create_connection(("127.0.0.1", state["port"]), timeout=.2): break
             except OSError: time.sleep(.05)
         else: self.fail("viewer did not bind its recorded loopback port")
+
+    def test_port_probe_propagates_non_occupancy_socket_error(self):
+        class FailedSocket:
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def setsockopt(self, *args): pass
+            def bind(self, *args): raise OSError(errno.EACCES, "permission denied")
+
+        with patch.object(live_state.socket, "socket", return_value=FailedSocket()):
+            with self.assertRaisesRegex(OSError, "permission denied"):
+                live_state._port_is_free(53366)
 
     def test_corrupt_other_viewer_state_is_reported(self):
         state = self.state / "viewers" / "other-list.json"
@@ -756,17 +815,26 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(binds, [])
 
     def test_viewer_start_failure_is_reported_and_not_recorded(self):
-        records = json.loads((self.state / "registry.json").read_text())
-        key, record = next(iter(records.items()))
-        state = self.viewer_state_path()
+        state = self.state / "viewers/test-1.json"
+        state.parent.mkdir(parents=True, exist_ok=True)
+        state.write_text(json.dumps({"pid": 87005}))
         previous = state.read_bytes()
+        live = self.root / "live.json"
+        live.write_text("{}")
+        page = self.root / "page.html"
+        page.write_text("viewer")
         process = SimpleNamespace(pid=99999, poll=lambda: 1)
+        def fail_start(*args, **kwargs):
+            kwargs["stderr"].write("Traceback (most recent call last):\nOSError: child startup cause\n")
+            return process
         with patch.object(live_state, "STATE", self.state), \
-             patch.object(live_state.os, "kill", side_effect=ProcessLookupError), \
-             patch.object(live_state.subprocess, "Popen", return_value=process), \
+             patch.object(live_state, "report_paths", return_value=(page, self.root)), \
+             patch.object(live_state, "_reserved_ports", return_value=set()), \
+             patch.object(live_state, "_port_is_free", return_value=True), \
+             patch.object(live_state.subprocess, "Popen", side_effect=fail_start), \
              patch.object(live_state, "_viewer_ready", return_value=False):
-            with self.assertRaisesRegex(RuntimeError, "viewer failed to start"):
-                live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
+            with self.assertRaisesRegex(RuntimeError, "(?s)viewer failed to start.*OSError: child startup cause"):
+                live_state.ensure_viewer("test/1", {"repo": "test", "id": "1"}, live, "new-version")
         self.assertEqual(state.read_bytes(), previous)
 
     def test_unresponsive_recorded_viewer_is_not_reported_as_healthy(self):
