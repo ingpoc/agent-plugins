@@ -4336,9 +4336,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-17T12:24:26Z",
-      "now": "2026-11-17T12:24:26Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-17T12:27:33Z",
+      "now": "2026-11-17T12:27:33Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 113,
@@ -4456,7 +4456,7 @@
       }
     },
     "cycle": 6,
-    "round": 3,
+    "round": 4,
     "round_history": [
       {
         "round": 2,
@@ -4517,59 +4517,83 @@
         "round": 2,
         "fixed": 9,
         "ended_at": "2026-11-17T11:41:12Z"
+      },
+      {
+        "round": 3,
+        "fixed": 10,
+        "ended_at": "2026-11-17T12:27:33Z"
       }
     ],
     "plan": {
-      "round": 3,
+      "round": 4,
       "cycle": 6,
       "groups": [
         {
-          "id": "PAGE",
-          "name": "One Verification-by-version row with four plain fields",
+          "id": "GATE",
+          "name": "Rerun the full repository gate for the two hook and cold-start test failures",
           "finding_ids": [
-            "PAGE-22"
+            "AGENT-28",
+            "AGENT-29"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "pr114-page",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_render.py",
-            "plugins/batched-change-list/bin/bcl",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
+          "status": "pending",
+          "phase": "pending",
+          "worktree": "samantha-pr114-rollover",
+          "files": [],
+          "reason": "AGENT-28 and AGENT-29 failed once under the full scripts/check.py gate, then passed in focused reruns. This group reruns the full gate on the current worktree and records pass or fail, with no code change first.",
+          "codex": {
+            "one_file": true,
+            "implementer_session": "test-now-full-check-py",
+            "review_status": "passed"
+          },
+          "verify": {
+            "command": "python3 scripts/check.py",
+            "method": "A clean full scripts/check.py run on this worktree must include test_known_notification_types_post_exact_needs_you_args and IslandGateColdStartTests.testSubmitColdStartShowsWakingThenSucceeds. If either fails, record the failure and leave the item untested or failing.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "updated_at": "2026-11-17T12:27:33Z"
+        },
+        {
+          "id": "INTRO",
+          "name": "Draft Introspect sections from the run log for confirmation",
+          "finding_ids": [
+            "BCL-03"
           ],
-          "reason": "Verification by version should show one row per version from the latest check, with Checked, Expected, Observed, and Verdict because. Duplicate verify and outcome records must not appear as two rows. verify must reject a reason missing those three parts.",
+          "depends_on": [],
+          "status": "pending",
+          "phase": "pending",
+          "worktree": "pr114-intro",
+          "files": [
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/skills/batched-change-list/references/introspect.md",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/check_introspect.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_check_introspect.py"
+          ],
+          "reason": "bcl introspect should draft the delete, simplify, optimize, and automate sections from the recorded run, so the agent only has to check and edit them before they are saved. Saving still requires that confirmation step.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "status": "passed",
-            "implementer_session": "01a1e94f-d4df-7d63-b0cb-3937ff0b0a0f",
-            "reviewer_session": "01a1e960-15de-7cd2-b5b6-beb1ce84cd3c",
-            "review_status": "passed",
-            "one_file": false
+            "status": "pending"
           },
           "verify": {
-            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_render.py'",
-            "method": "A test must show that one check gives one version row with Checked, Expected, Observed, and Verdict because, that earlier checks sit under Details as history, and that verify rejects a reason missing those parts.",
-            "status": "verified",
-            "fixed": 1,
+            "command": "python3 -m unittest discover -s plugins/batched-change-list/skills/batched-change-list/scripts -p 'test_bcl.py'",
+            "method": "A test must show that bcl introspect can write a draft SECTIONS.json from the tracker run, that the agent can edit it, and that saving still requires the confirmation step rather than writing the draft blindly.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-17T12:18:41Z"
+          "updated_at": "2026-11-17T12:27:33Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "stages_reached": [
       "collect",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "verification_run": {
       "id": "bcl-0.1.34-a4fa8508-114",
@@ -5075,7 +5099,7 @@
       "id": "BCL-03",
       "title": "Introspect auto-fills the four sections from the run log",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "Introspect should draft the delete, simplify, optimize, and automate sections from the cycle's run log, so the agent only has to check and edit them.",
       "impact": "Filling the four sections by hand is slow and easy to skip, so the review is missed or incomplete.",
       "done_when": "bcl introspect can draft the four sections from the run log, and the agent can confirm or edit them before they are saved.",
@@ -6209,7 +6233,7 @@
       "id": "AGENT-28",
       "title": "A notification hook test failed during the repository gate",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "The notification hook test did not observe the expected notification during a full test run.",
       "impact": "The repository gate cannot be considered passed until the failure is understood.",
       "done_when": "Reproduce or rule out the failure with a focused rerun and record the result.",
@@ -6224,7 +6248,7 @@
       "id": "AGENT-29",
       "title": "A cold-start display test failed under the full gate",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "summary": "A quick response showed the waking indicator during a full test run.",
       "impact": "The repository gate can fail while checking the status display.",
       "done_when": "Establish why the timing check fails under full-suite load and verify its behavior reliably.",
