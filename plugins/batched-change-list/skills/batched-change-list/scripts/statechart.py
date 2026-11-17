@@ -52,10 +52,11 @@ def render(skill_content: bytes | None = None) -> str:
     skill_content = SKILL.read_bytes() if skill_content is None else skill_content
     skill_text = skill_content.decode("utf-8")
     fingerprint = source_fingerprint(skill_content)
+    definition_hash = hashlib.sha256((ROOT / "scripts/workflow_definition.json").read_bytes()).hexdigest()
     workflow = json.dumps(workflow_steps(), ensure_ascii=False)
     data = json.dumps(references(skill_text), ensure_ascii=False).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
     return f'''<!doctype html>
-<html lang="en" data-source-hash="{fingerprint}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en" data-source-hash="{fingerprint}" data-definition-hash="{definition_hash}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Batched Change List skill loading statechart</title>
 <style>
 :root{{color-scheme:light dark;font:16px/1.5 system-ui,sans-serif;--green:#17804b;--purple:#7542a8;--muted:#77808a;--line:#aeb6bf}}

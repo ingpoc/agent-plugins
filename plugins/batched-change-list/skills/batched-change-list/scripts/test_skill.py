@@ -66,9 +66,11 @@ class SkillLayoutTests(unittest.TestCase):
         chart = SKILL.parent / "statechart.html"
         self.assertTrue(statechart.is_current(chart), "run python3 scripts/statechart.py to regenerate the chart")
         rendered = statechart.render()
-        self.assertRegex(rendered, r'<html lang="en" data-source-hash="[0-9a-f]{64}">')
+        self.assertRegex(rendered, r'<html lang="en" data-source-hash="[0-9a-f]{64}" data-definition-hash="[0-9a-f]{64}">')
         digest = hashlib.sha256(b"SKILL.md\n" + SKILL.read_bytes() + b"".join(path.name.encode() + b"\n" + path.read_bytes() for path in sorted(REFS.glob("*.md")))).hexdigest()
         self.assertIn(f'data-source-hash="{digest}"', rendered)
+        definition_hash = hashlib.sha256((SKILL.parent / "scripts/workflow_definition.json").read_bytes()).hexdigest()
+        self.assertIn(f'data-definition-hash="{definition_hash}"', rendered)
         self.assertIn("<h2>Current</h2>", rendered)
         self.assertIn("<h2>After trigger</h2>", rendered)
         changed_skill = SKILL.read_bytes().replace(b"Workflow: Collect and Present once", b"Workflow: Collect and Present initially", 1)
@@ -78,6 +80,10 @@ class SkillLayoutTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             stale = Path(temporary) / "statechart.html"
             self.assertFalse(statechart.is_current(stale, rendered))
+            stale.write_text(rendered.replace(f'data-definition-hash="{definition_hash}"', 'data-definition-hash="' + "0" * 64 + '"'), encoding="utf-8")
+            self.assertFalse(statechart.is_current(stale), "stale workflow definition hash must fail")
+            stale.write_text(rendered.replace(f' data-definition-hash="{definition_hash}"', ""), encoding="utf-8")
+            self.assertFalse(statechart.is_current(stale), "missing workflow definition hash must fail")
             stale.write_text("stale", encoding="utf-8")
             self.assertFalse(statechart.is_current(stale, rendered))
 
