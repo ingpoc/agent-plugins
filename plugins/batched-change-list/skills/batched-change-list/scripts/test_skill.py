@@ -1,7 +1,9 @@
 import re
+import tempfile
 import unittest
 from pathlib import Path
 import workflow_definition
+import statechart
 
 SKILL = Path(__file__).resolve().parents[1] / "SKILL.md"
 REFS = SKILL.parent / "references"
@@ -33,6 +35,18 @@ class SkillLayoutTests(unittest.TestCase):
         self.assertLessEqual(len(body.encode()), 2589)
         lines = [line for line in body.splitlines() if line.startswith("Workflow: ")]
         self.assertEqual(lines, [workflow_definition.skill_loop_line()])
+
+    def test_generated_statechart_is_current_and_stale_or_missing_fails_shape_check(self):
+        chart = SKILL.parent / "statechart.html"
+        self.assertTrue(statechart.is_current(chart), "run python3 scripts/statechart.py to regenerate the chart")
+        rendered = statechart.render()
+        self.assertIn("<h2>Current</h2>", rendered)
+        self.assertIn("<h2>After trigger</h2>", rendered)
+        with tempfile.TemporaryDirectory() as temporary:
+            stale = Path(temporary) / "statechart.html"
+            self.assertFalse(statechart.is_current(stale, rendered))
+            stale.write_text("stale", encoding="utf-8")
+            self.assertFalse(statechart.is_current(stale, rendered))
 
 
 if __name__ == "__main__":

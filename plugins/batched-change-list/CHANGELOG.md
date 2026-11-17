@@ -1,3 +1,7 @@
+## 0.1.27
+
+- Generate and shape-check a skill loading statechart with current and trigger-loaded views.
+
 ## 0.1.26
 
 - Require every current group's stored verification command in Introspect coverage after Verify.
