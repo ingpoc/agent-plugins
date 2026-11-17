@@ -1078,6 +1078,24 @@ def triage_render_pairs(triage: Path) -> list[tuple[Path, Path]]:
     return pairs
 
 
+def current_triage_pr() -> int | None:
+    """Return the PR number from CI refs or the current branch name, if present."""
+    for ref in (os.environ.get("GITHUB_REF", ""), os.environ.get("GITHUB_HEAD_REF", "")):
+        match = re.search(r"(?:^|/)pull/(\d+)(?:/|$)", ref) or re.search(
+            r"(?:^|[/_-])pr[-/]?(\d+)(?=$|[/_-])", ref
+        )
+        if match:
+            return int(match.group(1))
+    try:
+        branch = subprocess.check_output(
+            ["git", "branch", "--show-current"], cwd=ROOT, text=True, stderr=subprocess.DEVNULL
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    match = re.search(r"(?:^|[/_-])pr[-/]?(\d+)(?=$|[/_-])", branch)
+    return int(match.group(1)) if match else None
+
+
 def check_triage_renders() -> list[str]:
     """The current change-list page must be a fresh, untouched render of its tracker JSON.
 
@@ -1097,12 +1115,22 @@ def check_triage_renders() -> list[str]:
             json.loads(data.read_text())
         except (OSError, ValueError) as exc:
             errors.append(f"{data.relative_to(ROOT)}: unreadable tracker ({exc})")
-    for data, report in triage_render_pairs(triage):
+    pairs = triage_render_pairs(triage)
+    for data, report in pairs:
         other = seen.get(report)
         if other is not None:
             errors.append(f"{report.relative_to(ROOT)}: claimed by both {other.name} and {data.name}")
+        else:
+            seen[report] = data
+    current_pr = current_triage_pr()
+    if current_pr is None:
+        return errors
+    current = [(data, report) for data, report in pairs if report.stem == f"pr-{current_pr}"]
+    if not current:
+        errors.append(f"docs/triage/pr-{current_pr}.html: no matching current PR tracker found")
+    for data, report in current:
+        if seen.get(report) != data:
             continue
-        seen[report] = data
         if not report.is_file():
             errors.append(f"{report.relative_to(ROOT)}: missing; render it from {data.name} with render.py")
             continue
