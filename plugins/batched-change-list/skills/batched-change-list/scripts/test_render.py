@@ -649,6 +649,16 @@ setImmediate(async()=>{
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name)
 
+    def test_archive_and_parked_summaries_render_with_paths_and_needs(self):
+        self.data["tracking"] = {
+            "archive": {"count": 84, "path": "/tmp/list/archive.json"},
+            "parked": {"count": 4, "path": "/tmp/list/parked.json",
+                       "needs": ["real microphone", "device access"]},
+        }
+        page = renderer.render(self.data, self.base)
+        self.assertIn("84 archived findings in /tmp/list/archive.json", page)
+        self.assertIn("4 parked findings in /tmp/list/parked.json; needs: real microphone, device access", page)
+
     def test_installed_inventory_is_distinct_from_run_build(self):
         self.data['tracking'] = {'verification_run': {'id':'run1','build':'ACU 1','revision':'abc',
             'installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt','status':'complete',

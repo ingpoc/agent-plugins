@@ -80,6 +80,15 @@ def list_id(doc, source):
     match = re.search(r"/pull/(\d+)", url)
     return match.group(1) if match else str(tracking.get("list_id") or Path(source).stem)
 
+
+def archive_path(live):
+    return Path(live).resolve().parent / "archive.json"
+
+
+def parked_path(live):
+    return Path(live).resolve().parent / "parked.json"
+
+
 def registry():
     path = STATE / "registry.json"
     return json.loads(path.read_text()) if path.exists() else {}

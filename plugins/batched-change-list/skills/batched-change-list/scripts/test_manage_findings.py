@@ -699,7 +699,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIn('adopted live tracker', result.stderr)
         self.assertEqual(self.data.read_bytes(), original)
 
-    def test_introspect_requires_four_sections_and_creates_one_verified_task(self):
+    def test_introspect_records_history_not_finding(self):
         page, ops = self.root / 'one.html', self.root / 'one.json'
         def batch(*items):
             ops.write_text(json.dumps(list(items)))
@@ -714,7 +714,6 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertNotEqual(batch({'action':'introspect','result':'no issues'}).returncode, 0)
         self.assertNotEqual(batch({'action':'introspect','issues':[{'issue':'x','evidence':'e','outcome':'fixed'}]}).returncode, 0)
         self.assertNotEqual(batch({'action':'introspect','sections':none,'issues':[{'issue':'x','evidence':'e','outcome':'fixed'}]}).returncode, 0)
-        self.assertNotEqual(batch({'action':'add','entry':{'id':'WF-09','title':'t','source':'Agent reported','status':'untested','observed':'o','recommendation':'r'}}).returncode, 0)
         before = len(json.loads(self.data.read_text())['findings'])
         # missing section
         incomplete = dict(none); del incomplete['automate']
@@ -731,16 +730,17 @@ class ManageFindingsTests(unittest.TestCase):
         result = batch({'action':'introspect','sections':sections})
         self.assertEqual(result.returncode, 0, result.stderr)
         doc = json.loads(self.data.read_text())
-        self.assertEqual(len(doc['findings']), before + 2)  # BCL-02 + WF-01
-        task = next(f for f in doc['findings'] if f['id']=='WF-01')
-        self.assertEqual((task['id'], task['status'], task['details']['fixed_in'], doc['tracking']['introspect']['task']), ('WF-01', 'verified_fixed', 'Introspect', 'WF-01'))
-        self.assertEqual(task['sections']['delete']['items'][0]['outcome'], 'fixed inline')
-        self.assertEqual(task['sections']['simplify']['items'][0]['issue_id'], 'BCL-02')
-        self.assertEqual(task.get('issues') or [], [])
+        self.assertEqual(len(doc['findings']), before + 1)  # BCL-02 only
+        record = doc['tracking']['introspect']
+        self.assertNotIn('task', record)
+        self.assertEqual(record['sections']['delete']['items'][0]['outcome'], 'fixed inline')
+        self.assertEqual(record['sections']['simplify']['items'][0]['issue_id'], 'BCL-02')
+        self.assertEqual(doc['tracking']['introspect_history'][-1], record)
+        self.assertFalse(any(item['id'] == 'WF-01' for item in doc['findings']))
         self.assertIn('introspect-sections', page.read_text())
         self.assertEqual(doc['tracking']['plan']['status'] if 'plan' in doc.get('tracking',{}) else 'closed', 'closed')
 
-    def test_introspect_task_joins_an_active_verification_run(self):
+    def test_introspect_leaves_active_verification_checks_unchanged(self):
         page, ops = self.root / 'run.html', self.root / 'run.json'
         def batch(*items):
             ops.write_text(json.dumps(list(items)))
@@ -754,12 +754,37 @@ class ManageFindingsTests(unittest.TestCase):
         self.data.write_text(json.dumps(doc), encoding='utf-8')
         run = {'id':'r9','build':'b9','revision':'abc','installed_at':'2026-11-14T12:05:10+05:30','install_evidence':'log'}
         self.assertEqual(batch({'action':'start-verification','run':run}).returncode, 0)
+        before = json.loads(self.data.read_text())['tracking']['verification_run']['checks']
         result = batch({'action':'introspect','sections':none})
         self.assertEqual(result.returncode, 0, result.stderr)
         doc = json.loads(self.data.read_text())
-        task = doc['tracking']['introspect']['task']
-        self.assertEqual(doc['tracking']['verification_run']['checks'][task], {'state': 'pending'})
-        self.assertEqual(next(f for f in doc['findings'] if f['id']==task)['status'], 'verified_fixed')
+        self.assertEqual(doc['tracking']['verification_run']['checks'], before)
+        self.assertEqual(len(doc['tracking']['introspect_history']), 1)
+        self.assertEqual(set(doc['tracking']['verification_run']['checks']),
+                         {item['id'] for item in doc['findings']})
+
+    def test_start_verification_skips_archived(self):
+        document = json.loads(self.data.read_text())
+        archived, current = document['findings'][:2]
+        archived.update(status='verified_fixed', verification='Verified.', verification_refs=['receipt'])
+        current.update(id='ISSUE-02', status='untested')
+        document['findings'] = [archived, current]
+        document.setdefault('tracking', {})['rollover'] = {'excluded_ids': [archived['id']]}
+        self.data.write_text(json.dumps(document), encoding='utf-8')
+        operations = self.root / 'archive-start.json'
+        page = self.root / 'archive-start.html'
+        operations.write_text(json.dumps([
+            {'action': 'archive'},
+            {'action': 'start-verification', 'run': {
+                'id': 'after-archive', 'build': '1.2.3', 'revision': 'abc',
+                'installed_at': '2026-11-18T09:00:00Z', 'install_evidence': 'install.log'}},
+        ]))
+        result = self.cli('batch', self.data, operations, '--render', page)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved = json.loads(self.data.read_text())
+        self.assertEqual([item['id'] for item in saved['findings']], ['ISSUE-02'])
+        self.assertEqual(set(saved['tracking']['verification_run']['checks']), {'ISSUE-02'})
+        self.assertEqual(json.loads((self.data.parent / 'archive.json').read_text())[0]['id'], archived['id'])
 
     def test_verify_and_status_writes_sync_plan_group_verify(self):
         page, ops = self.root / 'sync.html', self.root / 'sync.json'
@@ -1874,6 +1899,7 @@ class ManageFindingsTests(unittest.TestCase):
 
     def test_introspect_records_complete_orchestration_coverage(self):
         document = self._path1_pre()
+        before = len(document['findings'])
         steps = [*check_introspect.performed_round_steps(document["tracking"]), "polling", "rework", "focused tests"]
         sections = {
             "delete": {"items": [{"item": steps[0], "evidence": "Fix diff recorded.", "outcome": "fixed inline"}]},
@@ -1886,12 +1912,13 @@ class ManageFindingsTests(unittest.TestCase):
                                                 "steps": steps, "none": none})
         self.assertEqual(result.returncode, 0, result.stderr)
         saved = json.loads(self.data.read_text())
-        task = next(item for item in saved["findings"] if item["id"] == "WF-01")
-        self.assertEqual(task["steps"], steps)
-        self.assertIn("Parallel group count: 1", task["steps"])
-        self.assertIn("Codex write: A", task["steps"])
-        self.assertIn("Codex review: A", task["steps"])
-        self.assertEqual(saved["tracking"]["introspect"]["none"], none)
+        record = saved["tracking"]["introspect_history"][-1]
+        self.assertEqual(len(saved['findings']), before)
+        self.assertEqual(record["steps"], steps)
+        self.assertIn("Parallel group count: 1", record["steps"])
+        self.assertIn("Codex write: A", record["steps"])
+        self.assertIn("Codex review: A", record["steps"])
+        self.assertEqual(record["none"], none)
 
     def test_merged_stage_uses_the_declared_report_transition(self):
         document = copy.deepcopy(self.document)

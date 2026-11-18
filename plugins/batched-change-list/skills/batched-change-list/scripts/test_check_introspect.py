@@ -38,6 +38,14 @@ class IntrospectCheckTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "lack section or none coverage"):
             check.validate_introspect(draft["sections"], draft["steps"], draft["none"], self.tracking())
 
+    def test_performed_steps_preserve_current_round_history(self):
+        tracking = self.tracking()
+        tracking["introspect_history"] = [{"cycle": 1, "round": 1,
+            "result": "recorded", "at": "2026-11-18T00:00:00Z", "steps": ["manual polling"],
+            "none": ["manual polling"], "sections": {name: {"none": "Reviewed."}
+                for name in ("delete", "simplify", "optimize", "automate")}}]
+        self.assertIn("manual polling", check.performed_round_steps(tracking))
+
     def test_out_of_order_sections_are_refused(self):
         payload = self.payload()
         payload["sections"] = {key: payload["sections"][key] for key in ("simplify", "delete", "optimize", "automate")}

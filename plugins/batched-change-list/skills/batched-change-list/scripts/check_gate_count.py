@@ -14,7 +14,7 @@ def gate_count(data):
     tracking = data.get("tracking", {})
     if not isinstance(tracking, dict):
         raise ValueError("tracker tracking must be an object")
-    return render.rollover_gate(data["findings"], tracking)
+    return render.rollover_gate_state(data["findings"], tracking)
 
 
 def rollover_gate_count(data):

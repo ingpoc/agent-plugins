@@ -133,6 +133,36 @@ def rollover_round(tracking):
     return round_number
 
 
+def introspect_record_for_round(tracking, cycle=None, round_number=None):
+    cycle = rollover_cycle(tracking) if cycle is None else cycle
+    round_number = rollover_round(tracking) if round_number is None else round_number
+    history = tracking.get("introspect_history", [])
+    if not isinstance(history, list) or any(not isinstance(record, dict) for record in history):
+        raise ValueError("tracking.introspect_history must be an array of records")
+    for record in history:
+        if any(value is not None and (type(value) is not int or value < 1)
+               for value in (record.get("cycle"), record.get("round"))):
+            raise ValueError("tracking.introspect_history cycle and round must be positive when known")
+    match = next((record for record in reversed(history)
+                  if record.get("attribution") != "unattributed"
+                  and record.get("cycle") == cycle and record.get("round") == round_number), None)
+    current = tracking.get("introspect")
+    match = match or (current if isinstance(current, dict) and current.get("attribution") != "unattributed"
+                      and current.get("cycle") == cycle
+                      and current.get("round") == round_number else None)
+    if match is not None and (
+            not isinstance(match.get("result"), str) or not match["result"].strip()
+            or not isinstance(match.get("at"), str) or not match["at"].strip()
+            or not isinstance(match.get("steps"), list)
+            or any(not isinstance(step, str) or not step.strip() for step in match["steps"])
+            or not isinstance(match.get("none"), list)
+            or any(not isinstance(step, str) or not step.strip() for step in match["none"])
+            or not isinstance(match.get("sections"), dict)
+            or list(match["sections"]) != ["delete", "simplify", "optimize", "automate"]):
+        raise ValueError("current-round Introspect record is incomplete")
+    return match
+
+
 def parse_instant(value):
     if not isinstance(value, str) or not value.strip():
         return None
@@ -537,6 +567,16 @@ def rollover_gate(findings, tracking):
     return fixed, threshold, fixed >= threshold or not has_open
 
 
+def rollover_gate_state(findings, tracking):
+    fixed, threshold, met = rollover_gate(findings, tracking)
+    reached = tracking.get("stages_reached", [])
+    if not isinstance(reached, list) or any(not isinstance(stage, str) for stage in reached):
+        raise ValueError("tracking.stages_reached must be a list of stage names")
+    if "install" in reached and introspect_record_for_round(tracking) is None:
+        met = False
+    return fixed, threshold, met
+
+
 def merge_gate(findings, tracking):
     fixed, _, _ = rollover_gate(findings, tracking)
     threshold = WF.MERGE_PREVIOUS_PR_THRESHOLD
@@ -641,6 +681,24 @@ def render_tracking(tracking, inventory_override=None):
     worktree = tracking.get("worktree")
     if worktree is not None:
         context.append(f'<span class="header-worktree">{html.escape(required_text(worktree, "tracking.worktree"))}</span>')
+    archive = tracking.get("archive")
+    if archive is not None:
+        if (not isinstance(archive, dict) or type(archive.get("count")) is not int
+                or archive["count"] < 0):
+            raise ValueError("tracking.archive requires a nonnegative count")
+        if archive["count"]:
+            path = html.escape(required_text(archive.get("path"), "tracking.archive.path"))
+            context.append(f'<span>{archive["count"]} archived findings in {path}</span>')
+    parked = tracking.get("parked")
+    if parked is not None:
+        if (not isinstance(parked, dict) or type(parked.get("count")) is not int
+                or parked["count"] < 0 or not isinstance(parked.get("needs"), list)
+                or any(not isinstance(value, str) or not value.strip() for value in parked["needs"])):
+            raise ValueError("tracking.parked requires a nonnegative count and needs array")
+        if parked["count"]:
+            path = html.escape(required_text(parked.get("path"), "tracking.parked.path"))
+            needs = html.escape(", ".join(dict.fromkeys(parked["needs"])))
+            context.append(f'<span>{parked["count"]} parked findings in {path}; needs: {needs}</span>')
     run = tracking.get("verification_run")
     build_card = ""
     if run is not None:
@@ -879,7 +937,7 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     if run is not None and set(run["checks"]) != seen:
         raise ValueError("verification run checks must match the tracked issue IDs")
     template = TEMPLATE.read_text(encoding="utf-8")
-    fixed_count, threshold, gate_met = rollover_gate(findings, tracking_data)
+    fixed_count, threshold, gate_met = rollover_gate_state(findings, tracking_data)
     rollover = tracking_data.get("rollover", {})
     excluded = rollover.get("excluded_ids", [])
     if not isinstance(excluded, list) or any(not isinstance(item, str) for item in excluded) or not set(excluded) <= seen:
@@ -895,7 +953,7 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
                   if time_html else '<span class="fresh">No update recorded</span>')
     timeline_steps = render_workflow(active, groups, fixed_count, threshold, gate_met, in_progress, round_number,
                                     tracking_data.get("stages_reached") or [], rollover_cycle(tracking_data),
-                                    tracking_data.get("introspect"))
+                                    introspect_record_for_round(tracking_data))
     plan_view = render_plan(data, tracking_data, plan, round_number, render_now)
     viewer_html = (f'<p class="viewer-footer">reading {html.escape(str(viewer["path"]))}, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}</p>' if viewer else '<p class="viewer-footer">Viewer version not recorded</p>')
     timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow · last recorded</strong>{fresh_html}</div>'

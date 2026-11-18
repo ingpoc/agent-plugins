@@ -115,7 +115,17 @@ class GateCountTests(unittest.TestCase):
 
     def test_uses_the_renderer_gate_definition(self):
         data = {"findings": [], "tracking": {}}
-        self.assertEqual(check.gate_count(data), render.rollover_gate(data["findings"], data["tracking"]))
+        self.assertEqual(check.gate_count(data), render.rollover_gate_state(data["findings"], data["tracking"]))
+
+    def test_gate_waits_for_current_round_introspect_history_after_install(self):
+        data = {"findings": [], "tracking": {"cycle": 2, "round": 3,
+            "stages_reached": ["install"]}}
+        self.assertEqual(check.gate_count(data), (0, 15, False))
+        data["tracking"]["introspect_history"] = [{"cycle": 2, "round": 3,
+            "result": "reviewed", "at": "2026-11-18T00:00:00Z", "steps": ["Verify"],
+            "none": ["Verify"], "sections": {name: {"none": "Reviewed."}
+                for name in ("delete", "simplify", "optimize", "automate")}}]
+        self.assertEqual(check.gate_count(data), (0, 15, True))
 
     def test_merge_gate_count_uses_the_merge_threshold(self):
         def data(count):
