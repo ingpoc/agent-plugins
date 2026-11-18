@@ -6642,9 +6642,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-18T08:07:47Z",
-      "now": "2026-11-18T08:07:47Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-18T08:28:59Z",
+      "now": "2026-11-18T08:28:59Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 114,
@@ -6803,8 +6803,8 @@
             "BCL-56"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl115-r3-g6",
           "reason": "Round 4: BCL-53 tests leaked viewers at Verify; BCL-56 adds the suite-wide leak guard in the same tests. BCL-50 and BCL-51 code is in place and re-verifies with the lane.",
           "codex": {
@@ -6832,13 +6832,15 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
             "method": "Full suite, strict shape and chart check on a clean clone and the installed copy, named tests on the installed copy, no leaked viewers.",
-            "status": "pending",
+            "status": "verified",
             "total": 4,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 4,
+            "failed": 0,
+            "summary": "Nine named tests passed on installed 0.1.41",
+            "failure": null
           },
-          "updated_at": "2026-11-18T08:04:42Z",
-          "verify_summary": "Review passed; pre-push suite next",
+          "updated_at": "2026-11-18T08:13:28Z",
+          "verify_summary": "Nine named tests passed on installed 0.1.41",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -6857,8 +6859,8 @@
             "BCL-55"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl115-r3-g7",
           "reason": "Round 4: BCL-55 changes the bin/bcl verify-failure and fix-job guards next to the BCL-54 review guard; BCL-54 code is in place and re-verifies with the lane. Separate files from VIEWER-STRIP except test_bcl.py additions.",
           "codex": {
@@ -6886,13 +6888,15 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.sh",
             "method": "Named tests on the installed copy, full suite on clean clone and installed copy, no leaked viewers.",
-            "status": "pending",
+            "status": "verified",
             "total": 2,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 2,
+            "failed": 0,
+            "summary": "Seven named tests passed on installed 0.1.41",
+            "failure": null
           },
-          "updated_at": "2026-11-18T08:04:42Z",
-          "verify_summary": "Review passed; waits for VIEWER-STRIP to share one build",
+          "updated_at": "2026-11-18T08:16:51Z",
+          "verify_summary": "Seven named tests passed on installed 0.1.41",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -6910,8 +6914,8 @@
             "BCL-52"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "samantha-pr115-rollover",
           "reason": "Round 4: fix already passed and committed in 09e1859d; failed Verify only on the VIEWER-STRIP leak, so it re-verifies on the next install.",
           "codex": {
@@ -6935,15 +6939,17 @@
             }
           },
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.sh",
-            "method": "Named tests on the installed copy plus three consecutive full scripts/check.py runs.",
-            "status": "pending",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7b.sh",
+            "method": "Named tests on the installed copy and a cleanup pid-exclusion check; three consecutive scripts/check.py runs passed in the first run (verify-g7.log).",
+            "status": "verified",
             "total": 1,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 1,
+            "failed": 0,
+            "failure": null,
+            "summary": "Named tests and three full checks passed"
           },
-          "updated_at": "2026-11-18T08:04:42Z",
-          "verify_summary": "Fix in place; waits for the next install",
+          "updated_at": "2026-11-18T08:27:54Z",
+          "verify_summary": "Named tests and three full checks passed",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -6954,7 +6960,8 @@
             "started_at": "2026-11-18T08:07:32Z"
           }
         }
-      ]
+      ],
+      "status": "closed"
     },
     "stages_reached": [
       "collect",
@@ -6962,7 +6969,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "verification_run": {
       "id": "bcl-0.1.41-6d49094a-115",
@@ -6973,95 +6981,246 @@
       "status": "active",
       "checks": {
         "BCL-38": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on installed 0.1.41 via the installed-copy full suites and live page",
+          "observed_at": "2026-11-18T08:28:14Z",
+          "started_at": "2026-11-18T08:28:14Z",
+          "updated_at": "2026-11-18T08:28:14Z",
+          "check_id": "3c61e0cfeefc4e54b348de8d44388ad3",
+          "evidence": "Checked: regression recheck on installed 0.1.41 (6d49094a), full skill suite on the installed copy three times 13:38-13:55 IST (verify-g6/g8/g7 logs) plus strict shape and statechart --check; Expected: this finding named tests and behaviour still pass; Observed: 324/324 tests passed each run, including this finding named tests, and the live 53779 page read correctly; Verdict because: fixed, no regression on this install.",
+          "finished_at": "2026-11-18T08:28:24.956130Z"
         },
         "BCL-39": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on installed 0.1.41 via the installed-copy full suites and live page",
+          "observed_at": "2026-11-18T08:28:14Z",
+          "started_at": "2026-11-18T08:28:14Z",
+          "updated_at": "2026-11-18T08:28:14Z",
+          "check_id": "fd7cb635cc3e40ddaec86ad44acfedc8",
+          "evidence": "Checked: regression recheck on installed 0.1.41 (6d49094a), full skill suite on the installed copy three times 13:38-13:55 IST (verify-g6/g8/g7 logs) plus strict shape and statechart --check; Expected: this finding named tests and behaviour still pass; Observed: 324/324 tests passed each run, including this finding named tests, and the live 53779 page read correctly; Verdict because: fixed, no regression on this install.",
+          "finished_at": "2026-11-18T08:28:24.956300Z"
         },
         "BCL-40": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on installed 0.1.41 via the installed-copy full suites and live page",
+          "observed_at": "2026-11-18T08:28:14Z",
+          "started_at": "2026-11-18T08:28:14Z",
+          "updated_at": "2026-11-18T08:28:14Z",
+          "check_id": "83f65d915d6849e191c1df5050767e7d",
+          "evidence": "Checked: regression recheck on installed 0.1.41 (6d49094a), full skill suite on the installed copy three times 13:38-13:55 IST (verify-g6/g8/g7 logs) plus strict shape and statechart --check; Expected: this finding named tests and behaviour still pass; Observed: 324/324 tests passed each run, including this finding named tests, and the live 53779 page read correctly; Verdict because: fixed, no regression on this install.",
+          "finished_at": "2026-11-18T08:28:24.956318Z"
         },
         "BCL-41": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on installed 0.1.41 via the installed-copy full suites and live page",
+          "observed_at": "2026-11-18T08:28:14Z",
+          "started_at": "2026-11-18T08:28:14Z",
+          "updated_at": "2026-11-18T08:28:14Z",
+          "check_id": "3f4476d5cab24d02bce6b3c84efadc77",
+          "evidence": "Checked: regression recheck on installed 0.1.41 (6d49094a), full skill suite on the installed copy three times 13:38-13:55 IST (verify-g6/g8/g7 logs) plus strict shape and statechart --check; Expected: this finding named tests and behaviour still pass; Observed: 324/324 tests passed each run, including this finding named tests, and the live 53779 page read correctly; Verdict because: fixed, no regression on this install.",
+          "finished_at": "2026-11-18T08:28:24.956332Z"
         },
         "BCL-42": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on installed 0.1.41 via the installed-copy full suites and live page",
+          "observed_at": "2026-11-18T08:28:14Z",
+          "started_at": "2026-11-18T08:28:14Z",
+          "updated_at": "2026-11-18T08:28:14Z",
+          "check_id": "a0ec99aebe6245f1ba8882e09ddc5de4",
+          "evidence": "Checked: regression recheck on installed 0.1.41 (6d49094a), full skill suite on the installed copy three times 13:38-13:55 IST (verify-g6/g8/g7 logs) plus strict shape and statechart --check; Expected: this finding named tests and behaviour still pass; Observed: 324/324 tests passed each run, including this finding named tests, and the live 53779 page read correctly; Verdict because: fixed, no regression on this install.",
+          "finished_at": "2026-11-18T08:28:24.956343Z"
         },
         "BCL-43": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on installed 0.1.41 via the installed-copy full suites and live page",
+          "observed_at": "2026-11-18T08:28:14Z",
+          "started_at": "2026-11-18T08:28:14Z",
+          "updated_at": "2026-11-18T08:28:14Z",
+          "check_id": "7426f8d941ef4527b2cab154e64688e6",
+          "evidence": "Checked: regression recheck on installed 0.1.41 (6d49094a), full skill suite on the installed copy three times 13:38-13:55 IST (verify-g6/g8/g7 logs) plus strict shape and statechart --check; Expected: this finding named tests and behaviour still pass; Observed: 324/324 tests passed each run, including this finding named tests, and the live 53779 page read correctly; Verdict because: fixed, no regression on this install.",
+          "finished_at": "2026-11-18T08:28:24.956353Z"
         },
         "BCL-44": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on installed 0.1.41 via the installed-copy full suites and live page",
+          "observed_at": "2026-11-18T08:28:14Z",
+          "started_at": "2026-11-18T08:28:14Z",
+          "updated_at": "2026-11-18T08:28:14Z",
+          "check_id": "ae79e28da02440ab8a81661af062293d",
+          "evidence": "Checked: regression recheck on installed 0.1.41 (6d49094a), full skill suite on the installed copy three times 13:38-13:55 IST (verify-g6/g8/g7 logs) plus strict shape and statechart --check; Expected: this finding named tests and behaviour still pass; Observed: 324/324 tests passed each run, including this finding named tests, and the live 53779 page read correctly; Verdict because: fixed, no regression on this install.",
+          "finished_at": "2026-11-18T08:28:24.956363Z"
         },
         "BCL-45": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on installed 0.1.41 via the installed-copy full suites and live page",
+          "observed_at": "2026-11-18T08:28:14Z",
+          "started_at": "2026-11-18T08:28:14Z",
+          "updated_at": "2026-11-18T08:28:14Z",
+          "check_id": "d6419753c0fa4b439a94ccca0a9c3054",
+          "evidence": "Checked: regression recheck on installed 0.1.41 (6d49094a), full skill suite on the installed copy three times 13:38-13:55 IST (verify-g6/g8/g7 logs) plus strict shape and statechart --check; Expected: this finding named tests and behaviour still pass; Observed: 324/324 tests passed each run, including this finding named tests, and the live 53779 page read correctly; Verdict because: fixed, no regression on this install.",
+          "finished_at": "2026-11-18T08:28:24.956373Z"
         },
         "BCL-46": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on installed 0.1.41 via the installed-copy full suites and live page",
+          "observed_at": "2026-11-18T08:28:14Z",
+          "started_at": "2026-11-18T08:28:14Z",
+          "updated_at": "2026-11-18T08:28:14Z",
+          "check_id": "92a75e366e68450694f3e2b43c434942",
+          "evidence": "Checked: regression recheck on installed 0.1.41 (6d49094a), full skill suite on the installed copy three times 13:38-13:55 IST (verify-g6/g8/g7 logs) plus strict shape and statechart --check; Expected: this finding named tests and behaviour still pass; Observed: 324/324 tests passed each run, including this finding named tests, and the live 53779 page read correctly; Verdict because: fixed, no regression on this install.",
+          "finished_at": "2026-11-18T08:28:24.956383Z"
         },
         "BCL-47": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on installed 0.1.41 via the installed-copy full suites and live page",
+          "observed_at": "2026-11-18T08:28:14Z",
+          "started_at": "2026-11-18T08:28:14Z",
+          "updated_at": "2026-11-18T08:28:14Z",
+          "check_id": "471951e9288f4170b9b9de03e7334170",
+          "evidence": "Checked: regression recheck on installed 0.1.41 (6d49094a), full skill suite on the installed copy three times 13:38-13:55 IST (verify-g6/g8/g7 logs) plus strict shape and statechart --check; Expected: this finding named tests and behaviour still pass; Observed: 324/324 tests passed each run, including this finding named tests, and the live 53779 page read correctly; Verdict because: fixed, no regression on this install.",
+          "finished_at": "2026-11-18T08:28:24.956392Z"
         },
         "BCL-48": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on installed 0.1.41 via the installed-copy full suites and live page",
+          "observed_at": "2026-11-18T08:28:14Z",
+          "started_at": "2026-11-18T08:28:14Z",
+          "updated_at": "2026-11-18T08:28:14Z",
+          "check_id": "4e9f300870cf4081a207d2d38cb4301e",
+          "evidence": "Checked: regression recheck on installed 0.1.41 (6d49094a), full skill suite on the installed copy three times 13:38-13:55 IST (verify-g6/g8/g7 logs) plus strict shape and statechart --check; Expected: this finding named tests and behaviour still pass; Observed: 324/324 tests passed each run, including this finding named tests, and the live 53779 page read correctly; Verdict because: fixed, no regression on this install.",
+          "finished_at": "2026-11-18T08:28:24.956402Z"
         },
         "BCL-49": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on installed 0.1.41 via the installed-copy full suites and live page",
+          "observed_at": "2026-11-18T08:28:14Z",
+          "started_at": "2026-11-18T08:28:14Z",
+          "updated_at": "2026-11-18T08:28:14Z",
+          "check_id": "42202b978c704b29974d1eea5431f6d8",
+          "evidence": "Checked: regression recheck on installed 0.1.41 (6d49094a), full skill suite on the installed copy three times 13:38-13:55 IST (verify-g6/g8/g7 logs) plus strict shape and statechart --check; Expected: this finding named tests and behaviour still pass; Observed: 324/324 tests passed each run, including this finding named tests, and the live 53779 page read correctly; Verdict because: fixed, no regression on this install.",
+          "finished_at": "2026-11-18T08:28:24.956411Z"
         },
         "BCL-50": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Running /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh on installed 0.1.41 for named tests test_two_concurrent_jobs_both_finish, test_passed_fix_job_is_not_shown_planned, test_heartbeat_write_conflict_keeps_child_running, test_final_write_failure_reports_child_exit_code",
+          "observed_at": "2026-11-18T08:13:28Z",
+          "started_at": "2026-11-18T08:13:28Z",
+          "updated_at": "2026-11-18T08:13:28Z",
+          "check_id": "86eca2e14f8a48bf99ec864ef7f44d30",
+          "evidence": "Checked: verify-g6.sh on installed 0.1.41 (6d49094a) 13:38-13:42 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; plus live bcl job runs on the real #115 tracker today (Luna fu2/fu3/fu5, two concurrent fix jobs 12:44-12:53 IST, Terra review jobs, two pre-push suites); Expected: lane jobs heartbeat the tracker, a heartbeat conflict never kills the child, both concurrent jobs record their exits, and the page never shows Stale while a lane runs; Observed: named tests pass on the installed copy; on the live tracker two concurrent fix jobs (VIEWER-STRIP pid 82780, VERIFY-LOOP pid 83671) both heartbeated and recorded exit 0; the 53779 page at 13:43 IST had the Stale tag hidden with Updated 1 min ago and lanes in Install, matching reality Named tests: test_two_concurrent_jobs_both_finish, test_passed_fix_job_is_not_shown_planned, test_heartbeat_write_conflict_keeps_child_running, test_final_write_failure_reports_child_exit_code. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.log.; Verdict because: fixed: live jobs keep the page current and concurrent heartbeats no longer kill work. Installed bcl 0.1.41 at 6d49094a via bcl install-local (plugin 57 files sha256 139381bb5f6e8c507d7b88739e265ae85641b27d9c99426ca1239717f9f1ece2, skill 50 files sha256 0b9f0c4da4e4aa8592548d318f18f80158af96b4f86f4224086f31c7673a995f).",
+          "finished_at": "2026-11-18T08:13:28.141341Z"
         },
         "BCL-51": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Running /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh on installed 0.1.41 for named tests test_review_sublabel_is_separated_in_rendered_text, test_workflow_strip_stays_one_row_and_renders_definition_order_once",
+          "observed_at": "2026-11-18T08:13:28Z",
+          "started_at": "2026-11-18T08:13:28Z",
+          "updated_at": "2026-11-18T08:13:28Z",
+          "check_id": "3db97c440aa443bc8f1a8428fca0c26d",
+          "evidence": "Checked: verify-g6.sh on installed 0.1.41 (6d49094a) 13:38-13:42 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; plus the live 53779 page served by the restarted 0.1.41 viewer; Expected: Review sits between Plan & fix and Install with its Pre-push suite sublabel as separate text, in definition order, one row; Observed: live strip text reads Collect | Present | Plan & fix | Review · Pre-push suite | Install | Verify | Introspect | Fixes 12/15 Named tests: test_review_sublabel_is_separated_in_rendered_text, test_workflow_strip_stays_one_row_and_renders_definition_order_once. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.log.; Verdict because: fixed: the Review stage shows everywhere the definition is read. Installed bcl 0.1.41 at 6d49094a via bcl install-local (plugin 57 files sha256 139381bb5f6e8c507d7b88739e265ae85641b27d9c99426ca1239717f9f1ece2, skill 50 files sha256 0b9f0c4da4e4aa8592548d318f18f80158af96b4f86f4224086f31c7673a995f).",
+          "finished_at": "2026-11-18T08:13:28.141548Z"
         },
         "BCL-52": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Running /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7b.sh on installed 0.1.41 for named tests test_suite_leaves_no_viewer_processes, test_install_local_refreshes_only_the_requested_temp_destinations, test_viewer_avoids_default_port_reserved_by_another_list",
+          "observed_at": "2026-11-18T08:27:54Z",
+          "started_at": "2026-11-18T08:27:54Z",
+          "updated_at": "2026-11-18T08:27:54Z",
+          "check_id": "23cfe4bc8892478cae3b55d82aacc197",
+          "evidence": "Checked: verify-g7.sh on installed 0.1.41 13:46-13:55 IST (clean-clone and installed suites 324/324, named tests, three consecutive scripts/check.py runs) and verify-g7b.sh at 13:58 IST; Expected: test_bcl.py passes repeatedly under the full repo check and its viewer cleanup has no hardcoded pid exclusions; Observed: scripts/check.py passed 3 of 3 consecutive runs with test_bcl.py included; named tests pass on the installed copy; the cleanup no longer subtracts fixed pids (the first run stopped only because its grep matched mocked fixture pids 87005/28743, a verifier defect) Named tests: test_suite_leaves_no_viewer_processes, test_install_local_refreshes_only_the_requested_temp_destinations, test_viewer_avoids_default_port_reserved_by_another_list. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.log and verify-g7b.log.; Verdict because: fixed: test_bcl.py is deterministic under the full check. Installed bcl 0.1.41 at 6d49094a via bcl install-local (plugin 57 files sha256 139381bb5f6e8c507d7b88739e265ae85641b27d9c99426ca1239717f9f1ece2, skill 50 files sha256 0b9f0c4da4e4aa8592548d318f18f80158af96b4f86f4224086f31c7673a995f).",
+          "finished_at": "2026-11-18T08:27:54.565460Z"
         },
         "BCL-53": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Running /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh on installed 0.1.41 for named tests test_same_version_reinstall_restarts_viewer, test_unchanged_script_tree_reuses_viewer",
+          "observed_at": "2026-11-18T08:13:28Z",
+          "started_at": "2026-11-18T08:13:28Z",
+          "updated_at": "2026-11-18T08:13:28Z",
+          "check_id": "4ac482bc092249d29aab5a25248d8552",
+          "evidence": "Checked: verify-g6.sh on installed 0.1.41 (6d49094a) 13:38-13:42 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; plus the live viewer pid across install-local; Expected: a changed installed script tree restarts the viewer even at the same version, an unchanged tree reuses it, and the tests leak no viewers; Observed: both tests pass on the installed copy without leaks; the live 53779 viewer moved from pid 56840 to 81189 on the first bcl write after the 0.1.41 install Named tests: test_same_version_reinstall_restarts_viewer, test_unchanged_script_tree_reuses_viewer. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.log.; Verdict because: fixed: viewer identity follows installed code and its tests are clean. Installed bcl 0.1.41 at 6d49094a via bcl install-local (plugin 57 files sha256 139381bb5f6e8c507d7b88739e265ae85641b27d9c99426ca1239717f9f1ece2, skill 50 files sha256 0b9f0c4da4e4aa8592548d318f18f80158af96b4f86f4224086f31c7673a995f).",
+          "finished_at": "2026-11-18T08:13:28.141635Z"
         },
         "BCL-54": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Running /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.sh on installed 0.1.41 for named tests test_review_starts_without_reviewer_session, test_install_still_requires_reviewer_session, test_fix_then_presuite_then_review_succeeds",
+          "observed_at": "2026-11-18T08:16:51Z",
+          "started_at": "2026-11-18T08:16:51Z",
+          "updated_at": "2026-11-18T08:16:51Z",
+          "check_id": "5d3e91e71ecd475387118b67dde1c121",
+          "evidence": "Checked: verify-g8.sh on installed 0.1.41 (6d49094a) 13:42-13:46 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; plus live bcl review and bcl job --phase review on the real #115 tracker at 12:58 and 13:00 IST (installed 0.1.40, same code); Expected: bcl review and a review job start with only the implementer session and a passed fix; install still needs the reviewer session; Observed: named tests pass on the installed copy; live, bcl review started both lanes and bcl job launched Terra (pids 7579, 9272) with no reviewer session recorded; sessions were recorded afterwards and install at 13:38 IST passed the session check Named tests: test_review_starts_without_reviewer_session, test_install_still_requires_reviewer_session, test_fix_then_presuite_then_review_succeeds. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.log.; Verdict because: fixed: Review can begin through bcl and install keeps the session gate. Installed bcl 0.1.41 at 6d49094a via bcl install-local (plugin 57 files sha256 139381bb5f6e8c507d7b88739e265ae85641b27d9c99426ca1239717f9f1ece2, skill 50 files sha256 0b9f0c4da4e4aa8592548d318f18f80158af96b4f86f4224086f31c7673a995f).",
+          "finished_at": "2026-11-18T08:16:51.471038Z"
         },
         "BCL-55": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Running /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.sh on installed 0.1.41 for named tests test_failed_lane_verify_keeps_findings_in_progress, test_fix_job_restarts_failed_lane, test_fix_job_still_refuses_blocked_lane, test_fix_job_does_not_run_command_without_current_introspect",
+          "observed_at": "2026-11-18T08:16:51Z",
+          "started_at": "2026-11-18T08:16:51Z",
+          "updated_at": "2026-11-18T08:16:51Z",
+          "check_id": "a8e9cb50b764486da4bc579b5757f419",
+          "evidence": "Checked: verify-g8.sh on installed 0.1.41 (6d49094a) 13:42-13:46 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; Expected: a failed lane verify keeps findings in progress with an inconclusive check, a fix job can restart a failed lane, blocked lanes stay refused, and no command runs before the plan_fix Introspect check; Observed: all four named tests pass on the installed copy, including real bcl job subprocesses against temp trackers Named tests: test_failed_lane_verify_keeps_findings_in_progress, test_fix_job_restarts_failed_lane, test_fix_job_still_refuses_blocked_lane, test_fix_job_does_not_run_command_without_current_introspect. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.log.; Verdict because: fixed: a failed Verify loops back to a fix without hand edits. Installed bcl 0.1.41 at 6d49094a via bcl install-local (plugin 57 files sha256 139381bb5f6e8c507d7b88739e265ae85641b27d9c99426ca1239717f9f1ece2, skill 50 files sha256 0b9f0c4da4e4aa8592548d318f18f80158af96b4f86f4224086f31c7673a995f).",
+          "finished_at": "2026-11-18T08:16:51.471259Z"
         },
         "BCL-56": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Running /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh on installed 0.1.41 for named tests test_leaked_viewer_fails_the_suite",
+          "observed_at": "2026-11-18T08:13:28Z",
+          "started_at": "2026-11-18T08:13:28Z",
+          "updated_at": "2026-11-18T08:13:28Z",
+          "check_id": "d56ba3410d0643cdaf6eab59c4ea6bbf",
+          "evidence": "Checked: verify-g6.sh on installed 0.1.41 (6d49094a) 13:38-13:42 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; Expected: a test that leaves a serve.py viewer under its temp root fails the suite, and a non-python decoy is ignored; Observed: the named isolated-subprocess test passes on the installed copy; full skill suite runs left 0 viewers under their TMPDIR (13:35 IST check and both verify runs) Named tests: test_leaked_viewer_fails_the_suite. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.log.; Verdict because: fixed for unittest discovery runs; scripts/check.py per-file processes are a separate gap logged as a new finding. Installed bcl 0.1.41 at 6d49094a via bcl install-local (plugin 57 files sha256 139381bb5f6e8c507d7b88739e265ae85641b27d9c99426ca1239717f9f1ece2, skill 50 files sha256 0b9f0c4da4e4aa8592548d318f18f80158af96b4f86f4224086f31c7673a995f).",
+          "finished_at": "2026-11-18T08:13:28.141697Z"
         },
         "BCL-57": {
+          "state": "blocked",
+          "observation": "Rechecking on installed 0.1.41 via the installed-copy full suites and live page",
+          "observed_at": "2026-11-18T08:28:14Z",
+          "started_at": "2026-11-18T08:28:14Z",
+          "updated_at": "2026-11-18T08:28:14Z",
+          "check_id": "af3bbdc9eff04a41bf58df98310b4f45",
+          "evidence": "Checked: whether 0.1.41 contains a BCL-57 fix; Expected: none, it was found mid-round; Observed: no code for it in 6d49094a; Verdict because: blocked until the next round, collected there.",
+          "finished_at": "2026-11-18T08:28:24.956421Z"
+        },
+        "BCL-58": {
           "state": "pending"
         }
       }
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-18T07:12:55Z",
+      "at": "2026-11-18T08:28:59Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 2",
+        "Parallel group count: 3",
         "Codex write: VIEWER-STRIP",
         "Codex review: VIEWER-STRIP",
         "Polling and rework review: VIEWER-STRIP",
         "Test command: VIEWER-STRIP: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
+        "Codex write: VERIFY-LOOP",
+        "Codex review: VERIFY-LOOP",
+        "Polling and rework review: VERIFY-LOOP",
+        "Test command: VERIFY-LOOP: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.sh",
         "Codex write: FLAKY-CHECK",
         "One-file review exemption: FLAKY-CHECK",
         "Polling and rework review: FLAKY-CHECK",
-        "Test command: FLAKY-CHECK: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.sh",
-        "Orchestration: worker interrupted about every 50 minutes",
-        "Cleanup: killing leaked test viewers by hand"
+        "Test command: FLAKY-CHECK: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7b.sh",
+        "Orchestration: worker and tool-call interruptions (12:20, 13:10 IST)",
+        "Process matching: serve.py substring kills"
       ],
       "none": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 2",
+        "Parallel group count: 3",
         "Codex write: VIEWER-STRIP",
-        "Codex review: VIEWER-STRIP",
+        "Test command: VIEWER-STRIP: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
+        "Codex write: VERIFY-LOOP",
+        "Codex review: VERIFY-LOOP",
+        "Polling and rework review: VERIFY-LOOP",
+        "Test command: VERIFY-LOOP: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.sh",
         "Codex write: FLAKY-CHECK",
         "One-file review exemption: FLAKY-CHECK",
         "Polling and rework review: FLAKY-CHECK"
@@ -7070,8 +7229,8 @@
         "delete": {
           "items": [
             {
-              "item": "Polling and rework review: VIEWER-STRIP",
-              "evidence": "The interim heartbeat.py loop and hand-written lane writes are gone: Luna fu2 (12:13-12:21 IST) and the pre-push suite (12:24-12:27 IST) ran under bcl job, which heartbeated the tracker and wrote each exit, so the page stayed live without a separate script.",
+              "item": "Test command: FLAKY-CHECK: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7b.sh",
+              "evidence": "The first BCL-52 verify (13:46-13:55 IST) re-ran two full suites and three repo checks, then failed on a grep that matched mocked fixture pids. The recheck verify-g7b.sh dropped the duplicate suites (already proven by the g6/g8 runs on the same install) and checked only the cleanup line: 4 seconds instead of 9 minutes.",
               "outcome": "fixed inline"
             }
           ]
@@ -7079,18 +7238,18 @@
         "simplify": {
           "items": [
             {
-              "item": "Test command: VIEWER-STRIP: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
-              "evidence": "One leak from two BCL-53 tests failed the whole lane at 12:37 IST; bcl set four findings whose tests passed to Blocked and refused the fix job, so statuses had to be hand-reset.",
+              "item": "Codex review: VIEWER-STRIP",
+              "evidence": "Both review jobs exited 0 with VERDICT: CHANGES at 13:02 IST and bcl recorded review passed; the orchestrator had to read each verdict and correct the lane by hand.",
               "outcome": "issue",
-              "issue_id": "BCL-55"
+              "issue_id": "BCL-57"
             }
           ]
         },
         "optimize": {
           "items": [
             {
-              "item": "Orchestration: worker interrupted about every 50 minutes",
-              "evidence": "Every long step now runs detached (nohup) under bcl job or a launch script with its log and pid in r3, and the tracker records each job; this worker resumed at 12:20 IST from the tracker and artifacts without starting a duplicate Codex job or suite.",
+              "item": "Orchestration: worker and tool-call interruptions (12:20, 13:10 IST)",
+              "evidence": "Every Codex job and suite ran detached under bcl job with logs in r3, and progress.md was written at 13:12, 13:39, 13:48 and 14:01 IST; after the 13:10 interruption this worker resumed with one relaunch of a wrapper that died with the aborted call and no duplicate Codex job.",
               "outcome": "fixed inline"
             }
           ]
@@ -7098,20 +7257,20 @@
         "automate": {
           "items": [
             {
-              "item": "Test command: FLAKY-CHECK: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.sh",
-              "evidence": "The pre-push suite at 12:24 IST passed while two tests leaked viewers; only the verifier leak check caught it after install. A suite-wide guard replaces the verifier check, so it removes as much as it adds.",
+              "item": "Polling and rework review: VIEWER-STRIP",
+              "evidence": "After the 0.1.41 pre-push check, 4 temp viewers were left because scripts/check.py runs each test file in its own process and the leak guard only runs at the end of a discovery run; killtest.py had to clean them.",
               "outcome": "issue",
-              "issue_id": "BCL-56"
+              "issue_id": "BCL-58"
             },
             {
-              "item": "Cleanup: killing leaked test viewers by hand",
-              "evidence": "An ad hoc ps-grep-kill matched its own shell command line and killed the shell at 12:39 IST; r3/killtest.py now kills only serve.py processes whose page lives under a temp dir, until BCL-56 makes the suite fail on leaks.",
+              "item": "Process matching: serve.py substring kills",
+              "evidence": "At 13:07 IST Luna killed its own Codex run by matching serve.py as a substring (its brief mentions serve.py); the orchestrator did the same to its shell at 12:39. The guard and r3/killtest.py now match only a python process whose script argument is serve.py with a temp-root page; one matcher replaces ad hoc ps-grep-kill lines.",
               "outcome": "fixed inline"
             }
           ]
         }
       },
-      "round": 3,
+      "round": 4,
       "cycle": 7
     },
     "introspect_history": [
@@ -8398,6 +8557,94 @@
         },
         "round": 3,
         "cycle": 7
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-18T08:28:59Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 3",
+          "Codex write: VIEWER-STRIP",
+          "Codex review: VIEWER-STRIP",
+          "Polling and rework review: VIEWER-STRIP",
+          "Test command: VIEWER-STRIP: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
+          "Codex write: VERIFY-LOOP",
+          "Codex review: VERIFY-LOOP",
+          "Polling and rework review: VERIFY-LOOP",
+          "Test command: VERIFY-LOOP: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.sh",
+          "Codex write: FLAKY-CHECK",
+          "One-file review exemption: FLAKY-CHECK",
+          "Polling and rework review: FLAKY-CHECK",
+          "Test command: FLAKY-CHECK: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7b.sh",
+          "Orchestration: worker and tool-call interruptions (12:20, 13:10 IST)",
+          "Process matching: serve.py substring kills"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 3",
+          "Codex write: VIEWER-STRIP",
+          "Test command: VIEWER-STRIP: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
+          "Codex write: VERIFY-LOOP",
+          "Codex review: VERIFY-LOOP",
+          "Polling and rework review: VERIFY-LOOP",
+          "Test command: VERIFY-LOOP: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.sh",
+          "Codex write: FLAKY-CHECK",
+          "One-file review exemption: FLAKY-CHECK",
+          "Polling and rework review: FLAKY-CHECK"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Test command: FLAKY-CHECK: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7b.sh",
+                "evidence": "The first BCL-52 verify (13:46-13:55 IST) re-ran two full suites and three repo checks, then failed on a grep that matched mocked fixture pids. The recheck verify-g7b.sh dropped the duplicate suites (already proven by the g6/g8 runs on the same install) and checked only the cleanup line: 4 seconds instead of 9 minutes.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Codex review: VIEWER-STRIP",
+                "evidence": "Both review jobs exited 0 with VERDICT: CHANGES at 13:02 IST and bcl recorded review passed; the orchestrator had to read each verdict and correct the lane by hand.",
+                "outcome": "issue",
+                "issue_id": "BCL-57"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Orchestration: worker and tool-call interruptions (12:20, 13:10 IST)",
+                "evidence": "Every Codex job and suite ran detached under bcl job with logs in r3, and progress.md was written at 13:12, 13:39, 13:48 and 14:01 IST; after the 13:10 interruption this worker resumed with one relaunch of a wrapper that died with the aborted call and no duplicate Codex job.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Polling and rework review: VIEWER-STRIP",
+                "evidence": "After the 0.1.41 pre-push check, 4 temp viewers were left because scripts/check.py runs each test file in its own process and the leak guard only runs at the end of a discovery run; killtest.py had to clean them.",
+                "outcome": "issue",
+                "issue_id": "BCL-58"
+              },
+              {
+                "item": "Process matching: serve.py substring kills",
+                "evidence": "At 13:07 IST Luna killed its own Codex run by matching serve.py as a substring (its brief mentions serve.py); the orchestrator did the same to its shell at 12:39. The guard and r3/killtest.py now match only a python process whose script argument is serve.py with a temp-root page; one matcher replaces ad hoc ps-grep-kill lines.",
+                "outcome": "fixed inline"
+              }
+            ]
+          }
+        },
+        "round": 4,
+        "cycle": 7
       }
     ],
     "archive": {
@@ -8766,7 +9013,7 @@
       "id": "BCL-50",
       "title": "The page shows Stale while a round is still running",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "During round 2 the #115 page showed Stale while Codex lanes were running, because nothing writes the tracker between lane transitions, so the 10-minute no-update rule fires during long Codex jobs.",
       "impact": "The owner sees Stale and the wrong lane phase (TRACKER-LEAN still Fixing after its follow-up finished) and cannot tell whether work is happening.",
@@ -8784,80 +9031,197 @@
           "session": "bcl-0.1.39-aff3cdd9-115",
           "timestamp": "2026-11-18T06:28:15Z",
           "reference": "aff3cdd9:BCL-50:live-jobs"
+        },
+        {
+          "checked": "verify-g6.sh on installed 0.1.41 (6d49094a) 13:38-13:42 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; plus live bcl job runs on the real #115 tracker today (Luna fu2/fu3/fu5, two concurrent fix jobs 12:44-12:53 IST, Terra review jobs, two pre-push suites)",
+          "expected": "lane jobs heartbeat the tracker, a heartbeat conflict never kills the child, both concurrent jobs record their exits, and the page never shows Stale while a lane runs",
+          "observed": "named tests pass on the installed copy; on the live tracker two concurrent fix jobs (VIEWER-STRIP pid 82780, VERIFY-LOOP pid 83671) both heartbeated and recorded exit 0; the 53779 page at 13:43 IST had the Stale tag hidden with Updated 1 min ago and lanes in Install, matching reality Named tests: test_two_concurrent_jobs_both_finish, test_passed_fix_job_is_not_shown_planned, test_heartbeat_write_conflict_keeps_child_running, test_final_write_failure_reports_child_exit_code. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.log.",
+          "verdict": "fixed: live jobs keep the page current and concurrent heartbeats no longer kill work",
+          "check_id": "bcl-50-0.1.41-6d49094a",
+          "build": "batched-change-list 0.1.41",
+          "session": "bcl-0.1.41-6d49094a-115",
+          "timestamp": "2026-11-18T08:13:28Z",
+          "reference": "6d49094ab7413de7e2c00500e76728af6761af7f:BCL-50:installed-named-tests"
         }
+      ],
+      "verification": "Checked: verify-g6.sh on installed 0.1.41 (6d49094a) 13:38-13:42 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; plus live bcl job runs on the real #115 tracker today (Luna fu2/fu3/fu5, two concurrent fix jobs 12:44-12:53 IST, Terra review jobs, two pre-push suites); Expected: lane jobs heartbeat the tracker, a heartbeat conflict never kills the child, both concurrent jobs record their exits, and the page never shows Stale while a lane runs; Observed: named tests pass on the installed copy; on the live tracker two concurrent fix jobs (VIEWER-STRIP pid 82780, VERIFY-LOOP pid 83671) both heartbeated and recorded exit 0; the 53779 page at 13:43 IST had the Stale tag hidden with Updated 1 min ago and lanes in Install, matching reality Named tests: test_two_concurrent_jobs_both_finish, test_passed_fix_job_is_not_shown_planned, test_heartbeat_write_conflict_keeps_child_running, test_final_write_failure_reports_child_exit_code. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.log.; Verdict because: fixed: live jobs keep the page current and concurrent heartbeats no longer kill work. Installed bcl 0.1.41 at 6d49094a via bcl install-local (plugin 57 files sha256 139381bb5f6e8c507d7b88739e265ae85641b27d9c99426ca1239717f9f1ece2, skill 50 files sha256 0b9f0c4da4e4aa8592548d318f18f80158af96b4f86f4224086f31c7673a995f).",
+      "verification_refs": [
+        "6d49094ab7413de7e2c00500e76728af6761af7f:BCL-50:installed-named-tests"
       ]
     },
     {
       "id": "BCL-51",
       "title": "The workflow has no Review stage between Plan & fix and Install",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "Lane dots already show Fix, Review, Install, Verify, but the workflow definition, top strip, chart, router table and CLI go straight from Plan & fix to Install, so the Terra review and the pre-push suite have no stage of their own.",
       "impact": "The page cannot say a group is in review or running its pre-push suite, so labels jump ahead to Installing (see BCL-50).",
       "done_when": "workflow_definition.json has a review step (plan_fix, review, install) covering the work-done review (skipped for one-file fixes) and the pre-push suite; the page strip, statechart.html (Current/After, hash), SKILL.md router and bcl CLI all read it from the definition; strict skill-refine passes; named tests prove it on the installed copy.",
       "observed": "Guru approved adding the Review stage at 09:49 IST on 18 Nov 2026 after the #115 page showed all lanes Installing during the pre-push suite.",
-      "recommendation": "Add the step to the definition and derive every view from it; move review text out of plan-fix.md rather than duplicating it."
+      "recommendation": "Add the step to the definition and derive every view from it; move review text out of plan-fix.md rather than duplicating it.",
+      "verification_evidence": [
+        {
+          "checked": "verify-g6.sh on installed 0.1.41 (6d49094a) 13:38-13:42 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; plus the live 53779 page served by the restarted 0.1.41 viewer",
+          "expected": "Review sits between Plan & fix and Install with its Pre-push suite sublabel as separate text, in definition order, one row",
+          "observed": "live strip text reads Collect | Present | Plan & fix | Review · Pre-push suite | Install | Verify | Introspect | Fixes 12/15 Named tests: test_review_sublabel_is_separated_in_rendered_text, test_workflow_strip_stays_one_row_and_renders_definition_order_once. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.log.",
+          "verdict": "fixed: the Review stage shows everywhere the definition is read",
+          "check_id": "bcl-51-0.1.41-6d49094a",
+          "build": "batched-change-list 0.1.41",
+          "session": "bcl-0.1.41-6d49094a-115",
+          "timestamp": "2026-11-18T08:13:28Z",
+          "reference": "6d49094ab7413de7e2c00500e76728af6761af7f:BCL-51:installed-named-tests"
+        }
+      ],
+      "verification": "Checked: verify-g6.sh on installed 0.1.41 (6d49094a) 13:38-13:42 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; plus the live 53779 page served by the restarted 0.1.41 viewer; Expected: Review sits between Plan & fix and Install with its Pre-push suite sublabel as separate text, in definition order, one row; Observed: live strip text reads Collect | Present | Plan & fix | Review · Pre-push suite | Install | Verify | Introspect | Fixes 12/15 Named tests: test_review_sublabel_is_separated_in_rendered_text, test_workflow_strip_stays_one_row_and_renders_definition_order_once. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.log.; Verdict because: fixed: the Review stage shows everywhere the definition is read. Installed bcl 0.1.41 at 6d49094a via bcl install-local (plugin 57 files sha256 139381bb5f6e8c507d7b88739e265ae85641b27d9c99426ca1239717f9f1ece2, skill 50 files sha256 0b9f0c4da4e4aa8592548d318f18f80158af96b4f86f4224086f31c7673a995f).",
+      "verification_refs": [
+        "6d49094ab7413de7e2c00500e76728af6761af7f:BCL-51:installed-named-tests"
+      ]
     },
     {
       "id": "BCL-52",
       "title": "test_bcl.py fails intermittently under the full repo check and hardcodes two process ids",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "During the round-2 pre-push run, scripts/check.py failed test_bcl.py with AssertionError 0 != 5 while 146 test processes ran 10 at a time; the same file passed alone and in the next two check runs. Its viewer cleanup also skips the literal pids 87005 and 28743.",
       "impact": "A flaky suite can block a push or hide a real regression, and literal pids can skip a real leaked viewer on another run.",
       "done_when": "The failing assertion is identified and made deterministic under parallel load, the literal pid set is removed, and a named test plus three consecutive full scripts/check.py runs pass.",
       "observed": "18 Nov 2026 10:05-10:08 IST: /Users/gurusharan/.agents/artifacts/bcl-115/r2/fullsuite2.log shows check.py failed: test_bcl.py (exit 1) with AssertionError: 0 != 5 while the in-process suite passed 292 tests; the next check.py --changed-since 383f8995 run and the next full check.py run both passed. scripts/test_bcl.py:127 reads for pid in pids - {87005, 28743}.",
-      "recommendation": "Capture the failing test name with a full log, fix its timing or shared-state dependency, and drop the literal pids."
+      "recommendation": "Capture the failing test name with a full log, fix its timing or shared-state dependency, and drop the literal pids.",
+      "verification_evidence": [
+        {
+          "checked": "verify-g7.sh on installed 0.1.41 13:46-13:55 IST (clean-clone and installed suites 324/324, named tests, three consecutive scripts/check.py runs) and verify-g7b.sh at 13:58 IST",
+          "expected": "test_bcl.py passes repeatedly under the full repo check and its viewer cleanup has no hardcoded pid exclusions",
+          "observed": "scripts/check.py passed 3 of 3 consecutive runs with test_bcl.py included; named tests pass on the installed copy; the cleanup no longer subtracts fixed pids (the first run stopped only because its grep matched mocked fixture pids 87005/28743, a verifier defect) Named tests: test_suite_leaves_no_viewer_processes, test_install_local_refreshes_only_the_requested_temp_destinations, test_viewer_avoids_default_port_reserved_by_another_list. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.log and verify-g7b.log.",
+          "verdict": "fixed: test_bcl.py is deterministic under the full check",
+          "check_id": "bcl-52-0.1.41-6d49094a",
+          "build": "batched-change-list 0.1.41",
+          "session": "bcl-0.1.41-6d49094a-115",
+          "timestamp": "2026-11-18T08:27:54Z",
+          "reference": "6d49094ab7413de7e2c00500e76728af6761af7f:BCL-52:installed-named-tests"
+        }
+      ],
+      "verification": "Checked: verify-g7.sh on installed 0.1.41 13:46-13:55 IST (clean-clone and installed suites 324/324, named tests, three consecutive scripts/check.py runs) and verify-g7b.sh at 13:58 IST; Expected: test_bcl.py passes repeatedly under the full repo check and its viewer cleanup has no hardcoded pid exclusions; Observed: scripts/check.py passed 3 of 3 consecutive runs with test_bcl.py included; named tests pass on the installed copy; the cleanup no longer subtracts fixed pids (the first run stopped only because its grep matched mocked fixture pids 87005/28743, a verifier defect) Named tests: test_suite_leaves_no_viewer_processes, test_install_local_refreshes_only_the_requested_temp_destinations, test_viewer_avoids_default_port_reserved_by_another_list. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.log and verify-g7b.log.; Verdict because: fixed: test_bcl.py is deterministic under the full check. Installed bcl 0.1.41 at 6d49094a via bcl install-local (plugin 57 files sha256 139381bb5f6e8c507d7b88739e265ae85641b27d9c99426ca1239717f9f1ece2, skill 50 files sha256 0b9f0c4da4e4aa8592548d318f18f80158af96b4f86f4224086f31c7673a995f).",
+      "verification_refs": [
+        "6d49094ab7413de7e2c00500e76728af6761af7f:BCL-52:installed-named-tests"
+      ]
     },
     {
       "id": "BCL-53",
       "title": "A reinstall with the same version leaves the viewer serving the old code",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "After the second 0.1.39 install the running viewer kept rendering with the first 0.1.39 build, so the page lacked the new Review step until the viewer was restarted by hand.",
       "impact": "The page can show an old layout or old rules after an install, which makes Verify on the live page unreliable.",
       "done_when": "The viewer identity includes the installed tree hash or revision, so bcl restarts the viewer after any reinstall, proven by a named test and a live reinstall.",
       "observed": "18 Nov 2026: viewer pid 94418 started 10:17 IST from the first 0.1.39 build kept serving a strip without Review after the 11:25 IST install of aff3cdd9; the rendered pr-115.html file had Review. A SIGTERM plus live_state.ensure_viewer at 11:37 IST started pid 84170 with the new code on port 53779.",
-      "recommendation": "Compare the install tree digest that install-local already computes with the one recorded for the running viewer."
+      "recommendation": "Compare the install tree digest that install-local already computes with the one recorded for the running viewer.",
+      "verification_evidence": [
+        {
+          "checked": "verify-g6.sh on installed 0.1.41 (6d49094a) 13:38-13:42 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; plus the live viewer pid across install-local",
+          "expected": "a changed installed script tree restarts the viewer even at the same version, an unchanged tree reuses it, and the tests leak no viewers",
+          "observed": "both tests pass on the installed copy without leaks; the live 53779 viewer moved from pid 56840 to 81189 on the first bcl write after the 0.1.41 install Named tests: test_same_version_reinstall_restarts_viewer, test_unchanged_script_tree_reuses_viewer. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.log.",
+          "verdict": "fixed: viewer identity follows installed code and its tests are clean",
+          "check_id": "bcl-53-0.1.41-6d49094a",
+          "build": "batched-change-list 0.1.41",
+          "session": "bcl-0.1.41-6d49094a-115",
+          "timestamp": "2026-11-18T08:13:28Z",
+          "reference": "6d49094ab7413de7e2c00500e76728af6761af7f:BCL-53:installed-named-tests"
+        }
+      ],
+      "verification": "Checked: verify-g6.sh on installed 0.1.41 (6d49094a) 13:38-13:42 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; plus the live viewer pid across install-local; Expected: a changed installed script tree restarts the viewer even at the same version, an unchanged tree reuses it, and the tests leak no viewers; Observed: both tests pass on the installed copy without leaks; the live 53779 viewer moved from pid 56840 to 81189 on the first bcl write after the 0.1.41 install Named tests: test_same_version_reinstall_restarts_viewer, test_unchanged_script_tree_reuses_viewer. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.log.; Verdict because: fixed: viewer identity follows installed code and its tests are clean. Installed bcl 0.1.41 at 6d49094a via bcl install-local (plugin 57 files sha256 139381bb5f6e8c507d7b88739e265ae85641b27d9c99426ca1239717f9f1ece2, skill 50 files sha256 0b9f0c4da4e4aa8592548d318f18f80158af96b4f86f4224086f31c7673a995f).",
+      "verification_refs": [
+        "6d49094ab7413de7e2c00500e76728af6761af7f:BCL-53:installed-named-tests"
+      ]
     },
     {
       "id": "BCL-54",
       "title": "bcl review cannot start before the reviewer session exists",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "bcl review refuses to start until codex.reviewer_session is recorded, but a reviewer session id only exists after the reviewer has started, so the Review step cannot begin through bcl.",
       "impact": "The orchestrator has to start the reviewer outside bcl job, so the page does not track the review as a live job.",
       "done_when": "bcl review and a review job start with only the implementer session and a passed fix, install still requires the reviewer session, proven by named tests and a live review job on the installed copy.",
       "observed": "18 Nov 2026 12:08 IST on installed 0.1.39 aff3cdd9: bcl review --ids BCL-50 --ids BCL-51 --ids BCL-53 failed with VIEWER-STRIP: review requires codex.reviewer_session; record the session with bcl plan; Terra had to be launched directly (session 01a1ed61-19e2-7a50-affa-43e029bac406).",
-      "recommendation": "Check the reviewer session at install, not at review start."
+      "recommendation": "Check the reviewer session at install, not at review start.",
+      "verification_evidence": [
+        {
+          "checked": "verify-g8.sh on installed 0.1.41 (6d49094a) 13:42-13:46 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; plus live bcl review and bcl job --phase review on the real #115 tracker at 12:58 and 13:00 IST (installed 0.1.40, same code)",
+          "expected": "bcl review and a review job start with only the implementer session and a passed fix; install still needs the reviewer session",
+          "observed": "named tests pass on the installed copy; live, bcl review started both lanes and bcl job launched Terra (pids 7579, 9272) with no reviewer session recorded; sessions were recorded afterwards and install at 13:38 IST passed the session check Named tests: test_review_starts_without_reviewer_session, test_install_still_requires_reviewer_session, test_fix_then_presuite_then_review_succeeds. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.log.",
+          "verdict": "fixed: Review can begin through bcl and install keeps the session gate",
+          "check_id": "bcl-54-0.1.41-6d49094a",
+          "build": "batched-change-list 0.1.41",
+          "session": "bcl-0.1.41-6d49094a-115",
+          "timestamp": "2026-11-18T08:16:51Z",
+          "reference": "6d49094ab7413de7e2c00500e76728af6761af7f:BCL-54:installed-named-tests"
+        }
+      ],
+      "verification": "Checked: verify-g8.sh on installed 0.1.41 (6d49094a) 13:42-13:46 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; plus live bcl review and bcl job --phase review on the real #115 tracker at 12:58 and 13:00 IST (installed 0.1.40, same code); Expected: bcl review and a review job start with only the implementer session and a passed fix; install still needs the reviewer session; Observed: named tests pass on the installed copy; live, bcl review started both lanes and bcl job launched Terra (pids 7579, 9272) with no reviewer session recorded; sessions were recorded afterwards and install at 13:38 IST passed the session check Named tests: test_review_starts_without_reviewer_session, test_install_still_requires_reviewer_session, test_fix_then_presuite_then_review_succeeds. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.log.; Verdict because: fixed: Review can begin through bcl and install keeps the session gate. Installed bcl 0.1.41 at 6d49094a via bcl install-local (plugin 57 files sha256 139381bb5f6e8c507d7b88739e265ae85641b27d9c99426ca1239717f9f1ece2, skill 50 files sha256 0b9f0c4da4e4aa8592548d318f18f80158af96b4f86f4224086f31c7673a995f).",
+      "verification_refs": [
+        "6d49094ab7413de7e2c00500e76728af6761af7f:BCL-54:installed-named-tests"
+      ]
     },
     {
       "id": "BCL-55",
       "title": "A failed lane Verify marks every finding in the lane Blocked and then refuses a fix job",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "When a lane verify command exits nonzero, bcl verify sets every in-progress finding in that lane to blocked and finishes their checks as blocked, and bcl job --phase fix refuses a failed or blocked lane, so the lane cannot loop back to a fix through bcl.",
       "impact": "Findings whose own checks passed show Blocked, which reads as an outside blocker, and the orchestrator must hand-edit statuses before the fix can restart.",
       "done_when": "A failed lane verify leaves findings in progress (or failing only with evidence) and records the lane failure; after Introspect a fix job can restart the failed lane; proven by named tests and a live loop-back on the installed copy.",
       "observed": "18 Nov 2026 12:37 IST on installed 0.1.40 cd47cb75: verify-g6.sh failed only on a test-viewer leak from two BCL-53 tests; BCL-50, BCL-51, BCL-52 and BCL-54 turned blocked and bcl job --phase fix replied fix job cannot start a blocked or parked lane.",
-      "recommendation": "Keep findings in progress on a lane failure and let a fix job restart a failed lane after Introspect."
+      "recommendation": "Keep findings in progress on a lane failure and let a fix job restart a failed lane after Introspect.",
+      "verification_evidence": [
+        {
+          "checked": "verify-g8.sh on installed 0.1.41 (6d49094a) 13:42-13:46 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers",
+          "expected": "a failed lane verify keeps findings in progress with an inconclusive check, a fix job can restart a failed lane, blocked lanes stay refused, and no command runs before the plan_fix Introspect check",
+          "observed": "all four named tests pass on the installed copy, including real bcl job subprocesses against temp trackers Named tests: test_failed_lane_verify_keeps_findings_in_progress, test_fix_job_restarts_failed_lane, test_fix_job_still_refuses_blocked_lane, test_fix_job_does_not_run_command_without_current_introspect. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.log.",
+          "verdict": "fixed: a failed Verify loops back to a fix without hand edits",
+          "check_id": "bcl-55-0.1.41-6d49094a",
+          "build": "batched-change-list 0.1.41",
+          "session": "bcl-0.1.41-6d49094a-115",
+          "timestamp": "2026-11-18T08:16:51Z",
+          "reference": "6d49094ab7413de7e2c00500e76728af6761af7f:BCL-55:installed-named-tests"
+        }
+      ],
+      "verification": "Checked: verify-g8.sh on installed 0.1.41 (6d49094a) 13:42-13:46 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; Expected: a failed lane verify keeps findings in progress with an inconclusive check, a fix job can restart a failed lane, blocked lanes stay refused, and no command runs before the plan_fix Introspect check; Observed: all four named tests pass on the installed copy, including real bcl job subprocesses against temp trackers Named tests: test_failed_lane_verify_keeps_findings_in_progress, test_fix_job_restarts_failed_lane, test_fix_job_still_refuses_blocked_lane, test_fix_job_does_not_run_command_without_current_introspect. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.log.; Verdict because: fixed: a failed Verify loops back to a fix without hand edits. Installed bcl 0.1.41 at 6d49094a via bcl install-local (plugin 57 files sha256 139381bb5f6e8c507d7b88739e265ae85641b27d9c99426ca1239717f9f1ece2, skill 50 files sha256 0b9f0c4da4e4aa8592548d318f18f80158af96b4f86f4224086f31c7673a995f).",
+      "verification_refs": [
+        "6d49094ab7413de7e2c00500e76728af6761af7f:BCL-55:installed-named-tests"
+      ]
     },
     {
       "id": "BCL-56",
       "title": "The test suite passes even when a test leaves a viewer running",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "test_suite_leaves_no_viewer_processes only covers some tests, so two new BCL-53 tests leaked a serve.py viewer each and the full suite and pre-push check still passed; only the separate verifier leak check caught it after install.",
       "impact": "A leak reaches install and costs a failed Verify, an extra Introspect and a new round.",
       "done_when": "Any test that leaves a serve.py viewer under its temp root fails the full suite run, proven by a named test; the verifier then drops its separate leak check.",
       "observed": "18 Nov 2026 12:24 IST pre-push suite on 09e1859d passed (320 tests, check ok); 12:33 and 12:37 IST installed-copy verify found 4 and 6 leaked test viewers.",
-      "recommendation": "Add a suite-wide leaked-viewer guard (module teardown or a shared base) in place of the verifier-side check."
+      "recommendation": "Add a suite-wide leaked-viewer guard (module teardown or a shared base) in place of the verifier-side check.",
+      "verification_evidence": [
+        {
+          "checked": "verify-g6.sh on installed 0.1.41 (6d49094a) 13:38-13:42 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers",
+          "expected": "a test that leaves a serve.py viewer under its temp root fails the suite, and a non-python decoy is ignored",
+          "observed": "the named isolated-subprocess test passes on the installed copy; full skill suite runs left 0 viewers under their TMPDIR (13:35 IST check and both verify runs) Named tests: test_leaked_viewer_fails_the_suite. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.log.",
+          "verdict": "fixed for unittest discovery runs; scripts/check.py per-file processes are a separate gap logged as a new finding",
+          "check_id": "bcl-56-0.1.41-6d49094a",
+          "build": "batched-change-list 0.1.41",
+          "session": "bcl-0.1.41-6d49094a-115",
+          "timestamp": "2026-11-18T08:13:28Z",
+          "reference": "6d49094ab7413de7e2c00500e76728af6761af7f:BCL-56:installed-named-tests"
+        }
+      ],
+      "verification": "Checked: verify-g6.sh on installed 0.1.41 (6d49094a) 13:38-13:42 IST: 324/324 tests on a clean clone and on the installed copy, strict shape, statechart --check, no leaked test viewers; Expected: a test that leaves a serve.py viewer under its temp root fails the suite, and a non-python decoy is ignored; Observed: the named isolated-subprocess test passes on the installed copy; full skill suite runs left 0 viewers under their TMPDIR (13:35 IST check and both verify runs) Named tests: test_leaked_viewer_fails_the_suite. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.log.; Verdict because: fixed for unittest discovery runs; scripts/check.py per-file processes are a separate gap logged as a new finding. Installed bcl 0.1.41 at 6d49094a via bcl install-local (plugin 57 files sha256 139381bb5f6e8c507d7b88739e265ae85641b27d9c99426ca1239717f9f1ece2, skill 50 files sha256 0b9f0c4da4e4aa8592548d318f18f80158af96b4f86f4224086f31c7673a995f).",
+      "verification_refs": [
+        "6d49094ab7413de7e2c00500e76728af6761af7f:BCL-56:installed-named-tests"
+      ]
     },
     {
       "id": "BCL-57",
@@ -8870,6 +9234,18 @@
       "done_when": "A review job records passed only when the reviewer verdict is PASS (for example read from the reviewer output file), failed on CHANGES, proven by named tests and a live review job.",
       "observed": "18 Nov 2026 13:02 IST on installed 0.1.40: review jobs for VERIFY-LOOP and VIEWER-STRIP exited 0 with VERDICT: CHANGES and the lanes showed review passed.",
       "recommendation": "Pass the reviewer output file to bcl job and parse its first VERDICT line."
+    },
+    {
+      "id": "BCL-58",
+      "title": "The repo check leaks test viewers because the leak guard only covers one test process",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "summary": "scripts/check.py runs each test file in its own process, and the BCL-56 leak guard runs in its own module at the end of a discovery run, so viewers leaked by test_bcl.py under check.py are never caught.",
+      "impact": "Leaked viewers pile up on the Mac after every pre-push check.",
+      "done_when": "A test file that leaks a viewer fails when run alone and under scripts/check.py, proven by a named test; no viewers remain after a full check.",
+      "observed": "18 Nov 2026 13:34 IST after the 0.1.41 pre-push suite (unittest discovery plus scripts/check.py): 4 temp-root viewers were left; a plain discovery run at 13:35 IST left none.",
+      "recommendation": "Run the guard per test module (tearDownModule from a shared helper) instead of from one trailing module."
     }
   ]
 }
