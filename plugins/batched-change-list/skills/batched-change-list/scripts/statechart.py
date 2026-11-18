@@ -74,12 +74,24 @@ def plain(value):
     return html.escape(re.sub(r"[`*]", "", str(value)))
 
 
+def edge_crosses_box(points, box):
+    x, y, width, height = box[:4]
+    for (ax, ay), (bx, by) in zip(points, points[1:]):
+        if ax == bx and x <= ax <= x + width and min(ay, by) <= y + height and max(ay, by) >= y:
+            return True
+        if ay == by and y <= ay <= y + height and min(ax, bx) <= x + width and max(ax, bx) >= x:
+            return True
+        if ax != bx and ay != by:
+            raise ValueError("chart edge must be orthogonal")
+    return False
+
+
 def chart_svg(data, refs, verdicts, view):
     positions = {step["id"]: (40 + index * 240, 210) for index, step in enumerate(data["entry"])}
     positions.update({step["id"]: (40 + index * 240, 410) for index, step in enumerate(data["loop"])})
     exit_x = 40 + len(data["loop"]) * 240
     positions.update({step["id"]: (exit_x, 410 if index == 0 else 590) for index, step in enumerate(data["exit"])})
-    boxes, parts = [], []
+    boxes, labels, edges, parts = [], [], [], []
     def assert_fits(value, width, char_width=9):
         if len(value) * char_width > width:
             raise ValueError(f"chart label overflows node: {value!r}")
@@ -91,6 +103,7 @@ def chart_svg(data, refs, verdicts, view):
         else:
             width = max(width, max(len(html.unescape(line)) for line in lines) * 7.2)
         boxes.append((x-width/2, y-height/2, width, height, value))
+        labels.append(boxes[-1])
         attrs = f'data-box="{x-width/2},{y-height/2},{width},{height}"'
         if target:
             parts.append(f'<g role="button" tabindex="0" class="selectable" data-id="{plain(target)}" data-owner="{plain(owner or "")}" aria-label="{value}"><rect class="hit" x="{x-width/2}" y="{y-height/2}" width="{width}" height="{height}"/>')
@@ -101,32 +114,35 @@ def chart_svg(data, refs, verdicts, view):
             parts.append(f'<text class="{klass}" text-anchor="middle" {attrs} x="{x}" y="{y+5}">{value}</text>')
         if target: parts.append("</g>")
     parts.append('<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#57616d"/></marker></defs>')
-    def edge(path, source="", target=""): parts.append(f'<path class="edge" data-from="{source}" data-to="{target}" d="{path}" marker-end="url(#arrow)"/>')
+    def edge(points, source="", target=""):
+        edges.append(points)
+        path = f"M{points[0][0]} {points[0][1]}" + ''.join(f" {'H'+str(bx) if ay == by else 'V'+str(by)}" for (ax, ay), (bx, by) in zip(points, points[1:]))
+        parts.append(f'<path class="edge" data-from="{source}" data-to="{target}" d="{path}" marker-end="url(#arrow)"/>')
     for left, right in zip(data["entry"], data["entry"][1:]):
-        x, y = positions[left["id"]]; nx, ny = positions[right["id"]]; edge(f"M{x+220} {y+40} H{nx}")
+        x, y = positions[left["id"]]; nx, ny = positions[right["id"]]; edge([(x+220,y+40),(nx,ny+40)])
     first = data["loop"][0]
-    x, y = positions[data["entry"][-1]["id"]]; nx, ny = positions[first["id"]]; edge(f"M{x+110} {y+80} V{ny-60} H{nx+110} V{ny}")
+    x, y = positions[data["entry"][-1]["id"]]; nx, ny = positions[first["id"]]; edge([(x+110,y),(x+110,y-30),(20,y-30),(20,ny+40),(nx,ny+40)])
     for left, right in zip(data["loop"], data["loop"][1:]):
-        x, y = positions[left["id"]]; nx, ny = positions[right["id"]]; edge(f"M{x+220} {y+40} H{nx}")
+        x, y = positions[left["id"]]; nx, ny = positions[right["id"]]; edge([(x+220,y+40),(nx,ny+40)])
     gate = next(row for row in data["loop"] if row["id"] == "gate")
     gx, gy = positions[gate["id"]]
-    edge(f"M{gx+220} {gy+40} C{gx+270} 500 {gx+260} 580 {gx+235} 580 H150 V490", "gate", "plan_fix")
+    edge([(gx+220,gy+40),(gx+230,gy+40),(gx+230,650),(20,650),(20,450),(40,450)], "gate", "plan_fix")
     report = next(row for row in data["exit"] if row["id"] == "report_rollover")
     rx, ry = positions[report["id"]]
-    edge(f"M{gx+220} {gy+40} V320 H{rx+110} V{ry}", "gate", "report_rollover")
+    edge([(gx+220,gy+40),(gx+220,320),(rx+110,320),(rx+110,ry)], "gate", "report_rollover")
     parts.append(f'<!-- {re.sub(r"[`*]", "", data["gate"]["loop_label"])} -->')
     parts.append(f'<!-- {re.sub(r"[`*]", "", data["gate"]["exit_label"])} · {re.sub(r"[`*]", "", data["gate"]["merge_label"])} -->')
-    label(data["gate"]["loop_label"].format(threshold=data["gate"]["default_threshold"]), gx-310, 605, 360)
+    label(data["gate"]["loop_label"].format(threshold=data["gate"]["default_threshold"]), gx-310, 620, 360)
     label(data["gate"]["exit_label"].format(threshold=data["gate"]["default_threshold"]), rx-35, 300, 180)
     merge_from = data["transitions"]["merged"][0]
     exit_steps = {row["id"]: row for row in data["exit"]}
     merge_source, merge_target = exit_steps[merge_from], exit_steps["merged"]
     x, y = positions[merge_source["id"]]; nx, ny = positions[merge_target["id"]]
-    edge(f"M{x+220} {y+40} H1550 V{ny+40} H{nx+220}", merge_from, "merged")
+    edge([(x+220,y+40),(x+350,y+40),(x+350,ny+40),(nx+220,ny+40)], merge_from, "merged")
     for left, right in zip(data["exit"], data["exit"][1:]):
         if right["id"] == "merged": continue
-        x, y = positions[left["id"]]; nx, ny = positions[right["id"]]; edge(f"M{x+110} {y+80} V{ny}")
-    label(data["gate"]["merge_label"].format(threshold=data["gate"]["merge_previous_pr_threshold"]), gx-250, 700, 250)
+        x, y = positions[left["id"]]; nx, ny = positions[right["id"]]; edge([(x+220,y+40),(x+250,y+40),(x+250,ny+40),(nx+220,ny+40)])
+    label(data["gate"]["merge_label"].format(threshold=data["gate"]["merge_previous_pr_threshold"]), positions[merge_source["id"]][0]+350, 425, 250)
     nodes = data["entry"] + data["loop"] + data["exit"]
     for step in nodes:
         x, y = positions[step["id"]]
@@ -149,7 +165,11 @@ def chart_svg(data, refs, verdicts, view):
         for b in boxes[i+1:]:
             if a[0] < b[0]+b[2] and b[0] < a[0]+a[2] and a[1] < b[1]+b[3] and b[1] < a[1]+a[3]:
                 raise ValueError(f"chart labels overlap: {a[4]!r} and {b[4]!r}")
-    return '<svg class="chart" viewBox="0 0 1840 790" role="img" aria-label="Batched Change List workflow">' + ''.join(parts) + '</svg>'
+    for points in edges:
+        for box in labels:
+            if edge_crosses_box(points, box):
+                raise ValueError(f"chart edge crosses label: {box[4]!r}")
+    return '<svg class="chart" viewBox="0 0 2050 790" role="img" aria-label="Batched Change List workflow">' + ''.join(parts) + '</svg>'
 
 
 def render(skill_content=None, suggested_verdicts=None, definition_path=None):

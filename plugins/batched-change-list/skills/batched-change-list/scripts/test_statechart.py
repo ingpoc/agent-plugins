@@ -2,6 +2,7 @@ import json
 import re
 import tempfile
 import unittest
+from unittest.mock import patch
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -9,6 +10,45 @@ import statechart
 
 
 class StatechartTests(unittest.TestCase):
+    def test_condition_labels_sit_beside_their_edges(self):
+        svg = re.search(r'<svg class="chart".*?</svg>', statechart.render()).group()
+        root = ET.fromstring(svg)
+        definition = statechart.definition()
+        gate = definition['gate']
+        cases = [('loop_label', gate['default_threshold'], ('gate','plan_fix')), ('exit_label', gate['default_threshold'], ('gate','report_rollover')), ('merge_label', gate['merge_previous_pr_threshold'], ('report_rollover','merged'))]
+        for key, threshold, endpoints in cases:
+            expected = gate[key].format(threshold=threshold)
+            text = next(t for t in root.iter('text') if ''.join(t.itertext()) == expected)
+            bx, by, width, height = map(float, text.attrib['data-box'].split(','))
+            cx, cy = bx + width/2, by + height/2
+            path = next(p for p in root.iter('path') if (p.attrib.get('data-from'), p.attrib.get('data-to')) == endpoints)
+            tokens = re.findall(r'[MHV]|-?\d+(?:\.\d+)?', path.attrib['d'])
+            x, y = map(float, tokens[1:3]); distances = []
+            for i in range(3, len(tokens), 2):
+                nx, ny = (float(tokens[i+1]), y) if tokens[i] == 'H' else (x, float(tokens[i+1]))
+                dx = max(min(x,nx)-cx, 0, cx-max(x,nx)); dy = max(min(y,ny)-cy, 0, cy-max(y,ny))
+                distances.append((dx*dx + dy*dy)**0.5)
+                x, y = nx, ny
+            self.assertLessEqual(min(distances), 40, key)
+
+    def test_edges_do_not_cross_labels(self):
+        svg = re.search(r'<svg class="chart".*?</svg>', statechart.render()).group()
+        root = ET.fromstring(svg)
+        boxes = [tuple(map(float, t.attrib['data-box'].split(','))) for t in root.iter('text') if 'data-box' in t.attrib]
+        for path in (p for p in root.iter('path') if p.attrib.get('class') == 'edge'):
+            tokens = re.findall(r'[MHV]|-?\d+(?:\.\d+)?', path.attrib['d'])
+            x, y = map(float, tokens[1:3]); i = 3
+            while i < len(tokens):
+                command, value = tokens[i], float(tokens[i+1]); i += 2
+                nx, ny = (value, y) if command == 'H' else (x, value)
+                for bx, by, width, height in boxes:
+                    crosses = (x == nx and bx <= x <= bx+width and min(y,ny) <= by+height and max(y,ny) >= by) or (y == ny and by <= y <= by+height and min(x,nx) <= bx+width and max(x,nx) >= bx)
+                    self.assertFalse(crosses, (path.attrib['d'], (bx,by,width,height)))
+                x, y = nx, ny
+        with patch.object(statechart, 'edge_crosses_box', return_value=True):
+            with self.assertRaisesRegex(ValueError, 'chart edge crosses label'):
+                statechart.render()
+
     def test_chart_edges_are_svg_paths_with_arrowheads(self):
         chart = statechart.render()
         self.assertGreaterEqual(chart.count('class="edge"'), 10)
