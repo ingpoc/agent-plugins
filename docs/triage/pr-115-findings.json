@@ -6483,9 +6483,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-18T06:53:27Z",
-      "now": "2026-11-18T06:53:27Z — Lane FLAKY-CHECK updated"
+      "stage": "install",
+      "updated_at": "2026-11-18T06:59:19Z",
+      "now": "2026-11-18T06:59:19Z — Install in progress"
     },
     "rollover": {
       "source_pr": 114,
@@ -6640,8 +6640,8 @@
             "BCL-54"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "fix",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl115-r3-g6",
           "reason": "Same viewer and render code; BCL-50 is proven live by running this lane fix through bcl job with the interim heartbeat script off.",
           "codex": {
@@ -6649,22 +6649,22 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 11728,
-              "phase": "fix",
-              "started_at": "2026-11-18T06:43:52Z",
-              "command": "resume2-g6.sh",
-              "heartbeat_at": "2026-11-18T06:51:38Z",
+              "pid": 40097,
+              "phase": "presuite",
+              "started_at": "2026-11-18T06:54:11Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T06:57:41Z",
               "exit_code": 0,
-              "duration_s": 466,
-              "finished_at": "2026-11-18T06:51:38Z",
+              "duration_s": 210,
+              "finished_at": "2026-11-18T06:57:41Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1ed47-c138-7f12-907a-b5d527e13cea",
             "reviewer_session": "01a1ed61-19e2-7a50-affa-43e029bac406",
             "reviewer_model": "gpt-6.1-terra",
-            "review_status": "failed",
-            "review_note": "Terra: presuite job replaces codex.job so a later bcl review rejects the lane; fixed in the same Luna session with BCL-54"
+            "review_status": "passed",
+            "review_note": "One Terra round (01a1ed61) returned one must-fix (presuite job replaced codex.job). Luna fixed it in the same session with BCL-54 (fu2, 12:21 IST); orchestrator read the bin/bcl and check_install_sessions diff and named test test_fix_then_presuite_then_review_succeeds. No second review per the one-round rule."
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
@@ -6674,8 +6674,17 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T06:51:38Z",
-          "verify_summary": "Terra review running"
+          "updated_at": "2026-11-18T06:57:42Z",
+          "verify_summary": "Review passed; pre-push suite next",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T06:57:41Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T06:59:19Z"
+          }
         },
         {
           "id": "FLAKY-CHECK",
@@ -6684,8 +6693,8 @@
             "BCL-52"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl115-r3-g7",
           "reason": "Test-only root cause in test_bcl.py; independent of the viewer lane.",
           "codex": {
@@ -6693,14 +6702,14 @@
             "effort": "medium",
             "one_file": true,
             "job": {
-              "pid": 26968,
-              "phase": "fix",
-              "started_at": "2026-11-18T06:29:24Z",
-              "command": "resume-g7.sh",
-              "heartbeat_at": "2026-11-18T06:50:28Z",
+              "pid": 40097,
+              "phase": "presuite",
+              "started_at": "2026-11-18T06:54:11Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T06:57:41Z",
               "exit_code": 0,
-              "duration_s": 1264,
-              "finished_at": "2026-11-18T06:50:28Z",
+              "duration_s": 210,
+              "finished_at": "2026-11-18T06:57:41Z",
               "finished_phase_status": "passed"
             },
             "implementer_session": "01a1ed47-c138-70d1-8c82-fb3ee5ab03af",
@@ -6715,7 +6724,16 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T06:53:27Z"
+          "updated_at": "2026-11-18T06:57:42Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T06:57:41Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T06:59:19Z"
+          }
         }
       ]
     },
@@ -6723,7 +6741,8 @@
       "collect",
       "present",
       "plan_fix",
-      "review"
+      "review",
+      "install"
     ],
     "verification_run": {
       "id": "bcl-0.1.39-aff3cdd9-115",
