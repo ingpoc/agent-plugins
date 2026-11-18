@@ -1,3 +1,9 @@
+## 0.1.43
+
+- scripts/check.py names the failing unittest IDs and the last 20 output lines of a failed test file; timing-sensitive verifier, lock and viewer tests no longer race under parallel load (BCL-64).
+- bcl verify --shared runs repo-wide checks once per verification run; lane verify is refused after a failed shared check and is unchanged when none is recorded (BCL-65).
+- Verification reasons, titles, summaries, impact and done-when must be plain words; test names, flags, field names, paths and hashes go to details, which the page shows only under Details. Legacy raw text moves under Details, the footer path is hidden in Details, and rows recorded before a fix existed read Not checked (BCL-66).
+
 ## 0.1.42
 
 - bcl job --phase review --result FILE records passed only for a fresh first VERDICT: PASS line; CHANGES, a missing, stale or unreadable verdict records failed (BCL-57).

@@ -57,6 +57,43 @@ def reason_fields(text):
     return values
 
 
+RAW_EVIDENCE = re.compile(
+    r"\b[\w.-]+\.(?:py|js|ts|tsx|jsx|json|html|css|sh|log|swift|md|yaml|yml)\b|"
+    r"\b[a-z][a-z0-9]*_[a-z0-9_]+\b|\b[a-z][\w-]*\.[a-z_][\w]*\b|\b[a-f0-9]{7,}\b|"
+    r"(?<!\w)--[\w-]+|\b(?:Named tests|Log)\s*:", re.I)
+
+
+def plain_evidence(record):
+    record = dict(record)
+    details = [record.get("details", "")]
+    for field in ("checked", "expected", "observed", "verdict"):
+        value = record.get(field, "")
+        if isinstance(value, str) and ("/" in value or RAW_EVIDENCE.search(value)):
+            details.append(f"{field.title()}: {value}")
+            record[field] = "Recorded in technical terms; see Details"
+    record["details"] = "\n".join(value for value in details if value)
+    return record
+
+
+def has_raw_identifier(value):
+    return "/" in value or bool(RAW_EVIDENCE.search(value))
+
+
+def not_checked_record(record):
+    record = dict(record)
+    details = [record.get("details", "")]
+    details.extend(f"{label}: {record.get(field, '')}" for field, label in
+                   (("checked", "Checked"), ("expected", "Expected"), ("observed", "Observed"),
+                    ("verdict", "Verdict")) if record.get(field))
+    record.update(state="not_checked", checked="Not checked", expected="Not checked",
+                  observed="Not checked", verdict="Not checked",
+                  details="\n".join(value for value in details if value))
+    return record
+
+
+NO_FIX_YET = re.compile(r"\bno\s+(?:fix|code|implementation)(?:\s*/\s*(?:fix|code|implementation))*\s+(?:existed|available|implemented|written)\b", re.I)
+
+
 def version_evidence(item, runs):
     outcome_states = {"fixed": "fixed", "verified_fixed": "fixed", "fail": "not_fixed",
                       "failed": "not_fixed", "failing": "not_fixed", "not_fixed": "not_fixed",
@@ -64,12 +101,16 @@ def version_evidence(item, runs):
     candidates = []
     for r in item.get("verification_evidence", []):
         verdict = r.get("verdict", r.get("outcome", ""))
-        candidates.append({**r, "verdict": verdict,
+        row = {**r, "verdict": verdict,
                            "outcome": r.get("outcome", verdict),
                            "checked": r.get("checked", r.get("check", "Verification")),
                            "expected": r.get("expected", "Not recorded"),
                            "observed": r.get("observed", r.get("reference", verdict)),
-                           "state": outcome_states.get(verdict.strip().lower(), "")})
+                           "state": outcome_states.get(verdict.strip().lower(), "")}
+        if row["state"] == "blocked" and (item.get("carried_from") is not None or NO_FIX_YET.search(" ".join(
+                str(row.get(key, "")) for key in ("outcome", "observed", "reference", "blocker")))):
+            row = not_checked_record(row)
+        candidates.append(plain_evidence(row))
     for run in runs:
         check = run.get("checks", {}).get(item["id"], {})
         for result in [*check.get("previous_checks", []), check]:
@@ -79,7 +120,7 @@ def version_evidence(item, runs):
                 state_label = {"fixed": "Fixed", "not_fixed": "Failing", "blocked": "Blocked",
                                "inconclusive": "Inconclusive"}[result["state"]]
                 observed = attached.get("observed") or fields["Observed"] or "Observed behavior not recorded"
-                candidates.append({"build": run.get("build", "unknown"), "timestamp": result.get("finished_at", "unknown"),
+                row = {"build": run.get("build", "unknown"), "timestamp": result.get("finished_at", "unknown"),
                                    "check_id": result.get("check_id"),
                                    "verdict": f"{state_label} because {observed}",
                                    "checked": attached.get("checked") or fields["Checked"] or "Verification behavior not recorded",
@@ -87,7 +128,12 @@ def version_evidence(item, runs):
                                    "expected": attached.get("expected") or fields["Expected"] or "Expected behavior not recorded",
                                    "observed": observed,
                                    "reference": attached.get("reference") or result["evidence"], "check": "Installed verification",
-                                   "session": run.get("id", ""), "state": result["state"]})
+                                   "details": attached.get("details", ""),
+                                   "session": run.get("id", ""), "state": result["state"]}
+                if result["state"] == "blocked" and (item.get("carried_from") is not None or NO_FIX_YET.search(" ".join(
+                        str(row.get(key, "")) for key in ("outcome", "observed", "reference", "blocker")))):
+                    row = not_checked_record(row)
+                candidates.append(plain_evidence(row))
     history = []
     seen = set()
     for index, record in enumerate(candidates):
@@ -732,6 +778,13 @@ def render_tracking(tracking, inventory_override=None):
         build = html.escape(run["build"])
         revision = html.escape(run["revision"])
         installed = html.escape(run["installed_at"])
+        shared = run.get("shared_check")
+        if shared is not None:
+            if not isinstance(shared, dict) or shared.get("state") not in ("checking", "passed", "failed"):
+                raise ValueError("tracking.verification_run.shared_check is invalid")
+            context.append({"checking": "Shared checks running for this install",
+                            "passed": "Shared checks passed once for this install",
+                            "failed": "Shared checks failed for this install"}[shared["state"]])
     recorded_inventory = inventory_override is None and tracking.get("installed_plugins") is not None
     inventory = inventory_override if inventory_override is not None else tracking.get("installed_plugins")
     if inventory_override is not None and not isinstance(inventory_override, dict):
@@ -934,6 +987,16 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
                 item["done_when"] = next((value for key, value in details.items() if key.casefold() == "expected"), "")
             if looks_like_log_text(item.get("done_when", "")):
                 item["done_when"] = ""  # log-like text stays in Evidence and the version timeline
+        technical_text = {}
+        for field in ("title", "summary", "impact", "done_when"):
+            value = item.get(field)
+            if isinstance(value, str) and value.strip() and has_raw_identifier(value):
+                technical_text[field.replace("_", " ").title()] = value
+                item[field] = "Recorded in technical terms; see Details"
+        if technical_text:
+            wording = "\n".join(f"{key}: {value}" for key, value in technical_text.items())
+            details = {**details, "Technical wording": "\n".join(filter(None, (details.get("Technical wording", ""), wording)))}
+            item["details"] = details
         if run is not None and check.get("evidence"):
             if check.get("corrections"):
                 details = {**details, "Check corrections": json.dumps(check["corrections"], ensure_ascii=False)}
@@ -943,13 +1006,13 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
         structured = {"checked", "expected", "observed", "verdict", "build", "session", "timestamp", "reference"}
         identified = structured | {"check_id"}
         legacy = {"check", "outcome", "build", "session", "timestamp", "reference"}
-        if not isinstance(records, list) or any(not isinstance(r, dict) or set(r) not in (legacy, structured, identified) or
-                any(not isinstance(r[k], str) or not r[k].strip() for k in r) for r in records):
+        allowed_records = (legacy, structured, identified, legacy | {"details"}, structured | {"details"}, identified | {"details"})
+        if not isinstance(records, list) or any(not isinstance(r, dict) or set(r) not in allowed_records or
+                any(not isinstance(r[k], str) or (k != "details" and not r[k].strip()) for k in r) for r in records):
             raise ValueError(f"{item['id']}.verification_evidence has invalid records")
-        if carried_from is not None:
-            item["version_timeline"] = version_evidence({**item, "verification_evidence": []}, [run] if run else [])
-        else:
-            item["version_timeline"] = version_evidence(item, [*tracking_data.get("verification_history", []), *([run] if run else [])])
+        version_runs = ([run] if run else []) if carried_from is not None else [
+            *tracking_data.get("verification_history", []), *([run] if run else [])]
+        item["version_timeline"] = version_evidence(item, version_runs)
         item.pop("verification_evidence", None)
         if item["status"] == "verified_fixed":
             item["details"] = {**details, "Verification references": "\n".join(item["verification_refs"])}
@@ -996,7 +1059,9 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
                                     tracking_data.get("stages_reached") or [], rollover_cycle(tracking_data),
                                     introspect_record_for_round(tracking_data))
     plan_view = render_plan(data, tracking_data, plan, round_number, render_now)
-    viewer_html = (f'<p class="viewer-footer">reading {html.escape(str(viewer["path"]))}, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}</p>' if viewer else '<p class="viewer-footer">Viewer version not recorded</p>')
+    viewer_html = (f'<div class="viewer-footer">Live view, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}'
+                   f'<details><summary>Details</summary><p>Report path: {html.escape(str(viewer["path"]))}</p></details></div>'
+                   if viewer else '<p class="viewer-footer">Viewer version not recorded</p>')
     timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow · last recorded</strong>{fresh_html}</div>'
                 f'{timeline_steps}{plan_view}{viewer_html}</section>')
     for item in output:

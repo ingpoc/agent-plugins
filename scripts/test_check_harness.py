@@ -481,6 +481,22 @@ class SelectionAndParallelTests(unittest.TestCase):
         self.assertIn("check: ran 3 test processes, 3 at a time", out.getvalue())
         self.assertIn("test bad (exit 3)", err.getvalue())
 
+    def test_failed_job_reports_unittest_id_and_short_tail(self):
+        env = dict(os.environ)
+        source = "import sys, unittest\n[print(f'fixture noise {i}', file=sys.stderr) for i in range(25)]\nclass Fixture(unittest.TestCase):\n def test_named_failure(self): self.fail('fixture detail')\nunittest.main()\n"
+        bad = check.Job("test fixture", [sys.executable, "-c", source], ROOT, env)
+        ok = check.Job("test companion", [sys.executable, "-c", "pass"], ROOT, env)
+        out, err = io.StringIO(), io.StringIO()
+        import tempfile
+        with tempfile.TemporaryDirectory() as temp, \
+                mock.patch.dict(os.environ, {"AGENT_PLUGINS_CHECK_TIMINGS": f"{temp}/t.json"}), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertNotEqual(check.run_jobs([bad, ok], 2), 0)
+        self.assertIn("FAIL: test_named_failure (__main__.Fixture.test_named_failure)", out.getvalue())
+        self.assertIn("fixture detail", out.getvalue())
+        self.assertNotIn("fixture noise 0", out.getvalue())
+        self.assertIn("fixture noise 24", out.getvalue())
+
 
 class PrePushTests(unittest.TestCase):
     def test_gate_rejects_undefined_names_and_bad_json(self):

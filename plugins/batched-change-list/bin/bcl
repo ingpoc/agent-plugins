@@ -33,7 +33,7 @@ def _ensure_viewer(parser, key, record, live, plugin_version, stage):
         parser.error(str(error))
 
 def _verification_failure_reason(command, observed):
-    return f"Checked: {command}\nExpected: verification command exits 0\nObserved: {observed}"
+    return f"Checked: verification command\nExpected: command exits 0\nObserved: {observed}"
 
 def _pull_request_data(provider, url, repo):
     executable = shutil.which(provider)
@@ -374,6 +374,7 @@ def main():
     parser.add_argument("--result"); parser.add_argument("--issues", type=Path); parser.add_argument("--sections", type=Path); parser.add_argument("--draft", type=Path)
     parser.add_argument("--phase", choices=("fix", "review", "presuite"))
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
+    parser.add_argument("--shared", action="store_true")
     parser.add_argument("--new-pr", type=int); parser.add_argument("--new-url"); parser.add_argument("--worktree")
     parser.add_argument("--merge-commit"); parser.add_argument("--merged-at"); parser.add_argument("--base-branch")
     parser.add_argument("--force", action="store_true")
@@ -592,9 +593,31 @@ def main():
         late_stage = tracking.get("workflow", {}).get("stage") in ("verify", "introspect", "gate")
         if args.ids and not (late_stage and same_current_plan):
             operations.append({"action":"set-activity","stage":"plan_fix","ids":args.ids,"now":"Plan recorded"})
+    elif stage == "verify" and args.shared:
+        run = tracking.get("verification_run")
+        if not isinstance(run, dict) or run.get("status") != "active":
+            parser.error("shared verify requires an active installation verification run")
+        if not args.then_command or command_args:
+            parser.error("shared verify requires --then with one executable command")
+        try:
+            lexer = shlex.shlex(args.then_command, posix=True, punctuation_chars='|&;<>')
+            lexer.whitespace_split = True; lexer.commenters = ''
+            words = list(lexer)
+        except ValueError:
+            parser.error("shared verify command has invalid quoting")
+        if not words or '\n' in args.then_command or '\r' in args.then_command or any(word and set(word) <= set('|&;<>') for word in words):
+            parser.error("shared verify requires one executable command without shell operators")
+        if Path(words[0]).name in {"sh", "bash", "zsh", "ksh", "dash", "fish", "env"}:
+            parser.error("shared verify cannot run a shell or env wrapper")
+        if Path(words[0]).name in {"echo", "printf", "true", ":"}:
+            parser.error("shared verify requires an actual check, not a command that only prints or succeeds")
+        operations = [{"action":"reserve-shared-check", "run_id":run["id"], "command":args.then_command}]
     elif stage in ("fix", "install", "verify"):
         ids = args.ids or [x["id"] for x in data.get("findings", []) if x.get("status") == "in_progress"]
         if stage == "verify":
+            shared = tracking.get("verification_run", {}).get("shared_check")
+            if not args.shared and isinstance(shared, dict) and shared.get("state") != "passed":
+                parser.error("lane verify requires the shared check to pass first; run bcl verify --shared --then CMD")
             groups = [g for g in tracking.get("plan", {}).get("groups", []) if set(ids).intersection(g.get("finding_ids", []))]
             covered = {identifier for group in groups for identifier in group.get("finding_ids", [])}
             if not groups or not set(ids).issubset(covered):
@@ -657,10 +680,34 @@ def main():
             verification_claim.__enter__()
         except tracker_lock.LockBusyError:
             raise SystemExit("verification already in progress for this tracker")
+        current_run = json.loads(live.read_text()).get("tracking", {}).get("verification_run", {})
+        shared = current_run.get("shared_check") if isinstance(current_run, dict) else None
+        if not args.shared and isinstance(shared, dict) and shared.get("state") != "passed":
+            verification_claim.__exit__(None, None, None)
+            verification_claim = None
+            parser.error("lane verify requires the shared check to pass first; run bcl verify --shared --then CMD")
     try:
         result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
         if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
         live_state.snapshot(record, live)
+        if stage == "verify" and args.shared:
+            words = shlex.split(args.then_command)
+            try:
+                result = subprocess.run(words, check=False)
+                code = result.returncode
+            except OSError as error:
+                print(f"Shared verification command could not start: {error}", file=sys.stderr)
+                code = 127
+            finished = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+            saved = subprocess.run(command, input=json.dumps([{"action":"finish-shared-check", "run_id":tracking['verification_run']['id'], "exit_code":code, "finished_at":finished}]), text=True, capture_output=True)
+            if saved.returncode:
+                sys.stderr.write(saved.stderr or saved.stdout)
+                raise SystemExit(saved.returncode)
+            live_state.snapshot(record, live)
+            if code:
+                raise SystemExit(code if code > 0 else 128 - code)
+            print("Shared checks passed once for this install")
+            return
         if record.get("rollover_pending") and begins_collect:
             records = live_state.registry()
             current = records[key]
@@ -691,7 +738,10 @@ def main():
                 reason = f"Verification command exited {code}" if code else ""
             except OSError as error:
                 code = 127
-                reason = f"Verification command could not start: {error}"
+                reason = "Verification command could not start"
+                spawn_error = str(error)
+            else:
+                spawn_error = ""
             if code:
                 reason = _verification_failure_reason(expected, reason)
                 print(reason, file=sys.stderr)
@@ -711,7 +761,8 @@ def main():
                             continue
                         if run.get('status') == 'active' and run.get('checks', {}).get(identifier, {}).get('state') == 'checking':
                             failed.append({"action":"finish-check", "run_id":run['id'], "id":identifier,
-                                           "outcome":"inconclusive", "evidence":reason})
+                                           "outcome":"inconclusive", "evidence":reason,
+                                           "details":f"Command: {expected}\n{reason}" + (f"\nSpawn error: {spawn_error}" if spawn_error else "")})
                     saved = subprocess.run(command, input=json.dumps(failed), text=True, capture_output=True)
                     if saved.returncode and len(failed) > 1:
                         sys.stderr.write(f"Could not update verification findings for {group['id']}: " + (saved.stderr or saved.stdout))

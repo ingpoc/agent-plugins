@@ -9,6 +9,7 @@ import unittest
 import shutil
 import subprocess
 from pathlib import Path
+from html.parser import HTMLParser
 
 spec = importlib.util.spec_from_file_location("change_list_render", Path(__file__).with_name("render.py"))
 renderer = importlib.util.module_from_spec(spec)
@@ -16,6 +17,41 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which('node'), 'node is needed to execute rendered page JavaScript')
+    def test_legacy_evidence_and_finding_text_render_plain_in_details_dom(self):
+        data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
+        data['findings'][0].update(title='Review --phase review', summary='codex.review_status was pending',
+            impact='See notes.py', done_when='Check ~/reports')
+        data['findings'][0]['verification_evidence'] = [{
+            'checked':'test_review_job passed', 'expected':'fixed', 'observed':'See verify.log',
+            'verdict':'Passed at abcdef1', 'check_id':'check-1', 'build':'0.1.42', 'session':'run',
+            'timestamp':'2026-11-16T10:00:00Z', 'reference':'receipt',
+            'details':'test_review_job in verify.log'}]
+        page = renderer.render(data, Path(__file__).parent.parent)
+        payload = re.search(r'<script type="application/json" id="findings-data">(.*?)</script>', page).group(1)
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        show = template.split('function show(){',1)[1].split('\nsearch.addEventListener',1)[0]
+        program = (r"""
+class Element { constructor(tag,text='',cls=''){this.tag=tag;this.text=text;this.cls=cls;this.children=[];this.dataset={}} append(...children){this.children.push(...children)} setAttribute(){} }
+const node=(tag,text,cls)=>new Element(tag,text,cls);
+const findings=JSON.parse(PAYLOAD),labels={failing:'Failing',in_progress:'In progress',untested:'Untested'},location={hash:'#ISSUE-01'},run=null;
+const nav={querySelectorAll:()=>[]},panel={replaceChildren(value){this.article=value}},document={createTextNode:text=>text};
+function show(){
+""" + show + r"""
+show();
+function find(el,tag,cls){if(el?.tag===tag&&el.cls===cls)return el;for(const child of el?.children||[]){const found=find(child,tag,cls);if(found)return found}}
+const row=find(panel.article,'li','version-row'),details=find(row,'details','version-history-details');
+function text(el,skipDetails=false){if(skipDetails&&el?.tag==='details')return '';return (el?.text||'')+(el?.children||[]).map(child=>text(child,skipDetails)).join('')}
+const visible=text(row,true),hidden=text(details);
+if(!row||!details||!details.children.some(child=>child.tag==='summary'))process.exit(1);
+if(!visible.includes('Recorded in technical terms; see Details')||visible.includes('test_review_job')||visible.includes('verify.log')||visible.includes('abcdef1'))process.exit(2);
+if(!hidden.includes('test_review_job')||!hidden.includes('verify.log')||!hidden.includes('abcdef1'))process.exit(3);
+const articleVisible=text(panel.article,true),articleDetails=text(find(panel.article,'details','evidence'));
+if(!articleVisible.includes('Recorded in technical terms; see Details')||articleVisible.includes('--phase')||articleVisible.includes('codex.review_status')||articleVisible.includes('notes.py')||articleVisible.includes('~/reports'))process.exit(4);
+if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.review_status')||!articleDetails.includes('notes.py')||!articleDetails.includes('~/reports'))process.exit(5);
+""").replace('PAYLOAD', json.dumps(payload))
+        subprocess.run(['node','-e',program],check=True)
+
     def test_review_sublabel_is_separated_in_rendered_text(self):
         workflow = renderer.render_workflow('review', [], 0, 15, False, 0, 1)
         text = html.unescape(re.sub(r'<[^>]+>', ' ', workflow))
@@ -247,7 +283,48 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(plain, renderer.render(self.data, self.base))
         self.assertIn('Viewer version not recorded', plain)
         live = renderer.render(self.data, self.base, viewer={'path':'/tmp/list.json','version':'0.1.17','started':'Nov 14, 2026, 3:00 PM IST'})
-        self.assertIn('reading /tmp/list.json, viewer 0.1.17, started Nov 14, 2026, 3:00 PM IST', live)
+        class Footer(HTMLParser):
+            def __init__(self):
+                super().__init__(); self.in_footer=False; self.detail_depth=0; self.visible=[]; self.details=[]
+            def handle_starttag(self, tag, attrs):
+                attrs=dict(attrs)
+                if tag=='div' and 'viewer-footer' in attrs.get('class',''): self.in_footer=True
+                elif self.in_footer and tag=='details': self.detail_depth+=1
+            def handle_endtag(self, tag):
+                if self.in_footer and tag=='details': self.detail_depth-=1
+                elif self.in_footer and tag=='div': self.in_footer=False
+            def handle_data(self, value):
+                if self.in_footer: (self.details if self.detail_depth else self.visible).append(value)
+        footer=Footer(); footer.feed(live)
+        self.assertIn('Live view, viewer 0.1.17, started Nov 14, 2026, 3:00 PM IST', ''.join(footer.visible))
+        self.assertNotIn('/tmp/list.json', ''.join(footer.visible))
+        self.assertIn('/tmp/list.json', ''.join(footer.details))
+
+    @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
+    def test_pre_fix_and_carried_blocked_rows_render_not_checked(self):
+        data=copy.deepcopy(self.data)
+        data['findings'][0]['verification_evidence']=[{
+            'checked':'verification attempt','expected':'a fix is available','observed':'No fix/code existed yet',
+            'verdict':'blocked','build':'0.1.41','session':'earlier','timestamp':'2026-11-16T10:00:00Z','reference':'receipt'}]
+        data['findings'][1]['carried_from']=1
+        data['findings'][1]['verification_evidence']=[{
+            'check':'earlier list','outcome':'blocked','build':'0.1.40','session':'old','timestamp':'2026-11-15T10:00:00Z','reference':'receipt'}]
+        page=renderer.render(data,self.base)
+        payload=page.split('<script type="application/json" id="findings-data">',1)[1].split('</script>',1)[0]
+        template=(Path(__file__).parent.parent/'templates/change-list.html').read_text()
+        show=template.split('function show(){',1)[1].split('\nsearch.addEventListener',1)[0]
+        program=(r"""
+class Element { constructor(tag,text='',cls=''){this.tag=tag;this.text=text;this.cls=cls;this.children=[];this.dataset={}} append(...children){this.children.push(...children)} setAttribute(){} }
+const node=(tag,text,cls)=>new Element(tag,text,cls),findings=JSON.parse(PAYLOAD),labels={untested:'Untested'},run=null;
+const nav={querySelectorAll:()=>[]},panel={replaceChildren(value){this.article=value}},document={createTextNode:text=>text};
+function show(){
+"""+show+r"""
+function text(el,skipDetails=false){if(skipDetails&&el?.tag==='details')return '';return (el?.text||'')+(el?.children||[]).map(child=>text(child,skipDetails)).join('')}
+function find(el,tag,cls){if(el?.tag===tag&&el.cls===cls)return el;for(const child of el?.children||[]){const found=find(child,tag,cls);if(found)return found}}
+for(const id of ['ISSUE-01','ISSUE-02']){location.hash='#'+id;show();const visible=text(panel.article,true);if(!visible.includes('Not checked')||visible.includes('Blocked'))process.exit(1)}
+""").replace('PAYLOAD',json.dumps(payload))
+        program=program.replace('const nav={querySelectorAll:()=>[]}',"const location={hash:'#ISSUE-01'};const nav={querySelectorAll:()=>[]}")
+        subprocess.run(['node','-e',program],check=True)
 
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
     def test_version_timeline_shows_status_and_evidence_together(self):

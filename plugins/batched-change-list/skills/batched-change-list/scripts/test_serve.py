@@ -18,6 +18,11 @@ spec = importlib.util.spec_from_file_location('report_server', Path(__file__).wi
 server_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(server_module)
 
+def stop_server(server, thread):
+    server.shutdown()
+    thread.join(timeout=5)
+    assert not thread.is_alive(), 'orphan process'
+
 
 class ServerTests(unittest.TestCase):
     def test_page_not_stale_during_active_round(self):
@@ -68,8 +73,7 @@ class ServerTests(unittest.TestCase):
                         with urlopen(url) as response:
                             self.assertEqual(response.read(), b'new renderer')
                     finally:
-                        server.shutdown()
-                        thread.join()
+                        stop_server(server, thread)
 
     def test_idle_connection_does_not_block_report(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -83,8 +87,7 @@ class ServerTests(unittest.TestCase):
                         with urlopen(f'http://127.0.0.1:{server.server_port}/', timeout=2) as response:
                             self.assertEqual(response.read(), b'visible report')
                 finally:
-                    server.shutdown()
-                    thread.join()
+                    stop_server(server, thread)
 
     def test_shutdown_requires_the_instance_and_stops_server(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -105,11 +108,10 @@ class ServerTests(unittest.TestCase):
                     with urlopen(Request(url, method='POST', headers={'X-BCL-Instance': 'specific-viewer'})) as response:
                         self.assertEqual(response.status, 204)
                     thread.join(timeout=2)
-                    self.assertFalse(thread.is_alive())
+                    self.assertFalse(thread.is_alive(), 'assert_no_leak: viewer server thread is stopped')
                 finally:
                     if thread.is_alive():
-                        server.shutdown()
-                        thread.join()
+                        stop_server(server, thread)
 
     def test_health_requires_matching_instance_tracker_and_pid(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -130,8 +132,7 @@ class ServerTests(unittest.TestCase):
                     data.write_text('{')
                     self.assertFalse(server_module.live_state._viewer_responds(server.server_port, expected))
                 finally:
-                    server.shutdown()
-                    thread.join()
+                    stop_server(server, thread)
 
     def test_missing_data_returns_error_and_logs_cause(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -148,8 +149,7 @@ class ServerTests(unittest.TestCase):
                     self.assertEqual(error.exception.code, 503)
                     self.assertIn('missing.json', errors.getvalue())
                 finally:
-                    server.shutdown()
-                    thread.join()
+                    stop_server(server, thread)
 
     def test_live_source_resolves_capture_from_registered_report_base(self):
         example = Path(__file__).parents[1] / 'examples/findings.json'
@@ -180,8 +180,7 @@ class ServerTests(unittest.TestCase):
                             content = response.read().decode()
                         self.assertIn('data:image/png;base64,cHJvb2Y=', content)
                     finally:
-                        server.shutdown()
-                        thread.join()
+                        stop_server(server, thread)
 
     def test_refresh_and_reject_other_paths(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -202,8 +201,7 @@ class ServerTests(unittest.TestCase):
                         urlopen(url + 'private')
                     self.assertEqual(error.exception.code, 404)
                 finally:
-                    server.shutdown()
-                    thread.join()
+                    stop_server(server, thread)
 
     def test_data_fingerprint_is_stable_and_tracks_tracker_and_inventory_without_rendering_head(self):
         example = Path(__file__).parents[1] / 'examples/findings.json'
@@ -242,8 +240,7 @@ class ServerTests(unittest.TestCase):
                         self.assertIn('batched-change-list 0.1.16', body)
                         render.assert_called_once()
                     finally:
-                        server.shutdown()
-                        thread.join()
+                        stop_server(server, thread)
 
     def test_live_source_discovers_installed_version_without_inventory_file(self):
         example = Path(__file__).parents[1] / 'examples/findings.json'
@@ -267,8 +264,7 @@ class ServerTests(unittest.TestCase):
                         self.assertIn('batched-change-list 0.1.16', content)
                         discover.assert_called_once()
                     finally:
-                        server.shutdown()
-                        thread.join()
+                        stop_server(server, thread)
 
     def test_live_source_renders_inventory_override(self):
         example = Path(__file__).parents[1] / 'examples/findings.json'
@@ -290,8 +286,7 @@ class ServerTests(unittest.TestCase):
                     self.assertIn('Inventory checked', content)
                     self.assertIn('batched-change-list 0.1.3', content)
                 finally:
-                    server.shutdown()
-                    thread.join()
+                    stop_server(server, thread)
 
     def test_served_page_uses_version_from_viewer_record(self):
         example = Path(__file__).parents[1] / 'examples/findings.json'
@@ -311,8 +306,7 @@ class ServerTests(unittest.TestCase):
                         self.assertIn('viewer 0.1.22', body)
                         self.assertNotIn('Viewer version not recorded', body)
                     finally:
-                        server.shutdown()
-                        thread.join()
+                        stop_server(server, thread)
 
 
 if __name__ == '__main__':

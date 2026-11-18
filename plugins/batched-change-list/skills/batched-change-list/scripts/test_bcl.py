@@ -48,9 +48,10 @@ class BclTests(unittest.TestCase):
 
     def test_verify_failure_reason_has_checked_expected_and_observed(self):
         reason = bcl_entrypoint._verification_failure_reason('python3 check.py', 'Verification command exited 7')
-        self.assertIn('Checked: python3 check.py', reason)
-        self.assertIn('Expected: verification command exits 0', reason)
+        self.assertIn('Checked: verification command', reason)
+        self.assertIn('Expected: command exits 0', reason)
         self.assertIn('Observed: Verification command exited 7', reason)
+        self.assertNotIn('check.py', reason)
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
@@ -85,20 +86,31 @@ elif args[:2] != ['pr', 'edit']:
         self.second = self.root / "second"; self.git(self.home, "worktree", "add", "-qb", "other", str(self.second))
         other_viewer = self.state / "viewers" / "other-list.json"; other_viewer.parent.mkdir(parents=True, exist_ok=True)
         other_viewer.write_text(json.dumps({"port":53366, "data":"/another/list.json"}))
-        self.call("adopt", self.data)
+        self.call_without_viewer("adopt", self.data)
+        record = next(iter(json.loads((self.state / "registry.json").read_text()).values()))
+        key = "example/project/123"
+        self.viewer_port = 40000 + os.getpid() % 19000
+        while self.viewer_port == 53366 or not live_state._port_is_free(self.viewer_port):
+            self.viewer_port = 40000 + (self.viewer_port - 39999) % 19000
+        viewer = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        viewer.write_text(json.dumps({"port": self.viewer_port, "pid": None, "data": record["live"]}))
 
     def cleanup_viewers(self):
         owned = viewer_test_guard.viewer_pids_under([self.root])
         viewer_test_guard.stop_viewers(self.root, owned)
 
     def test_suite_leaves_no_viewer_processes(self):
-        result = self.call("start")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        viewers = [json.loads(path.read_text()) for path in (self.state / "viewers").glob("*.json")]
-        self.assertTrue(any(value.get("pid") for value in viewers))
-        pid = next(int(value["pid"]) for value in viewers if value.get("pid"))
-        self.cleanup_viewers()
-        self.assertFalse(live_state._pid_is_running(pid))
+        proc = subprocess.Popen([sys.executable, str(live_state.SCRIPTS / "serve.py"), str(self.page), "--port", "0"],
+                                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline and not live_state._viewer_process(proc.pid, self.page):
+                time.sleep(.05)
+            self.assertTrue(live_state._viewer_process(proc.pid, self.page))
+        finally:
+            self.cleanup_viewers()
+            proc.wait(timeout=5)
+        self.assertFalse(live_state._pid_is_running(proc.pid), "orphan process still running")
 
     @staticmethod
     def merge_ready(document):
@@ -171,6 +183,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(bcl_entrypoint._provider("https://cursor.com/codebase/gurusharan/agent-plugins/pull/110"), "origin")
 
     def test_plan_reports_viewer_pid_permission_error_without_traceback(self):
+        self.assertEqual(self.call("start").returncode, 0)
         stderr = io.StringIO()
         plan = self.root / "plan.json"
         plan.write_text(json.dumps({"round": 1, "groups": []}))
@@ -351,9 +364,67 @@ elif args[:2] != ['pr', 'edit']:
         self.prepare_review(ids or None)
         return self.call("install", *args)
 
+    def _active_verification(self):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        manager = PLUGIN / "skills/batched-change-list/scripts/manage_findings.py"
+        run = {"id":"verify-once", "build":"1.0", "revision":"abc", "installed_at":"2026-11-18T00:00:00Z", "install_evidence":"fixture receipt"}
+        result = subprocess.run([sys.executable, str(manager), "batch", str(live), "-", "--render", str(self.page)],
+            input=json.dumps([{"action":"start-verification", "run":run}]), text=True, capture_output=True, env=self.env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.data.write_bytes(live.read_bytes())
+        return live
+
+    def _lane_ready(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        check = self.root / "lane.py"; check.write_text("pass\n")
+        command = f'"{sys.executable}" "{check}"'
+        plan = self.root / "verify-plan.json"
+        plan.write_text(json.dumps({"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"status":"pending","verify":{"command":command}}]}))
+        self.assertEqual(self.call("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        self.assertEqual(self.install_after_review("--ids", "ISSUE-01").returncode, 0)
+        live = self._active_verification()
+        return live, command
+
+    def test_shared_check_is_recorded_once_for_active_install(self):
+        live = self._active_verification()
+        marker = self.root / "shared-ran"
+        command_file = self.root / "shared.py"; command_file.write_text(f"from pathlib import Path; Path({str(marker)!r}).touch()\n")
+        command = f'"{sys.executable}" "{command_file}"'
+        result = self.call("verify", "--shared", "--then", command)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        check = json.loads(live.read_text())["tracking"]["verification_run"]["shared_check"]
+        self.assertEqual(check, {"command":command,"state":"passed","exit_code":0,"finished_at":check["finished_at"]})
+        self.assertTrue(marker.exists())
+        self.assertEqual(result.stdout.count("Shared checks passed once for this install"), 1)
+        self.assertIn("Shared checks passed once for this install", self.page.read_text())
+
+    def test_second_shared_check_on_same_run_is_refused(self):
+        self._active_verification()
+        command = f'"{sys.executable}" -c "pass"'
+        self.assertEqual(self.call("verify", "--shared", "--then", command).returncode, 0)
+        second = self.call("verify", "--shared", "--then", command)
+        self.assertNotEqual(second.returncode, 0)
+        self.assertIn("already recorded", second.stderr)
+
+    def test_lane_verify_is_refused_after_failed_shared_check(self):
+        live, command = self._lane_ready()
+        fail = self.root / "shared-fail.py"; fail.write_text("raise SystemExit(7)\n")
+        shared_command = f'"{sys.executable}" "{fail}"'
+        self.assertNotEqual(self.call("verify", "--shared", "--then", shared_command).returncode, 0)
+        lane = self.call("verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertNotEqual(lane.returncode, 0)
+        self.assertIn("requires the shared check to pass first", lane.stderr)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["verification_run"]["shared_check"]["state"], "failed")
+
+    def test_lane_verify_without_shared_check_is_unchanged(self):
+        _, command = self._lane_ready()
+        lane = self.call("verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertEqual(lane.returncode, 0, lane.stderr)
+
     def call_without_viewer(self, stage, *args):
         output, error = io.StringIO(), io.StringIO()
-        argv = [str(BCL), "--data", str(self.data), *map(str, args), stage]
+        data, extra = (args[0], args[1:]) if args and isinstance(args[0], Path) else (self.data, args)
+        argv = [str(BCL), "--data", str(data), *map(str, extra), stage]
         with patch.object(sys, "argv", argv), patch.object(bcl_entrypoint, "_ensure_viewer"), \
                 patch.object(live_state, "STATE", self.state), patch.dict(os.environ, self.env), \
                 contextlib.redirect_stdout(output), contextlib.redirect_stderr(error):
@@ -396,7 +467,7 @@ elif args[:2] != ['pr', 'edit']:
         live = self.call("status", cwd=self.second)
         self.assertEqual(live.returncode, 0, live.stderr)
         state = json.loads(live.stdout)
-        self.assertEqual(state["live"], self.call("adopt", self.second / "docs/triage/pr-123-findings.json").stdout.strip())
+        self.assertEqual(state["live"], self.call_without_viewer("adopt", self.second / "docs/triage/pr-123-findings.json").stdout.strip())
 
     def test_adopt_accepts_tracker_as_positional_argument(self):
         result = subprocess.run([sys.executable, str(BCL), "adopt", str(self.data)], env=self.env, capture_output=True, text=True)
@@ -653,9 +724,25 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(written['tracking']['plan']['groups'][0]['status'], 'failed')
 
     def test_failed_lane_verify_keeps_findings_in_progress(self):
-        self.assertEqual(self.call('start').returncode, 0)
         fail = self.root / 'fail.py'; fail.write_text('raise SystemExit(7)\n')
         command = f'"{sys.executable}" "{fail}"'
+        live = self._start_verification(command)
+        result = self.call('verify','--ids','ISSUE-01','--then',command)
+        self.assertNotEqual(result.returncode, 0)
+        written = json.loads(live.read_text())
+        check = written['tracking']['verification_run']['checks']['ISSUE-01']
+        self.assertEqual(check['state'], 'inconclusive', result.stderr)
+        self.assertEqual(check['observation'], 'Visible before check')
+        self.assertIn('exited 7', check['evidence'])
+        self.assertIn(command, check['details'])
+        self.assertNotIn(sys.executable, check['evidence'])
+        self.assertEqual(next(item for item in written['findings'] if item['id'] == 'ISSUE-01')['status'], 'in_progress')
+        group = written['tracking']['plan']['groups'][0]
+        self.assertEqual(group['status'], 'failed')
+        self.assertIn('exited 7', group['verify']['failure'])
+
+    def _start_verification(self, command):
+        self.assertEqual(self.call('start').returncode, 0)
         plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending','verify':{'command':command}}]}
         path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
         self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
@@ -670,17 +757,25 @@ elif args[:2] != ['pr', 'edit']:
                                 input=json.dumps(operations),text=True,capture_output=True,env=self.env)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.data.write_bytes(live.read_bytes())
+        return live
+
+    def test_failed_lane_verify_spawn_error_is_recorded_in_details(self):
+        missing = self.root / 'missing executable'
+        command = f'"{missing}"'
+        live = self._start_verification(command)
         result = self.call('verify','--ids','ISSUE-01','--then',command)
         self.assertNotEqual(result.returncode, 0)
         written = json.loads(live.read_text())
         check = written['tracking']['verification_run']['checks']['ISSUE-01']
         self.assertEqual(check['state'], 'inconclusive', result.stderr)
-        self.assertEqual(check['observation'], 'Visible before check')
-        self.assertIn('exited 7', check['evidence'])
+        self.assertIn('could not start', check['evidence'])
+        self.assertIn(command, check['details'])
+        self.assertIn('No such file', check['details'])
+        self.assertNotIn(str(missing), check['evidence'])
         self.assertEqual(next(item for item in written['findings'] if item['id'] == 'ISSUE-01')['status'], 'in_progress')
         group = written['tracking']['plan']['groups'][0]
         self.assertEqual(group['status'], 'failed')
-        self.assertIn('exited 7', group['verify']['failure'])
+        self.assertIn('could not start', group['verify']['failure'])
 
     def test_fix_job_restarts_failed_lane(self):
         self.assertEqual(self.call('start').returncode, 0)
@@ -831,7 +926,7 @@ elif args[:2] != ['pr', 'edit']:
             f"result = subprocess.run([{sys.executable!r}, {str(manager)!r}, 'batch', {str(live)!r}, {str(operations)!r}, '--render', {str(self.page)!r}], capture_output=True, text=True)",
             'if result.returncode: raise SystemExit(result.stderr)',
             f"Path({str(changed)!r}).write_text('yes')",
-            f"deadline = time.monotonic() + 10; gate = Path({str(release)!r})",
+            f"deadline = time.monotonic() + 60; gate = Path({str(release)!r})",
             'while not gate.exists() and time.monotonic() < deadline: time.sleep(0.02)',
             'if not gate.exists(): raise SystemExit(9)',
         )) + '\n')
@@ -856,7 +951,7 @@ elif args[:2] != ['pr', 'edit']:
              patch.object(live_state, 'ensure_viewer'):
             thread = threading.Thread(target=first_verify)
             thread.start()
-            deadline = time.monotonic() + 10
+            deadline = time.monotonic() + 30
             while not changed.exists() and time.monotonic() < deadline:
                 time.sleep(0.02)
             self.assertTrue(changed.exists(), 'verifier child could not write while launch lock was held')
@@ -864,7 +959,7 @@ elif args[:2] != ['pr', 'edit']:
             with self.assertRaisesRegex(SystemExit, 'verification already in progress for this tracker'):
                 bcl_entrypoint.main()
             release.write_text('continue')
-            thread.join(timeout=10)
+            thread.join(timeout=30)
             self.assertFalse(thread.is_alive(), 'first verification did not finish')
         sys.argv = original_argv
         self.assertEqual(first_result, [None])
@@ -888,15 +983,35 @@ elif args[:2] != ['pr', 'edit']:
             [{'action':'update-plan-group','id':'A','patch':{'verify_summary':'Writer waited'}}],
             [{'action':'update','id':'ISSUE-01','patch':{'title':'Finding writer waited'}}],
         ]
-        threads, started, completed, results = [], [threading.Event() for _ in operations], \
-            [threading.Event() for _ in operations], [None for _ in operations]
+        threads, attempts, completed, results = [], [], [threading.Event() for _ in operations], [None for _ in operations]
 
         def spawn_writer(index):
             ops = self.root / f'writer-{index}.json'; ops.write_text(json.dumps(operations[index]))
+            attempt = self.root / f'writer-{index}-blocked'
+            attempts.append(attempt)
+            wrapper = self.root / f'writer-{index}.py'
+            wrapper.write_text("\n".join((
+                'import sys',
+                f"sys.path.insert(0, {str(manager.parent)!r})",
+                'import manage_findings, tracker_lock',
+                'from pathlib import Path',
+                'real_lock = tracker_lock.exclusive_lock',
+                f"target = tracker_lock.plan_lock_path(Path({str(live)!r}))",
+                'def observed_lock(path, *args, **kwargs):',
+                '    if Path(path) == target:',
+                '        try:',
+                '            with real_lock(path, blocking=False): pass',
+                '        except tracker_lock.LockBusyError:',
+                f"            Path({str(attempt)!r}).write_text('blocked')",
+                '        else:',
+                f"            Path({str(attempt)!r}).write_text('free')",
+                '    return real_lock(path, *args, **kwargs)',
+                'tracker_lock.exclusive_lock = observed_lock',
+                f"raise SystemExit(manage_findings.main(['batch', {str(live)!r}, {str(ops)!r}, '--render', {str(self.page)!r}]))",
+            )) + '\n')
             def write():
-                started[index].set()
                 results[index] = subprocess.run(
-                    [sys.executable, str(manager), 'batch', str(live), str(ops), '--render', str(self.page)],
+                    [sys.executable, str(wrapper)],
                     env=self.env, capture_output=True, text=True)
                 completed[index].set()
             thread = threading.Thread(target=write)
@@ -911,7 +1026,11 @@ elif args[:2] != ['pr', 'edit']:
                 launched = True
                 for index in range(len(operations)):
                     spawn_writer(index)
-                self.assertTrue(all(event.wait(5) for event in started))
+                deadline = time.monotonic() + 30
+                while time.monotonic() < deadline and not all(path.exists() for path in attempts):
+                    time.sleep(0.02)
+                self.assertTrue(all(path.exists() and path.read_text() == 'blocked' for path in attempts),
+                                'managed writers did not confirm the verify lock was held')
                 self.assertFalse(any(event.wait(0.15) for event in completed),
                                  'managed plan/finding writer crossed the launch reservation')
             return real_popen(args, *popen_args, **kwargs)
@@ -921,7 +1040,7 @@ elif args[:2] != ['pr', 'edit']:
              patch.object(sys, 'argv', [str(BCL),'--data',str(live),'--ids','ISSUE-01','--then',stored_command,'verify']):
             bcl_entrypoint.main()
         for thread in threads:
-            thread.join(timeout=5)
+            thread.join(timeout=30)
             self.assertFalse(thread.is_alive(), 'managed writer did not resume after spawn')
         self.assertTrue(launched)
         self.assertTrue(marker.exists())
@@ -1092,7 +1211,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertIn('in the index', result.stderr)
 
     def test_stale_snapshot_refuses_without_changing_live(self):
-        live = Path(self.call("adopt", self.data).stdout.strip()); before = live.read_bytes()
+        live = Path(self.call_without_viewer("adopt", self.data).stdout.strip()); before = live.read_bytes()
         stale = json.loads(self.data.read_text()); stale["title"] += " stale"; self.data.write_text(json.dumps(stale))
         result = self.call("start")
         self.assertNotEqual(result.returncode, 0); self.assertIn(str(live), result.stderr)
@@ -1106,7 +1225,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(self.git(self.second, "branch", "--show-current").stdout.strip(), "other")
 
     def test_merge_guard_rejects_unsnapshotted_live_then_passes(self):
-        live = Path(self.call("adopt", self.data).stdout.strip())
+        live = Path(self.call_without_viewer("adopt", self.data).stdout.strip())
         doc = json.loads(live.read_text()); doc["title"] += " updated"; live.write_text(json.dumps(doc))
         self.assertNotEqual(self.call("merge").returncode, 0)
         self.assertEqual(self.call("start", live).returncode, 0)
@@ -1250,7 +1369,7 @@ elif args[:2] != ['pr', 'edit']:
             proc = subprocess.Popen([sys.executable, str(live_state.SCRIPTS / "serve.py"), str(report), "--port", "0"],
                                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             try:
-                deadline = time.monotonic() + 3
+                deadline = time.monotonic() + 10
                 while time.monotonic() < deadline and not live_state._viewer_process(proc.pid, report):
                     time.sleep(0.05)
                 self.assertTrue(live_state._viewer_process(proc.pid, report))
@@ -1302,14 +1421,17 @@ elif args[:2] != ['pr', 'edit']:
         self.assertTrue(live.with_suffix(".unsnapshotted").exists())
 
     def test_viewer_avoids_default_port_reserved_by_another_list(self):
+        self.assertEqual(self.call("start").returncode, 0)
         path = self.viewer_state_path()
         state = json.loads(path.read_text())
         self.assertEqual(json.loads((self.state / "viewers/other-list.json").read_text())["port"], 53366)
         self.assertNotEqual(state["port"], 53366); self.assertNotEqual(state["pid"], 87005)
+        self.assertEqual(state["port"], self.viewer_port)
         self.assertEqual(state["version"], json.loads((PLUGIN / "plugin.json").read_text())["version"])
         self.assertIn("started_at", state)
         self.assertTrue(state["data"].endswith("123.json"))
-        for _ in range(20):
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
             try:
                 with socket.create_connection(("127.0.0.1", state["port"]), timeout=.2): break
             except OSError: time.sleep(.05)
@@ -1330,9 +1452,10 @@ elif args[:2] != ['pr', 'edit']:
         state = self.state / "viewers" / "other-list.json"
         state.write_text("{")
         with self.assertRaisesRegex(ValueError, "invalid viewer state"):
-            live_state._reserved_ports(self.viewer_state_path())
+            live_state._reserved_ports(self.state / "viewers" / "example--project--123.json")
 
     def test_viewer_restarts_for_version_and_data_path_mismatch(self):
+        self.assertEqual(self.call("start").returncode, 0)
         path = self.viewer_state_path()
         state = json.loads(path.read_text()); first_pid = state["pid"]
         state["version"] = "0.1.16"; path.write_text(json.dumps(state))
@@ -1419,6 +1542,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(popen.call_args.args[0][popen.call_args.args[0].index("--port") + 1], "53366")
 
     def test_outdated_running_viewer_releases_owned_default_port_before_restart(self):
+        self.assertEqual(self.call("start").returncode, 0)
         records = json.loads((self.state / "registry.json").read_text())
         key, record = next(iter(records.items()))
         live = Path(record["live"]).resolve()
@@ -1527,6 +1651,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(path.read_bytes(), unchanged)
 
     def test_status_reconciles_legacy_viewer(self):
+        self.assertEqual(self.call("start").returncode, 0)
         state = self.viewer_state_path()
         before = json.loads(state.read_text())
         before.pop('instance')
