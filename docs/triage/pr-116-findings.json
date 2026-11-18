@@ -6863,9 +6863,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-18T15:21:13Z",
-      "now": "2026-11-18T15:21:13Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-18T15:38:26Z",
+      "now": "2026-11-18T15:38:26Z — Fix job started"
     },
     "rollover": {
       "source_pr": 115,
@@ -7040,7 +7040,7 @@
               "phase": "fix",
               "started_at": "2026-11-18T15:21:08Z",
               "command": "resume-fu-g1.sh",
-              "heartbeat_at": "2026-11-18T15:21:08Z"
+              "heartbeat_at": "2026-11-18T15:38:10Z"
             },
             "fix_status": "passed",
             "implementer_session": "01a1eebf-5e63-7bd0-b3ff-5e5e3c2cd5fb",
@@ -7054,7 +7054,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T15:21:08Z"
+          "updated_at": "2026-11-18T15:38:11Z"
         },
         {
           "id": "VERIFY-ONCE",
@@ -7103,7 +7103,7 @@
             "BCL-66"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl116-r2-g3",
           "reason": "manage_findings evidence validation, render.py and the page template.",
@@ -7112,18 +7112,19 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 8200,
-              "phase": "fix",
-              "started_at": "2026-11-18T14:54:34Z",
-              "command": "resume-g3.sh",
-              "heartbeat_at": "2026-11-18T15:08:36Z",
+              "pid": 99568,
+              "phase": "review",
+              "started_at": "2026-11-18T15:21:14Z",
+              "command": "launch-review-g3.sh",
+              "heartbeat_at": "2026-11-18T15:22:14Z",
               "exit_code": 0,
-              "duration_s": 842,
-              "finished_at": "2026-11-18T15:08:36Z",
-              "finished_phase_status": "passed"
+              "duration_s": 60,
+              "finished_at": "2026-11-18T15:22:14Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
-            "implementer_session": "01a1eebf-6ddc-7342-9e6d-00d5def1e891"
+            "implementer_session": "01a1eebf-6ddc-7342-9e6d-00d5def1e891",
+            "review_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g3.sh",
@@ -7133,7 +7134,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T15:21:13Z"
+          "updated_at": "2026-11-18T15:22:14Z"
         }
       ]
     },
