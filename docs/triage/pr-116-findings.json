@@ -6855,9 +6855,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-18T09:27:02Z",
-      "now": "2026-11-18T09:27:02Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-18T09:43:37Z",
+      "now": "2026-11-18T09:43:37Z — Review started"
     },
     "rollover": {
       "source_pr": 115,
@@ -7015,14 +7015,27 @@
             "BCL-63"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl116-r1-g1",
           "reason": "Same registry and viewer lifecycle code in bin/bcl rollover/merged and live_state.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 98442,
+              "phase": "fix",
+              "started_at": "2026-11-18T09:27:13Z",
+              "command": "launch-g1.sh",
+              "heartbeat_at": "2026-11-18T09:39:57Z",
+              "exit_code": 0,
+              "duration_s": 764,
+              "finished_at": "2026-11-18T09:39:57Z",
+              "finished_phase_status": "passed"
+            },
+            "implementer_session": "01a1edfb-562e-77e0-9c28-b08cd52fb7fc",
+            "fix_status": "passed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.sh",
@@ -7032,7 +7045,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T09:27:02Z"
+          "updated_at": "2026-11-18T09:43:37Z"
         },
         {
           "id": "PAGE-WORDS",
@@ -7043,14 +7056,27 @@
             "BCL-62"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl116-r1-g2",
           "reason": "Same render path and template; finish-check rule for blocked.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 99875,
+              "phase": "fix",
+              "started_at": "2026-11-18T09:27:17Z",
+              "command": "launch-g2.sh",
+              "heartbeat_at": "2026-11-18T09:40:47Z",
+              "exit_code": 0,
+              "duration_s": 810,
+              "finished_at": "2026-11-18T09:40:47Z",
+              "finished_phase_status": "passed"
+            },
+            "implementer_session": "01a1edfb-65e9-72b3-b4bf-44dfc02c997e",
+            "fix_status": "passed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.sh",
@@ -7060,7 +7086,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T09:27:02Z"
+          "updated_at": "2026-11-18T09:40:47Z"
         },
         {
           "id": "REVIEW-VERDICT",
@@ -7069,14 +7095,27 @@
             "BCL-57"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl116-r1-g3",
           "reason": "bin/bcl job review path plus review.md.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 1563,
+              "phase": "fix",
+              "started_at": "2026-11-18T09:27:21Z",
+              "command": "launch-g3.sh",
+              "heartbeat_at": "2026-11-18T09:36:16Z",
+              "exit_code": 0,
+              "duration_s": 535,
+              "finished_at": "2026-11-18T09:36:16Z",
+              "finished_phase_status": "passed"
+            },
+            "implementer_session": "01a1edfb-7567-74d3-96c4-c1aeccf8b9b1",
+            "fix_status": "passed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g3.sh",
@@ -7086,7 +7125,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T09:27:02Z"
+          "updated_at": "2026-11-18T09:36:16Z"
         },
         {
           "id": "CHECK-LEAKS",
@@ -7095,14 +7134,27 @@
             "BCL-58"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl116-r1-g4",
           "reason": "Test infrastructure only; independent of product code.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 2673,
+              "phase": "fix",
+              "started_at": "2026-11-18T09:27:25Z",
+              "command": "launch-g4.sh",
+              "heartbeat_at": "2026-11-18T09:41:42Z",
+              "exit_code": 0,
+              "duration_s": 857,
+              "finished_at": "2026-11-18T09:41:42Z",
+              "finished_phase_status": "passed"
+            },
+            "implementer_session": "01a1edfb-84b4-7590-ada9-53b6f7992e7e",
+            "fix_status": "passed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g4.sh",
@@ -7112,7 +7164,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T09:27:02Z"
+          "updated_at": "2026-11-18T09:41:42Z"
         }
       ]
     },
@@ -8505,7 +8557,8 @@
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix"
+      "plan_fix",
+      "review"
     ]
   },
   "findings": [
