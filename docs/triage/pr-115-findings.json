@@ -6565,9 +6565,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-18T07:33:48Z",
-      "now": "2026-11-18T07:33:48Z — Lane VERIFY-LOOP updated"
+      "stage": "install",
+      "updated_at": "2026-11-18T08:07:32Z",
+      "now": "2026-11-18T08:07:32Z — Install in progress"
     },
     "rollover": {
       "source_pr": 114,
@@ -6726,8 +6726,8 @@
             "BCL-56"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl115-r3-g6",
           "reason": "Round 4: BCL-53 tests leaked viewers at Verify; BCL-56 adds the suite-wide leak guard in the same tests. BCL-50 and BCL-51 code is in place and re-verifies with the lane.",
           "codex": {
@@ -6736,21 +6736,21 @@
             "one_file": false,
             "implementer_session": "01a1ed47-c138-7f12-907a-b5d527e13cea",
             "job": {
-              "pid": 9272,
-              "phase": "review",
-              "started_at": "2026-11-18T07:28:36Z",
-              "command": "launch-review-g6r4.sh",
-              "heartbeat_at": "2026-11-18T07:29:11Z",
+              "pid": 60087,
+              "phase": "presuite",
+              "started_at": "2026-11-18T08:00:57Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T08:04:41Z",
               "exit_code": 0,
-              "duration_s": 35,
-              "finished_at": "2026-11-18T07:29:11Z",
+              "duration_s": 224,
+              "finished_at": "2026-11-18T08:04:41Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
-            "review_status": "failed",
+            "review_status": "passed",
             "reviewer_session": "01a1ed8e-bbf7-7bb3-95fa-aa122a1c2487",
             "reviewer_model": "gpt-6.1-terra",
-            "review_note": "Terra CHANGES: leak guard only sees registered pids and the named test is mocked; must-fix goes to the same Luna session"
+            "review_note": "One Terra round (01a1ed8e-bbf7) two must-fixes fixed by Luna fu4/fu5 at 13:26 IST: temp-root discovery with exact python serve.py matching, suite-wide guard module, isolated-subprocess named test. No second review."
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
@@ -6760,7 +6760,17 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T07:33:27Z"
+          "updated_at": "2026-11-18T08:04:42Z",
+          "verify_summary": "Review passed; pre-push suite next",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T08:04:41Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T08:07:32Z"
+          }
         },
         {
           "id": "VERIFY-LOOP",
@@ -6770,8 +6780,8 @@
             "BCL-55"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "fix",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl115-r3-g7",
           "reason": "Round 4: BCL-55 changes the bin/bcl verify-failure and fix-job guards next to the BCL-54 review guard; BCL-54 code is in place and re-verifies with the lane. Separate files from VIEWER-STRIP except test_bcl.py additions.",
           "codex": {
@@ -6780,17 +6790,21 @@
             "one_file": false,
             "implementer_session": "01a1ed47-c138-70d1-8c82-fb3ee5ab03af",
             "job": {
-              "pid": 14733,
-              "phase": "fix",
-              "started_at": "2026-11-18T07:33:48Z",
-              "command": "resume2-g8.sh",
-              "heartbeat_at": "2026-11-18T07:33:48Z"
+              "pid": 60087,
+              "phase": "presuite",
+              "started_at": "2026-11-18T08:00:57Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T08:04:41Z",
+              "exit_code": 0,
+              "duration_s": 224,
+              "finished_at": "2026-11-18T08:04:41Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
-            "review_status": "failed",
+            "review_status": "passed",
             "reviewer_session": "01a1ed8e-667e-71e1-bf5c-7b9c12f97c80",
             "reviewer_model": "gpt-6.1-terra",
-            "review_note": "Terra CHANGES: fix command starts before the plan_fix Introspect check; must-fix goes to the same Luna session"
+            "review_note": "One Terra round (01a1ed8e-667e) must-fix fixed by Luna fu2 at 13:11 IST: plan_fix transition written before Popen; orchestrator read the bin/bcl diff and named test test_fix_job_does_not_run_command_without_current_introspect. No second review."
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.sh",
@@ -6800,7 +6814,17 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T07:33:48Z"
+          "updated_at": "2026-11-18T08:04:42Z",
+          "verify_summary": "Review passed; waits for VIEWER-STRIP to share one build",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T08:04:41Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T08:07:32Z"
+          }
         },
         {
           "id": "FLAKY-CHECK",
@@ -6809,8 +6833,8 @@
             "BCL-52"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "samantha-pr115-rollover",
           "reason": "Round 4: fix already passed and committed in 09e1859d; failed Verify only on the VIEWER-STRIP leak, so it re-verifies on the next install.",
           "codex": {
@@ -6820,7 +6844,18 @@
             "implementer_session": "01a1ed47-c138-70d1-8c82-fb3ee5ab03af",
             "fix_status": "passed",
             "review_status": "skipped_one_file",
-            "review_note": "Fix committed in 09e1859d; round 4 only re-verifies it"
+            "review_note": "Fix committed in 09e1859d; round 4 only re-verifies it",
+            "job": {
+              "pid": 60087,
+              "phase": "presuite",
+              "started_at": "2026-11-18T08:00:57Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T08:04:41Z",
+              "exit_code": 0,
+              "duration_s": 224,
+              "finished_at": "2026-11-18T08:04:41Z",
+              "finished_phase_status": "passed"
+            }
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.sh",
@@ -6830,8 +6865,17 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T07:14:46Z",
-          "verify_summary": "Fix in place; waits for the next install"
+          "updated_at": "2026-11-18T08:04:42Z",
+          "verify_summary": "Fix in place; waits for the next install",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T08:04:41Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T08:07:32Z"
+          }
         }
       ]
     },
@@ -6839,7 +6883,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "verification_run": {
       "id": "bcl-0.1.40-cd47cb75-115",
