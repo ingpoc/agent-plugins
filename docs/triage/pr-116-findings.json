@@ -7008,9 +7008,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-18T17:02:53Z",
-      "now": "2026-11-18T17:02:53Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-18T17:07:32Z",
+      "now": "2026-11-18T17:07:32Z — Fix job started"
     },
     "rollover": {
       "source_pr": 115,
@@ -7178,8 +7178,8 @@
             "BCL-69"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl116-r3-g1",
           "reason": "Both skills live in the computer-use plugin.",
           "codex": {
@@ -7191,7 +7191,11 @@
               "phase": "fix",
               "started_at": "2026-11-18T16:58:49Z",
               "command": "run-bench-g1.sh",
-              "heartbeat_at": "2026-11-18T17:02:49Z"
+              "heartbeat_at": "2026-11-18T17:07:01Z",
+              "exit_code": 0,
+              "duration_s": 492,
+              "finished_at": "2026-11-18T17:07:01Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1ef8b-7ba1-76b3-8d69-72dd344335cd"
@@ -7204,7 +7208,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T17:02:49Z"
+          "updated_at": "2026-11-18T17:07:01Z"
         },
         {
           "id": "SR-COMET",
@@ -7253,7 +7257,7 @@
             "BCL-72"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl116-r3-g3",
           "reason": "Two small plugins, same kind of edits.",
@@ -7262,18 +7266,19 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 60353,
-              "phase": "fix",
-              "started_at": "2026-11-18T16:54:57Z",
-              "command": "run-bench-g3.sh",
-              "heartbeat_at": "2026-11-18T17:01:20Z",
+              "pid": 83115,
+              "phase": "review",
+              "started_at": "2026-11-18T17:02:54Z",
+              "command": "launch-review-g3.sh",
+              "heartbeat_at": "2026-11-18T17:03:57Z",
               "exit_code": 0,
-              "duration_s": 383,
-              "finished_at": "2026-11-18T17:01:20Z",
-              "finished_phase_status": "passed"
+              "duration_s": 63,
+              "finished_at": "2026-11-18T17:03:57Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
-            "implementer_session": "01a1ef8b-99da-7500-85df-73d8b58c4f17"
+            "implementer_session": "01a1ef8b-99da-7500-85df-73d8b58c4f17",
+            "review_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.sh",
@@ -7283,7 +7288,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T17:02:53Z"
+          "updated_at": "2026-11-18T17:03:57Z"
         },
         {
           "id": "BCL-FLOW",
@@ -7295,8 +7300,8 @@
             "BCL-74"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl116-r3-g4",
           "reason": "Same change list code: run closing, lane state, description, test lookup, row labels.",
           "codex": {
@@ -7308,7 +7313,11 @@
               "phase": "fix",
               "started_at": "2026-11-18T17:02:51Z",
               "command": "run-fu-g4.sh",
-              "heartbeat_at": "2026-11-18T17:02:51Z"
+              "heartbeat_at": "2026-11-18T17:07:20Z",
+              "exit_code": 0,
+              "duration_s": 269,
+              "finished_at": "2026-11-18T17:07:20Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1ef8b-a97d-7d90-80d1-84933311de79",
@@ -7322,7 +7331,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T17:02:51Z"
+          "updated_at": "2026-11-18T17:07:20Z"
         }
       ]
     },
