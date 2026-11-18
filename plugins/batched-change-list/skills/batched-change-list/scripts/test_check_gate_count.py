@@ -39,7 +39,7 @@ class GateCountTests(unittest.TestCase):
         self.assertIsNone(manage_findings.require_rollover_gate([], {}, False, "set-stage"))
 
     def test_status_shows_report_and_rollover_gates(self):
-        bcl_path = Path(__file__).resolve().parents[3] / "bin/bcl"
+        bcl_path = test_bcl.BCL
         loader = SourceFileLoader("bcl_status_test", str(bcl_path))
         spec = importlib.util.spec_from_loader("bcl_status_test", loader)
         bcl = importlib.util.module_from_spec(spec)
