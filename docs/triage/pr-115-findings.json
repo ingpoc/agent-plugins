@@ -6565,9 +6565,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-18T07:12:55Z",
-      "now": "2026-11-18T07:12:55Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-18T07:13:46Z",
+      "now": "2026-11-18T07:13:46Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 114,
@@ -6614,7 +6614,7 @@
       }
     },
     "cycle": 7,
-    "round": 3,
+    "round": 4,
     "round_history": [
       {
         "round": 2,
@@ -6705,69 +6705,74 @@
         "round": 2,
         "fixed": 12,
         "ended_at": "2026-11-18T06:10:55Z"
+      },
+      {
+        "round": 3,
+        "fixed": 12,
+        "ended_at": "2026-11-18T07:13:46Z"
       }
     ],
     "plan": {
-      "round": 3,
+      "round": 4,
       "cycle": 7,
-      "status": "closed",
       "groups": [
         {
           "id": "VIEWER-STRIP",
-          "name": "Strip layout, viewer reload and live lane job",
+          "name": "Live lane jobs, strip, viewer identity and leak guard",
           "finding_ids": [
             "BCL-50",
             "BCL-51",
             "BCL-53",
-            "BCL-54"
+            "BCL-56"
           ],
           "depends_on": [],
-          "status": "running",
+          "status": "planned",
           "phase": "fix",
           "worktree": "bcl115-r3-g6",
-          "reason": "Same viewer and render code; BCL-50 is proven live by running this lane fix through bcl job with the interim heartbeat script off.",
+          "reason": "Round 4: BCL-53 tests leaked viewers at Verify; BCL-56 adds the suite-wide leak guard in the same tests. BCL-50 and BCL-51 code is in place and re-verifies with the lane.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
             "one_file": false,
-            "job": {
-              "pid": 40097,
-              "phase": "presuite",
-              "started_at": "2026-11-18T06:54:11Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-18T06:57:41Z",
-              "exit_code": 0,
-              "duration_s": 210,
-              "finished_at": "2026-11-18T06:57:41Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "implementer_session": "01a1ed47-c138-7f12-907a-b5d527e13cea",
-            "reviewer_session": "01a1ed61-19e2-7a50-affa-43e029bac406",
-            "reviewer_model": "gpt-6.1-terra",
-            "review_status": "passed",
-            "review_note": "One Terra round (01a1ed61) returned one must-fix (presuite job replaced codex.job). Luna fixed it in the same session with BCL-54 (fu2, 12:21 IST); orchestrator read the bin/bcl and check_install_sessions diff and named test test_fix_then_presuite_then_review_succeeds. No second review per the one-round rule."
+            "implementer_session": "01a1ed47-c138-7f12-907a-b5d527e13cea"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
-            "method": "Full suite, strict shape and chart check on worktree and installed copy, named tests on the installed copy, live page screenshot after install-local and live job heartbeats.",
+            "method": "Full suite, strict shape and chart check on a clean clone and the installed copy, named tests on the installed copy, no leaked viewers.",
             "status": "pending",
             "total": 4,
             "fixed": 0,
-            "failed": 0,
-            "failure": "Checked: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh\nExpected: verification command exits 0\nObserved: Verification command exited 1"
+            "failed": 0
           },
-          "updated_at": "2026-11-18T07:11:31Z",
-          "verify_summary": "Fixing BCL-53 test viewer leak in same Luna session",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-18T06:57:41Z"
+          "updated_at": "2026-11-18T07:13:46Z"
+        },
+        {
+          "id": "VERIFY-LOOP",
+          "name": "Review start and failed-verify loop-back",
+          "finding_ids": [
+            "BCL-54",
+            "BCL-55"
+          ],
+          "depends_on": [],
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl115-r3-g7",
+          "reason": "Round 4: BCL-55 changes the bin/bcl verify-failure and fix-job guards next to the BCL-54 review guard; BCL-54 code is in place and re-verifies with the lane. Separate files from VIEWER-STRIP except test_bcl.py additions.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "one_file": false,
+            "implementer_session": "01a1ed47-c138-70d1-8c82-fb3ee5ab03af"
           },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-18T06:59:19Z"
-          }
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.sh",
+            "method": "Named tests on the installed copy, full suite on clean clone and installed copy, no leaked viewers.",
+            "status": "pending",
+            "total": 2,
+            "fixed": 0,
+            "failed": 0
+          },
+          "updated_at": "2026-11-18T07:13:46Z"
         },
         {
           "id": "FLAKY-CHECK",
@@ -6776,60 +6781,33 @@
             "BCL-52"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
-          "worktree": "bcl115-r3-g7",
-          "reason": "Test-only root cause in test_bcl.py; independent of the viewer lane.",
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "samantha-pr115-rollover",
+          "reason": "Round 4: fix already passed and committed in 09e1859d; failed Verify only on the VIEWER-STRIP leak, so it re-verifies on the next install.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
             "one_file": true,
-            "job": {
-              "pid": 40097,
-              "phase": "presuite",
-              "started_at": "2026-11-18T06:54:11Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-18T06:57:41Z",
-              "exit_code": 0,
-              "duration_s": 210,
-              "finished_at": "2026-11-18T06:57:41Z",
-              "finished_phase_status": "passed"
-            },
-            "implementer_session": "01a1ed47-c138-70d1-8c82-fb3ee5ab03af",
-            "fix_status": "passed",
-            "review_status": "skipped_one_file"
+            "implementer_session": "01a1ed47-c138-70d1-8c82-fb3ee5ab03af"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.sh",
-            "method": "Named test on the installed copy plus three consecutive full scripts/check.py runs.",
+            "method": "Named tests on the installed copy plus three consecutive full scripts/check.py runs.",
             "status": "pending",
             "total": 1,
             "fixed": 0,
-            "failed": 0,
-            "failure": "Checked: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.sh\nExpected: verification command exits 0\nObserved: Verification command exited 1"
+            "failed": 0
           },
-          "updated_at": "2026-11-18T07:11:31Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-18T06:57:41Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-18T06:59:19Z"
-          },
-          "verify_summary": "Waits for VIEWER-STRIP leak fix, then re-verify"
+          "updated_at": "2026-11-18T07:13:46Z"
         }
       ]
     },
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix",
       "review",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "verification_run": {
       "id": "bcl-0.1.40-cd47cb75-115",
@@ -8710,7 +8688,7 @@
       "id": "BCL-55",
       "title": "A failed lane Verify marks every finding in the lane Blocked and then refuses a fix job",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "When a lane verify command exits nonzero, bcl verify sets every in-progress finding in that lane to blocked and finishes their checks as blocked, and bcl job --phase fix refuses a failed or blocked lane, so the lane cannot loop back to a fix through bcl.",
       "impact": "Findings whose own checks passed show Blocked, which reads as an outside blocker, and the orchestrator must hand-edit statuses before the fix can restart.",
@@ -8722,7 +8700,7 @@
       "id": "BCL-56",
       "title": "The test suite passes even when a test leaves a viewer running",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "test_suite_leaves_no_viewer_processes only covers some tests, so two new BCL-53 tests leaked a serve.py viewer each and the full suite and pre-push check still passed; only the separate verifier leak check caught it after install.",
       "impact": "A leak reaches install and costs a failed Verify, an extra Introspect and a new round.",
