@@ -6863,9 +6863,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-18T16:28:01Z",
-      "now": "2026-11-18T16:28:01Z — Lane PLAIN-REASONS updated"
+      "stage": "install",
+      "updated_at": "2026-11-18T16:28:27Z",
+      "now": "2026-11-18T16:28:27Z — Install in progress"
     },
     "rollover": {
       "source_pr": 115,
@@ -7027,7 +7027,7 @@
             "BCL-64"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl116-r2-g1",
           "reason": "scripts/check.py output and the load-dependent test in test_bcl.py.",
           "codex": {
@@ -7060,11 +7060,15 @@
             "failed": 0
           },
           "updated_at": "2026-11-18T16:28:01Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-18T16:28:00Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T16:28:27Z"
           }
         },
         {
@@ -7074,7 +7078,7 @@
             "BCL-65"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl116-r2-g2",
           "reason": "bin/bcl verify, verification run record, verify reference.",
           "codex": {
@@ -7107,11 +7111,15 @@
             "failed": 0
           },
           "updated_at": "2026-11-18T16:28:01Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-18T16:28:00Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T16:28:27Z"
           }
         },
         {
@@ -7121,7 +7129,7 @@
             "BCL-66"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl116-r2-g3",
           "reason": "manage_findings evidence validation, render.py and the page template.",
           "codex": {
@@ -7154,11 +7162,15 @@
             "failed": 0
           },
           "updated_at": "2026-11-18T16:28:01Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-18T16:28:00Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T16:28:27Z"
           }
         }
       ]
@@ -8640,7 +8652,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "verification_run": {
       "id": "bcl-0.1.42-7b59a1b6-116",
