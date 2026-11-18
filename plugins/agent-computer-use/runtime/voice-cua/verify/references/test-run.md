@@ -33,7 +33,7 @@ curl --fail-with-body --max-time 100 -sS \
   -d '{"text":"Reply with exactly: test ready.","timeout":90,"async":true}'
 ```
 
-The default typed wait is 90 seconds; `timeout` accepts up to 1800 seconds. Async submission returns a `turn_id` with `status: running`; poll `GET /api/session/turn?id=<turn_id>` until it settles. A synchronous wait that expires also returns `still_running`; the turn continues, so poll it instead of resubmitting the task. Use the per-process token at `~/.cache/macos-cua/typed-approve.token` in the `X-Voice-CUA-Approve` header for both `GET /api/session/turn`, `GET /api/confirm/pending`, and `POST /api/session/approve`. The Island buttons continue using `POST /api/confirm`.
+The default typed wait and accepted maximum are defined in `runtime/voice-cua/python/voice_cua/gateway.py` and `session_hub.py`. Async submission returns a `turn_id` with `status: running`; poll `GET /api/session/turn?id=<turn_id>` until it settles. A synchronous wait that expires also returns `still_running`; the turn continues, so poll it instead of resubmitting the task. Use the per-process token at `~/.cache/macos-cua/typed-approve.token` in the `X-Voice-CUA-Approve` header for both `GET /api/session/turn`, `GET /api/confirm/pending`, and `POST /api/session/approve`. The Island buttons continue using `POST /api/confirm`.
 
 A direct `/api/tools/call` checks the local tool boundary, not model selection/delegation. Keep that evidence separate.
 
@@ -58,7 +58,7 @@ Use a dedicated synthetic service/account and dummy value only. Record its exact
 
 1. Request the form; required metadata includes `id`, `label`, `service`. Verify the panel is visible and capture privacy is active.
 2. Click each field and type using keyboard events. AX value-setting and model/unit tests do not prove first-click keyboard entry. Confirm the account binding and Save enabled state without reading the secure value.
-3. Click elsewhere, return, and verify typing resumes. Cancel; verify no save. Stop automation on user intervention or changed element identities; refresh the UI before any further action, especially Save.
+3. Use dummy data only in automated form checks. Click elsewhere, return, and verify typing resumes. Cancel; verify no save. Stop automation on user intervention or changed element indices or identities; refresh the UI before any further action, especially Save.
 4. For a separately authorized dummy save: click Save deliberately, verify a stored receipt plus catalog locator, and resolve/reuse it through the local injection path. The model sees metadata and outcome only. Verify the intended target field and final login outcome separately; masking alone does not prove successful login. Use an approved test target; never inject into an unrelated app/site.
 5. Remove only the exact test item/metadata this run created, preserving pre-existing entries. Unknown account or saved state: stop and report uncertainty; never guess which Keychain item to delete.
 
@@ -68,9 +68,9 @@ For every prompt retain input, elapsed time, session ID, tool start/result/error
 
 For a transport drop inspect `ws_closed`, safe request/edge IDs, close-frame flag, last server event, successful client/microphone-send ages and ping timing sample. Distinguish intentional shutdown from an unrequested EOF. These fields support diagnosis; they do not establish a network or upstream cause alone.
 
-Refresh the Kindle report after its next snapshot and compare last-seen timestamps against the run interval. Use its adapter/proof docs if ingestion lags. Separate historical rows, user cancellation, mocked-test contamination and actual new failures. Do not erase history to make the dashboard green.
+Refresh the Kindle report after its next snapshot and compare last-seen timestamps against the run interval. Use its adapter/proof docs if ingestion lags. Separate historical rows, user cancellation, mocked-test contamination and actual new failures. Never inject fabricated failures into the live feed because it is evidence of real activity. Do not erase history to make the dashboard green.
 
-A task may return HTTP 200 and every tool may return `ok`, yet the requested journey is incomplete. Record such failures even if Kindle has no new card. Kindle is a collated incident source, not the sole acceptance oracle.
+A successful HTTP response and tool `ok` values can still leave the requested journey incomplete. Record such failures even if Kindle has no new card. Kindle is a collated incident source, not the sole acceptance oracle.
 
 ## 6. Closeout
 

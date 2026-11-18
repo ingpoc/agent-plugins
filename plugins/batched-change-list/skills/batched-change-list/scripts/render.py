@@ -91,9 +91,6 @@ def not_checked_record(record):
     return record
 
 
-NO_FIX_YET = re.compile(r"\bno\s+(?:fix|code|implementation)(?:\s*/\s*(?:fix|code|implementation))*\s+(?:existed|available|implemented|written)\b", re.I)
-
-
 def version_evidence(item, runs):
     outcome_states = {"fixed": "fixed", "verified_fixed": "fixed", "fail": "not_fixed",
                       "failed": "not_fixed", "failing": "not_fixed", "not_fixed": "not_fixed",
@@ -107,8 +104,7 @@ def version_evidence(item, runs):
                            "expected": r.get("expected", "Not recorded"),
                            "observed": r.get("observed", r.get("reference", verdict)),
                            "state": outcome_states.get(verdict.strip().lower(), "")}
-        if row["state"] == "blocked" and (item.get("carried_from") is not None or NO_FIX_YET.search(" ".join(
-                str(row.get(key, "")) for key in ("outcome", "observed", "reference", "blocker")))):
+        if row["state"] == "blocked" and not row.get("blocker"):
             row = not_checked_record(row)
         candidates.append(plain_evidence(row))
     for run in runs:
@@ -128,10 +124,10 @@ def version_evidence(item, runs):
                                    "expected": attached.get("expected") or fields["Expected"] or "Expected behavior not recorded",
                                    "observed": observed,
                                    "reference": attached.get("reference") or result["evidence"], "check": "Installed verification",
+                                   "blocker": attached.get("blocker", ""),
                                    "details": attached.get("details", ""),
                                    "session": run.get("id", ""), "state": result["state"]}
-                if result["state"] == "blocked" and (item.get("carried_from") is not None or NO_FIX_YET.search(" ".join(
-                        str(row.get(key, "")) for key in ("outcome", "observed", "reference", "blocker")))):
+                if result["state"] == "blocked" and not result.get("blocker"):
                     row = not_checked_record(row)
                 candidates.append(plain_evidence(row))
     history = []
@@ -325,6 +321,13 @@ def checks_pending_reason(group):
 def lane_issue_status(group, round_number):
     status = plan_status(group)
     group_id = str(group.get("id", "?"))
+    codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+    job = codex.get("job") if isinstance(codex.get("job"), dict) else group.get("job")
+    pid = job.get("pid") if isinstance(job, dict) else None
+    if (isinstance(job, dict) and job.get("phase") in {"fix", "review", "presuite"}
+            and "exit_code" not in job
+            and type(pid) is int and pid > 0 and not live_state._pid_is_running(pid)):
+        return {"copy": f"Interrupted · resume needed · {group_id}", "kind": "warn", "status": "interrupted"}
     if checks_pending_reason(group) and status in {"blocked", "verifying"}:
         copy = f"Checks pending · {group.get('blocked_reason')}"
         return {"copy": copy, "kind": "run", "status": "verifying"}
@@ -419,12 +422,15 @@ def render_plan(data, tracking, plan, round_number, now):
             value = f'<b>{counts[state]}</b> {label}'
             tally.append(f'<span class="{kind}">{value}</span>')
     rows = []
-    labels = {"planned": "Planned", "running": "Fixing", "review": "In review", "installing": "Installing",
+    labels = {"planned": "Planned", "running": "Fixing", "interrupted": "Interrupted · resume needed",
+              "review": "In review", "installing": "Installing",
               "verifying": "Verifying", "verified": "Verified", "blocked": "Blocked", "failed": "Failed"}
     for group in groups:
         state = states[group.get("id")]
         if state == "parked":
             continue
+        if lane_issue_status(group, round_number)["status"] == "interrupted":
+            state = "interrupted"
         codex = group.get("codex", {}) if isinstance(group.get("codex"), dict) else {}
         verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
         ids = group.get("finding_ids", []) if isinstance(group.get("finding_ids"), list) else []
@@ -939,8 +945,9 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
             raise ValueError(f"{item['id']}.carried_from must be a positive round number or nonempty cycle")
         check = run["checks"].get(item["id"]) if run is not None else None
         if run is not None:
-            if not isinstance(check, dict) or check.get("state") not in CHECK_STATES:
+            if check is not None and (not isinstance(check, dict) or check.get("state") not in CHECK_STATES):
                 raise ValueError(f"{item['id']}: verification check must belong to the current run")
+            check = check or {"state": "pending"}
             item["check"] = {**check, "run_id":run["id"]}
             state = check["state"]
             if state == "checking":
@@ -952,7 +959,7 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
                 raise ValueError(f"{item['id']}: fixed check requires verified_fixed status")
             if run["status"] == "active" and state == "not_fixed" and item["status"] == "verified_fixed":
                 raise ValueError(f"{item['id']}: a failed check cannot retain verified_fixed status")
-            if run["status"] == "complete" and state in ("pending", "checking"):
+            if run["status"] == "complete" and item["id"] in run["checks"] and state in ("pending", "checking"):
                 raise ValueError(f"{item['id']}: completed run has unchecked issues")
         if not isinstance(item.get("verification", ""), str):
             raise ValueError(f"{item['id']}.verification must be a string")
@@ -1006,7 +1013,8 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
         structured = {"checked", "expected", "observed", "verdict", "build", "session", "timestamp", "reference"}
         identified = structured | {"check_id"}
         legacy = {"check", "outcome", "build", "session", "timestamp", "reference"}
-        allowed_records = (legacy, structured, identified, legacy | {"details"}, structured | {"details"}, identified | {"details"})
+        allowed_records = tuple(schema | suffix for schema in (legacy, structured, identified)
+                                for suffix in (set(), {"details"}, {"blocker"}, {"details", "blocker"}))
         if not isinstance(records, list) or any(not isinstance(r, dict) or set(r) not in allowed_records or
                 any(not isinstance(r[k], str) or (k != "details" and not r[k].strip()) for k in r) for r in records):
             raise ValueError(f"{item['id']}.verification_evidence has invalid records")
@@ -1037,7 +1045,7 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
                 safe_link(shot["full"], f"{item['id']}.evidence.full")
             item["evidence"].append(shot)
         output.append(item)
-    if run is not None and set(run["checks"]) != seen:
+    if run is not None and not set(run["checks"]).issubset(seen):
         raise ValueError("verification run checks must match the tracked issue IDs")
     template = TEMPLATE.read_text(encoding="utf-8")
     fixed_count, threshold, gate_met = rollover_gate_state(findings, tracking_data)

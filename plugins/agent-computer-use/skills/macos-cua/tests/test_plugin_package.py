@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 
-PLUGIN_ROOT = Path(__file__).resolve().parents[3]
+PLUGIN_ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / "plugin.json").is_file())
 
 
 class PluginPackageTests(unittest.TestCase):

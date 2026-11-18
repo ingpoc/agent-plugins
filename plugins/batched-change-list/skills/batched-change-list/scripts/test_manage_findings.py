@@ -1125,6 +1125,56 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(batch([{'action':'finish-check','id':'ISSUE-02','run_id':'install-2','outcome':'not_fixed','evidence':'Checked: issue behavior; Expected: fixed; Observed: failure recurred'}]).returncode, 0)
         self.assertEqual(json.loads(self.data.read_text())['findings'][1]['status'], 'failing')
 
+    def test_verification_completion_ignores_findings_added_after_start(self):
+        ops, page = self.root / 'cohort.json', self.root / 'cohort.html'
+        def batch(*actions):
+            ops.write_text(json.dumps(actions))
+            return self.cli('batch', self.data, ops, '--render', page)
+        run = {'id':'cohort-run','build':'ACU 1','revision':'abc','installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt'}
+        self.assertEqual(batch({'action':'start-verification','run':run}).returncode, 0)
+        added = copy.deepcopy(json.loads(self.data.read_text())['findings'][0])
+        added.update(id='ISSUE-03', title='Added after start')
+        self.assertEqual(batch({'action':'add','entry':added}).returncode, 0)
+        self.assertIn('Not checked this install', page.read_text())
+        for issue in ('ISSUE-01', 'ISSUE-02'):
+            self.assertEqual(batch({'action':'start-check','id':issue,'run_id':'cohort-run','observation':'Initial state','observed_at':'2026-11-06T00:01:00Z'}).returncode, 0)
+            self.assertEqual(batch({'action':'finish-check','id':issue,'run_id':'cohort-run','outcome':'inconclusive','evidence':'Checked: issue behavior; Expected: known; Observed: unclear'}).returncode, 0)
+        result = batch({'action':'complete-verification','run_id':'cohort-run'})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(self.data.read_text())['tracking']['verification_run']['status'], 'complete')
+        self.assertIn('Not checked this install', page.read_text())
+
+    def test_add_does_not_reopen_completed_verification_run_for_new_finding(self):
+        ops, page = self.root / 'completed-add.json', self.root / 'completed-add.html'
+        def batch(*actions):
+            ops.write_text(json.dumps(actions))
+            return self.cli('batch', self.data, ops, '--render', page)
+        run = {'id':'completed-run','build':'ACU 1','revision':'abc','installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt'}
+        self.assertEqual(batch({'action':'start-verification','run':run}).returncode, 0)
+        for issue in ('ISSUE-01', 'ISSUE-02'):
+            self.assertEqual(batch({'action':'start-check','id':issue,'run_id':'completed-run','observation':'Initial state','observed_at':'2026-11-06T00:01:00Z'}).returncode, 0)
+            self.assertEqual(batch({'action':'finish-check','id':issue,'run_id':'completed-run','outcome':'inconclusive','evidence':'Checked: issue behavior; Expected: known; Observed: unclear'}).returncode, 0)
+        self.assertEqual(batch({'action':'complete-verification','run_id':'completed-run'}).returncode, 0)
+        added = copy.deepcopy(json.loads(self.data.read_text())['findings'][0])
+        added.update(id='ISSUE-03', title='Added after completion')
+        result = batch({'action':'add','entry':added})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        tracking = json.loads(self.data.read_text())['tracking']
+        self.assertEqual(tracking['verification_run']['status'], 'complete')
+        self.assertNotIn('ISSUE-03', tracking['verification_run']['checks'])
+        self.assertIn('Not checked this install', page.read_text())
+
+    def test_update_plan_group_preserves_phase_without_phase_patch(self):
+        ops, page = self.root / 'phase.json', self.root / 'phase.html'
+        def batch(*actions):
+            ops.write_text(json.dumps(actions))
+            return self.cli('batch', self.data, ops, '--render', page)
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'running','phase':'fix'}]}
+        self.assertEqual(batch({'action':'set-plan','plan':plan}).returncode, 0)
+        result = batch({'action':'update-plan-group','id':'A','merge_codex':True,'patch':{'status':'running','codex':{'status':'running'}}})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(self.data.read_text())['tracking']['plan']['groups'][0]['phase'], 'fix')
+
     def test_checking_must_be_saved_before_finishing(self):
         ops = self.root / 'verify.json'
         run = {'id':'install-1','build':'ACU','revision':'abc','installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt'}

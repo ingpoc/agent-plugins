@@ -1,0 +1,22 @@
+{
+  "evals": [
+    {
+      "prompt": "The latest project snapshot is empty. Tell me whether there are open issues and investigate if the data is stale.",
+      "trigger": "triaging project findings from a potentially stale snapshot",
+      "reference": "references/triage.md",
+      "next": "Check freshness and coverage, collect once only when needed, then reread before concluding."
+    },
+    {
+      "prompt": "What happened in task abc123, and can the evidence prove the fix was accepted?",
+      "trigger": "reviewing a task timeline and its acceptance evidence",
+      "reference": "references/issues-and-sessions.md",
+      "next": "Trace the task and distinguish observed evidence, reported recovery, and independent acceptance."
+    },
+    {
+      "prompt": "Compare the Codex token usage for this completed task with its prior run.",
+      "trigger": "reviewing opt-in Codex task usage",
+      "reference": "references/task-usage.md",
+      "next": "Use complete bound-task usage only and leave incomplete totals excluded."
+    }
+  ]
+}

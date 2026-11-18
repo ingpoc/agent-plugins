@@ -1,20 +1,15 @@
 ---
 name: verify-samantha
-description: Verify Samantha end to end through installed GPT-Live text or voice prompts, local tools, Dynamic Island and Kindle findings. Use when testing Samantha, investigating a reported failure, or validating a voice/browser/credential/Island change.
+description: Use when testing Samantha, investigating a reported failure, or validating an installed voice, browser, credential, Dynamic Island, or Kindle change.
 ---
 
 # verify-samantha
 
-Use [the test-run workflow](references/test-run.md) for preflight, prompts, proof and cleanup. The [feature map](features/README.md) routes deeper checks. Keep one driver per live surface.
+Use the test-run workflow for end-to-end checks. Keep one driver per live surface.
 
-## Invariants
+Never put credential values in prompts, transcripts, tool arguments, screenshots, or logs because those records may persist. Live API tests require operator authorization because they can use external services.
 
-- Test the installed candidate: source, signed app and running service must share a runtime identity. Run `python3 plugins/agent-computer-use/skills/macos-cua/scripts/runtime_contract.py` from the collection root before a live run and after any mismatch.
-- Compare project findings before and after through the developer-observability MCP when configured. Use the Kindle project's owner doctor or skill for source details when available. Recommendations and old counts do not prove a current cause or fix; if no baseline source is available, say so.
-- Live API tests require operator authorization. An explicit request to prompt Samantha authorizes a bounded prompt test; it does not authorize unrelated logins, messages, purchases or credential changes.
-- Mic preflight: before a live verify pass, check that the microphone is available. If it is not, skip mic-dependent checks and record them as blocked or untested with that reason; do not fail the rest of the run.
-- Text prompts, direct tool calls, audio injection and real microphone/speaker tests prove different paths. Label the path actually exercised.
-- HTTP success, a spoken claim and tool dispatch are insufficient: require the requested app/site outcome and cleanup. Inspect uncertain dispatched actions before retrying.
-- Credentials use native secure Island entry and Keychain. Never put values in prompts, transcripts, tool arguments, screenshots or logs. Use dummy data for automated form checks; stop if the user intervenes, indices change or a secret could be present.
-- Keep unit-test activity in temporary logs. Real end-to-end probe failures remain identifiable by session ID and prompt; do not inject fabricated failures into the live feed.
-- Report unresolved failures and untested paths explicitly. Never mark sustained voice reliability fixed from a short clean test.
+| Step | Trigger | Reference | Script |
+| --- | --- | --- | --- |
+| 1, 3, 4 | When testing Samantha, investigating a failure, verifying a candidate, running a dummy form check, or closing out a live run | `references/test-run.md` | `python3 plugins/agent-computer-use/skills/macos-cua/scripts/runtime_contract.py` |
+| 2 | When checking voice, browser, credential, or Island behavior | `features/README.md` | |

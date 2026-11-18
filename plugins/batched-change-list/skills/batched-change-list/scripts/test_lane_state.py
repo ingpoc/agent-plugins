@@ -98,6 +98,28 @@ class LaneStateTests(unittest.TestCase):
             page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
         self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale', page)
 
+    def test_dead_unfinished_review_job_renders_interrupted(self):
+        data = self.stale_data(12345)
+        group = data["tracking"]["plan"]["groups"][0]
+        group.update(status="review", phase="review")
+        group["codex"]["job"]["phase"] = "review"
+        with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=False):
+            page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
+        self.assertIn('class="grp interrupted"', page)
+        self.assertIn("Interrupted · resume needed", page)
+        self.assertNotIn("In review · ISSUE-01", page)
+
+    def test_dead_unfinished_presuite_job_renders_interrupted(self):
+        data = self.stale_data(12345)
+        group = data["tracking"]["plan"]["groups"][0]
+        group.update(status="review", phase="review", presuite={"status":"running"})
+        group["codex"]["job"]["phase"] = "presuite"
+        with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=False):
+            page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
+        self.assertIn('class="grp interrupted"', page)
+        self.assertIn("Interrupted · resume needed", page)
+        self.assertNotIn("In review · ISSUE-01", page)
+
     def test_recent_lane_heartbeat_prevents_stale(self):
         data = self.stale_data(12345)
         data["tracking"]["plan"]["groups"][0]["codex"]["job"]["heartbeat_at"] = "2026-11-18T09:59:00Z"
@@ -139,6 +161,16 @@ class LaneStateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=True):
             page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
         self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale', page)
+
+    def test_dead_unfinished_fix_job_renders_as_interrupted_and_resume_needed(self):
+        data = self.stale_data(87654321)
+        with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=False):
+            page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
+            status = render.lane_issue_status(data["tracking"]["plan"]["groups"][0], 1)
+        self.assertEqual(status["copy"], "Interrupted · resume needed · A")
+        self.assertIn('class="grp interrupted"', page)
+        self.assertIn('Interrupted · resume needed', page)
+        self.assertNotIn('Fixing · ISSUE-01', page)
 
     def test_install_requires_passed_presuite(self):
         group = self.lane("review", reviewer_session="reviewer", review_status="passed")

@@ -5,7 +5,7 @@ How `act` / `state` speak to the model. **One path:** reuse act deltas; call
 
 ## Success
 
-Verified effectful `act` returns a **compact AX delta** (often ~300 chars):
+Verified effectful `act` returns a **compact AX delta**; its size follows the response serializer in `scripts/compact_mcp.py`:
 
 - Header: `Changes during action…` / `No changes during action…`
 - Current IDs only on changed lines; omitted IDs are **stale** — resolve by

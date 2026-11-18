@@ -550,8 +550,9 @@ def verification_action(document, findings, operation):
     if not isinstance(run, dict) or (run.get("status") != "active" and not reopens) or operation.get("run_id") != run.get("id"):
         raise ValueError("active verification run id is required")
     if action == "complete-verification":
-        if any(run.get("checks", {}).get(item["id"], {}).get("state") not in ("fixed", "not_fixed", "blocked", "inconclusive") for item in findings):
-            raise ValueError("finish or explicitly block every issue before completing the run")
+        if any(check.get("state") not in ("fixed", "not_fixed", "blocked", "inconclusive")
+               for check in run.get("checks", {}).values()):
+            raise ValueError("finish or explicitly block every issue in the run before completing it")
         run["status"] = "complete"
         return
     if action == "finish-shared-check":
@@ -1600,8 +1601,6 @@ def run(args, parser):
                         if operation.get("merge_codex") and "codex" in patch:
                             patch["codex"] = {**group.get("codex", {}), **patch["codex"]}
                         group.update(patch)
-                        if "status" in patch and "phase" not in patch and patch["status"] not in ("blocked", "failed"):
-                            group.pop("phase", None)
                         check_install_sessions.validate_group_codex(group)
                         validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
                         validate_plan_groups(plan)
@@ -1790,12 +1789,8 @@ def run(args, parser):
                     warn_summary(item, adding=True)
                     validate_detail_limits(item)
                     trim_verification_evidence(item)
-                    run = store["document"].get("tracking", {}).get("verification_run", {})
                     validate_ids(findings + [item])
                     findings.append(item)
-                    if run.get("status") in ("active", "complete"):
-                        run["status"] = "active"
-                        run["checks"][item["id"]] = {"state":"pending"}
                     continue
                 index = find_index(findings, operation.get("id"))
                 if action == "update":

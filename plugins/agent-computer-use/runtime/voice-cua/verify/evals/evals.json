@@ -1,0 +1,16 @@
+{
+  "evals": [
+    {
+      "prompt": "Verify the installed Samantha text path after a voice runtime change, with proof and cleanup.",
+      "trigger": "Validate an installed Samantha runtime or voice/browser change.",
+      "reference": "references/test-run.md",
+      "next": "Check identity, baseline findings, prompt outcome, and cleanup; label the exercised path."
+    },
+    {
+      "prompt": "Check whether a short successful voice run proves sustained voice reliability.",
+      "trigger": "Assess a claim of sustained voice reliability.",
+      "reference": "references/test-run.md",
+      "next": "Report the limited evidence and any paths not exercised."
+    }
+  ]
+}

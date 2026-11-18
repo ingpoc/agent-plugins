@@ -12,7 +12,15 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-PLUGIN = Path(__file__).resolve().parents[3]
+def _plugin_root(script: Path) -> Path:
+    script = script.resolve()
+    skill_root = script.parents[1]
+    if (skill_root / "context_ledger").is_dir() and (skill_root / "requirements.lock").is_file():
+        return skill_root
+    return skill_root.parents[1]
+
+
+PLUGIN = _plugin_root(Path(__file__))
 sys.path.insert(0, str(PLUGIN))
 
 DATA = Path(

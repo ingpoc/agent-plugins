@@ -53,6 +53,23 @@ class BclTests(unittest.TestCase):
         self.assertIn('Observed: Verification command exited 7', reason)
         self.assertNotIn('check.py', reason)
 
+    def test_status_labels_dead_unfinished_lane_job_as_interrupted(self):
+        registry = json.loads((self.state / "registry.json").read_text())
+        live = Path(registry["example/project/123"]["live"])
+        for status, phase in (("running", "fix"), ("review", "review"), ("review", "presuite")):
+            with self.subTest(status=status, phase=phase):
+                data = json.loads(live.read_text())
+                data.setdefault("tracking", {})["plan"] = {"round":1,"groups":[{
+                    "id":"A","finding_ids":["ISSUE-01"],"status":status,"phase":"review" if phase != "fix" else "fix",
+                    "codex":{"job":{"pid":987654321,"phase":phase,"started_at":"2026-11-18T08:00:00Z"}}}]}
+                live.write_text(json.dumps(data))
+                self.data.write_text(json.dumps(data))
+                result = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "status"],
+                                        env=self.env, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                lane = json.loads(result.stdout)["plan"][0]
+                self.assertEqual(lane["message"], "Interrupted · resume needed · A")
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name); self.state = self.root / "state"

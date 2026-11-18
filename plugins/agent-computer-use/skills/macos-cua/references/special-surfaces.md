@@ -53,6 +53,13 @@ install/launch/list). When mirroring is required:
 4. Keep the GUI sequence minimal; capture proof PNG; do not drive install/launch
    through mirroring clicks when `devicectl` can do it.
 
+## Comet popups in other windows
+
+When a Google chooser or Razorpay Bank popup appears outside Comet's main
+window, bind to its window title rather than Comet's PID. If the screen is
+locked or Comet accessibility is degenerate, use Comet Control's
+`razorpay_bank_popup.py` flow instead of guessing coordinates.
+
 ## Codex Computer Use pattern (borrow mechanics, not prose)
 
 Bundled `@Computer` / `computer-use` prefers connectors/CLIs and AX

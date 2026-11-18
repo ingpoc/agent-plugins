@@ -29,7 +29,7 @@ key ids are never printed.
 Method ladder (`--method auto` picks via preflight):
 
 1. `ax`: AXPress the `AXButton` in that AX window. Needs an unlocked screen and a
-   healthy Comet AX tree (same shape as [google-accountchooser-ax.md](google-accountchooser-ax.md)).
+   healthy Comet AX tree (same shape as [google-accounts.md](google-accounts.md)).
 2. `applescript-js`: Comet AppleScript `execute javascript` on **that tab only**:
    exactly one visible button whose text is `Success` → `click()`. Works with the
    screen locked, displays asleep, and AX degenerate. Needs Comet › View ›

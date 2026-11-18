@@ -5,7 +5,7 @@
 Load this file for routine bridge actions. Leased window sessions are required;
 [`multi-agent.md`](multi-agent.md) owns the socket client and complete lease
 protocol. Load
-[`advanced-capabilities.md`](advanced-capabilities.md) only for its named
+[`advanced.md`](advanced.md) only for its named
 capabilities.
 
 The plugin socket is `run/comet-control.sock` under the plugin root. Override with
@@ -58,7 +58,7 @@ Actions below belong inside one `run.actions` list.
 | Wait for UI | `wait_for_selector` | Prefer an observable element over a fixed delay |
 | Click by label | `click_text` | Preferred when text is unique; unique sticky names use the card rect, not the stuck inset; header chips skipped when an in-page match exists; checkbox/radio need native `HTMLElement.click()`, not only synthetic MouseEvent; may return `dialog_opened` |
 | Click by CSS | `click_selector` | Use when text is missing or ambiguous; searches open shadow roots; 16px icons count if the hit is a descendant or button ancestor |
-| JS dialog | `dialog_handle` | Comet Control owns `alert`/`confirm`/`prompt`; batch after click with `promptText` when needed — see [`advanced-capabilities.md`](advanced-capabilities.md). OS sheets → `$macos-cua` |
+| JS dialog | `dialog_handle` | Comet Control owns `alert`/`confirm`/`prompt`; batch after click with `promptText` when needed — see [`advanced.md`](advanced.md). OS sheets → `$macos-cua` |
 | Fill input | `fill_selector` | Scripted set-value (same as `locator` fill); pair `expect: {value: ...}`; do not screenshot the field |
 | DOM postcondition | `expect` on the action or `page_context` | `text` / `not_text` / `heading` / `url` / `url_contains` / `value`; capability `action-expect` |
 | Visual proof | `screenshot` | Layout, focus ring, cursor, image, canvas — not page identity or typed values |
@@ -116,7 +116,7 @@ Use `cursor_scroll` (alias: `scroll`) for viewport paging — not bare `evaluate
 `navigate` is an alias for `goto`.
 
 For keyboard-focus evidence, put a short renderer settle between the native key
-and the readback in the same run. Use at least `300` ms before `screenshot`,
+and the readback in the same run. Use the focus-settle duration in [`scripts/config.json`](../scripts/config.json) before `screenshot`,
 `page_context`, or the next focus judgment:
 
 ```json

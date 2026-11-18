@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.41
+
+- Route skill procedures into triggered references and resolve lookup paths from installed skill copies or the plugin checkout.
+
 ## 0.1.40
 
 - Include committed preference replacements in save receipts.

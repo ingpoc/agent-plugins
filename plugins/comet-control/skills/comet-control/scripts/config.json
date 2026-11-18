@@ -1,0 +1,6 @@
+{
+  "island_fade_ms": 200,
+  "keyboard_focus_settle_ms": 300,
+  "long_timeout_min_seconds": 90,
+  "long_timeout_max_seconds": 180
+}

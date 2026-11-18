@@ -1,0 +1,16 @@
+{
+  "evals": [
+    {
+      "prompt": "Use CUA to enable a known setting in System Settings and verify the resulting value.",
+      "trigger": "Operate an accessible native macOS app with a known target and expected value.",
+      "reference": "references/fast-workflow.md",
+      "next": "Issue one batched act and verify the expected value from its result."
+    },
+    {
+      "prompt": "The requested native app action failed because its target is ambiguous. Recover safely and report what happened.",
+      "trigger": "An action has multiple plausible plans or returns a typed failure.",
+      "reference": "references/fast-workflow.md",
+      "next": "Load the ambiguity or failure route before retrying or abstaining."
+    }
+  ]
+}

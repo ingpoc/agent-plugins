@@ -8,7 +8,7 @@ from pathlib import Path
 import shutil
 
 
-PLUGIN_ROOT = Path(__file__).resolve().parents[3]
+PLUGIN_ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / "plugin.json").is_file())
 # Retired: a hand-synced copy Cursor kept loading as a stale local plugin.
 # Cursor now installs this plugin natively from the marketplace and resolves
 # ${CURSOR_PLUGIN_ROOT} in .cursor-plugin/mcp.json, so nothing is copied.

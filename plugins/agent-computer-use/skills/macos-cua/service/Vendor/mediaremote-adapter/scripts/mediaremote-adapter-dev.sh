@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 /usr/bin/perl \
     "$SCRIPT_DIR/../bin/mediaremote-adapter.pl" \

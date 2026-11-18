@@ -2,6 +2,10 @@
 
 Built from commit history (`git log -- plugins/comet-control`). Dates are commit dates.
 
+## 0.1.25
+
+- Compact the Comet Control skill router while preserving its procedures; state the installed runtime root and explicit two-observe limit.
+
 ## 0.1.24
 
 - Owner preferences and decisions: automatic capture (user_decision, tool:/project: scope, rule = decision point, same scope+rule supersedes) and exact recall before a decision point.

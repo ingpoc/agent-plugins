@@ -181,7 +181,7 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   target gap applies only to what sits inside; plugin marks stay outside right.
   A controlled target (Comet) is never also shown as an app icon inside.
 - Drop: the hub removes a plugin row when `ttl_s` lapses (1 s sweep); the
-  circle fades out over 200 ms. Plugin rows never go stale and never show
+  circle fades out using the duration set in `service/Sources/CUAService/SamanthaIslandView.swift`. Plugin rows never go stale and never show
   "updates stopped".
 - `ACU_ISLAND_ACTIVITY=0` turns the signal off; tests are off by default via
   `scripts/check.py`.

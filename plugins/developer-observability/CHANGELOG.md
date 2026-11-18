@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.31
+
+- Route triage and task-usage guidance through explicit skill references.
+
 ## 0.1.30
 
 - Count child agent spawns in captured Codex runs, accept a task only from a passing separate verifier receipt (the verifier must be a different file), report a task complete only when nothing is missing, and leave incomplete tasks out of token and duration totals while counting them as excluded.

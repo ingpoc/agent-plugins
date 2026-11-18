@@ -1,6 +1,6 @@
 # Comet Control — Fast path & recovery
 
-Run from the runtime root. If the claim is a known JSON/file shape, stop — do not probe or lease.
+Run from `~/.agents/plugins/comet-control`, the runtime root, not a client cache. If the claim is a known JSON/file shape, stop — do not probe or lease.
 
 ## Start
 
@@ -39,7 +39,7 @@ never script-eval clicks. Visual claims require a `screenshot` action and readin
 
 SPA remounts: separate sends (click → wait → `page_context`). Default `--timeout` 180 is for
 known remounts; use 30–60s for simple reads. JS `prompt`/`confirm`/`alert`: batch `dialog_handle`
-(+ `promptText`) — see [`advanced-capabilities.md`](advanced-capabilities.md).
+(+ `promptText`) — see [`advanced.md`](advanced.md).
 
 Optional Browser Use CDP: start with `--browser-use` and load [`browser-use.md`](browser-use.md).
 **Never** run Browser Use CLI and `send` as concurrent input owners.

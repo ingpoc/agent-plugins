@@ -1,86 +1,28 @@
 ---
 name: macos-cua
-description: >-
-  Operate native macOS apps through CUAService. Use when an agent must operate
-  or validate native Mac apps, or use shared Dynamic Island across installed
-  harnesses to report task/subagent lifecycle, show status, request approval or
-  a choice, or save API keys, passwords, and tokens to login Keychain. Act-first: one batched act per app;
-  compact state only for discovery or after an act miss.
-  Current-tree labels (Clear=All Clear). Overlay cursor; AX press first.
-  Browser DOM and unrelated terminal-only tasks do not trigger CUA actions. Every session friction must
-  become an app-agnostic fast_path linter/grader so later agents do not
-  repeat it.
+description: Use when operating or validating native macOS apps through CUAService or its shared Dynamic Island.
 allowed-tools: Bash, Read
 ---
 
 # macos-cua
 
-Engine and sole visible-cursor owner: **CUAService** (Swift `.app`). Cursor MCP uses `state` and `act` for computer use and exposes `sessions` and `voice_control` — not a second computer-use stack.
-
-TCC on **macos-cua Service** / **CUAService**: Accessibility + Screen Recording. Relaunch after granting Screen Recording.
-
-> **Self-validate after edits.** `./scripts/validate.sh` from this skill directory.
-
-```bash
-python3 "$SKILL_DIR/service/install_service.py"
-```
-
-Do not shell a Python client per click when MCP is up. Do not use cua-driver or `start_session` / `verify` / `end_session`.
-
-Use `voice_control` with `status`, `start` or `stop` for an authorized Samantha test. Check `running` and `healthy`; the returned gateway port identifies the local session for typed prompts. Do not stop another user’s active session without authorization.
-
-## Surfaces
-
-| Surface | Owns |
-| --- | --- |
-| CUAService | AX walk, click/key/type, overlay cursor, settle, screenshot |
-| MCP `state` + `act` | Cursor tool catalog only |
-| This file | Act-first loop, bans, friction-encode |
+CUAService is the only visible-cursor owner; its MCP exposes `state` and `act` for computer use.
 
 ## Critical path
 
-1. **Act-first** when labels/outcomes are known — one batched `act` per app (`steps` + `expect`). Compact `state` only for discovery or after an act miss. Never `state`→`state`→`act` on the same app.
-2. Overlay tip then AX press. Reuse the returned **compact AX delta** / failure nearby. Full tree only via `state`. `expect` matches text **values**, never button titles. A JPEG attaches only when pixels are the evidence (empty AX, Stage Manager thumb, or `screenshot:true`); wrong-app / thumb shot → stop. Typed failures → [`references/observe-feedback.md`](references/observe-feedback.md).
-3. Cross-app: one `act` per surface, then switch — no observe hops between apps.
-4. **Encode friction** into `scripts/fast_path.py` (fail the old trace), then retry. No named-app helpers.
-5. **Ambiguity only:** when multiple complete plans are plausible, `scripts/jev_act.py` builds immutable candidate IDs → TypeSafe Jev Choice → validate ID → one `act`. Known labels skip Jev. Abstain/reobserve/low confidence ⇒ no auto-act. Expect proof still required after act.
-
-WhatsApp **send/attach**: `$whatsapp` only — not this skill.
-
-Comet **other-window** popups (Google chooser, Razorpay Bank) bind by window title and not by the Comet PID. Lock screen or degenerate Comet AX → comet-control `razorpay_bank_popup.py` (`~/.agents/plugins/comet-control/skills/comet-control/references/razorpay-bank-popup.md`).
+Act-first when labels or outcomes are known: one batched `act` per app, then verify the result. Compact `state` is for discovery or after a miss. Reuse the returned delta. Encode friction in the app-agnostic `scripts/fast_path.py` linter/grader so later runs fail on the old trace. Handle in-place label changes such as Clear → All Clear from the delta.
 
 ## Hard bans
 
-- No `start_session` / `verify` / `end_session` / cua-driver / 54-tool MCP.
-- No probe `state` chains before `act` when labels are known.
-- No menu-bar BFS root.
-- No Chrome via this skill (browser MCP owns Chrome).
-- No silent Quartz fallback (`MACOS_CUA_PIXEL_CLICK=1` required).
-- No WhatsApp send.
-- Dispatch `ok` is never proof. No desktop-global click.
-- A dispatch-only action is not retryable: inspect the result or current state before continuing.
-- Confirm immediately before a risky UI action; see [`references/safety.md`](references/safety.md).
+Never use browser DOM or terminal-only commands for native-app actions because they bypass the visible CUA path. Never stop another user's active voice session because it may belong to their work.
 
 ## Load map
 
-| When | File |
-| --- | --- |
-| Shared Dynamic Island task/subagent roster, status, approval/choice, or secure credential save from any installed harness | [`references/dynamic-island.md`](references/dynamic-island.md) |
-| Generic marketplace-plugin MCP activity hooks | [island-plugin-hooks](../../docs/island-plugin-hooks.md) |
-| Samantha voice/browser runtime verification and Kindle findings | [verify-samantha](../../runtime/voice-cua/verify/SKILL.md) |
-| Act-first loop / input delivery / Mini local-exec | [`references/fast-workflow.md`](references/fast-workflow.md) |
-| MCP / CUAService architecture | [`references/architecture.md`](references/architecture.md) |
-| Act deltas / failure taxonomy / focused window | [`references/observe-feedback.md`](references/observe-feedback.md) |
-| Recovery ladder | [`references/actions.md`](references/actions.md) |
-| Command failure | [`references/troubleshooting.md`](references/troubleshooting.md) |
-| Risky UI | [`references/safety.md`](references/safety.md) |
-| Friction graders | `python3 scripts/fast_path.py --lint` |
-| WhatsApp | `$whatsapp` |
+| Step | When | Reference | Script |
+| --- | --- | --- | --- |
+| 1 | When operating an app, recovering a miss, or checking service health | `references/fast-workflow.md`, `references/actions.md`, `references/observe-feedback.md`, `references/troubleshooting.md` | `scripts/fast_path.py`, `scripts/bench_jev_act.py`, `scripts/bench_load.py`, `scripts/bench_speed.py`, `scripts/bench_native_sdk.py` |
+| 2 | When changing MCP/backend behavior, assessing parity, handling multiple displays or special surfaces, or running the hardening gate | `references/architecture.md`, `references/cua-driver-mcp.md`, `references/computer-parity.md`, `references/displays.md`, `references/special-surfaces.md`, `references/entry-contract.json` | `scripts/bench_mcp_runtime.py`, `scripts/gate_cleanup.py` |
+| 3 | When reporting task status, requesting approval, saving a credential, using generic MCP activity hooks, or verifying Samantha | `references/dynamic-island.md`, `references/lifecycle.md`, `references/island-polish-bar.md`, `references/safety.md`, `../../docs/island-plugin-hooks.md`, `../../runtime/voice-cua/verify/SKILL.md` | |
+| 4 | When a site/app choice may use a saved preference or the user states a durable preference | `references/context-ledger.md` | |
 
-Maintainer-only (not the agent loop): `references/lifecycle.md`, `references/cua-driver-mcp.md`, `references/computer-parity.md`, `references/entry-contract.json`.
-
-## Preferences (Context Ledger)
-
-Local telemetry keeps bounded, credential-redacted Ledger results and error context. The concise observability view shows status/count; agents can opt into details with `include_diagnostics=true`. Preference values, search queries, and transcripts stay out of the report.
-
-Use `ledger_task` automatically; do not wait for the user to ask. Before a preference-sensitive site/app choice or recurring/critical workflow decision, search the site or app `scope` without guessing a rule, then apply only an unambiguous active relevant match. For a named site or app use `tool:<site-or-app>`; never substitute `fleet` or the browser scope. Use `fleet` only for genuinely global preferences. Use `fleet`, `tool:<lowercase-id>`, or `project:<lowercase-id>` for scope and lowercase `snake_case` for the rule. A pending application outcome and hint tier describe past use. Apply an unambiguous active relevant user decision as a saved preference, including a self-reported record; do not claim owner attestation or prior successful use. For lookup, provide the site or app `scope` and concrete decision terms in `need`; the helper searches both `need` and `situation`. Recall searches the provided `need` and `situation` plus the exact rule terms. An empty exact-rule lookup may search the same scope for relevant candidates; only apply an unambiguous active relevant match. A `needs_disambiguation` result contains candidates, not a verified preference. If `has_more` is true, ask rather than select from an incomplete set; otherwise use the agreed value when active relevant user decisions match even if their rule names differ. Ask if relevant values conflict or applicability is unclear. After the owner states or corrects a durable preference, save it with `preference`, its exact value, and the exact owner quote. Use `capture` for critical decisions only when the owner decision is explicit, durable, model-safe, has a concrete future trigger, and adds a unique value. Skip one-offs, temporary permissions, secrets, status, uncertainty, and duplicates. A preference update with the same scope and rule supersedes its older active `user_decision`; general captures do not auto-supersede, and this tool cannot create an explicit supersession link. Never claim a general decision was replaced. Report saved only after a receipt. `ledger_invalid_argument` is non-retryable: stop and explain; do not retry with reworded arguments unless a later user turn supplies new context. `ledger_unavailable` means stop.
+WhatsApp send/attach → `$whatsapp`; this skill does not send messages. Run `./scripts/validate.sh` from this directory after edits. Install and release instructions belong to the [plugin guide](../../AGENTS.md).

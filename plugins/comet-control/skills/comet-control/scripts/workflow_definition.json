@@ -1,0 +1,56 @@
+{
+  "generator": "scripts/workflow_definition.json",
+  "start": "choose-prepare",
+  "steps": [
+    {
+      "id": "choose-prepare",
+      "title": "Choose and prepare",
+      "references": [
+        "references/critical-path.md",
+        "references/api-first.md",
+        "references/fast-path.md",
+        "references/extension-install.md",
+        "references/optimize.md",
+        "references/comet-capabilities.md"
+      ],
+      "next": "operate"
+    },
+    {
+      "id": "operate",
+      "title": "Operate",
+      "references": [
+        "references/speed-bar.md",
+        "references/observe-feedback.md",
+        "references/operate.md",
+        "references/locator-misses.md",
+        "references/advanced.md",
+        "references/debugger-blocked.md",
+        "references/browser-use.md",
+        "references/devtools.md",
+        "references/wrapper-skills.md"
+      ],
+      "next": [
+        {"when": "handoff needed", "to": "handoff"},
+        {"when": "done", "to": "close-out"}
+      ]
+    },
+    {
+      "id": "handoff",
+      "title": "Handoff",
+      "references": [
+        "references/native-coexistence.md",
+        "references/multi-agent.md",
+        "references/google-accounts.md",
+        "references/razorpay-bank-popup.md",
+        "references/secure-copy-keychain.md",
+        "references/agent-handbook.md"
+      ],
+      "next": "close-out"
+    },
+    {
+      "id": "close-out",
+      "title": "Close out",
+      "references": ["references/island.md"]
+    }
+  ]
+}

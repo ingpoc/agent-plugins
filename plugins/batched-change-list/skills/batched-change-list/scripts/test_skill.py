@@ -1,4 +1,4 @@
-import hashlib, json, re, shutil, subprocess, sys, tempfile, unittest
+import hashlib, json, os, re, shutil, subprocess, sys, tempfile, unittest
 from pathlib import Path
 import statechart
 import workflow_definition
@@ -70,8 +70,8 @@ class SkillLayoutTests(unittest.TestCase):
             result=subprocess.run([sys.executable,str(ROOT/'scripts/compare_skill.py'),str(regressed),str(frozen)],capture_output=True,text=True)
             self.assertNotEqual(result.returncode,0,result.stdout+result.stderr)
 
-    def test_shape_tool_strict_passes_when_available(self):
-        tool=Path('/tmp/sr-scripts/skill_shape.py')
+    def test_shape_tool_lookup_uses_skill_refine_install(self):
+        tool=Path(os.environ.get('SKILL_SHAPE_PATH', Path.home()/'.agents/skills/skill-refine/scripts/skill_shape.py'))
         if not tool.exists(): self.skipTest('skill_shape.py unavailable')
         p=subprocess.run([sys.executable,str(tool),'--strict',str(ROOT)],capture_output=True,text=True)
         self.assertEqual(p.returncode,0,p.stdout+p.stderr)

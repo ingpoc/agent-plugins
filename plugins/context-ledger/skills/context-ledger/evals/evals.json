@@ -1,0 +1,22 @@
+{
+  "evals": [
+    {
+      "prompt": "I need to choose a migration approach for this project. Check what we decided before and report the applicable choice.",
+      "trigger": "critical or recurring project decision needs prior context",
+      "reference": "references/session-protocol.md",
+      "next": "Send one scoped lookup to the retained helper and apply only grounded applicable records."
+    },
+    {
+      "prompt": "I prefer short status updates for this app. Save that preference and record that it was used for today\u2019s update.",
+      "trigger": "owner states a durable preference at an app decision point",
+      "reference": "references/owner-decisions.md",
+      "next": "Find the exact scope and rule, apply the preference, then save and record its application."
+    },
+    {
+      "prompt": "Set up the ledger MCP over my tailnet and recover it after a reboot.",
+      "trigger": "owner asks for remote MCP setup or recovery",
+      "reference": "references/remote-mcp.md",
+      "next": "Follow the owner-run remote setup and recovery procedure without exposing the token."
+    }
+  ]
+}

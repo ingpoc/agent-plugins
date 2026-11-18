@@ -1,0 +1,16 @@
+{
+  "evals": [
+    {
+      "prompt": "Use Comet to read a page fact available from the site's API, then report the source.",
+      "trigger": "Known API or file-backed data",
+      "reference": "references/api-first.md",
+      "next": "Use the API-first path without leasing a browser."
+    },
+    {
+      "prompt": "Fill a booking form with ordinary details and submit only after verifying the final values.",
+      "trigger": "Form planning and controlled submission",
+      "reference": "references/operate.md",
+      "next": "Use deterministic form planning; secrets and submit remain gated."
+    }
+  ]
+}

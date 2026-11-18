@@ -1,3 +1,9 @@
+## 0.1.44
+
+- Verification completion checks only the findings the run started with; findings added later read Not checked this install and never reopen a finished run. Dead unfinished fix, review and presuite jobs read Interrupted, resume needed, on the page and in bcl status; plan updates keep the lane phase (BCL-67).
+- A legacy blocked row with no named blocker reads Not checked; rows that name a blocker still read Blocked (BCL-66).
+- Skill description shortened to the 200 character limit (BCL-73); the skill shape test finds the installed skill-refine tool, with an environment override (BCL-74).
+
 ## 0.1.43
 
 - scripts/check.py names the failing unittest IDs and the last 20 output lines of a failed test file; timing-sensitive verifier, lock and viewer tests no longer race under parallel load (BCL-64).

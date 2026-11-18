@@ -326,6 +326,35 @@ for(const id of ['ISSUE-01','ISSUE-02']){location.hash='#'+id;show();const visib
         program=program.replace('const nav={querySelectorAll:()=>[]}',"const location={hash:'#ISSUE-01'};const nav={querySelectorAll:()=>[]}")
         subprocess.run(['node','-e',program],check=True)
 
+    @unittest.skipUnless(shutil.which('node'), 'node is needed to inspect the rendered verification rows')
+    def test_legacy_blocked_history_needs_named_blocker_in_verdict(self):
+        data = copy.deepcopy(self.data)
+        data['findings'][0]['verification_evidence'] = [
+            {'checked':'Installed behavior','expected':'A fix is available','observed':'That version had no fix for this yet',
+             'verdict':'Blocked','build':'0.1.41','session':'earlier','timestamp':'2026-11-16T10:00:00Z','reference':'receipt'},
+            {'checked':'Installed behavior','expected':'Service responds','observed':'Service is unavailable',
+             'verdict':'Blocked','blocker':'External service','build':'0.1.42','session':'current','timestamp':'2026-11-17T10:00:00Z','reference':'receipt'}]
+        page = renderer.render(data, self.base)
+        payload = page.split('<script type="application/json" id="findings-data">', 1)[1].split('</script>', 1)[0]
+        rows = json.loads(payload)[0]['version_timeline']
+        self.assertEqual([(row['state'], row['verdict']) for row in rows],
+                         [('blocked', 'Blocked'), ('not_checked', 'Not checked')])
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        show = template.split('function show(){', 1)[1].split('\nsearch.addEventListener', 1)[0]
+        program = (r"""
+class Element { constructor(tag,text='',cls=''){this.tag=tag;this.text=text;this.cls=cls;this.children=[];this.dataset={}} append(...children){this.children.push(...children)} setAttribute(){} }
+const node=(tag,text,cls)=>new Element(tag,text,cls),findings=JSON.parse(PAYLOAD),labels={untested:'Untested'},run=null;
+const location={hash:'#ISSUE-01'},nav={querySelectorAll:()=>[]},panel={replaceChildren(value){this.article=value}},document={createTextNode:text=>text};
+function show(){
+""" + show + r"""
+function text(el){return (el?.text||'')+(el?.children||[]).map(text).join('')}
+function rows(el){return [...(el?.cls==='version-row'?[el]:[]),...(el?.children||[]).flatMap(rows)]}
+show();const visible=rows(panel.article).map(text);
+for(const [label,verdict] of [['Not checked','Verdict because: Not checked'],['Blocked','Verdict because: Blocked']])
+  if(!visible.some(row=>row.includes(label)&&row.includes(verdict)))process.exit(1);
+""").replace('PAYLOAD', json.dumps(payload))
+        subprocess.run(['node', '-e', program], check=True)
+
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
     def test_version_timeline_shows_status_and_evidence_together(self):
         template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
@@ -716,7 +745,7 @@ setImmediate(async()=>{
         ]
         history = renderer.version_evidence(item, runs)
         self.assertEqual([(r['state'], r['build']) for r in history],
-                         [('not_fixed','ACU 0.2.147'), ('blocked','ACU 0.2.146'), ('fixed','ACU 0.2.148')])
+                         [('not_fixed','ACU 0.2.147'), ('not_checked','ACU 0.2.146'), ('fixed','ACU 0.2.148')])
 
     def test_explicit_outcomes_and_exact_duplicate_checks(self):
         blocked = {'build':'ACU 0.2.147', 'timestamp':'2026-11-15T10:00:00Z', 'verdict':'blocked', 'checked':'Voice check', 'expected':'pass', 'observed':'blocked', 'check_id':'blocked-check', 'session':'latest'}
@@ -724,7 +753,7 @@ setImmediate(async()=>{
         distinct = {**blocked, 'timestamp':'2026-11-13T10:00:00Z', 'reference':'different receipt', 'check_id':'distinct-check', 'session':'distinct'}
         history = renderer.version_evidence({'id':'ISSUE-01', 'verification_evidence':[blocked, blocked, distinct, older]}, [])
         self.assertEqual(len(history), 1)
-        self.assertEqual([(r['state'], r['verdict']) for r in history[0]['history']], [('', 'notes without a state'), ('blocked', 'blocked')])
+        self.assertEqual([(r['state'], r['verdict']) for r in history[0]['history']], [('', 'notes without a state'), ('not_checked', 'Not checked')])
 
     def test_introspect_stage_renders_between_verify_and_report(self):
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
@@ -952,7 +981,7 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         with self.assertRaises(ValueError):
             renderer.render(self.data, self.base)
 
-    def test_install_progress_preserves_fixed_status_and_validates_coverage(self):
+    def test_install_progress_shows_findings_added_after_run_start(self):
         self.data['tracking'] = {'verification_run': {'id':'run1','build':'ACU 1','revision':'abc',
             'installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt','status':'active',
             'checks': {'ISSUE-01':{'state':'checking','started_at':'2026-11-06T00:00:00Z'},
@@ -963,6 +992,8 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         self.assertIn("Number(a.status==='verified_fixed')", page)
         self.assertIn('"state": "pending"', page)
         self.data['tracking']['verification_run']['checks'].pop('ISSUE-02')
+        self.assertIn('Not checked this install', renderer.render(self.data, self.base))
+        self.data['tracking']['verification_run']['checks']['ISSUE-99'] = {'state':'pending'}
         with self.assertRaises(ValueError):
             renderer.render(self.data, self.base)
 
@@ -1132,7 +1163,7 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         self.assertNotIn('<span class="lc-more">6</span>6</span>', workflow)
 
 
-    def test_status_only_plan_update_clears_stale_phase(self):
+    def test_status_only_plan_update_preserves_lane_phase(self):
         data = copy.deepcopy(self.data)
         data['tracking'] = {'round':1,'plan':{'round':1,'groups':[
             {'id':'A','finding_ids':['ISSUE-01'],'status':'blocked','phase':'fix','blocked_reason':'no mic'}]}}
@@ -1147,7 +1178,7 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
             self.assertEqual(result.returncode, 0, result.stderr)
             group = json.loads(source.read_text())['tracking']['plan']['groups'][0]
             self.assertEqual(group['status'], 'installing')
-            self.assertNotIn('phase', group)
+            self.assertEqual(group['phase'], 'fix')
 
 
     def test_plan_rows_follow_lane_phase_and_legacy_status_aliases(self):
