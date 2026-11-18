@@ -6469,6 +6469,88 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "bcl-0.1.39-aff3cdd9-115",
+        "build": "batched-change-list 0.1.39",
+        "revision": "aff3cdd9d71eed63229a4eef25426608e877cba9",
+        "installed_at": "2026-11-18T05:55:16Z",
+        "install_evidence": "bcl install-local from PR #115 head aff3cdd9 (plugin tree of 01da0d83) at 11:25 IST: plugin 55 files sha256 0a93680b8d1059eb314b37a91238716d9d40432b79c7fc4f6f9d15f5d8d50e26, skill 48 files sha256 f60132b295bb158a95da9e3e146301fb7ff0194e513601c28ad52a1f84feb0e0. Receipt /Users/gurusharan/.agents/artifacts/bcl-115/r2/install-0.1.39-b.txt",
+        "status": "interrupted",
+        "checks": {
+          "BCL-38": {
+            "state": "pending"
+          },
+          "BCL-39": {
+            "state": "pending"
+          },
+          "BCL-40": {
+            "state": "pending"
+          },
+          "BCL-41": {
+            "state": "pending"
+          },
+          "BCL-42": {
+            "state": "pending"
+          },
+          "BCL-43": {
+            "state": "pending"
+          },
+          "BCL-44": {
+            "state": "pending"
+          },
+          "BCL-45": {
+            "state": "pending"
+          },
+          "BCL-46": {
+            "state": "pending"
+          },
+          "BCL-47": {
+            "state": "pending"
+          },
+          "BCL-48": {
+            "state": "pending"
+          },
+          "BCL-49": {
+            "state": "fixed",
+            "observation": "Running verify-g3.sh on installed 0.1.39 for named tests test_chart_edges_are_svg_paths_with_arrowheads, test_chart_labels_have_no_markdown, test_chart_labels_do_not_overlap, test_conditional_paths_connect_correct_nodes, test_step_and_reference_controls_are_keyboard_accessible, test_current_and_after_both_have_verdict_badges, test_chart_reads_labels_from_definition, test_chart_rejects_labels_wider_than_node, test_edges_do_not_cross_labels, test_condition_labels_sit_beside_their_edges",
+            "observed_at": "2026-11-18T06:07:51Z",
+            "started_at": "2026-11-18T06:07:51Z",
+            "updated_at": "2026-11-18T06:07:51Z",
+            "check_id": "005f3b0edf124febb3542f2ddf73ab06",
+            "evidence": "Checked: Installed 0.1.39 (aff3cdd9) statechart.html: verify-g3.sh plus a headless-Chrome render at 11:36 IST (/Users/gurusharan/.agents/artifacts/bcl-115/r2/statechart-installed-b.png); Expected: Loop-back and exit edges are SVG paths with arrowheads and condition labels beside them, no backticks, no label overlaps or edge crossings, verdict badges in Current and After; Observed: verify-g3.sh exited 0 at 11:33 IST (311 tests OK on the clone and installed copy, strict PASS, --check OK, 10 named tests passed). The render shows the Gate loop-back to Plan & fix and the exits to Report & roll over and Merge previous PR as arrowed paths, each condition label beside its edge, no backticks, no edge through a label, and KEEP badges on every step in Current; the earlier 10:29 IST render (entry edge through two labels) was recorded not fixed and is superseded. Named tests: test_chart_edges_are_svg_paths_with_arrowheads, test_chart_labels_have_no_markdown, test_chart_labels_do_not_overlap, test_conditional_paths_connect_correct_nodes, test_step_and_reference_controls_are_keyboard_accessible, test_current_and_after_both_have_verdict_badges, test_chart_reads_labels_from_definition, test_chart_rejects_labels_wider_than_node, test_edges_do_not_cross_labels, test_condition_labels_sit_beside_their_edges. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g3b.log.; Verdict because: Fixed because the chart now draws the real flow as edges with readable labels, and the generator rejects overlaps and crossings. Installed bcl 0.1.39 at aff3cdd9 via bcl install-local (plugin 55 files sha256 0a93680b8d1059eb314b37a91238716d9d40432b79c7fc4f6f9d15f5d8d50e26, skill 48 files sha256 f60132b295bb158a95da9e3e146301fb7ff0194e513601c28ad52a1f84feb0e0).",
+            "finished_at": "2026-11-18T06:07:51.574976Z"
+          },
+          "BCL-50": {
+            "state": "inconclusive",
+            "observation": "verify-g5.sh passed 13 named tests on installed aff3cdd9; attempting a live bcl job on the lane with the interim heartbeat stopped",
+            "observed_at": "2026-11-18T06:08:27Z",
+            "started_at": "2026-11-18T06:08:27Z",
+            "updated_at": "2026-11-18T06:08:27Z",
+            "check_id": "f382313ccba946d5a50f88c0f6799df5",
+            "evidence": "Checked: a live bcl job --phase presuite on LANE-HEARTBEAT at 11:35 IST with the interim heartbeat script stopped, plus verify-g5.sh (13 named tests passed on installed aff3cdd9); Expected: the job records its pid, heartbeats the tracker and writes its result on exit so the page is not Stale while it runs; Observed: bcl refused the job (review and presuite jobs require each lane to finish fix and enter review) because this lane's fix ran before bcl job existed, so no live long-job observation was possible on this install; the named tests pass; Verdict because: inconclusive until a real lane job runs through bcl job; the next round's fix job will be launched through it.",
+            "finished_at": "2026-11-18T06:08:27.204409Z"
+          },
+          "BCL-51": {
+            "state": "not_fixed",
+            "observation": "verify-g5.sh passed; checking the live #115 page strip after a proper viewer restart (page-115-c.png)",
+            "observed_at": "2026-11-18T06:08:27Z",
+            "started_at": "2026-11-18T06:08:27Z",
+            "updated_at": "2026-11-18T06:08:27Z",
+            "check_id": "40742d0b13c047858c102d5e3ebf2078",
+            "evidence": "Checked: the live #115 page on port 53779 after installing aff3cdd9 and restarting the viewer at 11:37 IST (screenshot /Users/gurusharan/.agents/artifacts/bcl-115/r2/page-115-c.png), plus verify-g5.sh (13 named tests, log /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g5.log); Expected: the top strip shows Plan & fix, Review, Install, Verify read from the definition, laid out like the lane dots; Observed: Review now appears between Plan & fix and Install and the chart, router and CLI carry it, but the strip text runs Review into Pre-push suite with no space and the Fixes 11/15 gate node wraps onto a second row under Plan & fix at 1400 px; before the restart the old viewer process kept serving the strip without Review (see BCL-53); Verdict because: not fixed yet because the strip layout regressed when the step was added.",
+            "finished_at": "2026-11-18T06:08:27.204253Z"
+          },
+          "BCL-52": {
+            "state": "pending"
+          },
+          "BCL-53": {
+            "state": "pending"
+          },
+          "BCL-54": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -6483,9 +6565,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-18T06:59:19Z",
-      "now": "2026-11-18T06:59:19Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-18T06:59:41Z",
+      "now": "2026-11-18T06:59:41Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 114,
@@ -6742,14 +6824,15 @@
       "present",
       "plan_fix",
       "review",
-      "install"
+      "install",
+      "verify"
     ],
     "verification_run": {
-      "id": "bcl-0.1.39-aff3cdd9-115",
-      "build": "batched-change-list 0.1.39",
-      "revision": "aff3cdd9d71eed63229a4eef25426608e877cba9",
-      "installed_at": "2026-11-18T05:55:16Z",
-      "install_evidence": "bcl install-local from PR #115 head aff3cdd9 (plugin tree of 01da0d83) at 11:25 IST: plugin 55 files sha256 0a93680b8d1059eb314b37a91238716d9d40432b79c7fc4f6f9d15f5d8d50e26, skill 48 files sha256 f60132b295bb158a95da9e3e146301fb7ff0194e513601c28ad52a1f84feb0e0. Receipt /Users/gurusharan/.agents/artifacts/bcl-115/r2/install-0.1.39-b.txt",
+      "id": "bcl-0.1.40-cd47cb75-115",
+      "build": "batched-change-list 0.1.40",
+      "revision": "cd47cb75fdfae0f333b01379a2593afdc763bee9",
+      "installed_at": "2026-11-18T06:59:19Z",
+      "install_evidence": "bcl install-local from PR #115 head cd47cb75 (plugin tree of 09e1859d) at 12:29 IST: plugin 55 files sha256 3cfe422f90165c06f8f783e465dcfea186cbe4097c80796052abc6802e290ab4, skill 48 files sha256 6415acf037cd4356ca473a6818a446c15d17e9713e84de3ef311702cf157b07c. Receipt /Users/gurusharan/.agents/artifacts/bcl-115/r3/install-0.1.40.txt",
       "status": "active",
       "checks": {
         "BCL-38": {
@@ -6786,34 +6869,13 @@
           "state": "pending"
         },
         "BCL-49": {
-          "state": "fixed",
-          "observation": "Running verify-g3.sh on installed 0.1.39 for named tests test_chart_edges_are_svg_paths_with_arrowheads, test_chart_labels_have_no_markdown, test_chart_labels_do_not_overlap, test_conditional_paths_connect_correct_nodes, test_step_and_reference_controls_are_keyboard_accessible, test_current_and_after_both_have_verdict_badges, test_chart_reads_labels_from_definition, test_chart_rejects_labels_wider_than_node, test_edges_do_not_cross_labels, test_condition_labels_sit_beside_their_edges",
-          "observed_at": "2026-11-18T06:07:51Z",
-          "started_at": "2026-11-18T06:07:51Z",
-          "updated_at": "2026-11-18T06:07:51Z",
-          "check_id": "005f3b0edf124febb3542f2ddf73ab06",
-          "evidence": "Checked: Installed 0.1.39 (aff3cdd9) statechart.html: verify-g3.sh plus a headless-Chrome render at 11:36 IST (/Users/gurusharan/.agents/artifacts/bcl-115/r2/statechart-installed-b.png); Expected: Loop-back and exit edges are SVG paths with arrowheads and condition labels beside them, no backticks, no label overlaps or edge crossings, verdict badges in Current and After; Observed: verify-g3.sh exited 0 at 11:33 IST (311 tests OK on the clone and installed copy, strict PASS, --check OK, 10 named tests passed). The render shows the Gate loop-back to Plan & fix and the exits to Report & roll over and Merge previous PR as arrowed paths, each condition label beside its edge, no backticks, no edge through a label, and KEEP badges on every step in Current; the earlier 10:29 IST render (entry edge through two labels) was recorded not fixed and is superseded. Named tests: test_chart_edges_are_svg_paths_with_arrowheads, test_chart_labels_have_no_markdown, test_chart_labels_do_not_overlap, test_conditional_paths_connect_correct_nodes, test_step_and_reference_controls_are_keyboard_accessible, test_current_and_after_both_have_verdict_badges, test_chart_reads_labels_from_definition, test_chart_rejects_labels_wider_than_node, test_edges_do_not_cross_labels, test_condition_labels_sit_beside_their_edges. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g3b.log.; Verdict because: Fixed because the chart now draws the real flow as edges with readable labels, and the generator rejects overlaps and crossings. Installed bcl 0.1.39 at aff3cdd9 via bcl install-local (plugin 55 files sha256 0a93680b8d1059eb314b37a91238716d9d40432b79c7fc4f6f9d15f5d8d50e26, skill 48 files sha256 f60132b295bb158a95da9e3e146301fb7ff0194e513601c28ad52a1f84feb0e0).",
-          "finished_at": "2026-11-18T06:07:51.574976Z"
+          "state": "pending"
         },
         "BCL-50": {
-          "state": "inconclusive",
-          "observation": "verify-g5.sh passed 13 named tests on installed aff3cdd9; attempting a live bcl job on the lane with the interim heartbeat stopped",
-          "observed_at": "2026-11-18T06:08:27Z",
-          "started_at": "2026-11-18T06:08:27Z",
-          "updated_at": "2026-11-18T06:08:27Z",
-          "check_id": "f382313ccba946d5a50f88c0f6799df5",
-          "evidence": "Checked: a live bcl job --phase presuite on LANE-HEARTBEAT at 11:35 IST with the interim heartbeat script stopped, plus verify-g5.sh (13 named tests passed on installed aff3cdd9); Expected: the job records its pid, heartbeats the tracker and writes its result on exit so the page is not Stale while it runs; Observed: bcl refused the job (review and presuite jobs require each lane to finish fix and enter review) because this lane's fix ran before bcl job existed, so no live long-job observation was possible on this install; the named tests pass; Verdict because: inconclusive until a real lane job runs through bcl job; the next round's fix job will be launched through it.",
-          "finished_at": "2026-11-18T06:08:27.204409Z"
+          "state": "pending"
         },
         "BCL-51": {
-          "state": "not_fixed",
-          "observation": "verify-g5.sh passed; checking the live #115 page strip after a proper viewer restart (page-115-c.png)",
-          "observed_at": "2026-11-18T06:08:27Z",
-          "started_at": "2026-11-18T06:08:27Z",
-          "updated_at": "2026-11-18T06:08:27Z",
-          "check_id": "40742d0b13c047858c102d5e3ebf2078",
-          "evidence": "Checked: the live #115 page on port 53779 after installing aff3cdd9 and restarting the viewer at 11:37 IST (screenshot /Users/gurusharan/.agents/artifacts/bcl-115/r2/page-115-c.png), plus verify-g5.sh (13 named tests, log /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g5.log); Expected: the top strip shows Plan & fix, Review, Install, Verify read from the definition, laid out like the lane dots; Observed: Review now appears between Plan & fix and Install and the chart, router and CLI carry it, but the strip text runs Review into Pre-push suite with no space and the Fixes 11/15 gate node wraps onto a second row under Plan & fix at 1400 px; before the restart the old viewer process kept serving the strip without Review (see BCL-53); Verdict because: not fixed yet because the strip layout regressed when the step was added.",
-          "finished_at": "2026-11-18T06:08:27.204253Z"
+          "state": "pending"
         },
         "BCL-52": {
           "state": "pending"
