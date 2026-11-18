@@ -44,7 +44,7 @@ main{max-width:none;padding:0;margin:0}.issue{background:#fff;border:1px solid v
 .wf-step{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0}
 .wf-dot{position:relative;z-index:1;height:22px;display:grid;place-items:center}
 .wf-dot i{display:block;width:10px;height:10px;border-radius:50%;background:var(--panel);border:1.5px solid var(--dot-idle);box-shadow:0 0 0 3px var(--bg,var(--panel))}
-.wf-label{margin-top:4px;height:32px;font-size:12.5px;line-height:16px;color:var(--muted);padding:0 4px;overflow-wrap:anywhere}
+.wf-label{margin-top:4px;height:32px;font-size:12.5px;line-height:16px;color:var(--muted);padding:0 4px;overflow-wrap:anywhere}.wf-label small{display:block}
 /* connector halves */
 .wf-step::before,.wf-step::after{content:"";position:absolute;top:10.25px;height:1.5px;background:var(--sage-line)}
 .wf-step::before{left:0;right:50%}.wf-step::after{left:50%;right:0}
@@ -68,7 +68,7 @@ main{max-width:none;padding:0;margin:0}.issue{background:#fff;border:1px solid v
 .wf-band-head .spread{color:var(--muted);font-weight:500;margin-left:8px}
 .wf-round{display:inline-flex;align-items:center;gap:6px;color:var(--ink);font-weight:650}
 .wf-pips{display:inline-flex;gap:3px}.wf-pips i{width:6px;height:6px;border-radius:50%;border:1.5px solid var(--accent)}
-.wf-band-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+.wf-band-steps{display:flex;flex-wrap:nowrap}.wf-band-steps>.wf-step{flex:1;min-width:0}
 .wf-band .wf-dot i{box-shadow:0 0 0 3px var(--sage-50)}
 .wf-band .wf-step.busy .wf-dot i{box-shadow:0 0 0 4px var(--halo)}
 .lanes{display:flex;justify-content:center;gap:4px;height:20px;margin:2px 0 10px}

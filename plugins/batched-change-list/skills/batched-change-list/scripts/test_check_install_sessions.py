@@ -16,15 +16,14 @@ class InstallSessionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "implementer_session"):
             check.validate_review_sessions({"groups": [self.group()]}, ["A"])
 
-    def test_install_requires_reviewer_for_multifile_and_unmarked_groups(self):
-        for codex in ({"implementer_session": "session"},
-                      {"implementer_session": "session", "one_file": False}):
-            with self.subTest(codex=codex), self.assertRaisesRegex(ValueError, "reviewer_session"):
-                check.validate_review_sessions({"groups": [self.group(**codex)]}, ["A"])
+    def test_review_starts_without_reviewer_session(self):
+        groups = check.validate_review_sessions(
+            {"groups": [self.group(implementer_session="writer", fix_status="passed")]}, ["A"])
+        self.assertEqual(groups, ["A"])
 
     def test_one_file_group_may_skip_reviewer(self):
         groups = check.validate_review_sessions(
-            {"groups": [self.group(implementer_session="writer", one_file=True)]}, ["A"])
+            {"groups": [self.group(implementer_session="writer", fix_status="passed", one_file=True)]}, ["A"])
         self.assertEqual(groups, ["A"])
 
     def test_both_sessions_allow_install(self):
@@ -32,6 +31,11 @@ class InstallSessionTests(unittest.TestCase):
             {"groups": [self.group(implementer_session="writer", reviewer_session="reviewer",
                                     review_status="passed")]}, ["A"])
         self.assertEqual(groups, ["A"])
+
+    def test_install_still_requires_reviewer_session(self):
+        group = self.group(implementer_session="writer", review_status="passed")
+        with self.assertRaisesRegex(ValueError, "reviewer_session"):
+            check.validate_install_sessions({"groups": [group]}, ["A"])
 
     def test_reviewer_session_without_passing_review_refuses_install(self):
         for status in (None, "pending", "failed"):

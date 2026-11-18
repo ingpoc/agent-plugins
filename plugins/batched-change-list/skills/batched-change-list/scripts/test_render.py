@@ -1,6 +1,8 @@
 import copy
+import html
 import importlib.util
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -14,6 +16,20 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_review_sublabel_is_separated_in_rendered_text(self):
+        workflow = renderer.render_workflow('review', [], 0, 15, False, 0, 1)
+        text = html.unescape(re.sub(r'<[^>]+>', ' ', workflow))
+        self.assertRegex(text, r'Review\s+· Pre-push suite')
+
+    def test_workflow_strip_stays_one_row_and_renders_definition_order_once(self):
+        workflow = renderer.render_workflow('plan_fix', [], 0, 15, False, 0, 1)
+        page = renderer.render(json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text()),
+                               Path(__file__).parents[1])
+        self.assertRegex(page, r'\.wf-band-steps\{[^}]*display:flex;flex-wrap:nowrap\}')
+        expected = [stage['id'] for stage in renderer.WF.ENTRY + renderer.WF.LOOP + renderer.WF.EXIT]
+        stages = re.findall(r'data-stage="([^"]+)"', workflow)
+        self.assertEqual(stages, expected)
+
     def test_checks_pending_lane_is_not_unqualified_blocked(self):
         pending = renderer.lane_issue_status(
             {"id": "CONTROL", "status": "blocked", "blocked_reason": "Individual issue checks pending"}, 1)

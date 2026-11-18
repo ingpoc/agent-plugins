@@ -1,9 +1,12 @@
+import contextlib
+import io
 import importlib.util
 import json
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from subprocess import TimeoutExpired
 
@@ -52,6 +55,37 @@ class LaneStateTests(unittest.TestCase):
         self.assertEqual(jobs[-1]["duration_s"], 120)
         self.assertEqual(jobs[-1]["finished_phase_status"], "passed")
 
+    def test_heartbeat_write_conflict_keeps_child_running(self):
+        process = MagicMock(pid=90211)
+        process.wait.side_effect = [TimeoutExpired(["check"], 60), 0]
+        conflict = RuntimeError("live tracker changed during snapshot; retry")
+        output = SimpleNamespace(returncode=0, stderr="", stdout="")
+        with patch.object(test_bcl.bcl_entrypoint.subprocess, "Popen", return_value=process), \
+             patch.object(test_bcl.bcl_entrypoint.subprocess, "run", return_value=output), \
+             patch.object(test_bcl.bcl_entrypoint.live_state, "snapshot", side_effect=[None, conflict, conflict, conflict, None]) as snapshot, \
+             patch.object(test_bcl.bcl_entrypoint.time, "sleep"), \
+             patch.object(test_bcl.bcl_entrypoint, "_utc_now", side_effect=["2026-11-18T09:00:00Z",
+                   "2026-11-18T09:01:00Z", "2026-11-18T09:02:00Z"]), \
+             contextlib.redirect_stderr(io.StringIO()) as errors:
+            result = test_bcl.bcl_entrypoint._run_job({}, Path("live"), Path("report"), Path("base"),
+                [self.lane()], "fix", ["ISSUE-01"], ["python3", "check.py"])
+        self.assertEqual(result, 0)
+        self.assertEqual(snapshot.call_count, 5)
+        process.terminate.assert_not_called()
+        self.assertIn("heartbeat write failed; will retry", errors.getvalue())
+
+    def test_final_write_failure_reports_child_exit_code(self):
+        process = MagicMock(pid=90212)
+        process.wait.return_value = 7
+        with patch.object(test_bcl.bcl_entrypoint.subprocess, "Popen", return_value=process), \
+             patch.object(test_bcl.bcl_entrypoint, "_job_write", side_effect=[None, OSError("write failed"),
+                   OSError("write failed"), OSError("write failed")]), \
+             patch.object(test_bcl.bcl_entrypoint.time, "sleep"):
+            with self.assertRaisesRegex(RuntimeError, "child exited with code 7; final tracker write failed"):
+                test_bcl.bcl_entrypoint._run_job({}, Path("live"), Path("report"), Path("base"),
+                    [self.lane()], "fix", ["ISSUE-01"], ["python3", "check.py"])
+        process.terminate.assert_not_called()
+
     def test_page_not_stale_while_lane_job_alive(self):
         data = self.stale_data(12345)
         with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=True):
@@ -91,7 +125,7 @@ class LaneStateTests(unittest.TestCase):
             check_install_sessions.validate_install_sessions({"groups": [group]}, ["ISSUE-01"])
 
     def test_one_file_lane_skips_review(self):
-        group = self.lane("planned", one_file=True)
+        group = self.lane("planned", one_file=True, fix_status="passed")
         self.assertEqual(check_install_sessions.validate_review_sessions({"groups": [group]}, ["ISSUE-01"]), ["A"])
         with self.assertRaises(ValueError):
             check_install_sessions.validate_install_sessions({"groups": [group]}, ["ISSUE-01"])
@@ -107,7 +141,7 @@ class LaneStateTests(unittest.TestCase):
         self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale', page)
 
     def test_install_requires_passed_presuite(self):
-        group = self.lane("review", review_status="passed")
+        group = self.lane("review", reviewer_session="reviewer", review_status="passed")
         for suite in (None, {"status": "failed", "exit_code": 1}):
             if suite is not None: group["presuite"] = suite
             with self.subTest(suite=suite), self.assertRaisesRegex(ValueError, "pre-push suite"):

@@ -1,3 +1,11 @@
+## 0.1.40
+
+- bcl job retries snapshot conflicts and keeps the child running when a heartbeat write fails; a passed fix shows Review, not Planned (BCL-50).
+- The workflow strip keeps one row with the Review step and shows its Pre-push suite sublabel as separate text (BCL-51).
+- test_bcl.py pins the temp home and no longer hardcodes process ids, so it passes under the full repo check (BCL-52).
+- The viewer restarts when the installed scripts change even if the version is the same (BCL-53).
+- bcl review starts with only the implementer session and a passed fix; install still requires the reviewer session or a one-file skip (BCL-54).
+
 ## 0.1.39
 
 - Archive merged verified findings at rollover (and migrate an existing list) without changing the gate count; verification runs skip archived items.

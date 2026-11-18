@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Stage-oriented entrypoint for batched-change-list."""
-import argparse, hashlib, json, re, shlex, shutil, subprocess, sys
+import argparse, hashlib, json, re, shlex, shutil, subprocess, sys, time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -86,7 +86,27 @@ def _job_write(record, live, report, base, operations):
     result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
     if result.returncode:
         raise RuntimeError(result.stderr or result.stdout)
-    live_state.snapshot(record, live)
+    for attempt in range(3):
+        try:
+            live_state.snapshot(record, live)
+            return
+        except RuntimeError as error:
+            if "live tracker changed during snapshot; retry" not in str(error) or attempt == 2:
+                raise
+            time.sleep(0.05 * (attempt + 1))
+
+def _job_write_retry(record, live, report, base, operations):
+    for attempt in range(3):
+        try:
+            return _job_write(record, live, report, base, operations)
+        except RuntimeError as error:
+            if "live tracker changed during snapshot; retry" in str(error) or attempt == 2:
+                raise
+            time.sleep(0.05 * (attempt + 1))
+        except Exception:
+            if attempt == 2:
+                raise
+            time.sleep(0.05 * (attempt + 1))
 
 def _job_operations(groups, phase, job, status=None, review_status=None):
     operations = []
@@ -96,8 +116,9 @@ def _job_operations(groups, phase, job, status=None, review_status=None):
             codex["fix_status"] = job["finished_phase_status"]
         if review_status is not None:
             codex["review_status"] = review_status
+        lane_phase = "review" if phase != "fix" or job.get("finished_phase_status") == "passed" else "fix"
         operations.append({"action": "update-plan-group", "id": group["id"],
-                           "merge_codex": True, "patch": {**({"status": status, "phase": "fix" if phase == "fix" else "review"} if status else {}), "codex": codex, **({"presuite": {"status": job["finished_phase_status"], "exit_code": job["exit_code"], "finished_at": job["finished_at"]}} if phase == "presuite" and "exit_code" in job else {})}})
+                           "merge_codex": True, "patch": {**({"status": status, "phase": lane_phase} if status else {}), "codex": codex, **({"presuite": {"status": job["finished_phase_status"], "exit_code": job["exit_code"], "finished_at": job["finished_at"]}} if phase == "presuite" and "exit_code" in job else {})}})
     return operations
 
 def _run_job(record, live, report, base, groups, phase, ids, command_args):
@@ -111,7 +132,7 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args):
     job = {"pid": process.pid, "phase": phase, "started_at": started_at,
            "command": Path(command_args[0]).name, "heartbeat_at": started_at}
     try:
-        _job_write(record, live, report, base, first + _job_operations(groups, phase, job, status))
+        _job_write_retry(record, live, report, base, first + _job_operations(groups, phase, job, status))
     except Exception:
         process.terminate()
         process.wait()
@@ -124,18 +145,19 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args):
             job["heartbeat_at"] = _utc_now()
             try:
                 _job_write(record, live, report, base, _job_operations(groups, phase, job))
-            except Exception:
-                process.terminate()
-                process.wait()
-                raise
+            except Exception as error:
+                print(f"bcl: job heartbeat write failed; will retry: {error}", file=sys.stderr)
     finished_at = _utc_now()
     duration = max(0, int((datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
                            - datetime.fromisoformat(started_at.replace("Z", "+00:00"))).total_seconds()))
     job.update(exit_code=code, duration_s=duration, finished_at=finished_at,
                finished_phase_status="passed" if code == 0 else "failed", heartbeat_at=finished_at)
-    final_status = ("planned" if code == 0 else "failed") if phase == "fix" else ("review" if code == 0 else "failed")
+    final_status = "review" if code == 0 else "failed"
     review_status = ("passed" if code == 0 else "failed") if phase == "review" else None
-    _job_write(record, live, report, base, _job_operations(groups, phase, job, final_status, review_status))
+    try:
+        _job_write_retry(record, live, report, base, _job_operations(groups, phase, job, final_status, review_status))
+    except Exception as error:
+        raise RuntimeError(f"child exited with code {code}; final tracker write failed: {error}") from error
     return code if code >= 0 else 128 - code
 
 def _install_tree_digest(root):
@@ -429,6 +451,11 @@ def main():
                 parser.error("fix job cannot start a blocked or parked lane")
         elif any(group.get("phase") != "review" or (group.get("codex") or {}).get("fix_status") != "passed" for group in groups):
             parser.error("review and presuite jobs require each lane to finish fix and enter review")
+        elif args.phase == "review":
+            try:
+                workflow_definition.run_stage_check("review", tracking.get("plan"), args.ids)
+            except ValueError as error:
+                parser.error(str(error))
         report, base = live_state.report_paths(record, live)
         try:
             code = _run_job(record, live, report, base, groups, args.phase, args.ids, command_args)
@@ -445,9 +472,7 @@ def main():
             parser.error("review IDs must be covered by current plan groups")
         for group in groups:
             codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
-            job = codex.get("job", {})
-            if (job.get("phase") != "fix" or job.get("exit_code") != 0
-                    or job.get("finished_phase_status") != "passed"):
+            if codex.get("fix_status") != "passed":
                 parser.error(f"review cannot start: lane {group.get('id')} has not finished fix")
         try:
             workflow_definition.run_stage_check("review", tracking.get("plan"), args.ids)

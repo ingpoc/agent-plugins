@@ -532,7 +532,7 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
         if failed:
             chips.append(chip(failed, "failed", "bad"))
         activity = next((stage.get("activities", []) for stage in WF.LOOP if stage["id"] == key), [])
-        sublabel = '<small>Pre-push suite</small>' if "Pre-push suite" in activity else ""
+        sublabel = '<small> · Pre-push suite</small>' if "Pre-push suite" in activity else ""
         steps.append(f'<li data-stage="{key}" class="wf-step {state}"><span class="wf-dot"><i></i></span><span class="wf-label">{html.escape(label)}{sublabel}</span>'
                      f'<span class="lanes">{"".join(chips)}</span></li>')
 

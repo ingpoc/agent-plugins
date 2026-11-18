@@ -124,7 +124,7 @@ elif args[:2] != ['pr', 'edit']:
             except (OSError, ValueError, TypeError): pass
         pids.update(viewer_pids_under([self.root]))
         owned = set()
-        for pid in pids - {87005, 28743}:
+        for pid in pids:
             result = subprocess.run(["ps", "-ww", "-o", "command=", "-p", str(pid)], capture_output=True, text=True)
             try: command = shlex.split(result.stdout.strip()) if result.returncode == 0 else []
             except ValueError: command = []
@@ -182,7 +182,7 @@ elif args[:2] != ['pr', 'edit']:
         skill_sha, skill_count = bcl_entrypoint._install_tree_digest(checkout / "skills/batched-change-list")
         version = json.loads((checkout / "plugin.json").read_text())["version"]
         revision = self.git(checkout, "rev-parse", "HEAD").stdout.strip()
-        with patch.object(bcl_entrypoint, "HERE", checkout), patch.dict(os.environ, {"HOME": str(home)}), \
+        with patch.object(bcl_entrypoint, "HERE", checkout), patch.object(Path, "home", return_value=home), \
              patch.object(sys, "argv", [str(BCL), "install-local"]), contextlib.redirect_stdout(io.StringIO()) as receipt:
             bcl_entrypoint.main()
         plugin_sha, plugin_count = bcl_entrypoint._install_tree_digest(checkout)
@@ -437,6 +437,70 @@ elif args[:2] != ['pr', 'edit']:
     def test_adopt_accepts_tracker_as_positional_argument(self):
         result = subprocess.run([sys.executable, str(BCL), "adopt", str(self.data)], env=self.env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_two_concurrent_jobs_both_finish(self):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        tracker = json.loads(self.data.read_text())
+        tracker["findings"][1]["status"] = "untested"
+        tracker["findings"][1].pop("verification", None)
+        tracker["findings"][1].pop("verification_refs", None)
+        self.data.write_text(json.dumps(tracker))
+        live.write_text(self.data.read_text())
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        plan = self.root / "concurrent-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [
+            {"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned"},
+            {"id": "B", "finding_ids": ["ISSUE-02"], "status": "planned"}]}))
+        prepared = self.call("plan", "--plan", str(plan), "--ids", "ISSUE-01", "--ids", "ISSUE-02")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        commands = [[sys.executable, str(BCL), "--data", str(self.data), "--ids", issue,
+                     "--phase", "fix", "job", "--", sys.executable, "-c",
+                     f"import time; time.sleep(0.35); raise SystemExit({code})"]
+                    for issue, code in (("ISSUE-01", 0), ("ISSUE-02", 7))]
+        processes = [subprocess.Popen(command, env=self.env, stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE, text=True) for command in commands]
+        results = [process.communicate(timeout=30) for process in processes]
+        self.assertEqual([process.returncode for process in processes], [0, 7], results)
+        groups = {group["id"]: group for group in json.loads(live.read_text())["tracking"]["plan"]["groups"]}
+        self.assertEqual([groups[key]["codex"]["job"]["exit_code"] for key in ("A", "B")], [0, 7])
+        self.assertEqual([groups[key]["status"] for key in ("A", "B")], ["review", "failed"])
+
+    def test_passed_fix_job_is_not_shown_planned(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        plan = self.root / "passed-fix-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "status": "planned"}]}))
+        prepared = self.call("plan", "--plan", str(plan), "--ids", "ISSUE-01")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        result = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
+            "--phase", "fix", "job", "--", sys.executable, "-c", "pass"],
+            env=self.env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual((group["status"], group["phase"]), ("review", "review"))
+        self.assertIn('class="lc rev"', self.page.read_text())
+
+    def test_fix_then_presuite_then_review_succeeds(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        plan = self.root / "review-order-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"],
+            "status": "planned", "codex": {"implementer_session": "writer", "review_status": "pending"}}]}))
+        prepared = self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        def job(phase):
+            return subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
+                "--phase", phase, "job", "--", sys.executable, "-c", "pass"],
+                env=self.env, capture_output=True, text=True)
+        self.assertEqual(job("fix").returncode, 0)
+        self.assertEqual(job("presuite").returncode, 0)
+        reviewed = self.call_without_viewer("review", "--ids", "ISSUE-01")
+        self.assertEqual(reviewed.returncode, 0, reviewed.stderr)
+        review_job = job("review")
+        self.assertEqual(review_job.returncode, 0, review_job.stderr)
+        group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["codex"]["fix_status"], "passed")
+        self.assertEqual(group["codex"]["review_status"], "passed")
+        self.assertNotIn("reviewer_session", group["codex"])
 
     def test_workflow_cycle_uses_live_tracker_and_snapshots_each_stage(self):
         result = self.call_without_viewer("start")

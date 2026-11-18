@@ -115,6 +115,13 @@ def report_paths(record, live):
             print(f"warning: report capture is missing ({missing.relative_to(base.resolve())}); page render skipped", file=sys.stderr)
     return page, base
 
+def scripts_identity():
+    digest = hashlib.sha256()
+    for path in sorted(path for path in SCRIPTS.rglob("*") if path.suffix in (".py", ".json")):
+        digest.update(path.relative_to(SCRIPTS).as_posix().encode() + b"\0")
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
+
 def evidence_base(live):
     live = Path(live).resolve()
     if not live.is_relative_to(STATE.resolve()):
@@ -239,8 +246,9 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
         if not _viewer_responds(old_port, old):
             raise RuntimeError(f"cannot verify viewer ownership on port {old_port}; inspect its state before retrying")
         page, base = report_paths(record, live)
+        scripts = scripts_identity()
         same_target = old.get("report") == str(page.resolve()) and old.get("base") == str(base.resolve()) and old.get("scripts") == str(SCRIPTS.resolve())
-        if old.get("version") == plugin_version and same_target:
+        if old.get("version") == plugin_version and old.get("scripts_identity") == scripts and same_target:
             return old
         request = urllib.request.Request(f"http://127.0.0.1:{old_port}/__bcl_shutdown", method="POST", headers={"X-BCL-Instance": old["instance"]})
         try:
@@ -253,6 +261,7 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
             raise RuntimeError(f"viewer on port {old_port} did not stop; inspect it before retrying")
     else:
         page, base = report_paths(record, live)
+        scripts = scripts_identity()
     reserved = _reserved_ports(state)
     candidates = []
     if owns_old and old_port:
@@ -295,7 +304,7 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
         raise RuntimeError(f"viewer failed to start on port {port}{detail}; check {log} and retry")
     value = {"port": port, "pid": proc.pid, "version": plugin_version, "instance": instance,
              "data": str(Path(live).resolve()), "report": str(page.resolve()), "base": str(base.resolve()),
-             "scripts": str(SCRIPTS.resolve()), "started_at": started}
+             "scripts": str(SCRIPTS.resolve()), "scripts_identity": scripts, "started_at": started}
     state.write_text(json.dumps(value, indent=2) + "\n")
     return value
 

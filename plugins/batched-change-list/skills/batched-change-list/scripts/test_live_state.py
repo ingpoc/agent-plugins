@@ -2,6 +2,7 @@ import json
 import hashlib
 import base64
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -18,6 +19,46 @@ import render
 
 
 class ViewerLivenessTests(unittest.TestCase):
+    def _viewer_fixture(self, root):
+        state, live, home = root / 'state', root / 'live.json', root / 'home'
+        scripts = root / 'install' / 'scripts'
+        shutil.copytree(Path(__file__).resolve().parent, scripts)
+        shutil.copytree(Path(__file__).resolve().parents[1] / 'templates', scripts.parent / 'templates')
+        live.write_text((Path(__file__).resolve().parents[1] / 'examples/findings.json').read_text())
+        (home / 'report').mkdir(parents=True)
+        (home / 'report/page.html').write_text('<html>viewer test</html>')
+        record = {'home': str(home), 'snapshot': 'report/data.json', 'html': 'report/page.html'}
+        def cleanup():
+            for path in (state / 'viewers').glob('*.json'):
+                try:
+                    info = json.loads(path.read_text())
+                    if not info.get('instance') or Path(info['data']).resolve() != live.resolve(): continue
+                    request = Request(f"http://127.0.0.1:{info['port']}/__bcl_shutdown", method='POST', headers={'X-BCL-Instance': info['instance']})
+                    with urlopen(request, timeout=2): pass
+                    live_state._wait_for_port(info['port'])
+                except (OSError, ValueError, KeyError): pass
+        self.addCleanup(cleanup)
+        return state, live, record, scripts
+
+    def test_same_version_reinstall_restarts_viewer(self):
+        with tempfile.TemporaryDirectory() as temp:
+            state, live, record, scripts = self._viewer_fixture(Path(temp))
+            with patch.object(live_state, 'STATE', state), patch.object(live_state, 'SCRIPTS', scripts):
+                first = live_state.ensure_viewer('repo/1', record, live, 'same-version')
+                with (scripts / 'render.py').open('a') as installed_script:
+                    installed_script.write('\n# reinstall changed this script\n')
+                second = live_state.ensure_viewer('repo/1', record, live, 'same-version')
+            self.assertNotEqual(first['pid'], second['pid'])
+            self.assertEqual(first['port'], second['port'])
+
+    def test_unchanged_script_tree_reuses_viewer(self):
+        with tempfile.TemporaryDirectory() as temp:
+            state, live, record, scripts = self._viewer_fixture(Path(temp))
+            with patch.object(live_state, 'STATE', state), patch.object(live_state, 'SCRIPTS', scripts):
+                first = live_state.ensure_viewer('repo/1', record, live, 'same-version')
+                second = live_state.ensure_viewer('repo/1', record, live, 'same-version')
+            self.assertEqual(first['pid'], second['pid'])
+
     def test_real_viewer_restarts_and_serves_new_worktree(self):
         temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
         root = Path(temp.name); state = root / 'state'; live = root / 'live.json'

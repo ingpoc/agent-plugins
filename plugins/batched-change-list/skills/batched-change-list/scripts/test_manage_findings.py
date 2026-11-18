@@ -1766,14 +1766,6 @@ class ManageFindingsTests(unittest.TestCase):
             check_install_sessions.validate_review_sessions({"groups": [{
                 "id": "A", "finding_ids": ["ISSUE-01"], "codex": {}}]}, ["ISSUE-01"])
 
-    def test_review_requires_reviewer_for_multifile_or_unmarked_group(self):
-        for codex in ({"implementer_session": "writer"},
-                      {"implementer_session": "writer", "one_file": False}):
-            with self.subTest(codex=codex):
-                with self.assertRaisesRegex(ValueError, "reviewer_session"):
-                    check_install_sessions.validate_review_sessions({"groups": [{
-                        "id": "A", "finding_ids": ["ISSUE-01"], "codex": codex}]}, ["ISSUE-01"])
-
     def test_install_requires_a_passing_recorded_review(self):
         document = copy.deepcopy(self.document)
         document["findings"][0]["status"] = "in_progress"
