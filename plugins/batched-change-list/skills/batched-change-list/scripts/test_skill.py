@@ -30,24 +30,20 @@ class SkillLayoutTests(unittest.TestCase):
 
     def test_after_chart_uses_suggested_verdict_and_defaults_to_keep(self):
         chart=statechart.render(suggested_verdicts={'collect':'delete'})
-        payload=json.loads(re.search(r'<script type=\"application/json\" id=\"chart-data\">([^<]*)</script>',chart).group(1))
-        self.assertEqual(payload['suggested_verdicts'],{'collect':'delete'})
-        self.assertIn("if(view==='after')",chart)
-        self.assertIn("badge.textContent=verdicts[id]||'keep'",chart)
+        self.assertEqual(chart.count('data-id="collect"'),2)
+        self.assertEqual(chart.count('>delete</text>'),2)
+        self.assertEqual(chart.count('>keep</text>'),16)
 
     def test_merge_chart_uses_merge_run_and_report_reference(self):
         chart=statechart.render()
-        payload=json.loads(re.search(r'<script type=\"application/json\" id=\"chart-data\">([^<]*)</script>',chart).group(1))
-        report=next(row for row in payload['refs'] if row.get('step')=='Report & roll over')
-        merged=next(row for row in payload['refs'] if row.get('step')=='Merge previous PR')
-        self.assertEqual(report['run'],'`bcl report`, `bcl rollover`')
-        self.assertEqual(merged['run'],'`bcl merged`, `bcl install-local`')
-        self.assertEqual(merged['path'],'')
-        self.assertIn("step.id==='merged'?d.refs.find(x=>x.path==='report-rollover.md')",chart)
+        self.assertIn('bcl merged</tspan>',chart)
+        self.assertIn('bcl install-local</tspan>',chart)
+        self.assertNotIn('`',chart)
+        self.assertIn('report-rollover.md',chart)
 
-    def test_flow_chart_has_flow_colors_click_toggle_and_verdicts(self):
+    def test_flow_chart_has_svg_edges_and_current_after_toggle(self):
         chart=statechart.render()
-        for term in ('Collect','Present','Plan & fix','under {threshold} verified','{threshold}+ verified','Report & roll over','Merge previous PR','↓ into the Plan & fix loop','merge_label','{threshold}+ verified for Merge previous PR',"className='branches'","className='branch'",'.always{border-color:#17804b','.ref{border-color:#7542a8','--grey:#9199a1','onclick','data-view="current"','data-view="after"',"verdicts[id]||\'keep\'",'verdict','delete','simplify','optimize','automate','keep','bcl plan','bcl fix','bcl merged','bcl install-local'):
+        for term in ('Collect','Present','Plan &amp; fix','under 15 verified','15+ verified','Report &amp; roll over','Merge previous PR','16+ verified for Merge previous PR','marker-end="url(#arrow)"','data-view="current"','data-view="after"','class="badge verdict"','keep','bcl plan</tspan>','bcl fix</tspan>','bcl merged</tspan>','bcl install-local</tspan>'):
             self.assertIn(term,chart)
 
     def test_evals_shape_and_router_paths_cover_three_scenarios(self):
