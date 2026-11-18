@@ -6855,9 +6855,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-18T10:20:08Z",
-      "now": "2026-11-18T10:20:08Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-18T10:43:55Z",
+      "now": "2026-11-18T10:43:55Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 115,
@@ -7015,8 +7015,8 @@
             "BCL-63"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl116-r1-g1",
           "reason": "Same registry and viewer lifecycle code in bin/bcl rollover/merged and live_state.",
           "codex": {
@@ -7044,12 +7044,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.sh",
             "method": "Full suite on a clean clone and the installed copy, strict shape, statechart --check, named tests on the installed copy, no leaked viewers, plus live checks per finding.",
-            "status": "pending",
+            "status": "verified",
             "total": 2,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 2,
+            "failed": 0,
+            "summary": "Rollover home, plan and merged viewer stop verified",
+            "failure": null
           },
-          "updated_at": "2026-11-18T10:17:02Z",
+          "updated_at": "2026-11-18T10:29:38Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -7058,7 +7060,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-18T10:19:38Z"
-          }
+          },
+          "verify_summary": "Rollover home, plan and merged viewer stop verified"
         },
         {
           "id": "PAGE-WORDS",
@@ -7069,8 +7072,8 @@
             "BCL-62"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl116-r1-g2",
           "reason": "Same render path and template; finish-check rule for blocked.",
           "codex": {
@@ -7098,12 +7101,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.sh",
             "method": "Full suite on a clean clone and the installed copy, strict shape, statechart --check, named tests on the installed copy, no leaked viewers, plus live checks per finding.",
-            "status": "pending",
+            "status": "verified",
             "total": 3,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 3,
+            "failed": 0,
+            "summary": "Idle-safe Stale, plain header, carried Not checked verified",
+            "failure": null
           },
-          "updated_at": "2026-11-18T10:17:02Z",
+          "updated_at": "2026-11-18T10:33:53Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -7112,7 +7117,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-18T10:19:38Z"
-          }
+          },
+          "verify_summary": "Idle-safe Stale, plain header, carried Not checked verified"
         },
         {
           "id": "REVIEW-VERDICT",
@@ -7121,8 +7127,8 @@
             "BCL-57"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl116-r1-g3",
           "reason": "bin/bcl job review path plus review.md.",
           "codex": {
@@ -7150,12 +7156,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g3.sh",
             "method": "Full suite on a clean clone and the installed copy, strict shape, statechart --check, named tests on the installed copy, no leaked viewers, plus live checks per finding.",
-            "status": "pending",
+            "status": "verified",
             "total": 1,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 1,
+            "failed": 0,
+            "summary": "Review verdict parsing verified",
+            "failure": null
           },
-          "updated_at": "2026-11-18T10:17:02Z",
+          "updated_at": "2026-11-18T10:36:00Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -7164,7 +7172,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-18T10:19:38Z"
-          }
+          },
+          "verify_summary": "Review verdict parsing verified"
         },
         {
           "id": "CHECK-LEAKS",
@@ -7173,8 +7182,8 @@
             "BCL-58"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl116-r1-g4",
           "reason": "Test infrastructure only; independent of product code.",
           "codex": {
@@ -7202,12 +7211,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g4.sh",
             "method": "Full suite on a clean clone and the installed copy, strict shape, statechart --check, named tests on the installed copy, no leaked viewers, plus live checks per finding.",
-            "status": "pending",
+            "status": "verified",
             "total": 1,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 1,
+            "failed": 0,
+            "summary": "Repo check leaves no test viewers verified",
+            "failure": null
           },
-          "updated_at": "2026-11-18T10:17:02Z",
+          "updated_at": "2026-11-18T10:43:00Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -7216,9 +7227,11 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-18T10:19:38Z"
-          }
+          },
+          "verify_summary": "Repo check leaves no test viewers verified"
         }
-      ]
+      ],
+      "status": "closed"
     },
     "introspect_history": [
       {
@@ -8592,6 +8605,93 @@
         },
         "round": 4,
         "cycle": 7
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-18T10:43:55Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: ROLLOVER-VIEWER",
+          "Codex review: ROLLOVER-VIEWER",
+          "Polling and rework review: ROLLOVER-VIEWER",
+          "Test command: ROLLOVER-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.sh",
+          "Codex write: PAGE-WORDS",
+          "Codex review: PAGE-WORDS",
+          "Polling and rework review: PAGE-WORDS",
+          "Test command: PAGE-WORDS: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.sh",
+          "Codex write: REVIEW-VERDICT",
+          "Codex review: REVIEW-VERDICT",
+          "Polling and rework review: REVIEW-VERDICT",
+          "Test command: REVIEW-VERDICT: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g3.sh",
+          "Codex write: CHECK-LEAKS",
+          "Codex review: CHECK-LEAKS",
+          "Polling and rework review: CHECK-LEAKS",
+          "Test command: CHECK-LEAKS: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g4.sh",
+          "Pre-push suite: 0.1.42",
+          "Orchestration: interruption at 15:44 IST"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: ROLLOVER-VIEWER",
+          "Codex review: ROLLOVER-VIEWER",
+          "Polling and rework review: ROLLOVER-VIEWER",
+          "Codex write: PAGE-WORDS",
+          "Codex review: PAGE-WORDS",
+          "Polling and rework review: PAGE-WORDS",
+          "Test command: PAGE-WORDS: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.sh",
+          "Codex write: REVIEW-VERDICT",
+          "Codex review: REVIEW-VERDICT",
+          "Polling and rework review: REVIEW-VERDICT",
+          "Test command: REVIEW-VERDICT: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g3.sh",
+          "Codex write: CHECK-LEAKS",
+          "Codex review: CHECK-LEAKS",
+          "Polling and rework review: CHECK-LEAKS",
+          "Test command: CHECK-LEAKS: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g4.sh"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Test command: ROLLOVER-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.sh",
+                "evidence": "verify-g1..g3 each cloned the repo and ran the same 347-test suite (about 146s) on one install before 7 to 12 named tests that took under 9s; verify took 15:51-16:12 IST instead of about 6 minutes.",
+                "outcome": "issue",
+                "issue_id": "BCL-65"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Orchestration: interruption at 15:44 IST",
+                "evidence": "The round progress note had been written under bcl-115/r2, so the resume at 15:44 IST found none under bcl-116; it now lives at bcl-116/progress.md and is appended at each lane record, replacing the cross-list note.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Pre-push suite: 0.1.42",
+                "evidence": "Presuite 1 (15:31 IST) failed test_bcl.py once under scripts/check.py without naming the test; it passed alone and in presuite 2 (15:42-15:47 IST), costing a 5 minute rerun.",
+                "outcome": "issue",
+                "issue_id": "BCL-64"
+              }
+            ]
+          },
+          "automate": {
+            "none": "Each lane already ran under bcl job / bcl verify with recorded logs and one record script per lane; no repeated hand step left beyond BCL-65."
+          }
+        },
+        "round": 1,
+        "cycle": 8
       }
     ],
     "archive": {
@@ -8612,7 +8712,8 @@
       "plan_fix",
       "review",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "verification_run": {
       "id": "bcl-0.1.42-7b59a1b6-116",
@@ -8623,27 +8724,169 @@
       "status": "active",
       "checks": {
         "BCL-57": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Running /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g3.sh (verify_lane.py on installed 0.1.42: fresh clone suite, skill_shape strict, statechart --check, named tests, leak check) on installed 0.1.42 for named tests test_review_job_with_changes_verdict_records_failed, test_review_job_with_pass_verdict_records_passed, test_review_job_without_verdict_records_failed, test_review_job_first_conflicting_verdict_records_failed, test_review_job_first_invalid_verdict_records_failed, test_review_job_with_stale_pass_records_failed, test_review_job_with_invalid_encoding_records_failed",
+          "observed_at": "2026-11-18T10:36:00Z",
+          "started_at": "2026-11-18T10:36:00Z",
+          "updated_at": "2026-11-18T10:36:00Z",
+          "check_id": "359e3d87c735418ab5b7a7a20063bb8f",
+          "evidence": "Checked: bcl job --phase review verdict handling on the installed CLI; Expected: VERDICT: CHANGES, missing, conflicting, invalid or stale verdicts record review failed; only a fresh PASS records passed; Observed: All seven named tests passed Named tests: test_review_job_with_changes_verdict_records_failed, test_review_job_with_pass_verdict_records_passed, test_review_job_without_verdict_records_failed, test_review_job_first_conflicting_verdict_records_failed, test_review_job_first_invalid_verdict_records_failed, test_review_job_with_stale_pass_records_failed, test_review_job_with_invalid_encoding_records_failed. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g3.log.; Verdict because: review status now follows the verdict, not the exit code. Installed install-local from PR #116 head 7b59a1b6 (plugin tree of 642da7ae) at 15:49 IST: plugin 57 files sha256 08a3a3fc2b1e23583c1bcf73d92118ff763b1d9b6f56148ca47d83c0a2e419c8, skill 50 files sha256 117541db1ffcb1305f05daae8184f4924f20dc1e49d596cab53962f35262a18a. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r1/install-0.1.42.txt",
+          "finished_at": "2026-11-18T10:36:00.433940Z"
         },
         "BCL-58": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Running /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g4.sh (verify_lane.py on installed 0.1.42: fresh clone suite, skill_shape strict, statechart --check, named tests, leak check) on installed 0.1.42 for named tests test_leaking_module_fails_when_run_alone, scripts/check.py full run with 0 leaked viewers",
+          "observed_at": "2026-11-18T10:43:00Z",
+          "started_at": "2026-11-18T10:43:00Z",
+          "updated_at": "2026-11-18T10:43:00Z",
+          "check_id": "3e962d01a88544b6a386d23e8432aad1",
+          "evidence": "Checked: scripts/check.py on a fresh clone of the installed revision, then a test-viewer scan; Expected: check.py passes and leaves 0 test viewers; Observed: check.py passed and left 0 test viewers (per-module leak guard) Named tests: test_leaking_module_fails_when_run_alone, scripts/check.py full run with 0 leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g4.log.; Verdict because: the end-to-end repo check no longer leaks viewers. Installed install-local from PR #116 head 7b59a1b6 (plugin tree of 642da7ae) at 15:49 IST: plugin 57 files sha256 08a3a3fc2b1e23583c1bcf73d92118ff763b1d9b6f56148ca47d83c0a2e419c8, skill 50 files sha256 117541db1ffcb1305f05daae8184f4924f20dc1e49d596cab53962f35262a18a. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r1/install-0.1.42.txt",
+          "finished_at": "2026-11-18T10:43:00.908169Z"
         },
         "BCL-59": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Running /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.sh (verify_lane.py on installed 0.1.42: fresh clone suite, skill_shape strict, statechart --check, named tests, leak check) on installed 0.1.42 for named tests test_rollover_sets_new_home_from_worktree, test_rollover_clears_old_plan_lanes, test_viewer_restarts_when_report_path_moves, test_status_reconciles_legacy_viewer",
+          "observed_at": "2026-11-18T10:29:38Z",
+          "started_at": "2026-11-18T10:29:38Z",
+          "updated_at": "2026-11-18T10:29:38Z",
+          "check_id": "361f53abd74f48bcb9dcf551f4ab8eef",
+          "evidence": "Checked: bcl rollover registry home, plan lanes and viewer report path on the installed CLI; Expected: Rollover moves home to the new worktree, clears old plan lanes, and the viewer restarts on the new report path; Observed: All four named tests passed; home moves, lanes cleared, viewer re-served from the new path Named tests: test_rollover_sets_new_home_from_worktree, test_rollover_clears_old_plan_lanes, test_viewer_restarts_when_report_path_moves, test_status_reconciles_legacy_viewer. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.log.; Verdict because: named tests exercise the reported root cause on the installed copy and pass. Installed install-local from PR #116 head 7b59a1b6 (plugin tree of 642da7ae) at 15:49 IST: plugin 57 files sha256 08a3a3fc2b1e23583c1bcf73d92118ff763b1d9b6f56148ca47d83c0a2e419c8, skill 50 files sha256 117541db1ffcb1305f05daae8184f4924f20dc1e49d596cab53962f35262a18a. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r1/install-0.1.42.txt",
+          "finished_at": "2026-11-18T10:29:38.520364Z"
         },
         "BCL-60": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Running /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.sh (verify_lane.py on installed 0.1.42: fresh clone suite, skill_shape strict, statechart --check, named tests, leak check) on installed 0.1.42 for named tests test_idle_collect_never_shows_stale, test_running_lane_with_overdue_heartbeat_shows_stale, test_recently_updated_completed_lane_never_shows_stale, test_overdue_active_lane_is_not_hidden_by_healthy_lane, test_page_stale_when_live_lane_heartbeat_is_overdue",
+          "observed_at": "2026-11-18T10:33:53Z",
+          "started_at": "2026-11-18T10:33:53Z",
+          "updated_at": "2026-11-18T10:33:53Z",
+          "check_id": "e318f64bc76b4cca9a32c8db9b19b7c0",
+          "evidence": "Checked: render.py Stale badge logic on the installed copy; Expected: No Stale badge during idle Collect; Stale only for an overdue running lane; Observed: All five named tests passed Named tests: test_idle_collect_never_shows_stale, test_running_lane_with_overdue_heartbeat_shows_stale, test_recently_updated_completed_lane_never_shows_stale, test_overdue_active_lane_is_not_hidden_by_healthy_lane, test_page_stale_when_live_lane_heartbeat_is_overdue. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.log.; Verdict because: idle Collect never shows Stale while real overdue lanes still do. Installed install-local from PR #116 head 7b59a1b6 (plugin tree of 642da7ae) at 15:49 IST: plugin 57 files sha256 08a3a3fc2b1e23583c1bcf73d92118ff763b1d9b6f56148ca47d83c0a2e419c8, skill 50 files sha256 117541db1ffcb1305f05daae8184f4924f20dc1e49d596cab53962f35262a18a. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r1/install-0.1.42.txt",
+          "finished_at": "2026-11-18T10:33:53.242408Z"
         },
         "BCL-61": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Running /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.sh (verify_lane.py on installed 0.1.42: fresh clone suite, skill_shape strict, statechart --check, named tests, leak check) on installed 0.1.42 for named tests test_header_has_no_file_paths_and_counts_in_words, test_header_shows_viewer_version_from_record, test_empty_parked_needs_render_without_crashing, test_long_parked_needs_are_summarized, test_served_page_uses_version_from_viewer_record",
+          "observed_at": "2026-11-18T10:33:53Z",
+          "started_at": "2026-11-18T10:33:53Z",
+          "updated_at": "2026-11-18T10:33:53Z",
+          "check_id": "fe70319135964d42afcf4025b297adce",
+          "evidence": "Checked: render.py header on the installed copy; Expected: Header uses plain words (no archive.json/parked.json paths), summarizes parked needs, and shows the viewer version; Observed: All five named tests passed Named tests: test_header_has_no_file_paths_and_counts_in_words, test_header_shows_viewer_version_from_record, test_empty_parked_needs_render_without_crashing, test_long_parked_needs_are_summarized, test_served_page_uses_version_from_viewer_record. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.log.; Verdict because: header text matches the plain-words rule and shows the recorded version. Installed install-local from PR #116 head 7b59a1b6 (plugin tree of 642da7ae) at 15:49 IST: plugin 57 files sha256 08a3a3fc2b1e23583c1bcf73d92118ff763b1d9b6f56148ca47d83c0a2e419c8, skill 50 files sha256 117541db1ffcb1305f05daae8184f4924f20dc1e49d596cab53962f35262a18a. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r1/install-0.1.42.txt",
+          "finished_at": "2026-11-18T10:33:53.242629Z"
         },
         "BCL-62": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Running /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.sh (verify_lane.py on installed 0.1.42: fresh clone suite, skill_shape strict, statechart --check, named tests, leak check) on installed 0.1.42 for named tests test_carried_finding_displays_not_checked_instead_of_old_blocked_check, test_blocked_outcome_requires_external_blocker",
+          "observed_at": "2026-11-18T10:33:53Z",
+          "started_at": "2026-11-18T10:33:53Z",
+          "updated_at": "2026-11-18T10:33:53Z",
+          "check_id": "505f3c15ca4e45f0bac11c7616ddbdd1",
+          "evidence": "Checked: render.py carried finding row and manage_findings blocked outcome on the installed copy; Expected: A finding with no fix shows Not checked; Blocked requires an external blocker; Observed: Both named tests passed Named tests: test_carried_finding_displays_not_checked_instead_of_old_blocked_check, test_blocked_outcome_requires_external_blocker. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.log.; Verdict because: Blocked is no longer shown or recordable without an external blocker. Installed install-local from PR #116 head 7b59a1b6 (plugin tree of 642da7ae) at 15:49 IST: plugin 57 files sha256 08a3a3fc2b1e23583c1bcf73d92118ff763b1d9b6f56148ca47d83c0a2e419c8, skill 50 files sha256 117541db1ffcb1305f05daae8184f4924f20dc1e49d596cab53962f35262a18a. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r1/install-0.1.42.txt",
+          "finished_at": "2026-11-18T10:33:53.242697Z"
         },
         "BCL-63": {
+          "state": "fixed",
+          "observation": "Running /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.sh (verify_lane.py on installed 0.1.42: fresh clone suite, skill_shape strict, statechart --check, named tests, leak check) on installed 0.1.42 for named tests test_merged_stops_its_viewer_by_recorded_pid, test_merged_leaves_other_list_viewers_running, test_stop_viewer_ignores_pid_serving_another_list, test_viewer_process_matches_real_arguments_with_spaces",
+          "observed_at": "2026-11-18T10:29:38Z",
+          "started_at": "2026-11-18T10:29:38Z",
+          "updated_at": "2026-11-18T10:29:38Z",
+          "check_id": "ccc95ceaff5d4929a68faa64cb0e3903",
+          "evidence": "Checked: bcl merged and stop-viewer on the installed CLI; Expected: Merging a list stops its own viewer by exact recorded pid and leaves other lists alone; Observed: All four named tests passed; only the recorded pid serving that list is stopped Named tests: test_merged_stops_its_viewer_by_recorded_pid, test_merged_leaves_other_list_viewers_running, test_stop_viewer_ignores_pid_serving_another_list, test_viewer_process_matches_real_arguments_with_spaces. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.log.; Verdict because: named tests cover stop, isolation and exact-pid matching and pass. Installed install-local from PR #116 head 7b59a1b6 (plugin tree of 642da7ae) at 15:49 IST: plugin 57 files sha256 08a3a3fc2b1e23583c1bcf73d92118ff763b1d9b6f56148ca47d83c0a2e419c8, skill 50 files sha256 117541db1ffcb1305f05daae8184f4924f20dc1e49d596cab53962f35262a18a. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r1/install-0.1.42.txt",
+          "finished_at": "2026-11-18T10:29:38.520544Z"
+        },
+        "BCL-64": {
+          "state": "pending"
+        },
+        "BCL-65": {
           "state": "pending"
         }
       }
+    },
+    "introspect": {
+      "result": "Introspect recorded",
+      "at": "2026-11-18T10:43:55Z",
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: ROLLOVER-VIEWER",
+        "Codex review: ROLLOVER-VIEWER",
+        "Polling and rework review: ROLLOVER-VIEWER",
+        "Test command: ROLLOVER-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.sh",
+        "Codex write: PAGE-WORDS",
+        "Codex review: PAGE-WORDS",
+        "Polling and rework review: PAGE-WORDS",
+        "Test command: PAGE-WORDS: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.sh",
+        "Codex write: REVIEW-VERDICT",
+        "Codex review: REVIEW-VERDICT",
+        "Polling and rework review: REVIEW-VERDICT",
+        "Test command: REVIEW-VERDICT: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g3.sh",
+        "Codex write: CHECK-LEAKS",
+        "Codex review: CHECK-LEAKS",
+        "Polling and rework review: CHECK-LEAKS",
+        "Test command: CHECK-LEAKS: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g4.sh",
+        "Pre-push suite: 0.1.42",
+        "Orchestration: interruption at 15:44 IST"
+      ],
+      "none": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: ROLLOVER-VIEWER",
+        "Codex review: ROLLOVER-VIEWER",
+        "Polling and rework review: ROLLOVER-VIEWER",
+        "Codex write: PAGE-WORDS",
+        "Codex review: PAGE-WORDS",
+        "Polling and rework review: PAGE-WORDS",
+        "Test command: PAGE-WORDS: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.sh",
+        "Codex write: REVIEW-VERDICT",
+        "Codex review: REVIEW-VERDICT",
+        "Polling and rework review: REVIEW-VERDICT",
+        "Test command: REVIEW-VERDICT: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g3.sh",
+        "Codex write: CHECK-LEAKS",
+        "Codex review: CHECK-LEAKS",
+        "Polling and rework review: CHECK-LEAKS",
+        "Test command: CHECK-LEAKS: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g4.sh"
+      ],
+      "sections": {
+        "delete": {
+          "items": [
+            {
+              "item": "Test command: ROLLOVER-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.sh",
+              "evidence": "verify-g1..g3 each cloned the repo and ran the same 347-test suite (about 146s) on one install before 7 to 12 named tests that took under 9s; verify took 15:51-16:12 IST instead of about 6 minutes.",
+              "outcome": "issue",
+              "issue_id": "BCL-65"
+            }
+          ]
+        },
+        "simplify": {
+          "items": [
+            {
+              "item": "Orchestration: interruption at 15:44 IST",
+              "evidence": "The round progress note had been written under bcl-115/r2, so the resume at 15:44 IST found none under bcl-116; it now lives at bcl-116/progress.md and is appended at each lane record, replacing the cross-list note.",
+              "outcome": "fixed inline"
+            }
+          ]
+        },
+        "optimize": {
+          "items": [
+            {
+              "item": "Pre-push suite: 0.1.42",
+              "evidence": "Presuite 1 (15:31 IST) failed test_bcl.py once under scripts/check.py without naming the test; it passed alone and in presuite 2 (15:42-15:47 IST), costing a 5 minute rerun.",
+              "outcome": "issue",
+              "issue_id": "BCL-64"
+            }
+          ]
+        },
+        "automate": {
+          "none": "Each lane already ran under bcl job / bcl verify with recorded logs and one record script per lane; no repeated hand step left beyond BCL-65."
+        }
+      },
+      "round": 1,
+      "cycle": 8
     }
   },
   "findings": [
@@ -8651,85 +8894,228 @@
       "id": "BCL-57",
       "title": "A review job that returns CHANGES is recorded as review passed",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "bcl job --phase review sets codex.review_status to passed whenever the reviewer process exits 0, but Terra exits 0 with VERDICT: CHANGES, so the lane reads Review passed until the orchestrator corrects it.",
       "impact": "Install could proceed on a lane whose review asked for changes if the orchestrator misses the verdict.",
       "done_when": "A review job records passed only when the reviewer verdict is PASS (for example read from the reviewer output file), failed on CHANGES, proven by named tests and a live review job.",
       "observed": "18 Nov 2026 13:02 IST on installed 0.1.40: review jobs for VERIFY-LOOP and VIEWER-STRIP exited 0 with VERDICT: CHANGES and the lanes showed review passed.",
-      "recommendation": "Pass the reviewer output file to bcl job and parse its first VERDICT line."
+      "recommendation": "Pass the reviewer output file to bcl job and parse its first VERDICT line.",
+      "verification_evidence": [
+        {
+          "checked": "bcl job --phase review verdict handling on the installed CLI",
+          "expected": "VERDICT: CHANGES, missing, conflicting, invalid or stale verdicts record review failed; only a fresh PASS records passed",
+          "observed": "All seven named tests passed Named tests: test_review_job_with_changes_verdict_records_failed, test_review_job_with_pass_verdict_records_passed, test_review_job_without_verdict_records_failed, test_review_job_first_conflicting_verdict_records_failed, test_review_job_first_invalid_verdict_records_failed, test_review_job_with_stale_pass_records_failed, test_review_job_with_invalid_encoding_records_failed. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g3.log.",
+          "verdict": "review status now follows the verdict, not the exit code",
+          "check_id": "bcl-57-0.1.42-7b59a1b6",
+          "build": "batched-change-list 0.1.42",
+          "session": "bcl-0.1.42-7b59a1b6-116",
+          "timestamp": "2026-11-18T10:36:00Z",
+          "reference": "7b59a1b643b03de87ae0b974ecae7fa2f397f159:BCL-57:installed-named-tests"
+        }
+      ],
+      "verification": "Checked: bcl job --phase review verdict handling on the installed CLI; Expected: VERDICT: CHANGES, missing, conflicting, invalid or stale verdicts record review failed; only a fresh PASS records passed; Observed: All seven named tests passed Named tests: test_review_job_with_changes_verdict_records_failed, test_review_job_with_pass_verdict_records_passed, test_review_job_without_verdict_records_failed, test_review_job_first_conflicting_verdict_records_failed, test_review_job_first_invalid_verdict_records_failed, test_review_job_with_stale_pass_records_failed, test_review_job_with_invalid_encoding_records_failed. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g3.log.; Verdict because: review status now follows the verdict, not the exit code. Installed install-local from PR #116 head 7b59a1b6 (plugin tree of 642da7ae) at 15:49 IST: plugin 57 files sha256 08a3a3fc2b1e23583c1bcf73d92118ff763b1d9b6f56148ca47d83c0a2e419c8, skill 50 files sha256 117541db1ffcb1305f05daae8184f4924f20dc1e49d596cab53962f35262a18a. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r1/install-0.1.42.txt",
+      "verification_refs": [
+        "7b59a1b643b03de87ae0b974ecae7fa2f397f159:BCL-57:installed-named-tests"
+      ]
     },
     {
       "id": "BCL-58",
       "title": "The repo check leaks test viewers because the leak guard only covers one test process",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "scripts/check.py runs each test file in its own process, and the BCL-56 leak guard runs in its own module at the end of a discovery run, so viewers leaked by test_bcl.py under check.py are never caught.",
       "impact": "Leaked viewers pile up on the Mac after every pre-push check.",
       "done_when": "A test file that leaks a viewer fails when run alone and under scripts/check.py, proven by a named test; no viewers remain after a full check.",
       "observed": "18 Nov 2026 13:34 IST after the 0.1.41 pre-push suite (unittest discovery plus scripts/check.py): 4 temp-root viewers were left; a plain discovery run at 13:35 IST left none.",
-      "recommendation": "Run the guard per test module (tearDownModule from a shared helper) instead of from one trailing module."
+      "recommendation": "Run the guard per test module (tearDownModule from a shared helper) instead of from one trailing module.",
+      "verification_evidence": [
+        {
+          "checked": "scripts/check.py on a fresh clone of the installed revision, then a test-viewer scan",
+          "expected": "check.py passes and leaves 0 test viewers",
+          "observed": "check.py passed and left 0 test viewers (per-module leak guard) Named tests: test_leaking_module_fails_when_run_alone, scripts/check.py full run with 0 leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g4.log.",
+          "verdict": "the end-to-end repo check no longer leaks viewers",
+          "check_id": "bcl-58-0.1.42-7b59a1b6",
+          "build": "batched-change-list 0.1.42",
+          "session": "bcl-0.1.42-7b59a1b6-116",
+          "timestamp": "2026-11-18T10:43:00Z",
+          "reference": "7b59a1b643b03de87ae0b974ecae7fa2f397f159:BCL-58:installed-named-tests"
+        }
+      ],
+      "verification": "Checked: scripts/check.py on a fresh clone of the installed revision, then a test-viewer scan; Expected: check.py passes and leaves 0 test viewers; Observed: check.py passed and left 0 test viewers (per-module leak guard) Named tests: test_leaking_module_fails_when_run_alone, scripts/check.py full run with 0 leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g4.log.; Verdict because: the end-to-end repo check no longer leaks viewers. Installed install-local from PR #116 head 7b59a1b6 (plugin tree of 642da7ae) at 15:49 IST: plugin 57 files sha256 08a3a3fc2b1e23583c1bcf73d92118ff763b1d9b6f56148ca47d83c0a2e419c8, skill 50 files sha256 117541db1ffcb1305f05daae8184f4924f20dc1e49d596cab53962f35262a18a. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r1/install-0.1.42.txt",
+      "verification_refs": [
+        "7b59a1b643b03de87ae0b974ecae7fa2f397f159:BCL-58:installed-named-tests"
+      ]
     },
     {
       "id": "BCL-59",
       "title": "Rollover keeps the old list home, viewer path and plan lanes",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "summary": "bcl rollover --worktree NAME left the registry home, the viewer report and base paths on the old worktree and kept the old list plan lanes as current, so the new list page was committed and served from the old PR worktree.",
       "impact": "The new list snapshots land on the old PR branch unless fixed by hand.",
       "done_when": "Rollover sets the new registry home from --worktree, clears the old plan, and the next bcl command (status included) restarts a viewer whose report path differs from the home; proven by named tests and a live rollover check on the installed copy.",
       "observed": "18 Nov 2026 14:05 IST: registry home for #116 was the #115 worktree and the start snapshot landed on #115. 14:49 IST: the #116 viewer (pid 48808, port 56268) served samantha-pr115-rollover/docs/triage/pr-116.html, which does not exist; bcl status in the #116 worktree did not move it; 116.json plan still listed VIEWER-STRIP, VERIFY-LOOP and FLAKY-CHECK from #115.",
-      "recommendation": "Write the registry home from --worktree in rollover."
+      "recommendation": "Write the registry home from --worktree in rollover.",
+      "verification_evidence": [
+        {
+          "checked": "bcl rollover registry home, plan lanes and viewer report path on the installed CLI",
+          "expected": "Rollover moves home to the new worktree, clears old plan lanes, and the viewer restarts on the new report path",
+          "observed": "All four named tests passed; home moves, lanes cleared, viewer re-served from the new path Named tests: test_rollover_sets_new_home_from_worktree, test_rollover_clears_old_plan_lanes, test_viewer_restarts_when_report_path_moves, test_status_reconciles_legacy_viewer. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.log.",
+          "verdict": "named tests exercise the reported root cause on the installed copy and pass",
+          "check_id": "bcl-59-0.1.42-7b59a1b6",
+          "build": "batched-change-list 0.1.42",
+          "session": "bcl-0.1.42-7b59a1b6-116",
+          "timestamp": "2026-11-18T10:29:38Z",
+          "reference": "7b59a1b643b03de87ae0b974ecae7fa2f397f159:BCL-59:installed-named-tests"
+        }
+      ],
+      "verification": "Checked: bcl rollover registry home, plan lanes and viewer report path on the installed CLI; Expected: Rollover moves home to the new worktree, clears old plan lanes, and the viewer restarts on the new report path; Observed: All four named tests passed; home moves, lanes cleared, viewer re-served from the new path Named tests: test_rollover_sets_new_home_from_worktree, test_rollover_clears_old_plan_lanes, test_viewer_restarts_when_report_path_moves, test_status_reconciles_legacy_viewer. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.log.; Verdict because: named tests exercise the reported root cause on the installed copy and pass. Installed install-local from PR #116 head 7b59a1b6 (plugin tree of 642da7ae) at 15:49 IST: plugin 57 files sha256 08a3a3fc2b1e23583c1bcf73d92118ff763b1d9b6f56148ca47d83c0a2e419c8, skill 50 files sha256 117541db1ffcb1305f05daae8184f4924f20dc1e49d596cab53962f35262a18a. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r1/install-0.1.42.txt",
+      "verification_refs": [
+        "7b59a1b643b03de87ae0b974ecae7fa2f397f159:BCL-59:installed-named-tests"
+      ]
     },
     {
       "id": "BCL-60",
       "title": "The page shows Stale during idle Collect",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "The Stale badge appears when nothing has been written for 10 minutes even while the list is idle in Collect with no running lane.",
       "impact": "The owner reads Stale as broken work when nothing is supposed to be running.",
       "done_when": "Stale shows only while a lane job or stage is live and its heartbeat is overdue; idle stages (Collect, Present, between rounds) never show it; named tests and a live idle page.",
       "observed": "18 Nov 2026 14:49 IST, #116 page and viewer records on installed 0.1.41: the #116 page in Collect with no lanes showed Stale.",
-      "recommendation": "Tie Stale to live work, not to page age."
+      "recommendation": "Tie Stale to live work, not to page age.",
+      "verification_evidence": [
+        {
+          "checked": "render.py Stale badge logic on the installed copy",
+          "expected": "No Stale badge during idle Collect; Stale only for an overdue running lane",
+          "observed": "All five named tests passed Named tests: test_idle_collect_never_shows_stale, test_running_lane_with_overdue_heartbeat_shows_stale, test_recently_updated_completed_lane_never_shows_stale, test_overdue_active_lane_is_not_hidden_by_healthy_lane, test_page_stale_when_live_lane_heartbeat_is_overdue. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.log.",
+          "verdict": "idle Collect never shows Stale while real overdue lanes still do",
+          "check_id": "bcl-60-0.1.42-7b59a1b6",
+          "build": "batched-change-list 0.1.42",
+          "session": "bcl-0.1.42-7b59a1b6-116",
+          "timestamp": "2026-11-18T10:33:53Z",
+          "reference": "7b59a1b643b03de87ae0b974ecae7fa2f397f159:BCL-60:installed-named-tests"
+        }
+      ],
+      "verification": "Checked: render.py Stale badge logic on the installed copy; Expected: No Stale badge during idle Collect; Stale only for an overdue running lane; Observed: All five named tests passed Named tests: test_idle_collect_never_shows_stale, test_running_lane_with_overdue_heartbeat_shows_stale, test_recently_updated_completed_lane_never_shows_stale, test_overdue_active_lane_is_not_hidden_by_healthy_lane, test_page_stale_when_live_lane_heartbeat_is_overdue. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.log.; Verdict because: idle Collect never shows Stale while real overdue lanes still do. Installed install-local from PR #116 head 7b59a1b6 (plugin tree of 642da7ae) at 15:49 IST: plugin 57 files sha256 08a3a3fc2b1e23583c1bcf73d92118ff763b1d9b6f56148ca47d83c0a2e419c8, skill 50 files sha256 117541db1ffcb1305f05daae8184f4924f20dc1e49d596cab53962f35262a18a. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r1/install-0.1.42.txt",
+      "verification_refs": [
+        "7b59a1b643b03de87ae0b974ecae7fa2f397f159:BCL-60:installed-named-tests"
+      ]
     },
     {
       "id": "BCL-61",
       "title": "The page header prints raw file paths and says Viewer version not recorded",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "The header shows archive.json and parked.json paths and the long parked needs text, and Viewer version not recorded even though the viewer record has a version.",
       "impact": "The header is hard to read and looks broken.",
       "done_when": "The header uses plain words (for example 67 archived, 4 parked waiting on a microphone or Windows), no file paths, and shows the viewer version from its record; named tests and a live page.",
       "observed": "18 Nov 2026 14:49 IST, #116 page and viewer records on installed 0.1.41: header showed archive.json and parked.json paths, the full parked needs text, and Viewer version not recorded.",
-      "recommendation": "Summarize counts in words and read the version from the viewer record."
+      "recommendation": "Summarize counts in words and read the version from the viewer record.",
+      "verification_evidence": [
+        {
+          "checked": "render.py header on the installed copy",
+          "expected": "Header uses plain words (no archive.json/parked.json paths), summarizes parked needs, and shows the viewer version",
+          "observed": "All five named tests passed Named tests: test_header_has_no_file_paths_and_counts_in_words, test_header_shows_viewer_version_from_record, test_empty_parked_needs_render_without_crashing, test_long_parked_needs_are_summarized, test_served_page_uses_version_from_viewer_record. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.log.",
+          "verdict": "header text matches the plain-words rule and shows the recorded version",
+          "check_id": "bcl-61-0.1.42-7b59a1b6",
+          "build": "batched-change-list 0.1.42",
+          "session": "bcl-0.1.42-7b59a1b6-116",
+          "timestamp": "2026-11-18T10:33:53Z",
+          "reference": "7b59a1b643b03de87ae0b974ecae7fa2f397f159:BCL-61:installed-named-tests"
+        }
+      ],
+      "verification": "Checked: render.py header on the installed copy; Expected: Header uses plain words (no archive.json/parked.json paths), summarizes parked needs, and shows the viewer version; Observed: All five named tests passed Named tests: test_header_has_no_file_paths_and_counts_in_words, test_header_shows_viewer_version_from_record, test_empty_parked_needs_render_without_crashing, test_long_parked_needs_are_summarized, test_served_page_uses_version_from_viewer_record. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.log.; Verdict because: header text matches the plain-words rule and shows the recorded version. Installed install-local from PR #116 head 7b59a1b6 (plugin tree of 642da7ae) at 15:49 IST: plugin 57 files sha256 08a3a3fc2b1e23583c1bcf73d92118ff763b1d9b6f56148ca47d83c0a2e419c8, skill 50 files sha256 117541db1ffcb1305f05daae8184f4924f20dc1e49d596cab53962f35262a18a. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r1/install-0.1.42.txt",
+      "verification_refs": [
+        "7b59a1b643b03de87ae0b974ecae7fa2f397f159:BCL-61:installed-named-tests"
+      ]
     },
     {
       "id": "BCL-62",
       "title": "A finding with no fix yet shows Verdict: Blocked",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "The BCL-57 verification row on the new list reads Verdict: Blocked only because no fix existed in the last install; Blocked means an outside blocker.",
       "impact": "Status reads wrong; the rule is that Blocked needs an external blocker.",
       "done_when": "A finding with no fix in the installed build shows Not checked or Untested on the new list, the manager rejects a blocked outcome without an external blocker reason, and carried findings start not checked; named tests and a live page.",
       "observed": "18 Nov 2026 14:49 IST, #116 page and viewer records on installed 0.1.41: BCL-57 row showed Verdict: Blocked (from the #115 run check finished as blocked because no fix code existed).",
-      "recommendation": "Only allow blocked with an external blocker; show not checked for unbuilt findings."
+      "recommendation": "Only allow blocked with an external blocker; show not checked for unbuilt findings.",
+      "verification_evidence": [
+        {
+          "checked": "render.py carried finding row and manage_findings blocked outcome on the installed copy",
+          "expected": "A finding with no fix shows Not checked; Blocked requires an external blocker",
+          "observed": "Both named tests passed Named tests: test_carried_finding_displays_not_checked_instead_of_old_blocked_check, test_blocked_outcome_requires_external_blocker. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.log.",
+          "verdict": "Blocked is no longer shown or recordable without an external blocker",
+          "check_id": "bcl-62-0.1.42-7b59a1b6",
+          "build": "batched-change-list 0.1.42",
+          "session": "bcl-0.1.42-7b59a1b6-116",
+          "timestamp": "2026-11-18T10:33:53Z",
+          "reference": "7b59a1b643b03de87ae0b974ecae7fa2f397f159:BCL-62:installed-named-tests"
+        }
+      ],
+      "verification": "Checked: render.py carried finding row and manage_findings blocked outcome on the installed copy; Expected: A finding with no fix shows Not checked; Blocked requires an external blocker; Observed: Both named tests passed Named tests: test_carried_finding_displays_not_checked_instead_of_old_blocked_check, test_blocked_outcome_requires_external_blocker. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.log.; Verdict because: Blocked is no longer shown or recordable without an external blocker. Installed install-local from PR #116 head 7b59a1b6 (plugin tree of 642da7ae) at 15:49 IST: plugin 57 files sha256 08a3a3fc2b1e23583c1bcf73d92118ff763b1d9b6f56148ca47d83c0a2e419c8, skill 50 files sha256 117541db1ffcb1305f05daae8184f4924f20dc1e49d596cab53962f35262a18a. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r1/install-0.1.42.txt",
+      "verification_refs": [
+        "7b59a1b643b03de87ae0b974ecae7fa2f397f159:BCL-62:installed-named-tests"
+      ]
     },
     {
       "id": "BCL-63",
       "title": "Viewers for merged lists keep running",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "bcl merged does not stop the merged list viewer, so viewers for merged #111, #113, #114 and #115 kept running, and bcl has no exact-pid stop path.",
       "impact": "Old pages stay served and processes pile up.",
       "done_when": "bcl merged stops that list viewer by its recorded pid after checking the pid still serves that list, and a bcl stop-viewer stage does the same for one list; open lists such as #112 are untouched; named tests and a live merged-list check.",
       "observed": "18 Nov 2026 14:49 IST, #116 page and viewer records on installed 0.1.41: pids 38807 (#111), 58656 (#113), 21113 (#114) and 81189 (#115) were still serving merged lists; they were stopped by exact recorded pid with an artifact script because bcl has no stop path. #112 (open draft) left running.",
-      "recommendation": "Stop the viewer in bcl merged by recorded pid and add bcl stop-viewer."
+      "recommendation": "Stop the viewer in bcl merged by recorded pid and add bcl stop-viewer.",
+      "verification_evidence": [
+        {
+          "checked": "bcl merged and stop-viewer on the installed CLI",
+          "expected": "Merging a list stops its own viewer by exact recorded pid and leaves other lists alone",
+          "observed": "All four named tests passed; only the recorded pid serving that list is stopped Named tests: test_merged_stops_its_viewer_by_recorded_pid, test_merged_leaves_other_list_viewers_running, test_stop_viewer_ignores_pid_serving_another_list, test_viewer_process_matches_real_arguments_with_spaces. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.log.",
+          "verdict": "named tests cover stop, isolation and exact-pid matching and pass",
+          "check_id": "bcl-63-0.1.42-7b59a1b6",
+          "build": "batched-change-list 0.1.42",
+          "session": "bcl-0.1.42-7b59a1b6-116",
+          "timestamp": "2026-11-18T10:29:38Z",
+          "reference": "7b59a1b643b03de87ae0b974ecae7fa2f397f159:BCL-63:installed-named-tests"
+        }
+      ],
+      "verification": "Checked: bcl merged and stop-viewer on the installed CLI; Expected: Merging a list stops its own viewer by exact recorded pid and leaves other lists alone; Observed: All four named tests passed; only the recorded pid serving that list is stopped Named tests: test_merged_stops_its_viewer_by_recorded_pid, test_merged_leaves_other_list_viewers_running, test_stop_viewer_ignores_pid_serving_another_list, test_viewer_process_matches_real_arguments_with_spaces. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.log.; Verdict because: named tests cover stop, isolation and exact-pid matching and pass. Installed install-local from PR #116 head 7b59a1b6 (plugin tree of 642da7ae) at 15:49 IST: plugin 57 files sha256 08a3a3fc2b1e23583c1bcf73d92118ff763b1d9b6f56148ca47d83c0a2e419c8, skill 50 files sha256 117541db1ffcb1305f05daae8184f4924f20dc1e49d596cab53962f35262a18a. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r1/install-0.1.42.txt",
+      "verification_refs": [
+        "7b59a1b643b03de87ae0b974ecae7fa2f397f159:BCL-63:installed-named-tests"
+      ]
+    },
+    {
+      "id": "BCL-64",
+      "title": "The repo check failed test_bcl.py once without naming the failing test",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "summary": "The first 0.1.42 pre-push check failed test_bcl.py once under scripts/check.py (10 test processes at a time); the same file passed alone and in the next full check, and the check output did not name the failing test.",
+      "impact": "A flaky failure blocks a push and costs a 5 minute rerun with no clue to fix.",
+      "done_when": "check.py prints the failing test names and the traceback tail for a failed test file, and test_bcl.py passes 5 parallel check runs in a row; proven by a named test for the output and the repeated runs.",
+      "observed": "18 Nov 2026 15:31-15:36 IST, presuite 1 at 642da7ae: check.py reported test_bcl.py (exit 1), Ran 76 tests, FAILED (failures=1); rerun 15:42-15:47 IST passed. Log ~/.agents/artifacts/bcl-116/r1/presuite-1-failed.log.",
+      "recommendation": "Make check.py keep the last lines of a failed test file output, then find the timing-dependent test in test_bcl.py."
+    },
+    {
+      "id": "BCL-65",
+      "title": "Verify reruns the full suite once per lane",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "summary": "Each lane verify ran a fresh clone, the full 347-test suite, skill_shape and statechart before its named tests, so four lanes ran the same 2.5 minute suite four times on one install.",
+      "impact": "Verify took about 18 minutes where one suite plus named tests needs about 6.",
+      "done_when": "Verify runs the repo-wide checks once per installed revision and each lane runs only its named tests against that install; documented in the verify reference and proven by a named test or the next round timing.",
+      "observed": "18 Nov 2026 15:51-16:12 IST, run bcl-0.1.42-7b59a1b6-116: verify-g1..g3 each logged Ran 347 tests (about 146s each) before 8, 12 and 7 named tests that took under 9s.",
+      "recommendation": "Run the shared checks once in the first lane or in start-verification and record their result on the run."
     }
   ]
 }
