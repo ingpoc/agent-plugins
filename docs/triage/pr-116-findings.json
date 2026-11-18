@@ -6994,6 +6994,174 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "bcl-0.1.43-70503ee4-116",
+        "build": "batched-change-list 0.1.43",
+        "revision": "70503ee48c809515cd2ffc6879f4374bd3c53603",
+        "installed_at": "2026-11-18T16:28:28Z",
+        "install_evidence": "bcl install-local from PR #116 head 70503ee4 (plugin tree of f215e542) at 21:58 IST: plugin 57 files sha256 5dad61dde6b5aab4f01759e17a54d00c6198e67cd400862b61cb7f8a1461ef59, skill 50 files sha256 c0235da894b7cba9696f3d1d7211e60c07fa868e2dd013942dc98ab14541eb72. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r2/install-0.1.43.txt",
+        "status": "interrupted",
+        "checks": {
+          "BCL-57": {
+            "state": "fixed",
+            "observation": "Rechecking on the new install",
+            "observed_at": "2026-11-18T16:41:09Z",
+            "started_at": "2026-11-18T16:41:09Z",
+            "updated_at": "2026-11-18T16:41:09Z",
+            "check_id": "474fe1a2c8924dbaa5a5b89e60734ff3",
+            "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+            "details": "Regression: all 28 named tests from round 1 passed on installed 0.1.43 after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/regress-57-63.log",
+            "finished_at": "2026-11-18T16:41:09.381473Z"
+          },
+          "BCL-58": {
+            "state": "fixed",
+            "observation": "Rechecking on the new install",
+            "observed_at": "2026-11-18T16:41:09Z",
+            "started_at": "2026-11-18T16:41:09Z",
+            "updated_at": "2026-11-18T16:41:09Z",
+            "check_id": "4fec0b60f9fc4b66942dec8b76151134",
+            "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+            "details": "Regression: all 28 named tests from round 1 passed on installed 0.1.43 after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/regress-57-63.log",
+            "finished_at": "2026-11-18T16:41:09.381680Z"
+          },
+          "BCL-59": {
+            "state": "fixed",
+            "observation": "Rechecking on the new install",
+            "observed_at": "2026-11-18T16:41:09Z",
+            "started_at": "2026-11-18T16:41:09Z",
+            "updated_at": "2026-11-18T16:41:09Z",
+            "check_id": "4a4992f4124442d489daef057595a90b",
+            "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+            "details": "Regression: all 28 named tests from round 1 passed on installed 0.1.43 after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/regress-57-63.log",
+            "finished_at": "2026-11-18T16:41:09.381716Z"
+          },
+          "BCL-60": {
+            "state": "fixed",
+            "observation": "Rechecking on the new install",
+            "observed_at": "2026-11-18T16:41:09Z",
+            "started_at": "2026-11-18T16:41:09Z",
+            "updated_at": "2026-11-18T16:41:09Z",
+            "check_id": "122e19a1db184ffaad5a3f8b9a014ce3",
+            "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+            "details": "Regression: all 28 named tests from round 1 passed on installed 0.1.43 after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/regress-57-63.log",
+            "finished_at": "2026-11-18T16:41:09.381745Z"
+          },
+          "BCL-61": {
+            "state": "fixed",
+            "observation": "Rechecking on the new install",
+            "observed_at": "2026-11-18T16:41:09Z",
+            "started_at": "2026-11-18T16:41:09Z",
+            "updated_at": "2026-11-18T16:41:09Z",
+            "check_id": "3c028843171144a584e85aad8a2c0e4e",
+            "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+            "details": "Regression: all 28 named tests from round 1 passed on installed 0.1.43 after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/regress-57-63.log",
+            "finished_at": "2026-11-18T16:41:09.381771Z"
+          },
+          "BCL-62": {
+            "state": "fixed",
+            "observation": "Rechecking on the new install",
+            "observed_at": "2026-11-18T16:41:09Z",
+            "started_at": "2026-11-18T16:41:09Z",
+            "updated_at": "2026-11-18T16:41:09Z",
+            "check_id": "81764cdd0cb04a138444eb5f8530cb32",
+            "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+            "details": "Regression: all 28 named tests from round 1 passed on installed 0.1.43 after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/regress-57-63.log",
+            "finished_at": "2026-11-18T16:41:09.381797Z"
+          },
+          "BCL-63": {
+            "state": "fixed",
+            "observation": "Rechecking on the new install",
+            "observed_at": "2026-11-18T16:41:09Z",
+            "started_at": "2026-11-18T16:41:09Z",
+            "updated_at": "2026-11-18T16:41:09Z",
+            "check_id": "d432ee55c34941e39225bbc0dc6ad909",
+            "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+            "details": "Regression: all 28 named tests from round 1 passed on installed 0.1.43 after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/regress-57-63.log",
+            "finished_at": "2026-11-18T16:41:09.381822Z"
+          },
+          "BCL-64": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-18T16:39:21Z",
+            "started_at": "2026-11-18T16:39:21Z",
+            "updated_at": "2026-11-18T16:39:21Z",
+            "check_id": "f3f8d3510b9b4081b3c24ce04f2279e3",
+            "evidence": "Checked: Whether the repository check says which test failed, and whether the timing-sensitive tests hold up under heavy parallel load; Expected: A failing test file shows the failing test names and the end of its output, and repeated parallel runs pass; Observed: The repository check now names the failing test and shows the end of its output, and 12 parallel runs of the busiest test file on this install all passed with no stray viewers.",
+            "details": "Named tests: test_failed_job_reports_unittest_id_and_short_tail (scripts/test_check_harness.py), test_concurrent_verify_is_rejected_while_child_updates_tracker, test_verify_reserves_plan_until_spawn_against_plan_and_finding_writers. Stress: 2 rounds x 6 concurrent python3 -m unittest scripts/test_bcl.py on ~/.agents/skills/batched-change-list. The original 15:31 flake was not reproduced; load-sensitive waits and port selection were hardened. Presuite 2 also showed check.py printing the failing test id for an unrelated environment skip (r2/check-full.log). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g1.log. Run bcl-0.1.43-70503ee4-116.",
+            "finished_at": "2026-11-18T16:39:21.472242Z"
+          },
+          "BCL-65": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-18T16:35:14Z",
+            "started_at": "2026-11-18T16:34:33Z",
+            "updated_at": "2026-11-18T16:35:14Z",
+            "check_id": "cf3e842819fc413998061c4b32139117",
+            "evidence": "Checked: Whether the full checks run once per install instead of once per work lane; Expected: The full checks run once and each lane then runs only its own tests; a lane cannot start after the full checks failed; Observed: On this install the full checks ran once and passed, and this lane ran only its own tests in seconds. Tried 4 situations and all came out right.",
+            "details": "Named tests: test_shared_check_is_recorded_once_for_active_install, test_second_shared_check_on_same_run_is_refused, test_lane_verify_is_refused_after_failed_shared_check, test_lane_verify_without_shared_check_is_unchanged. Live: bcl verify --shared ran r2/verify-shared.sh once (clean-clone + installed suites 366 tests, strict shape, statechart) and recorded shared_check passed on the run. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g2.log. Run bcl-0.1.43-70503ee4-116.",
+            "finished_at": "2026-11-18T16:35:14.846115Z"
+          },
+          "BCL-66": {
+            "state": "not_fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-18T16:41:31Z",
+            "started_at": "2026-11-18T16:41:31Z",
+            "updated_at": "2026-11-18T16:41:31Z",
+            "check_id": "f537d444290f4b539fdfb65c272cff1e",
+            "evidence": "Checked: The live BCL-57 card after the install; Expected: The row from the version before any fix existed reads Not checked; Observed: That older row still reads Blocked, because the page only recognises certain wording and this row uses different words, so part of the fix is missing",
+            "details": "Named tests (16): test_failed_lane_verify_spawn_error_is_recorded_in_details, test_record_evidence_rejects_{snake_case,dotted_code_name,paths,filenames,hashes,technical_labels}, test_record_evidence_accepts_counts_versions_and_details, test_add_rejects_flags_in_finding_text, test_update_rejects_field_names_in_finding_text, test_finish_check_rejects_technical_parsed_fields, test_finish_check_keeps_optional_details_separate, test_legacy_evidence_moves_identifiers_to_details, test_legacy_evidence_and_finding_text_render_plain_in_details_dom, test_pre_fix_and_carried_blocked_rows_render_not_checked, test_viewer_footer_reports_missing_identity_deterministically. Live: r2/live_plain.py dumped http://127.0.0.1:56268/ for BCL-57, BCL-64, BCL-66 with headless Chrome (temp profile) and found no identifiers outside <details>. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g3.log. Run bcl-0.1.43-70503ee4-116.",
+            "finished_at": "2026-11-18T16:41:31.755297Z",
+            "corrections": [
+              {
+                "previous": {
+                  "state": "fixed",
+                  "observation": "Checking the installed version now",
+                  "observed_at": "2026-11-18T16:41:31Z",
+                  "started_at": "2026-11-18T16:41:31Z",
+                  "updated_at": "2026-11-18T16:41:31Z",
+                  "check_id": "f537d444290f4b539fdfb65c272cff1e",
+                  "evidence": "Checked: Whether the issue cards read in plain words, with technical details only under Details; Expected: The verification lines, the What is wrong text and the footer use plain words; test names, paths and hashes appear only under Details; a version checked before any fix existed reads Not checked; Observed: On the live page the issue cards now read in plain words, technical details sit under Details, the file path in the footer is tucked under Details, and the old row from before the fix reads Not checked. Tried 16 situations and all came out right.",
+                  "details": "Named tests (16): test_failed_lane_verify_spawn_error_is_recorded_in_details, test_record_evidence_rejects_{snake_case,dotted_code_name,paths,filenames,hashes,technical_labels}, test_record_evidence_accepts_counts_versions_and_details, test_add_rejects_flags_in_finding_text, test_update_rejects_field_names_in_finding_text, test_finish_check_rejects_technical_parsed_fields, test_finish_check_keeps_optional_details_separate, test_legacy_evidence_moves_identifiers_to_details, test_legacy_evidence_and_finding_text_render_plain_in_details_dom, test_pre_fix_and_carried_blocked_rows_render_not_checked, test_viewer_footer_reports_missing_identity_deterministically. Live: r2/live_plain.py dumped http://127.0.0.1:56268/ for BCL-57, BCL-64, BCL-66 with headless Chrome (temp profile) and found no identifiers outside <details>. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g3.log. Run bcl-0.1.43-70503ee4-116.",
+                  "finished_at": "2026-11-18T16:41:31.755297Z"
+                },
+                "previous_verification": "On the live page the issue cards now read in plain words, technical details sit under Details, the file path in the footer is tucked under Details, and the old row from before the fix reads Not checked. Tried 16 situations and all came out right. Named tests (16): test_failed_lane_verify_spawn_error_is_recorded_in_details, test_record_evidence_rejects_{snake_case,dotted_code_name,paths,filenames,hashes,technical_labels}, test_record_evidence_accepts_counts_versions_and_details, test_add_rejects_flags_in_finding_text, test_update_rejects_field_names_in_finding_text, test_finish_check_rejects_technical_parsed_fields, test_finish_check_keeps_optional_details_separate, test_legacy_evidence_moves_identifiers_to_details, test_legacy_evidence_and_finding_text_render_plain_in_details_dom, test_pre_fix_and_carried_blocked_rows_render_not_checked, test_viewer_footer_reports_missing_identity_deterministically. Live: r2/live_plain.py dumped http://127.0.0.1:56268/ for BCL-57, BCL-64, BCL-66 with headless Chrome (temp profile) and found no identifiers outside <details>. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g3.log. Run bcl-0.1.43-70503ee4-116.",
+                "reason": "Checked: The live BCL-57 card after the install; Expected: The row from the version before any fix existed reads Not checked; Observed: That older row still reads Blocked, because the page only recognises certain wording and this row uses different words, so part of the fix is missing",
+                "timestamp": "2026-11-18T16:42:13+00:00"
+              }
+            ]
+          },
+          "BCL-67": {
+            "state": "pending"
+          },
+          "BCL-68": {
+            "state": "pending"
+          },
+          "BCL-69": {
+            "state": "pending"
+          },
+          "BCL-70": {
+            "state": "pending"
+          },
+          "BCL-71": {
+            "state": "pending"
+          },
+          "BCL-72": {
+            "state": "pending"
+          },
+          "BCL-73": {
+            "state": "pending"
+          },
+          "BCL-74": {
+            "state": "pending"
+          }
+        },
+        "shared_check": {
+          "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-shared.sh",
+          "state": "passed",
+          "exit_code": 0,
+          "finished_at": "2026-11-18T16:33:18Z"
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -7008,9 +7176,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-18T19:19:23Z",
-      "now": "2026-11-18T19:19:23Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-18T19:24:49Z",
+      "now": "2026-11-18T19:24:49Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 115,
@@ -8950,143 +9118,46 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "verification_run": {
-      "id": "bcl-0.1.43-70503ee4-116",
-      "build": "batched-change-list 0.1.43",
-      "revision": "70503ee48c809515cd2ffc6879f4374bd3c53603",
-      "installed_at": "2026-11-18T16:28:28Z",
-      "install_evidence": "bcl install-local from PR #116 head 70503ee4 (plugin tree of f215e542) at 21:58 IST: plugin 57 files sha256 5dad61dde6b5aab4f01759e17a54d00c6198e67cd400862b61cb7f8a1461ef59, skill 50 files sha256 c0235da894b7cba9696f3d1d7211e60c07fa868e2dd013942dc98ab14541eb72. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r2/install-0.1.43.txt",
+      "id": "bcl-0.1.44-6d62c6dc-116",
+      "build": "batched-change-list 0.1.44",
+      "revision": "6d62c6dca0e0e14a5047165a77faf216d53a5b42",
+      "installed_at": "2026-11-18T19:19:30Z",
+      "install_evidence": "bcl install-local from PR #116 head 6d62c6dc (code 08f39dac) at 00:49 IST: plugin 57 files sha256 c52f93508b79493b2cafbd960aa6b8636641ef7e5e1333b135ad2968ab180fe7, skill 50 files sha256 9018dc9d646c5b0a8667a14582b04c2f5a5a525a0b4cc092e4c5f56161dbe3b7. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r3/install-0.1.44.txt",
       "status": "active",
       "checks": {
         "BCL-57": {
-          "state": "fixed",
-          "observation": "Rechecking on the new install",
-          "observed_at": "2026-11-18T16:41:09Z",
-          "started_at": "2026-11-18T16:41:09Z",
-          "updated_at": "2026-11-18T16:41:09Z",
-          "check_id": "474fe1a2c8924dbaa5a5b89e60734ff3",
-          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
-          "details": "Regression: all 28 named tests from round 1 passed on installed 0.1.43 after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/regress-57-63.log",
-          "finished_at": "2026-11-18T16:41:09.381473Z"
+          "state": "pending"
         },
         "BCL-58": {
-          "state": "fixed",
-          "observation": "Rechecking on the new install",
-          "observed_at": "2026-11-18T16:41:09Z",
-          "started_at": "2026-11-18T16:41:09Z",
-          "updated_at": "2026-11-18T16:41:09Z",
-          "check_id": "4fec0b60f9fc4b66942dec8b76151134",
-          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
-          "details": "Regression: all 28 named tests from round 1 passed on installed 0.1.43 after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/regress-57-63.log",
-          "finished_at": "2026-11-18T16:41:09.381680Z"
+          "state": "pending"
         },
         "BCL-59": {
-          "state": "fixed",
-          "observation": "Rechecking on the new install",
-          "observed_at": "2026-11-18T16:41:09Z",
-          "started_at": "2026-11-18T16:41:09Z",
-          "updated_at": "2026-11-18T16:41:09Z",
-          "check_id": "4a4992f4124442d489daef057595a90b",
-          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
-          "details": "Regression: all 28 named tests from round 1 passed on installed 0.1.43 after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/regress-57-63.log",
-          "finished_at": "2026-11-18T16:41:09.381716Z"
+          "state": "pending"
         },
         "BCL-60": {
-          "state": "fixed",
-          "observation": "Rechecking on the new install",
-          "observed_at": "2026-11-18T16:41:09Z",
-          "started_at": "2026-11-18T16:41:09Z",
-          "updated_at": "2026-11-18T16:41:09Z",
-          "check_id": "122e19a1db184ffaad5a3f8b9a014ce3",
-          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
-          "details": "Regression: all 28 named tests from round 1 passed on installed 0.1.43 after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/regress-57-63.log",
-          "finished_at": "2026-11-18T16:41:09.381745Z"
+          "state": "pending"
         },
         "BCL-61": {
-          "state": "fixed",
-          "observation": "Rechecking on the new install",
-          "observed_at": "2026-11-18T16:41:09Z",
-          "started_at": "2026-11-18T16:41:09Z",
-          "updated_at": "2026-11-18T16:41:09Z",
-          "check_id": "3c028843171144a584e85aad8a2c0e4e",
-          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
-          "details": "Regression: all 28 named tests from round 1 passed on installed 0.1.43 after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/regress-57-63.log",
-          "finished_at": "2026-11-18T16:41:09.381771Z"
+          "state": "pending"
         },
         "BCL-62": {
-          "state": "fixed",
-          "observation": "Rechecking on the new install",
-          "observed_at": "2026-11-18T16:41:09Z",
-          "started_at": "2026-11-18T16:41:09Z",
-          "updated_at": "2026-11-18T16:41:09Z",
-          "check_id": "81764cdd0cb04a138444eb5f8530cb32",
-          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
-          "details": "Regression: all 28 named tests from round 1 passed on installed 0.1.43 after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/regress-57-63.log",
-          "finished_at": "2026-11-18T16:41:09.381797Z"
+          "state": "pending"
         },
         "BCL-63": {
-          "state": "fixed",
-          "observation": "Rechecking on the new install",
-          "observed_at": "2026-11-18T16:41:09Z",
-          "started_at": "2026-11-18T16:41:09Z",
-          "updated_at": "2026-11-18T16:41:09Z",
-          "check_id": "d432ee55c34941e39225bbc0dc6ad909",
-          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
-          "details": "Regression: all 28 named tests from round 1 passed on installed 0.1.43 after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/regress-57-63.log",
-          "finished_at": "2026-11-18T16:41:09.381822Z"
+          "state": "pending"
         },
         "BCL-64": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-18T16:39:21Z",
-          "started_at": "2026-11-18T16:39:21Z",
-          "updated_at": "2026-11-18T16:39:21Z",
-          "check_id": "f3f8d3510b9b4081b3c24ce04f2279e3",
-          "evidence": "Checked: Whether the repository check says which test failed, and whether the timing-sensitive tests hold up under heavy parallel load; Expected: A failing test file shows the failing test names and the end of its output, and repeated parallel runs pass; Observed: The repository check now names the failing test and shows the end of its output, and 12 parallel runs of the busiest test file on this install all passed with no stray viewers.",
-          "details": "Named tests: test_failed_job_reports_unittest_id_and_short_tail (scripts/test_check_harness.py), test_concurrent_verify_is_rejected_while_child_updates_tracker, test_verify_reserves_plan_until_spawn_against_plan_and_finding_writers. Stress: 2 rounds x 6 concurrent python3 -m unittest scripts/test_bcl.py on ~/.agents/skills/batched-change-list. The original 15:31 flake was not reproduced; load-sensitive waits and port selection were hardened. Presuite 2 also showed check.py printing the failing test id for an unrelated environment skip (r2/check-full.log). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g1.log. Run bcl-0.1.43-70503ee4-116.",
-          "finished_at": "2026-11-18T16:39:21.472242Z"
+          "state": "pending"
         },
         "BCL-65": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-18T16:35:14Z",
-          "started_at": "2026-11-18T16:34:33Z",
-          "updated_at": "2026-11-18T16:35:14Z",
-          "check_id": "cf3e842819fc413998061c4b32139117",
-          "evidence": "Checked: Whether the full checks run once per install instead of once per work lane; Expected: The full checks run once and each lane then runs only its own tests; a lane cannot start after the full checks failed; Observed: On this install the full checks ran once and passed, and this lane ran only its own tests in seconds. Tried 4 situations and all came out right.",
-          "details": "Named tests: test_shared_check_is_recorded_once_for_active_install, test_second_shared_check_on_same_run_is_refused, test_lane_verify_is_refused_after_failed_shared_check, test_lane_verify_without_shared_check_is_unchanged. Live: bcl verify --shared ran r2/verify-shared.sh once (clean-clone + installed suites 366 tests, strict shape, statechart) and recorded shared_check passed on the run. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g2.log. Run bcl-0.1.43-70503ee4-116.",
-          "finished_at": "2026-11-18T16:35:14.846115Z"
+          "state": "pending"
         },
         "BCL-66": {
-          "state": "not_fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-18T16:41:31Z",
-          "started_at": "2026-11-18T16:41:31Z",
-          "updated_at": "2026-11-18T16:41:31Z",
-          "check_id": "f537d444290f4b539fdfb65c272cff1e",
-          "evidence": "Checked: The live BCL-57 card after the install; Expected: The row from the version before any fix existed reads Not checked; Observed: That older row still reads Blocked, because the page only recognises certain wording and this row uses different words, so part of the fix is missing",
-          "details": "Named tests (16): test_failed_lane_verify_spawn_error_is_recorded_in_details, test_record_evidence_rejects_{snake_case,dotted_code_name,paths,filenames,hashes,technical_labels}, test_record_evidence_accepts_counts_versions_and_details, test_add_rejects_flags_in_finding_text, test_update_rejects_field_names_in_finding_text, test_finish_check_rejects_technical_parsed_fields, test_finish_check_keeps_optional_details_separate, test_legacy_evidence_moves_identifiers_to_details, test_legacy_evidence_and_finding_text_render_plain_in_details_dom, test_pre_fix_and_carried_blocked_rows_render_not_checked, test_viewer_footer_reports_missing_identity_deterministically. Live: r2/live_plain.py dumped http://127.0.0.1:56268/ for BCL-57, BCL-64, BCL-66 with headless Chrome (temp profile) and found no identifiers outside <details>. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g3.log. Run bcl-0.1.43-70503ee4-116.",
-          "finished_at": "2026-11-18T16:41:31.755297Z",
-          "corrections": [
-            {
-              "previous": {
-                "state": "fixed",
-                "observation": "Checking the installed version now",
-                "observed_at": "2026-11-18T16:41:31Z",
-                "started_at": "2026-11-18T16:41:31Z",
-                "updated_at": "2026-11-18T16:41:31Z",
-                "check_id": "f537d444290f4b539fdfb65c272cff1e",
-                "evidence": "Checked: Whether the issue cards read in plain words, with technical details only under Details; Expected: The verification lines, the What is wrong text and the footer use plain words; test names, paths and hashes appear only under Details; a version checked before any fix existed reads Not checked; Observed: On the live page the issue cards now read in plain words, technical details sit under Details, the file path in the footer is tucked under Details, and the old row from before the fix reads Not checked. Tried 16 situations and all came out right.",
-                "details": "Named tests (16): test_failed_lane_verify_spawn_error_is_recorded_in_details, test_record_evidence_rejects_{snake_case,dotted_code_name,paths,filenames,hashes,technical_labels}, test_record_evidence_accepts_counts_versions_and_details, test_add_rejects_flags_in_finding_text, test_update_rejects_field_names_in_finding_text, test_finish_check_rejects_technical_parsed_fields, test_finish_check_keeps_optional_details_separate, test_legacy_evidence_moves_identifiers_to_details, test_legacy_evidence_and_finding_text_render_plain_in_details_dom, test_pre_fix_and_carried_blocked_rows_render_not_checked, test_viewer_footer_reports_missing_identity_deterministically. Live: r2/live_plain.py dumped http://127.0.0.1:56268/ for BCL-57, BCL-64, BCL-66 with headless Chrome (temp profile) and found no identifiers outside <details>. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g3.log. Run bcl-0.1.43-70503ee4-116.",
-                "finished_at": "2026-11-18T16:41:31.755297Z"
-              },
-              "previous_verification": "On the live page the issue cards now read in plain words, technical details sit under Details, the file path in the footer is tucked under Details, and the old row from before the fix reads Not checked. Tried 16 situations and all came out right. Named tests (16): test_failed_lane_verify_spawn_error_is_recorded_in_details, test_record_evidence_rejects_{snake_case,dotted_code_name,paths,filenames,hashes,technical_labels}, test_record_evidence_accepts_counts_versions_and_details, test_add_rejects_flags_in_finding_text, test_update_rejects_field_names_in_finding_text, test_finish_check_rejects_technical_parsed_fields, test_finish_check_keeps_optional_details_separate, test_legacy_evidence_moves_identifiers_to_details, test_legacy_evidence_and_finding_text_render_plain_in_details_dom, test_pre_fix_and_carried_blocked_rows_render_not_checked, test_viewer_footer_reports_missing_identity_deterministically. Live: r2/live_plain.py dumped http://127.0.0.1:56268/ for BCL-57, BCL-64, BCL-66 with headless Chrome (temp profile) and found no identifiers outside <details>. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g3.log. Run bcl-0.1.43-70503ee4-116.",
-              "reason": "Checked: The live BCL-57 card after the install; Expected: The row from the version before any fix existed reads Not checked; Observed: That older row still reads Blocked, because the page only recognises certain wording and this row uses different words, so part of the fix is missing",
-              "timestamp": "2026-11-18T16:42:13+00:00"
-            }
-          ]
+          "state": "pending"
         },
         "BCL-67": {
           "state": "pending"
@@ -9114,10 +9185,10 @@
         }
       },
       "shared_check": {
-        "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-shared.sh",
+        "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-shared.sh",
         "state": "passed",
         "exit_code": 0,
-        "finished_at": "2026-11-18T16:33:18Z"
+        "finished_at": "2026-11-18T19:24:48Z"
       }
     },
     "introspect": {
