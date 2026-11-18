@@ -6031,9 +6031,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-17T17:02:39Z",
-      "now": "2026-11-17T17:02:39Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-18T03:04:03Z",
+      "now": "2026-11-18T03:04:03Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 114,
@@ -6161,7 +6161,7 @@
       }
     },
     "cycle": 7,
-    "round": 1,
+    "round": 2,
     "round_history": [
       {
         "round": 2,
@@ -6242,66 +6242,146 @@
         "round": 6,
         "fixed": 82,
         "ended_at": "2026-11-17T14:06:58Z"
+      },
+      {
+        "round": 1,
+        "fixed": 1,
+        "ended_at": "2026-11-18T03:04:03Z"
       }
     ],
     "plan": {
-      "round": 1,
+      "round": 2,
       "cycle": 7,
-      "status": "closed",
       "groups": [
         {
-          "id": "SKILL-REDESIGN",
-          "name": "Redesign the batched change list skill and its chart",
+          "id": "TRACKER-LEAN",
+          "name": "Archive history, Introspect history and parked items",
           "finding_ids": [
-            "BCL-38"
+            "BCL-39",
+            "BCL-40",
+            "BCL-42"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "samantha-pr115-rollover",
-          "reason": "Guru authorized one skill redesign so the always-needed rules stay in the skill file, the step workflow loads from references, the chart shows the real flow with Current and After as a toggle and verdict badges, and skill-creator plus skill-refine checks pass.",
-          "files": [
-            "plugins/batched-change-list/plugin.json",
-            "plugins/batched-change-list/CHANGELOG.md",
-            "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
-            "plugins/batched-change-list/skills/batched-change-list/statechart.html",
-            "plugins/batched-change-list/skills/batched-change-list/evals/evals.json",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/statechart.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_skill.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json",
-            "plugins/batched-change-list/skills/batched-change-list/references/gate.md",
-            "plugins/batched-change-list/skills/batched-change-list/references/report-rollover.md"
+          "status": "running",
+          "phase": "fix",
+          "worktree": "bcl115-r2-g1",
+          "reason": "All three change what the tracker keeps on the list at rollover and Introspect, in manage_findings.py and its checks.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "max",
+            "status": "running",
+            "implementer_session": "01a1ec9b-b4ed-7001-86b5-7ca36af6e7de",
+            "one_file": false,
+            "updated_at": "2026-11-18T03:04:03Z"
+          },
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g1.sh",
+            "method": "Full suite, strict shape check and chart check on the worktree and the installed copy, plus the named tests for each finding run against the installed copy.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 3
+          },
+          "updated_at": "2026-11-18T03:04:03Z"
+        },
+        {
+          "id": "GATE-RULES",
+          "name": "Gate thresholds and round rules",
+          "finding_ids": [
+            "BCL-43",
+            "BCL-47",
+            "BCL-44"
           ],
+          "depends_on": [],
+          "status": "running",
+          "phase": "fix",
+          "worktree": "bcl115-r2-g2",
+          "reason": "All three are gate and round rules in check_gate_count.py, gate.md and plan-fix.md.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "status": "passed",
-            "implementer_session": "01a1ea33-d32c-75c2-b12a-284d0b47e5cd",
-            "reviewer_session": "01a1ea4b-843b-7682-ba8b-43af52dfa5ce",
-            "review_status": "passed",
-            "one_file": false
+            "status": "running",
+            "implementer_session": "01a1ec9b-b4eb-7b42-9d74-8422e0417e4a",
+            "one_file": false,
+            "updated_at": "2026-11-18T03:04:03Z"
           },
           "verify": {
-            "status": "verified",
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/verify-bcl38.sh",
-            "method": "Named tests, the strict shape check, and the eval benchmark must pass on the worktree and the installed copy.",
-            "summary": "Tests, shape check, and benchmark pass",
-            "fixed": 1,
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g2.sh",
+            "method": "Full suite, strict shape check and chart check on the worktree and the installed copy, plus the named tests for each finding run against the installed copy.",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
-            "total": 1,
-            "failure": null
+            "total": 3
           },
-          "updated_at": "2026-11-17T17:01:11Z"
+          "updated_at": "2026-11-18T03:04:03Z"
+        },
+        {
+          "id": "CHART-EDGES",
+          "name": "Drawn chart edges and badges",
+          "finding_ids": [
+            "BCL-49"
+          ],
+          "depends_on": [],
+          "status": "running",
+          "phase": "fix",
+          "worktree": "bcl115-r2-g3",
+          "reason": "Only statechart.py and its generated page; reads gate labels from the definition so it stays independent of GATE-RULES.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "status": "running",
+            "implementer_session": "01a1ec9b-b4eb-75f0-a60f-66d875352ccc",
+            "one_file": false,
+            "updated_at": "2026-11-18T03:04:03Z"
+          },
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g3.sh",
+            "method": "Full suite, strict shape check and chart check on the worktree and the installed copy, plus the named tests for each finding run against the installed copy.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-18T03:04:03Z"
+        },
+        {
+          "id": "TESTS-VIEWER",
+          "name": "Test cleanup, viewer identity and snapshot commits",
+          "finding_ids": [
+            "BCL-46",
+            "BCL-48",
+            "BCL-45",
+            "BCL-41"
+          ],
+          "depends_on": [],
+          "status": "running",
+          "phase": "fix",
+          "worktree": "bcl115-r2-g4",
+          "reason": "All four live in test_bcl.py, serve.py and live_state.py viewer and snapshot code.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "status": "running",
+            "implementer_session": "01a1ec9b-b4ec-7411-a116-16c31bdc9953",
+            "one_file": false,
+            "updated_at": "2026-11-18T03:04:03Z"
+          },
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g4.sh",
+            "method": "Full suite, strict shape check and chart check on the worktree and the installed copy, plus the named tests for each finding run against the installed copy.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 4
+          },
+          "updated_at": "2026-11-18T03:04:03Z"
         }
       ]
     },
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "verification_run": {
       "id": "bcl-0.1.38-44f585be-115",
@@ -6604,6 +6684,15 @@
           "state": "pending"
         },
         "WF-22": {
+          "state": "pending"
+        },
+        "BCL-47": {
+          "state": "pending"
+        },
+        "BCL-48": {
+          "state": "pending"
+        },
+        "BCL-49": {
           "state": "pending"
         }
       }
@@ -9907,7 +9996,7 @@
       "id": "BCL-39",
       "title": "The tracker carries every already-verified merged finding into each new list",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "When a list rolls over, every already verified and merged finding is copied into the new list, so later lists keep growing even when almost all of that history is finished.",
       "impact": "Each new list is slower to read and update, and a new verification run also opens a pending check for each of those old items even though they were already finished on an earlier list.",
@@ -9919,7 +10008,7 @@
       "id": "BCL-40",
       "title": "Introspect records are stored as ordinary findings",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "low",
       "summary": "Each Introspect save is written as a WF finding on the change list, so review notes sit in the same list as product fixes.",
       "impact": "The list is harder to scan. The verified-fix count already leaves these records out, so they add clutter without changing the gate number.",
@@ -9931,7 +10020,7 @@
       "id": "BCL-41",
       "title": "Snapshot commits flood the branch",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "The live tracker already lives outside git, but almost every tracker write also creates a snapshot live tracker commit on the PR branch.",
       "impact": "The branch history is mostly snapshots, which buries the real fix commits and makes review and recovery harder.",
@@ -9943,7 +10032,7 @@
       "id": "BCL-42",
       "title": "Blocked items that need a real microphone or Windows are carried on every list",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "Four items that cannot be checked without a real microphone or a Windows machine have been copied forward on every list since #110.",
       "impact": "Each new list still shows work that cannot be done on this Mac, which distracts from items that can be fixed now.",
@@ -9955,7 +10044,7 @@
       "id": "BCL-43",
       "title": "Rolling over at 15 verified fixes and merging only at 16 or more can leave the earlier PR stuck",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "A list can roll over once 15 items are verified, but the previous PR can be merged only at 16 or more, so a list can close out from under a PR that still cannot merge.",
       "impact": "The earlier PR can sit open, as #112 has, after work has already moved to a later list.",
@@ -9967,7 +10056,7 @@
       "id": "BCL-44",
       "title": "A one-item docs or chart change still runs the full fix loop alone",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "low",
       "summary": "A single documentation or chart change is still planned, installed, verified, and introspected as its own round, even when it could have shared a round with other small items.",
       "impact": "Simple wording or chart work takes a full cycle, which delays the next batch of product fixes.",
@@ -9979,7 +10068,7 @@
       "id": "BCL-45",
       "title": "The change-list viewer can serve the previous list's worktree and go stale during a round",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "The live page can keep running from the previous list's folder, and it can sit unchanged while a round is still in progress, so it is marked Stale.",
       "impact": "A reader can look at the wrong list, or at an outdated page, and think no work is happening.",
@@ -9991,7 +10080,7 @@
       "id": "BCL-46",
       "title": "The test suite leaves viewer processes running",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "Tests start local viewers and do not always stop them, so leftover example viewers pile up on the machine.",
       "impact": "The Mac accumulates dozens of idle test servers, which wastes process slots and can confuse later viewer checks.",
@@ -10086,6 +10175,42 @@
         "BCL-45",
         "BCL-46"
       ]
+    },
+    {
+      "id": "BCL-47",
+      "title": "gate.md writes the rollover and merge numbers into the text",
+      "source": "Agent reported",
+      "status": "in_progress",
+      "priority": "medium",
+      "summary": "references/gate.md line 7 repeats 15 and hardcodes 16 instead of reading both from workflow_definition.json.",
+      "impact": "If the thresholds change, the reference text goes stale, and skill-refine strict fails.",
+      "done_when": "gate.md refers to the definition fields by name with no literal threshold numbers, and skill-refine strict passes this check.",
+      "observed": "Skill Refine Workflow ran skill-refine strict on a copy of bcl 0.1.38 on 17 Nov 2026 at 22:44 IST and flagged gate.md:7. ACU confirmed the line says a count of 15 meets the gate and merge requires 16.",
+      "recommendation": "Name gate.default_threshold and gate.merge_previous_pr_threshold instead of the numbers."
+    },
+    {
+      "id": "BCL-48",
+      "title": "test_bcl.py looks outside the skill folder for the bcl command",
+      "source": "Agent reported",
+      "status": "in_progress",
+      "priority": "medium",
+      "summary": "test_bcl.py line 10 uses Path(__file__).parents[5], which escapes the skill directory before falling back to the installed plugin.",
+      "impact": "The test depends on the repo layout and could pick up an unrelated file in another layout.",
+      "done_when": "The test finds bin/bcl only inside its own plugin or the installed plugin, and skill-refine strict passes this check.",
+      "observed": "Skill Refine Workflow flagged test_bcl.py:10 on 17 Nov 2026 at 22:44 IST. ACU confirmed ROOT = Path(__file__).resolve().parents[5].",
+      "recommendation": "Resolve the plugin root from the skill directory, or use the installed plugin path."
+    },
+    {
+      "id": "BCL-49",
+      "title": "The chart draws the loop back to Plan & fix as text, not an arrow",
+      "source": "Agent reported",
+      "status": "in_progress",
+      "priority": "medium",
+      "summary": "statechart.html shows the loop-back as a text arrow, raw backticks in the grey command labels, a 16+ verified label running into the Merge previous PR box, and no Elon verdict badges in the Current view.",
+      "impact": "The chart does not read as a real flow, and skill-refine strict fails its drawn-edge check.",
+      "done_when": "Loop-back and exit edges are SVG paths with arrowheads and condition labels, labels have no backticks or overlaps, and Current and After both show verdict badges on each step, proven by a named test and a rendered screenshot.",
+      "observed": "A rendered PNG of bcl 0.1.38 statechart.html on 17 Nov 2026 at 22:36 IST shows all four problems. Skill Refine Workflow strict run at 22:44 IST flagged the text arrow.",
+      "recommendation": "Draw edges as SVG paths from the workflow_definition.json transitions and strip markdown from labels."
     }
   ]
 }
