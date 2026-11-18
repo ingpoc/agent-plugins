@@ -1,3 +1,13 @@
+## 0.1.39
+
+- Archive merged verified findings at rollover (and migrate an existing list) without changing the gate count; verification runs skip archived items.
+- Record Introspect in introspect history instead of WF findings; migrate legacy WF Introspect records with their provenance.
+- Park hardware-blocked findings in a parked file with what they need; parked items do not count and are not carried onto new lists.
+- Hold rollover until the merge-previous-PR threshold is also met; report keeps its own gate; references name the gate fields instead of numbers.
+- Let small independent docs or chart items share a round.
+- Draw chart transitions as SVG paths with arrowheads and edge labels, verdict badges in both views, no markdown or overlapping labels.
+- Stop test-owned viewers, resolve bin/bcl only inside the plugin, restart a viewer serving another worktree, and snapshot-commit only on stage change or rollover.
+
 ## 0.1.38
 
 - Redesign the skill as an always-loaded rule set with a one-row-per-trigger reference router and step-local commands.
