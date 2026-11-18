@@ -7176,9 +7176,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-18T19:30:15Z",
-      "now": "2026-11-18T19:30:15Z — Fix job started"
+      "stage": "install",
+      "updated_at": "2026-11-18T19:30:33Z",
+      "now": "2026-11-18T19:30:33Z — Install in progress"
     },
     "rollover": {
       "source_pr": 115,
@@ -7517,8 +7517,8 @@
             "BCL-74"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "verify",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl116-r3-g4",
           "reason": "Same change list code: run closing, lane state, description, test lookup, row labels.",
           "codex": {
@@ -7526,14 +7526,14 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 22219,
-              "phase": "presuite",
-              "started_at": "2026-11-18T19:14:47Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-18T19:18:55Z",
+              "pid": 62262,
+              "phase": "fix",
+              "started_at": "2026-11-18T19:30:15Z",
+              "command": "fix-g4-verifier.sh",
+              "heartbeat_at": "2026-11-18T19:30:16Z",
               "exit_code": 0,
-              "duration_s": 248,
-              "finished_at": "2026-11-18T19:18:55Z",
+              "duration_s": 1,
+              "finished_at": "2026-11-18T19:30:16Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -7551,7 +7551,7 @@
             "failed": 0,
             "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-18T19:24:56Z",
+          "updated_at": "2026-11-18T19:30:16Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -7559,7 +7559,7 @@
           },
           "install": {
             "status": "running",
-            "started_at": "2026-11-18T19:19:23Z"
+            "started_at": "2026-11-18T19:30:33Z"
           }
         }
       ],
@@ -9219,7 +9219,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "verification_run": {
       "id": "bcl-0.1.44-6d62c6dc-116",
