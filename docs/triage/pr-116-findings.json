@@ -6855,9 +6855,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-18T10:19:38Z",
-      "now": "2026-11-18T10:19:38Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-18T10:20:08Z",
+      "now": "2026-11-18T10:20:08Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 115,
@@ -8611,8 +8611,40 @@
       "present",
       "plan_fix",
       "review",
-      "install"
-    ]
+      "install",
+      "verify"
+    ],
+    "verification_run": {
+      "id": "bcl-0.1.42-7b59a1b6-116",
+      "build": "batched-change-list 0.1.42",
+      "revision": "7b59a1b643b03de87ae0b974ecae7fa2f397f159",
+      "installed_at": "2026-11-18T10:19:44Z",
+      "install_evidence": "bcl install-local from PR #116 head 7b59a1b6 (plugin tree of 642da7ae) at 15:49 IST: plugin 57 files sha256 08a3a3fc2b1e23583c1bcf73d92118ff763b1d9b6f56148ca47d83c0a2e419c8, skill 50 files sha256 117541db1ffcb1305f05daae8184f4924f20dc1e49d596cab53962f35262a18a. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r1/install-0.1.42.txt",
+      "status": "active",
+      "checks": {
+        "BCL-57": {
+          "state": "pending"
+        },
+        "BCL-58": {
+          "state": "pending"
+        },
+        "BCL-59": {
+          "state": "pending"
+        },
+        "BCL-60": {
+          "state": "pending"
+        },
+        "BCL-61": {
+          "state": "pending"
+        },
+        "BCL-62": {
+          "state": "pending"
+        },
+        "BCL-63": {
+          "state": "pending"
+        }
+      }
+    }
   },
   "findings": [
     {
