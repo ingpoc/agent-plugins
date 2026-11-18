@@ -6551,6 +6551,83 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "bcl-0.1.40-cd47cb75-115",
+        "build": "batched-change-list 0.1.40",
+        "revision": "cd47cb75fdfae0f333b01379a2593afdc763bee9",
+        "installed_at": "2026-11-18T06:59:19Z",
+        "install_evidence": "bcl install-local from PR #115 head cd47cb75 (plugin tree of 09e1859d) at 12:29 IST: plugin 55 files sha256 3cfe422f90165c06f8f783e465dcfea186cbe4097c80796052abc6802e290ab4, skill 48 files sha256 6415acf037cd4356ca473a6818a446c15d17e9713e84de3ef311702cf157b07c. Receipt /Users/gurusharan/.agents/artifacts/bcl-115/r3/install-0.1.40.txt",
+        "status": "interrupted",
+        "checks": {
+          "BCL-38": {
+            "state": "pending"
+          },
+          "BCL-39": {
+            "state": "pending"
+          },
+          "BCL-40": {
+            "state": "pending"
+          },
+          "BCL-41": {
+            "state": "pending"
+          },
+          "BCL-42": {
+            "state": "pending"
+          },
+          "BCL-43": {
+            "state": "pending"
+          },
+          "BCL-44": {
+            "state": "pending"
+          },
+          "BCL-45": {
+            "state": "pending"
+          },
+          "BCL-46": {
+            "state": "pending"
+          },
+          "BCL-47": {
+            "state": "pending"
+          },
+          "BCL-48": {
+            "state": "pending"
+          },
+          "BCL-49": {
+            "state": "pending"
+          },
+          "BCL-50": {
+            "state": "pending"
+          },
+          "BCL-51": {
+            "state": "pending"
+          },
+          "BCL-52": {
+            "state": "pending"
+          },
+          "BCL-53": {
+            "state": "not_fixed",
+            "observation": "verify-g6.sh ran on installed 0.1.40; leak assertion reported 6 test viewers",
+            "observed_at": "2026-11-18T07:10:25Z",
+            "started_at": "2026-11-18T07:10:25Z",
+            "updated_at": "2026-11-18T07:10:25Z",
+            "check_id": "aba04e5c1c6b4cf28b47eec1f3861cba",
+            "evidence": "Checked: verify-g6.sh on installed bcl 0.1.40 (cd47cb75) 12:33-12:37 IST: full suite on a clean clone and on the installed copy, strict shape, statechart --check, 11 named tests; Expected: all pass and no test-owned serve.py viewer is left running; Observed: 320/320 tests passed twice and all 11 named tests passed, but 6 viewers were left under the verifier temp root; test_same_version_reinstall_restarts_viewer and test_unchanged_script_tree_reuses_viewer alone each leave one serve.py running (log r3/verify-g6.log); Verdict because: not fixed, the BCL-53 tests leak viewers, breaking the BCL-46 no-leak rule.",
+            "finished_at": "2026-11-18T07:10:36.407913Z"
+          },
+          "BCL-54": {
+            "state": "pending"
+          },
+          "BCL-55": {
+            "state": "pending"
+          },
+          "BCL-56": {
+            "state": "pending"
+          },
+          "BCL-57": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -6565,9 +6642,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-18T08:07:32Z",
-      "now": "2026-11-18T08:07:32Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-18T08:07:47Z",
+      "now": "2026-11-18T08:07:47Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 114,
@@ -6884,14 +6961,15 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "verification_run": {
-      "id": "bcl-0.1.40-cd47cb75-115",
-      "build": "batched-change-list 0.1.40",
-      "revision": "cd47cb75fdfae0f333b01379a2593afdc763bee9",
-      "installed_at": "2026-11-18T06:59:19Z",
-      "install_evidence": "bcl install-local from PR #115 head cd47cb75 (plugin tree of 09e1859d) at 12:29 IST: plugin 55 files sha256 3cfe422f90165c06f8f783e465dcfea186cbe4097c80796052abc6802e290ab4, skill 48 files sha256 6415acf037cd4356ca473a6818a446c15d17e9713e84de3ef311702cf157b07c. Receipt /Users/gurusharan/.agents/artifacts/bcl-115/r3/install-0.1.40.txt",
+      "id": "bcl-0.1.41-6d49094a-115",
+      "build": "batched-change-list 0.1.41",
+      "revision": "6d49094ab7413de7e2c00500e76728af6761af7f",
+      "installed_at": "2026-11-18T08:07:35Z",
+      "install_evidence": "bcl install-local from PR #115 head 6d49094a (plugin tree of 898fe6b8) at 13:38 IST: plugin 57 files sha256 139381bb5f6e8c507d7b88739e265ae85641b27d9c99426ca1239717f9f1ece2, skill 50 files sha256 0b9f0c4da4e4aa8592548d318f18f80158af96b4f86f4224086f31c7673a995f. Receipt /Users/gurusharan/.agents/artifacts/bcl-115/r3/install-0.1.41.txt",
       "status": "active",
       "checks": {
         "BCL-38": {
@@ -6940,14 +7018,7 @@
           "state": "pending"
         },
         "BCL-53": {
-          "state": "not_fixed",
-          "observation": "verify-g6.sh ran on installed 0.1.40; leak assertion reported 6 test viewers",
-          "observed_at": "2026-11-18T07:10:25Z",
-          "started_at": "2026-11-18T07:10:25Z",
-          "updated_at": "2026-11-18T07:10:25Z",
-          "check_id": "aba04e5c1c6b4cf28b47eec1f3861cba",
-          "evidence": "Checked: verify-g6.sh on installed bcl 0.1.40 (cd47cb75) 12:33-12:37 IST: full suite on a clean clone and on the installed copy, strict shape, statechart --check, 11 named tests; Expected: all pass and no test-owned serve.py viewer is left running; Observed: 320/320 tests passed twice and all 11 named tests passed, but 6 viewers were left under the verifier temp root; test_same_version_reinstall_restarts_viewer and test_unchanged_script_tree_reuses_viewer alone each leave one serve.py running (log r3/verify-g6.log); Verdict because: not fixed, the BCL-53 tests leak viewers, breaking the BCL-46 no-leak rule.",
-          "finished_at": "2026-11-18T07:10:36.407913Z"
+          "state": "pending"
         },
         "BCL-54": {
           "state": "pending"
