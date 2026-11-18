@@ -6855,9 +6855,9 @@
       }
     },
     "workflow": {
-      "stage": "present",
-      "updated_at": "2026-11-18T09:27:01Z",
-      "now": "2026-11-18T09:27:01Z — Started collection"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-18T09:27:02Z",
+      "now": "2026-11-18T09:27:02Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 115,
@@ -7004,178 +7004,117 @@
       }
     ],
     "plan": {
-      "round": 4,
-      "cycle": 7,
+      "round": 1,
+      "cycle": 8,
       "groups": [
         {
-          "id": "VIEWER-STRIP",
-          "name": "Live lane jobs, strip, viewer identity and leak guard",
+          "id": "ROLLOVER-VIEWER",
+          "name": "Rollover home, viewer path and merged-list viewers",
           "finding_ids": [
-            "BCL-50",
-            "BCL-51",
-            "BCL-53",
-            "BCL-56"
+            "BCL-59",
+            "BCL-63"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl115-r3-g6",
-          "reason": "Round 4: BCL-53 tests leaked viewers at Verify; BCL-56 adds the suite-wide leak guard in the same tests. BCL-50 and BCL-51 code is in place and re-verifies with the lane.",
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl116-r1-g1",
+          "reason": "Same registry and viewer lifecycle code in bin/bcl rollover/merged and live_state.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false,
-            "implementer_session": "01a1ed47-c138-7f12-907a-b5d527e13cea",
-            "job": {
-              "pid": 60087,
-              "phase": "presuite",
-              "started_at": "2026-11-18T08:00:57Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-18T08:04:41Z",
-              "exit_code": 0,
-              "duration_s": 224,
-              "finished_at": "2026-11-18T08:04:41Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "review_status": "passed",
-            "reviewer_session": "01a1ed8e-bbf7-7bb3-95fa-aa122a1c2487",
-            "reviewer_model": "gpt-6.1-terra",
-            "review_note": "One Terra round (01a1ed8e-bbf7) two must-fixes fixed by Luna fu4/fu5 at 13:26 IST: temp-root discovery with exact python serve.py matching, suite-wide guard module, isolated-subprocess named test. No second review."
+            "one_file": false
           },
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
-            "method": "Full suite, strict shape and chart check on a clean clone and the installed copy, named tests on the installed copy, no leaked viewers.",
-            "status": "pending",
-            "total": 4,
-            "fixed": 0,
-            "failed": 0,
-            "summary": "Nine named tests passed on installed 0.1.41",
-            "failure": null
-          },
-          "updated_at": "2026-11-18T08:13:28Z",
-          "verify_summary": "Nine named tests passed on installed 0.1.41",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-18T08:04:41Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-18T08:07:32Z"
-          }
-        },
-        {
-          "id": "VERIFY-LOOP",
-          "name": "Review start and failed-verify loop-back",
-          "finding_ids": [
-            "BCL-54",
-            "BCL-55"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl115-r3-g7",
-          "reason": "Round 4: BCL-55 changes the bin/bcl verify-failure and fix-job guards next to the BCL-54 review guard; BCL-54 code is in place and re-verifies with the lane. Separate files from VIEWER-STRIP except test_bcl.py additions.",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "one_file": false,
-            "implementer_session": "01a1ed47-c138-70d1-8c82-fb3ee5ab03af",
-            "job": {
-              "pid": 60087,
-              "phase": "presuite",
-              "started_at": "2026-11-18T08:00:57Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-18T08:04:41Z",
-              "exit_code": 0,
-              "duration_s": 224,
-              "finished_at": "2026-11-18T08:04:41Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "review_status": "passed",
-            "reviewer_session": "01a1ed8e-667e-71e1-bf5c-7b9c12f97c80",
-            "reviewer_model": "gpt-6.1-terra",
-            "review_note": "One Terra round (01a1ed8e-667e) must-fix fixed by Luna fu2 at 13:11 IST: plan_fix transition written before Popen; orchestrator read the bin/bcl diff and named test test_fix_job_does_not_run_command_without_current_introspect. No second review."
-          },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.sh",
-            "method": "Named tests on the installed copy, full suite on clean clone and installed copy, no leaked viewers.",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.sh",
+            "method": "Full suite on a clean clone and the installed copy, strict shape, statechart --check, named tests on the installed copy, no leaked viewers, plus live checks per finding.",
             "status": "pending",
             "total": 2,
             "fixed": 0,
-            "failed": 0,
-            "summary": "Seven named tests passed on installed 0.1.41",
-            "failure": null
+            "failed": 0
           },
-          "updated_at": "2026-11-18T08:16:51Z",
-          "verify_summary": "Seven named tests passed on installed 0.1.41",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-18T08:04:41Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-18T08:07:32Z"
-          }
+          "updated_at": "2026-11-18T09:27:02Z"
         },
         {
-          "id": "FLAKY-CHECK",
-          "name": "Deterministic test_bcl under the full check",
+          "id": "PAGE-WORDS",
+          "name": "Idle Stale, plain header and carried verdicts",
           "finding_ids": [
-            "BCL-52"
+            "BCL-60",
+            "BCL-61",
+            "BCL-62"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "samantha-pr115-rollover",
-          "reason": "Round 4: fix already passed and committed in 09e1859d; failed Verify only on the VIEWER-STRIP leak, so it re-verifies on the next install.",
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl116-r1-g2",
+          "reason": "Same render path and template; finish-check rule for blocked.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": true,
-            "implementer_session": "01a1ed47-c138-70d1-8c82-fb3ee5ab03af",
-            "fix_status": "passed",
-            "review_status": "skipped_one_file",
-            "review_note": "Fix committed in 09e1859d; round 4 only re-verifies it",
-            "job": {
-              "pid": 60087,
-              "phase": "presuite",
-              "started_at": "2026-11-18T08:00:57Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-18T08:04:41Z",
-              "exit_code": 0,
-              "duration_s": 224,
-              "finished_at": "2026-11-18T08:04:41Z",
-              "finished_phase_status": "passed"
-            }
+            "one_file": false
           },
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7b.sh",
-            "method": "Named tests on the installed copy and a cleanup pid-exclusion check; three consecutive scripts/check.py runs passed in the first run (verify-g7.log).",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.sh",
+            "method": "Full suite on a clean clone and the installed copy, strict shape, statechart --check, named tests on the installed copy, no leaked viewers, plus live checks per finding.",
+            "status": "pending",
+            "total": 3,
+            "fixed": 0,
+            "failed": 0
+          },
+          "updated_at": "2026-11-18T09:27:02Z"
+        },
+        {
+          "id": "REVIEW-VERDICT",
+          "name": "Review job reads the reviewer verdict",
+          "finding_ids": [
+            "BCL-57"
+          ],
+          "depends_on": [],
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl116-r1-g3",
+          "reason": "bin/bcl job review path plus review.md.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "one_file": false
+          },
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g3.sh",
+            "method": "Full suite on a clean clone and the installed copy, strict shape, statechart --check, named tests on the installed copy, no leaked viewers, plus live checks per finding.",
             "status": "pending",
             "total": 1,
             "fixed": 0,
-            "failed": 0,
-            "failure": null,
-            "summary": "Named tests and three full checks passed"
+            "failed": 0
           },
-          "updated_at": "2026-11-18T08:27:54Z",
-          "verify_summary": "Named tests and three full checks passed",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-18T08:04:41Z"
+          "updated_at": "2026-11-18T09:27:02Z"
+        },
+        {
+          "id": "CHECK-LEAKS",
+          "name": "Per-module viewer leak guard under check.py",
+          "finding_ids": [
+            "BCL-58"
+          ],
+          "depends_on": [],
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl116-r1-g4",
+          "reason": "Test infrastructure only; independent of product code.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "one_file": false
           },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-18T08:07:32Z"
-          }
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g4.sh",
+            "method": "Full suite on a clean clone and the installed copy, strict shape, statechart --check, named tests on the installed copy, no leaked viewers, plus live checks per finding.",
+            "status": "pending",
+            "total": 1,
+            "fixed": 0,
+            "failed": 0
+          },
+          "updated_at": "2026-11-18T09:27:02Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "introspect_history": [
       {
@@ -8565,7 +8504,8 @@
     },
     "stages_reached": [
       "collect",
-      "present"
+      "present",
+      "plan_fix"
     ]
   },
   "findings": [
@@ -8573,7 +8513,7 @@
       "id": "BCL-57",
       "title": "A review job that returns CHANGES is recorded as review passed",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "bcl job --phase review sets codex.review_status to passed whenever the reviewer process exits 0, but Terra exits 0 with VERDICT: CHANGES, so the lane reads Review passed until the orchestrator corrects it.",
       "impact": "Install could proceed on a lane whose review asked for changes if the orchestrator misses the verdict.",
@@ -8585,7 +8525,7 @@
       "id": "BCL-58",
       "title": "The repo check leaks test viewers because the leak guard only covers one test process",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "scripts/check.py runs each test file in its own process, and the BCL-56 leak guard runs in its own module at the end of a discovery run, so viewers leaked by test_bcl.py under check.py are never caught.",
       "impact": "Leaked viewers pile up on the Mac after every pre-push check.",
@@ -8597,7 +8537,7 @@
       "id": "BCL-59",
       "title": "Rollover keeps the old list home, viewer path and plan lanes",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "bcl rollover --worktree NAME left the registry home, the viewer report and base paths on the old worktree and kept the old list plan lanes as current, so the new list page was committed and served from the old PR worktree.",
       "impact": "The new list snapshots land on the old PR branch unless fixed by hand.",
@@ -8609,7 +8549,7 @@
       "id": "BCL-60",
       "title": "The page shows Stale during idle Collect",
       "source": "User reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "The Stale badge appears when nothing has been written for 10 minutes even while the list is idle in Collect with no running lane.",
       "impact": "The owner reads Stale as broken work when nothing is supposed to be running.",
@@ -8621,7 +8561,7 @@
       "id": "BCL-61",
       "title": "The page header prints raw file paths and says Viewer version not recorded",
       "source": "User reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "The header shows archive.json and parked.json paths and the long parked needs text, and Viewer version not recorded even though the viewer record has a version.",
       "impact": "The header is hard to read and looks broken.",
@@ -8633,7 +8573,7 @@
       "id": "BCL-62",
       "title": "A finding with no fix yet shows Verdict: Blocked",
       "source": "User reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "The BCL-57 verification row on the new list reads Verdict: Blocked only because no fix existed in the last install; Blocked means an outside blocker.",
       "impact": "Status reads wrong; the rule is that Blocked needs an external blocker.",
@@ -8645,7 +8585,7 @@
       "id": "BCL-63",
       "title": "Viewers for merged lists keep running",
       "source": "User reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "bcl merged does not stop the merged list viewer, so viewers for merged #111, #113, #114 and #115 kept running, and bcl has no exact-pid stop path.",
       "impact": "Old pages stay served and processes pile up.",
