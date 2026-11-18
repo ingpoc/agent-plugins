@@ -7008,9 +7008,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-18T17:07:32Z",
-      "now": "2026-11-18T17:07:32Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-18T17:07:35Z",
+      "now": "2026-11-18T17:07:35Z — Review started"
     },
     "rollover": {
       "source_pr": 115,
@@ -7208,7 +7208,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T17:07:01Z"
+          "updated_at": "2026-11-18T17:07:35Z"
         },
         {
           "id": "SR-COMET",
@@ -7257,8 +7257,8 @@
             "BCL-72"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "review",
+          "status": "running",
+          "phase": "fix",
           "worktree": "bcl116-r3-g3",
           "reason": "Two small plugins, same kind of edits.",
           "codex": {
@@ -7266,15 +7266,11 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 83115,
-              "phase": "review",
-              "started_at": "2026-11-18T17:02:54Z",
-              "command": "launch-review-g3.sh",
-              "heartbeat_at": "2026-11-18T17:03:57Z",
-              "exit_code": 0,
-              "duration_s": 63,
-              "finished_at": "2026-11-18T17:03:57Z",
-              "finished_phase_status": "failed"
+              "pid": 93883,
+              "phase": "fix",
+              "started_at": "2026-11-18T17:07:32Z",
+              "command": "run-fu-g3.sh",
+              "heartbeat_at": "2026-11-18T17:07:32Z"
             },
             "fix_status": "passed",
             "implementer_session": "01a1ef8b-99da-7500-85df-73d8b58c4f17",
@@ -7288,7 +7284,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T17:03:57Z"
+          "updated_at": "2026-11-18T17:07:33Z"
         },
         {
           "id": "BCL-FLOW",
