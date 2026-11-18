@@ -12,6 +12,7 @@ from unittest import mock
 import check_gate_count
 import manage_findings
 import render
+import workflow_definition
 
 SCRIPT = Path(__file__).with_name("manage_findings.py")
 EXAMPLE = Path(__file__).parents[1] / "examples/findings.json"
@@ -43,6 +44,11 @@ class ArchiveTests(unittest.TestCase):
         else:
             item["details"] = {}
         return item
+
+    def gate_findings(self):
+        count = max(workflow_definition.DEFAULT_ROLLOVER_THRESHOLD,
+                    workflow_definition.MERGE_PREVIOUS_PR_THRESHOLD)
+        return [self.finding(f"FIX-{i:02d}", "verified_fixed") for i in range(count)]
 
     def large_tracker(self):
         closed = [self.finding(f"OLD-{i:02d}", "verified_fixed") for i in range(1, 68)]
@@ -241,7 +247,8 @@ class ArchiveTests(unittest.TestCase):
         for rejection in ("gate", "target"):
             with self.subTest(rejection=rejection):
                 old = self.finding("OLD", "verified_fixed")
-                findings = [old, self.finding("OPEN")] if rejection == "gate" else [old]
+                findings = ([old, self.finding("OPEN")] if rejection == "gate"
+                            else [old, *self.gate_findings()])
                 document = {"title": "Rollover", "findings": findings,
                             "tracking": {"pull_request": {"label": "PR #115", "url": "https://example.test/pull/115"},
                                          "rollover": {"excluded_ids": ["OLD"]}}}
@@ -258,7 +265,7 @@ class ArchiveTests(unittest.TestCase):
                                       "pull_request": {"label": "PR #116", "url": "https://example.test/pull/116"}}],
                                     data=live, render=False)
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn("open findings remain" if rejection == "gate" else "new live list already exists", result.stderr)
+                self.assertIn("rollover gate not met" if rejection == "gate" else "new live list already exists", result.stderr)
                 self.assertEqual(live.read_bytes(), original)
                 self.assertEqual(archive_path.read_bytes(), archive_original)
                 self.assertEqual(archive_path.stat().st_mtime_ns, modified)
@@ -267,7 +274,7 @@ class ArchiveTests(unittest.TestCase):
         for existed in (False, True):
             with self.subTest(existed=existed):
                 old = self.finding("OLD", "verified_fixed")
-                document = {"title": "Rollover", "findings": [old],
+                document = {"title": "Rollover", "findings": [old, *self.gate_findings()],
                             "tracking": {"pull_request": {"label": "PR #115", "url": "https://example.test/pull/115"},
                                          "rollover": {"excluded_ids": ["OLD"]}}}
                 live = self.register_live(document)
@@ -437,7 +444,7 @@ sys.exit(manage_findings.main())
         self.assertEqual(after, (0, 15, True))
 
     def test_rollover_keeps_parked_out_of_new_list(self):
-        document = {"title": "Park before rollover", "findings": [self.finding("MIC", "blocked")],
+        document = {"title": "Park before rollover", "findings": [self.finding("MIC", "blocked"), *self.gate_findings()],
                     "tracking": {"pull_request": {"label": "PR #115", "url": "https://example.test/repo/pull/115"},
                                  "rollover": {"excluded_ids": []}}}
         live = self.register_live(document)
