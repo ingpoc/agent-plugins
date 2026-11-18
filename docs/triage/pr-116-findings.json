@@ -7176,9 +7176,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-18T19:30:33Z",
-      "now": "2026-11-18T19:30:33Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-18T19:30:39Z",
+      "now": "2026-11-18T19:30:39Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 115,
@@ -9220,7 +9220,8 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "verification_run": {
       "id": "bcl-0.1.44-6d62c6dc-116",
