@@ -6565,9 +6565,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-18T07:28:13Z",
-      "now": "2026-11-18T07:28:13Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-18T07:33:48Z",
+      "now": "2026-11-18T07:33:48Z — Lane VERIFY-LOOP updated"
     },
     "rollover": {
       "source_pr": 114,
@@ -6736,17 +6736,21 @@
             "one_file": false,
             "implementer_session": "01a1ed47-c138-7f12-907a-b5d527e13cea",
             "job": {
-              "pid": 82780,
-              "phase": "fix",
-              "started_at": "2026-11-18T07:14:39Z",
-              "command": "resume3-g6.sh",
-              "heartbeat_at": "2026-11-18T07:28:10Z",
+              "pid": 9272,
+              "phase": "review",
+              "started_at": "2026-11-18T07:28:36Z",
+              "command": "launch-review-g6r4.sh",
+              "heartbeat_at": "2026-11-18T07:29:11Z",
               "exit_code": 0,
-              "duration_s": 811,
-              "finished_at": "2026-11-18T07:28:10Z",
+              "duration_s": 35,
+              "finished_at": "2026-11-18T07:29:11Z",
               "finished_phase_status": "passed"
             },
-            "fix_status": "passed"
+            "fix_status": "passed",
+            "review_status": "failed",
+            "reviewer_session": "01a1ed8e-bbf7-7bb3-95fa-aa122a1c2487",
+            "reviewer_model": "gpt-6.1-terra",
+            "review_note": "Terra CHANGES: leak guard only sees registered pids and the named test is mocked; must-fix goes to the same Luna session"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
@@ -6756,7 +6760,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T07:28:10Z"
+          "updated_at": "2026-11-18T07:33:27Z"
         },
         {
           "id": "VERIFY-LOOP",
@@ -6766,8 +6770,8 @@
             "BCL-55"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "running",
+          "phase": "fix",
           "worktree": "bcl115-r3-g7",
           "reason": "Round 4: BCL-55 changes the bin/bcl verify-failure and fix-job guards next to the BCL-54 review guard; BCL-54 code is in place and re-verifies with the lane. Separate files from VIEWER-STRIP except test_bcl.py additions.",
           "codex": {
@@ -6776,17 +6780,17 @@
             "one_file": false,
             "implementer_session": "01a1ed47-c138-70d1-8c82-fb3ee5ab03af",
             "job": {
-              "pid": 83671,
+              "pid": 14733,
               "phase": "fix",
-              "started_at": "2026-11-18T07:14:43Z",
-              "command": "resume-g8.sh",
-              "heartbeat_at": "2026-11-18T07:23:03Z",
-              "exit_code": 0,
-              "duration_s": 500,
-              "finished_at": "2026-11-18T07:23:03Z",
-              "finished_phase_status": "passed"
+              "started_at": "2026-11-18T07:33:48Z",
+              "command": "resume2-g8.sh",
+              "heartbeat_at": "2026-11-18T07:33:48Z"
             },
-            "fix_status": "passed"
+            "fix_status": "passed",
+            "review_status": "failed",
+            "reviewer_session": "01a1ed8e-667e-71e1-bf5c-7b9c12f97c80",
+            "reviewer_model": "gpt-6.1-terra",
+            "review_note": "Terra CHANGES: fix command starts before the plan_fix Introspect check; must-fix goes to the same Luna session"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g8.sh",
@@ -6796,7 +6800,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T07:28:13Z"
+          "updated_at": "2026-11-18T07:33:48Z"
         },
         {
           "id": "FLAKY-CHECK",
@@ -6907,6 +6911,9 @@
           "state": "pending"
         },
         "BCL-56": {
+          "state": "pending"
+        },
+        "BCL-57": {
           "state": "pending"
         }
       }
@@ -8735,6 +8742,18 @@
       "done_when": "Any test that leaves a serve.py viewer under its temp root fails the full suite run, proven by a named test; the verifier then drops its separate leak check.",
       "observed": "18 Nov 2026 12:24 IST pre-push suite on 09e1859d passed (320 tests, check ok); 12:33 and 12:37 IST installed-copy verify found 4 and 6 leaked test viewers.",
       "recommendation": "Add a suite-wide leaked-viewer guard (module teardown or a shared base) in place of the verifier-side check."
+    },
+    {
+      "id": "BCL-57",
+      "title": "A review job that returns CHANGES is recorded as review passed",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "summary": "bcl job --phase review sets codex.review_status to passed whenever the reviewer process exits 0, but Terra exits 0 with VERDICT: CHANGES, so the lane reads Review passed until the orchestrator corrects it.",
+      "impact": "Install could proceed on a lane whose review asked for changes if the orchestrator misses the verdict.",
+      "done_when": "A review job records passed only when the reviewer verdict is PASS (for example read from the reviewer output file), failed on CHANGES, proven by named tests and a live review job.",
+      "observed": "18 Nov 2026 13:02 IST on installed 0.1.40: review jobs for VERIFY-LOOP and VIEWER-STRIP exited 0 with VERDICT: CHANGES and the lanes showed review passed.",
+      "recommendation": "Pass the reviewer output file to bcl job and parse its first VERDICT line."
     }
   ]
 }
