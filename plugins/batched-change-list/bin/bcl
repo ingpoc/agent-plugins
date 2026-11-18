@@ -78,11 +78,71 @@ def _branch_name(value):
         value = _value(value, "ref", "name", "branch")
     return value.strip() if isinstance(value, str) and value.strip() else None
 
+def _utc_now():
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+def _job_write(record, live, report, base, operations):
+    command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
+    result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
+    if result.returncode:
+        raise RuntimeError(result.stderr or result.stdout)
+    live_state.snapshot(record, live)
+
+def _job_operations(groups, phase, job, status=None, review_status=None):
+    operations = []
+    for group in groups:
+        codex = {"job": dict(job)}
+        if phase == "fix" and "exit_code" in job:
+            codex["fix_status"] = job["finished_phase_status"]
+        if review_status is not None:
+            codex["review_status"] = review_status
+        operations.append({"action": "update-plan-group", "id": group["id"],
+                           "merge_codex": True, "patch": {**({"status": status, "phase": "fix" if phase == "fix" else "review"} if status else {}), "codex": codex, **({"presuite": {"status": job["finished_phase_status"], "exit_code": job["exit_code"], "finished_at": job["finished_at"]}} if phase == "presuite" and "exit_code" in job else {})}})
+    return operations
+
+def _run_job(record, live, report, base, groups, phase, ids, command_args):
+    if not command_args:
+        raise ValueError("job requires a command after --")
+    first = ([{"action": "set-activity", "stage": "plan_fix", "ids": ids, "now": "Fix job started"}]
+             if phase == "fix" else [])
+    status = "running" if phase == "fix" else "review"
+    started_at = _utc_now()
+    process = subprocess.Popen(command_args)
+    job = {"pid": process.pid, "phase": phase, "started_at": started_at,
+           "command": Path(command_args[0]).name, "heartbeat_at": started_at}
+    try:
+        _job_write(record, live, report, base, first + _job_operations(groups, phase, job, status))
+    except Exception:
+        process.terminate()
+        process.wait()
+        raise
+    while True:
+        try:
+            code = process.wait(timeout=60)
+            break
+        except subprocess.TimeoutExpired:
+            job["heartbeat_at"] = _utc_now()
+            try:
+                _job_write(record, live, report, base, _job_operations(groups, phase, job))
+            except Exception:
+                process.terminate()
+                process.wait()
+                raise
+    finished_at = _utc_now()
+    duration = max(0, int((datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+                           - datetime.fromisoformat(started_at.replace("Z", "+00:00"))).total_seconds()))
+    job.update(exit_code=code, duration_s=duration, finished_at=finished_at,
+               finished_phase_status="passed" if code == 0 else "failed", heartbeat_at=finished_at)
+    final_status = ("planned" if code == 0 else "failed") if phase == "fix" else ("review" if code == 0 else "failed")
+    review_status = ("passed" if code == 0 else "failed") if phase == "review" else None
+    _job_write(record, live, report, base, _job_operations(groups, phase, job, final_status, review_status))
+    return code if code >= 0 else 128 - code
+
 def _install_tree_digest(root):
     digest = hashlib.sha256()
     count = 0
     for path in sorted(root.rglob("*")):
-        if not path.is_file() or "__pycache__" in path.parts or path.suffix == ".pyc" or path.name == ".DS_Store":
+        if not path.is_file() or ".git" in path.parts or "__pycache__" in path.parts or path.suffix == ".pyc" or path.name == ".DS_Store":
             continue
         digest.update(path.relative_to(root).as_posix().encode())
         digest.update(b"\0")
@@ -117,7 +177,7 @@ def install_local():
         elif destination.exists():
             shutil.rmtree(destination)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(source, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store"))
+        shutil.copytree(source, destination, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc", ".DS_Store"))
         installed_sha, count = _install_tree_digest(destination)
         if installed_sha != source_sha:
             raise SystemExit(f"bcl install-local: sha256 mismatch at {destination}")
@@ -271,11 +331,19 @@ def main():
     parser.add_argument("--progress", type=Path); parser.add_argument("--now")
     parser.add_argument("--ids", action="append", default=[]); parser.add_argument("--plan", type=Path)
     parser.add_argument("--result"); parser.add_argument("--issues", type=Path); parser.add_argument("--sections", type=Path); parser.add_argument("--draft", type=Path)
+    parser.add_argument("--phase", choices=("fix", "review", "presuite"))
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
     parser.add_argument("--new-pr", type=int); parser.add_argument("--new-url"); parser.add_argument("--worktree")
     parser.add_argument("--merge-commit"); parser.add_argument("--merged-at"); parser.add_argument("--base-branch")
     parser.add_argument("--force", action="store_true")
-    parser.add_argument("stage"); args, command_args = parser.parse_known_args()
+    parser.add_argument("stage")
+    argv = sys.argv[1:]
+    job_command = []
+    if "--" in argv:
+        marker = argv.index("--")
+        argv, job_command = argv[:marker], argv[marker + 1:]
+    args, unknown = parser.parse_known_args(argv)
+    command_args = job_command if args.stage == "job" else unknown
     if args.stage == "install-local":
         try: install_local()
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
@@ -346,6 +414,60 @@ def main():
         print(json.dumps({"adopted": True, "live": str(live), "stage": tracking.get("workflow", {}).get("stage"), "cycle": tracking.get("cycle", 1), "report_gate": {"fixed": fixed, "threshold": threshold, "met": report_met}, "rollover_gate": {"fixed": fixed, "threshold": rollover_threshold, "met": rollover_met}, "plan": [{"id": g.get("id"), "status": g.get("status")} for g in tracking.get("plan", {}).get("groups", [])]}, indent=2)); return
     if record.get("rollover_pending") and (args.stage != "start" or not begins_collect):
         parser.error("run bcl start to begin Collect before using the new list")
+    if args.stage == "job":
+        if args.phase not in ("fix", "review", "presuite") or not args.ids or not command_args:
+            parser.error("job requires --ids ID, --phase fix|review|presuite, and -- <command>")
+        if len(args.ids) != len(set(args.ids)):
+            parser.error("job IDs must be unique")
+        groups = [group for group in tracking.get("plan", {}).get("groups", [])
+                  if set(args.ids).intersection(group.get("finding_ids", []))]
+        covered = {identifier for group in groups for identifier in group.get("finding_ids", [])}
+        if not groups or not set(args.ids).issubset(covered):
+            parser.error("job IDs must be covered by current plan groups")
+        if args.phase == "fix":
+            if any(group.get("status") in ("blocked", "failed", "parked", "deferred") for group in groups):
+                parser.error("fix job cannot start a blocked or parked lane")
+        elif any(group.get("phase") != "review" or (group.get("codex") or {}).get("fix_status") != "passed" for group in groups):
+            parser.error("review and presuite jobs require each lane to finish fix and enter review")
+        report, base = live_state.report_paths(record, live)
+        try:
+            code = _run_job(record, live, report, base, groups, args.phase, args.ids, command_args)
+        except (OSError, RuntimeError, ValueError) as error:
+            parser.error(str(error))
+        raise SystemExit(code)
+    if args.stage == "review":
+        if not args.ids:
+            parser.error("review requires --ids ID (repeat for each finding)")
+        groups = [group for group in tracking.get("plan", {}).get("groups", [])
+                  if set(args.ids).intersection(group.get("finding_ids", []))]
+        covered = {identifier for group in groups for identifier in group.get("finding_ids", [])}
+        if not groups or not set(args.ids).issubset(covered):
+            parser.error("review IDs must be covered by current plan groups")
+        for group in groups:
+            codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+            job = codex.get("job", {})
+            if (job.get("phase") != "fix" or job.get("exit_code") != 0
+                    or job.get("finished_phase_status") != "passed"):
+                parser.error(f"review cannot start: lane {group.get('id')} has not finished fix")
+        try:
+            workflow_definition.run_stage_check("review", tracking.get("plan"), args.ids)
+        except ValueError as error:
+            parser.error(str(error))
+        operations = [{"action": "set-activity", "stage": "review", "ids": args.ids, "now": "Review started"}]
+        for group in groups:
+            codex = dict(group.get("codex") or {})
+            if codex.get("one_file"):
+                codex["review_status"] = "skipped_one_file"
+            operations.append({"action": "update-plan-group", "id": group["id"],
+                               "patch": {"status": "review", "phase": "review", "codex": codex}})
+        report, base = live_state.report_paths(record, live)
+        command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
+        result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
+        if result.returncode:
+            sys.stderr.write(result.stderr or result.stdout)
+            raise SystemExit(result.returncode)
+        live_state.snapshot(record, live)
+        return
     if args.stage == "merge":
         home = Path(record["home"])
         if live.with_suffix(".unsnapshotted").exists(): parser.error(f"live tracker has unsnapshotted changes: {live}")

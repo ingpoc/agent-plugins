@@ -10,20 +10,20 @@ import check_install_sessions as check
 
 class InstallSessionTests(unittest.TestCase):
     def group(self, identifier="A", **codex):
-        return {"id": identifier, "finding_ids": [identifier], "codex": codex}
+        return {"id": identifier, "finding_ids": [identifier], "codex": codex, "presuite": {"status": "passed"}}
 
-    def test_install_requires_implementer(self):
+    def test_review_requires_implementer(self):
         with self.assertRaisesRegex(ValueError, "implementer_session"):
-            check.validate_install_sessions({"groups": [self.group()]}, ["A"])
+            check.validate_review_sessions({"groups": [self.group()]}, ["A"])
 
     def test_install_requires_reviewer_for_multifile_and_unmarked_groups(self):
         for codex in ({"implementer_session": "session"},
                       {"implementer_session": "session", "one_file": False}):
             with self.subTest(codex=codex), self.assertRaisesRegex(ValueError, "reviewer_session"):
-                check.validate_install_sessions({"groups": [self.group(**codex)]}, ["A"])
+                check.validate_review_sessions({"groups": [self.group(**codex)]}, ["A"])
 
     def test_one_file_group_may_skip_reviewer(self):
-        groups = check.validate_install_sessions(
+        groups = check.validate_review_sessions(
             {"groups": [self.group(implementer_session="writer", one_file=True)]}, ["A"])
         self.assertEqual(groups, ["A"])
 
@@ -66,7 +66,7 @@ class InstallSessionTests(unittest.TestCase):
             result = subprocess.run([sys.executable, str(Path(__file__).with_name("check_install_sessions.py")),
                                      "--data", str(data), "--ids", "A"], text=True, capture_output=True)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("implementer_session", result.stderr)
+        self.assertIn("review_status='passed'", result.stderr)
         self.assertEqual(len(result.stderr.strip().splitlines()), 1)
 
 

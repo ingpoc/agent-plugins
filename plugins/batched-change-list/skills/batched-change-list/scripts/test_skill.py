@@ -4,7 +4,7 @@ import statechart
 import workflow_definition
 
 SKILL=Path(__file__).resolve().parents[1]/'SKILL.md'; ROOT=SKILL.parent; REFS=ROOT/'references'
-EXPECTED={'collect.md':'New list or feedback','present.md':'After collection','plan-fix.md':'After Present or gate loop-back','install.md':'After group review','verify.md':'After its install','introspect.md':"After every round's Verify",'gate.md':'After Introspect or checking rollover','report-rollover.md':'When gate is met','tracker.md':'Recovery','viewer.md':'Viewer use','principles.md':'Debugging, tests, sequencing, shared state, or proof'}
+EXPECTED={'collect.md':'New list or feedback','present.md':'After collection','plan-fix.md':'After Present or gate loop-back','review.md':"After a group's fix",'install.md':'After group review','verify.md':'After its install','introspect.md':"After every round's Verify",'gate.md':'After Introspect or checking rollover','report-rollover.md':'When gate is met','tracker.md':'Recovery','viewer.md':'Viewer use','principles.md':'Debugging, tests, sequencing, shared state, or proof'}
 STEPS=[stage["label"] for stage in workflow_definition.STAGES]
 
 class SkillLayoutTests(unittest.TestCase):
@@ -19,9 +19,9 @@ class SkillLayoutTests(unittest.TestCase):
     def test_router_names_each_step_and_side_reference_once_and_all_references(self):
         text=SKILL.read_text(); rows=statechart.router(text); side=statechart.side_references(text)
         self.assertEqual([r['step'] for r in rows],STEPS)
-        self.assertEqual([r['path'] for r in rows],list(EXPECTED)[:8]+[''])
+        self.assertEqual([r['path'] for r in rows],list(EXPECTED)[:9]+[''])
         self.assertEqual({r['path']:r['trigger'] for r in rows+side if r['path']},EXPECTED)
-        self.assertEqual(rows[2]['run'],'`bcl plan`, `bcl fix`')
+        self.assertEqual(rows[2]['run'],'`bcl plan`, `bcl job --phase fix`')
         for p in REFS.glob('*.md'): self.assertEqual(sum(r['path']==p.name for r in rows+side),1,p.name)
 
     def test_description_covers_every_use_case(self):
@@ -32,7 +32,7 @@ class SkillLayoutTests(unittest.TestCase):
         chart=statechart.render(suggested_verdicts={'collect':'delete'})
         self.assertEqual(chart.count('data-id="collect"'),2)
         self.assertEqual(chart.count('>delete</text>'),2)
-        self.assertEqual(chart.count('>keep</text>'),16)
+        self.assertEqual(chart.count('>keep</text>'),18)
 
     def test_merge_chart_uses_merge_run_and_report_reference(self):
         chart=statechart.render()
@@ -43,7 +43,7 @@ class SkillLayoutTests(unittest.TestCase):
 
     def test_flow_chart_has_svg_edges_and_current_after_toggle(self):
         chart=statechart.render()
-        for term in ('Collect','Present','Plan &amp; fix','under 15 verified','15+ verified','Report &amp; roll over','Merge previous PR','16+ verified for Merge previous PR','marker-end="url(#arrow)"','data-view="current"','data-view="after"','class="badge verdict"','keep','bcl plan</tspan>','bcl fix</tspan>','bcl merged</tspan>','bcl install-local</tspan>'):
+        for term in ('Collect','Present','Plan &amp; fix','Review','Pre-push suite','under 15 verified','15+ verified','Report &amp; roll over','Merge previous PR','16+ verified for Merge previous PR','marker-end="url(#arrow)"','data-view="current"','data-view="after"','class="badge verdict"','keep','bcl plan</tspan>','bcl job --phase fix</tspan>','bcl review; bcl job','bcl merged</tspan>','bcl install-local</tspan>'):
             self.assertIn(term,chart)
 
     def test_evals_shape_and_router_paths_cover_three_scenarios(self):

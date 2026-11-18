@@ -16,7 +16,8 @@ description: Use when findings arrive one at a time, slow build-install-test fix
 |---|---|---|---|
 | Collect | New list or feedback | `references/collect.md` | `bcl start` |
 | Present | After collection | `references/present.md` | `bcl start` |
-| Plan & fix | After Present or gate loop-back | `references/plan-fix.md` | `bcl plan`, `bcl fix` |
+| Plan & fix | After Present or gate loop-back | `references/plan-fix.md` | `bcl plan`, `bcl job --phase fix` |
+| Review | After a group's fix | `references/review.md` | `bcl review; bcl job` |
 | Install | After group review | `references/install.md` | `bcl install`, `check_install_sessions.py` |
 | Verify | After its install | `references/verify.md` | `bcl verify` |
 | Introspect | After every round's Verify | `references/introspect.md` | `bcl introspect`, `check_introspect.py` |

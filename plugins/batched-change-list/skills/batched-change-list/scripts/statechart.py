@@ -75,7 +75,10 @@ def plain(value):
 
 
 def chart_svg(data, refs, verdicts, view):
-    positions = {"collect": (40, 210), "present": (280, 210), "plan_fix": (40, 410), "install": (280, 410), "verify": (520, 410), "introspect": (760, 410), "gate": (1000, 410), "report_rollover": (1290, 410), "merged": (1290, 590)}
+    positions = {step["id"]: (40 + index * 240, 210) for index, step in enumerate(data["entry"])}
+    positions.update({step["id"]: (40 + index * 240, 410) for index, step in enumerate(data["loop"])})
+    exit_x = 40 + len(data["loop"]) * 240
+    positions.update({step["id"]: (exit_x, 410 if index == 0 else 590) for index, step in enumerate(data["exit"])})
     boxes, parts = [], []
     def assert_fits(value, width, char_width=9):
         if len(value) * char_width > width:
@@ -109,11 +112,12 @@ def chart_svg(data, refs, verdicts, view):
     gx, gy = positions[gate["id"]]
     edge(f"M{gx+220} {gy+40} C{gx+270} 500 {gx+260} 580 {gx+235} 580 H150 V490", "gate", "plan_fix")
     report = next(row for row in data["exit"] if row["id"] == "report_rollover")
-    edge("M1110 410 V320 H1400 V410", "gate", "report_rollover")
+    rx, ry = positions[report["id"]]
+    edge(f"M{gx+220} {gy+40} V320 H{rx+110} V{ry}", "gate", "report_rollover")
     parts.append(f'<!-- {re.sub(r"[`*]", "", data["gate"]["loop_label"])} -->')
     parts.append(f'<!-- {re.sub(r"[`*]", "", data["gate"]["exit_label"])} · {re.sub(r"[`*]", "", data["gate"]["merge_label"])} -->')
-    label(data["gate"]["loop_label"].format(threshold=data["gate"]["default_threshold"]), 690, 605, 360)
-    label(data["gate"]["exit_label"].format(threshold=data["gate"]["default_threshold"]), 1255, 300, 180)
+    label(data["gate"]["loop_label"].format(threshold=data["gate"]["default_threshold"]), gx-310, 605, 360)
+    label(data["gate"]["exit_label"].format(threshold=data["gate"]["default_threshold"]), rx-35, 300, 180)
     merge_from = data["transitions"]["merged"][0]
     exit_steps = {row["id"]: row for row in data["exit"]}
     merge_source, merge_target = exit_steps[merge_from], exit_steps["merged"]
@@ -122,7 +126,7 @@ def chart_svg(data, refs, verdicts, view):
     for left, right in zip(data["exit"], data["exit"][1:]):
         if right["id"] == "merged": continue
         x, y = positions[left["id"]]; nx, ny = positions[right["id"]]; edge(f"M{x+110} {y+80} V{ny}")
-    label(data["gate"]["merge_label"].format(threshold=data["gate"]["merge_previous_pr_threshold"]), 1700, 540, 250)
+    label(data["gate"]["merge_label"].format(threshold=data["gate"]["merge_previous_pr_threshold"]), gx-250, 700, 250)
     nodes = data["entry"] + data["loop"] + data["exit"]
     for step in nodes:
         x, y = positions[step["id"]]
@@ -132,12 +136,15 @@ def chart_svg(data, refs, verdicts, view):
         parts.append(f'<g class="node selectable" role="button" tabindex="0" aria-label="{title}" id="{view}-{step["id"]}" data-id="{step["id"]}"><rect x="{x}" y="{y}" width="220" height="80" rx="12"/><text class="node-label" text-anchor="middle" x="{x+110}" y="{y+30}">{title}</text><text class="badge verdict" text-anchor="middle" x="{x+110}" y="{y+56}">{plain(verdicts.get(step["id"], "keep"))}</text></g>')
         if step["id"] == "merged":
             label("report-rollover.md", x+110, y+98, 220, klass="detail", owner=step["id"], target="report-rollover.md")
+        for index, activity in enumerate(step.get("activities", [])):
+            label(activity, x+110, y+98+index*32, 220, klass="detail", owner=step["id"], target=step["id"]+f"-activity-{index}")
         for ref in refs:
             if plain(ref.get("step", "")) == title:
+                activity_offset = 32 * len(step.get("activities", []))
                 if ref["path"]:
-                    label(ref["path"], x+110, y+98, 220, klass="detail", owner=step["id"], target=ref["path"])
+                    label(ref["path"], x+110, y+98+activity_offset, 220, klass="detail", owner=step["id"], target=ref["path"])
                 if ref.get("run"):
-                    label(ref["run"], x+110, y+140, 220, 36, klass="command", owner=step["id"], target=step["id"]+"-run")
+                    label(ref["run"], x+110, y+140+activity_offset, 220, 36, klass="command", owner=step["id"], target=step["id"]+"-run")
     for i, a in enumerate(boxes):
         for b in boxes[i+1:]:
             if a[0] < b[0]+b[2] and b[0] < a[0]+a[2] and a[1] < b[1]+b[3] and b[1] < a[1]+a[3]:

@@ -152,7 +152,7 @@ class RenderTests(unittest.TestCase):
                          'now':'2026-11-14T11:13:00Z — Build review'},
             'plan': {'round':1,'groups':[
                 {'id':'INSTALL','name':'Renderer','finding_ids':['ISSUE-01'],'status':'installing',
-                 'phase':'install','build':'BCL 0.1.18','codex':{'model':'gpt-6-luna','effort':'max','fast':True}},
+                 'phase':'install','install':{'started_at':'2026-11-14T11:01:00Z'},'build':'BCL 0.1.18','codex':{'model':'gpt-6-luna','effort':'max','fast':True}},
                 {'id':'VOICE','name':'Voice meter','finding_ids':['ISSUE-02'],'status':'blocked',
                  'phase':'verify','blocked_reason':'no mic · needs Guru'},
                 {'id':'CORE','name':'Core lease','finding_ids':['ISSUE-03'],'status':'parked','parked_to':2},
@@ -182,7 +182,7 @@ class RenderTests(unittest.TestCase):
     def test_compact_plan_labels_duration_status_details_and_fallbacks(self):
         data = copy.deepcopy(self.data)
         data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}, 'plan': {'round': 1, 'groups': [
-            {'id':'A','name':'Render label','finding_ids':['ISSUE-01'],'status':'done','codex':{'model':'gpt-6-luna','effort':'medium','service_tier':'priority','duration_s':300,'started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z'},'verify':{'status':'pending','method':'Run the focused test and inspect the live page carefully'}},
+            {'id':'A','name':'Render label','finding_ids':['ISSUE-01'],'status':'done','install':{'started_at':'2026-11-14T09:00:00Z'},'codex':{'model':'gpt-6-luna','effort':'medium','service_tier':'priority','duration_s':300,'started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z'},'verify':{'status':'pending','method':'Run the focused test and inspect the live page carefully'}},
             {'id':'B','finding_ids':['ISSUE-02'],'status':'done','verify':{'status':'done','method':'Verified on runtime'}},
             {'id':'C','finding_ids':['ISSUE-01'],'status':'verifying','verify':{'status':'running','method':'Verify running'}},
             {'id':'D','finding_ids':['ISSUE-02'],'status':'blocked','verify':{'status':'pending','failure':'Codex job failed tests did not pass','method':'Blocked'}}]}}
@@ -955,7 +955,7 @@ setImmediate(async()=>{
 
 
     def test_lane_phase_comes_from_status_and_large_chips_show_one_count(self):
-        group = {'id':'A','status':'installing','phase':'fix','finding_ids':['ISSUE-01']}
+        group = {'id':'A','status':'installing','phase':'fix','finding_ids':['ISSUE-01'],'install':{'started_at':'2026-11-14T09:00:00Z'}}
         self.assertEqual(renderer.plan_phase(group), 'install')
         track = renderer.row_phase_track(group, 'installing')
         self.assertIn('Phase 3 of 4: Install', track)
@@ -987,7 +987,7 @@ setImmediate(async()=>{
     def test_plan_rows_follow_lane_phase_and_legacy_status_aliases(self):
         data = copy.deepcopy(self.data)
         data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}, 'plan': {'round': 1, 'groups': [
-            {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'installing','phase':'install','verify':{'status':'pending','method':'Unit tests'}},
+            {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'installing','phase':'install','install':{'started_at':'2026-11-14T09:00:00Z'},'verify':{'status':'pending','method':'Unit tests'}},
             {'id':'B','name':'Still fixing','finding_ids':['ISSUE-02'],'status':'running','phase':'fix','codex':{'status':'running','model':'gpt-6-luna'}}]}}
         page = renderer.render(data, self.base)
         self.assertIn('class="grp installing"', page)
@@ -1009,10 +1009,10 @@ setImmediate(async()=>{
         page = renderer.render(data, self.base)
         self.assertIn('class="grp review"', page)
         self.assertIn('>In review</span>', page)
-        self.assertIn('Phase 2 of 4: Plan &amp; fix', page)
+        self.assertIn('Phase 2 of 4: Review', page)
         data['tracking']['workflow']['stage'] = 'install'
         data['tracking']['plan']['groups'] = [
-            {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'done','phase':'install','verify':{'status':'pending'}},
+            {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'done','phase':'install','install':{'started_at':'2026-11-14T09:00:00Z'},'verify':{'status':'pending'}},
             {'id':'C','name':'Later group','finding_ids':['ISSUE-02'],'status':'pending','verify':{'status':'partial','fixed':0,'failed':1,'total':3}},
         ]
         page = renderer.render(data, self.base)

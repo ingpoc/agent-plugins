@@ -1528,7 +1528,7 @@ def run(args, parser):
                                 raise ValueError('plan group changed; refusing group update')
                         group = next((g for g in plan.get("groups", []) if g.get("id") == operation.get("id")), None)
                         patch = operation.get("patch")
-                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at"}:
+                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at", "presuite"}:
                             raise ValueError("update-plan-group requires id and a valid group patch")
                         if any(key in patch and not isinstance(patch[key], str) for key in ("label", "verify_summary", "name", "worktree", "reason")):
                             raise ValueError("label, name, verify_summary, worktree and reason must be strings")
@@ -1542,8 +1542,10 @@ def run(args, parser):
                             raise ValueError("codex and verify patches must be objects")
                         if "verify" in patch and patch["verify"].get("summary") is not None and (not isinstance(patch["verify"]["summary"], str) or len(patch["verify"]["summary"].split()) > 10):
                             raise ValueError("verify.summary must be at most 10 words")
-                        activity_fields = ('status', 'phase', 'verify', 'blocked_reason')
+                        activity_fields = ('status', 'phase', 'verify', 'blocked_reason', 'codex')
                         before_activity = {key: copy.deepcopy(group.get(key)) for key in activity_fields}
+                        if operation.get("merge_codex") and "codex" in patch:
+                            patch["codex"] = {**group.get("codex", {}), **patch["codex"]}
                         group.update(patch)
                         if "status" in patch and "phase" not in patch and patch["status"] not in ("blocked", "failed"):
                             group.pop("phase", None)
@@ -1675,7 +1677,7 @@ def run(args, parser):
                     if not isinstance(activity, str) or not activity.strip() or "\n" in activity or "\r" in activity:
                         raise ValueError("set-activity now must be one nonempty line")
                     affected = [findings[find_index(findings, identifier)] for identifier in ids]
-                    if stage in ('plan_fix', 'install', 'verify'):
+                    if stage in ('plan_fix', 'review', 'install', 'verify'):
                         plan = tracking.get('plan', {})
                         groups = RENDERER.plan_groups_for_round(plan, RENDERER.rollover_round(tracking))
                         if not groups:
@@ -1707,6 +1709,12 @@ def run(args, parser):
                     if stage in ("plan_fix", "install", "verify") and (not ids or not any(item.get("status") == "in_progress" for item in findings)):
                         raise ValueError(f"set-activity for {stage} requires a nonempty ID list and an in_progress finding; log a finding and set it in progress first")
                     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                    if stage == 'install':
+                        for group in matched:
+                            if set(ids).intersection(group.get('finding_ids', [])):
+                                install = group.get('install') if isinstance(group.get('install'), dict) else {}
+                                group.update(status='installing', phase='install',
+                                             install={**install, 'status': 'running', 'started_at': timestamp})
                     if (stage == "plan_fix" and previous_stage in ("verify", "introspect", "gate")
                             and (introspect_covers_current_round(tracking)
                                  or not RENDERER.rollover_gate(findings, tracking)[2])):

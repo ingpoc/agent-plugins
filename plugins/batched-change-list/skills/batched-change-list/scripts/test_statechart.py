@@ -77,7 +77,7 @@ class StatechartTests(unittest.TestCase):
         views = re.findall(r'<section class="view (?:current|after)"[^>]*>(.*?)</section>', chart)
         self.assertEqual(len(views), 2)
         for view in views:
-            self.assertEqual(view.count('class="badge verdict"'), 9)
+            self.assertEqual(view.count('class="badge verdict"'), 10)
 
     def test_chart_reads_labels_from_definition(self):
         source = statechart.ROOT / 'scripts/workflow_definition.json'

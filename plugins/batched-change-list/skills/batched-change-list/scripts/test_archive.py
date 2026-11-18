@@ -263,9 +263,10 @@ class ArchiveTests(unittest.TestCase):
                     target.write_text("existing target")
                 result = self.batch([{"action": "rollover", "source_pr": 115, "worktree": "next-wt",
                                       "pull_request": {"label": "PR #116", "url": "https://example.test/pull/116"}}],
-                                    data=live, render=False)
+                                    data=live, render=False, force=rejection == "target")
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn("rollover gate not met" if rejection == "gate" else "new live list already exists", result.stderr)
+                expected = "rollover gate not met" if rejection == "gate" else "new live list already exists"
+                self.assertIn(expected, result.stderr)
                 self.assertEqual(live.read_bytes(), original)
                 self.assertEqual(archive_path.read_bytes(), archive_original)
                 self.assertEqual(archive_path.stat().st_mtime_ns, modified)
@@ -291,7 +292,7 @@ class ArchiveTests(unittest.TestCase):
                 with mock.patch.object(manage_findings.live_state, "STATE", self.state), \
                      mock.patch.object(manage_findings.live_state, "save_registry", side_effect=OSError("registration failed")):
                     with self.assertRaisesRegex(OSError, "registration failed"):
-                        manage_findings.rollover_live(live, operation)
+                        manage_findings.rollover_live(live, operation, force=True)
                 self.assertEqual(live.read_bytes(), original)
                 self.assertFalse((live.parent / "116.json").exists())
                 self.assertEqual((self.state / "registry.json").read_bytes(), registry_original)
@@ -452,7 +453,7 @@ sys.exit(manage_findings.main())
         self.assertEqual(result.returncode, 0, result.stderr)
         rollover = [{"action": "rollover", "source_pr": 115, "worktree": "next-wt",
                      "pull_request": {"label": "PR #116", "url": "https://example.test/repo/pull/116"}}]
-        result = self.batch(rollover, data=live, render=False)
+        result = self.batch(rollover, data=live, render=False, force=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         saved = json.loads((live.parent / "116.json").read_text())
         parked = json.loads((live.parent / "parked.json").read_text())

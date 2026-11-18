@@ -16,7 +16,7 @@ class WorkflowDefinitionTests(unittest.TestCase):
         self.assertEqual(re.findall(r'data-stage="([^"]+)"', page), [stage["id"] for stage in workflow.STAGES])
 
     def test_every_required_check_has_a_script_test_and_triggered_reference(self):
-        reference_for_check = {"install": "install.md", "introspect": "introspect.md", "gate": "gate.md", "merge_gate": "gate.md"}
+        reference_for_check = {"review": "review.md", "install": "install.md", "introspect": "introspect.md", "gate": "gate.md", "merge_gate": "gate.md"}
         for name, check in workflow.REQUIRED_CHECKS.items():
             with self.subTest(name=name):
                 self.assertTrue((SCRIPTS / check["file"]).is_file())
