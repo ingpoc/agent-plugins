@@ -77,19 +77,25 @@ def plain(value):
 def chart_svg(data, refs, verdicts, view):
     positions = {"collect": (40, 210), "present": (280, 210), "plan_fix": (40, 410), "install": (280, 410), "verify": (520, 410), "introspect": (760, 410), "gate": (1000, 410), "report_rollover": (1290, 410), "merged": (1290, 590)}
     boxes, parts = [], []
+    def assert_fits(value, width, char_width=9):
+        if len(value) * char_width > width:
+            raise ValueError(f"chart label overflows node: {value!r}")
     def label(value, x, y, width, height=28, klass="edge-label", owner=None, target=None):
         value = plain(value)
         lines = value.split(", ") if klass == "command" else [value]
-        width = max(width, max(len(html.unescape(line)) for line in lines) * 7.2)
+        if target:
+            for line in lines: assert_fits(line, width, 7.2 if klass == "command" else 9)
+        else:
+            width = max(width, max(len(html.unescape(line)) for line in lines) * 7.2)
         boxes.append((x-width/2, y-height/2, width, height, value))
         attrs = f'data-box="{x-width/2},{y-height/2},{width},{height}"'
         if target:
             parts.append(f'<g role="button" tabindex="0" class="selectable" data-id="{plain(target)}" data-owner="{plain(owner or "")}" aria-label="{value}"><rect class="hit" x="{x-width/2}" y="{y-height/2}" width="{width}" height="{height}"/>')
         if len(lines) > 1:
             content = "".join(f'<tspan x="{x}" dy="{14 if i else 0}">{line}</tspan>' for i, line in enumerate(lines))
-            parts.append(f'<text class="{klass}" {attrs} x="{x}" y="{y-2}">{content}</text>')
+            parts.append(f'<text class="{klass}" text-anchor="middle" {attrs} x="{x}" y="{y-2}">{content}</text>')
         else:
-            parts.append(f'<text class="{klass}" {attrs} x="{x}" y="{y+5}">{value}</text>')
+            parts.append(f'<text class="{klass}" text-anchor="middle" {attrs} x="{x}" y="{y+5}">{value}</text>')
         if target: parts.append("</g>")
     parts.append('<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#57616d"/></marker></defs>')
     def edge(path, source="", target=""): parts.append(f'<path class="edge" data-from="{source}" data-to="{target}" d="{path}" marker-end="url(#arrow)"/>')
@@ -122,6 +128,7 @@ def chart_svg(data, refs, verdicts, view):
         x, y = positions[step["id"]]
         boxes.append((x, y, 220, 80, step["label"]))
         title = plain(step["label"])
+        assert_fits(title, 220)
         parts.append(f'<g class="node selectable" role="button" tabindex="0" aria-label="{title}" id="{view}-{step["id"]}" data-id="{step["id"]}"><rect x="{x}" y="{y}" width="220" height="80" rx="12"/><text class="node-label" text-anchor="middle" x="{x+110}" y="{y+30}">{title}</text><text class="badge verdict" text-anchor="middle" x="{x+110}" y="{y+56}">{plain(verdicts.get(step["id"], "keep"))}</text></g>')
         if step["id"] == "merged":
             label("report-rollover.md", x+110, y+98, 220, klass="detail", owner=step["id"], target="report-rollover.md")

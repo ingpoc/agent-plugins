@@ -29,6 +29,16 @@ class StatechartTests(unittest.TestCase):
             for xx, yy, ww, hh in boxes[i+1:]:
                 self.assertFalse(x < xx+ww and xx < x+w and y < yy+hh and yy < y+h, ((x,y,w,h),(xx,yy,ww,hh)))
 
+    def test_chart_rejects_labels_wider_than_node(self):
+        data = statechart.definition()
+        refs = statechart.router(statechart.SKILL.read_text())
+        refs[0]['path'] = 'a' * 30 + '.md'
+        with self.assertRaisesRegex(ValueError, 'chart label overflows node'):
+            statechart.chart_svg(data, refs, {}, 'current')
+        data['entry'][0]['label'] = 'A' * 30
+        with self.assertRaisesRegex(ValueError, 'chart label overflows node'):
+            statechart.chart_svg(data, [], {}, 'current')
+
     def test_conditional_paths_connect_correct_nodes(self):
         svg = re.search(r'<svg class="chart".*?</svg>', statechart.render()).group()
         root = ET.fromstring(svg)
