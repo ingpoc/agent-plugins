@@ -7008,9 +7008,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-18T16:44:06Z",
-      "now": "2026-11-18T16:44:06Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-18T17:00:33Z",
+      "now": "2026-11-18T17:00:33Z — Review started"
     },
     "rollover": {
       "source_pr": 115,
@@ -7178,14 +7178,23 @@
             "BCL-69"
           ],
           "depends_on": [],
-          "status": "planned",
+          "status": "running",
           "phase": "fix",
           "worktree": "bcl116-r3-g1",
           "reason": "Both skills live in the computer-use plugin.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 71579,
+              "phase": "fix",
+              "started_at": "2026-11-18T16:58:49Z",
+              "command": "run-bench-g1.sh",
+              "heartbeat_at": "2026-11-18T16:59:49Z"
+            },
+            "fix_status": "passed",
+            "implementer_session": "01a1ef8b-7ba1-76b3-8d69-72dd344335cd"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.sh",
@@ -7195,7 +7204,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T16:44:06Z"
+          "updated_at": "2026-11-18T17:00:32Z"
         },
         {
           "id": "SR-COMET",
@@ -7204,14 +7213,23 @@
             "BCL-70"
           ],
           "depends_on": [],
-          "status": "planned",
+          "status": "running",
           "phase": "fix",
           "worktree": "bcl116-r3-g2",
           "reason": "One plugin.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 59449,
+              "phase": "fix",
+              "started_at": "2026-11-18T16:54:54Z",
+              "command": "run-bench-g2.sh",
+              "heartbeat_at": "2026-11-18T16:59:55Z"
+            },
+            "fix_status": "passed",
+            "implementer_session": "01a1ef8b-8a4d-72a0-bf3e-c740415ba7c5"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g2.sh",
@@ -7221,7 +7239,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T16:44:06Z"
+          "updated_at": "2026-11-18T17:00:32Z"
         },
         {
           "id": "SR-LEDGER-OBS",
@@ -7231,14 +7249,23 @@
             "BCL-72"
           ],
           "depends_on": [],
-          "status": "planned",
+          "status": "running",
           "phase": "fix",
           "worktree": "bcl116-r3-g3",
           "reason": "Two small plugins, same kind of edits.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 60353,
+              "phase": "fix",
+              "started_at": "2026-11-18T16:54:57Z",
+              "command": "run-bench-g3.sh",
+              "heartbeat_at": "2026-11-18T16:59:58Z"
+            },
+            "fix_status": "passed",
+            "implementer_session": "01a1ef8b-99da-7500-85df-73d8b58c4f17"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.sh",
@@ -7248,7 +7275,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T16:44:06Z"
+          "updated_at": "2026-11-18T17:00:32Z"
         },
         {
           "id": "BCL-FLOW",
@@ -7260,24 +7287,37 @@
             "BCL-74"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl116-r3-g4",
           "reason": "Same change list code: run closing, lane state, description, test lookup, row labels.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 31516,
+              "phase": "fix",
+              "started_at": "2026-11-18T16:44:29Z",
+              "command": "launch-g4.sh",
+              "heartbeat_at": "2026-11-18T16:58:31Z",
+              "exit_code": 0,
+              "duration_s": 842,
+              "finished_at": "2026-11-18T16:58:31Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed",
+            "implementer_session": "01a1ef8b-a97d-7d90-80d1-84933311de79"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4.sh",
             "method": "Strict shape check and plugin tests on the merged source after one shared check for this install; change list items on the installed copy plus the live page.",
-            "status": "partial",
+            "status": "pending",
             "total": 4,
             "fixed": 0,
-            "failed": 1
+            "failed": 0
           },
-          "updated_at": "2026-11-18T16:44:06Z"
+          "updated_at": "2026-11-18T17:00:33Z"
         }
       ]
     },
@@ -9397,7 +9437,7 @@
       "id": "BCL-66",
       "title": "Verification reasons show test function names and log paths instead of plain language",
       "source": "User reported",
-      "status": "failing",
+      "status": "in_progress",
       "priority": "high",
       "summary": "The Checked, Expected, Observed and Verdict lines on a verified issue list test function names, folders and log files, which tells the owner nothing about what now works.",
       "impact": "The owner cannot tell from the page what was fixed or how it was checked.",
@@ -9433,7 +9473,7 @@
       "done_when": "A run closes when every finding it started with is checked, later findings show Not checked and do not block it; a lane whose job died reads as interrupted and needing resume; tracker updates keep the lane stage; proven by named tests.",
       "observed": "18 Nov 2026: round-1 run bcl-0.1.42-7b59a1b6-116 could not complete after BCL-64/65 were added (complete-verification requires every current finding) and was archived as interrupted at 21:58 IST. After the 20:20 IST Mini restart the plan lanes kept job pids from dead processes and the 20:24 screenshot showed Stale with Updated 6:34 PM until bcl job resumes started. update-plan-group with a codex/status patch left phase empty, so bcl job --phase presuite refused until phase was set to review.",
       "recommendation": "Scope complete-verification to run.checks keys; detect dead job pids in bcl status and render; merge plan-group patches without dropping phase.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "BCL-68",
@@ -9445,7 +9485,7 @@
       "done_when": "The skill passes the strict shape check with the same behaviour, its plugin tests stay green, and the benchmark against the frozen baseline does not regress.",
       "observed": "skill_shape --strict on main d213b2ca: 20 FAIL, 23 WARN for plugins/agent-computer-use/skills/macos-cua (description 643 chars, SKILL.md body 6922 B > 3072, 11-row table, 6 references without triggers, no statechart.html, 9 swallowed errors in service/release/sign-notarize.sh, mediaremote-adapter-dev.sh without set -euo pipefail). Audit ~/.agents/artifacts/bcl-116/sr_audit.txt.",
       "recommendation": "skill-refine router: freeze, one batch, benchmark once; move branches to references with a When to load table.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "BCL-69",
@@ -9457,7 +9497,7 @@
       "done_when": "The skill passes the strict shape check with the same behaviour and its tests stay green.",
       "observed": "skill_shape --strict on main d213b2ca: 2 FAIL, 7 WARN for plugins/agent-computer-use/runtime/voice-cua/verify (description 242 chars, no trigger table).",
       "recommendation": "Shorten the description, add the trigger table, reasons and evals.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "BCL-70",
@@ -9469,7 +9509,7 @@
       "done_when": "The skill passes the strict shape check with the same behaviour, its plugin tests stay green, and the benchmark does not regress.",
       "observed": "skill_shape --strict on main d213b2ca: 4 FAIL, 12 WARN for plugins/comet-control/skills/comet-control (16-row table, body 4591 B, no trigger table, no statechart.html).",
       "recommendation": "skill-refine router as above.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "BCL-71",
@@ -9481,7 +9521,7 @@
       "done_when": "The skill passes the strict shape check with the same behaviour and its tests stay green, including a test for the helper finding its folder when installed.",
       "observed": "skill_shape --strict on main d213b2ca: 2 FAIL, 10 WARN for plugins/context-ledger/skills/context-ledger (body 5121 B, no trigger table, scripts/lookup.py parents[3]).",
       "recommendation": "skill-refine router; locate the root from the installed layout.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "BCL-72",
@@ -9493,7 +9533,7 @@
       "done_when": "The skill passes the strict shape check with the same behaviour and its tests stay green.",
       "observed": "skill_shape --strict on main d213b2ca: 2 FAIL, 5 WARN for plugins/developer-observability/skills/developer-observability (no trigger table, no statechart.html).",
       "recommendation": "skill-refine router as above.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "BCL-73",
@@ -9505,7 +9545,7 @@
       "done_when": "The description says only when to use the skill, within the limit, and the strict shape check passes.",
       "observed": "Reported by Efficient agent 18 Nov 2026 21:19 IST: batched-change-list SKILL.md description 205 chars > 200.",
       "recommendation": "Trim to when-to-use.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "BCL-74",
@@ -9517,7 +9557,7 @@
       "done_when": "The test finds the shape checker in its installed place, skips only when it is truly missing, and the repository check passes after a restart; proven by a named test.",
       "observed": "18 Nov 2026 21:48 IST presuite: scripts/check.py reported unallowed unittest skip test_skill.SkillLayoutTests.test_shape_tool_strict_passes_when_available: skill_shape.py unavailable (/tmp/sr-scripts wiped by the 20:20 restart). Restored /tmp/sr-scripts by copy to unblock round 2.",
       "recommendation": "Use ~/.agents/skills/skill-refine/scripts/skill_shape.py with an env override.",
-      "status": "untested"
+      "status": "in_progress"
     }
   ]
 }
