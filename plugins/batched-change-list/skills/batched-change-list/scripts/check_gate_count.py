@@ -17,6 +17,12 @@ def gate_count(data):
     return render.rollover_gate(data["findings"], tracking)
 
 
+def rollover_gate_count(data):
+    fixed, threshold, _ = gate_count(data)
+    threshold = max(threshold, render.WF.MERGE_PREVIOUS_PR_THRESHOLD)
+    return fixed, threshold, fixed >= threshold
+
+
 def merge_gate_count(data):
     if not isinstance(data, dict) or not isinstance(data.get("findings"), list):
         raise ValueError("tracker must contain a findings array")

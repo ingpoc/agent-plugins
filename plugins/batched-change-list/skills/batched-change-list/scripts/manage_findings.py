@@ -19,6 +19,7 @@ import tracker_lock
 import live_state
 import check_install_sessions
 import workflow_definition
+import check_gate_count
 
 RENDERER_PATH = Path(__file__).with_name("render.py")
 SPEC = importlib.util.spec_from_file_location("change_list_renderer", RENDERER_PATH)
@@ -811,12 +812,16 @@ def touch_workflow(document):
 
 
 def require_rollover_gate(findings, tracking, force, action):
-    fixed, threshold, met = workflow_definition.run_stage_check(
-        "report_rollover", {"findings": findings, "tracking": tracking})
+    data = {"findings": findings, "tracking": tracking}
+    fixed, threshold, met = (check_gate_count.rollover_gate_count(data) if action == "rollover"
+                             else workflow_definition.run_stage_check("report_rollover", data))
     if met:
         return
     if not force:
-        raise ValueError(f"report_rollover gate not met: {fixed} of {threshold} verified_fixed findings and open findings remain; pass --force to override")
+        reason = (f"rollover gate not met: {fixed} of {threshold} verified_fixed findings"
+                  if action == "rollover" else
+                  f"report gate not met: {fixed} of {threshold} verified_fixed findings and open findings remain")
+        raise ValueError(f"{reason}; pass --force to override")
     rollover = tracking.setdefault("rollover", {})
     if not isinstance(rollover, dict):
         raise ValueError("tracking.rollover must be an object")

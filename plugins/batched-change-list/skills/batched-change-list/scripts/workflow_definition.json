@@ -21,9 +21,9 @@
     "label": "Fixes {fixed}/{threshold} verified",
     "loop_label": "under {threshold} verified · back to Plan & fix",
     "mobile_loop_label": "under {threshold} verified · repeat",
-    "exit_label": "{threshold}+ verified",
+    "exit_label": "Report at {threshold}+ verified",
     "merge_label": "{threshold}+ verified for Merge previous PR",
-    "note": "{threshold}+ verified: report or roll over. Merge previous PR requires {merge_threshold}+ verified. No open findings also meets the report/rollover gate."
+    "note": "Report at {threshold}+ verified or when no counted findings remain open. Rollover requires at least {merge_threshold}+ verified and the rollover threshold. Merge previous PR requires {merge_threshold}+ verified. No-open exception applies only to report."
   },
   "suggested_verdicts": {},
   "lane_phase_rank": {"fix": 0, "review": 0, "install": 1, "verify": 2, "introspect": 3},
