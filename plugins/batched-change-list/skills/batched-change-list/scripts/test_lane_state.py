@@ -86,11 +86,11 @@ class LaneStateTests(unittest.TestCase):
                     [self.lane()], "fix", ["ISSUE-01"], ["python3", "check.py"])
         process.terminate.assert_not_called()
 
-    def test_page_not_stale_while_lane_job_alive(self):
+    def test_page_stale_when_live_lane_heartbeat_is_overdue(self):
         data = self.stale_data(12345)
         with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=True):
             page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
-        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale', page)
 
     def test_page_stale_when_job_dead_and_no_update(self):
         data = self.stale_data(12345)

@@ -293,6 +293,27 @@ class ServerTests(unittest.TestCase):
                     server.shutdown()
                     thread.join()
 
+    def test_served_page_uses_version_from_viewer_record(self):
+        example = Path(__file__).parents[1] / 'examples/findings.json'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            page, data, metadata = root / 'report.html', root / 'findings.json', root / 'viewer.json'
+            page.write_text('fallback')
+            data.write_text(example.read_text())
+            metadata.write_text(json.dumps({'path':str(data),'version':'0.1.22','started':'today','instance':'test'}))
+            with patch.object(server_module.RENDERER, 'discover_installed_plugins', return_value={'versions':{},'sources':{}}):
+                with HTTPServer(('127.0.0.1', 0), server_module.handler_for(page, data, viewer_metadata=metadata)) as server:
+                    thread = threading.Thread(target=server.serve_forever, daemon=True)
+                    thread.start()
+                    try:
+                        with urlopen(f'http://127.0.0.1:{server.server_port}/') as response:
+                            body = response.read().decode()
+                        self.assertIn('viewer 0.1.22', body)
+                        self.assertNotIn('Viewer version not recorded', body)
+                    finally:
+                        server.shutdown()
+                        thread.join()
+
 
 if __name__ == '__main__':
     unittest.main()

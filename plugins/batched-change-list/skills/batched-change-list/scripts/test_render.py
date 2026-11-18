@@ -103,7 +103,7 @@ class RenderTests(unittest.TestCase):
         self.assertIn('stroke-width="3"', gate_node)
 
 
-    def test_fresh_rollover_collect_leaves_loop_steps_empty_and_can_go_stale(self):
+    def test_idle_collect_never_shows_stale(self):
         data = copy.deepcopy(self.data)
         data['tracking'] = {
             'round': 1,
@@ -116,10 +116,37 @@ class RenderTests(unittest.TestCase):
             self.assertIn(f'class="wf-step upcoming"><span class="wf-dot"><i></i></span><span class="wf-label">{label}</span>', band)
         self.assertNotIn('class="wf-step done">', band)
         self.assertIn('data-stage="collect" class="wf-step current" aria-current="step"', page)
+        self.assertIn('data-stale-active="false"', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
+
+    def test_running_lane_with_overdue_heartbeat_shows_stale(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T11:00:00Z'},
+            'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'running','phase':'fix',
+                'updated_at':'2026-11-14T11:00:00Z','codex':{'status':'running','model':'gpt-6-luna',
+                'job':{'pid':99999,'heartbeat_at':'2026-11-14T11:00:00Z'}}}]}}
+        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+        self.assertIn('data-stale-active="true"', page)
         self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale</span>', page)
-        self.assertNotIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
-        fresh = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:05:00Z'))
-        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', fresh)
+
+    def test_recently_updated_completed_lane_never_shows_stale(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'collect','updated_at':'2026-11-14T11:00:00Z'},
+            'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'verified',
+                'updated_at':'2026-11-14T11:10:00Z','codex':{'job':{'pid':99999,'exit_code':0}}}]}}
+        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+        self.assertIn('data-stale-active="false"', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
+
+    def test_overdue_active_lane_is_not_hidden_by_healthy_lane(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T11:09:00Z'},
+            'plan': {'round':1,'groups':[
+                {'id':'A','finding_ids':['ISSUE-01'],'status':'running','updated_at':'2026-11-14T11:00:00Z'},
+                {'id':'B','finding_ids':['ISSUE-02'],'status':'running','updated_at':'2026-11-14T11:10:00Z'}]}}
+        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale</span>', page)
+        self.assertIn('data-stale-since="2026-11-14T11:00:00+00:00"', page)
 
     def test_merged_page_shows_commit_and_ist_time(self):
 
@@ -178,7 +205,7 @@ class RenderTests(unittest.TestCase):
         self.assertIn('4:30 PM IST', page)
         self.assertIn('13 min ago', page)
         self.assertIn('class="tag-stale"', page)
-        self.assertIn('data-active-lanes="true"', page)
+        self.assertIn('data-stale-active="true"', page)
         self.assertIn('2 lanes · each installs and verifies when ready', page)
         self.assertIn('<b>1</b> installing', page)
         self.assertIn('<b>1</b> blocked', page)
@@ -665,15 +692,61 @@ setImmediate(async()=>{
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name)
 
-    def test_archive_and_parked_summaries_render_with_paths_and_needs(self):
+    def test_header_has_no_file_paths_and_counts_in_words(self):
         self.data["tracking"] = {
             "archive": {"count": 84, "path": "/tmp/list/archive.json"},
             "parked": {"count": 4, "path": "/tmp/list/parked.json",
                        "needs": ["real microphone", "device access"]},
         }
         page = renderer.render(self.data, self.base)
-        self.assertIn("84 archived findings in /tmp/list/archive.json", page)
-        self.assertIn("4 parked findings in /tmp/list/parked.json; needs: real microphone, device access", page)
+        self.assertIn("84 archived", page)
+        self.assertIn("4 parked (need real microphone or device access)", page)
+        self.assertNotIn("archive.json", page)
+        self.assertNotIn("parked.json", page)
+
+    def test_header_shows_viewer_version_from_record(self):
+        page = renderer.render(self.data, self.base, viewer={'path':'/tmp/viewer','version':'0.1.22','started':'today'})
+        self.assertIn('viewer 0.1.22', page)
+        self.assertNotIn('Viewer version not recorded', page)
+
+    def test_empty_parked_needs_render_without_crashing(self):
+        self.data['tracking'] = {'parked': {'count':5,'path':'/tmp/parked.json','needs':[]}}
+        page = renderer.render(self.data, self.base)
+        self.assertIn('5 parked</span>', page)
+
+    def test_long_parked_needs_are_summarized(self):
+        need = 'A working microphone connected through USB with macOS microphone permission and the correct input device selected'
+        self.data['tracking'] = {'parked': {'count':1,'path':'/tmp/parked.json','needs':[need]}}
+        page = renderer.render(self.data, self.base)
+        self.assertIn('A working microphone connected through USB with macOS…', page)
+        self.assertNotIn('correct input device selected', page)
+
+    @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
+    def test_carried_finding_displays_not_checked_instead_of_old_blocked_check(self):
+        data = copy.deepcopy(self.data)
+        finding = data['findings'][0]
+        finding['carried_from'] = 1
+        data['tracking'] = {'verification_history':[{'id':'old-list','build':'BCL 0.1.20','checks':{
+            finding['id']:{'state':'blocked','evidence':'Checked: voice input; Expected: available; Observed: no microphone',
+                           'finished_at':'2026-11-14T10:00:00Z'}}}]}
+        page = renderer.render(data, self.base)
+        payload = page.split('<script type="application/json" id="findings-data">',1)[1].split('</script>',1)[0]
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        show = template.split('function show(){',1)[1].split('\nsearch.addEventListener',1)[0]
+        program = r"""
+class Element { constructor(tag,text='',cls=''){this.tag=tag;this.text=text;this.cls=cls;this.children=[];this.dataset={}} append(...children){this.children.push(...children)} setAttribute(){} removeAttribute(){} }
+const node=(tag,text,cls)=>new Element(tag,text,cls);
+const findings=JSON.parse(PAYLOAD),labels={failing:'Failing',in_progress:'In progress',untested:'Untested'},location={hash:'#ISSUE-01'},run=null;
+const nav={querySelectorAll:()=>[]},panel={replaceChildren(value){this.article=value}},document={createTextNode:text=>text};
+function show(){
+""" + show + r"""
+show();
+const text=JSON.stringify(panel.article);
+if(!text.includes('Not checked this list')||!text.includes('No verification result recorded.'))process.exit(1);
+if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
+"""
+        program = program.replace('PAYLOAD', json.dumps(payload))
+        subprocess.run(['node','-e',program],check=True)
 
     def test_installed_inventory_is_distinct_from_run_build(self):
         self.data['tracking'] = {'verification_run': {'id':'run1','build':'ACU 1','revision':'abc',

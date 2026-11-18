@@ -380,8 +380,7 @@ sys.exit(manage_findings.main())
         self.assertEqual((parked[0]["id"], parked[0]["status"], parked[0]["needs"],
                           parked[0]["parked_from_pr"]), ("MIC", "blocked", "real microphone", 115))
         self.assertTrue(parked[0]["parked_at"])
-        self.assertIn("1 parked findings in", self.page.read_text())
-        self.assertIn("needs: real microphone", self.page.read_text())
+        self.assertIn("1 parked (need real microphone)", self.page.read_text())
 
     def test_park_rejects_non_blocked_findings(self):
         document = {"title": "Park", "findings": [self.finding("OPEN-01")],

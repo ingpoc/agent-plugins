@@ -6,7 +6,7 @@ import html
 import json
 import mimetypes
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote, urlsplit
 from zoneinfo import ZoneInfo
@@ -249,20 +249,11 @@ def plan_phase(group):
     return "fix"
 
 
-def lane_job_active(group, now, stale_after):
+def lane_job_running(group):
     codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
     job = codex.get("job") if isinstance(codex.get("job"), dict) else group.get("job")
-    if not isinstance(job, dict):
-        job = {}
-    pid = job.get("pid")
-    if "exit_code" not in job and type(pid) is int and pid > 0 and live_state._pid_is_running(pid):
-        return True
-    cutoff = now.timestamp() - stale_after * 60 if now else None
-    for value in (job.get("heartbeat_at"), group.get("updated_at")):
-        stamp = parse_instant(value)
-        if cutoff is not None and stamp and stamp.timestamp() >= cutoff:
-            return True
-    return False
+    pid = job.get("pid") if isinstance(job, dict) else None
+    return isinstance(job, dict) and "exit_code" not in job and type(pid) is int and pid > 0 and live_state._pid_is_running(pid)
 
 
 def short_words(value, limit=10):
@@ -715,8 +706,7 @@ def render_tracking(tracking, inventory_override=None):
                 or archive["count"] < 0):
             raise ValueError("tracking.archive requires a nonnegative count")
         if archive["count"]:
-            path = html.escape(required_text(archive.get("path"), "tracking.archive.path"))
-            context.append(f'<span>{archive["count"]} archived findings in {path}</span>')
+            context.append(f'<span>{archive["count"]} archived</span>')
     parked = tracking.get("parked")
     if parked is not None:
         if (not isinstance(parked, dict) or type(parked.get("count")) is not int
@@ -724,9 +714,12 @@ def render_tracking(tracking, inventory_override=None):
                 or any(not isinstance(value, str) or not value.strip() for value in parked["needs"])):
             raise ValueError("tracking.parked requires a nonnegative count and needs array")
         if parked["count"]:
-            path = html.escape(required_text(parked.get("path"), "tracking.parked.path"))
-            needs = html.escape(", ".join(dict.fromkeys(parked["needs"])))
-            context.append(f'<span>{parked["count"]} parked findings in {path}; needs: {needs}</span>')
+            needs = list(dict.fromkeys(short_words(value, 8) + ("…" if len(value.split()) > 8 else "") for value in parked["needs"]))
+            if needs:
+                need_text = needs[0] if len(needs) == 1 else f'{", ".join(needs[:-1])} or {needs[-1]}'
+                context.append(f'<span>{parked["count"]} parked (need {html.escape(need_text)})</span>')
+            else:
+                context.append(f'<span>{parked["count"]} parked</span>')
     run = tracking.get("verification_run")
     build_card = ""
     if run is not None:
@@ -816,7 +809,6 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     plan = tracking_data.get("plan")
     round_number = rollover_round(tracking_data)
     groups = plan_groups_for_round(plan, round_number)
-    active_lanes = any(plan_status(group) in STALE_LANE_STATUSES for group in groups)
     ist = ZoneInfo("Asia/Kolkata")
     merged = tracking_data.get("merged") if active == "merged" else None
     merge_commit = ""
@@ -840,6 +832,22 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     reference = now or (parse_instant(match.group()) if match else None)
     if reference is not None and reference.tzinfo is None:
         raise ValueError("now must include a timezone")
+    active_stage = active in ("install", "verify", "install_verify")
+    stale_active = active_stage
+    stale_times = [reported] if active_stage and reported else []
+    for group in groups:
+        if plan_status(group) not in STALE_LANE_STATUSES and not lane_job_running(group):
+            continue
+        stale_active = True
+        codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+        job = codex.get("job") if isinstance(codex.get("job"), dict) else group.get("job", {})
+        if not isinstance(job, dict):
+            job = {}
+        stamps = [parse_instant(value) for value in (job.get("heartbeat_at"), group.get("updated_at"))]
+        latest_lane_update = max((stamp for stamp in stamps if stamp), default=reported)
+        if latest_lane_update:
+            stale_times.append(latest_lane_update)
+    stale_since = min(stale_times) if stale_times else reported
     relative = ""
     if reported and reference:
         seconds = max(0, int((reference - reported).total_seconds()))
@@ -848,7 +856,8 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     time_format = "%-I:%M:%S %p IST" if merged else "%-I:%M %p IST"
     time_html = (f'<time datetime="{html.escape(reported.isoformat(), quote=True)}" '
                  f'data-page-updated="{html.escape(reported.isoformat(), quote=True)}" '
-                 f'data-stale-after-min="{stale_after}" data-active-lanes="{str(active_lanes).lower()}">'
+                 f'data-stale-after-min="{stale_after}" data-stale-active="{str(stale_active).lower()}" '
+                 f'data-stale-since="{html.escape(stale_since.isoformat(), quote=True) if stale_since else ""}">'
                  f'{html.escape(reported.astimezone(ist).strftime(time_format))}</time>') if reported else ''
     tracking, build_card = render_tracking(tracking_data, inventory_override)
     run = tracking_data.get("verification_run")
@@ -937,7 +946,10 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
         if not isinstance(records, list) or any(not isinstance(r, dict) or set(r) not in (legacy, structured, identified) or
                 any(not isinstance(r[k], str) or not r[k].strip() for k in r) for r in records):
             raise ValueError(f"{item['id']}.verification_evidence has invalid records")
-        item["version_timeline"] = version_evidence(item, [*tracking_data.get("verification_history", []), *([run] if run else [])])
+        if carried_from is not None:
+            item["version_timeline"] = version_evidence({**item, "verification_evidence": []}, [run] if run else [])
+        else:
+            item["version_timeline"] = version_evidence(item, [*tracking_data.get("verification_history", []), *([run] if run else [])])
         item.pop("verification_evidence", None)
         if item["status"] == "verified_fixed":
             item["details"] = {**details, "Verification references": "\n".join(item["verification_refs"])}
@@ -973,8 +985,8 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     render_now = reference or reported
     lanes = lane_status_by_finding(data, groups, round_number)
     in_progress = sum(item.get("status") == "in_progress" for item in findings)
-    lane_active = any(lane_job_active(group, reference, stale_after) for group in groups)
-    stale = bool(reported and reference and (reference - reported).total_seconds() > stale_after * 60 and not lane_active)
+    stale = bool(stale_active and reference and any(
+        reference - stamp > timedelta(minutes=stale_after) for stamp in stale_times))
     stale_tag = f'<span class="tag-stale" title="No update for over {stale_after} minutes"{"" if stale else " hidden"}>Stale</span>'
     relative_html = f'<span data-relative-time>{html.escape(relative)}</span>'
     merge_html = f'<span class="merge-meta" title="Merge commit"><span>Merge</span> <code>{html.escape(merge_commit)}</code></span>' if merge_commit else ""

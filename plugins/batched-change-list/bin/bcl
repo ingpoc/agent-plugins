@@ -121,13 +121,18 @@ def _job_operations(groups, phase, job, status=None, review_status=None):
                            "merge_codex": True, "patch": {**({"status": status, "phase": lane_phase} if status else {}), "codex": codex, **({"presuite": {"status": job["finished_phase_status"], "exit_code": job["exit_code"], "finished_at": job["finished_at"]}} if phase == "presuite" and "exit_code" in job else {})}})
     return operations
 
-def _run_job(record, live, report, base, groups, phase, ids, command_args):
+def _run_job(record, live, report, base, groups, phase, ids, command_args, result_file=None):
     if not command_args:
         raise ValueError("job requires a command after --")
     first = ([{"action": "set-activity", "stage": "plan_fix", "ids": ids, "now": "Fix job started"}]
              if phase == "fix" else [])
     status = "running" if phase == "fix" else "review"
     started_at = _utc_now()
+    result_path = Path(result_file) if phase == "review" and result_file else None
+    try:
+        previous_result = result_path.stat() if result_path else None
+    except OSError:
+        previous_result = None
     if first:
         _job_write_retry(record, live, report, base, first)
     process = subprocess.Popen(command_args)
@@ -152,10 +157,22 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args):
     finished_at = _utc_now()
     duration = max(0, int((datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
                            - datetime.fromisoformat(started_at.replace("Z", "+00:00"))).total_seconds()))
+    verdict = None
+    if phase == "review" and code == 0 and result_path:
+        try:
+            current_result = result_path.stat()
+            if previous_result is None or (current_result.st_ino, current_result.st_size, current_result.st_mtime_ns) != (previous_result.st_ino, previous_result.st_size, previous_result.st_mtime_ns):
+                first_verdict = next((line.partition(":")[2].strip() for line in result_path.read_text().splitlines()
+                                      if line.startswith("VERDICT:")), "")
+                verdict = re.match(r"^(PASS|CHANGES)\b", first_verdict)
+                verdict = verdict.group(1) if verdict else None
+        except (OSError, UnicodeError):
+            pass
+    passed = code == 0 and (phase != "review" or verdict == "PASS")
     job.update(exit_code=code, duration_s=duration, finished_at=finished_at,
-               finished_phase_status="passed" if code == 0 else "failed", heartbeat_at=finished_at)
-    final_status = "review" if code == 0 else "failed"
-    review_status = ("passed" if code == 0 else "failed") if phase == "review" else None
+               finished_phase_status="passed" if passed else "failed", heartbeat_at=finished_at)
+    final_status = "review" if passed else "failed"
+    review_status = ("passed" if passed else "failed") if phase == "review" else None
     try:
         _job_write_retry(record, live, report, base, _job_operations(groups, phase, job, final_status, review_status))
     except Exception as error:
@@ -404,7 +421,8 @@ def main():
         report, base = live_state.report_paths(record, live)
         report.write_text(render.render(json.loads(live.read_text()), base))
     drafting_introspect = args.stage == "introspect" and args.draft is not None
-    if record and not record.get("rollover_pending") and args.stage != "status" and not drafting_introspect:
+    if (record and record.get("home") and not record.get("rollover_pending")
+            and args.stage not in ("stop-viewer", "merged") and not drafting_introspect):
         _ensure_viewer(parser, key, record, live, plugin_version, args.stage)
     if args.stage == "adopt":
         if not record: parser.error("could not register tracker")
@@ -460,7 +478,7 @@ def main():
                 parser.error(str(error))
         report, base = live_state.report_paths(record, live)
         try:
-            code = _run_job(record, live, report, base, groups, args.phase, args.ids, command_args)
+            code = _run_job(record, live, report, base, groups, args.phase, args.ids, command_args, args.result)
         except (OSError, RuntimeError, ValueError) as error:
             parser.error(str(error))
         raise SystemExit(code)
@@ -538,9 +556,16 @@ def main():
         result = subprocess.run(command, input=json.dumps([operation]), text=True, capture_output=True)
         if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
         live_state.snapshot(record, live)
+        try: live_state.stop_viewer(key, record)
+        except (OSError, RuntimeError, ValueError) as error: parser.error(str(error))
         if stacked["status"] != "complete":
             print(f"TODO: {stacked['todo']}", file=sys.stderr)
         print(f"Marked {tracking.get('pull_request', {}).get('label', 'pull request')} Merged / Done ({commit[:12]} at {merged_at})")
+        return
+    if args.stage == "stop-viewer":
+        try: stopped = live_state.stop_viewer(key, record)
+        except (OSError, RuntimeError, ValueError) as error: parser.error(str(error))
+        print(json.dumps({"stopped": stopped}))
         return
     stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     stage = args.stage

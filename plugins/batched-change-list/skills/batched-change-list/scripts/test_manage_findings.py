@@ -402,6 +402,25 @@ class ManageFindingsTests(unittest.TestCase):
                     self.assertIn("cap a parallel fix group", result.stderr)
                     self.assertEqual(self.data.read_bytes(), before)
 
+    def test_blocked_outcome_requires_external_blocker(self):
+        ops, page = self.root / 'ops.json', self.root / 'page.html'
+        def apply(*rows):
+            ops.write_text(json.dumps(rows))
+            return self.cli('batch', self.data, ops, '--render', page)
+        run = {'id':'install-1','build':'ACU','revision':'abc','installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt'}
+        self.assertEqual(apply({'action':'start-verification','run':run}).returncode, 0)
+        self.assertEqual(apply({'action':'start-check','id':'ISSUE-01','run_id':'install-1',
+                                'observation':'current visible state','observed_at':'2026-11-06T00:01:00Z'}).returncode, 0)
+        finish = {'action':'finish-check','id':'ISSUE-01','run_id':'install-1','outcome':'blocked',
+                  'evidence':'Checked: current behavior; Expected: available; Observed: waiting for vendor'}
+        rejected = apply(finish)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn('named external blocker field', rejected.stderr)
+        accepted = apply({**finish, 'blocker':'Vendor service access'})
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        check = json.loads(self.data.read_text())['tracking']['verification_run']['checks']['ISSUE-01']
+        self.assertEqual(check['blocker'], 'Vendor service access')
+
     def test_recheck_preserves_previous_result_and_other_checks(self):
         ops, page = self.root / 'ops.json', self.root / 'page.html'
         def apply(*rows):
@@ -998,7 +1017,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertNotEqual(batch([{'action':'start-check','id':'ISSUE-02','run_id':'wrong','observation':'wrong-run state','observed_at':'2026-11-06T00:01:00Z'}]).returncode, 0)
         self.assertEqual(self.data.read_bytes(), before)
         self.assertEqual(batch([{'action':'start-check','id':'ISSUE-02','run_id':'install-1','observation':'first issue 2 state','observed_at':'2026-11-06T00:01:00Z'}]).returncode, 0)
-        self.assertEqual(batch([{'action':'finish-check','id':'ISSUE-02','run_id':'install-1','outcome':'blocked','evidence':'Checked: issue behavior; Expected: device available; Observed: no device'}]).returncode, 0)
+        self.assertEqual(batch([{'action':'finish-check','id':'ISSUE-02','run_id':'install-1','outcome':'blocked','blocker':'Device access','evidence':'Checked: issue behavior; Expected: device available; Observed: no device'}]).returncode, 0)
         self.assertEqual(json.loads(self.data.read_text())['findings'][1]['status'], 'verified_fixed')
         self.assertNotEqual(batch([{'action':'complete-verification','run_id':'install-1'}]).returncode, 0)
         self.assertEqual(batch([{'action':'start-check','id':'ISSUE-01','run_id':'install-1','observation':'first issue 1 state','observed_at':'2026-11-06T00:01:00Z'}]).returncode, 0)

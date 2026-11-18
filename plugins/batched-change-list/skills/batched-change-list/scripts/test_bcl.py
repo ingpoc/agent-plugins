@@ -32,19 +32,8 @@ try:
 finally:
     sys.path.remove(str(bcl_entrypoint.SCRIPTS))
 
-CLEANED_VIEWER_PIDS = set()
-TEMP_TEST_ROOTS = set()
-
-def viewer_pids_under(roots):
-    return viewer_test_guard.viewer_pids_under(roots)
-
 def tearDownModule():
-    pids = viewer_pids_under(TEMP_TEST_ROOTS)
-    viewer_test_guard.stop_viewers(TEMP_TEST_ROOTS, pids)
-    CLEANED_VIEWER_PIDS.update(pids)
-    leaked = [pid for pid in CLEANED_VIEWER_PIDS if live_state._pid_is_running(pid)]
-    if leaked:
-        raise AssertionError(f"viewer processes survived suite cleanup: {leaked}")
+    viewer_test_guard.assert_no_viewers(viewer_test_guard.TEMP_ROOTS)
 
 class BclTests(unittest.TestCase):
     def test_plugin_root_stays_inside_plugin_or_installed(self):
@@ -66,7 +55,6 @@ class BclTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name); self.state = self.root / "state"
-        TEMP_TEST_ROOTS.add(self.root.resolve())
         self.addCleanup(self.cleanup_viewers)
         self.bin = self.root / "bin"; self.bin.mkdir()
         self.command_log = self.root / "commands.jsonl"
@@ -100,9 +88,8 @@ elif args[:2] != ['pr', 'edit']:
         self.call("adopt", self.data)
 
     def cleanup_viewers(self):
-        owned = viewer_pids_under([self.root])
+        owned = viewer_test_guard.viewer_pids_under([self.root])
         viewer_test_guard.stop_viewers(self.root, owned)
-        CLEANED_VIEWER_PIDS.update(owned)
 
     def test_suite_leaves_no_viewer_processes(self):
         result = self.call("start")
@@ -112,7 +99,6 @@ elif args[:2] != ['pr', 'edit']:
         pid = next(int(value["pid"]) for value in viewers if value.get("pid"))
         self.cleanup_viewers()
         self.assertFalse(live_state._pid_is_running(pid))
-        self.assertTrue(all(not live_state._pid_is_running(pid) for pid in CLEANED_VIEWER_PIDS))
 
     @staticmethod
     def merge_ready(document):
@@ -465,9 +451,12 @@ elif args[:2] != ['pr', 'edit']:
             "status": "planned", "codex": {"implementer_session": "writer", "review_status": "pending"}}]}))
         prepared = self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01")
         self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        review_result = self.root / "review-result.txt"
         def job(phase):
+            command = [sys.executable, "-c", f"from pathlib import Path; Path({str(review_result)!r}).write_text('VERDICT: PASS\\n')"] if phase == "review" else [sys.executable, "-c", "pass"]
             return subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
-                "--phase", phase, "job", "--", sys.executable, "-c", "pass"],
+                *( ["--result", str(review_result)] if phase == "review" else []),
+                "--phase", phase, "job", "--", *command],
                 env=self.env, capture_output=True, text=True)
         self.assertEqual(job("fix").returncode, 0)
         self.assertEqual(job("presuite").returncode, 0)
@@ -479,6 +468,58 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(group["codex"]["fix_status"], "passed")
         self.assertEqual(group["codex"]["review_status"], "passed")
         self.assertNotIn("reviewer_session", group["codex"])
+
+    def _review_job_verdict(self, verdict, writes=True):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        plan = self.root / "review-verdict-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned",
+            "codex": {"implementer_session": "writer", "reviewer_session": "reviewer"}}]}))
+        self.assertEqual(self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        def run(phase):
+            return subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
+                "--phase", phase, "job", "--", sys.executable, "-c", "pass"], env=self.env, capture_output=True, text=True)
+        self.assertEqual(run("fix").returncode, 0)
+        self.assertEqual(run("presuite").returncode, 0)
+        reviewed = self.call_without_viewer("review", "--ids", "ISSUE-01")
+        self.assertEqual(reviewed.returncode, 0, reviewed.stderr)
+        result = self.root / "review.txt"
+        if not writes:
+            result.write_text("VERDICT: PASS\nstale note\n")
+            writer = "pass"
+        elif isinstance(verdict, bytes):
+            writer = f"from pathlib import Path; Path({str(result)!r}).write_bytes(bytes.fromhex({verdict.hex()!r}))"
+        else:
+            contents = (verdict + "\n" if verdict else "") + "review note\n"
+            writer = f"from pathlib import Path; Path({str(result)!r}).write_text({contents!r})"
+        job = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
+            "--result", str(result), "--phase", "review", "job", "--", sys.executable, "-c", writer],
+            env=self.env, capture_output=True, text=True)
+        self.assertEqual(job.returncode, 0, job.stderr)
+        group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["codex"]["review_status"], "passed" if writes and verdict == "VERDICT: PASS" else "failed")
+        if writes and not isinstance(verdict, bytes):
+            self.assertIn("review note", result.read_text())
+
+    def test_review_job_with_changes_verdict_records_failed(self):
+        self._review_job_verdict("VERDICT: CHANGES")
+
+    def test_review_job_with_pass_verdict_records_passed(self):
+        self._review_job_verdict("VERDICT: PASS")
+
+    def test_review_job_without_verdict_records_failed(self):
+        self._review_job_verdict(None)
+
+    def test_review_job_first_conflicting_verdict_records_failed(self):
+        self._review_job_verdict("VERDICT: CHANGES\nVERDICT: PASS")
+
+    def test_review_job_first_invalid_verdict_records_failed(self):
+        self._review_job_verdict("VERDICT: MAYBE\nVERDICT: PASS")
+
+    def test_review_job_with_stale_pass_records_failed(self):
+        self._review_job_verdict("VERDICT: PASS", writes=False)
+
+    def test_review_job_with_invalid_encoding_records_failed(self):
+        self._review_job_verdict(b"\xff")
 
     def test_workflow_cycle_uses_live_tracker_and_snapshots_each_stage(self):
         result = self.call_without_viewer("start")
@@ -499,12 +540,15 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(result.returncode, 0, result.stderr)
         review_result = self.call_without_viewer("review", "--ids", "ISSUE-01")
         self.assertEqual(review_result.returncode, 0, review_result.stderr)
+        verdict_file = self.root / "workflow-review-result.txt"
+        review_command = [sys.executable, "-c", f"from pathlib import Path; Path({str(verdict_file)!r}).write_text('VERDICT: PASS\\n')"]
         result = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
-                                 "--phase", "review", "job", "--", *job], env=self.env, capture_output=True, text=True)
+                                 "--result", str(verdict_file), "--phase", "review", "job", "--", *review_command], env=self.env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         result = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01", "--phase", "presuite", "job", "--", *job], env=self.env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.call_without_viewer("install", "--ids", "ISSUE-01").returncode, 0)
+        installed = self.call_without_viewer("install", "--ids", "ISSUE-01")
+        self.assertEqual(installed.returncode, 0, installed.stderr)
         self.assertEqual(self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command).returncode, 0)
         result = self.call_without_viewer("introspect", "--draft", sectionfile)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -1069,6 +1113,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(self.call("merge").returncode, 0)
 
     def test_rollover_preserves_old_list_and_defers_new_viewer_until_collect(self):
+        self.git(self.home, "worktree", "add", "-qb", "feature-124", str(self.root / "feature-124"))
         old_live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
         doc = json.loads(old_live.read_text())
         doc["findings"][0]["status"] = "in_progress"
@@ -1100,11 +1145,28 @@ elif args[:2] != ['pr', 'edit']:
         new_viewer = json.loads(self.viewer_state_path(new_live).read_text())
         self.assertEqual(Path(new_viewer["data"]).resolve(), new_live.resolve())
         self.assertEqual(json.loads(self.viewer_state_path(old_live).read_text()), old_viewer)
-        new_html = (self.home / registry["example/project/124"]["html"]).read_text()
+        new_html = (Path(registry["example/project/124"]["home"]) / registry["example/project/124"]["html"]).read_text()
         self.assertNotIn("Working on it", new_html)
         self.assertNotIn('class="workflow-now"', new_html)
         self.assertTrue("ISSUE-01" in new_html)
         self.assertEqual(self.page.read_bytes(), old_page)
+
+    def test_rollover_sets_new_home_from_worktree(self):
+        self.git(self.home, "worktree", "add", "-qb", "feature-124", str(self.root / "feature-124"))
+        result = self.call("rollover", "--new-pr", "124", "--worktree", "feature-124", "--force")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        record = json.loads((self.state / "registry.json").read_text())["example/project/124"]
+        self.assertEqual(Path(record["home"]).resolve(), (self.home.parent / "feature-124").resolve())
+
+    def test_rollover_clears_old_plan_lanes(self):
+        self.git(self.home, "worktree", "add", "-qb", "feature-124", str(self.root / "feature-124"))
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        doc = json.loads(live.read_text()); doc["tracking"]["plan"] = {"round": 3, "cycle": 1, "groups": [{"id": "old-lane"}]}
+        live.write_text(json.dumps(doc)); self.data.write_text(json.dumps(doc))
+        result = self.call("rollover", "--new-pr", "124", "--worktree", "feature-124", "--force")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        new_live = Path(json.loads((self.state / "registry.json").read_text())["example/project/124"]["live"])
+        self.assertNotIn("plan", json.loads(new_live.read_text())["tracking"])
 
     def test_merged_records_terminal_state_and_retargets_stacked_prs(self):
         sha = "a" * 40; merged_at = "2026-11-14T12:00:00Z"
@@ -1130,6 +1192,73 @@ elif args[:2] != ['pr', 'edit']:
         self.assertTrue(any(row[:3] == ["pr", "edit", "456"] and "--base" in row and "main" in row for row in calls))
         self.assertTrue(any(row[:3] == ["pr", "view", "https://github.com/example/project/pull/123"] for row in calls))
         self.assertTrue(any(row[:3] == ["pr", "list", "--repo"] and "--limit" in row and "1000" in row for row in calls))
+
+    def test_merged_stops_its_viewer_by_recorded_pid(self):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        doc = self.merge_ready(json.loads(live.read_text()))
+        doc["tracking"]["workflow"] = {"stage": "report_rollover", "updated_at": "2026-11-14T11:00:00Z"}
+        live.write_text(json.dumps(doc)); self.data.write_text(json.dumps(doc))
+        key, record = "example/project/123", json.loads((self.state / "registry.json").read_text())["example/project/123"]
+        record["home"] = str(self.second)
+        records = json.loads((self.state / "registry.json").read_text()); records[key] = record
+        (self.state / "registry.json").write_text(json.dumps(records))
+        path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        path.write_text(json.dumps({"pid": 87654, "data": str(live.resolve()), "report": str(self.page.resolve())}))
+        with patch.object(live_state, "_pid_is_running", return_value=True), \
+             patch.object(live_state, "_viewer_process", return_value=True) as verify_process, \
+             patch.object(live_state, "_wait_for_pid", return_value=True), \
+             patch.object(live_state.os, "kill") as signal_process:
+            result = self.call_without_viewer("merged")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        signal_process.assert_called_once_with(87654, 15)
+        verify_process.assert_called_once_with(87654, str(self.page.resolve()))
+        self.assertFalse(path.exists())
+        self.assertTrue((self.state / "viewers" / "other-list.json").exists())
+
+    def test_merged_leaves_other_list_viewers_running(self):
+        other = self.state / "viewers" / "other-list.json"
+        before = other.read_bytes()
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        doc = self.merge_ready(json.loads(live.read_text()))
+        doc["tracking"]["workflow"] = {"stage": "report_rollover", "updated_at": "2026-11-14T11:00:00Z"}
+        live.write_text(json.dumps(doc)); self.data.write_text(json.dumps(doc))
+        result = self.call_without_viewer("merged")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(other.read_bytes(), before)
+
+    def test_stop_viewer_ignores_pid_serving_another_list(self):
+        key, record = "example/project/123", json.loads((self.state / "registry.json").read_text())["example/project/123"]
+        path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        path.write_text(json.dumps({"pid": 87655, "data": record["live"], "report": str(self.page.resolve())}))
+        with patch.object(live_state, "_pid_is_running", return_value=True), \
+             patch.object(live_state, "_viewer_process", return_value=False), \
+             patch.object(live_state.os, "kill") as signal_process:
+            result = self.call_without_viewer("stop-viewer")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("cannot verify viewer PID", result.stderr)
+        signal_process.assert_not_called()
+        self.assertTrue(path.exists())
+
+    def test_viewer_process_matches_real_arguments_with_spaces(self):
+        with tempfile.TemporaryDirectory() as directory:
+            reports = Path(directory) / "reports with spaces"
+            reports.mkdir()
+            report = reports / "list page.html"
+            other = reports / "other page.html"
+            report.write_text("<html></html>")
+            other.write_text("<html></html>")
+            proc = subprocess.Popen([sys.executable, str(live_state.SCRIPTS / "serve.py"), str(report), "--port", "0"],
+                                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            try:
+                deadline = time.monotonic() + 3
+                while time.monotonic() < deadline and not live_state._viewer_process(proc.pid, report):
+                    time.sleep(0.05)
+                self.assertTrue(live_state._viewer_process(proc.pid, report))
+                self.assertFalse(live_state._viewer_process(proc.pid, other))
+            finally:
+                proc.terminate()
+                proc.wait(timeout=5)
+                proc.wait(timeout=5)
 
     def test_merged_keeps_terminal_data_and_emits_todo_when_retarget_api_fails(self):
         doc = json.loads(self.data.read_text())
@@ -1215,7 +1344,28 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(self.call("merge").returncode, 0)
         self.assertNotEqual(json.loads(path.read_text())["pid"], old_pid)
 
+    def test_viewer_restarts_when_report_path_moves(self):
+        self.assertEqual(self.call("start").returncode, 0)
+        path = self.viewer_state_path()
+        before = json.loads(path.read_text())
+        records_path = self.state / "registry.json"
+        records = json.loads(records_path.read_text())
+        record = records["example/project/123"]
+        new_home = self.second
+        (new_home / Path(record["html"]).parent).mkdir(parents=True, exist_ok=True)
+        (new_home / Path(record["snapshot"]).parent).mkdir(parents=True, exist_ok=True)
+        shutil.copy2(self.page, new_home / record["html"])
+        shutil.copy2(self.data, new_home / record["snapshot"])
+        record["home"] = str(new_home)
+        records_path.write_text(json.dumps(records))
+        result = self.call("status")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        after = json.loads(path.read_text())
+        self.assertNotEqual(after["pid"], before["pid"])
+        self.assertEqual(Path(after["report"]).resolve(), (new_home / record["html"]).resolve())
+
     def test_collect_start_uses_default_port_when_free(self):
+        self.git(self.home, "worktree", "add", "-qb", "feature-124", str(self.root / "feature-124"))
         self.call("rollover", "--new-pr", "124", "--worktree", "feature-124", "--force")
         records = json.loads((self.state / "registry.json").read_text())
         new_record = records["example/project/124"]
@@ -1376,7 +1526,7 @@ elif args[:2] != ['pr', 'edit']:
         request.assert_called_once_with(f"http://127.0.0.1:{state['port']}/__bcl_health", timeout=0.5)
         self.assertEqual(path.read_bytes(), unchanged)
 
-    def test_status_reads_tracker_without_touching_legacy_viewer(self):
+    def test_status_reconciles_legacy_viewer(self):
         state = self.viewer_state_path()
         before = json.loads(state.read_text())
         before.pop('instance')
@@ -1384,6 +1534,8 @@ elif args[:2] != ['pr', 'edit']:
         result = self.call('status')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(json.loads(result.stdout)['adopted'])
-        self.assertEqual(json.loads(state.read_text()), before)
+        after = json.loads(state.read_text())
+        self.assertNotEqual(after['pid'], before['pid'])
+        self.assertTrue(after.get('instance'))
 
 if __name__ == "__main__": unittest.main()

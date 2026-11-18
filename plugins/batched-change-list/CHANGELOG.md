@@ -1,3 +1,13 @@
+## 0.1.42
+
+- bcl job --phase review --result FILE records passed only for a fresh first VERDICT: PASS line; CHANGES, a missing, stale or unreadable verdict records failed (BCL-57).
+- Viewer leak guard runs per test module, so a leaking file fails alone and under scripts/check.py (BCL-58).
+- Rollover sets the new list home from --worktree and clears the old plan; bcl status restarts a viewer whose report path moved (BCL-59).
+- Stale shows only for overdue active lanes, never while idle (BCL-60).
+- The header summarizes archived and parked items in words and shows the viewer version from its record (BCL-61).
+- Carried findings show Not checked on a new list; a blocked check must name its external blocker (BCL-62).
+- bcl merged stops that list viewer by its verified recorded pid; bcl stop-viewer does the same for one list (BCL-63).
+
 ## 0.1.41
 
 - Viewer-identity tests stop every viewer they start, and a suite-wide guard fails the run when any test leaves a viewer under its temp root (BCL-53, BCL-56).

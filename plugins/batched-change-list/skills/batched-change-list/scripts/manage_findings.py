@@ -554,11 +554,14 @@ def verification_action(document, findings, operation):
         raise ValueError("finish-check requires an outcome and evidence or reason")
     validate_verification_reason(evidence)
     evidence, _ = validate_new_observation(evidence, operation, run, check.get("observed_at"), "finish-check evidence", check)
+    if outcome == "blocked" and (not isinstance(operation.get("blocker"), str) or not operation["blocker"].strip()):
+        raise ValueError("blocked requires a named external blocker field")
     if outcome == "fixed" and (item.get("status") != "verified_fixed" or not item.get("verification_refs")):
         raise ValueError("fixed requires verified_fixed status and verification references")
     if outcome == "not_fixed":
         item["status"] = "failing"
     checks[item["id"]] = {**check, "state":outcome, "check_id":uuid.uuid4().hex, "evidence":evidence,
+                           **({"blocker":operation["blocker"].strip()} if outcome == "blocked" else {}),
                            "finished_at":datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")}
 
 
@@ -1060,6 +1063,7 @@ def prepare_rollover(document, operation, force=False):
     tracking.setdefault("round_history", []).append({"round": round_number, "fixed": len(fixed), "ended_at": timestamp})
     tracking["round"] = 1
     tracking["cycle"] = RENDERER.rollover_cycle(tracking) + 1
+    tracking.pop("plan", None)
     tracking["workflow"] = {"stage":"collect", "updated_at":timestamp}
     run = tracking.pop("verification_run", None)
     if isinstance(run, dict):
@@ -1114,7 +1118,7 @@ def rollover_live(path, operation, force=False):
     if archive_changed:
         atomic_write(archive_file, archive_original, archive_content, tracker=False)
     try:
-        return live_state.register_rollover(record, live, document)[2]
+        return live_state.register_rollover(record, live, document, document["tracking"]["worktree"])[2]
     except BaseException as error:
         if archive_changed:
             try:

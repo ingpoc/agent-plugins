@@ -1,6 +1,6 @@
 # Review
 
-Review each lane after its fix finishes. The main agent owns the issue list, plan, integration, report, and final evidence review; it does not write fix code. Run the Terra work-done review as a separate reviewer session using the coding CLI selected by `codex-cli`. Record `group.codex.implementer_session` and `group.codex.reviewer_session`; after approval, `bcl job --phase review -- COMMAND` records the reviewer process and sets `group.codex.review_status` to `passed` on success. `bcl review --ids ID` starts the stage and refuses until the lane's fix job exits successfully. A one-file lane records `skipped_one_file` through `bcl review` and needs no reviewer session.
+Review each lane after its fix finishes. The main agent owns the issue list, plan, integration, report, and final evidence review; it does not write fix code. Run the Terra work-done review as a separate reviewer session using the coding CLI selected by `codex-cli`. Record `group.codex.implementer_session` and `group.codex.reviewer_session`; run `bcl job --phase review --result FILE -- COMMAND` to inspect the first `VERDICT:` line: only `VERDICT: PASS` passes, while `CHANGES` or a missing verdict fails and preserves the reviewer note. `bcl review --ids ID` starts the stage and refuses until the lane's fix job exits successfully. A one-file lane records `skipped_one_file` through `bcl review` and needs no reviewer session.
 
 The review transition checks those session records in `check_install_sessions.py`.
 

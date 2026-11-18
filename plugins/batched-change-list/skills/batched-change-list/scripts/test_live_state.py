@@ -19,6 +19,10 @@ import render
 import viewer_test_guard
 
 
+def tearDownModule():
+    viewer_test_guard.assert_no_viewers(viewer_test_guard.TEMP_ROOTS)
+
+
 class ViewerLivenessTests(unittest.TestCase):
     def _viewer_fixture(self, root):
         state, live, home = root / 'state', root / 'live.json', root / 'home'
