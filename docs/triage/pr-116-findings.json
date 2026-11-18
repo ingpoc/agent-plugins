@@ -7008,9 +7008,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-18T17:09:37Z",
-      "now": "2026-11-18T17:09:37Z — Fix job started"
+      "stage": "install",
+      "updated_at": "2026-11-18T19:19:23Z",
+      "now": "2026-11-18T19:19:23Z — Install in progress"
     },
     "rollover": {
       "source_pr": 115,
@@ -7178,8 +7178,8 @@
             "BCL-69"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl116-r3-g1",
           "reason": "Both skills live in the computer-use plugin.",
           "codex": {
@@ -7187,19 +7187,21 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 94848,
-              "phase": "review",
-              "started_at": "2026-11-18T17:07:35Z",
-              "command": "launch-review-g1.sh",
-              "heartbeat_at": "2026-11-18T17:09:05Z",
+              "pid": 22219,
+              "phase": "presuite",
+              "started_at": "2026-11-18T19:14:47Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T19:18:55Z",
               "exit_code": 0,
-              "duration_s": 90,
-              "finished_at": "2026-11-18T17:09:05Z",
-              "finished_phase_status": "failed"
+              "duration_s": 248,
+              "finished_at": "2026-11-18T19:18:55Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1ef8b-7ba1-76b3-8d69-72dd344335cd",
-            "review_status": "failed"
+            "review_status": "passed",
+            "reviewer_session": "01a1efa0-d0d2-7db1-a665-15502c379715",
+            "review_note": "The reviewer asked for 4 changes: a lost ledger procedure, the verify description triggers, the test-run safeguards and behaviour tests for the release script. Luna restored all of them in the same session and both suites passed."
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.sh",
@@ -7209,7 +7211,16 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T17:09:05Z"
+          "updated_at": "2026-11-18T19:18:55Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T19:18:55Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T19:19:23Z"
+          }
         },
         {
           "id": "SR-COMET",
@@ -7218,8 +7229,8 @@
             "BCL-70"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl116-r3-g2",
           "reason": "One plugin.",
           "codex": {
@@ -7227,19 +7238,21 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 95996,
-              "phase": "review",
-              "started_at": "2026-11-18T17:07:38Z",
-              "command": "launch-review-g2.sh",
-              "heartbeat_at": "2026-11-18T17:08:46Z",
+              "pid": 22219,
+              "phase": "presuite",
+              "started_at": "2026-11-18T19:14:47Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T19:18:55Z",
               "exit_code": 0,
-              "duration_s": 68,
-              "finished_at": "2026-11-18T17:08:46Z",
-              "finished_phase_status": "failed"
+              "duration_s": 248,
+              "finished_at": "2026-11-18T19:18:55Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1ef8b-8a4d-72a0-bf3e-c740415ba7c5",
-            "review_status": "failed"
+            "review_status": "passed",
+            "reviewer_session": "01a1efa0-db53-73f0-bd3a-36ba04a1d5ab",
+            "review_note": "The reviewer asked for 3 changes: a version bump, the runtime folder guidance and the two-observe limit. Luna restored them in the same session; 289 tests passed and every old rule was checked against the new layout."
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g2.sh",
@@ -7249,7 +7262,16 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T17:08:46Z"
+          "updated_at": "2026-11-18T19:18:55Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T19:18:55Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T19:19:23Z"
+          }
         },
         {
           "id": "SR-LEDGER-OBS",
@@ -7259,8 +7281,8 @@
             "BCL-72"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "fix",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl116-r3-g3",
           "reason": "Two small plugins, same kind of edits.",
           "codex": {
@@ -7268,15 +7290,21 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 93883,
-              "phase": "fix",
-              "started_at": "2026-11-18T17:07:32Z",
-              "command": "run-fu-g3.sh",
-              "heartbeat_at": "2026-11-18T17:09:33Z"
+              "pid": 22219,
+              "phase": "presuite",
+              "started_at": "2026-11-18T19:14:47Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T19:18:55Z",
+              "exit_code": 0,
+              "duration_s": 248,
+              "finished_at": "2026-11-18T19:18:55Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1ef8b-99da-7500-85df-73d8b58c4f17",
-            "review_status": "failed"
+            "review_status": "passed",
+            "reviewer_session": "01a1ef9c-8400-7fa0-ba7e-4c495014e03b",
+            "review_note": "The reviewer asked for 4 changes: the install-root lookup, a test for both layouts, broken moved links and version bumps. Luna fixed all in the same session and both suites passed."
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.sh",
@@ -7286,7 +7314,16 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T17:09:33Z"
+          "updated_at": "2026-11-18T19:18:55Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T19:18:55Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T19:19:23Z"
+          }
         },
         {
           "id": "BCL-FLOW",
@@ -7298,8 +7335,8 @@
             "BCL-74"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl116-r3-g4",
           "reason": "Same change list code: run closing, lane state, description, test lookup, row labels.",
           "codex": {
@@ -7307,19 +7344,21 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 82121,
-              "phase": "fix",
-              "started_at": "2026-11-18T17:02:51Z",
-              "command": "run-fu-g4.sh",
-              "heartbeat_at": "2026-11-18T17:07:20Z",
+              "pid": 22219,
+              "phase": "presuite",
+              "started_at": "2026-11-18T19:14:47Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T19:18:55Z",
               "exit_code": 0,
-              "duration_s": 269,
-              "finished_at": "2026-11-18T17:07:20Z",
+              "duration_s": 248,
+              "finished_at": "2026-11-18T19:18:55Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1ef8b-a97d-7d90-80d1-84933311de79",
-            "review_status": "failed"
+            "review_status": "passed",
+            "reviewer_session": "01a1ef9a-608f-7901-bd5e-55f4710d990b",
+            "review_note": "The reviewer asked for 3 changes: interrupted review and presuite jobs, a finished run reopening when a finding is added, and a test that reads the visible row label. Luna fixed all in the same session; 374 tests passed."
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4.sh",
@@ -7329,7 +7368,16 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T17:07:20Z"
+          "updated_at": "2026-11-18T19:18:55Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T19:18:55Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T19:19:23Z"
+          }
         }
       ]
     },
@@ -8901,7 +8949,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "verification_run": {
       "id": "bcl-0.1.43-70503ee4-116",
