@@ -6863,9 +6863,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-18T15:14:21Z",
-      "now": "2026-11-18T15:14:21Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-18T15:21:08Z",
+      "now": "2026-11-18T15:21:08Z — Fix job started"
     },
     "rollover": {
       "source_pr": 115,
@@ -7027,7 +7027,7 @@
             "BCL-64"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl116-r2-g1",
           "reason": "scripts/check.py output and the load-dependent test in test_bcl.py.",
@@ -7036,18 +7036,19 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 6349,
-              "phase": "fix",
-              "started_at": "2026-11-18T14:54:28Z",
-              "command": "resume-g1.sh",
-              "heartbeat_at": "2026-11-18T15:04:20Z",
+              "pid": 91493,
+              "phase": "review",
+              "started_at": "2026-11-18T15:14:22Z",
+              "command": "launch-review-g1.sh",
+              "heartbeat_at": "2026-11-18T15:15:16Z",
               "exit_code": 0,
-              "duration_s": 592,
-              "finished_at": "2026-11-18T15:04:20Z",
-              "finished_phase_status": "passed"
+              "duration_s": 54,
+              "finished_at": "2026-11-18T15:15:16Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
-            "implementer_session": "01a1eebf-5e63-7bd0-b3ff-5e5e3c2cd5fb"
+            "implementer_session": "01a1eebf-5e63-7bd0-b3ff-5e5e3c2cd5fb",
+            "review_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g1.sh",
@@ -7057,7 +7058,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T15:14:21Z"
+          "updated_at": "2026-11-18T15:15:16Z"
         },
         {
           "id": "VERIFY-ONCE",
@@ -7075,18 +7076,19 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 7211,
-              "phase": "fix",
-              "started_at": "2026-11-18T14:54:31Z",
-              "command": "resume-g2.sh",
-              "heartbeat_at": "2026-11-18T15:03:34Z",
+              "pid": 92521,
+              "phase": "review",
+              "started_at": "2026-11-18T15:14:26Z",
+              "command": "launch-review-g2.sh",
+              "heartbeat_at": "2026-11-18T15:15:18Z",
               "exit_code": 0,
-              "duration_s": 543,
-              "finished_at": "2026-11-18T15:03:34Z",
+              "duration_s": 52,
+              "finished_at": "2026-11-18T15:15:18Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
-            "implementer_session": "01a1eebf-6637-7673-959d-1d87762164c8"
+            "implementer_session": "01a1eebf-6637-7673-959d-1d87762164c8",
+            "review_status": "passed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g2.sh",
@@ -7096,7 +7098,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T15:14:20Z"
+          "updated_at": "2026-11-18T15:15:18Z"
         },
         {
           "id": "PLAIN-REASONS",
