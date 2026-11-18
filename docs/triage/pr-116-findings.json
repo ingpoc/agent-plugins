@@ -7176,9 +7176,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-18T19:24:49Z",
-      "now": "2026-11-18T19:24:49Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-18T19:30:14Z",
+      "now": "2026-11-18T19:30:14Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 115,
@@ -7346,8 +7346,8 @@
             "BCL-69"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl116-r3-g1",
           "reason": "Both skills live in the computer-use plugin.",
           "codex": {
@@ -7374,12 +7374,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.sh",
             "method": "Strict shape check and plugin tests on the merged source after one shared check for this install; change list items on the installed copy plus the live page.",
-            "status": "pending",
+            "status": "verified",
             "total": 2,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 2,
+            "failed": 0,
+            "summary": "Computer-use skills pass strict shape, behaviour kept",
+            "failure": null
           },
-          "updated_at": "2026-11-18T19:18:55Z",
+          "updated_at": "2026-11-18T19:29:01Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -7388,7 +7390,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-18T19:19:23Z"
-          }
+          },
+          "verify_summary": "Computer-use skills pass strict shape, behaviour kept"
         },
         {
           "id": "SR-COMET",
@@ -7397,8 +7400,8 @@
             "BCL-70"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl116-r3-g2",
           "reason": "One plugin.",
           "codex": {
@@ -7425,12 +7428,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g2.sh",
             "method": "Strict shape check and plugin tests on the merged source after one shared check for this install; change list items on the installed copy plus the live page.",
-            "status": "pending",
+            "status": "verified",
             "total": 1,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 1,
+            "failed": 0,
+            "summary": "Comet skill passes strict shape, rules kept",
+            "failure": null
           },
-          "updated_at": "2026-11-18T19:18:55Z",
+          "updated_at": "2026-11-18T19:29:01Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -7439,7 +7444,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-18T19:19:23Z"
-          }
+          },
+          "verify_summary": "Comet skill passes strict shape, rules kept"
         },
         {
           "id": "SR-LEDGER-OBS",
@@ -7449,8 +7455,8 @@
             "BCL-72"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl116-r3-g3",
           "reason": "Two small plugins, same kind of edits.",
           "codex": {
@@ -7477,12 +7483,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.sh",
             "method": "Strict shape check and plugin tests on the merged source after one shared check for this install; change list items on the installed copy plus the live page.",
-            "status": "pending",
+            "status": "verified",
             "total": 2,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 2,
+            "failed": 0,
+            "summary": "Ledger and observability skills pass strict shape",
+            "failure": null
           },
-          "updated_at": "2026-11-18T19:18:55Z",
+          "updated_at": "2026-11-18T19:29:02Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -7491,7 +7499,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-18T19:19:23Z"
-          }
+          },
+          "verify_summary": "Ledger and observability skills pass strict shape"
         },
         {
           "id": "BCL-FLOW",
@@ -7503,8 +7512,8 @@
             "BCL-74"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "failed",
+          "phase": "verify",
           "worktree": "bcl116-r3-g4",
           "reason": "Same change list code: run closing, lane state, description, test lookup, row labels.",
           "codex": {
@@ -7534,9 +7543,10 @@
             "status": "pending",
             "total": 4,
             "fixed": 0,
-            "failed": 0
+            "failed": 0,
+            "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-18T19:18:55Z",
+          "updated_at": "2026-11-18T19:24:56Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -7547,7 +7557,8 @@
             "started_at": "2026-11-18T19:19:23Z"
           }
         }
-      ]
+      ],
+      "status": "closed"
     },
     "introspect_history": [
       {
@@ -9099,6 +9110,92 @@
         },
         "round": 2,
         "cycle": 8
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-18T19:30:14Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: SR-ACU",
+          "Codex review: SR-ACU",
+          "Polling and rework review: SR-ACU",
+          "Test command: SR-ACU: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.sh",
+          "Codex write: SR-COMET",
+          "Codex review: SR-COMET",
+          "Polling and rework review: SR-COMET",
+          "Test command: SR-COMET: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g2.sh",
+          "Codex write: SR-LEDGER-OBS",
+          "Codex review: SR-LEDGER-OBS",
+          "Polling and rework review: SR-LEDGER-OBS",
+          "Test command: SR-LEDGER-OBS: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.sh",
+          "Codex write: BCL-FLOW",
+          "Codex review: BCL-FLOW",
+          "Polling and rework review: BCL-FLOW",
+          "Test command: BCL-FLOW: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4.sh"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Polling and rework review: SR-ACU",
+          "Test command: SR-ACU: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.sh",
+          "Codex write: SR-COMET",
+          "Codex review: SR-COMET",
+          "Test command: SR-COMET: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g2.sh",
+          "Codex write: SR-LEDGER-OBS",
+          "Codex review: SR-LEDGER-OBS",
+          "Polling and rework review: SR-LEDGER-OBS",
+          "Test command: SR-LEDGER-OBS: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.sh",
+          "Codex write: BCL-FLOW",
+          "Codex review: BCL-FLOW",
+          "Polling and rework review: BCL-FLOW"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Polling and rework review: SR-COMET",
+                "evidence": "The first briefs asked each skill lane to freeze a benchmark before editing, but the benchmark tool records both the old and new copies when it freezes, so all three skill lanes came back without a benchmark and each needed an extra resume. The brief now freezes once after the batch against an untouched copy of main, and the pre-edit freeze step is gone.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Codex write: SR-ACU",
+                "evidence": "Two follow-ups came back saying the lane was read-only and changed nothing, because the coding agent treats unprefixed follow-ups as scan work. Follow-up briefs now start by saying it is a write lane; the next follow-ups changed files first time.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Test command: BCL-FLOW: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4.sh",
+                "evidence": "All 12 named checks passed on the installed copy, but my page-reading script looked for the old row in the wrong card and failed the lane, which forced this Introspect before the lane could rerun. The script now anchors on the card's own history entry and finds the row reading Not checked.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Codex review: SR-ACU",
+                "evidence": "The reviewer caught dropped rules in all three skill lanes, and the first pre-push run failed on version files the lanes forgot, then the push hook failed on a quoting warning in a file a lane touched. The lane brief now asks for an old-versus-new rule comparison, the package check and the push hook on changed files before reporting, which replaces two extra full pre-push runs.",
+                "outcome": "fixed inline"
+              }
+            ]
+          }
+        },
+        "round": 3,
+        "cycle": 8
       }
     ],
     "archive": {
@@ -9119,7 +9216,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "verification_run": {
       "id": "bcl-0.1.44-6d62c6dc-116",
@@ -9163,19 +9261,59 @@
           "state": "pending"
         },
         "BCL-68": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-18T19:28:48Z",
+          "started_at": "2026-11-18T19:28:48Z",
+          "updated_at": "2026-11-18T19:28:48Z",
+          "check_id": "cc4e1cefd87c4e87b633a09fae8d2a9e",
+          "evidence": "Checked: Whether the macOS computer-use skill passes the strict skill shape check with its procedures kept; Expected: No failures in the strict check, every old rule still reachable, and the plugin tests pass; Observed: The skill now passes the strict check with no failures or warnings, down from 20 failures. Every old procedure is still reachable from the new short router, the release script stops with a clear message on each failure, and all 526 plugin tests passed on a clean copy of the pull request.",
+          "details": "skill_shape --strict PASS on clean clone 3b11316c; agent-computer-use package validation and test jobs passed; named tests: test_sign_notarize_reports_metadata_command_failure, test_sign_notarize_reports_entitlements_command_failure, test_sign_notarize_reports_missing_notary_response_id, test_hard_reset_targets_only_the_exact_driver_process, test_installed_package_root_comes_from_plugin_manifest, test_mediaremote_dev_wrapper_returns_the_adapter_exit_status. Benchmark: e2e median 180 to 114 ms, common path 11989 to 6941 bytes (bench-macos-cua/compare.json). Plugin 0.2.151. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.log. Run bcl-0.1.44-6d62c6dc-116.",
+          "finished_at": "2026-11-18T19:29:01.510375Z"
         },
         "BCL-69": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-18T19:28:48Z",
+          "started_at": "2026-11-18T19:28:48Z",
+          "updated_at": "2026-11-18T19:28:48Z",
+          "check_id": "843c6505692c4aa9a5f58131df0e28c3",
+          "evidence": "Checked: Whether the voice computer-use verify skill passes the strict skill shape check with its safeguards kept; Expected: No failures in the strict check and the test-run safeguards still present; Observed: The verify skill now passes the strict check with no failures or warnings, down from 2 failures. It still triggers for general Samantha testing and failure investigations, and the test-run safeguards are kept in a routed reference. The voice tests passed.",
+          "details": "skill_shape --strict PASS on clean clone 3b11316c; voice tests 562 passed, 1 skipped in lane; benchmark e2e 57.6 to 57.8 ms, common path 11099 to 9791 bytes (bench-verify-samantha/compare.json, INCOMPLETE: no decisive speed gain). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.log. Run bcl-0.1.44-6d62c6dc-116.",
+          "finished_at": "2026-11-18T19:29:01.510731Z"
         },
         "BCL-70": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-18T19:28:49Z",
+          "started_at": "2026-11-18T19:28:49Z",
+          "updated_at": "2026-11-18T19:28:49Z",
+          "check_id": "9857e5c308c84a8e81bb1486586633ba",
+          "evidence": "Checked: Whether the Comet control skill passes the strict skill shape check with its rules kept; Expected: No failures in the strict check, the start-up guidance and observe limit kept, and the plugin tests pass; Observed: The skill now passes the strict check with no failures, down from 4. One warning remains that the checker gets wrong. The start-up folder guidance and the two-observe limit are back, all old rules were compared one by one, and the plugin tests passed on a clean copy.",
+          "details": "skill_shape --strict PASS on clean clone 3b11316c (1 WARN: Current-view badge, false positive, statechart_html.py omits it by design); comet-control 289 tests; plugin 0.1.25 with .grok-plugin aligned; benchmark e2e 94.7 to 108.1 ms (+14%, within 20% tolerance), common path 18213 to 15606 bytes (bench-comet-control/compare.json, INCOMPLETE). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g2.log. Run bcl-0.1.44-6d62c6dc-116.",
+          "finished_at": "2026-11-18T19:29:01.785658Z"
         },
         "BCL-71": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-18T19:28:49Z",
+          "started_at": "2026-11-18T19:28:49Z",
+          "updated_at": "2026-11-18T19:28:49Z",
+          "check_id": "4fec47681da848d095c6081bf25912f7",
+          "evidence": "Checked: Whether the context ledger skill passes the strict skill shape check with its links and lookup kept; Expected: No failures in the strict check, moved links work, and the lookup finds the installed copy first; Observed: The skill now passes the strict check with no failures, down from 2. One warning remains that the checker gets wrong, because the number it flags is a network port. Moved links resolve, the lookup prefers the installed copy and falls back to the plugin, and the tests passed on a clean copy.",
+          "details": "skill_shape --strict PASS on clean clone 3b11316c (1 WARN remote-mcp.md:78 tcp:80, false positive); named tests: test_lookup_plugin_root_uses_installed_layout_and_fallback, test_reference_links_resolve_relative_to_their_file; context-ledger 162 tests; plugin 0.1.41; benchmark e2e 61.8 to 62.3 ms, common path 13360 to 12936 bytes, still over the 8192 budget (pre-existing). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.log. Run bcl-0.1.44-6d62c6dc-116.",
+          "finished_at": "2026-11-18T19:29:02.061147Z"
         },
         "BCL-72": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-18T19:28:49Z",
+          "started_at": "2026-11-18T19:28:49Z",
+          "updated_at": "2026-11-18T19:28:49Z",
+          "check_id": "cfdfa77a800c452ab1d52080abb9b8cd",
+          "evidence": "Checked: Whether the developer observability skill passes the strict skill shape check; Expected: No failures or warnings in the strict check and the plugin tests pass; Observed: The skill now passes the strict check with no failures or warnings, down from 2 failures. Its always-loaded text shrank by about a quarter and the plugin tests passed on a clean copy.",
+          "details": "skill_shape --strict PASS on clean clone 3b11316c; developer-observability 130 passed, 1 skipped; plugin 0.1.31; benchmark e2e 61.9 to 60.0 ms, common path 3048 to 2320 bytes (bench-developer-observability/compare.json, INCOMPLETE). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.log. Run bcl-0.1.44-6d62c6dc-116.",
+          "finished_at": "2026-11-18T19:29:02.061462Z"
         },
         "BCL-73": {
           "state": "pending"
@@ -9193,52 +9331,55 @@
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-18T16:43:14Z",
+      "at": "2026-11-18T19:30:14Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 3",
-        "Codex write: CHECK-NAME",
-        "Codex review: CHECK-NAME",
-        "Polling and rework review: CHECK-NAME",
-        "Test command: CHECK-NAME: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g1.sh",
-        "Codex write: VERIFY-ONCE",
-        "Codex review: VERIFY-ONCE",
-        "Polling and rework review: VERIFY-ONCE",
-        "Test command: VERIFY-ONCE: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g2.sh",
-        "Codex write: PLAIN-REASONS",
-        "Codex review: PLAIN-REASONS",
-        "Polling and rework review: PLAIN-REASONS",
-        "Test command: PLAIN-REASONS: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g3.sh",
-        "Orchestration: Mini restart at 20:20 IST and two interruptions",
-        "Pre-push suite: 0.1.43",
-        "Live page check: PLAIN-REASONS"
+        "Parallel group count: 4",
+        "Codex write: SR-ACU",
+        "Codex review: SR-ACU",
+        "Polling and rework review: SR-ACU",
+        "Test command: SR-ACU: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.sh",
+        "Codex write: SR-COMET",
+        "Codex review: SR-COMET",
+        "Polling and rework review: SR-COMET",
+        "Test command: SR-COMET: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g2.sh",
+        "Codex write: SR-LEDGER-OBS",
+        "Codex review: SR-LEDGER-OBS",
+        "Polling and rework review: SR-LEDGER-OBS",
+        "Test command: SR-LEDGER-OBS: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.sh",
+        "Codex write: BCL-FLOW",
+        "Codex review: BCL-FLOW",
+        "Polling and rework review: BCL-FLOW",
+        "Test command: BCL-FLOW: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4.sh"
       ],
       "none": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 3",
-        "Codex write: CHECK-NAME",
-        "Codex review: CHECK-NAME",
-        "Polling and rework review: CHECK-NAME",
-        "Test command: CHECK-NAME: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g1.sh",
-        "Codex write: VERIFY-ONCE",
-        "Codex review: VERIFY-ONCE",
-        "Polling and rework review: VERIFY-ONCE",
-        "Codex write: PLAIN-REASONS",
-        "Codex review: PLAIN-REASONS",
-        "Test command: PLAIN-REASONS: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g3.sh"
+        "Parallel group count: 4",
+        "Polling and rework review: SR-ACU",
+        "Test command: SR-ACU: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.sh",
+        "Codex write: SR-COMET",
+        "Codex review: SR-COMET",
+        "Test command: SR-COMET: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g2.sh",
+        "Codex write: SR-LEDGER-OBS",
+        "Codex review: SR-LEDGER-OBS",
+        "Polling and rework review: SR-LEDGER-OBS",
+        "Test command: SR-LEDGER-OBS: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.sh",
+        "Codex write: BCL-FLOW",
+        "Codex review: BCL-FLOW",
+        "Polling and rework review: BCL-FLOW"
       ],
       "sections": {
         "delete": {
           "items": [
             {
-              "item": "Test command: VERIFY-ONCE: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g2.sh",
-              "evidence": "Round 1 ran the full suite once per lane (four times per install). This round the full checks ran once through the new shared check (about 4 minutes) and each lane ran only its named tests: 4, 2 plus a stress run, and 16 tests, plus one 28-test recheck of round 1.",
+              "item": "Polling and rework review: SR-COMET",
+              "evidence": "The first briefs asked each skill lane to freeze a benchmark before editing, but the benchmark tool records both the old and new copies when it freezes, so all three skill lanes came back without a benchmark and each needed an extra resume. The brief now freezes once after the batch against an untouched copy of main, and the pre-edit freeze step is gone.",
               "outcome": "fixed inline"
             }
           ]
@@ -9246,40 +9387,32 @@
         "simplify": {
           "items": [
             {
-              "item": "Pre-push suite: 0.1.43",
-              "evidence": "The pre-push script cut the repository check output to its last 6 lines, which hid the failing test detail; it now keeps the full log and prints the last 40 lines, which showed the real cause (a test looking in a temporary folder the restart wiped) within a minute.",
+              "item": "Codex write: SR-ACU",
+              "evidence": "Two follow-ups came back saying the lane was read-only and changed nothing, because the coding agent treats unprefixed follow-ups as scan work. Follow-up briefs now start by saying it is a write lane; the next follow-ups changed files first time.",
               "outcome": "fixed inline"
-            },
-            {
-              "item": "Polling and rework review: PLAIN-REASONS",
-              "evidence": "A tracker update with a status and reviewer patch dropped the lane stage, so the pre-push job refused until the stage was set again by hand.",
-              "outcome": "issue",
-              "issue_id": "BCL-67"
             }
           ]
         },
         "optimize": {
           "items": [
             {
-              "item": "Orchestration: Mini restart at 20:20 IST and two interruptions",
-              "evidence": "All three fix jobs died in the restart; the page kept Fixing and then showed Stale with Updated 6:34 PM until the same sessions were resumed through bcl job at 20:25 IST. Every later Codex job ran through bcl job and progress was logged at each step, so the 21:10 and 22:10 resumes needed no relaunch.",
-              "outcome": "issue",
-              "issue_id": "BCL-67"
+              "item": "Test command: BCL-FLOW: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4.sh",
+              "evidence": "All 12 named checks passed on the installed copy, but my page-reading script looked for the old row in the wrong card and failed the lane, which forced this Introspect before the lane could rerun. The script now anchors on the card's own history entry and finds the row reading Not checked.",
+              "outcome": "fixed inline"
             }
           ]
         },
         "automate": {
           "items": [
             {
-              "item": "Live page check: PLAIN-REASONS",
-              "evidence": "The scripted live check only looked for technical words, so it passed while the old row on the BCL-57 card still read Blocked; the screenshot caught it and the fix was marked not fixed. The next live check must also assert the Not checked label on that row.",
-              "outcome": "issue",
-              "issue_id": "BCL-66"
+              "item": "Codex review: SR-ACU",
+              "evidence": "The reviewer caught dropped rules in all three skill lanes, and the first pre-push run failed on version files the lanes forgot, then the push hook failed on a quoting warning in a file a lane touched. The lane brief now asks for an old-versus-new rule comparison, the package check and the push hook on changed files before reporting, which replaces two extra full pre-push runs.",
+              "outcome": "fixed inline"
             }
           ]
         }
       },
-      "round": 2,
+      "round": 3,
       "cycle": 8
     }
   },
@@ -9617,7 +9750,25 @@
       "done_when": "The skill passes the strict shape check with the same behaviour, its plugin tests stay green, and the benchmark against the frozen baseline does not regress.",
       "observed": "skill_shape --strict on main d213b2ca: 20 FAIL, 23 WARN for plugins/agent-computer-use/skills/macos-cua (description 643 chars, SKILL.md body 6922 B > 3072, 11-row table, 6 references without triggers, no statechart.html, 9 swallowed errors in service/release/sign-notarize.sh, mediaremote-adapter-dev.sh without set -euo pipefail). Audit ~/.agents/artifacts/bcl-116/sr_audit.txt.",
       "recommendation": "skill-refine router: freeze, one batch, benchmark once; move branches to references with a When to load table.",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "Whether the macOS computer-use skill passes the strict skill shape check with its procedures kept",
+          "expected": "No failures in the strict check, every old rule still reachable, and the plugin tests pass",
+          "observed": "The skill now passes the strict check with no failures or warnings, down from 20 failures. Every old procedure is still reachable from the new short router, the release script stops with a clear message on each failure, and all 526 plugin tests passed on a clean copy of the pull request.",
+          "verdict": "The skill now passes the strict check with no failures or warnings, down from 20 failures. Every old procedure is still reachable from the new short router, the release script stops with a clear message on each failure, and all 526 plugin tests passed on a clean copy of the pull request.",
+          "check_id": "bcl-68-0.1.44-6d62c6dc",
+          "build": "batched-change-list 0.1.44",
+          "session": "bcl-0.1.44-6d62c6dc-116",
+          "timestamp": "2026-11-18T19:29:01Z",
+          "reference": "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-68:installed-check",
+          "details": "skill_shape --strict PASS on clean clone 3b11316c; agent-computer-use package validation and test jobs passed; named tests: test_sign_notarize_reports_metadata_command_failure, test_sign_notarize_reports_entitlements_command_failure, test_sign_notarize_reports_missing_notary_response_id, test_hard_reset_targets_only_the_exact_driver_process, test_installed_package_root_comes_from_plugin_manifest, test_mediaremote_dev_wrapper_returns_the_adapter_exit_status. Benchmark: e2e median 180 to 114 ms, common path 11989 to 6941 bytes (bench-macos-cua/compare.json). Plugin 0.2.151. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.log. Run bcl-0.1.44-6d62c6dc-116."
+        }
+      ],
+      "verification": "The skill now passes the strict check with no failures or warnings, down from 20 failures. Every old procedure is still reachable from the new short router, the release script stops with a clear message on each failure, and all 526 plugin tests passed on a clean copy of the pull request. skill_shape --strict PASS on clean clone 3b11316c; agent-computer-use package validation and test jobs passed; named tests: test_sign_notarize_reports_metadata_command_failure, test_sign_notarize_reports_entitlements_command_failure, test_sign_notarize_reports_missing_notary_response_id, test_hard_reset_targets_only_the_exact_driver_process, test_installed_package_root_comes_from_plugin_manifest, test_mediaremote_dev_wrapper_returns_the_adapter_exit_status. Benchmark: e2e median 180 to 114 ms, common path 11989 to 6941 bytes (bench-macos-cua/compare.json). Plugin 0.2.151. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.log. Run bcl-0.1.44-6d62c6dc-116.",
+      "verification_refs": [
+        "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-68:installed-check"
+      ]
     },
     {
       "id": "BCL-69",
@@ -9629,7 +9780,25 @@
       "done_when": "The skill passes the strict shape check with the same behaviour and its tests stay green.",
       "observed": "skill_shape --strict on main d213b2ca: 2 FAIL, 7 WARN for plugins/agent-computer-use/runtime/voice-cua/verify (description 242 chars, no trigger table).",
       "recommendation": "Shorten the description, add the trigger table, reasons and evals.",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "Whether the voice computer-use verify skill passes the strict skill shape check with its safeguards kept",
+          "expected": "No failures in the strict check and the test-run safeguards still present",
+          "observed": "The verify skill now passes the strict check with no failures or warnings, down from 2 failures. It still triggers for general Samantha testing and failure investigations, and the test-run safeguards are kept in a routed reference. The voice tests passed.",
+          "verdict": "The verify skill now passes the strict check with no failures or warnings, down from 2 failures. It still triggers for general Samantha testing and failure investigations, and the test-run safeguards are kept in a routed reference. The voice tests passed.",
+          "check_id": "bcl-69-0.1.44-6d62c6dc",
+          "build": "batched-change-list 0.1.44",
+          "session": "bcl-0.1.44-6d62c6dc-116",
+          "timestamp": "2026-11-18T19:29:01Z",
+          "reference": "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-69:installed-check",
+          "details": "skill_shape --strict PASS on clean clone 3b11316c; voice tests 562 passed, 1 skipped in lane; benchmark e2e 57.6 to 57.8 ms, common path 11099 to 9791 bytes (bench-verify-samantha/compare.json, INCOMPLETE: no decisive speed gain). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.log. Run bcl-0.1.44-6d62c6dc-116."
+        }
+      ],
+      "verification": "The verify skill now passes the strict check with no failures or warnings, down from 2 failures. It still triggers for general Samantha testing and failure investigations, and the test-run safeguards are kept in a routed reference. The voice tests passed. skill_shape --strict PASS on clean clone 3b11316c; voice tests 562 passed, 1 skipped in lane; benchmark e2e 57.6 to 57.8 ms, common path 11099 to 9791 bytes (bench-verify-samantha/compare.json, INCOMPLETE: no decisive speed gain). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.log. Run bcl-0.1.44-6d62c6dc-116.",
+      "verification_refs": [
+        "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-69:installed-check"
+      ]
     },
     {
       "id": "BCL-70",
@@ -9641,7 +9810,25 @@
       "done_when": "The skill passes the strict shape check with the same behaviour, its plugin tests stay green, and the benchmark does not regress.",
       "observed": "skill_shape --strict on main d213b2ca: 4 FAIL, 12 WARN for plugins/comet-control/skills/comet-control (16-row table, body 4591 B, no trigger table, no statechart.html).",
       "recommendation": "skill-refine router as above.",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "Whether the Comet control skill passes the strict skill shape check with its rules kept",
+          "expected": "No failures in the strict check, the start-up guidance and observe limit kept, and the plugin tests pass",
+          "observed": "The skill now passes the strict check with no failures, down from 4. One warning remains that the checker gets wrong. The start-up folder guidance and the two-observe limit are back, all old rules were compared one by one, and the plugin tests passed on a clean copy.",
+          "verdict": "The skill now passes the strict check with no failures, down from 4. One warning remains that the checker gets wrong. The start-up folder guidance and the two-observe limit are back, all old rules were compared one by one, and the plugin tests passed on a clean copy.",
+          "check_id": "bcl-70-0.1.44-6d62c6dc",
+          "build": "batched-change-list 0.1.44",
+          "session": "bcl-0.1.44-6d62c6dc-116",
+          "timestamp": "2026-11-18T19:29:01Z",
+          "reference": "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-70:installed-check",
+          "details": "skill_shape --strict PASS on clean clone 3b11316c (1 WARN: Current-view badge, false positive, statechart_html.py omits it by design); comet-control 289 tests; plugin 0.1.25 with .grok-plugin aligned; benchmark e2e 94.7 to 108.1 ms (+14%, within 20% tolerance), common path 18213 to 15606 bytes (bench-comet-control/compare.json, INCOMPLETE). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g2.log. Run bcl-0.1.44-6d62c6dc-116."
+        }
+      ],
+      "verification": "The skill now passes the strict check with no failures, down from 4. One warning remains that the checker gets wrong. The start-up folder guidance and the two-observe limit are back, all old rules were compared one by one, and the plugin tests passed on a clean copy. skill_shape --strict PASS on clean clone 3b11316c (1 WARN: Current-view badge, false positive, statechart_html.py omits it by design); comet-control 289 tests; plugin 0.1.25 with .grok-plugin aligned; benchmark e2e 94.7 to 108.1 ms (+14%, within 20% tolerance), common path 18213 to 15606 bytes (bench-comet-control/compare.json, INCOMPLETE). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g2.log. Run bcl-0.1.44-6d62c6dc-116.",
+      "verification_refs": [
+        "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-70:installed-check"
+      ]
     },
     {
       "id": "BCL-71",
@@ -9653,7 +9840,25 @@
       "done_when": "The skill passes the strict shape check with the same behaviour and its tests stay green, including a test for the helper finding its folder when installed.",
       "observed": "skill_shape --strict on main d213b2ca: 2 FAIL, 10 WARN for plugins/context-ledger/skills/context-ledger (body 5121 B, no trigger table, scripts/lookup.py parents[3]).",
       "recommendation": "skill-refine router; locate the root from the installed layout.",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "Whether the context ledger skill passes the strict skill shape check with its links and lookup kept",
+          "expected": "No failures in the strict check, moved links work, and the lookup finds the installed copy first",
+          "observed": "The skill now passes the strict check with no failures, down from 2. One warning remains that the checker gets wrong, because the number it flags is a network port. Moved links resolve, the lookup prefers the installed copy and falls back to the plugin, and the tests passed on a clean copy.",
+          "verdict": "The skill now passes the strict check with no failures, down from 2. One warning remains that the checker gets wrong, because the number it flags is a network port. Moved links resolve, the lookup prefers the installed copy and falls back to the plugin, and the tests passed on a clean copy.",
+          "check_id": "bcl-71-0.1.44-6d62c6dc",
+          "build": "batched-change-list 0.1.44",
+          "session": "bcl-0.1.44-6d62c6dc-116",
+          "timestamp": "2026-11-18T19:29:02Z",
+          "reference": "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-71:installed-check",
+          "details": "skill_shape --strict PASS on clean clone 3b11316c (1 WARN remote-mcp.md:78 tcp:80, false positive); named tests: test_lookup_plugin_root_uses_installed_layout_and_fallback, test_reference_links_resolve_relative_to_their_file; context-ledger 162 tests; plugin 0.1.41; benchmark e2e 61.8 to 62.3 ms, common path 13360 to 12936 bytes, still over the 8192 budget (pre-existing). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.log. Run bcl-0.1.44-6d62c6dc-116."
+        }
+      ],
+      "verification": "The skill now passes the strict check with no failures, down from 2. One warning remains that the checker gets wrong, because the number it flags is a network port. Moved links resolve, the lookup prefers the installed copy and falls back to the plugin, and the tests passed on a clean copy. skill_shape --strict PASS on clean clone 3b11316c (1 WARN remote-mcp.md:78 tcp:80, false positive); named tests: test_lookup_plugin_root_uses_installed_layout_and_fallback, test_reference_links_resolve_relative_to_their_file; context-ledger 162 tests; plugin 0.1.41; benchmark e2e 61.8 to 62.3 ms, common path 13360 to 12936 bytes, still over the 8192 budget (pre-existing). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.log. Run bcl-0.1.44-6d62c6dc-116.",
+      "verification_refs": [
+        "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-71:installed-check"
+      ]
     },
     {
       "id": "BCL-72",
@@ -9665,7 +9870,25 @@
       "done_when": "The skill passes the strict shape check with the same behaviour and its tests stay green.",
       "observed": "skill_shape --strict on main d213b2ca: 2 FAIL, 5 WARN for plugins/developer-observability/skills/developer-observability (no trigger table, no statechart.html).",
       "recommendation": "skill-refine router as above.",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "Whether the developer observability skill passes the strict skill shape check",
+          "expected": "No failures or warnings in the strict check and the plugin tests pass",
+          "observed": "The skill now passes the strict check with no failures or warnings, down from 2 failures. Its always-loaded text shrank by about a quarter and the plugin tests passed on a clean copy.",
+          "verdict": "The skill now passes the strict check with no failures or warnings, down from 2 failures. Its always-loaded text shrank by about a quarter and the plugin tests passed on a clean copy.",
+          "check_id": "bcl-72-0.1.44-6d62c6dc",
+          "build": "batched-change-list 0.1.44",
+          "session": "bcl-0.1.44-6d62c6dc-116",
+          "timestamp": "2026-11-18T19:29:02Z",
+          "reference": "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-72:installed-check",
+          "details": "skill_shape --strict PASS on clean clone 3b11316c; developer-observability 130 passed, 1 skipped; plugin 0.1.31; benchmark e2e 61.9 to 60.0 ms, common path 3048 to 2320 bytes (bench-developer-observability/compare.json, INCOMPLETE). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.log. Run bcl-0.1.44-6d62c6dc-116."
+        }
+      ],
+      "verification": "The skill now passes the strict check with no failures or warnings, down from 2 failures. Its always-loaded text shrank by about a quarter and the plugin tests passed on a clean copy. skill_shape --strict PASS on clean clone 3b11316c; developer-observability 130 passed, 1 skipped; plugin 0.1.31; benchmark e2e 61.9 to 60.0 ms, common path 3048 to 2320 bytes (bench-developer-observability/compare.json, INCOMPLETE). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.log. Run bcl-0.1.44-6d62c6dc-116.",
+      "verification_refs": [
+        "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-72:installed-check"
+      ]
     },
     {
       "id": "BCL-73",
