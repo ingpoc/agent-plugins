@@ -9,6 +9,7 @@ from pathlib import Path
 import tempfile
 import threading
 import unittest
+from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -19,6 +20,27 @@ spec.loader.exec_module(server_module)
 
 
 class ServerTests(unittest.TestCase):
+    def test_page_not_stale_during_active_round(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / 'findings.json'
+            document = json.loads((Path(__file__).resolve().parents[1] / 'examples/findings.json').read_text())
+            workflow = document.setdefault('tracking', {}).setdefault('workflow', {})
+            workflow.update(stage='verify', updated_at=datetime.now(timezone.utc).isoformat(), stale_after_min=1)
+            document['findings'][0]['status'] = 'in_progress'
+            data.write_text(json.dumps(document))
+            with patch.object(server_module.RENDERER, 'discover_installed_plugins', return_value={'versions': {}, 'sources': {}}):
+                _, (current, installed, now) = server_module.response_state(root / 'page.html', data)
+            page = server_module.RENDERER.render(current, root, installed, now)
+            self.assertIn(' hidden>Stale</span>', page)
+            self.assertEqual(current['tracking']['workflow']['updated_at'], workflow['updated_at'])
+            workflow['updated_at'] = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+            data.write_text(json.dumps(document))
+            with patch.object(server_module.RENDERER, 'discover_installed_plugins', return_value={'versions': {}, 'sources': {}}):
+                _, (current, installed, now) = server_module.response_state(root / 'page.html', data)
+            page = server_module.RENDERER.render(current, root, installed, now)
+            self.assertIn('minutes">Stale</span>', page)
+
     def test_running_server_reloads_changed_renderer(self):
         def renderer_source(marker):
             return ("from pathlib import Path\n"

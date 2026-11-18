@@ -1,3 +1,34 @@
+## 0.1.41
+
+- Viewer-identity tests stop every viewer they start, and a suite-wide guard fails the run when any test leaves a viewer under its temp root (BCL-53, BCL-56).
+- A failed lane Verify keeps its findings in progress with an inconclusive check, and a fix job can restart the failed lane after Introspect; the plan_fix check runs before the command starts (BCL-55).
+
+## 0.1.40
+
+- bcl job retries snapshot conflicts and keeps the child running when a heartbeat write fails; a passed fix shows Review, not Planned (BCL-50).
+- The workflow strip keeps one row with the Review step and shows its Pre-push suite sublabel as separate text (BCL-51).
+- test_bcl.py pins the temp home and no longer hardcodes process ids, so it passes under the full repo check (BCL-52).
+- The viewer restarts when the installed scripts change even if the version is the same (BCL-53).
+- bcl review starts with only the implementer session and a passed fix; install still requires the reviewer session or a one-file skip (BCL-54).
+
+## 0.1.39
+
+- Archive merged verified findings at rollover (and migrate an existing list) without changing the gate count; verification runs skip archived items.
+- Record Introspect in introspect history instead of WF findings; migrate legacy WF Introspect records with their provenance.
+- Park hardware-blocked findings in a parked file with what they need; parked items do not count and are not carried onto new lists.
+- Hold rollover until the merge-previous-PR threshold is also met; report keeps its own gate; references name the gate fields instead of numbers.
+- Let small independent docs or chart items share a round.
+- Draw chart transitions as SVG paths with arrowheads and edge labels, verdict badges in both views, no markdown or overlapping labels.
+- Add a Review stage (work-done review or one-file skip, then the pre-push suite) between Plan & fix and Install, read from the definition everywhere.
+- Add bcl job: records a lane job, heartbeats while it runs and writes the lane result on exit, so the page is not Stale while work is live and Installing appears only after install starts.
+- Stop test-owned viewers, resolve bin/bcl only inside the plugin, restart a viewer serving another worktree, and snapshot-commit only on stage change or rollover.
+
+## 0.1.38
+
+- Redesign the skill as an always-loaded rule set with a one-row-per-trigger reference router and step-local commands.
+- Generate a real workflow statechart with Current/After views and Elon verdict badges.
+- Add deterministic routing evals and read gate thresholds from workflow definition fields, including the separate merge-previous-PR threshold.
+
 ## 0.1.37
 
 - Allow max Codex effort on current plan groups while keeping the about-4-issues size cap.

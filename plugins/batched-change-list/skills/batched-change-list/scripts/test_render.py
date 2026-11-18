@@ -1,6 +1,8 @@
 import copy
+import html
 import importlib.util
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -14,6 +16,20 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_review_sublabel_is_separated_in_rendered_text(self):
+        workflow = renderer.render_workflow('review', [], 0, 15, False, 0, 1)
+        text = html.unescape(re.sub(r'<[^>]+>', ' ', workflow))
+        self.assertRegex(text, r'Review\s+· Pre-push suite')
+
+    def test_workflow_strip_stays_one_row_and_renders_definition_order_once(self):
+        workflow = renderer.render_workflow('plan_fix', [], 0, 15, False, 0, 1)
+        page = renderer.render(json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text()),
+                               Path(__file__).parents[1])
+        self.assertRegex(page, r'\.wf-band-steps\{[^}]*display:flex;flex-wrap:nowrap\}')
+        expected = [stage['id'] for stage in renderer.WF.ENTRY + renderer.WF.LOOP + renderer.WF.EXIT]
+        stages = re.findall(r'data-stage="([^"]+)"', workflow)
+        self.assertEqual(stages, expected)
+
     def test_checks_pending_lane_is_not_unqualified_blocked(self):
         pending = renderer.lane_issue_status(
             {"id": "CONTROL", "status": "blocked", "blocked_reason": "Individual issue checks pending"}, 1)
@@ -61,7 +77,8 @@ class RenderTests(unittest.TestCase):
         self.assertNotIn('var(--amber)', gate_node)
         self.assertIn('Fixes <b>1/1000</b> verified<small>0 in progress</small>', gate_node)
         self.assertNotIn('excludes completed introspection', gate_node)
-        self.assertIn('1000+ verified: report, roll over, or merge previous PR', page)
+        self.assertIn('Report at 1000+ verified or when no counted findings remain open.', page)
+        self.assertIn('Rollover requires at least 16+ verified and the rollover threshold.', page)
 
     def test_gate_does_not_count_a_fixed_issue_during_an_unresolved_recheck(self):
         finding = {'id':'ISSUE-01', 'status':'verified_fixed', 'verification_refs':['old receipt']}
@@ -151,7 +168,7 @@ class RenderTests(unittest.TestCase):
                          'now':'2026-11-14T11:13:00Z — Build review'},
             'plan': {'round':1,'groups':[
                 {'id':'INSTALL','name':'Renderer','finding_ids':['ISSUE-01'],'status':'installing',
-                 'phase':'install','build':'BCL 0.1.18','codex':{'model':'gpt-6-luna','effort':'max','fast':True}},
+                 'phase':'install','install':{'started_at':'2026-11-14T11:01:00Z'},'build':'BCL 0.1.18','codex':{'model':'gpt-6-luna','effort':'max','fast':True}},
                 {'id':'VOICE','name':'Voice meter','finding_ids':['ISSUE-02'],'status':'blocked',
                  'phase':'verify','blocked_reason':'no mic · needs Guru'},
                 {'id':'CORE','name':'Core lease','finding_ids':['ISSUE-03'],'status':'parked','parked_to':2},
@@ -181,7 +198,7 @@ class RenderTests(unittest.TestCase):
     def test_compact_plan_labels_duration_status_details_and_fallbacks(self):
         data = copy.deepcopy(self.data)
         data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}, 'plan': {'round': 1, 'groups': [
-            {'id':'A','name':'Render label','finding_ids':['ISSUE-01'],'status':'done','codex':{'model':'gpt-6-luna','effort':'medium','service_tier':'priority','duration_s':300,'started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z'},'verify':{'status':'pending','method':'Run the focused test and inspect the live page carefully'}},
+            {'id':'A','name':'Render label','finding_ids':['ISSUE-01'],'status':'done','install':{'started_at':'2026-11-14T09:00:00Z'},'codex':{'model':'gpt-6-luna','effort':'medium','service_tier':'priority','duration_s':300,'started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z'},'verify':{'status':'pending','method':'Run the focused test and inspect the live page carefully'}},
             {'id':'B','finding_ids':['ISSUE-02'],'status':'done','verify':{'status':'done','method':'Verified on runtime'}},
             {'id':'C','finding_ids':['ISSUE-01'],'status':'verifying','verify':{'status':'running','method':'Verify running'}},
             {'id':'D','finding_ids':['ISSUE-02'],'status':'blocked','verify':{'status':'pending','failure':'Codex job failed tests did not pass','method':'Blocked'}}]}}
@@ -512,10 +529,17 @@ setImmediate(async()=>{
                 install = page.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
                 self.assertNotIn('wf-step done', install)
 
-    def test_merge_previous_pr_is_the_shared_gate_exit(self):
+    def test_merge_previous_pr_and_rollover_have_separate_thresholds(self):
         page = renderer.render_workflow('gate', [], 15, 15, True, 0, 1)
         self.assertIn('>Merge previous PR<', page)
-        self.assertIn('15+ verified: report, roll over, or merge previous PR', page)
+        self.assertIn('Report at 15+ verified', page)
+        self.assertIn('Rollover requires at least 16+ verified and the rollover threshold.', page)
+        self.assertIn('Merge previous PR requires 16+ verified.', page)
+        fifteen = [{'id': f'ISSUE-{i}', 'status': 'verified_fixed'} for i in range(15)]
+        sixteen = fifteen + [{'id': 'ISSUE-16', 'status': 'verified_fixed'}]
+        self.assertEqual(renderer.rollover_gate(fifteen, {}), (15, 15, True))
+        self.assertEqual(renderer.merge_gate(fifteen, {}), (15, 16, False))
+        self.assertEqual(renderer.merge_gate(sixteen, {}), (16, 16, True))
         merged = renderer.render_workflow('merged', [], 15, 15, True, 0, 1)
         self.assertIn('>Merged / Done<', merged)
 
@@ -640,6 +664,16 @@ setImmediate(async()=>{
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name)
+
+    def test_archive_and_parked_summaries_render_with_paths_and_needs(self):
+        self.data["tracking"] = {
+            "archive": {"count": 84, "path": "/tmp/list/archive.json"},
+            "parked": {"count": 4, "path": "/tmp/list/parked.json",
+                       "needs": ["real microphone", "device access"]},
+        }
+        page = renderer.render(self.data, self.base)
+        self.assertIn("84 archived findings in /tmp/list/archive.json", page)
+        self.assertIn("4 parked findings in /tmp/list/parked.json; needs: real microphone, device access", page)
 
     def test_installed_inventory_is_distinct_from_run_build(self):
         self.data['tracking'] = {'verification_run': {'id':'run1','build':'ACU 1','revision':'abc',
@@ -937,7 +971,7 @@ setImmediate(async()=>{
 
 
     def test_lane_phase_comes_from_status_and_large_chips_show_one_count(self):
-        group = {'id':'A','status':'installing','phase':'fix','finding_ids':['ISSUE-01']}
+        group = {'id':'A','status':'installing','phase':'fix','finding_ids':['ISSUE-01'],'install':{'started_at':'2026-11-14T09:00:00Z'}}
         self.assertEqual(renderer.plan_phase(group), 'install')
         track = renderer.row_phase_track(group, 'installing')
         self.assertIn('Phase 3 of 4: Install', track)
@@ -969,7 +1003,7 @@ setImmediate(async()=>{
     def test_plan_rows_follow_lane_phase_and_legacy_status_aliases(self):
         data = copy.deepcopy(self.data)
         data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}, 'plan': {'round': 1, 'groups': [
-            {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'installing','phase':'install','verify':{'status':'pending','method':'Unit tests'}},
+            {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'installing','phase':'install','install':{'started_at':'2026-11-14T09:00:00Z'},'verify':{'status':'pending','method':'Unit tests'}},
             {'id':'B','name':'Still fixing','finding_ids':['ISSUE-02'],'status':'running','phase':'fix','codex':{'status':'running','model':'gpt-6-luna'}}]}}
         page = renderer.render(data, self.base)
         self.assertIn('class="grp installing"', page)
@@ -991,10 +1025,10 @@ setImmediate(async()=>{
         page = renderer.render(data, self.base)
         self.assertIn('class="grp review"', page)
         self.assertIn('>In review</span>', page)
-        self.assertIn('Phase 2 of 4: Plan &amp; fix', page)
+        self.assertIn('Phase 2 of 4: Review', page)
         data['tracking']['workflow']['stage'] = 'install'
         data['tracking']['plan']['groups'] = [
-            {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'done','phase':'install','verify':{'status':'pending'}},
+            {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'done','phase':'install','install':{'started_at':'2026-11-14T09:00:00Z'},'verify':{'status':'pending'}},
             {'id':'C','name':'Later group','finding_ids':['ISSUE-02'],'status':'pending','verify':{'status':'partial','fixed':0,'failed':1,'total':3}},
         ]
         page = renderer.render(data, self.base)

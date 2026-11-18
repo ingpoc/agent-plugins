@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 import workflow_definition as WF
+import render
 
 SECTION_ORDER = ("delete", "simplify", "optimize", "automate")
 SECTION_NOUNS = {"delete": "deletion", "simplify": "simplification",
@@ -51,6 +52,12 @@ def performed_round_steps(tracking):
                         command = verification.get("command") if isinstance(verification, dict) else None
                         if isinstance(command, str) and command.strip():
                             steps.append(f"Test command: {group_id}: {command.strip()}")
+    recorded = render.introspect_record_for_round(tracking)
+    if recorded is not None:
+        prior_steps = recorded.get("steps")
+        if not isinstance(prior_steps, list) or any(not isinstance(step, str) or not step.strip() for step in prior_steps):
+            raise ValueError("current-round Introspect record needs a steps array")
+        steps.extend(step for step in prior_steps if step not in steps)
     return steps
 
 

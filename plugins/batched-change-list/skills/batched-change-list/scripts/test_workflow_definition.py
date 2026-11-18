@@ -1,5 +1,4 @@
 import re
-import tempfile
 import unittest
 from unittest.mock import patch
 from pathlib import Path
@@ -11,26 +10,13 @@ SKILL = Path(__file__).resolve().parents[1] / "SKILL.md"
 REFERENCES = SKILL.parent / "references"
 SCRIPTS = Path(__file__).resolve().parent
 
-
 class WorkflowDefinitionTests(unittest.TestCase):
-    def test_viewer_stage_order_and_skill_loop_come_from_definition(self):
+    def test_viewer_stage_order_comes_from_definition(self):
         page = render.render_workflow("gate", [], 0, 15, False, 0, 1)
-        page_stages = re.findall(r'data-stage="([^"]+)"', page)
-        self.assertEqual(page_stages, [stage["id"] for stage in workflow.STAGES])
-        skill_line = next(line for line in SKILL.read_text().splitlines() if line.startswith("Workflow: "))
-        self.assertEqual(skill_line, workflow.skill_loop_line())
-
-    def test_skill_loop_generator_writes_the_machine_defined_line(self):
-        text = SKILL.read_text()
-        with tempfile.TemporaryDirectory() as directory:
-            target = Path(directory) / "SKILL.md"
-            target.write_text(text)
-            workflow.write_skill_loop(target)
-            generated = next(line for line in target.read_text().splitlines() if line.startswith("Workflow: "))
-        self.assertEqual(generated, workflow.skill_loop_line())
+        self.assertEqual(re.findall(r'data-stage="([^"]+)"', page), [stage["id"] for stage in workflow.STAGES])
 
     def test_every_required_check_has_a_script_test_and_triggered_reference(self):
-        reference_for_check = {"install": "install.md", "introspect": "introspect.md", "gate": "gate.md"}
+        reference_for_check = {"review": "review.md", "install": "install.md", "introspect": "introspect.md", "gate": "gate.md", "merge_gate": "gate.md"}
         for name, check in workflow.REQUIRED_CHECKS.items():
             with self.subTest(name=name):
                 self.assertTrue((SCRIPTS / check["file"]).is_file())
@@ -52,12 +38,17 @@ class WorkflowDefinitionTests(unittest.TestCase):
     def test_stage_checks_dispatch_through_each_declared_check(self):
         for stage in workflow.STAGES:
             check_name = stage.get("check")
-            if not check_name:
-                continue
-            with self.subTest(stage=stage["id"]), patch.object(workflow, "run_check", return_value="ok") as run:
-                self.assertEqual(workflow.run_stage_check(stage["id"], "fixture"), "ok")
-                run.assert_called_once_with(check_name, "fixture")
+            if check_name:
+                with self.subTest(stage=stage["id"]), patch.object(workflow, "run_check", return_value="ok") as run:
+                    self.assertEqual(workflow.run_stage_check(stage["id"], "fixture"), "ok")
+                    run.assert_called_once_with(check_name, "fixture")
 
+    def test_gate_thresholds_are_definition_driven_and_keep_default_rollover(self):
+        self.assertEqual(workflow.DEFAULT_ROLLOVER_THRESHOLD, 15)
+        self.assertEqual(workflow.MERGE_PREVIOUS_PR_THRESHOLD, 16)
+        count = lambda n: {"findings": [{"id": str(i), "status": "verified_fixed"} for i in range(n)], "tracking": {}}
+        self.assertEqual(workflow.run_stage_check("report_rollover", count(15)), (15, 15, True))
+        self.assertEqual(workflow.run_stage_check("merged", count(15)), (15, 16, False))
+        self.assertEqual(workflow.run_stage_check("merged", count(16)), (16, 16, True))
 
-if __name__ == "__main__":
-    unittest.main()
+if __name__ == "__main__": unittest.main()

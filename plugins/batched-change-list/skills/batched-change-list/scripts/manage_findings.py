@@ -19,6 +19,7 @@ import tracker_lock
 import live_state
 import check_install_sessions
 import workflow_definition
+import check_gate_count
 
 RENDERER_PATH = Path(__file__).with_name("render.py")
 SPEC = importlib.util.spec_from_file_location("change_list_renderer", RENDERER_PATH)
@@ -615,6 +616,149 @@ def live_write(path, original, content):
             raise
 
 
+def read_sibling_json(path):
+    original = path.read_bytes() if path.exists() else None
+    if original is None:
+        return None, []
+    rows = json.loads(original.decode("utf-8"))
+    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+        raise ValueError(f"{path.name} must contain an array of records")
+    return original, rows
+
+
+def sibling_json_bytes(rows):
+    return (json.dumps(rows, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+
+
+def current_pr(tracking):
+    pull_request = tracking.get("pull_request", {}) if isinstance(tracking, dict) else {}
+    if not isinstance(pull_request, dict):
+        pull_request = {}
+    for value in (pull_request.get("url"), pull_request.get("label")):
+        match = re.search(r"(?:/pull/|#)(\d+)", str(value or ""))
+        if match:
+            return int(match.group(1))
+    rollover = tracking.get("rollover", {}) if isinstance(tracking, dict) else {}
+    return rollover.get("source_pr") if isinstance(rollover, dict) else None
+
+
+def archive_entry(finding, pr, stamp):
+    return {**copy.deepcopy(finding), "archived_from_pr": pr, "archived_at": stamp}
+
+
+def archive_identity(entry):
+    finding = {key: value for key, value in entry.items()
+               if key not in ("archived_from_pr", "archived_at")}
+    return (entry.get("id"), entry.get("archived_from_pr"),
+            json.dumps(finding, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+
+
+def append_archive_entries(existing, additions):
+    rows = list(existing)
+    identities = {archive_identity(row) for row in rows}
+    for row in additions:
+        identity = archive_identity(row)
+        if identity not in identities:
+            rows.append(row)
+            identities.add(identity)
+    return rows
+
+
+def parked_finding(entry):
+    return {key: copy.deepcopy(value) for key, value in entry.items()
+            if key not in ("needs", "parked_at", "parked_from_pr")}
+
+
+def append_parked_entries(existing, additions):
+    rows = list(existing)
+    by_id = {row.get("id"): row for row in rows}
+    for row in additions:
+        previous = by_id.get(row.get("id"))
+        if previous is None:
+            rows.append(row)
+            by_id[row.get("id")] = row
+        elif parked_finding(previous) != parked_finding(row):
+            raise ValueError(f"parked finding {row.get('id')} conflicts with the live finding")
+    return rows
+
+
+def validate_parked_rows(rows):
+    identifiers = [row.get("id") for row in rows]
+    if (any(not isinstance(identifier, str) or not identifier.strip() for identifier in identifiers)
+            or len(identifiers) != len(set(identifiers))
+            or any(row.get("status") != "blocked" or not isinstance(row.get("needs"), str)
+                   or not row["needs"].strip() for row in rows)):
+        raise ValueError("parked.json entries require unique blocked findings and needs values")
+
+
+def is_introspect_finding(finding):
+    details = finding.get("details")
+    return (re.fullmatch(r"WF-\d+", str(finding.get("id", ""))) is not None
+            and finding.get("status") in CLOSED_STATUSES
+            and isinstance(details, dict) and details.get("fixed_in") == "Introspect")
+
+
+def introspect_history_record(finding, tracking):
+    current = tracking.get("introspect") if isinstance(tracking, dict) else None
+    current = current if isinstance(current, dict) and current.get("task") == finding.get("id") else {}
+    legacy_date = re.match(r"^Introspect (\d{4}-\d\d-\d\d):", str(finding.get("title", "")))
+    details = finding.get("details", {})
+    provenance = {}
+    for field in ("cycle", "round"):
+        values = [source[field] for source in (finding, details, current) if source.get(field) is not None]
+        if values and any(value != values[0] for value in values[1:]):
+            raise ValueError(f"completed Introspect record {finding['id']} has conflicting {field}")
+        provenance[field] = values[0] if values else None
+    cycle, round_number = provenance["cycle"], provenance["round"]
+    record = {
+        "cycle": cycle, "round": round_number,
+        "attribution": "attributed" if cycle is not None and round_number is not None else "unattributed",
+        "result": current.get("result") or finding.get("observed") or finding.get("title") or "Introspect recorded",
+        "at": current.get("at") or finding.get("fixed_at") or finding.get("time") or finding.get("at")
+              or details.get("fixed_at") or details.get("time") or finding.get("created_at")
+              or (legacy_date.group(1) if legacy_date else None),
+        "steps": copy.deepcopy(finding.get("steps", current.get("steps", []))),
+        "none": copy.deepcopy(finding.get("none", current.get("none", []))),
+        "sections": copy.deepcopy(finding.get("sections", current.get("sections", {}))),
+        "source_task": finding["id"],
+    }
+    for key in ("fixed_at", "time"):
+        if key in finding and key in details and finding[key] != details[key]:
+            raise ValueError(f"completed Introspect record {finding['id']} has conflicting {key}")
+        if key in finding or key in details:
+            record[key] = copy.deepcopy(finding[key] if key in finding else details[key])
+    if (any(value is not None and (type(value) is not int or value < 1)
+            for value in (cycle, round_number))
+            or not isinstance(record["result"], str)
+            or record["at"] is not None and not isinstance(record["at"], str)
+            or not isinstance(record["steps"], list) or not isinstance(record["none"], list)
+            or not isinstance(record["sections"], dict)):
+        raise ValueError(f"completed Introspect record {finding['id']} is incomplete")
+    return record
+
+
+def append_introspect_records(tracking, findings):
+    history = tracking.setdefault("introspect_history", [])
+    if not isinstance(history, list) or any(not isinstance(record, dict) for record in history):
+        raise ValueError("tracking.introspect_history must be an array of records")
+    for finding in findings:
+        record = introspect_history_record(finding, tracking)
+        if record not in history:
+            history.append(record)
+
+
+def update_sidecar_summary(tracking, archive_file, archive_rows, parked_file, parked_rows):
+    if archive_rows:
+        tracking["archive"] = {"path": str(archive_file), "count": len(archive_rows)}
+    else:
+        tracking.pop("archive", None)
+    if parked_rows:
+        tracking["parked"] = {"path": str(parked_file), "count": len(parked_rows),
+                               "needs": list(dict.fromkeys(row["needs"] for row in parked_rows))}
+    else:
+        tracking.pop("parked", None)
+
+
 
 INTROSPECT_SECTIONS = ("delete", "simplify", "optimize", "automate")
 
@@ -811,12 +955,16 @@ def touch_workflow(document):
 
 
 def require_rollover_gate(findings, tracking, force, action):
-    fixed, threshold, met = workflow_definition.run_stage_check(
-        "report_rollover", {"findings": findings, "tracking": tracking})
+    data = {"findings": findings, "tracking": tracking}
+    fixed, threshold, met = (check_gate_count.rollover_gate_count(data) if action == "rollover"
+                             else workflow_definition.run_stage_check("report_rollover", data))
     if met:
         return
     if not force:
-        raise ValueError(f"report_rollover gate not met: {fixed} of {threshold} verified_fixed findings and open findings remain; pass --force to override")
+        reason = (f"rollover gate not met: {fixed} of {threshold} verified_fixed findings"
+                  if action == "rollover" else
+                  f"report gate not met: {fixed} of {threshold} verified_fixed findings and open findings remain")
+        raise ValueError(f"{reason}; pass --force to override")
     rollover = tracking.setdefault("rollover", {})
     if not isinstance(rollover, dict):
         raise ValueError("tracking.rollover must be an object")
@@ -847,11 +995,7 @@ def validate_merged_record(merged):
 
 
 def introspect_covers_current_round(tracking):
-    record = tracking.get("introspect") if isinstance(tracking, dict) else None
-    if not isinstance(record, dict):
-        return False
-    return (record.get("round") == RENDERER.rollover_round(tracking)
-            and record.get("cycle") == RENDERER.rollover_cycle(tracking))
+    return RENDERER.introspect_record_for_round(tracking) is not None
 
 
 def require_current_round_introspect(tracking, action):
@@ -887,13 +1031,15 @@ def prepare_rollover(document, operation, force=False):
     excluded = rollover.get("excluded_ids", [])
     if not isinstance(excluded, list) or any(not isinstance(identifier, str) for identifier in excluded):
         raise ValueError("tracking.rollover.excluded_ids must be an array of finding IDs")
-    fixed = [item["id"] for item in findings if item.get("status") == "verified_fixed"]
+    fixed = [item["id"] for item in findings
+             if item.get("status") == "verified_fixed" and not is_introspect_finding(item)]
     source_pr = operation.get("source_pr")
     if source_pr is None:
         match = re.search(r"/pull/(\d+)", str(tracking.get("pull_request", {}).get("url", "")))
         source_pr = int(match.group(1)) if match else rollover.get("source_pr")
+    archived_from_pr = source_pr
     rollover["source_pr"] = source_pr
-    rollover["excluded_ids"] = sorted(set(excluded) | set(fixed))
+    excluded = set(excluded) | {item["id"] for item in findings if item.get("status") in CLOSED_STATUSES}
     rollover["unresolved_ids"] = [item["id"] for item in findings if item.get("status") not in CLOSED_STATUSES]
     if tracking.get("merged"):
         rollover["source_merge"] = tracking.pop("merged")
@@ -901,6 +1047,15 @@ def prepare_rollover(document, operation, force=False):
     timestamp = operation.get("now") or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     validate_record({"check":"rollover", "outcome":"started", "build":"unknown", "session":"rollover",
                      "timestamp":timestamp, "reference":"rollover"})
+    intro_items = [item for item in findings if is_introspect_finding(item)]
+    archive_items = [item for item in findings if item.get("status") in CLOSED_STATUSES
+                     and item.get("id") in excluded and not is_introspect_finding(item)]
+    append_introspect_records(tracking, intro_items)
+    archived = [archive_entry(item, archived_from_pr, timestamp) for item in archive_items]
+    removed = {item["id"] for item in archive_items + intro_items}
+    document["findings"] = [item for item in findings if item.get("id") not in removed]
+    current_ids = {item["id"] for item in document["findings"]}
+    rollover["excluded_ids"] = sorted(excluded & current_ids)
     round_number = RENDERER.rollover_round(tracking)
     tracking.setdefault("round_history", []).append({"round": round_number, "fixed": len(fixed), "ended_at": timestamp})
     tracking["round"] = 1
@@ -911,10 +1066,27 @@ def prepare_rollover(document, operation, force=False):
         tracking.setdefault("verification_history", []).append({**run, "status":"interrupted" if run.get("status") == "active" else run.get("status")})
     tracking.pop("stages_reached", None)
     tracking.pop("introspect", None)
-    for item in findings:
+    for item in document["findings"]:
         if item.get("status") == "in_progress":
             item["status"] = "untested"
-    return document
+    return document, archived
+
+
+def validate_rollover_target(record, live, document):
+    # Match registration checks before changing the shared archive.
+    new_id = live_state.list_id(document, live)
+    new_key = f"{record['repo']}/{new_id}"
+    if new_key in live_state.registry():
+        raise ValueError(f"new list is already adopted: {new_key}")
+    target = (live_state.STATE.resolve() / live_state.safe_component(record["repo"].replace("/", "--"))
+              / f"{live_state.safe_component(new_id)}.json")
+    if target.exists():
+        raise ValueError(f"new live list already exists: {target}")
+    for field, fallback in (("snapshot", f"pr-{new_id}-findings.json"), ("html", f"pr-{new_id}.html")):
+        artifact = live_state._renamed_report_path(record[field], record["id"], new_id, fallback)
+        if (Path(record["home"]) / artifact).exists():
+            raise ValueError(f"new list report already exists: {Path(record['home']) / artifact}")
+    json.dumps(document, ensure_ascii=False)
 
 
 def rollover_live(path, operation, force=False):
@@ -928,8 +1100,33 @@ def rollover_live(path, operation, force=False):
     live = path
     if path != live and path.read_bytes() != live.read_bytes():
         raise ValueError(f"in-repo tracker differs from live state; live file: {live}")
-    document = prepare_rollover(json.loads(live.read_text(encoding="utf-8")), operation, force)
-    return live_state.register_rollover(record, live, document)[2]
+    document, archive_additions = prepare_rollover(json.loads(live.read_text(encoding="utf-8")), operation, force)
+    archive_file, parked_file = live_state.archive_path(live), live_state.parked_path(live)
+    archive_original, archive_rows = read_sibling_json(archive_file)
+    parked_original, parked_rows = read_sibling_json(parked_file)
+    validate_parked_rows(parked_rows)
+    updated_archive = append_archive_entries(archive_rows, archive_additions)
+    update_sidecar_summary(document.setdefault("tracking", {}), archive_file, updated_archive,
+                           parked_file, parked_rows)
+    validate_rollover_target(record, live, document)
+    archive_changed = updated_archive != archive_rows
+    archive_content = sibling_json_bytes(updated_archive)
+    if archive_changed:
+        atomic_write(archive_file, archive_original, archive_content, tracker=False)
+    try:
+        return live_state.register_rollover(record, live, document)[2]
+    except BaseException as error:
+        if archive_changed:
+            try:
+                if archive_original is None:
+                    if archive_file.read_bytes() != archive_content:
+                        raise ValueError("archive changed during rollover")
+                    archive_file.unlink()
+                else:
+                    atomic_write(archive_file, archive_content, archive_original, tracker=False)
+            except (OSError, ValueError) as rollback_error:
+                raise ValueError(f"rollover failed ({error}); archive rollback failed: {rollback_error}") from error
+        raise
 
 
 def missing_report_file(error, base):
@@ -1130,14 +1327,119 @@ def run(args, parser):
                 return 0
             existing_run = store["document"].get("tracking", {}).get("verification_run")
             original_plan = copy.deepcopy(store['document'].get('tracking', {}).get('plan'))
-            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "set-stage", "set-activity", "set-plan", "update-plan-group"}
+            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark"}
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()
+            sidecars = {}
+
+            def sidecar(name):
+                if name not in sidecars:
+                    sibling = (live_state.archive_path(path) if name == "archive"
+                               else live_state.parked_path(path))
+                    original_sidecar, rows = read_sibling_json(sibling)
+                    if name == "parked":
+                        validate_parked_rows(rows)
+                    sidecars[name] = {"path": sibling, "original": original_sidecar,
+                                      "initial": copy.deepcopy(rows), "rows": rows, "additions": []}
+                return sidecars[name]
+
             for operation in operations:
                 if not isinstance(operation, dict):
                     raise ValueError("batch operation must be an object")
                 action = operation.get("action")
+                if action in ("archive", "park", "unpark"):
+                    tracking = store["document"].setdefault("tracking", {})
+                    rollover = tracking.get("rollover", {})
+                    if not isinstance(rollover, dict):
+                        raise ValueError("tracking.rollover must be an object")
+                    excluded = rollover.get("excluded_ids", [])
+                    if not isinstance(excluded, list) or any(not isinstance(identifier, str) for identifier in excluded):
+                        raise ValueError("tracking.rollover.excluded_ids must be an array of finding IDs")
+                    excluded = set(excluded)
+                    archive_state, parked_state = sidecar("archive"), sidecar("parked")
+                    timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                    if action == "archive":
+                        eligible = [item for item in findings if is_introspect_finding(item)
+                                    or item.get("status") in CLOSED_STATUSES and item.get("id") in excluded]
+                        requested = operation.get("ids")
+                        if requested is None:
+                            selected = eligible
+                        elif (not isinstance(requested, list) or not requested
+                              or any(not isinstance(identifier, str) or not identifier.strip() for identifier in requested)
+                              or len(requested) != len(set(requested))):
+                            raise ValueError("archive ids must be a nonempty list of unique finding IDs")
+                        else:
+                            eligible_by_id = {item["id"]: item for item in eligible}
+                            missing = set(requested) - eligible_by_id.keys()
+                            if missing:
+                                raise ValueError("archive requires closed excluded findings or completed Introspect records: "
+                                                 + ", ".join(sorted(missing)))
+                            selected = [eligible_by_id[identifier] for identifier in requested]
+                        selected_ids = {item["id"] for item in selected}
+                        introspect_items = [item for item in selected if is_introspect_finding(item)]
+                        archive_items = [item for item in selected if not is_introspect_finding(item)]
+                        append_introspect_records(tracking, introspect_items)
+                        additions = [archive_entry(item, current_pr(tracking), timestamp) for item in archive_items]
+                        archive_state["rows"] = append_archive_entries(archive_state["rows"], additions)
+                        findings[:] = [item for item in findings if item["id"] not in selected_ids]
+                    elif action == "park":
+                        ids, needs = operation.get("ids"), operation.get("needs")
+                        if (not isinstance(ids, list) or not ids
+                                or any(not isinstance(identifier, str) or not identifier.strip() for identifier in ids)
+                                or len(ids) != len(set(ids))):
+                            raise ValueError("park ids must be a nonempty list of unique finding IDs")
+                        if not isinstance(needs, str) or not needs.strip() or "\n" in needs or "\r" in needs:
+                            raise ValueError("park needs must be one nonempty line")
+                        items = [findings[find_index(findings, identifier)] for identifier in ids]
+                        if any(item.get("status") != "blocked" for item in items):
+                            raise ValueError("only blocked findings can be parked")
+                        additions = [{**copy.deepcopy(item), "needs": needs.strip(),
+                                      "parked_at": timestamp, "parked_from_pr": current_pr(tracking)}
+                                     for item in items]
+                        parked_state["additions"].extend(additions)
+                        parked_state["rows"] = append_parked_entries(parked_state["rows"], additions)
+                        ids = set(ids)
+                        findings[:] = [item for item in findings if item["id"] not in ids]
+                    else:
+                        ids = operation.get("ids")
+                        if (not isinstance(ids, list) or not ids
+                                or any(not isinstance(identifier, str) or not identifier.strip() for identifier in ids)
+                                or len(ids) != len(set(ids))):
+                            raise ValueError("unpark ids must be a nonempty list of unique finding IDs")
+                        by_id = {row["id"]: row for row in parked_state["rows"] if isinstance(row.get("id"), str)}
+                        if set(ids) - by_id.keys():
+                            raise ValueError("unpark requires parked finding IDs: " + ", ".join(sorted(set(ids) - by_id.keys())))
+                        live_by_id = {item["id"]: item for item in findings}
+                        for identifier in ids:
+                            restored = parked_finding(by_id[identifier])
+                            restored["status"] = "blocked"
+                            existing = live_by_id.get(identifier)
+                            if existing is not None and existing.get("status") != "blocked":
+                                raise ValueError(f"unpark conflicts with live finding {identifier}")
+                            if existing is not None and existing != restored:
+                                raise ValueError(f"unpark conflicts with changed live finding {identifier}")
+                            if existing is None:
+                                findings.append(restored)
+                                live_by_id[identifier] = restored
+                                run = tracking.get("verification_run")
+                                if isinstance(run, dict) and run.get("status") in ("active", "complete"):
+                                    run["status"] = "active"
+                                    run.setdefault("checks", {})[identifier] = {"state": "pending"}
+                        ids = set(ids)
+                        parked_state["rows"] = [row for row in parked_state["rows"] if row.get("id") not in ids]
+                    current_ids = {item["id"] for item in findings}
+                    if "rollover" in tracking:
+                        rollover["excluded_ids"] = sorted(excluded & current_ids)
+                        rollover["unresolved_ids"] = [item["id"] for item in findings
+                                                       if item.get("status") not in CLOSED_STATUSES]
+                    run = tracking.get("verification_run")
+                    if isinstance(run, dict) and isinstance(run.get("checks"), dict):
+                        run["checks"] = {identifier: check for identifier, check in run["checks"].items()
+                                          if identifier in current_ids}
+                    update_sidecar_summary(tracking, archive_state["path"], archive_state["rows"],
+                                           parked_state["path"], parked_state["rows"])
+                    continue
                 if action in ("set-plan", "update-plan-group"):
                     tracking = store["document"].setdefault("tracking", {})
                     cycle = RENDERER.rollover_cycle(tracking)
@@ -1226,7 +1528,7 @@ def run(args, parser):
                                 raise ValueError('plan group changed; refusing group update')
                         group = next((g for g in plan.get("groups", []) if g.get("id") == operation.get("id")), None)
                         patch = operation.get("patch")
-                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at"}:
+                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at", "presuite"}:
                             raise ValueError("update-plan-group requires id and a valid group patch")
                         if any(key in patch and not isinstance(patch[key], str) for key in ("label", "verify_summary", "name", "worktree", "reason")):
                             raise ValueError("label, name, verify_summary, worktree and reason must be strings")
@@ -1240,8 +1542,10 @@ def run(args, parser):
                             raise ValueError("codex and verify patches must be objects")
                         if "verify" in patch and patch["verify"].get("summary") is not None and (not isinstance(patch["verify"]["summary"], str) or len(patch["verify"]["summary"].split()) > 10):
                             raise ValueError("verify.summary must be at most 10 words")
-                        activity_fields = ('status', 'phase', 'verify', 'blocked_reason')
+                        activity_fields = ('status', 'phase', 'verify', 'blocked_reason', 'codex')
                         before_activity = {key: copy.deepcopy(group.get(key)) for key in activity_fields}
+                        if operation.get("merge_codex") and "codex" in patch:
+                            patch["codex"] = {**group.get("codex", {}), **patch["codex"]}
                         group.update(patch)
                         if "status" in patch and "phase" not in patch and patch["status"] not in ("blocked", "failed"):
                             group.pop("phase", None)
@@ -1271,12 +1575,11 @@ def run(args, parser):
                     if target in workflow_definition.TRANSITIONS:
                         workflow_definition.require_transition(target, tracking.get("stages_reached", []))
                     if target == "merged":
-                        _fixed, _threshold, met = workflow_definition.run_stage_check(
+                        fixed, threshold, met = workflow_definition.run_stage_check(
                             "merged", {"findings": findings, "tracking": tracking})
                         if not met:
-                            raise ValueError("merge requires the shared exit gate to be met")
+                            raise ValueError(f"merge requires {threshold} verified_fixed findings; count is {fixed}")
                 if action == "introspect":
-                    # One Introspect = one WF- task with four sections. Code follow-ups are separate non-WF issues.
                     tracking = store["document"].setdefault("tracking", {})
                     workflow_definition.require_transition("introspect", tracking.get("stages_reached", []))
                     coverage = workflow_definition.run_stage_check("introspect",
@@ -1293,38 +1596,24 @@ def run(args, parser):
                         raise ValueError("introspect section links unknown issue ids: " + ", ".join(missing))
                     all_none = all("none" in section for section in sections.values())
                     result = operation.get("result")
-                    if result:
+                    if result is not None and (not isinstance(result, str) or not result.strip()
+                                               or "\n" in result or "\r" in result):
+                        raise ValueError("introspect result must be one nonempty line")
+                    if result is not None:
                         summary = result.strip()
                     elif all_none:
                         summary = "Introspect: no issues"
                     else:
                         summary = "Introspect recorded"
-                    if result and (not isinstance(result, str) or "\n" in result or "\r" in result):
-                        raise ValueError("introspect result must be one nonempty line")
-                    used = [int(f["id"][3:]) for f in findings if re.fullmatch(r"WF-\d+", str(f.get("id", "")))]
-                    task_id = f"WF-{max(used, default=0) + 1:02d}"
-                    task = {"id": task_id, "title": f"Introspect {stamp[:10]}: {summary}",
-                            "source": "Agent reported", "status": "verified_fixed",
-                            "observed": summary,
-                            "recommendation": "Do the linked code issues: " + ", ".join(linked) if linked else "None; all items were fixed inline or none.",
-                            "verification": "Inline items were done during Introspect." if not all_none else "Clean cycle; every section is none with a reason.",
-                            "details": {"fixed_in": "Introspect"},
-                            "steps": coverage["steps"], "none": coverage["none"],
-                            "sections": sections}
-                    task["verification_refs"] = linked or ["Introspect"]
-                    validate_detail_limits(task)
-                    validate_ids(findings + [task])
-                    findings.append(task)
-                    run = store["document"].get("tracking", {}).get("verification_run", {})
-                    if isinstance(run, dict) and run.get("status") in ("active", "complete"):
-                        run["status"] = "active"
-                        run.setdefault("checks", {})[task_id] = {"state": "pending"}
-                    tracking = store["document"].setdefault("tracking", {})
-                    record = {"result": summary, "at": stamp, "task": task_id, "steps": coverage["steps"],
+                    record = {"result": summary, "at": stamp, "steps": coverage["steps"],
                               "none": coverage["none"], "sections": sections,
                               "round": RENDERER.rollover_round(tracking),
                               "cycle": RENDERER.rollover_cycle(tracking)}
+                    history = tracking.setdefault("introspect_history", [])
+                    if not isinstance(history, list) or any(not isinstance(item, dict) for item in history):
+                        raise ValueError("tracking.introspect_history must be an array of records")
                     tracking["introspect"] = record
+                    history.append(copy.deepcopy(record))
                     reached = tracking.setdefault("stages_reached", [])
                     if "introspect" not in reached:
                         reached.append("introspect")
@@ -1388,7 +1677,7 @@ def run(args, parser):
                     if not isinstance(activity, str) or not activity.strip() or "\n" in activity or "\r" in activity:
                         raise ValueError("set-activity now must be one nonempty line")
                     affected = [findings[find_index(findings, identifier)] for identifier in ids]
-                    if stage in ('plan_fix', 'install', 'verify'):
+                    if stage in ('plan_fix', 'review', 'install', 'verify'):
                         plan = tracking.get('plan', {})
                         groups = RENDERER.plan_groups_for_round(plan, RENDERER.rollover_round(tracking))
                         if not groups:
@@ -1420,6 +1709,12 @@ def run(args, parser):
                     if stage in ("plan_fix", "install", "verify") and (not ids or not any(item.get("status") == "in_progress" for item in findings)):
                         raise ValueError(f"set-activity for {stage} requires a nonempty ID list and an in_progress finding; log a finding and set it in progress first")
                     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                    if stage == 'install':
+                        for group in matched:
+                            if set(ids).intersection(group.get('finding_ids', [])):
+                                install = group.get('install') if isinstance(group.get('install'), dict) else {}
+                                group.update(status='installing', phase='install',
+                                             install={**install, 'status': 'running', 'started_at': timestamp})
                     if (stage == "plan_fix" and previous_stage in ("verify", "introspect", "gate")
                             and (introspect_covers_current_round(tracking)
                                  or not RENDERER.rollover_gate(findings, tracking)[2])):
@@ -1439,8 +1734,6 @@ def run(args, parser):
                     item = operation.get("entry")
                     if not isinstance(item, dict):
                         raise ValueError("entry must be a JSON object")
-                    if re.fullmatch(r"WF-\d+", str(item.get("id", ""))):
-                        raise ValueError("WF- tasks come only from one introspect call with sections (one task per Introspect)")
                     warn_summary(item, adding=True)
                     validate_detail_limits(item)
                     trim_verification_evidence(item)
@@ -1504,7 +1797,26 @@ def run(args, parser):
                 missing_capture = error
                 rendered = None
             html_original = args.render.read_bytes() if args.render and args.render.exists() else None
+            parked_after_prewrite = None
+            if "archive" in sidecars:
+                state = sidecars["archive"]
+                if state["rows"] != state["initial"]:
+                    atomic_write(state["path"], state["original"], sibling_json_bytes(state["rows"]), tracker=False)
+            if "parked" in sidecars:
+                state = sidecars["parked"]
+                parked_after_prewrite = append_parked_entries(state["initial"], state["additions"])
+                if parked_after_prewrite != state["initial"]:
+                    atomic_write(state["path"], state["original"], sibling_json_bytes(parked_after_prewrite), tracker=False)
             write(path, original, store, findings, validate=False, touch=False)
+            if ("parked" in sidecars and parked_after_prewrite is not None
+                    and sidecars["parked"]["rows"] != parked_after_prewrite):
+                state = sidecars["parked"]
+                parked_original = (sibling_json_bytes(parked_after_prewrite)
+                                   if parked_after_prewrite != state["initial"] else state["original"])
+                try:
+                    atomic_write(state["path"], parked_original, sibling_json_bytes(state["rows"]), tracker=False)
+                except (OSError, ValueError) as error:
+                    raise ValueError(f"JSON updated but parked state failed: {error}; retry unpark") from error
             if rendered is None:
                 path.with_suffix(".unsnapshotted").write_text("missing report capture\n")
                 raise ValueError(f"JSON saved but report capture is missing: {missing_capture.filename}; restore it and render/snapshot, do not repeat the mutation")
@@ -1602,6 +1914,9 @@ def main(argv=None):
         # keep a single lock order for plan, finding, and tracker writes.
         with tracker_lock.exclusive_lock(tracker_lock.plan_lock_path(args.data)):
             with tracker_lock.exclusive_lock(tracker_lock.tracker_lock_path(args.data)):
+                if args.command == "batch":
+                    with tracker_lock.exclusive_lock(tracker_lock.tracker_lock_path(args.data.resolve().parent)):
+                        return run(args, parser)
                 return run(args, parser)
     except (OSError, RuntimeError) as error:
         parser.exit(2, f'manage-findings: tracker lock failed: {error}\n')

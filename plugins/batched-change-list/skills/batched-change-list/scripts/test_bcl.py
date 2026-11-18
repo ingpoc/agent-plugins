@@ -2,24 +2,61 @@ import importlib.util
 import contextlib
 import io
 from importlib.machinery import SourceFileLoader
-import errno, json, os, shutil, signal, socket, subprocess, sys, tempfile, threading, time, unittest
+import errno, json, os, shutil, socket, subprocess, sys, tempfile, threading, time, unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-ROOT = Path(__file__).resolve().parents[5]
-PLUGIN = ROOT / "plugins/batched-change-list"
+def plugin_root(skill_dir, installed_root=None):
+    candidate = skill_dir.parents[1]
+    manifest = candidate / "plugin.json"
+    if (candidate / "bin/bcl").is_file() and manifest.is_file() and json.loads(manifest.read_text()).get("name") == "batched-change-list":
+        return candidate
+    return Path(installed_root or Path.home() / ".agents/plugins/batched-change-list")
+
+SKILL_DIR = Path(__file__).resolve().parents[1]
+PLUGIN = plugin_root(SKILL_DIR)
 BCL = PLUGIN / "bin/bcl"
+if not BCL.is_file():
+    raise unittest.SkipTest("plugin bin is not shipped beside the skill and is not installed")
 EXAMPLE = PLUGIN / "skills/batched-change-list/examples/findings.json"
-sys.path.insert(0, str(PLUGIN / "skills/batched-change-list/scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import live_state
+import viewer_test_guard
 import check_introspect
 loader = SourceFileLoader("bcl_entrypoint", str(BCL))
 spec = importlib.util.spec_from_loader("bcl_entrypoint", loader)
 bcl_entrypoint = importlib.util.module_from_spec(spec)
-loader.exec_module(bcl_entrypoint)
+try:
+    loader.exec_module(bcl_entrypoint)
+finally:
+    sys.path.remove(str(bcl_entrypoint.SCRIPTS))
+
+CLEANED_VIEWER_PIDS = set()
+TEMP_TEST_ROOTS = set()
+
+def viewer_pids_under(roots):
+    return viewer_test_guard.viewer_pids_under(roots)
+
+def tearDownModule():
+    pids = viewer_pids_under(TEMP_TEST_ROOTS)
+    viewer_test_guard.stop_viewers(TEMP_TEST_ROOTS, pids)
+    CLEANED_VIEWER_PIDS.update(pids)
+    leaked = [pid for pid in CLEANED_VIEWER_PIDS if live_state._pid_is_running(pid)]
+    if leaked:
+        raise AssertionError(f"viewer processes survived suite cleanup: {leaked}")
 
 class BclTests(unittest.TestCase):
+    def test_plugin_root_stays_inside_plugin_or_installed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); plugin = root / "plugins/batched-change-list"
+            skill = plugin / "skills/batched-change-list"; skill.mkdir(parents=True)
+            (plugin / "bin").mkdir(); (plugin / "bin/bcl").write_text("")
+            (plugin / "plugin.json").write_text('{"name":"batched-change-list"}')
+            self.assertEqual(plugin_root(skill), plugin)
+            installed = root / "installed/batched-change-list"
+            self.assertEqual(plugin_root(root / "outside/skills/batched-change-list", installed), installed)
+
     def test_verify_failure_reason_has_checked_expected_and_observed(self):
         reason = bcl_entrypoint._verification_failure_reason('python3 check.py', 'Verification command exited 7')
         self.assertIn('Checked: python3 check.py', reason)
@@ -29,6 +66,8 @@ class BclTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name); self.state = self.root / "state"
+        TEMP_TEST_ROOTS.add(self.root.resolve())
+        self.addCleanup(self.cleanup_viewers)
         self.bin = self.root / "bin"; self.bin.mkdir()
         self.command_log = self.root / "commands.jsonl"
         fake_cli = """#!/usr/bin/env python3
@@ -47,7 +86,6 @@ elif args[:2] != ['pr', 'edit']:
             executable = self.bin / name; executable.write_text(fake_cli); executable.chmod(0o755)
         self.env = {**os.environ, "BCL_STATE_DIR": str(self.state), "BCL_COMMAND_LOG": str(self.command_log),
                     "PATH": str(self.bin) + os.pathsep + os.environ.get("PATH", "")}
-        self.extra_pids = set()
         self.home = self.root / "home"; self.home.mkdir()
         self.git(self.home, "init", "-q"); self.git(self.home, "config", "user.email", "test@example.com"); self.git(self.home, "config", "user.name", "Test")
         self.git(self.home, "remote", "add", "github", "https://github.com/example/project.git")
@@ -60,18 +98,32 @@ elif args[:2] != ['pr', 'edit']:
         other_viewer = self.state / "viewers" / "other-list.json"; other_viewer.parent.mkdir(parents=True, exist_ok=True)
         other_viewer.write_text(json.dumps({"port":53366, "data":"/another/list.json"}))
         self.call("adopt", self.data)
-        def cleanup_viewer():
-            pids = set(self.extra_pids)
-            for path in (self.state / "viewers").glob("*.json") if (self.state / "viewers").exists() else []:
-                try:
-                    pid = json.loads(path.read_text()).get("pid")
-                    if pid: pids.add(int(pid))
-                except (OSError, ValueError): pass
-            for pid in pids:
-                if pid not in (87005, 28743):
-                    try: os.kill(pid, signal.SIGTERM)
-                    except OSError: pass
-        self.addCleanup(cleanup_viewer)
+
+    def cleanup_viewers(self):
+        owned = viewer_pids_under([self.root])
+        viewer_test_guard.stop_viewers(self.root, owned)
+        CLEANED_VIEWER_PIDS.update(owned)
+
+    def test_suite_leaves_no_viewer_processes(self):
+        result = self.call("start")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        viewers = [json.loads(path.read_text()) for path in (self.state / "viewers").glob("*.json")]
+        self.assertTrue(any(value.get("pid") for value in viewers))
+        pid = next(int(value["pid"]) for value in viewers if value.get("pid"))
+        self.cleanup_viewers()
+        self.assertFalse(live_state._pid_is_running(pid))
+        self.assertTrue(all(not live_state._pid_is_running(pid) for pid in CLEANED_VIEWER_PIDS))
+
+    @staticmethod
+    def merge_ready(document):
+        template = document["findings"][0]
+        document["findings"] = []
+        for index in range(16):
+            finding = json.loads(json.dumps(template))
+            finding.update(id=f"ISSUE-{index + 1:02}", status="verified_fixed", verification="Verified", verification_refs=["receipt"])
+            document["findings"].append(finding)
+        document["tracking"].update(stages_reached=["report_rollover"], rollover_threshold=15)
+        return document
 
     def test_install_local_refreshes_only_the_requested_temp_destinations(self):
         checkout = self.root / "checkout"
@@ -84,6 +136,7 @@ elif args[:2] != ['pr', 'edit']:
         self.git(checkout, "config", "user.email", "test@example.com")
         self.git(checkout, "config", "user.name", "Test")
         self.git(checkout, "add", ".")
+        self.git(checkout, "add", "-f", "skills/batched-change-list/references/review.md")
         self.git(checkout, "commit", "-qm", "fixture")
         home = self.root / "install-home"
         old_plugin = home / ".agents/plugins/batched-change-list"
@@ -91,13 +144,13 @@ elif args[:2] != ['pr', 'edit']:
         for old in (old_plugin, old_skill):
             old.mkdir(parents=True)
             (old / "old-copy").write_text("remove")
-        plugin_sha, plugin_count = bcl_entrypoint._install_tree_digest(checkout)
         skill_sha, skill_count = bcl_entrypoint._install_tree_digest(checkout / "skills/batched-change-list")
         version = json.loads((checkout / "plugin.json").read_text())["version"]
         revision = self.git(checkout, "rev-parse", "HEAD").stdout.strip()
-        with patch.object(bcl_entrypoint, "HERE", checkout), patch.dict(os.environ, {"HOME": str(home)}), \
+        with patch.object(bcl_entrypoint, "HERE", checkout), patch.object(Path, "home", return_value=home), \
              patch.object(sys, "argv", [str(BCL), "install-local"]), contextlib.redirect_stdout(io.StringIO()) as receipt:
             bcl_entrypoint.main()
+        plugin_sha, plugin_count = bcl_entrypoint._install_tree_digest(checkout)
         plugin_destinations = [
             home / ".agents/plugins/batched-change-list",
             *(home / f".{client}/plugins/cache/ingpoc-agent-plugins/batched-change-list/{ref}"
@@ -283,13 +336,51 @@ elif args[:2] != ['pr', 'edit']:
                 codex = group.setdefault("codex", {})
                 codex.setdefault("implementer_session", "fixture-implementer")
                 codex.setdefault("reviewer_session", "fixture-reviewer")
-                codex.setdefault("review_status", "passed")
+                codex.setdefault("review_status", "pending")
             plan_path.write_text(json.dumps(plan))
         return subprocess.run([sys.executable, str(BCL), "--data", str(data), *map(str, extra), stage], cwd=cwd, env=self.env, capture_output=True, text=True)
+
+    def prepare_review(self, ids=None):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        document = json.loads(live.read_text())
+        tracking = document.setdefault("tracking", {})
+        plan = tracking.get("plan", {})
+        for group in plan.get("groups", []):
+            if ids and not set(ids).intersection(group.get("finding_ids", [])): continue
+            codex = group.setdefault("codex", {})
+            codex.update(implementer_session="fixture-implementer", reviewer_session="fixture-reviewer",
+                         review_status="passed", job={"phase":"fix", "exit_code":0,
+                         "finished_phase_status":"passed"})
+            group.update(status="review", phase="review", presuite={"status":"passed"})
+        reached = tracking.setdefault("stages_reached", [])
+        for stage in ("plan_fix", "review"):
+            if stage not in reached: reached.append(stage)
+        tracking["workflow"] = {"stage":"review", "updated_at":"2026-11-18T00:00:00Z"}
+        payload = json.dumps(document)
+        live.write_text(payload)
+        self.data.write_text(payload)
+
+    def install_after_review(self, *args):
+        ids = [args[i + 1] for i, value in enumerate(args[:-1]) if value == "--ids"]
+        self.prepare_review(ids or None)
+        return self.call("install", *args)
 
     def call_without_viewer(self, stage, *args):
         output, error = io.StringIO(), io.StringIO()
         argv = [str(BCL), "--data", str(self.data), *map(str, args), stage]
+        with patch.object(sys, "argv", argv), patch.object(bcl_entrypoint, "_ensure_viewer"), \
+                patch.object(live_state, "STATE", self.state), patch.dict(os.environ, self.env), \
+                contextlib.redirect_stdout(output), contextlib.redirect_stderr(error):
+            try:
+                bcl_entrypoint.main()
+                code = 0
+            except SystemExit as result:
+                code = result.code if isinstance(result.code, int) else 1
+        return SimpleNamespace(returncode=code, stdout=output.getvalue(), stderr=error.getvalue())
+
+    def call_job_without_viewer(self, live, *args):
+        output, error = io.StringIO(), io.StringIO()
+        argv = [str(BCL), "--data", str(live), *map(str, args)]
         with patch.object(sys, "argv", argv), patch.object(bcl_entrypoint, "_ensure_viewer"), \
                 patch.object(live_state, "STATE", self.state), patch.dict(os.environ, self.env), \
                 contextlib.redirect_stdout(output), contextlib.redirect_stderr(error):
@@ -325,19 +416,96 @@ elif args[:2] != ['pr', 'edit']:
         result = subprocess.run([sys.executable, str(BCL), "adopt", str(self.data)], env=self.env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_two_concurrent_jobs_both_finish(self):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        tracker = json.loads(self.data.read_text())
+        tracker["findings"][1]["status"] = "untested"
+        tracker["findings"][1].pop("verification", None)
+        tracker["findings"][1].pop("verification_refs", None)
+        self.data.write_text(json.dumps(tracker))
+        live.write_text(self.data.read_text())
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        plan = self.root / "concurrent-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [
+            {"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned"},
+            {"id": "B", "finding_ids": ["ISSUE-02"], "status": "planned"}]}))
+        prepared = self.call("plan", "--plan", str(plan), "--ids", "ISSUE-01", "--ids", "ISSUE-02")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        commands = [[sys.executable, str(BCL), "--data", str(self.data), "--ids", issue,
+                     "--phase", "fix", "job", "--", sys.executable, "-c",
+                     f"import time; time.sleep(0.35); raise SystemExit({code})"]
+                    for issue, code in (("ISSUE-01", 0), ("ISSUE-02", 7))]
+        processes = [subprocess.Popen(command, env=self.env, stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE, text=True) for command in commands]
+        results = [process.communicate(timeout=30) for process in processes]
+        self.assertEqual([process.returncode for process in processes], [0, 7], results)
+        groups = {group["id"]: group for group in json.loads(live.read_text())["tracking"]["plan"]["groups"]}
+        self.assertEqual([groups[key]["codex"]["job"]["exit_code"] for key in ("A", "B")], [0, 7])
+        self.assertEqual([groups[key]["status"] for key in ("A", "B")], ["review", "failed"])
+
+    def test_passed_fix_job_is_not_shown_planned(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        plan = self.root / "passed-fix-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "status": "planned"}]}))
+        prepared = self.call("plan", "--plan", str(plan), "--ids", "ISSUE-01")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        result = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
+            "--phase", "fix", "job", "--", sys.executable, "-c", "pass"],
+            env=self.env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual((group["status"], group["phase"]), ("review", "review"))
+        self.assertIn('class="lc rev"', self.page.read_text())
+
+    def test_fix_then_presuite_then_review_succeeds(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        plan = self.root / "review-order-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"],
+            "status": "planned", "codex": {"implementer_session": "writer", "review_status": "pending"}}]}))
+        prepared = self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        def job(phase):
+            return subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
+                "--phase", phase, "job", "--", sys.executable, "-c", "pass"],
+                env=self.env, capture_output=True, text=True)
+        self.assertEqual(job("fix").returncode, 0)
+        self.assertEqual(job("presuite").returncode, 0)
+        reviewed = self.call_without_viewer("review", "--ids", "ISSUE-01")
+        self.assertEqual(reviewed.returncode, 0, reviewed.stderr)
+        review_job = job("review")
+        self.assertEqual(review_job.returncode, 0, review_job.stderr)
+        group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["codex"]["fix_status"], "passed")
+        self.assertEqual(group["codex"]["review_status"], "passed")
+        self.assertNotIn("reviewer_session", group["codex"])
+
     def test_workflow_cycle_uses_live_tracker_and_snapshots_each_stage(self):
         result = self.call_without_viewer("start")
         self.assertEqual(result.returncode, 0, result.stderr)
         marker = self.root / 'proof-ran'
         proof = self.root / 'proof.py'; proof.write_text(f"from pathlib import Path\nPath({str(marker)!r}).write_text('yes')\n")
         command = f'"{sys.executable}" "{proof}"'
-        plan = {"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"reason":"Same root cause","depends_on":[],"codex":{"model":"gpt-6-luna","effort":"medium","status":"running","started_at":"2026-11-14T09:00:00Z","duration_s":120,"implementer_session":"fixture-implementer","reviewer_session":"fixture-reviewer","review_status":"passed"},"verify":{"command":command,"method":"Unit tests and a live page check","status":"pending"},"status":"running"}]}
+        plan = {"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"reason":"Same root cause","depends_on":[],"codex":{"model":"gpt-6-luna","effort":"medium","status":"running","started_at":"2026-11-14T09:00:00Z","duration_s":120,"implementer_session":"fixture-implementer","reviewer_session":"fixture-reviewer","review_status":"pending"},"verify":{"command":command,"method":"Unit tests and a live page check","status":"pending"},"status":"running"}]}
         planfile = self.root / "plan.json"; planfile.write_text(json.dumps(plan))
         sectionfile = self.root / "sections.json"
         self.assertNotEqual(self.call("introspect", "--result", "no issues").returncode, 0)
-        for stage, extra in (("plan", ["--plan", str(planfile), "--ids", "ISSUE-01"]), ("fix", ["--ids", "ISSUE-01"]), ("install", ["--ids", "ISSUE-01"]), ("verify", ["--ids", "ISSUE-01", "--then", command])):
+        for stage, extra in (("plan", ["--plan", str(planfile), "--ids", "ISSUE-01"]),):
             result = self.call_without_viewer(stage, *extra); self.assertEqual(result.returncode, 0, result.stderr)
             if stage == "plan": self.assertIn('class="plan"', self.page.read_text())
+        job = [sys.executable, str(proof)]
+        result = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
+                                 "--phase", "fix", "job", "--", *job], env=self.env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        review_result = self.call_without_viewer("review", "--ids", "ISSUE-01")
+        self.assertEqual(review_result.returncode, 0, review_result.stderr)
+        result = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
+                                 "--phase", "review", "job", "--", *job], env=self.env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        result = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01", "--phase", "presuite", "job", "--", *job], env=self.env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.call_without_viewer("install", "--ids", "ISSUE-01").returncode, 0)
+        self.assertEqual(self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command).returncode, 0)
         result = self.call_without_viewer("introspect", "--draft", sectionfile)
         self.assertEqual(result.returncode, 0, result.stderr)
         data = json.loads(self.data.read_text())
@@ -358,10 +526,10 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(marker.read_text(), 'yes')
         self.assertEqual(status.returncode, 0, status.stderr)
         data = json.loads(self.data.read_text())
-        self.assertEqual(data["tracking"]["stages_reached"], ["collect", "plan_fix", "install", "verify", "introspect"])
+        self.assertEqual(data["tracking"]["stages_reached"], ["collect", "plan_fix", "review", "install", "verify", "introspect"])
         self.assertEqual(data["tracking"]["plan"]["groups"][0]["id"], "A")
         self.assertEqual(data["tracking"]["plan"]["status"], "closed")
-        self.assertEqual(json.loads(status.stdout)["plan"][0]["status"], "running")
+        self.assertEqual(json.loads(status.stdout)["plan"][0]["status"], "installing")
 
     def test_introspect_draft_rejects_input_tracker_and_live_hard_link(self):
         input_before = self.data.read_bytes()
@@ -385,7 +553,7 @@ elif args[:2] != ['pr', 'edit']:
         plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending','verify':{'command':'echo verify'}}]}
         path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
         self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
-        self.assertEqual(self.call('install','--ids','ISSUE-01').returncode, 0)
+        self.assertEqual(self.install_after_review('--ids','ISSUE-01').returncode, 0)
         result = self.call('verify','--ids','ISSUE-01','--then','echo verify')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('actual check', result.stderr)
@@ -408,7 +576,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(group['status'], 'failed')
         self.assertEqual(group['phase'], 'verify')
         self.assertIn('exited 7', group['verify']['failure'])
-        self.assertEqual(next(item for item in written['findings'] if item['id'] == 'ISSUE-01')['status'], 'blocked')
+        self.assertEqual(next(item for item in written['findings'] if item['id'] == 'ISSUE-01')['status'], 'in_progress')
         self.assertIn('exited 7', self.page.read_text())
 
         masked = command + ' ; true'
@@ -440,14 +608,14 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(written['findings'][0]['status'], 'failing')
         self.assertEqual(written['tracking']['plan']['groups'][0]['status'], 'failed')
 
-    def test_failed_command_blocks_active_check_without_losing_observation(self):
+    def test_failed_lane_verify_keeps_findings_in_progress(self):
         self.assertEqual(self.call('start').returncode, 0)
         fail = self.root / 'fail.py'; fail.write_text('raise SystemExit(7)\n')
         command = f'"{sys.executable}" "{fail}"'
         plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending','verify':{'command':command}}]}
         path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
         self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
-        self.assertEqual(self.call('install','--ids','ISSUE-01').returncode, 0)
+        self.assertEqual(self.install_after_review('--ids','ISSUE-01').returncode, 0)
         live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
         operations = [
             {'action':'start-verification','run':{'id':'run1','build':'1.0','revision':'abc','installed_at':'2020-01-01T00:00:00Z','install_evidence':'receipt'}},
@@ -462,10 +630,62 @@ elif args[:2] != ['pr', 'edit']:
         self.assertNotEqual(result.returncode, 0)
         written = json.loads(live.read_text())
         check = written['tracking']['verification_run']['checks']['ISSUE-01']
-        self.assertEqual(check['state'], 'blocked', result.stderr)
+        self.assertEqual(check['state'], 'inconclusive', result.stderr)
         self.assertEqual(check['observation'], 'Visible before check')
         self.assertIn('exited 7', check['evidence'])
-        self.assertEqual(next(item for item in written['findings'] if item['id'] == 'ISSUE-01')['status'], 'blocked')
+        self.assertEqual(next(item for item in written['findings'] if item['id'] == 'ISSUE-01')['status'], 'in_progress')
+        group = written['tracking']['plan']['groups'][0]
+        self.assertEqual(group['status'], 'failed')
+        self.assertIn('exited 7', group['verify']['failure'])
+
+    def test_fix_job_restarts_failed_lane(self):
+        self.assertEqual(self.call('start').returncode, 0)
+        live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
+        document = json.loads(live.read_text())
+        document['findings'][0]['status'] = 'in_progress'
+        tracking = document['tracking']
+        tracking['plan'] = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'failed','phase':'verify'}]}
+        tracking['workflow'] = {'stage':'introspect'}
+        tracking['introspect'] = {
+            'cycle':1,'round':1,'at':'2026-11-18T00:00:00Z','result':'Retry after failed verification',
+            'steps':['rework'],'none':[],
+            'sections':{name:{'items':[]} for name in ('delete','simplify','optimize','automate')},
+        }
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+        result = self.call_job_without_viewer(live,'--ids','ISSUE-01','--phase','fix','job','--',sys.executable,'-c','pass')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        tracking = json.loads(live.read_text())['tracking']
+        self.assertEqual(tracking['round'], 2)
+        self.assertEqual(tracking['plan']['groups'][0]['status'], 'review')
+        self.assertEqual(tracking['plan']['groups'][0]['codex']['fix_status'], 'passed')
+
+    def test_fix_job_does_not_run_command_without_current_introspect(self):
+        self.assertEqual(self.call('start').returncode, 0)
+        live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
+        document = json.loads(live.read_text())
+        document['findings'][0]['status'] = 'in_progress'
+        tracking = document['tracking']
+        tracking['plan'] = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'failed','phase':'verify'}]}
+        tracking['workflow'] = {'stage':'verify'}
+        tracking.pop('introspect', None); tracking.pop('introspect_history', None)
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+        marker = self.root / 'command-ran'
+        command = f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')"
+        result = self.call_job_without_viewer(live,'--ids','ISSUE-01','--phase','fix','job','--',sys.executable,'-c',command)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("record this round's introspect", result.stderr)
+        self.assertFalse(marker.exists())
+
+    def test_fix_job_still_refuses_blocked_lane(self):
+        self.assertEqual(self.call('start').returncode, 0)
+        live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
+        document = json.loads(live.read_text())
+        document['findings'][0]['status'] = 'in_progress'
+        document['tracking']['plan'] = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'blocked'}]}
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+        result = self.call_job_without_viewer(live,'--ids','ISSUE-01','--phase','fix','job','--',sys.executable,'-c','pass')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('fix job cannot start a blocked, parked, or deferred lane', result.stderr)
 
     def test_failed_command_does_not_overwrite_newer_plan(self):
         self.assertEqual(self.call('start').returncode, 0)
@@ -476,7 +696,7 @@ elif args[:2] != ['pr', 'edit']:
         plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending','verify':{'command':command}}]}
         path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
         self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
-        self.assertEqual(self.call('install','--ids','ISSUE-01').returncode, 0)
+        self.assertEqual(self.install_after_review('--ids','ISSUE-01').returncode, 0)
         result = self.call('verify','--ids','ISSUE-01','--then',command)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('Could not record failed lanes', result.stderr)
@@ -492,7 +712,7 @@ elif args[:2] != ['pr', 'edit']:
                                     {'id':'B','finding_ids':['ISSUE-02'],'status':'pending','verify':{'command':'python3 test.py'}}]}
         path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
         self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
-        self.assertEqual(self.call('install','--ids','ISSUE-01').returncode, 0)
+        self.assertEqual(self.install_after_review('--ids','ISSUE-01').returncode, 0)
         result = self.call('verify','--ids','ISSUE-01','--then',command)
         self.assertNotEqual(result.returncode, 0)
         self.assertNotIn('Could not record failed lanes', result.stderr)
@@ -514,7 +734,7 @@ elif args[:2] != ['pr', 'edit']:
                                     {'id':'B','finding_ids':['ISSUE-02'],'status':'pending','verify':{'command':command}}]}
         path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
         self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01','--ids','ISSUE-02').returncode, 0)
-        self.assertEqual(self.call('install','--ids','ISSUE-01','--ids','ISSUE-02').returncode, 0)
+        self.assertEqual(self.install_after_review('--ids','ISSUE-01','--ids','ISSUE-02').returncode, 0)
         result = self.call('verify','--ids','ISSUE-01','--ids','ISSUE-02','--then',command)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('Could not record failed lanes (A)', result.stderr)
@@ -522,7 +742,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(written['tracking']['plan']['groups'][0]['status'], 'review')
         self.assertEqual(written['tracking']['plan']['groups'][1]['status'], 'failed')
         self.assertIn('exited 7', written['tracking']['plan']['groups'][1]['verify']['failure'])
-        self.assertEqual(next(item for item in written['findings'] if item['id'] == 'ISSUE-02')['status'], 'blocked')
+        self.assertEqual(next(item for item in written['findings'] if item['id'] == 'ISSUE-02')['status'], 'in_progress')
 
     def test_verify_rejects_plan_change_during_snapshot(self):
         self.assertEqual(self.call('start').returncode, 0)
@@ -532,7 +752,7 @@ elif args[:2] != ['pr', 'edit']:
         plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending','verify':{'command':command}}]}
         path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
         self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
-        self.assertEqual(self.call('install','--ids','ISSUE-01').returncode, 0)
+        self.assertEqual(self.install_after_review('--ids','ISSUE-01').returncode, 0)
         live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
         manager = PLUGIN / 'skills/batched-change-list/scripts/manage_findings.py'
         operations = self.root / 'change-plan.json'
@@ -576,7 +796,7 @@ elif args[:2] != ['pr', 'edit']:
                                      'verify':{'command':command}}]}
         path = self.root / 'concurrent-plan.json'; path.write_text(json.dumps(plan))
         self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
-        self.assertEqual(self.call('install','--ids','ISSUE-01').returncode, 0)
+        self.assertEqual(self.install_after_review('--ids','ISSUE-01').returncode, 0)
 
         original_argv = sys.argv[:]
         first_result = []
@@ -617,7 +837,7 @@ elif args[:2] != ['pr', 'edit']:
                                      'verify':{'command':stored_command}}]}
         path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
         self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
-        self.assertEqual(self.call('install','--ids','ISSUE-01').returncode, 0)
+        self.assertEqual(self.install_after_review('--ids','ISSUE-01').returncode, 0)
         live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
         manager = PLUGIN / 'skills/batched-change-list/scripts/manage_findings.py'
         operations = [
@@ -690,6 +910,7 @@ elif args[:2] != ['pr', 'edit']:
         ]}
         path = self.root / 'dependency-plan.json'; path.write_text(json.dumps(plan))
         invoke('plan','--plan',str(path),'--ids','ISSUE-01')
+        self.prepare_review(["ISSUE-01"])
         invoke('install','--ids','ISSUE-01')
         manager = PLUGIN / 'skills/batched-change-list/scripts/manage_findings.py'
         def change_prerequisite_check(record, live_path):
@@ -722,16 +943,71 @@ elif args[:2] != ['pr', 'edit']:
         self.assertNotEqual(self.call("verify").returncode, 0)
         self.assertNotEqual(self.call("report").returncode, 0)
 
+    def test_review_refuses_until_fix_job_finishes(self):
+        self.assertEqual(self.call("start").returncode, 0)
+        plan = self.root / "plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"],
+            "status": "planned", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer"}}]}))
+        self.assertEqual(self.call("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        result = self.call("review", "--ids", "ISSUE-01")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("has not finished fix", result.stderr)
+
+    def test_review_and_presuite_reject_other_lane_still_fixing(self):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        data = json.loads(live.read_text())
+        data["tracking"]["workflow"] = {"stage": "review", "updated_at": "2026-11-18T00:00:00Z"}
+        data["tracking"]["plan"] = {"cycle": 1, "groups": [
+            {"id": "A", "finding_ids": ["ISSUE-01"], "status": "review", "phase": "review", "codex": {"fix_status": "passed"}},
+            {"id": "B", "finding_ids": ["ISSUE-02"], "status": "running", "phase": "fix", "codex": {}}]}
+        live.write_text(json.dumps(data))
+        for phase in ("review", "presuite"):
+            result = subprocess.run([sys.executable, str(BCL), "--data", str(live), "--ids", "ISSUE-01", "--ids", "ISSUE-02",
+                "--phase", phase, "job", "--", sys.executable, "-c", "pass"], env=self.env, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("each lane", result.stderr)
+
+    def test_one_file_review_skip_and_presuite_gate_real_install(self):
+        self.assertEqual(self.call("start").returncode, 0)
+        plan = self.root / "one-file.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"],
+            "status": "planned", "codex": {"one_file": True}}]}))
+        self.assertEqual(self.call("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        self.assertNotEqual(self.call("review", "--ids", "ISSUE-01").returncode, 0)
+        def job(phase, code):
+            return subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
+                "--phase", phase, "job", "--", sys.executable, "-c", f"exit({code})"], env=self.env, capture_output=True, text=True)
+        self.assertEqual(job("fix", 0).returncode, 0)
+        self.assertEqual(self.call("review", "--ids", "ISSUE-01").returncode, 0)
+        self.assertEqual(json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["codex"]["review_status"], "skipped_one_file")
+        self.assertNotEqual(self.call("install", "--ids", "ISSUE-01").returncode, 0)
+        self.assertEqual(job("presuite", 1).returncode, 1)
+        self.assertNotEqual(self.call("install", "--ids", "ISSUE-01").returncode, 0)
+        self.assertEqual(job("presuite", 0).returncode, 0)
+        result = self.call("install", "--ids", "ISSUE-01")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_install_refuses_before_review(self):
+        self.assertEqual(self.call("start").returncode, 0)
+        plan = self.root / "plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"],
+            "status": "planned", "codex": {"one_file": True}}]}))
+        self.assertEqual(self.call("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        result = self.call("install", "--ids", "ISSUE-01")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("install requires review", result.stderr)
+
     def test_stage_renders_before_then_command(self):
         live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
         tracker = json.loads(live.read_text())
         tracker["findings"][0]["status"] = "in_progress"
-        tracker["tracking"]["plan"] = {"cycle": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "codex": {"implementer_session": "fixture-implementer", "reviewer_session": "fixture-reviewer", "review_status": "passed"}}]}
+        tracker["tracking"]["stages_reached"] = ["plan_fix", "review"]
+        tracker["tracking"]["plan"] = {"cycle": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "review", "phase": "review", "codex": {"implementer_session": "fixture-implementer", "reviewer_session": "fixture-reviewer", "review_status": "passed"}}]}
         live.write_text(json.dumps(tracker)); self.data.write_text(json.dumps(tracker))
         stub = self.root / "check_stage.py"
         stub.write_text("import json, sys\nfrom pathlib import Path\ndata, page = map(Path, sys.argv[1:])\nhtml = page.read_text()\nassert json.loads(data.read_text())['tracking']['workflow']['stage'] == 'install'\nassert 'Install' in html\nassert 'class=\"workflow-now\"' not in html\n")
         command = f'"{sys.executable}" "{stub}" "{live}" "{self.page}"'
-        result = self.call("install", live, "--ids", "ISSUE-01", "--then", command)
+        result = self.install_after_review(live, "--ids", "ISSUE-01", "--then", command)
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_install_hooks_idempotent_chain_and_stale_page(self):
@@ -834,7 +1110,7 @@ elif args[:2] != ['pr', 'edit']:
         sha = "a" * 40; merged_at = "2026-11-14T12:00:00Z"
         live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
         doc = json.loads(self.data.read_text())
-        doc["tracking"].update(stages_reached=["report_rollover"], rollover_threshold=1)
+        doc = self.merge_ready(doc)
         doc["tracking"]["workflow"] = {"stage": "report_rollover", "updated_at": "2026-11-14T11:00:00Z"}
         contents = json.dumps(doc)
         self.data.write_text(contents)
@@ -858,7 +1134,7 @@ elif args[:2] != ['pr', 'edit']:
     def test_merged_keeps_terminal_data_and_emits_todo_when_retarget_api_fails(self):
         doc = json.loads(self.data.read_text())
         doc["tracking"]["pull_request"]["url"] = "https://origin.example/example/project/pull/123"
-        doc["tracking"].update(stages_reached=["report_rollover"], rollover_threshold=1)
+        doc = self.merge_ready(doc)
         doc["tracking"]["workflow"] = {"stage": "report_rollover", "updated_at": "2026-11-14T11:00:00Z"}
         contents = (json.dumps(doc, indent=2) + "\n").encode()
         self.data.write_bytes(contents)
@@ -936,7 +1212,6 @@ elif args[:2] != ['pr', 'edit']:
         updated = json.loads(path.read_text()); self.assertNotEqual(updated["pid"], first_pid)
         updated["data"] = "/tmp/wrong.json"; path.write_text(json.dumps(updated))
         old_pid = updated["pid"]
-        self.extra_pids.add(old_pid)
         self.assertEqual(self.call("merge").returncode, 0)
         self.assertNotEqual(json.loads(path.read_text())["pid"], old_pid)
 
@@ -977,7 +1252,6 @@ elif args[:2] != ['pr', 'edit']:
         live = Path(record["live"])
         viewer_path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
         current = json.loads(viewer_path.read_text())
-        self.extra_pids.add(int(current["pid"]))
         viewer_path.write_text(json.dumps({"port":53366, "pid":None, "version":"old", "data":str(live)}))
         (self.state / "viewers" / "other-list.json").unlink()
         binds = []
@@ -1000,7 +1274,6 @@ elif args[:2] != ['pr', 'edit']:
         live = Path(record["live"]).resolve()
         viewer_path = self.viewer_state_path(live)
         current = json.loads(viewer_path.read_text())
-        self.extra_pids.add(int(current["pid"]))
         viewer_path.write_text(json.dumps({"port":53366, "pid":12345, "version":"old", "data":str(live), "instance":"test"}))
         (self.state / "viewers" / "other-list.json").unlink()
         signals, probes, binds = [], [], []

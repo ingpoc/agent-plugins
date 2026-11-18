@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.parse import quote, urlsplit
 from zoneinfo import ZoneInfo
 import workflow_definition as WF
+import live_state
 
 STATUSES = {"verified_fixed", "failing", "untested", "in_progress", "awaiting_user_test",
             "awaiting_verification", "blocked", "investigation"}
@@ -18,10 +19,10 @@ SOURCES = {"User reported", "User requested", "Agent reported", "Telemetry lead"
 CHECK_STATES = {"pending", "checking", "fixed", "not_fixed", "blocked", "inconclusive"}
 WORKFLOW_STAGES = {**WF.STAGE_LABELS, "gate": WF.DEFINITION["gate"]["badge_label"]}
 PLAN_STATUSES = {"planned", "running", "review", "installing", "verifying", "verified", "blocked", "failed", "parked"}
-PLAN_STATUS_ALIASES = {"pending": "planned", "queued": "planned", "deferred": "parked", "install": "installing", "fixed": "installing", "partial": "verifying"}
+PLAN_STATUS_ALIASES = {"pending": "planned", "queued": "planned", "deferred": "parked", "install": "planned", "fixed": "planned", "partial": "verifying"}
 PLAN_PHASES = {"fix", "review", "install", "verify", "introspect"}
 PLAN_PHASE_ALIASES = {"pending": "fix", "done": "verify"}
-LANE_PHASES = {"fix": "Plan & fix", "review": "Plan & fix", "install": "Install", "verify": "Verify", "introspect": "Introspect"}
+LANE_PHASES = {"fix": "Plan & fix", "review": "Review", "install": "Install", "verify": "Verify", "introspect": "Introspect"}
 STALE_LANE_STATUSES = {"running", "review", "installing", "verifying"}
 DEFAULT_ROLLOVER_THRESHOLD = WF.DEFAULT_ROLLOVER_THRESHOLD
 AGENT_COLLECTION_PLUGINS = ("agent-computer-use", "batched-change-list", "comet-control",
@@ -133,6 +134,36 @@ def rollover_round(tracking):
     return round_number
 
 
+def introspect_record_for_round(tracking, cycle=None, round_number=None):
+    cycle = rollover_cycle(tracking) if cycle is None else cycle
+    round_number = rollover_round(tracking) if round_number is None else round_number
+    history = tracking.get("introspect_history", [])
+    if not isinstance(history, list) or any(not isinstance(record, dict) for record in history):
+        raise ValueError("tracking.introspect_history must be an array of records")
+    for record in history:
+        if any(value is not None and (type(value) is not int or value < 1)
+               for value in (record.get("cycle"), record.get("round"))):
+            raise ValueError("tracking.introspect_history cycle and round must be positive when known")
+    match = next((record for record in reversed(history)
+                  if record.get("attribution") != "unattributed"
+                  and record.get("cycle") == cycle and record.get("round") == round_number), None)
+    current = tracking.get("introspect")
+    match = match or (current if isinstance(current, dict) and current.get("attribution") != "unattributed"
+                      and current.get("cycle") == cycle
+                      and current.get("round") == round_number else None)
+    if match is not None and (
+            not isinstance(match.get("result"), str) or not match["result"].strip()
+            or not isinstance(match.get("at"), str) or not match["at"].strip()
+            or not isinstance(match.get("steps"), list)
+            or any(not isinstance(step, str) or not step.strip() for step in match["steps"])
+            or not isinstance(match.get("none"), list)
+            or any(not isinstance(step, str) or not step.strip() for step in match["none"])
+            or not isinstance(match.get("sections"), dict)
+            or list(match["sections"]) != ["delete", "simplify", "optimize", "automate"]):
+        raise ValueError("current-round Introspect record is incomplete")
+    return match
+
+
 def parse_instant(value):
     if not isinstance(value, str) or not value.strip():
         return None
@@ -170,6 +201,9 @@ def plan_status(group):
     status = group.get("status", codex.get("status", "pending"))
     if not isinstance(status, str) or status not in PLAN_STATUSES | set(PLAN_STATUS_ALIASES) | {"done"}:
         raise ValueError(f"plan group {group.get('id')} has invalid status")
+    if status == "installing" and not (isinstance(group.get("install"), dict) and group["install"].get("started_at")):
+        codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+        return "review" if codex.get("review_status") == "passed" else "planned"
     if status in PLAN_STATUSES:
         return status
     if status == "done":
@@ -181,17 +215,21 @@ def plan_status(group):
             return "blocked"
         if verify.get("status") == "failed":
             return "failed"
-        return "installing"
+        return "installing" if isinstance(group.get("install"), dict) and group["install"].get("started_at") else "planned"
     return PLAN_STATUS_ALIASES[status]
 
 
 def plan_phase(group):
     status = plan_status(group)
     explicit = group.get("phase")
+    codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+    install = group.get("install") if isinstance(group.get("install"), dict) else {}
+    if status == "planned" and not install.get("started_at") and explicit in ("install", "verify"):
+        return "review" if codex.get("review_status") == "passed" else "fix"
     if status in ("blocked", "failed") and explicit in PLAN_PHASES:
         return explicit
     if status in ("planned", "running"):
-        return "fix"
+        return explicit if explicit in PLAN_PHASES else "fix"
     if status == "review":
         return "review"
     if status == "installing":
@@ -209,6 +247,22 @@ def plan_phase(group):
         if review.get("status") in ("running", "request-changes"):
             return "review"
     return "fix"
+
+
+def lane_job_active(group, now, stale_after):
+    codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+    job = codex.get("job") if isinstance(codex.get("job"), dict) else group.get("job")
+    if not isinstance(job, dict):
+        job = {}
+    pid = job.get("pid")
+    if "exit_code" not in job and type(pid) is int and pid > 0 and live_state._pid_is_running(pid):
+        return True
+    cutoff = now.timestamp() - stale_after * 60 if now else None
+    for value in (job.get("heartbeat_at"), group.get("updated_at")):
+        stamp = parse_instant(value)
+        if cutoff is not None and stamp and stamp.timestamp() >= cutoff:
+            return True
+    return False
 
 
 def short_words(value, limit=10):
@@ -284,10 +338,12 @@ def carried_tag(finding):
 
 
 def row_phase_track(group, state):
+    lane_phases = [phase for phase, _ in sorted(WF.DEFINITION["lane_phase_rank"].items(), key=lambda item: item[1])
+                   if phase != "introspect"]
     phase = "verify" if state == "verified" else "fix" if state == "planned" else plan_phase(group)
-    phase_index = ("fix", "review", "install", "verify", "introspect").index(phase)
+    phase_index = lane_phases.index(phase)
     dots = []
-    for index in range(4):
+    for index in range(len(lane_phases)):
         kind = ""
         if state == "verified" and index < 4:
             kind = "d"
@@ -298,7 +354,7 @@ def row_phase_track(group, state):
         elif state not in ("planned", "verified") and index == phase_index:
             kind = "c"
         dots.append(f'<i class="{kind}"></i>' if kind else "<i></i>")
-    label = (f"Phase {phase_index + 1} of 4: {LANE_PHASES[phase]}" if phase_index < 4
+    label = (f"Phase {phase_index + 1} of {len(lane_phases)}: {LANE_PHASES[phase]}" if phase_index < len(lane_phases)
              else "Lane complete; Introspect is a round step")
     if state in ("blocked", "failed"):
         label += f", {state}"
@@ -475,7 +531,9 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
             chips.append(f'<span class="lc blk" aria-label="{blocked} lane{"s" if blocked != 1 else ""} blocked"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><rect x="1" y="1" width="2" height="6" fill="currentColor"/><rect x="5" y="1" width="2" height="6" fill="currentColor"/></svg>{blocked}</span>')
         if failed:
             chips.append(chip(failed, "failed", "bad"))
-        steps.append(f'<li data-stage="{key}" class="wf-step {state}"><span class="wf-dot"><i></i></span><span class="wf-label">{html.escape(label)}</span>'
+        activity = next((stage.get("activities", []) for stage in WF.LOOP if stage["id"] == key), [])
+        sublabel = '<small> · Pre-push suite</small>' if "Pre-push suite" in activity else ""
+        steps.append(f'<li data-stage="{key}" class="wf-step {state}"><span class="wf-dot"><i></i></span><span class="wf-label">{html.escape(label)}{sublabel}</span>'
                      f'<span class="lanes">{"".join(chips)}</span></li>')
 
     gate_state = "done" if gate_met else "current" if active == "gate" else "upcoming"
@@ -498,7 +556,8 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
         stage.get("hide_after_rollover_until_reached") and cycle > 1 and stage["id"] not in reached)]
     pre = "".join(simple_step(stage) for stage in entry)
     post = "".join(simple_step(stage) for stage in WF.EXIT)
-    gate_note = WF.DEFINITION["gate"]["note"].format(threshold=threshold)
+    gate_note = WF.DEFINITION["gate"]["note"].format(
+        threshold=threshold, merge_threshold=WF.MERGE_PREVIOUS_PR_THRESHOLD)
     return (f'<ol class="wf" aria-label="Workflow steps"><li class="wf-pre"><ol>{pre}</ol></li>'
             f'<li class="wf-band {"gate-met" if gate_met else "gate-pending"}" role="group" aria-label="Repeats each round. Round {round_number}. {len(lanes)} lanes across {occupied} steps.">'
             f'<div class="wf-band-head"><span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M10 6a4 4 0 1 1-1.2-2.85" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M9.6 1v2.6H7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Repeats each round{spread}</span>'
@@ -534,6 +593,22 @@ def rollover_gate(findings, tracking):
     has_open = any(item.get("status") != "closed" and not currently_fixed(item) for item in counted)
     # A count at or above the threshold is always met; never render N of 15 as not met when N >= 15.
     return fixed, threshold, fixed >= threshold or not has_open
+
+
+def rollover_gate_state(findings, tracking):
+    fixed, threshold, met = rollover_gate(findings, tracking)
+    reached = tracking.get("stages_reached", [])
+    if not isinstance(reached, list) or any(not isinstance(stage, str) for stage in reached):
+        raise ValueError("tracking.stages_reached must be a list of stage names")
+    if "install" in reached and introspect_record_for_round(tracking) is None:
+        met = False
+    return fixed, threshold, met
+
+
+def merge_gate(findings, tracking):
+    fixed, _, _ = rollover_gate(findings, tracking)
+    threshold = WF.MERGE_PREVIOUS_PR_THRESHOLD
+    return fixed, threshold, fixed >= threshold
 
 
 
@@ -634,6 +709,24 @@ def render_tracking(tracking, inventory_override=None):
     worktree = tracking.get("worktree")
     if worktree is not None:
         context.append(f'<span class="header-worktree">{html.escape(required_text(worktree, "tracking.worktree"))}</span>')
+    archive = tracking.get("archive")
+    if archive is not None:
+        if (not isinstance(archive, dict) or type(archive.get("count")) is not int
+                or archive["count"] < 0):
+            raise ValueError("tracking.archive requires a nonnegative count")
+        if archive["count"]:
+            path = html.escape(required_text(archive.get("path"), "tracking.archive.path"))
+            context.append(f'<span>{archive["count"]} archived findings in {path}</span>')
+    parked = tracking.get("parked")
+    if parked is not None:
+        if (not isinstance(parked, dict) or type(parked.get("count")) is not int
+                or parked["count"] < 0 or not isinstance(parked.get("needs"), list)
+                or any(not isinstance(value, str) or not value.strip() for value in parked["needs"])):
+            raise ValueError("tracking.parked requires a nonnegative count and needs array")
+        if parked["count"]:
+            path = html.escape(required_text(parked.get("path"), "tracking.parked.path"))
+            needs = html.escape(", ".join(dict.fromkeys(parked["needs"])))
+            context.append(f'<span>{parked["count"]} parked findings in {path}; needs: {needs}</span>')
     run = tracking.get("verification_run")
     build_card = ""
     if run is not None:
@@ -872,7 +965,7 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     if run is not None and set(run["checks"]) != seen:
         raise ValueError("verification run checks must match the tracked issue IDs")
     template = TEMPLATE.read_text(encoding="utf-8")
-    fixed_count, threshold, gate_met = rollover_gate(findings, tracking_data)
+    fixed_count, threshold, gate_met = rollover_gate_state(findings, tracking_data)
     rollover = tracking_data.get("rollover", {})
     excluded = rollover.get("excluded_ids", [])
     if not isinstance(excluded, list) or any(not isinstance(item, str) for item in excluded) or not set(excluded) <= seen:
@@ -880,7 +973,8 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     render_now = reference or reported
     lanes = lane_status_by_finding(data, groups, round_number)
     in_progress = sum(item.get("status") == "in_progress" for item in findings)
-    stale = bool(reported and reference and (reference - reported).total_seconds() > stale_after * 60)
+    lane_active = any(lane_job_active(group, reference, stale_after) for group in groups)
+    stale = bool(reported and reference and (reference - reported).total_seconds() > stale_after * 60 and not lane_active)
     stale_tag = f'<span class="tag-stale" title="No update for over {stale_after} minutes"{"" if stale else " hidden"}>Stale</span>'
     relative_html = f'<span data-relative-time>{html.escape(relative)}</span>'
     merge_html = f'<span class="merge-meta" title="Merge commit"><span>Merge</span> <code>{html.escape(merge_commit)}</code></span>' if merge_commit else ""
@@ -888,7 +982,7 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
                   if time_html else '<span class="fresh">No update recorded</span>')
     timeline_steps = render_workflow(active, groups, fixed_count, threshold, gate_met, in_progress, round_number,
                                     tracking_data.get("stages_reached") or [], rollover_cycle(tracking_data),
-                                    tracking_data.get("introspect"))
+                                    introspect_record_for_round(tracking_data))
     plan_view = render_plan(data, tracking_data, plan, round_number, render_now)
     viewer_html = (f'<p class="viewer-footer">reading {html.escape(str(viewer["path"]))}, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}</p>' if viewer else '<p class="viewer-footer">Viewer version not recorded</p>')
     timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow · last recorded</strong>{fresh_html}</div>'
