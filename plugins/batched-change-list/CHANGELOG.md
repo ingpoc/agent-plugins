@@ -6,6 +6,8 @@
 - Hold rollover until the merge-previous-PR threshold is also met; report keeps its own gate; references name the gate fields instead of numbers.
 - Let small independent docs or chart items share a round.
 - Draw chart transitions as SVG paths with arrowheads and edge labels, verdict badges in both views, no markdown or overlapping labels.
+- Add a Review stage (work-done review or one-file skip, then the pre-push suite) between Plan & fix and Install, read from the definition everywhere.
+- Add bcl job: records a lane job, heartbeats while it runs and writes the lane result on exit, so the page is not Stale while work is live and Installing appears only after install starts.
 - Stop test-owned viewers, resolve bin/bcl only inside the plugin, restart a viewer serving another worktree, and snapshot-commit only on stage change or rollover.
 
 ## 0.1.38
