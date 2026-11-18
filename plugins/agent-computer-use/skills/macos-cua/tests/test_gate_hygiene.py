@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = ROOT.parents[3]
+REPO_ROOT = next(parent for parent in ROOT.parents if (parent / "scripts" / "release_agent_computer_use.py").is_file())
 CONTRACT = json.loads((ROOT / "hardening-contract.json").read_text())
 _spec = importlib.util.spec_from_file_location("gate_cleanup", ROOT / "scripts" / "gate_cleanup.py")
 gate_cleanup = importlib.util.module_from_spec(_spec)

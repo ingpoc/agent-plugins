@@ -15,7 +15,7 @@ CUA_DRIVER = os.environ.get("CUA_DRIVER", os.path.expanduser("~/.local/bin/cua-d
 
 
 def hard_reset_daemon() -> None:
-    subprocess.run(["pkill", "-f", "cua-driver"], capture_output=True)
+    subprocess.run(["pkill", "-x", "cua-driver"], capture_output=True)
     sock = os.path.expanduser("~/Library/Caches/cua-driver/cua-driver.sock")
     try:
         os.unlink(sock)

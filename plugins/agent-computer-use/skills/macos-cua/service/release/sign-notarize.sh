@@ -73,13 +73,15 @@ TEAM="$(printf '%s' "$IDENTITY" | sed -nE 's/.*\(([A-Z0-9]{10})\)$/\1/p')"
 [ -n "$TEAM" ] || die "cannot parse team id from identity: $IDENTITY"
 
 ent_for() { # $1 = name; prints entitlements path or nothing
-  local f="$ENT_DIR/$1.entitlements"; [ -f "$f" ] && printf '%s' "$f" || true
+  local f="$ENT_DIR/$1.entitlements"
+  if [ -f "$f" ]; then printf '%s' "$f"; fi
+  return 0
 }
 ent_for_bundle() { # $1 = bundle path; by bundle name, then by CFBundleExecutable
   local b="$1" n e exe
   n="$(basename "$b")"; e="$(ent_for "${n%.*}")"
   if [ -z "$e" ] && [ -f "$b/Contents/Info.plist" ]; then
-    exe="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$b/Contents/Info.plist" 2>/dev/null || true)"
+    exe="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$b/Contents/Info.plist" 2>/dev/null)" || die "can't read CFBundleExecutable in $b/Contents/Info.plist; repair the bundle metadata"
     [ -n "$exe" ] && e="$(ent_for "$exe")"
   fi
   printf '%s' "$e"
@@ -94,7 +96,9 @@ already_good() {
 }
 if [ "$FORCE" = 0 ] && already_good; then
   log "$APP already signed with '$IDENTITY'$([ "$SIGN_ONLY" = 1 ] || echo ', notarized and stapled'); nothing to do (use --force to redo)"
-  spctl -a -vvv -t exec "$APP" 2>&1 || true
+  if ! spctl -a -vvv -t exec "$APP" 2>&1; then
+    log "repeat assessment unavailable; the earlier signed and notarized checks passed"
+  fi
   exit 0
 fi
 
@@ -135,7 +139,8 @@ while IFS= read -r b; do
   [ -n "$b" ] || continue
   ip="$b/Contents/Info.plist"; [ -f "$ip" ] || ip="$b/Resources/Info.plist"; [ -f "$ip" ] || ip="$b/Versions/A/Resources/Info.plist"
   [ -f "$ip" ] || continue
-  exe="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$ip" 2>/dev/null || true)"; [ -n "$exe" ] || continue
+  exe="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$ip" 2>/dev/null)" || die "can't read CFBundleExecutable in $ip; repair the bundle metadata"
+  [ -n "$exe" ] || die "empty CFBundleExecutable in $ip; repair the bundle metadata"
   for c in "$b/Contents/MacOS/$exe" "$b/Versions/A/$exe" "$b/$exe"; do
     [ -f "$c" ] && [ ! -L "$c" ] && MAIN_EXES+="$(cd "$(dirname "$c")" && pwd -P)/$exe"$'\n'
   done
@@ -186,7 +191,8 @@ while IFS= read -r f; do
   grep -q 'flags=.*runtime' <<<"$info" || { echo "no hardened runtime: ${f#$APP/}" >&2; bad=1; }
   grep -q "TeamIdentifier=$TEAM" <<<"$info" || { echo "wrong team: ${f#$APP/}" >&2; bad=1; }
   grep -q '^Timestamp=' <<<"$info" || { echo "no secure timestamp: ${f#$APP/}" >&2; bad=1; }
-  ents="$(codesign -d --entitlements - --xml "$f" 2>/dev/null || true)"; if grep -q get-task-allow <<<"$ents"; then echo "get-task-allow present: ${f#$APP/}" >&2; bad=1; fi
+  ents="$(codesign -d --entitlements - --xml "$f" 2>/dev/null)" || die "can't inspect entitlements for ${f#$APP/}; repair the code signature"
+  if grep -q get-task-allow <<<"$ents"; then echo "get-task-allow present: ${f#$APP/}" >&2; bad=1; fi
 done < <(find "$APP" -type f | sort)
 [ "$bad" = 0 ] || die "post-sign audit failed"
 echo "designated requirement:"; codesign -d -r- "$APP" 2>&1 | sed -n 's/^designated => /  /p'
@@ -205,18 +211,22 @@ set +e
 xcrun notarytool submit "$ZIP" --keychain-profile "$PROFILE" --wait --output-format json > "$RES" 2>"$WORK/notary-$STAMP.err"
 rc=$?
 set -e
-SUB_ID="$(plutil -extract id raw -o - "$RES" 2>/dev/null || true)"
-STATUS="$(plutil -extract status raw -o - "$RES" 2>/dev/null || true)"
+SUB_ID="$(plutil -extract id raw -o - "$RES" 2>/dev/null)" || die "notary response has no submission id; inspect $RES and retry"
+STATUS="$(plutil -extract status raw -o - "$RES" 2>/dev/null)" || die "notary response has no status; inspect $RES and retry"
 echo "submission id: ${SUB_ID:-?}  status: ${STATUS:-?}"
 if [ "$STATUS" != "Accepted" ]; then
   cat "$WORK/notary-$STAMP.err" >&2
   if [ -n "$SUB_ID" ]; then
-    xcrun notarytool log "$SUB_ID" --keychain-profile "$PROFILE" "$WORK/notary-$STAMP-log.json" >/dev/null 2>&1 || true
+    if ! xcrun notarytool log "$SUB_ID" --keychain-profile "$PROFILE" "$WORK/notary-$STAMP-log.json" >/dev/null 2>&1; then
+      log "optional notary log unavailable; the rejected submission and response are retained"
+    fi
     [ -f "$WORK/notary-$STAMP-log.json" ] && { echo "notary log ($WORK/notary-$STAMP-log.json):" >&2; cat "$WORK/notary-$STAMP-log.json" >&2; }
   fi
   die "notarization not accepted (rc=$rc); zip kept at $ZIP for inspection"
 fi
-xcrun notarytool log "$SUB_ID" --keychain-profile "$PROFILE" "$WORK/notary-$STAMP-log.json" >/dev/null 2>&1 || true
+if ! xcrun notarytool log "$SUB_ID" --keychain-profile "$PROFILE" "$WORK/notary-$STAMP-log.json" >/dev/null 2>&1; then
+  log "optional notary log unavailable; the accepted submission result remains authoritative"
+fi
 
 log "stapling"
 xcrun stapler staple "$APP"

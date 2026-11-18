@@ -1,6 +1,6 @@
 ---
 name: batched-change-list
-description: Use when findings arrive one at a time, slow build-install-test fix cycles, change-list PR rollover or merging the prior PR, or to view the change-list page. Apply it to every finding.
+description: Use when collecting findings one at a time, managing build-install-test fix cycles, handling PR rollover or merging, or to view the change-list page.
 ---
 # Batched change list
 

@@ -22,7 +22,7 @@ on `captureVisibleTab` — now bounded 8s, still a class risk).
 
 1. **Other-tab focus** — never `focus_tab` / `activate_tab` into a Google Accounts
    / GSI popup tab. Lease is tab-scoped. Other-window picker →
-   [`google-accountchooser-ax.md`](google-accountchooser-ax.md).
+   [`google-accounts.md`](google-accounts.md).
    Footgun fixed: SW normalizes `tab_id`→`tabId` and rejects foreign activate/focus with
    `LEASE_TAB_SCOPED` (was ~87s `EXTENSION_TIMEOUT` on `activate_tab`+snake `tab_id`).
 2. **Screenshot every step** — do not bolt `screenshot` onto every click/wait
@@ -48,7 +48,7 @@ on `captureVisibleTab` — now bounded 8s, still a class risk).
    `page_context` + full-body `evaluate` + `screenshot` every step.
 3. **Batch** one `actions[]`: click/locator + compact `page_context`; batch
    `dialog_handle` with the click that opens it.
-4. **Timeouts:** 30–60s for simple reads/clicks; 90–180 only for known SPA
+4. **Timeouts:** 30–60s for simple reads/clicks; use the long-timeout range in [`scripts/config.json`](../scripts/config.json) only for known SPA
    remounts. Default `--timeout 180` is hang masking, not a target.
 5. **One durable controller** for the campaign. Idle ready→closeout with zero
    cmds wastes the runtime — act or closeout.

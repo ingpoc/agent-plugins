@@ -112,6 +112,36 @@ def _require_sentence_embedding(test: unittest.TestCase) -> None:
 
 
 class PackageTests(unittest.TestCase):
+    def test_lookup_plugin_root_uses_installed_layout_and_fallback(self) -> None:
+        import runpy
+
+        resolver = runpy.run_path(str(ROOT / "skills/context-ledger/scripts/lookup.py"))["_plugin_root"]
+        with tempfile.TemporaryDirectory() as tmp:
+            installed = Path(tmp) / "home/.agents/skills/context-ledger"
+            installed_script = installed / "scripts/lookup.py"
+            installed_script.parent.mkdir(parents=True)
+            installed_script.touch()
+            (installed / "context_ledger").mkdir()
+            (installed / "requirements.lock").touch()
+            self.assertEqual(resolver(installed_script), installed.resolve())
+
+            checkout_skill = Path(tmp) / "repo/plugins/context-ledger/skills/context-ledger"
+            checkout_script = checkout_skill / "scripts/lookup.py"
+            checkout_script.parent.mkdir(parents=True)
+            checkout_script.touch()
+            plugin = checkout_skill.parents[1]
+            (plugin / "context_ledger").mkdir()
+            (plugin / "requirements.lock").touch()
+            self.assertEqual(resolver(checkout_script), plugin.resolve())
+
+    def test_reference_links_resolve_relative_to_their_file(self) -> None:
+        refs = ROOT / "skills/context-ledger/references"
+        for reference in refs.glob("*.md"):
+            for target in re.findall(r"\[[^\]]*\]\(([^)]+)\)", reference.read_text()):
+                local = target.split("#", 1)[0]
+                if local and not local.startswith(("http://", "https://", "mailto:")):
+                    self.assertTrue((reference.parent / local).exists(), f"{reference.name}: {target}")
+
     def test_creator_validate(self) -> None:
         if not CREATOR.is_file():
             self.skipTest("collection scripts/create_agent_plugin.py missing")
@@ -171,9 +201,10 @@ class PackageTests(unittest.TestCase):
         self.assertTrue(text.startswith("---\n"))
         self.assertIn("name: context-ledger", text)
         self.assertIn("find", text)
+        self.assertIn("references/lookup-subagent.md", text)
+        text = (ROOT / "skills/context-ledger/references/session-protocol.md").read_text(encoding="utf-8")
         self.assertIn("append_event", text)
         self.assertIn("read/write-capable Context Ledger subagent", text)
-        self.assertIn("references/lookup-subagent.md", text)
         text = (ROOT / "skills/context-ledger/references/lookup-subagent.md").read_text(encoding="utf-8")
         self.assertIn("the parent must answer all four checks for that candidate, not for a batch", text)
         for question in (
@@ -373,11 +404,12 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.40")
-        self.assertIn('__version__ = "0.1.40"', init)
+        self.assertEqual(plugin["version"], "0.1.41")
+        self.assertIn('__version__ = "0.1.41"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("description: Recall and capture owner preferences and decisions", skill)
-        self.assertIn("never preference recall or capture", skill)
+        self.assertIn("description: Use when recalling or capturing owner preferences", skill)
+        session = (ROOT / "skills/context-ledger/references/session-protocol.md").read_text(encoding="utf-8")
+        self.assertIn("never preference recall or capture", session)
         self.assertNotIn("Guru", skill)
         self.assertNotIn("Every new task", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -390,7 +422,7 @@ class PackageTests(unittest.TestCase):
         self.assertNotIn("supported: Ubuntu", readme)
         self.assertIn("Release-blocked until run", agents)
         page = (ROOT / "ui/ledger-v2.html").read_text(encoding="utf-8")
-        self.assertIn('version:"0.1.40"', page)
+        self.assertIn('version:"0.1.41"', page)
         self.assertIn("ui/initialize", page)
         self.assertNotIn("<script src", page)
         self.assertNotIn("https://", page)

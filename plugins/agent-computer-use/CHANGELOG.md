@@ -1,3 +1,7 @@
+## 0.2.151
+
+- Thin and route the macos-cua and Samantha verification skills; make release metadata failures explicit and bind package roots to the installed manifest.
+
 ## 0.2.150
 
 - Keep a typed confirm_risky turn alive across a transport reconnect, including abnormal close code 1006, so the real waiter is not failed with a reconnected error.

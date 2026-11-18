@@ -928,7 +928,12 @@ def run_jobs(jobs: list[Job], workers: int) -> int:
                 timings.append((seconds, job.label))
                 print(f"{job.label} ({seconds:.1f}s, exit {code})", flush=True)
                 if output:
-                    print(output, end="" if output.endswith("\n") else "\n", flush=True)
+                    if code:
+                        lines = output.splitlines()
+                        headers = [line for line in lines if line.startswith(("FAIL:", "ERROR:"))]
+                        print("\n".join([*headers, *lines[-20:]]), flush=True)
+                    else:
+                        print(output, end="" if output.endswith("\n") else "\n", flush=True)
                 if code != 0:
                     failed.append((job.label, code))
         _save_timings(timings)

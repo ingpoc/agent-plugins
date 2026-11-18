@@ -49,6 +49,7 @@ class GateCountTests(unittest.TestCase):
             data_path.write_text(json.dumps(self.tracker(15)))
             output = io.StringIO()
             with patch.object(bcl.live_state, "locate", return_value=("test", {"id": "test"}, data_path)), \
+                 patch.object(bcl, "_ensure_viewer"), \
                  patch.object(sys, "argv", [str(bcl_path), "--data", str(data_path), "status"]), \
                  contextlib.redirect_stdout(output):
                 bcl.main()

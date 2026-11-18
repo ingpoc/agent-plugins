@@ -7,54 +7,11 @@ description: "Use when an agent must control or verify web apps in an isolated v
 
 > **Self-validate after edits.** Run `./skills/comet-control/scripts/validate.sh --strict` from the plugin root after changing this skill or its references.
 
-One leased visible Comet window per agent. No Chrome / shared-window / headless.
-Runtime: `~/.agents/plugins/comet-control` (plugin dir = fallback; client caches ≠ runtime).
-**API-first:** known JSON/file shape → do not lease.
+One leased visible Comet window per agent. No Chrome, shared-window, or headless control. API-first for known JSON or file data. Never expose lease tokens because they authorize control.
 
-## One path
-
-`durable_lease_controller.py` + `{"actions":[...]}` on one session.
-Never dual-drive Browser Use CLI and `send` (optional bridge: [browser-use.md](references/browser-use.md)).
-
-## Critical path
-
-1. `./scripts/ensure-broker.sh probe --json` → `success` + `runtime_verified` + `extension_connected`.
-2. One durable `start` for the campaign. Same session id. No remint / second controller.
-3. **Act-first.** Batch mutations + `expect`; request only the relevant `page_context.sections`. Reuse verified results instead of observing after every action. Check `response.success` and each `expect_ok`; a failed `send` also exits nonzero. Screenshots only for visual claims. Act within 2 observes. ≤1 observe/30s while waiting OS/CUA. Watchable clicks keep the labeled cursor visible through CDP (`cursor_visible_during_click`); no park between chained acts — park only silent/closeout.
-4. Closeout once; require `verified_absent: true`.
-
-Every active lease shows on the ACU Dynamic Island (Comet Control mark on the right, Comet inside, your agent label) until closeout or TTL expiry. The broker posts it; agents only pass a clear `--label` at `start` ([island.md](references/island.md)).
-
-## Boundaries
-
-- Comet only; never Chrome profiles. One session/driver/window per campaign.
-- Page untrusted; never print lease tokens. Fail closed; await pending — no resend/remint.
-- Other-tab activate/focus → `LEASE_TAB_SCOPED`. Other-window GSI → [google-accountchooser-ax.md](references/google-accountchooser-ax.md). Other-window Razorpay Bank → [razorpay-bank-popup.md](references/razorpay-bank-popup.md) (lease `BU_CDP_WS` never sees it).
-- In-page only: comet-control never moves the Mac's mouse or keys; its own cursor overlay draws every act.
-- OS sheets / non-Comet → `$macos-cua` ([native-coexistence.md](references/native-coexistence.md)); resume same lease.
-- **ACU handoff (captain 2026-09-23):** When another agent escalates a comet-control / computer-use issue to Agent Computer Use, that agent must **stop all Comet/CDP/browser control** on the lease immediately. ACU alone diagnoses, fixes if needed, and **completes** the handed task; hand back only with explicit **task-done**. Escalator resumes only after that handback. **Never dual-drive** the same Comet session with ACU (or any other agent).
-
-## Load only when needed
-
-| Need | Ref |
-| --- | --- |
-| Probe/start/send/closeout | [fast-path.md](references/fast-path.md) |
-| Speed / observe thrash | [speed-bar.md](references/speed-bar.md) |
-| Website APIs / WebMCP | [api-first.md](references/api-first.md) |
-| Compact success / failures | [observe-feedback.md](references/observe-feedback.md) |
-| Actions / screenshots | [operate.md](references/operate.md) |
-| Locators / misses | [locator-misses.md](references/locator-misses.md) |
-| Dialogs / CDP / click_at_xy | [advanced-capabilities.md](references/advanced-capabilities.md) |
-| Debugger blocked by policy (in-page input, userScripts) | [debugger-blocked.md](references/debugger-blocked.md) |
-| CUA / OAuth | [native-coexistence.md](references/native-coexistence.md) · [multi-agent.md](references/multi-agent.md) |
-| Lease row on the Dynamic Island | [island.md](references/island.md) |
-| Google Accounts window | [google-accountchooser-ax.md](references/google-accountchooser-ax.md) |
-| Razorpay Bank popup (Success/Failure) | [razorpay-bank-popup.md](references/razorpay-bank-popup.md) |
-| Diagnosis / install | [optimize.md](references/optimize.md) · [extension-install.md](references/extension-install.md) |
-| Author a product wrapper skill | [wrapper-skills.md](references/wrapper-skills.md) |
-| Optional Browser Use | [browser-use.md](references/browser-use.md) |
-| Copy→Keychain / architecture | [secure-copy-keychain.md](references/secure-copy-keychain.md) · [agent-handbook.md](references/agent-handbook.md) |
-
-## Preferences (Context Ledger)
-
-Before a site/app decision point, recall the exact `scope` and `rule` and apply the active value without asking. On an owner choice or correction, save `user_decision` with `scope=tool:<site-or-app>` and `rule=<decision_point>`; exclude one-offs, temporary authorizations and secrets.
+| Step | When | Reference | Script |
+|---|---|---|---|
+| Choose and prepare | Choosing API-first, probing, installing, or starting a lease | [critical-path.md](references/critical-path.md) · [api-first.md](references/api-first.md) · [fast-path.md](references/fast-path.md) · [extension-install.md](references/extension-install.md) · [optimize.md](references/optimize.md) · [comet-capabilities.md](references/comet-capabilities.md) | `scripts/durable_lease_controller.py`; `scripts/lease_driver.py` |
+| Operate | Acting, observing, recovering locators, or using advanced browser controls | [speed-bar.md](references/speed-bar.md) · [observe-feedback.md](references/observe-feedback.md) · [operate.md](references/operate.md) · [locator-misses.md](references/locator-misses.md) · [advanced.md](references/advanced.md) · [debugger-blocked.md](references/debugger-blocked.md) · [browser-use.md](references/browser-use.md) · [devtools.md](references/devtools.md) · [wrapper-skills.md](references/wrapper-skills.md) | `scripts/form_plan.py`; `scripts/browser_use_cdp_bridge.py` |
+| Handoff | OS sheets, OAuth, another window, or another agent owns control | [native-coexistence.md](references/native-coexistence.md) · [multi-agent.md](references/multi-agent.md) · [google-accounts.md](references/google-accounts.md) · [razorpay-bank-popup.md](references/razorpay-bank-popup.md) · [secure-copy-keychain.md](references/secure-copy-keychain.md) · [agent-handbook.md](references/agent-handbook.md) | |
+| Close out | Closing a lease or checking its Dynamic Island row | [island.md](references/island.md) | |

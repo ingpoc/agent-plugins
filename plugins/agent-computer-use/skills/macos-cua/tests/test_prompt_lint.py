@@ -104,7 +104,7 @@ if __name__ == "__main__":
 
 
 def test_context_ledger_preferences_guidance():
-    root = SKILL.parents[3]
+    root = next(parent for parent in SKILL.parents if (parent / "scripts" / "release_agent_computer_use.py").is_file())
     for relative in (
         "plugins/context-ledger/skills/context-ledger/SKILL.md",
         "plugins/comet-control/skills/comet-control/SKILL.md",

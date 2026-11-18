@@ -6,7 +6,7 @@ import html
 import json
 import mimetypes
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote, urlsplit
 from zoneinfo import ZoneInfo
@@ -57,6 +57,40 @@ def reason_fields(text):
     return values
 
 
+RAW_EVIDENCE = re.compile(
+    r"\b[\w.-]+\.(?:py|js|ts|tsx|jsx|json|html|css|sh|log|swift|md|yaml|yml)\b|"
+    r"\b[a-z][a-z0-9]*_[a-z0-9_]+\b|\b[a-z][\w-]*\.[a-z_][\w]*\b|\b[a-f0-9]{7,}\b|"
+    r"(?<!\w)--[\w-]+|\b(?:Named tests|Log)\s*:", re.I)
+
+
+def plain_evidence(record):
+    record = dict(record)
+    details = [record.get("details", "")]
+    for field in ("checked", "expected", "observed", "verdict"):
+        value = record.get(field, "")
+        if isinstance(value, str) and ("/" in value or RAW_EVIDENCE.search(value)):
+            details.append(f"{field.title()}: {value}")
+            record[field] = "Recorded in technical terms; see Details"
+    record["details"] = "\n".join(value for value in details if value)
+    return record
+
+
+def has_raw_identifier(value):
+    return "/" in value or bool(RAW_EVIDENCE.search(value))
+
+
+def not_checked_record(record):
+    record = dict(record)
+    details = [record.get("details", "")]
+    details.extend(f"{label}: {record.get(field, '')}" for field, label in
+                   (("checked", "Checked"), ("expected", "Expected"), ("observed", "Observed"),
+                    ("verdict", "Verdict")) if record.get(field))
+    record.update(state="not_checked", checked="Not checked", expected="Not checked",
+                  observed="Not checked", verdict="Not checked",
+                  details="\n".join(value for value in details if value))
+    return record
+
+
 def version_evidence(item, runs):
     outcome_states = {"fixed": "fixed", "verified_fixed": "fixed", "fail": "not_fixed",
                       "failed": "not_fixed", "failing": "not_fixed", "not_fixed": "not_fixed",
@@ -64,12 +98,15 @@ def version_evidence(item, runs):
     candidates = []
     for r in item.get("verification_evidence", []):
         verdict = r.get("verdict", r.get("outcome", ""))
-        candidates.append({**r, "verdict": verdict,
+        row = {**r, "verdict": verdict,
                            "outcome": r.get("outcome", verdict),
                            "checked": r.get("checked", r.get("check", "Verification")),
                            "expected": r.get("expected", "Not recorded"),
                            "observed": r.get("observed", r.get("reference", verdict)),
-                           "state": outcome_states.get(verdict.strip().lower(), "")})
+                           "state": outcome_states.get(verdict.strip().lower(), "")}
+        if row["state"] == "blocked" and not row.get("blocker"):
+            row = not_checked_record(row)
+        candidates.append(plain_evidence(row))
     for run in runs:
         check = run.get("checks", {}).get(item["id"], {})
         for result in [*check.get("previous_checks", []), check]:
@@ -79,7 +116,7 @@ def version_evidence(item, runs):
                 state_label = {"fixed": "Fixed", "not_fixed": "Failing", "blocked": "Blocked",
                                "inconclusive": "Inconclusive"}[result["state"]]
                 observed = attached.get("observed") or fields["Observed"] or "Observed behavior not recorded"
-                candidates.append({"build": run.get("build", "unknown"), "timestamp": result.get("finished_at", "unknown"),
+                row = {"build": run.get("build", "unknown"), "timestamp": result.get("finished_at", "unknown"),
                                    "check_id": result.get("check_id"),
                                    "verdict": f"{state_label} because {observed}",
                                    "checked": attached.get("checked") or fields["Checked"] or "Verification behavior not recorded",
@@ -87,7 +124,12 @@ def version_evidence(item, runs):
                                    "expected": attached.get("expected") or fields["Expected"] or "Expected behavior not recorded",
                                    "observed": observed,
                                    "reference": attached.get("reference") or result["evidence"], "check": "Installed verification",
-                                   "session": run.get("id", ""), "state": result["state"]})
+                                   "blocker": attached.get("blocker", ""),
+                                   "details": attached.get("details", ""),
+                                   "session": run.get("id", ""), "state": result["state"]}
+                if result["state"] == "blocked" and not result.get("blocker"):
+                    row = not_checked_record(row)
+                candidates.append(plain_evidence(row))
     history = []
     seen = set()
     for index, record in enumerate(candidates):
@@ -249,20 +291,11 @@ def plan_phase(group):
     return "fix"
 
 
-def lane_job_active(group, now, stale_after):
+def lane_job_running(group):
     codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
     job = codex.get("job") if isinstance(codex.get("job"), dict) else group.get("job")
-    if not isinstance(job, dict):
-        job = {}
-    pid = job.get("pid")
-    if "exit_code" not in job and type(pid) is int and pid > 0 and live_state._pid_is_running(pid):
-        return True
-    cutoff = now.timestamp() - stale_after * 60 if now else None
-    for value in (job.get("heartbeat_at"), group.get("updated_at")):
-        stamp = parse_instant(value)
-        if cutoff is not None and stamp and stamp.timestamp() >= cutoff:
-            return True
-    return False
+    pid = job.get("pid") if isinstance(job, dict) else None
+    return isinstance(job, dict) and "exit_code" not in job and type(pid) is int and pid > 0 and live_state._pid_is_running(pid)
 
 
 def short_words(value, limit=10):
@@ -288,6 +321,13 @@ def checks_pending_reason(group):
 def lane_issue_status(group, round_number):
     status = plan_status(group)
     group_id = str(group.get("id", "?"))
+    codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+    job = codex.get("job") if isinstance(codex.get("job"), dict) else group.get("job")
+    pid = job.get("pid") if isinstance(job, dict) else None
+    if (isinstance(job, dict) and job.get("phase") in {"fix", "review", "presuite"}
+            and "exit_code" not in job
+            and type(pid) is int and pid > 0 and not live_state._pid_is_running(pid)):
+        return {"copy": f"Interrupted · resume needed · {group_id}", "kind": "warn", "status": "interrupted"}
     if checks_pending_reason(group) and status in {"blocked", "verifying"}:
         copy = f"Checks pending · {group.get('blocked_reason')}"
         return {"copy": copy, "kind": "run", "status": "verifying"}
@@ -382,12 +422,15 @@ def render_plan(data, tracking, plan, round_number, now):
             value = f'<b>{counts[state]}</b> {label}'
             tally.append(f'<span class="{kind}">{value}</span>')
     rows = []
-    labels = {"planned": "Planned", "running": "Fixing", "review": "In review", "installing": "Installing",
+    labels = {"planned": "Planned", "running": "Fixing", "interrupted": "Interrupted · resume needed",
+              "review": "In review", "installing": "Installing",
               "verifying": "Verifying", "verified": "Verified", "blocked": "Blocked", "failed": "Failed"}
     for group in groups:
         state = states[group.get("id")]
         if state == "parked":
             continue
+        if lane_issue_status(group, round_number)["status"] == "interrupted":
+            state = "interrupted"
         codex = group.get("codex", {}) if isinstance(group.get("codex"), dict) else {}
         verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
         ids = group.get("finding_ids", []) if isinstance(group.get("finding_ids"), list) else []
@@ -715,8 +758,7 @@ def render_tracking(tracking, inventory_override=None):
                 or archive["count"] < 0):
             raise ValueError("tracking.archive requires a nonnegative count")
         if archive["count"]:
-            path = html.escape(required_text(archive.get("path"), "tracking.archive.path"))
-            context.append(f'<span>{archive["count"]} archived findings in {path}</span>')
+            context.append(f'<span>{archive["count"]} archived</span>')
     parked = tracking.get("parked")
     if parked is not None:
         if (not isinstance(parked, dict) or type(parked.get("count")) is not int
@@ -724,9 +766,12 @@ def render_tracking(tracking, inventory_override=None):
                 or any(not isinstance(value, str) or not value.strip() for value in parked["needs"])):
             raise ValueError("tracking.parked requires a nonnegative count and needs array")
         if parked["count"]:
-            path = html.escape(required_text(parked.get("path"), "tracking.parked.path"))
-            needs = html.escape(", ".join(dict.fromkeys(parked["needs"])))
-            context.append(f'<span>{parked["count"]} parked findings in {path}; needs: {needs}</span>')
+            needs = list(dict.fromkeys(short_words(value, 8) + ("…" if len(value.split()) > 8 else "") for value in parked["needs"]))
+            if needs:
+                need_text = needs[0] if len(needs) == 1 else f'{", ".join(needs[:-1])} or {needs[-1]}'
+                context.append(f'<span>{parked["count"]} parked (need {html.escape(need_text)})</span>')
+            else:
+                context.append(f'<span>{parked["count"]} parked</span>')
     run = tracking.get("verification_run")
     build_card = ""
     if run is not None:
@@ -739,6 +784,13 @@ def render_tracking(tracking, inventory_override=None):
         build = html.escape(run["build"])
         revision = html.escape(run["revision"])
         installed = html.escape(run["installed_at"])
+        shared = run.get("shared_check")
+        if shared is not None:
+            if not isinstance(shared, dict) or shared.get("state") not in ("checking", "passed", "failed"):
+                raise ValueError("tracking.verification_run.shared_check is invalid")
+            context.append({"checking": "Shared checks running for this install",
+                            "passed": "Shared checks passed once for this install",
+                            "failed": "Shared checks failed for this install"}[shared["state"]])
     recorded_inventory = inventory_override is None and tracking.get("installed_plugins") is not None
     inventory = inventory_override if inventory_override is not None else tracking.get("installed_plugins")
     if inventory_override is not None and not isinstance(inventory_override, dict):
@@ -816,7 +868,6 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     plan = tracking_data.get("plan")
     round_number = rollover_round(tracking_data)
     groups = plan_groups_for_round(plan, round_number)
-    active_lanes = any(plan_status(group) in STALE_LANE_STATUSES for group in groups)
     ist = ZoneInfo("Asia/Kolkata")
     merged = tracking_data.get("merged") if active == "merged" else None
     merge_commit = ""
@@ -840,6 +891,22 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     reference = now or (parse_instant(match.group()) if match else None)
     if reference is not None and reference.tzinfo is None:
         raise ValueError("now must include a timezone")
+    active_stage = active in ("install", "verify", "install_verify")
+    stale_active = active_stage
+    stale_times = [reported] if active_stage and reported else []
+    for group in groups:
+        if plan_status(group) not in STALE_LANE_STATUSES and not lane_job_running(group):
+            continue
+        stale_active = True
+        codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+        job = codex.get("job") if isinstance(codex.get("job"), dict) else group.get("job", {})
+        if not isinstance(job, dict):
+            job = {}
+        stamps = [parse_instant(value) for value in (job.get("heartbeat_at"), group.get("updated_at"))]
+        latest_lane_update = max((stamp for stamp in stamps if stamp), default=reported)
+        if latest_lane_update:
+            stale_times.append(latest_lane_update)
+    stale_since = min(stale_times) if stale_times else reported
     relative = ""
     if reported and reference:
         seconds = max(0, int((reference - reported).total_seconds()))
@@ -848,7 +915,8 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     time_format = "%-I:%M:%S %p IST" if merged else "%-I:%M %p IST"
     time_html = (f'<time datetime="{html.escape(reported.isoformat(), quote=True)}" '
                  f'data-page-updated="{html.escape(reported.isoformat(), quote=True)}" '
-                 f'data-stale-after-min="{stale_after}" data-active-lanes="{str(active_lanes).lower()}">'
+                 f'data-stale-after-min="{stale_after}" data-stale-active="{str(stale_active).lower()}" '
+                 f'data-stale-since="{html.escape(stale_since.isoformat(), quote=True) if stale_since else ""}">'
                  f'{html.escape(reported.astimezone(ist).strftime(time_format))}</time>') if reported else ''
     tracking, build_card = render_tracking(tracking_data, inventory_override)
     run = tracking_data.get("verification_run")
@@ -877,8 +945,9 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
             raise ValueError(f"{item['id']}.carried_from must be a positive round number or nonempty cycle")
         check = run["checks"].get(item["id"]) if run is not None else None
         if run is not None:
-            if not isinstance(check, dict) or check.get("state") not in CHECK_STATES:
+            if check is not None and (not isinstance(check, dict) or check.get("state") not in CHECK_STATES):
                 raise ValueError(f"{item['id']}: verification check must belong to the current run")
+            check = check or {"state": "pending"}
             item["check"] = {**check, "run_id":run["id"]}
             state = check["state"]
             if state == "checking":
@@ -890,7 +959,7 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
                 raise ValueError(f"{item['id']}: fixed check requires verified_fixed status")
             if run["status"] == "active" and state == "not_fixed" and item["status"] == "verified_fixed":
                 raise ValueError(f"{item['id']}: a failed check cannot retain verified_fixed status")
-            if run["status"] == "complete" and state in ("pending", "checking"):
+            if run["status"] == "complete" and item["id"] in run["checks"] and state in ("pending", "checking"):
                 raise ValueError(f"{item['id']}: completed run has unchecked issues")
         if not isinstance(item.get("verification", ""), str):
             raise ValueError(f"{item['id']}.verification must be a string")
@@ -925,6 +994,16 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
                 item["done_when"] = next((value for key, value in details.items() if key.casefold() == "expected"), "")
             if looks_like_log_text(item.get("done_when", "")):
                 item["done_when"] = ""  # log-like text stays in Evidence and the version timeline
+        technical_text = {}
+        for field in ("title", "summary", "impact", "done_when"):
+            value = item.get(field)
+            if isinstance(value, str) and value.strip() and has_raw_identifier(value):
+                technical_text[field.replace("_", " ").title()] = value
+                item[field] = "Recorded in technical terms; see Details"
+        if technical_text:
+            wording = "\n".join(f"{key}: {value}" for key, value in technical_text.items())
+            details = {**details, "Technical wording": "\n".join(filter(None, (details.get("Technical wording", ""), wording)))}
+            item["details"] = details
         if run is not None and check.get("evidence"):
             if check.get("corrections"):
                 details = {**details, "Check corrections": json.dumps(check["corrections"], ensure_ascii=False)}
@@ -934,10 +1013,14 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
         structured = {"checked", "expected", "observed", "verdict", "build", "session", "timestamp", "reference"}
         identified = structured | {"check_id"}
         legacy = {"check", "outcome", "build", "session", "timestamp", "reference"}
-        if not isinstance(records, list) or any(not isinstance(r, dict) or set(r) not in (legacy, structured, identified) or
-                any(not isinstance(r[k], str) or not r[k].strip() for k in r) for r in records):
+        allowed_records = tuple(schema | suffix for schema in (legacy, structured, identified)
+                                for suffix in (set(), {"details"}, {"blocker"}, {"details", "blocker"}))
+        if not isinstance(records, list) or any(not isinstance(r, dict) or set(r) not in allowed_records or
+                any(not isinstance(r[k], str) or (k != "details" and not r[k].strip()) for k in r) for r in records):
             raise ValueError(f"{item['id']}.verification_evidence has invalid records")
-        item["version_timeline"] = version_evidence(item, [*tracking_data.get("verification_history", []), *([run] if run else [])])
+        version_runs = ([run] if run else []) if carried_from is not None else [
+            *tracking_data.get("verification_history", []), *([run] if run else [])]
+        item["version_timeline"] = version_evidence(item, version_runs)
         item.pop("verification_evidence", None)
         if item["status"] == "verified_fixed":
             item["details"] = {**details, "Verification references": "\n".join(item["verification_refs"])}
@@ -962,7 +1045,7 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
                 safe_link(shot["full"], f"{item['id']}.evidence.full")
             item["evidence"].append(shot)
         output.append(item)
-    if run is not None and set(run["checks"]) != seen:
+    if run is not None and not set(run["checks"]).issubset(seen):
         raise ValueError("verification run checks must match the tracked issue IDs")
     template = TEMPLATE.read_text(encoding="utf-8")
     fixed_count, threshold, gate_met = rollover_gate_state(findings, tracking_data)
@@ -973,8 +1056,8 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     render_now = reference or reported
     lanes = lane_status_by_finding(data, groups, round_number)
     in_progress = sum(item.get("status") == "in_progress" for item in findings)
-    lane_active = any(lane_job_active(group, reference, stale_after) for group in groups)
-    stale = bool(reported and reference and (reference - reported).total_seconds() > stale_after * 60 and not lane_active)
+    stale = bool(stale_active and reference and any(
+        reference - stamp > timedelta(minutes=stale_after) for stamp in stale_times))
     stale_tag = f'<span class="tag-stale" title="No update for over {stale_after} minutes"{"" if stale else " hidden"}>Stale</span>'
     relative_html = f'<span data-relative-time>{html.escape(relative)}</span>'
     merge_html = f'<span class="merge-meta" title="Merge commit"><span>Merge</span> <code>{html.escape(merge_commit)}</code></span>' if merge_commit else ""
@@ -984,7 +1067,9 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
                                     tracking_data.get("stages_reached") or [], rollover_cycle(tracking_data),
                                     introspect_record_for_round(tracking_data))
     plan_view = render_plan(data, tracking_data, plan, round_number, render_now)
-    viewer_html = (f'<p class="viewer-footer">reading {html.escape(str(viewer["path"]))}, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}</p>' if viewer else '<p class="viewer-footer">Viewer version not recorded</p>')
+    viewer_html = (f'<div class="viewer-footer">Live view, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}'
+                   f'<details><summary>Details</summary><p>Report path: {html.escape(str(viewer["path"]))}</p></details></div>'
+                   if viewer else '<p class="viewer-footer">Viewer version not recorded</p>')
     timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow · last recorded</strong>{fresh_html}</div>'
                 f'{timeline_steps}{plan_view}{viewer_html}</section>')
     for item in output:

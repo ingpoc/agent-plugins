@@ -26,6 +26,95 @@ RENDERER = Path(__file__).with_name("render.py")
 
 
 class ManageFindingsTests(unittest.TestCase):
+    def evidence_record(self, **overrides):
+        return {'checked':'Checked 7 scenarios', 'expected':'Version 0.1.42 works', 'observed':'All 7 passed',
+                'verdict':'Passed all cases', 'check_id':'check-1', 'build':'0.1.42', 'session':'run 7',
+                'timestamp':'2026-11-16T10:00:00Z', 'reference':'receipt', **overrides}
+
+    def test_record_evidence_rejects_snake_case(self):
+        with self.assertRaisesRegex(ValueError, 'reference or details'):
+            manage_findings.validate_record(self.evidence_record(observed='test_foo_bar passed'))
+
+    def test_record_evidence_rejects_dotted_code_name(self):
+        with self.assertRaisesRegex(ValueError, 'reference or details'):
+            manage_findings.validate_record(self.evidence_record(checked='module.function worked'))
+
+    def test_record_evidence_rejects_paths(self):
+        with self.assertRaisesRegex(ValueError, 'reference or details'):
+            manage_findings.validate_record(self.evidence_record(expected='See ~/reports/result'))
+
+    def test_record_evidence_rejects_filenames(self):
+        with self.assertRaisesRegex(ValueError, 'reference or details'):
+            manage_findings.validate_record(self.evidence_record(observed='See verify.log'))
+
+    def test_record_evidence_rejects_hashes(self):
+        with self.assertRaisesRegex(ValueError, 'reference or details'):
+            manage_findings.validate_record(self.evidence_record(verdict='Passed at abcdef1'))
+
+    def test_record_evidence_rejects_technical_labels(self):
+        for value in ('Named tests: seven passed', 'Log: run output'):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, 'reference or details'):
+                manage_findings.validate_record(self.evidence_record(observed=value))
+
+    def test_record_evidence_accepts_counts_versions_and_details(self):
+        record = self.evidence_record(details='test_foo_bar in verify.log')
+        manage_findings.validate_record(record)
+        self.assertEqual(record['details'], 'test_foo_bar in verify.log')
+
+    def test_add_rejects_flags_in_finding_text(self):
+        for field in ('title', 'summary', 'impact', 'done_when'):
+            with self.subTest(field=field):
+                entry = {'id':'ISSUE-99','title':'Plain title','summary':'Plain summary',
+                         'impact':'Plain impact','done_when':'Plain result','source':'User reported',
+                         'status':'untested','observed':'User saw a problem','recommendation':'Review behavior'}
+                entry[field] = '--phase review'
+                path = self.root / f'add-{field}.json'; path.write_text(json.dumps(entry))
+                result = self.cli('add', self.data, path)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('move them to reference or details', result.stderr)
+
+    def test_update_rejects_field_names_in_finding_text(self):
+        for field in ('title', 'summary', 'impact', 'done_when'):
+            with self.subTest(field=field):
+                path = self.root / f'update-{field}.json'; path.write_text(json.dumps({field:'codex.review_status'}))
+                result = self.cli('update', self.data, 'ISSUE-01', path)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('move them to reference or details', result.stderr)
+
+    def test_finish_check_rejects_technical_parsed_fields(self):
+        with self.assertRaisesRegex(ValueError, 'reference or details'):
+            manage_findings.validate_verification_reason(
+                'Checked: test_foo_bar; Expected: fixed; Observed: passed')
+
+    def test_finish_check_keeps_optional_details_separate(self):
+        operations = self.root / 'finish.json'
+        page = self.root / 'finish.html'
+        def batch(*actions):
+            operations.write_text(json.dumps(actions))
+            result = self.cli('batch', self.data, operations, '--render', page)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        batch({'action':'start-verification','run':{'id':'run1','build':'1.0.0','revision':'abc',
+              'installed_at':'2026-11-16T10:00:00Z','install_evidence':'receipt'}})
+        batch({'action':'start-check','run_id':'run1','id':'ISSUE-01','observation':'Visible',
+               'observed_at':'2026-11-16T10:01:00Z'})
+        operations.write_text(json.dumps([{'action':'finish-check','run_id':'run1','id':'ISSUE-01','outcome':'inconclusive',
+             'evidence':'Checked: visible behavior; Expected: succeeds; Observed: command failed',
+             'details':'test_foo_bar in verify.log'}]))
+        result = self.cli('batch', self.data, operations, '--render', page)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        check = json.loads(self.data.read_text())['tracking']['verification_run']['checks']['ISSUE-01']
+        self.assertEqual(check['details'], 'test_foo_bar in verify.log')
+
+    def test_legacy_evidence_moves_identifiers_to_details(self):
+        row = manage_findings.RENDERER.version_evidence({'id':'ISSUE-01','verification_evidence':[
+            {'checked':'test_review_job passed','expected':'fixed','observed':'See verify.log',
+             'verdict':'Passed at abcdef1','build':'0.1.42','timestamp':'2026-11-16T10:00:00Z'}]}, [])[0]
+        self.assertTrue(all(row[field] == 'Recorded in technical terms; see Details'
+                             for field in ('checked','observed','verdict')))
+        self.assertIn('test_review_job', row['details'])
+        self.assertIn('verify.log', row['details'])
+        self.assertNotIn('test_review_job', json.dumps({k: row[k] for k in ('checked','expected','observed','verdict')}))
+
     def test_current_round_finding_assignments_are_unique(self):
         ops, page = self.root / 'overlap.json', self.root / 'overlap.html'
         def apply(*rows):
@@ -401,6 +490,25 @@ class ManageFindingsTests(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0)
                     self.assertIn("cap a parallel fix group", result.stderr)
                     self.assertEqual(self.data.read_bytes(), before)
+
+    def test_blocked_outcome_requires_external_blocker(self):
+        ops, page = self.root / 'ops.json', self.root / 'page.html'
+        def apply(*rows):
+            ops.write_text(json.dumps(rows))
+            return self.cli('batch', self.data, ops, '--render', page)
+        run = {'id':'install-1','build':'ACU','revision':'abc','installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt'}
+        self.assertEqual(apply({'action':'start-verification','run':run}).returncode, 0)
+        self.assertEqual(apply({'action':'start-check','id':'ISSUE-01','run_id':'install-1',
+                                'observation':'current visible state','observed_at':'2026-11-06T00:01:00Z'}).returncode, 0)
+        finish = {'action':'finish-check','id':'ISSUE-01','run_id':'install-1','outcome':'blocked',
+                  'evidence':'Checked: current behavior; Expected: available; Observed: waiting for vendor'}
+        rejected = apply(finish)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn('named external blocker field', rejected.stderr)
+        accepted = apply({**finish, 'blocker':'Vendor service access'})
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        check = json.loads(self.data.read_text())['tracking']['verification_run']['checks']['ISSUE-01']
+        self.assertEqual(check['blocker'], 'Vendor service access')
 
     def test_recheck_preserves_previous_result_and_other_checks(self):
         ops, page = self.root / 'ops.json', self.root / 'page.html'
@@ -998,7 +1106,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertNotEqual(batch([{'action':'start-check','id':'ISSUE-02','run_id':'wrong','observation':'wrong-run state','observed_at':'2026-11-06T00:01:00Z'}]).returncode, 0)
         self.assertEqual(self.data.read_bytes(), before)
         self.assertEqual(batch([{'action':'start-check','id':'ISSUE-02','run_id':'install-1','observation':'first issue 2 state','observed_at':'2026-11-06T00:01:00Z'}]).returncode, 0)
-        self.assertEqual(batch([{'action':'finish-check','id':'ISSUE-02','run_id':'install-1','outcome':'blocked','evidence':'Checked: issue behavior; Expected: device available; Observed: no device'}]).returncode, 0)
+        self.assertEqual(batch([{'action':'finish-check','id':'ISSUE-02','run_id':'install-1','outcome':'blocked','blocker':'Device access','evidence':'Checked: issue behavior; Expected: device available; Observed: no device'}]).returncode, 0)
         self.assertEqual(json.loads(self.data.read_text())['findings'][1]['status'], 'verified_fixed')
         self.assertNotEqual(batch([{'action':'complete-verification','run_id':'install-1'}]).returncode, 0)
         self.assertEqual(batch([{'action':'start-check','id':'ISSUE-01','run_id':'install-1','observation':'first issue 1 state','observed_at':'2026-11-06T00:01:00Z'}]).returncode, 0)
@@ -1016,6 +1124,56 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(batch([{'action':'start-check','id':'ISSUE-02','run_id':'install-2','observation':'second install issue 2 state','observed_at':'2026-11-06T00:01:00Z'}]).returncode, 0)
         self.assertEqual(batch([{'action':'finish-check','id':'ISSUE-02','run_id':'install-2','outcome':'not_fixed','evidence':'Checked: issue behavior; Expected: fixed; Observed: failure recurred'}]).returncode, 0)
         self.assertEqual(json.loads(self.data.read_text())['findings'][1]['status'], 'failing')
+
+    def test_verification_completion_ignores_findings_added_after_start(self):
+        ops, page = self.root / 'cohort.json', self.root / 'cohort.html'
+        def batch(*actions):
+            ops.write_text(json.dumps(actions))
+            return self.cli('batch', self.data, ops, '--render', page)
+        run = {'id':'cohort-run','build':'ACU 1','revision':'abc','installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt'}
+        self.assertEqual(batch({'action':'start-verification','run':run}).returncode, 0)
+        added = copy.deepcopy(json.loads(self.data.read_text())['findings'][0])
+        added.update(id='ISSUE-03', title='Added after start')
+        self.assertEqual(batch({'action':'add','entry':added}).returncode, 0)
+        self.assertIn('Not checked this install', page.read_text())
+        for issue in ('ISSUE-01', 'ISSUE-02'):
+            self.assertEqual(batch({'action':'start-check','id':issue,'run_id':'cohort-run','observation':'Initial state','observed_at':'2026-11-06T00:01:00Z'}).returncode, 0)
+            self.assertEqual(batch({'action':'finish-check','id':issue,'run_id':'cohort-run','outcome':'inconclusive','evidence':'Checked: issue behavior; Expected: known; Observed: unclear'}).returncode, 0)
+        result = batch({'action':'complete-verification','run_id':'cohort-run'})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(self.data.read_text())['tracking']['verification_run']['status'], 'complete')
+        self.assertIn('Not checked this install', page.read_text())
+
+    def test_add_does_not_reopen_completed_verification_run_for_new_finding(self):
+        ops, page = self.root / 'completed-add.json', self.root / 'completed-add.html'
+        def batch(*actions):
+            ops.write_text(json.dumps(actions))
+            return self.cli('batch', self.data, ops, '--render', page)
+        run = {'id':'completed-run','build':'ACU 1','revision':'abc','installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt'}
+        self.assertEqual(batch({'action':'start-verification','run':run}).returncode, 0)
+        for issue in ('ISSUE-01', 'ISSUE-02'):
+            self.assertEqual(batch({'action':'start-check','id':issue,'run_id':'completed-run','observation':'Initial state','observed_at':'2026-11-06T00:01:00Z'}).returncode, 0)
+            self.assertEqual(batch({'action':'finish-check','id':issue,'run_id':'completed-run','outcome':'inconclusive','evidence':'Checked: issue behavior; Expected: known; Observed: unclear'}).returncode, 0)
+        self.assertEqual(batch({'action':'complete-verification','run_id':'completed-run'}).returncode, 0)
+        added = copy.deepcopy(json.loads(self.data.read_text())['findings'][0])
+        added.update(id='ISSUE-03', title='Added after completion')
+        result = batch({'action':'add','entry':added})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        tracking = json.loads(self.data.read_text())['tracking']
+        self.assertEqual(tracking['verification_run']['status'], 'complete')
+        self.assertNotIn('ISSUE-03', tracking['verification_run']['checks'])
+        self.assertIn('Not checked this install', page.read_text())
+
+    def test_update_plan_group_preserves_phase_without_phase_patch(self):
+        ops, page = self.root / 'phase.json', self.root / 'phase.html'
+        def batch(*actions):
+            ops.write_text(json.dumps(actions))
+            return self.cli('batch', self.data, ops, '--render', page)
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'depends_on':[],'status':'running','phase':'fix'}]}
+        self.assertEqual(batch({'action':'set-plan','plan':plan}).returncode, 0)
+        result = batch({'action':'update-plan-group','id':'A','merge_codex':True,'patch':{'status':'running','codex':{'status':'running'}}})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(self.data.read_text())['tracking']['plan']['groups'][0]['phase'], 'fix')
 
     def test_checking_must_be_saved_before_finishing(self):
         ops = self.root / 'verify.json'
@@ -1297,16 +1455,20 @@ class ManageFindingsTests(unittest.TestCase):
         patch = self.root / 'patch.json'
         patch.write_text(json.dumps({'summary':'trace_id=abc failed','impact':'The flow stops.','done_when':'The control opens.'}))
         updated = self.cli('update', self.data, 'ISSUE-03', patch)
+        self.assertNotEqual(updated.returncode, 0)
+        self.assertIn('move them to reference or details', updated.stderr)
+        patch.write_text(json.dumps({'summary':'trace=abc failed','impact':'The flow stops.','done_when':'The control opens.'}))
+        updated = self.cli('update', self.data, 'ISSUE-03', patch)
         self.assertEqual(updated.returncode, 0, updated.stderr)
         self.assertIn('summary looks like log text', updated.stderr)
-        self.assertEqual(json.loads(self.data.read_text())['findings'][-1]['summary'], 'trace_id=abc failed')
+        self.assertEqual(json.loads(self.data.read_text())['findings'][-1]['summary'], 'trace=abc failed')
 
         operations = self.root / 'operations.json'
         operations.write_text(json.dumps([
             {'action':'add','entry':{'id':'ISSUE-04','title':'A row is missing','source':'User reported',
                 'status':'untested','observed':'The row is missing.','recommendation':'Show the row.',
-                'summary':'python3 check.py failed','impact':'Information is hidden.','done_when':'The row appears.'}},
-            {'action':'update','id':'ISSUE-03','patch':{'summary':'git status failed','impact':'The task is blocked.'}}
+                'summary':'trace=abc failed','impact':'Information is hidden.','done_when':'The row appears.'}},
+            {'action':'update','id':'ISSUE-03','patch':{'summary':'trace=abc failed','impact':'The task is blocked.'}}
         ]))
         batched = self.cli('batch', self.data, operations)
         self.assertEqual(batched.returncode, 0, batched.stderr)

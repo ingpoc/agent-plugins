@@ -9,7 +9,7 @@ from pathlib import Path
 import plistlib
 import sys
 
-PLUGIN_ROOT = Path(__file__).resolve().parents[3]
+PLUGIN_ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / "plugin.json").is_file())
 APP = Path('/Applications/Agent Computer Use.app')
 RECORD = 'Contents/Resources/runtime-contract.json'
 # Files a harness writes into an installed plugin root that are not part of the package:

@@ -48,6 +48,8 @@ def stamp_plan_group(group, now):
 
 
 def warn_summary(item, adding=False):
+    validate_plain_evidence({field: item[field] for field in ("title", "summary", "impact", "done_when")
+                             if isinstance(item.get(field), str) and item[field].strip()})
     summary = item.get("summary")
     if adding and not summary:
         print("warning: add summary, impact and done_when in plain words", file=sys.stderr)
@@ -205,14 +207,33 @@ def merge_patch(target, patch):
     return target
 
 
+RAW_EVIDENCE_PATTERNS = (
+    re.compile(r"\b[\w.-]+\.(?:py|js|ts|tsx|jsx|json|html|css|sh|log|swift|md|yaml|yml)\b", re.I),
+    re.compile(r"\b[a-z][a-z0-9]*_[a-z0-9_]+\b", re.I),
+    re.compile(r"\b[a-z][\w-]*\.[a-z_][\w]*\b", re.I),
+    re.compile(r"\b[a-f0-9]{7,}\b", re.I),
+    re.compile(r"(?<!\w)--[\w-]+"),
+    re.compile(r"\b(?:Named tests|Log)\s*:", re.I),
+)
+
+
+def validate_plain_evidence(fields):
+    for label, value in fields.items():
+        if "/" in value or any(pattern.search(value) for pattern in RAW_EVIDENCE_PATTERNS):
+            raise ValueError(f"{label} contains technical identifiers; move them to reference or details")
+
+
 def validate_record(record):
     fields = {"checked", "expected", "observed", "verdict", "build", "session", "timestamp", "reference"}
     identified = fields | {"check_id"}
+    optional_details = {"details"}
     legacy = {"check", "outcome", "build", "session", "timestamp", "reference"}
-    if not isinstance(record, dict) or set(record) not in (fields, identified, legacy) or any(not isinstance(record[k], str) or not record[k].strip() for k in record):
+    allowed = (fields, identified, legacy, fields | optional_details, identified | optional_details, legacy | optional_details)
+    if not isinstance(record, dict) or set(record) not in allowed or any(not isinstance(record[k], str) or (k != "details" and not record[k].strip()) for k in record):
         raise ValueError("evidence requires nonempty verification and metadata strings")
     if set(record) in (fields, identified) and not all(record[k].strip() for k in ("checked", "expected", "observed")):
         raise ValueError("verification reason requires checked, expected and observed parts")
+    validate_plain_evidence({k: record[k] for k in ("checked", "expected", "observed", "verdict") if k in record})
     if record["timestamp"] != "unknown":
         try:
             if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})", record["timestamp"]):
@@ -228,6 +249,8 @@ def validate_verification_reason(reason):
              re.finditer(r"(?:^|[;\n])\s*(Checked|Expected|Observed)\s*:\s*([^;\n]*)", reason, re.I)}
     if any(not parts.get(label) for label in ("Checked", "Expected", "Observed")):
         raise ValueError("verification reason requires nonempty Checked, Expected and Observed parts")
+    verdict = re.search(r"(?:^|[;\n])\s*Verdict because\s*:\s*([^;\n]*)", reason, re.I)
+    validate_plain_evidence({**parts, **({"verdict": verdict.group(1).strip()} if verdict else {})})
 
 
 def verification_check(document, finding_id, check_id):
@@ -513,13 +536,36 @@ def verification_action(document, findings, operation):
         tracking["verification_run"] = {**new, "status":"active",
                                         "checks":{item["id"]:{"state":"pending"} for item in findings}}
         return
+    if action == "reserve-shared-check":
+        if run.get("status") != "active" or operation.get("run_id") != run.get("id"):
+            raise ValueError("active verification run id is required")
+        if run.get("shared_check") is not None:
+            raise ValueError("shared check already recorded for this verification run")
+        command = operation.get("command")
+        if not isinstance(command, str) or not command.strip():
+            raise ValueError("shared check command must be nonempty text")
+        run["shared_check"] = {"command": command, "state": "checking"}
+        return
     reopens = action == "start-check" and operation.get("recheck") is True and isinstance(run, dict) and run.get("status") == "complete"
     if not isinstance(run, dict) or (run.get("status") != "active" and not reopens) or operation.get("run_id") != run.get("id"):
         raise ValueError("active verification run id is required")
     if action == "complete-verification":
-        if any(run.get("checks", {}).get(item["id"], {}).get("state") not in ("fixed", "not_fixed", "blocked", "inconclusive") for item in findings):
-            raise ValueError("finish or explicitly block every issue before completing the run")
+        if any(check.get("state") not in ("fixed", "not_fixed", "blocked", "inconclusive")
+               for check in run.get("checks", {}).values()):
+            raise ValueError("finish or explicitly block every issue in the run before completing it")
         run["status"] = "complete"
+        return
+    if action == "finish-shared-check":
+        check = run.get("shared_check")
+        if not isinstance(check, dict) or check.get("state") != "checking":
+            raise ValueError("shared check is not in progress")
+        code = operation.get("exit_code")
+        if type(code) is not int:
+            raise ValueError("shared check exit_code must be an integer")
+        finished_at = operation.get("finished_at")
+        if not isinstance(finished_at, str) or not finished_at.strip():
+            raise ValueError("shared check finished_at must be nonempty text")
+        check.update(state="passed" if code == 0 else "failed", exit_code=code, finished_at=finished_at)
         return
     item = findings[find_index(findings, operation.get("id"))]
     checks = run.get("checks", {})
@@ -552,13 +598,20 @@ def verification_action(document, findings, operation):
     evidence = operation.get("evidence")
     if outcome not in ("fixed", "not_fixed", "blocked", "inconclusive") or not isinstance(evidence, str) or not evidence.strip():
         raise ValueError("finish-check requires an outcome and evidence or reason")
+    details = operation.get("details", "")
+    if not isinstance(details, str):
+        raise ValueError("finish-check details must be text")
     validate_verification_reason(evidence)
     evidence, _ = validate_new_observation(evidence, operation, run, check.get("observed_at"), "finish-check evidence", check)
+    if outcome == "blocked" and (not isinstance(operation.get("blocker"), str) or not operation["blocker"].strip()):
+        raise ValueError("blocked requires a named external blocker field")
     if outcome == "fixed" and (item.get("status") != "verified_fixed" or not item.get("verification_refs")):
         raise ValueError("fixed requires verified_fixed status and verification references")
     if outcome == "not_fixed":
         item["status"] = "failing"
     checks[item["id"]] = {**check, "state":outcome, "check_id":uuid.uuid4().hex, "evidence":evidence,
+                           **({"details":details} if details else {}),
+                           **({"blocker":operation["blocker"].strip()} if outcome == "blocked" else {}),
                            "finished_at":datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")}
 
 
@@ -1060,6 +1113,7 @@ def prepare_rollover(document, operation, force=False):
     tracking.setdefault("round_history", []).append({"round": round_number, "fixed": len(fixed), "ended_at": timestamp})
     tracking["round"] = 1
     tracking["cycle"] = RENDERER.rollover_cycle(tracking) + 1
+    tracking.pop("plan", None)
     tracking["workflow"] = {"stage":"collect", "updated_at":timestamp}
     run = tracking.pop("verification_run", None)
     if isinstance(run, dict):
@@ -1114,7 +1168,7 @@ def rollover_live(path, operation, force=False):
     if archive_changed:
         atomic_write(archive_file, archive_original, archive_content, tracker=False)
     try:
-        return live_state.register_rollover(record, live, document)[2]
+        return live_state.register_rollover(record, live, document, document["tracking"]["worktree"])[2]
     except BaseException as error:
         if archive_changed:
             try:
@@ -1327,7 +1381,7 @@ def run(args, parser):
                 return 0
             existing_run = store["document"].get("tracking", {}).get("verification_run")
             original_plan = copy.deepcopy(store['document'].get('tracking', {}).get('plan'))
-            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark"}
+            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark"}
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()
@@ -1547,8 +1601,6 @@ def run(args, parser):
                         if operation.get("merge_codex") and "codex" in patch:
                             patch["codex"] = {**group.get("codex", {}), **patch["codex"]}
                         group.update(patch)
-                        if "status" in patch and "phase" not in patch and patch["status"] not in ("blocked", "failed"):
-                            group.pop("phase", None)
                         check_install_sessions.validate_group_codex(group)
                         validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
                         validate_plan_groups(plan)
@@ -1737,12 +1789,8 @@ def run(args, parser):
                     warn_summary(item, adding=True)
                     validate_detail_limits(item)
                     trim_verification_evidence(item)
-                    run = store["document"].get("tracking", {}).get("verification_run", {})
                     validate_ids(findings + [item])
                     findings.append(item)
-                    if run.get("status") in ("active", "complete"):
-                        run["status"] = "active"
-                        run["checks"][item["id"]] = {"state":"pending"}
                     continue
                 index = find_index(findings, operation.get("id"))
                 if action == "update":

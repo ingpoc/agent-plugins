@@ -138,7 +138,7 @@ def _renamed_report_path(value, old_id, new_id, fallback):
         name = fallback
     return str(path.with_name(name))
 
-def register_rollover(record, live, document):
+def register_rollover(record, live, document, worktree):
     new_id = list_id(document, live)
     new_key = f"{record['repo']}/{new_id}"
     records = registry()
@@ -150,12 +150,21 @@ def register_rollover(record, live, document):
     html = _renamed_report_path(record["html"], old_id, new_id, f"pr-{new_id}.html")
     if target.exists():
         raise ValueError(f"new live list already exists: {target}")
-    home = Path(record["home"])
+    old_home = Path(record["home"])
+    try:
+        entries = git(old_home, "worktree", "list", "--porcelain").split("\n\n")
+    except (OSError, subprocess.CalledProcessError):
+        entries = []
+    home = next((Path(lines[0][9:]) for entry in entries if (lines := entry.splitlines())
+                 and lines[0].startswith("worktree ")
+                 and (Path(lines[0][9:]).name == str(worktree)
+                      or f"branch refs/heads/{worktree}" in lines)), old_home.parent / worktree)
     for artifact in (home / snapshot, home / html):
         if artifact.exists():
             raise ValueError(f"new list report already exists: {artifact}")
     new_record = {**record, "id": new_id, "live": str(target), "snapshot": snapshot,
                   "html": html, "rollover_pending": True}
+    new_record["home"] = str(home)
     target.parent.mkdir(parents=True, exist_ok=True)
     created = False
     try:
@@ -307,6 +316,78 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
              "scripts": str(SCRIPTS.resolve()), "scripts_identity": scripts, "started_at": started}
     state.write_text(json.dumps(value, indent=2) + "\n")
     return value
+
+def _viewer_process(pid, report):
+    try:
+        args = _process_arguments(pid)
+    except (OSError, ValueError):
+        return False
+    return (args is not None and len(args) >= 3 and Path(os.fsdecode(args[0])).name.startswith("python") and
+            Path(os.fsdecode(args[1])).name == "serve.py" and
+            Path(os.fsdecode(args[2])).resolve() == Path(report).resolve())
+
+def _process_arguments(pid):
+    if sys.platform == "darwin":
+        import ctypes
+        sysctl = ctypes.CDLL(None, use_errno=True).sysctl
+        sysctl.argtypes = (ctypes.POINTER(ctypes.c_int), ctypes.c_uint, ctypes.c_void_p,
+                           ctypes.POINTER(ctypes.c_size_t), ctypes.c_void_p, ctypes.c_size_t)
+        sysctl.restype = ctypes.c_int
+        mib = (ctypes.c_int * 3)(1, 49, pid)  # KERN_PROCARGS2
+        size = ctypes.c_size_t()
+        if sysctl(mib, 3, None, ctypes.byref(size), None, 0) or not 4 < size.value <= 1_048_576:
+            return None
+        buffer = ctypes.create_string_buffer(size.value)
+        if sysctl(mib, 3, buffer, ctypes.byref(size), None, 0):
+            return None
+        raw = buffer.raw[:size.value]
+        argc = int.from_bytes(raw[:4], byteorder=sys.byteorder, signed=True)
+        if not 0 < argc < 4096:
+            return None
+        offset = raw.find(b"\0", 4)
+        if offset < 0:
+            return None
+        while offset < len(raw) and raw[offset] == 0:
+            offset += 1
+        args = []
+        for _ in range(argc):
+            end = raw.find(b"\0", offset)
+            if end < 0:
+                return None
+            args.append(raw[offset:end])
+            offset = end + 1
+        return args
+    if sys.platform.startswith("linux"):
+        return Path(f"/proc/{pid}/cmdline").read_bytes().rstrip(b"\0").split(b"\0")
+    return None
+
+def stop_viewer(key, record):
+    state = STATE / "viewers" / (safe_component(key.replace("/", "--")) + ".json")
+    if not state.exists():
+        return False
+    viewer = json.loads(state.read_text())
+    pid = int(viewer.get("pid", 0) or 0)
+    if pid and _pid_is_running(pid):
+        report = viewer.get("report")
+        if (Path(viewer.get("data", "")).resolve() != Path(record["live"]).resolve() or
+                not isinstance(report, str) or not report or not _viewer_process(pid, report)):
+            raise RuntimeError(f"cannot verify viewer PID {pid} for its recorded report")
+        try:
+            os.kill(pid, 15)
+        except ProcessLookupError as error:
+            raise RuntimeError(f"viewer process {pid} exited before it could be stopped") from error
+        if not _wait_for_pid(pid):
+            raise RuntimeError(f"viewer process {pid} did not stop")
+    state.unlink()
+    return True
+
+def _wait_for_pid(pid):
+    deadline = time.monotonic() + 2
+    while _pid_is_running(pid):
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+    return True
 
 def _viewer_responds(port, expected):
     try:

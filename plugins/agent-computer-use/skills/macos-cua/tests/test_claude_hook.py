@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-PLUGIN = Path(__file__).resolve().parents[3]
+PLUGIN = next(parent for parent in Path(__file__).resolve().parents if (parent / "plugin.json").is_file())
 HOOK = PLUGIN / "bin/acu-claude-hook"
 BASE = ["--source", "claude", "--id", "claude-code:s1", "--app", "Claude"]
 

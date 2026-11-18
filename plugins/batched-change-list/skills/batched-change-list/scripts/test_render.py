@@ -9,6 +9,7 @@ import unittest
 import shutil
 import subprocess
 from pathlib import Path
+from html.parser import HTMLParser
 
 spec = importlib.util.spec_from_file_location("change_list_render", Path(__file__).with_name("render.py"))
 renderer = importlib.util.module_from_spec(spec)
@@ -16,6 +17,41 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which('node'), 'node is needed to execute rendered page JavaScript')
+    def test_legacy_evidence_and_finding_text_render_plain_in_details_dom(self):
+        data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
+        data['findings'][0].update(title='Review --phase review', summary='codex.review_status was pending',
+            impact='See notes.py', done_when='Check ~/reports')
+        data['findings'][0]['verification_evidence'] = [{
+            'checked':'test_review_job passed', 'expected':'fixed', 'observed':'See verify.log',
+            'verdict':'Passed at abcdef1', 'check_id':'check-1', 'build':'0.1.42', 'session':'run',
+            'timestamp':'2026-11-16T10:00:00Z', 'reference':'receipt',
+            'details':'test_review_job in verify.log'}]
+        page = renderer.render(data, Path(__file__).parent.parent)
+        payload = re.search(r'<script type="application/json" id="findings-data">(.*?)</script>', page).group(1)
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        show = template.split('function show(){',1)[1].split('\nsearch.addEventListener',1)[0]
+        program = (r"""
+class Element { constructor(tag,text='',cls=''){this.tag=tag;this.text=text;this.cls=cls;this.children=[];this.dataset={}} append(...children){this.children.push(...children)} setAttribute(){} }
+const node=(tag,text,cls)=>new Element(tag,text,cls);
+const findings=JSON.parse(PAYLOAD),labels={failing:'Failing',in_progress:'In progress',untested:'Untested'},location={hash:'#ISSUE-01'},run=null;
+const nav={querySelectorAll:()=>[]},panel={replaceChildren(value){this.article=value}},document={createTextNode:text=>text};
+function show(){
+""" + show + r"""
+show();
+function find(el,tag,cls){if(el?.tag===tag&&el.cls===cls)return el;for(const child of el?.children||[]){const found=find(child,tag,cls);if(found)return found}}
+const row=find(panel.article,'li','version-row'),details=find(row,'details','version-history-details');
+function text(el,skipDetails=false){if(skipDetails&&el?.tag==='details')return '';return (el?.text||'')+(el?.children||[]).map(child=>text(child,skipDetails)).join('')}
+const visible=text(row,true),hidden=text(details);
+if(!row||!details||!details.children.some(child=>child.tag==='summary'))process.exit(1);
+if(!visible.includes('Recorded in technical terms; see Details')||visible.includes('test_review_job')||visible.includes('verify.log')||visible.includes('abcdef1'))process.exit(2);
+if(!hidden.includes('test_review_job')||!hidden.includes('verify.log')||!hidden.includes('abcdef1'))process.exit(3);
+const articleVisible=text(panel.article,true),articleDetails=text(find(panel.article,'details','evidence'));
+if(!articleVisible.includes('Recorded in technical terms; see Details')||articleVisible.includes('--phase')||articleVisible.includes('codex.review_status')||articleVisible.includes('notes.py')||articleVisible.includes('~/reports'))process.exit(4);
+if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.review_status')||!articleDetails.includes('notes.py')||!articleDetails.includes('~/reports'))process.exit(5);
+""").replace('PAYLOAD', json.dumps(payload))
+        subprocess.run(['node','-e',program],check=True)
+
     def test_review_sublabel_is_separated_in_rendered_text(self):
         workflow = renderer.render_workflow('review', [], 0, 15, False, 0, 1)
         text = html.unescape(re.sub(r'<[^>]+>', ' ', workflow))
@@ -103,7 +139,7 @@ class RenderTests(unittest.TestCase):
         self.assertIn('stroke-width="3"', gate_node)
 
 
-    def test_fresh_rollover_collect_leaves_loop_steps_empty_and_can_go_stale(self):
+    def test_idle_collect_never_shows_stale(self):
         data = copy.deepcopy(self.data)
         data['tracking'] = {
             'round': 1,
@@ -116,10 +152,37 @@ class RenderTests(unittest.TestCase):
             self.assertIn(f'class="wf-step upcoming"><span class="wf-dot"><i></i></span><span class="wf-label">{label}</span>', band)
         self.assertNotIn('class="wf-step done">', band)
         self.assertIn('data-stage="collect" class="wf-step current" aria-current="step"', page)
+        self.assertIn('data-stale-active="false"', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
+
+    def test_running_lane_with_overdue_heartbeat_shows_stale(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T11:00:00Z'},
+            'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'running','phase':'fix',
+                'updated_at':'2026-11-14T11:00:00Z','codex':{'status':'running','model':'gpt-6-luna',
+                'job':{'pid':99999,'heartbeat_at':'2026-11-14T11:00:00Z'}}}]}}
+        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+        self.assertIn('data-stale-active="true"', page)
         self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale</span>', page)
-        self.assertNotIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
-        fresh = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:05:00Z'))
-        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', fresh)
+
+    def test_recently_updated_completed_lane_never_shows_stale(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'collect','updated_at':'2026-11-14T11:00:00Z'},
+            'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'verified',
+                'updated_at':'2026-11-14T11:10:00Z','codex':{'job':{'pid':99999,'exit_code':0}}}]}}
+        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+        self.assertIn('data-stale-active="false"', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
+
+    def test_overdue_active_lane_is_not_hidden_by_healthy_lane(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T11:09:00Z'},
+            'plan': {'round':1,'groups':[
+                {'id':'A','finding_ids':['ISSUE-01'],'status':'running','updated_at':'2026-11-14T11:00:00Z'},
+                {'id':'B','finding_ids':['ISSUE-02'],'status':'running','updated_at':'2026-11-14T11:10:00Z'}]}}
+        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale</span>', page)
+        self.assertIn('data-stale-since="2026-11-14T11:00:00+00:00"', page)
 
     def test_merged_page_shows_commit_and_ist_time(self):
 
@@ -178,7 +241,7 @@ class RenderTests(unittest.TestCase):
         self.assertIn('4:30 PM IST', page)
         self.assertIn('13 min ago', page)
         self.assertIn('class="tag-stale"', page)
-        self.assertIn('data-active-lanes="true"', page)
+        self.assertIn('data-stale-active="true"', page)
         self.assertIn('2 lanes · each installs and verifies when ready', page)
         self.assertIn('<b>1</b> installing', page)
         self.assertIn('<b>1</b> blocked', page)
@@ -220,7 +283,77 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(plain, renderer.render(self.data, self.base))
         self.assertIn('Viewer version not recorded', plain)
         live = renderer.render(self.data, self.base, viewer={'path':'/tmp/list.json','version':'0.1.17','started':'Nov 14, 2026, 3:00 PM IST'})
-        self.assertIn('reading /tmp/list.json, viewer 0.1.17, started Nov 14, 2026, 3:00 PM IST', live)
+        class Footer(HTMLParser):
+            def __init__(self):
+                super().__init__(); self.in_footer=False; self.detail_depth=0; self.visible=[]; self.details=[]
+            def handle_starttag(self, tag, attrs):
+                attrs=dict(attrs)
+                if tag=='div' and 'viewer-footer' in attrs.get('class',''): self.in_footer=True
+                elif self.in_footer and tag=='details': self.detail_depth+=1
+            def handle_endtag(self, tag):
+                if self.in_footer and tag=='details': self.detail_depth-=1
+                elif self.in_footer and tag=='div': self.in_footer=False
+            def handle_data(self, value):
+                if self.in_footer: (self.details if self.detail_depth else self.visible).append(value)
+        footer=Footer(); footer.feed(live)
+        self.assertIn('Live view, viewer 0.1.17, started Nov 14, 2026, 3:00 PM IST', ''.join(footer.visible))
+        self.assertNotIn('/tmp/list.json', ''.join(footer.visible))
+        self.assertIn('/tmp/list.json', ''.join(footer.details))
+
+    @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
+    def test_pre_fix_and_carried_blocked_rows_render_not_checked(self):
+        data=copy.deepcopy(self.data)
+        data['findings'][0]['verification_evidence']=[{
+            'checked':'verification attempt','expected':'a fix is available','observed':'No fix/code existed yet',
+            'verdict':'blocked','build':'0.1.41','session':'earlier','timestamp':'2026-11-16T10:00:00Z','reference':'receipt'}]
+        data['findings'][1]['carried_from']=1
+        data['findings'][1]['verification_evidence']=[{
+            'check':'earlier list','outcome':'blocked','build':'0.1.40','session':'old','timestamp':'2026-11-15T10:00:00Z','reference':'receipt'}]
+        page=renderer.render(data,self.base)
+        payload=page.split('<script type="application/json" id="findings-data">',1)[1].split('</script>',1)[0]
+        template=(Path(__file__).parent.parent/'templates/change-list.html').read_text()
+        show=template.split('function show(){',1)[1].split('\nsearch.addEventListener',1)[0]
+        program=(r"""
+class Element { constructor(tag,text='',cls=''){this.tag=tag;this.text=text;this.cls=cls;this.children=[];this.dataset={}} append(...children){this.children.push(...children)} setAttribute(){} }
+const node=(tag,text,cls)=>new Element(tag,text,cls),findings=JSON.parse(PAYLOAD),labels={untested:'Untested'},run=null;
+const nav={querySelectorAll:()=>[]},panel={replaceChildren(value){this.article=value}},document={createTextNode:text=>text};
+function show(){
+"""+show+r"""
+function text(el,skipDetails=false){if(skipDetails&&el?.tag==='details')return '';return (el?.text||'')+(el?.children||[]).map(child=>text(child,skipDetails)).join('')}
+function find(el,tag,cls){if(el?.tag===tag&&el.cls===cls)return el;for(const child of el?.children||[]){const found=find(child,tag,cls);if(found)return found}}
+for(const id of ['ISSUE-01','ISSUE-02']){location.hash='#'+id;show();const visible=text(panel.article,true);if(!visible.includes('Not checked')||visible.includes('Blocked'))process.exit(1)}
+""").replace('PAYLOAD',json.dumps(payload))
+        program=program.replace('const nav={querySelectorAll:()=>[]}',"const location={hash:'#ISSUE-01'};const nav={querySelectorAll:()=>[]}")
+        subprocess.run(['node','-e',program],check=True)
+
+    @unittest.skipUnless(shutil.which('node'), 'node is needed to inspect the rendered verification rows')
+    def test_legacy_blocked_history_needs_named_blocker_in_verdict(self):
+        data = copy.deepcopy(self.data)
+        data['findings'][0]['verification_evidence'] = [
+            {'checked':'Installed behavior','expected':'A fix is available','observed':'That version had no fix for this yet',
+             'verdict':'Blocked','build':'0.1.41','session':'earlier','timestamp':'2026-11-16T10:00:00Z','reference':'receipt'},
+            {'checked':'Installed behavior','expected':'Service responds','observed':'Service is unavailable',
+             'verdict':'Blocked','blocker':'External service','build':'0.1.42','session':'current','timestamp':'2026-11-17T10:00:00Z','reference':'receipt'}]
+        page = renderer.render(data, self.base)
+        payload = page.split('<script type="application/json" id="findings-data">', 1)[1].split('</script>', 1)[0]
+        rows = json.loads(payload)[0]['version_timeline']
+        self.assertEqual([(row['state'], row['verdict']) for row in rows],
+                         [('blocked', 'Blocked'), ('not_checked', 'Not checked')])
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        show = template.split('function show(){', 1)[1].split('\nsearch.addEventListener', 1)[0]
+        program = (r"""
+class Element { constructor(tag,text='',cls=''){this.tag=tag;this.text=text;this.cls=cls;this.children=[];this.dataset={}} append(...children){this.children.push(...children)} setAttribute(){} }
+const node=(tag,text,cls)=>new Element(tag,text,cls),findings=JSON.parse(PAYLOAD),labels={untested:'Untested'},run=null;
+const location={hash:'#ISSUE-01'},nav={querySelectorAll:()=>[]},panel={replaceChildren(value){this.article=value}},document={createTextNode:text=>text};
+function show(){
+""" + show + r"""
+function text(el){return (el?.text||'')+(el?.children||[]).map(text).join('')}
+function rows(el){return [...(el?.cls==='version-row'?[el]:[]),...(el?.children||[]).flatMap(rows)]}
+show();const visible=rows(panel.article).map(text);
+for(const [label,verdict] of [['Not checked','Verdict because: Not checked'],['Blocked','Verdict because: Blocked']])
+  if(!visible.some(row=>row.includes(label)&&row.includes(verdict)))process.exit(1);
+""").replace('PAYLOAD', json.dumps(payload))
+        subprocess.run(['node', '-e', program], check=True)
 
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
     def test_version_timeline_shows_status_and_evidence_together(self):
@@ -612,7 +745,7 @@ setImmediate(async()=>{
         ]
         history = renderer.version_evidence(item, runs)
         self.assertEqual([(r['state'], r['build']) for r in history],
-                         [('not_fixed','ACU 0.2.147'), ('blocked','ACU 0.2.146'), ('fixed','ACU 0.2.148')])
+                         [('not_fixed','ACU 0.2.147'), ('not_checked','ACU 0.2.146'), ('fixed','ACU 0.2.148')])
 
     def test_explicit_outcomes_and_exact_duplicate_checks(self):
         blocked = {'build':'ACU 0.2.147', 'timestamp':'2026-11-15T10:00:00Z', 'verdict':'blocked', 'checked':'Voice check', 'expected':'pass', 'observed':'blocked', 'check_id':'blocked-check', 'session':'latest'}
@@ -620,7 +753,7 @@ setImmediate(async()=>{
         distinct = {**blocked, 'timestamp':'2026-11-13T10:00:00Z', 'reference':'different receipt', 'check_id':'distinct-check', 'session':'distinct'}
         history = renderer.version_evidence({'id':'ISSUE-01', 'verification_evidence':[blocked, blocked, distinct, older]}, [])
         self.assertEqual(len(history), 1)
-        self.assertEqual([(r['state'], r['verdict']) for r in history[0]['history']], [('', 'notes without a state'), ('blocked', 'blocked')])
+        self.assertEqual([(r['state'], r['verdict']) for r in history[0]['history']], [('', 'notes without a state'), ('not_checked', 'Not checked')])
 
     def test_introspect_stage_renders_between_verify_and_report(self):
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
@@ -665,15 +798,61 @@ setImmediate(async()=>{
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name)
 
-    def test_archive_and_parked_summaries_render_with_paths_and_needs(self):
+    def test_header_has_no_file_paths_and_counts_in_words(self):
         self.data["tracking"] = {
             "archive": {"count": 84, "path": "/tmp/list/archive.json"},
             "parked": {"count": 4, "path": "/tmp/list/parked.json",
                        "needs": ["real microphone", "device access"]},
         }
         page = renderer.render(self.data, self.base)
-        self.assertIn("84 archived findings in /tmp/list/archive.json", page)
-        self.assertIn("4 parked findings in /tmp/list/parked.json; needs: real microphone, device access", page)
+        self.assertIn("84 archived", page)
+        self.assertIn("4 parked (need real microphone or device access)", page)
+        self.assertNotIn("archive.json", page)
+        self.assertNotIn("parked.json", page)
+
+    def test_header_shows_viewer_version_from_record(self):
+        page = renderer.render(self.data, self.base, viewer={'path':'/tmp/viewer','version':'0.1.22','started':'today'})
+        self.assertIn('viewer 0.1.22', page)
+        self.assertNotIn('Viewer version not recorded', page)
+
+    def test_empty_parked_needs_render_without_crashing(self):
+        self.data['tracking'] = {'parked': {'count':5,'path':'/tmp/parked.json','needs':[]}}
+        page = renderer.render(self.data, self.base)
+        self.assertIn('5 parked</span>', page)
+
+    def test_long_parked_needs_are_summarized(self):
+        need = 'A working microphone connected through USB with macOS microphone permission and the correct input device selected'
+        self.data['tracking'] = {'parked': {'count':1,'path':'/tmp/parked.json','needs':[need]}}
+        page = renderer.render(self.data, self.base)
+        self.assertIn('A working microphone connected through USB with macOS…', page)
+        self.assertNotIn('correct input device selected', page)
+
+    @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
+    def test_carried_finding_displays_not_checked_instead_of_old_blocked_check(self):
+        data = copy.deepcopy(self.data)
+        finding = data['findings'][0]
+        finding['carried_from'] = 1
+        data['tracking'] = {'verification_history':[{'id':'old-list','build':'BCL 0.1.20','checks':{
+            finding['id']:{'state':'blocked','evidence':'Checked: voice input; Expected: available; Observed: no microphone',
+                           'finished_at':'2026-11-14T10:00:00Z'}}}]}
+        page = renderer.render(data, self.base)
+        payload = page.split('<script type="application/json" id="findings-data">',1)[1].split('</script>',1)[0]
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        show = template.split('function show(){',1)[1].split('\nsearch.addEventListener',1)[0]
+        program = r"""
+class Element { constructor(tag,text='',cls=''){this.tag=tag;this.text=text;this.cls=cls;this.children=[];this.dataset={}} append(...children){this.children.push(...children)} setAttribute(){} removeAttribute(){} }
+const node=(tag,text,cls)=>new Element(tag,text,cls);
+const findings=JSON.parse(PAYLOAD),labels={failing:'Failing',in_progress:'In progress',untested:'Untested'},location={hash:'#ISSUE-01'},run=null;
+const nav={querySelectorAll:()=>[]},panel={replaceChildren(value){this.article=value}},document={createTextNode:text=>text};
+function show(){
+""" + show + r"""
+show();
+const text=JSON.stringify(panel.article);
+if(!text.includes('Not checked this list')||!text.includes('No verification result recorded.'))process.exit(1);
+if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
+"""
+        program = program.replace('PAYLOAD', json.dumps(payload))
+        subprocess.run(['node','-e',program],check=True)
 
     def test_installed_inventory_is_distinct_from_run_build(self):
         self.data['tracking'] = {'verification_run': {'id':'run1','build':'ACU 1','revision':'abc',
@@ -802,7 +981,7 @@ setImmediate(async()=>{
         with self.assertRaises(ValueError):
             renderer.render(self.data, self.base)
 
-    def test_install_progress_preserves_fixed_status_and_validates_coverage(self):
+    def test_install_progress_shows_findings_added_after_run_start(self):
         self.data['tracking'] = {'verification_run': {'id':'run1','build':'ACU 1','revision':'abc',
             'installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt','status':'active',
             'checks': {'ISSUE-01':{'state':'checking','started_at':'2026-11-06T00:00:00Z'},
@@ -813,6 +992,8 @@ setImmediate(async()=>{
         self.assertIn("Number(a.status==='verified_fixed')", page)
         self.assertIn('"state": "pending"', page)
         self.data['tracking']['verification_run']['checks'].pop('ISSUE-02')
+        self.assertIn('Not checked this install', renderer.render(self.data, self.base))
+        self.data['tracking']['verification_run']['checks']['ISSUE-99'] = {'state':'pending'}
         with self.assertRaises(ValueError):
             renderer.render(self.data, self.base)
 
@@ -982,7 +1163,7 @@ setImmediate(async()=>{
         self.assertNotIn('<span class="lc-more">6</span>6</span>', workflow)
 
 
-    def test_status_only_plan_update_clears_stale_phase(self):
+    def test_status_only_plan_update_preserves_lane_phase(self):
         data = copy.deepcopy(self.data)
         data['tracking'] = {'round':1,'plan':{'round':1,'groups':[
             {'id':'A','finding_ids':['ISSUE-01'],'status':'blocked','phase':'fix','blocked_reason':'no mic'}]}}
@@ -997,7 +1178,7 @@ setImmediate(async()=>{
             self.assertEqual(result.returncode, 0, result.stderr)
             group = json.loads(source.read_text())['tracking']['plan']['groups'][0]
             self.assertEqual(group['status'], 'installing')
-            self.assertNotIn('phase', group)
+            self.assertEqual(group['phase'], 'fix')
 
 
     def test_plan_rows_follow_lane_phase_and_legacy_status_aliases(self):

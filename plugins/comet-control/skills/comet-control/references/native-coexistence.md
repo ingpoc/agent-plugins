@@ -43,7 +43,7 @@ up. Full recipe: [`references/multi-agent.md`](references/multi-agent.md)
 
 ## Other-window Google accountchooser
 
-If GSI opens in a **separate** Comet window, do **not** drive it via lease CDP or blind `cua_slice` coord clicks. Use Accessibility `AXPress` on the account `AXLink` in that window (recipe: [`google-accountchooser-ax.md`](google-accountchooser-ax.md)). Fix CUAService Accessibility if `axTrusted=false`.
+If GSI opens in a **separate** Comet window, do **not** drive it via lease CDP or blind `cua_slice` coord clicks. Use Accessibility `AXPress` on the account `AXLink` in that window (recipe: [`google-accounts.md`](google-accounts.md)). Fix CUAService Accessibility if `axTrusted=false`.
 
 ## Other-window Razorpay Bank popup
 
