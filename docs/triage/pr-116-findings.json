@@ -6864,8 +6864,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-18T16:04:29Z",
-      "now": "2026-11-18T16:04:29Z — Lane PLAIN-REASONS updated"
+      "updated_at": "2026-11-18T16:28:01Z",
+      "now": "2026-11-18T16:28:01Z — Lane PLAIN-REASONS updated"
     },
     "rollover": {
       "source_pr": 115,
@@ -7028,7 +7028,6 @@
           ],
           "depends_on": [],
           "status": "review",
-          "phase": "review",
           "worktree": "bcl116-r2-g1",
           "reason": "scripts/check.py output and the load-dependent test in test_bcl.py.",
           "codex": {
@@ -7036,19 +7035,21 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 98569,
-              "phase": "fix",
-              "started_at": "2026-11-18T15:21:08Z",
-              "command": "resume-fu-g1.sh",
-              "heartbeat_at": "2026-11-18T15:42:08Z",
+              "pid": 44248,
+              "phase": "presuite",
+              "started_at": "2026-11-18T16:23:45Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T16:28:00Z",
               "exit_code": 0,
-              "duration_s": 1260,
-              "finished_at": "2026-11-18T15:42:08Z",
+              "duration_s": 255,
+              "finished_at": "2026-11-18T16:28:00Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1eebf-5e63-7bd0-b3ff-5e5e3c2cd5fb",
-            "review_status": "failed"
+            "review_status": "passed",
+            "reviewer_session": "01a1ef39-27a9-72c3-bd14-fae846d1c7dd",
+            "review_note": "Terra asked for 3 changes (verifier child wait, writer lock handshake, viewer port race); Luna applied all in the same session and the suite passed 8 of 8 stress runs."
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g1.sh",
@@ -7058,7 +7059,13 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T15:42:08Z"
+          "updated_at": "2026-11-18T16:28:01Z",
+          "phase": "review",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T16:28:00Z"
+          }
         },
         {
           "id": "VERIFY-ONCE",
@@ -7068,7 +7075,6 @@
           ],
           "depends_on": [],
           "status": "review",
-          "phase": "review",
           "worktree": "bcl116-r2-g2",
           "reason": "bin/bcl verify, verification run record, verify reference.",
           "codex": {
@@ -7076,19 +7082,21 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 92521,
-              "phase": "review",
-              "started_at": "2026-11-18T15:14:26Z",
-              "command": "launch-review-g2.sh",
-              "heartbeat_at": "2026-11-18T15:15:18Z",
+              "pid": 44248,
+              "phase": "presuite",
+              "started_at": "2026-11-18T16:23:45Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T16:28:00Z",
               "exit_code": 0,
-              "duration_s": 52,
-              "finished_at": "2026-11-18T15:15:18Z",
+              "duration_s": 255,
+              "finished_at": "2026-11-18T16:28:00Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1eebf-6637-7673-959d-1d87762164c8",
-            "review_status": "passed"
+            "review_status": "passed",
+            "reviewer_session": "01a1ef39-36a3-7ab0-b11a-b4d7e074c44a",
+            "review_note": "Terra passed it."
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g2.sh",
@@ -7098,7 +7106,13 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T15:15:18Z"
+          "updated_at": "2026-11-18T16:28:01Z",
+          "phase": "review",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T16:28:00Z"
+          }
         },
         {
           "id": "PLAIN-REASONS",
@@ -7108,7 +7122,6 @@
           ],
           "depends_on": [],
           "status": "review",
-          "phase": "review",
           "worktree": "bcl116-r2-g3",
           "reason": "manage_findings evidence validation, render.py and the page template.",
           "codex": {
@@ -7116,19 +7129,21 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 81284,
-              "phase": "fix",
-              "started_at": "2026-11-18T15:52:09Z",
-              "command": "resume-fu2-g3.sh",
-              "heartbeat_at": "2026-11-18T16:04:29Z",
+              "pid": 44248,
+              "phase": "presuite",
+              "started_at": "2026-11-18T16:23:45Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T16:28:00Z",
               "exit_code": 0,
-              "duration_s": 740,
-              "finished_at": "2026-11-18T16:04:29Z",
+              "duration_s": 255,
+              "finished_at": "2026-11-18T16:28:00Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1eebf-6ddc-7342-9e6d-00d5def1e891",
-            "review_status": "failed"
+            "review_status": "passed",
+            "reviewer_session": "01a1ef3f-716a-74b2-806b-de2514faa303",
+            "review_note": "Terra asked for 2 changes (plain spawn-error text, real page test); Luna applied both, then the owner-widened scope (summary text, footer path, Not checked rows)."
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g3.sh",
@@ -7138,7 +7153,13 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T16:04:29Z"
+          "updated_at": "2026-11-18T16:28:01Z",
+          "phase": "review",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T16:28:00Z"
+          }
         }
       ]
     },
