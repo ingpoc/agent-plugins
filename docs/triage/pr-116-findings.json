@@ -6855,9 +6855,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-18T09:49:45Z",
-      "now": "2026-11-18T09:49:45Z — Fix job started"
+      "stage": "install",
+      "updated_at": "2026-11-18T10:19:38Z",
+      "now": "2026-11-18T10:19:38Z — Install in progress"
     },
     "rollover": {
       "source_pr": 115,
@@ -7015,8 +7015,8 @@
             "BCL-63"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl116-r1-g1",
           "reason": "Same registry and viewer lifecycle code in bin/bcl rollover/merged and live_state.",
           "codex": {
@@ -7024,22 +7024,22 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 79483,
-              "phase": "review",
-              "started_at": "2026-11-18T09:43:38Z",
-              "command": "launch-review-g1.sh",
-              "heartbeat_at": "2026-11-18T09:44:34Z",
+              "pid": 66113,
+              "phase": "presuite",
+              "started_at": "2026-11-18T10:12:24Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T10:17:02Z",
               "exit_code": 0,
-              "duration_s": 56,
-              "finished_at": "2026-11-18T09:44:34Z",
+              "duration_s": 278,
+              "finished_at": "2026-11-18T10:17:02Z",
               "finished_phase_status": "passed"
             },
             "implementer_session": "01a1edfb-562e-77e0-9c28-b08cd52fb7fc",
             "fix_status": "passed",
-            "review_status": "failed",
+            "review_status": "passed",
             "reviewer_session": "01a1ee0a-5ac3-7232-89bf-d05c34ee61fe",
             "reviewer_model": "gpt-6.1-terra",
-            "review_note": "Terra CHANGES (one round); must-fixes go to the same Luna session"
+            "review_note": "One Terra round asked for 3 must-fixes (status reconcile, stop under old home, OS argument matching); fixed by Luna in the same session (15:23-15:28 IST) with named tests; version bump done by orchestrator in 0.1.42. No second review."
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g1.sh",
@@ -7049,7 +7049,16 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T09:49:45Z"
+          "updated_at": "2026-11-18T10:17:02Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T10:17:02Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T10:19:38Z"
+          }
         },
         {
           "id": "PAGE-WORDS",
@@ -7060,8 +7069,8 @@
             "BCL-62"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl116-r1-g2",
           "reason": "Same render path and template; finish-check rule for blocked.",
           "codex": {
@@ -7069,22 +7078,22 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 80568,
-              "phase": "review",
-              "started_at": "2026-11-18T09:43:43Z",
-              "command": "launch-review-g2.sh",
-              "heartbeat_at": "2026-11-18T09:44:53Z",
+              "pid": 66113,
+              "phase": "presuite",
+              "started_at": "2026-11-18T10:12:24Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T10:17:02Z",
               "exit_code": 0,
-              "duration_s": 70,
-              "finished_at": "2026-11-18T09:44:53Z",
+              "duration_s": 278,
+              "finished_at": "2026-11-18T10:17:02Z",
               "finished_phase_status": "passed"
             },
             "implementer_session": "01a1edfb-65e9-72b3-b4bf-44dfc02c997e",
             "fix_status": "passed",
-            "review_status": "failed",
+            "review_status": "passed",
             "reviewer_session": "01a1ee0a-6e37-70e2-977f-9d89a8faa1e0",
             "reviewer_model": "gpt-6.1-terra",
-            "review_note": "Terra CHANGES (one round); must-fixes go to the same Luna session"
+            "review_note": "One Terra round asked for 6 must-fixes (per-lane Stale, completed lanes, parked summary/empty, blocker persisted, rendered tests); fixed by Luna in the same session (15:23-15:28 IST) with named tests; version bump done by orchestrator in 0.1.42. No second review."
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g2.sh",
@@ -7094,7 +7103,16 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T09:49:45Z"
+          "updated_at": "2026-11-18T10:17:02Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T10:17:02Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T10:19:38Z"
+          }
         },
         {
           "id": "REVIEW-VERDICT",
@@ -7103,8 +7121,8 @@
             "BCL-57"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl116-r1-g3",
           "reason": "bin/bcl job review path plus review.md.",
           "codex": {
@@ -7112,22 +7130,22 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 81708,
-              "phase": "review",
-              "started_at": "2026-11-18T09:43:48Z",
-              "command": "launch-review-g3.sh",
-              "heartbeat_at": "2026-11-18T09:44:19Z",
+              "pid": 66113,
+              "phase": "presuite",
+              "started_at": "2026-11-18T10:12:24Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T10:17:02Z",
               "exit_code": 0,
-              "duration_s": 31,
-              "finished_at": "2026-11-18T09:44:19Z",
+              "duration_s": 278,
+              "finished_at": "2026-11-18T10:17:02Z",
               "finished_phase_status": "passed"
             },
             "implementer_session": "01a1edfb-7567-74d3-96c4-c1aeccf8b9b1",
             "fix_status": "passed",
-            "review_status": "failed",
+            "review_status": "passed",
             "reviewer_session": "01a1ee0a-81b5-7b62-ba10-919a1b0be3d3",
             "reviewer_model": "gpt-6.1-terra",
-            "review_note": "Terra CHANGES (one round); must-fixes go to the same Luna session"
+            "review_note": "One Terra round asked for 5 must-fixes (first verdict only, stale file, encoding, fixtures, explicit no-verdict test); fixed by Luna in the same session (15:23-15:28 IST) with named tests; version bump done by orchestrator in 0.1.42. No second review."
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g3.sh",
@@ -7137,7 +7155,16 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T09:49:45Z"
+          "updated_at": "2026-11-18T10:17:02Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T10:17:02Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T10:19:38Z"
+          }
         },
         {
           "id": "CHECK-LEAKS",
@@ -7146,8 +7173,8 @@
             "BCL-58"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl116-r1-g4",
           "reason": "Test infrastructure only; independent of product code.",
           "codex": {
@@ -7155,22 +7182,22 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 82804,
-              "phase": "review",
-              "started_at": "2026-11-18T09:43:53Z",
-              "command": "launch-review-g4.sh",
-              "heartbeat_at": "2026-11-18T09:44:42Z",
+              "pid": 66113,
+              "phase": "presuite",
+              "started_at": "2026-11-18T10:12:24Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-18T10:17:02Z",
               "exit_code": 0,
-              "duration_s": 49,
-              "finished_at": "2026-11-18T09:44:42Z",
+              "duration_s": 278,
+              "finished_at": "2026-11-18T10:17:02Z",
               "finished_phase_status": "passed"
             },
             "implementer_session": "01a1edfb-84b4-7590-ada9-53b6f7992e7e",
             "fix_status": "passed",
-            "review_status": "failed",
+            "review_status": "passed",
             "reviewer_session": "01a1ee0a-95b3-7de2-b053-521fca92d337",
             "reviewer_model": "gpt-6.1-terra",
-            "review_note": "Terra CHANGES (one round); must-fixes go to the same Luna session"
+            "review_note": "One Terra round asked for 1 must-fix (tracked TEMP_ROOTS in the isolated test); fixed by Luna in the same session (15:23-15:28 IST) with named tests; version bump done by orchestrator in 0.1.42. No second review."
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r1/verify-g4.sh",
@@ -7180,7 +7207,16 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T09:49:45Z"
+          "updated_at": "2026-11-18T10:17:02Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-18T10:17:02Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-18T10:19:38Z"
+          }
         }
       ]
     },
@@ -8574,7 +8610,8 @@
       "collect",
       "present",
       "plan_fix",
-      "review"
+      "review",
+      "install"
     ]
   },
   "findings": [
