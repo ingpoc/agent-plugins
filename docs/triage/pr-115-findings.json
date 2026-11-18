@@ -6565,9 +6565,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-18T06:59:41Z",
-      "now": "2026-11-18T06:59:41Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-18T07:12:55Z",
+      "now": "2026-11-18T07:12:55Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 114,
@@ -6710,7 +6710,7 @@
     "plan": {
       "round": 3,
       "cycle": 7,
-      "status": "active",
+      "status": "closed",
       "groups": [
         {
           "id": "VIEWER-STRIP",
@@ -6722,8 +6722,8 @@
             "BCL-54"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "running",
+          "phase": "fix",
           "worktree": "bcl115-r3-g6",
           "reason": "Same viewer and render code; BCL-50 is proven live by running this lane fix through bcl job with the interim heartbeat script off.",
           "codex": {
@@ -6754,10 +6754,11 @@
             "status": "pending",
             "total": 4,
             "fixed": 0,
-            "failed": 0
+            "failed": 0,
+            "failure": "Checked: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh\nExpected: verification command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-18T06:57:42Z",
-          "verify_summary": "Review passed; pre-push suite next",
+          "updated_at": "2026-11-18T07:11:31Z",
+          "verify_summary": "Fixing BCL-53 test viewer leak in same Luna session",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -6775,8 +6776,8 @@
             "BCL-52"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl115-r3-g7",
           "reason": "Test-only root cause in test_bcl.py; independent of the viewer lane.",
           "codex": {
@@ -6804,9 +6805,10 @@
             "status": "pending",
             "total": 1,
             "fixed": 0,
-            "failed": 0
+            "failed": 0,
+            "failure": "Checked: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.sh\nExpected: verification command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-18T06:57:42Z",
+          "updated_at": "2026-11-18T07:11:31Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -6815,7 +6817,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-18T06:59:19Z"
-          }
+          },
+          "verify_summary": "Waits for VIEWER-STRIP leak fix, then re-verify"
         }
       ]
     },
@@ -6825,7 +6828,8 @@
       "plan_fix",
       "review",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "verification_run": {
       "id": "bcl-0.1.40-cd47cb75-115",
@@ -6881,113 +6885,83 @@
           "state": "pending"
         },
         "BCL-53": {
-          "state": "pending"
+          "state": "not_fixed",
+          "observation": "verify-g6.sh ran on installed 0.1.40; leak assertion reported 6 test viewers",
+          "observed_at": "2026-11-18T07:10:25Z",
+          "started_at": "2026-11-18T07:10:25Z",
+          "updated_at": "2026-11-18T07:10:25Z",
+          "check_id": "aba04e5c1c6b4cf28b47eec1f3861cba",
+          "evidence": "Checked: verify-g6.sh on installed bcl 0.1.40 (cd47cb75) 12:33-12:37 IST: full suite on a clean clone and on the installed copy, strict shape, statechart --check, 11 named tests; Expected: all pass and no test-owned serve.py viewer is left running; Observed: 320/320 tests passed twice and all 11 named tests passed, but 6 viewers were left under the verifier temp root; test_same_version_reinstall_restarts_viewer and test_unchanged_script_tree_reuses_viewer alone each leave one serve.py running (log r3/verify-g6.log); Verdict because: not fixed, the BCL-53 tests leak viewers, breaking the BCL-46 no-leak rule.",
+          "finished_at": "2026-11-18T07:10:36.407913Z"
         },
         "BCL-54": {
+          "state": "pending"
+        },
+        "BCL-55": {
+          "state": "pending"
+        },
+        "BCL-56": {
           "state": "pending"
         }
       }
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-18T06:09:22Z",
+      "at": "2026-11-18T07:12:55Z",
       "steps": [
         "Stage: Plan & fix",
+        "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 5",
-        "Codex write: TRACKER-LEAN",
-        "Codex review: TRACKER-LEAN",
-        "Polling and rework review: TRACKER-LEAN",
-        "Test command: TRACKER-LEAN: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g1.sh",
-        "Codex write: GATE-RULES",
-        "Codex review: GATE-RULES",
-        "Polling and rework review: GATE-RULES",
-        "Test command: GATE-RULES: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g2.sh",
-        "Codex write: CHART-EDGES",
-        "Codex review: CHART-EDGES",
-        "Polling and rework review: CHART-EDGES",
-        "Test command: CHART-EDGES: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g3.sh",
-        "Codex write: TESTS-VIEWER",
-        "Codex review: TESTS-VIEWER",
-        "Polling and rework review: TESTS-VIEWER",
-        "Test command: TESTS-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g4.sh",
-        "Codex write: LANE-HEARTBEAT",
-        "Codex review: LANE-HEARTBEAT",
-        "Polling and rework review: LANE-HEARTBEAT",
-        "Test command: LANE-HEARTBEAT: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g5.sh",
-        "Codex usage limit: TRACKER-LEAN follow-up stopped at 09:30 IST, resumed after the 09:38 IST account switch",
-        "Owner-added lane: LANE-HEARTBEAT (BCL-50, BCL-51) made 5 groups against the 3-4 cap",
-        "Integration: cherry-picking five lane branches into the PR worktree"
+        "Parallel group count: 2",
+        "Codex write: VIEWER-STRIP",
+        "Codex review: VIEWER-STRIP",
+        "Polling and rework review: VIEWER-STRIP",
+        "Test command: VIEWER-STRIP: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
+        "Codex write: FLAKY-CHECK",
+        "One-file review exemption: FLAKY-CHECK",
+        "Polling and rework review: FLAKY-CHECK",
+        "Test command: FLAKY-CHECK: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.sh",
+        "Orchestration: worker interrupted about every 50 minutes",
+        "Cleanup: killing leaked test viewers by hand"
       ],
       "none": [
-        "Parallel group count: 5",
-        "Codex write: TRACKER-LEAN",
-        "Codex review: TRACKER-LEAN",
-        "Polling and rework review: TRACKER-LEAN",
-        "Test command: TRACKER-LEAN: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g1.sh",
-        "Codex write: GATE-RULES",
-        "Codex review: GATE-RULES",
-        "Polling and rework review: GATE-RULES",
-        "Codex write: CHART-EDGES",
-        "Codex review: CHART-EDGES",
-        "Test command: CHART-EDGES: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g3.sh",
-        "Codex write: TESTS-VIEWER",
-        "Polling and rework review: TESTS-VIEWER",
-        "Test command: TESTS-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g4.sh",
-        "Codex write: LANE-HEARTBEAT",
-        "Codex review: LANE-HEARTBEAT",
-        "Test command: LANE-HEARTBEAT: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g5.sh",
-        "Codex usage limit: TRACKER-LEAN follow-up stopped at 09:30 IST, resumed after the 09:38 IST account switch",
-        "Owner-added lane: LANE-HEARTBEAT (BCL-50, BCL-51) made 5 groups against the 3-4 cap"
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 2",
+        "Codex write: VIEWER-STRIP",
+        "Codex review: VIEWER-STRIP",
+        "Codex write: FLAKY-CHECK",
+        "One-file review exemption: FLAKY-CHECK",
+        "Polling and rework review: FLAKY-CHECK"
       ],
       "sections": {
         "delete": {
           "items": [
             {
-              "item": "Codex review: TESTS-VIEWER",
-              "evidence": "All four Terra reviews tried to run the full suite inside the read-only sandbox and got 215-220 errors (no writable temp dir), adding noise and time without proof. The review brief now tells Terra not to run the suite; the orchestrator's pre-push suite is the proof (review-g1/g5 briefs).",
+              "item": "Polling and rework review: VIEWER-STRIP",
+              "evidence": "The interim heartbeat.py loop and hand-written lane writes are gone: Luna fu2 (12:13-12:21 IST) and the pre-push suite (12:24-12:27 IST) ran under bcl job, which heartbeated the tracker and wrote each exit, so the page stayed live without a separate script.",
               "outcome": "fixed inline"
-            },
-            {
-              "item": "Polling and rework review: LANE-HEARTBEAT",
-              "evidence": "Lane progress needed hand-written upd.py writes plus an interim heartbeat.py loop; bcl job (BCL-50) records the job, heartbeats and writes the result on exit, so both scripts can be deleted once its live check passes.",
-              "outcome": "issue",
-              "issue_id": "BCL-50"
             }
           ]
         },
         "simplify": {
           "items": [
             {
-              "item": "Integration: cherry-picking five lane branches into the PR worktree",
-              "evidence": "Lanes developed in separate worktrees off 383f8995 broke three times only after integration: test_archive.py relied on the rollover exception GATE-RULES removed (5 failures), test_check_gate_count.py used parents[3] that TESTS-VIEWER had just outlawed, and scripts/test_wf06_regressions.py pinned text LANE-HEARTBEAT moved. Each cost a resume and a fresh 3-minute pre-push suite. From now on each finished lane is integrated at once and its suite runs on the integrated head before review.",
-              "outcome": "fixed inline"
-            },
-            {
-              "item": "Test command: GATE-RULES: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g2.sh",
-              "evidence": "The first GATE-RULES verify failed only because verify_lane.py counted every example viewer on the Mac, including one from the concurrent LANE-HEARTBEAT Luna suite. The verifier now points TMPDIR at its own directory and counts only viewers under it.",
-              "outcome": "fixed inline"
+              "item": "Test command: VIEWER-STRIP: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
+              "evidence": "One leak from two BCL-53 tests failed the whole lane at 12:37 IST; bcl set four findings whose tests passed to Blocked and refused the fix job, so statuses had to be hand-reset.",
+              "outcome": "issue",
+              "issue_id": "BCL-55"
             }
           ]
         },
         "optimize": {
           "items": [
             {
-              "item": "Stage: Plan & fix",
-              "evidence": "Guru saw the page Updated 9:25 IST and Stale with TRACKER-LEAN still Fixing after its Luna follow-up had finished, and Stale again at 09:46 IST; at 09:47 all lanes showed Installing while only the pre-push suite ran. Lane writes lagged real work because they were manual.",
-              "outcome": "issue",
-              "issue_id": "BCL-50"
-            },
-            {
-              "item": "Stage: Verify",
-              "evidence": "After the same-version reinstall at 11:25 IST the viewer kept serving the first 0.1.39 build, so the live strip lacked Review until a manual restart at 11:37 IST; live checks of page changes were unreliable.",
-              "outcome": "issue",
-              "issue_id": "BCL-53"
-            },
-            {
-              "item": "Polling and rework review: CHART-EDGES",
-              "evidence": "CHART-EDGES passed review and tests but a rendered PNG at 10:29 IST showed an edge through two labels, then a far-away merge label; two more resumes fixed it. Chart and page lanes now get a rendered screenshot looked at before verified_fixed is recorded.",
+              "item": "Orchestration: worker interrupted about every 50 minutes",
+              "evidence": "Every long step now runs detached (nohup) under bcl job or a launch script with its log and pid in r3, and the tracker records each job; this worker resumed at 12:20 IST from the tracker and artifacts without starting a duplicate Codex job or suite.",
               "outcome": "fixed inline"
             }
           ]
@@ -6995,15 +6969,20 @@
         "automate": {
           "items": [
             {
-              "item": "Stage: Install",
-              "evidence": "The pre-push full repo check failed test_bcl.py once (AssertionError 0 != 5) under 146 parallel processes and passed on the next two runs, so a push decision rested on a flaky run.",
+              "item": "Test command: FLAKY-CHECK: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.sh",
+              "evidence": "The pre-push suite at 12:24 IST passed while two tests leaked viewers; only the verifier leak check caught it after install. A suite-wide guard replaces the verifier check, so it removes as much as it adds.",
               "outcome": "issue",
-              "issue_id": "BCL-52"
+              "issue_id": "BCL-56"
+            },
+            {
+              "item": "Cleanup: killing leaked test viewers by hand",
+              "evidence": "An ad hoc ps-grep-kill matched its own shell command line and killed the shell at 12:39 IST; r3/killtest.py now kills only serve.py processes whose page lives under a temp dir, until BCL-56 makes the suite fail on leaks.",
+              "outcome": "fixed inline"
             }
           ]
         }
       },
-      "round": 2,
+      "round": 3,
       "cycle": 7
     },
     "introspect_history": [
@@ -8210,6 +8189,86 @@
         },
         "round": 2,
         "cycle": 7
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-18T07:12:55Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 2",
+          "Codex write: VIEWER-STRIP",
+          "Codex review: VIEWER-STRIP",
+          "Polling and rework review: VIEWER-STRIP",
+          "Test command: VIEWER-STRIP: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
+          "Codex write: FLAKY-CHECK",
+          "One-file review exemption: FLAKY-CHECK",
+          "Polling and rework review: FLAKY-CHECK",
+          "Test command: FLAKY-CHECK: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.sh",
+          "Orchestration: worker interrupted about every 50 minutes",
+          "Cleanup: killing leaked test viewers by hand"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 2",
+          "Codex write: VIEWER-STRIP",
+          "Codex review: VIEWER-STRIP",
+          "Codex write: FLAKY-CHECK",
+          "One-file review exemption: FLAKY-CHECK",
+          "Polling and rework review: FLAKY-CHECK"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Polling and rework review: VIEWER-STRIP",
+                "evidence": "The interim heartbeat.py loop and hand-written lane writes are gone: Luna fu2 (12:13-12:21 IST) and the pre-push suite (12:24-12:27 IST) ran under bcl job, which heartbeated the tracker and wrote each exit, so the page stayed live without a separate script.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Test command: VIEWER-STRIP: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
+                "evidence": "One leak from two BCL-53 tests failed the whole lane at 12:37 IST; bcl set four findings whose tests passed to Blocked and refused the fix job, so statuses had to be hand-reset.",
+                "outcome": "issue",
+                "issue_id": "BCL-55"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Orchestration: worker interrupted about every 50 minutes",
+                "evidence": "Every long step now runs detached (nohup) under bcl job or a launch script with its log and pid in r3, and the tracker records each job; this worker resumed at 12:20 IST from the tracker and artifacts without starting a duplicate Codex job or suite.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Test command: FLAKY-CHECK: /Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.sh",
+                "evidence": "The pre-push suite at 12:24 IST passed while two tests leaked viewers; only the verifier leak check caught it after install. A suite-wide guard replaces the verifier check, so it removes as much as it adds.",
+                "outcome": "issue",
+                "issue_id": "BCL-56"
+              },
+              {
+                "item": "Cleanup: killing leaked test viewers by hand",
+                "evidence": "An ad hoc ps-grep-kill matched its own shell command line and killed the shell at 12:39 IST; r3/killtest.py now kills only serve.py processes whose page lives under a temp dir, until BCL-56 makes the suite fail on leaks.",
+                "outcome": "fixed inline"
+              }
+            ]
+          }
+        },
+        "round": 3,
+        "cycle": 7
       }
     ],
     "archive": {
@@ -8646,6 +8705,30 @@
       "done_when": "bcl review and a review job start with only the implementer session and a passed fix, install still requires the reviewer session, proven by named tests and a live review job on the installed copy.",
       "observed": "18 Nov 2026 12:08 IST on installed 0.1.39 aff3cdd9: bcl review --ids BCL-50 --ids BCL-51 --ids BCL-53 failed with VIEWER-STRIP: review requires codex.reviewer_session; record the session with bcl plan; Terra had to be launched directly (session 01a1ed61-19e2-7a50-affa-43e029bac406).",
       "recommendation": "Check the reviewer session at install, not at review start."
+    },
+    {
+      "id": "BCL-55",
+      "title": "A failed lane Verify marks every finding in the lane Blocked and then refuses a fix job",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "summary": "When a lane verify command exits nonzero, bcl verify sets every in-progress finding in that lane to blocked and finishes their checks as blocked, and bcl job --phase fix refuses a failed or blocked lane, so the lane cannot loop back to a fix through bcl.",
+      "impact": "Findings whose own checks passed show Blocked, which reads as an outside blocker, and the orchestrator must hand-edit statuses before the fix can restart.",
+      "done_when": "A failed lane verify leaves findings in progress (or failing only with evidence) and records the lane failure; after Introspect a fix job can restart the failed lane; proven by named tests and a live loop-back on the installed copy.",
+      "observed": "18 Nov 2026 12:37 IST on installed 0.1.40 cd47cb75: verify-g6.sh failed only on a test-viewer leak from two BCL-53 tests; BCL-50, BCL-51, BCL-52 and BCL-54 turned blocked and bcl job --phase fix replied fix job cannot start a blocked or parked lane.",
+      "recommendation": "Keep findings in progress on a lane failure and let a fix job restart a failed lane after Introspect."
+    },
+    {
+      "id": "BCL-56",
+      "title": "The test suite passes even when a test leaves a viewer running",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "summary": "test_suite_leaves_no_viewer_processes only covers some tests, so two new BCL-53 tests leaked a serve.py viewer each and the full suite and pre-push check still passed; only the separate verifier leak check caught it after install.",
+      "impact": "A leak reaches install and costs a failed Verify, an extra Introspect and a new round.",
+      "done_when": "Any test that leaves a serve.py viewer under its temp root fails the full suite run, proven by a named test; the verifier then drops its separate leak check.",
+      "observed": "18 Nov 2026 12:24 IST pre-push suite on 09e1859d passed (320 tests, check ok); 12:33 and 12:37 IST installed-copy verify found 4 and 6 leaked test viewers.",
+      "recommendation": "Add a suite-wide leaked-viewer guard (module teardown or a shared base) in place of the verifier-side check."
     }
   ]
 }
