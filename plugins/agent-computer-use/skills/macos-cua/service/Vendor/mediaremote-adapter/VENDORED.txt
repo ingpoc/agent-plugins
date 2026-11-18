@@ -1,2 +1,2 @@
 upstream: https://github.com/ungive/mediaremote-adapter @ 0e82bf1 (2026-10-17), BSD-3-Clause
-downstream: scripts/mediaremote-adapter-dev.sh adds strict shell failure handling around the unchanged upstream adapter invocation.
+downstream: scripts/mediaremote-adapter-dev.sh adds strict shell failure handling and quotes "$@" so argument boundaries are preserved; upstream adapter code remains unchanged.
