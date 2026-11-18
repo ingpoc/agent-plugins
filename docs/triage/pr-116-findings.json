@@ -6863,9 +6863,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-18T13:01:10Z",
-      "now": "2026-11-18T13:01:10Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-18T15:14:21Z",
+      "now": "2026-11-18T15:14:21Z — Review started"
     },
     "rollover": {
       "source_pr": 115,
@@ -7027,14 +7027,27 @@
             "BCL-64"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl116-r2-g1",
           "reason": "scripts/check.py output and the load-dependent test in test_bcl.py.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 6349,
+              "phase": "fix",
+              "started_at": "2026-11-18T14:54:28Z",
+              "command": "resume-g1.sh",
+              "heartbeat_at": "2026-11-18T15:04:20Z",
+              "exit_code": 0,
+              "duration_s": 592,
+              "finished_at": "2026-11-18T15:04:20Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed",
+            "implementer_session": "01a1eebf-5e63-7bd0-b3ff-5e5e3c2cd5fb"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g1.sh",
@@ -7044,7 +7057,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T13:01:10Z"
+          "updated_at": "2026-11-18T15:14:21Z"
         },
         {
           "id": "VERIFY-ONCE",
@@ -7053,14 +7066,27 @@
             "BCL-65"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl116-r2-g2",
           "reason": "bin/bcl verify, verification run record, verify reference.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 7211,
+              "phase": "fix",
+              "started_at": "2026-11-18T14:54:31Z",
+              "command": "resume-g2.sh",
+              "heartbeat_at": "2026-11-18T15:03:34Z",
+              "exit_code": 0,
+              "duration_s": 543,
+              "finished_at": "2026-11-18T15:03:34Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed",
+            "implementer_session": "01a1eebf-6637-7673-959d-1d87762164c8"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g2.sh",
@@ -7070,7 +7096,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T13:01:10Z"
+          "updated_at": "2026-11-18T15:14:20Z"
         },
         {
           "id": "PLAIN-REASONS",
@@ -7079,14 +7105,27 @@
             "BCL-66"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl116-r2-g3",
           "reason": "manage_findings evidence validation, render.py and the page template.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 8200,
+              "phase": "fix",
+              "started_at": "2026-11-18T14:54:34Z",
+              "command": "resume-g3.sh",
+              "heartbeat_at": "2026-11-18T15:08:36Z",
+              "exit_code": 0,
+              "duration_s": 842,
+              "finished_at": "2026-11-18T15:08:36Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed",
+            "implementer_session": "01a1eebf-6ddc-7342-9e6d-00d5def1e891"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g3.sh",
@@ -7096,7 +7135,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T13:01:10Z"
+          "updated_at": "2026-11-18T15:14:20Z"
         }
       ]
     },
@@ -9020,7 +9059,7 @@
       "id": "BCL-64",
       "title": "The repo check failed test_bcl.py once without naming the failing test",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "The first 0.1.42 pre-push check failed test_bcl.py once under scripts/check.py (10 test processes at a time); the same file passed alone and in the next full check, and the check output did not name the failing test.",
       "impact": "A flaky failure blocks a push and costs a 5 minute rerun with no clue to fix.",
@@ -9032,7 +9071,7 @@
       "id": "BCL-65",
       "title": "Verify reruns the full suite once per lane",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "Each lane verify ran a fresh clone, the full 347-test suite, skill_shape and statechart before its named tests, so four lanes ran the same 2.5 minute suite four times on one install.",
       "impact": "Verify took about 18 minutes where one suite plus named tests needs about 6.",
@@ -9044,7 +9083,7 @@
       "id": "BCL-66",
       "title": "Verification reasons show test function names and log paths instead of plain language",
       "source": "User reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "summary": "The Checked, Expected, Observed and Verdict lines on a verified issue list test function names, folders and log files, which tells the owner nothing about what now works.",
       "impact": "The owner cannot tell from the page what was fixed or how it was checked.",
