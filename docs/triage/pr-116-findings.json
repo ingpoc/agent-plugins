@@ -6855,9 +6855,9 @@
       }
     },
     "workflow": {
-      "stage": "collect",
-      "updated_at": "2026-11-18T08:30:52Z",
-      "now": "2026-11-18T08:30:52Z — Started collection"
+      "stage": "present",
+      "updated_at": "2026-11-18T09:27:01Z",
+      "now": "2026-11-18T09:27:01Z — Started collection"
     },
     "rollover": {
       "source_pr": 115,
@@ -8564,7 +8564,8 @@
       ]
     },
     "stages_reached": [
-      "collect"
+      "collect",
+      "present"
     ]
   },
   "findings": [
@@ -8591,6 +8592,66 @@
       "done_when": "A test file that leaks a viewer fails when run alone and under scripts/check.py, proven by a named test; no viewers remain after a full check.",
       "observed": "18 Nov 2026 13:34 IST after the 0.1.41 pre-push suite (unittest discovery plus scripts/check.py): 4 temp-root viewers were left; a plain discovery run at 13:35 IST left none.",
       "recommendation": "Run the guard per test module (tearDownModule from a shared helper) instead of from one trailing module."
+    },
+    {
+      "id": "BCL-59",
+      "title": "Rollover keeps the old list home, viewer path and plan lanes",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "summary": "bcl rollover --worktree NAME left the registry home, the viewer report and base paths on the old worktree and kept the old list plan lanes as current, so the new list page was committed and served from the old PR worktree.",
+      "impact": "The new list snapshots land on the old PR branch unless fixed by hand.",
+      "done_when": "Rollover sets the new registry home from --worktree, clears the old plan, and the next bcl command (status included) restarts a viewer whose report path differs from the home; proven by named tests and a live rollover check on the installed copy.",
+      "observed": "18 Nov 2026 14:05 IST: registry home for #116 was the #115 worktree and the start snapshot landed on #115. 14:49 IST: the #116 viewer (pid 48808, port 56268) served samantha-pr115-rollover/docs/triage/pr-116.html, which does not exist; bcl status in the #116 worktree did not move it; 116.json plan still listed VIEWER-STRIP, VERIFY-LOOP and FLAKY-CHECK from #115.",
+      "recommendation": "Write the registry home from --worktree in rollover."
+    },
+    {
+      "id": "BCL-60",
+      "title": "The page shows Stale during idle Collect",
+      "source": "User reported",
+      "status": "untested",
+      "priority": "high",
+      "summary": "The Stale badge appears when nothing has been written for 10 minutes even while the list is idle in Collect with no running lane.",
+      "impact": "The owner reads Stale as broken work when nothing is supposed to be running.",
+      "done_when": "Stale shows only while a lane job or stage is live and its heartbeat is overdue; idle stages (Collect, Present, between rounds) never show it; named tests and a live idle page.",
+      "observed": "18 Nov 2026 14:49 IST, #116 page and viewer records on installed 0.1.41: the #116 page in Collect with no lanes showed Stale.",
+      "recommendation": "Tie Stale to live work, not to page age."
+    },
+    {
+      "id": "BCL-61",
+      "title": "The page header prints raw file paths and says Viewer version not recorded",
+      "source": "User reported",
+      "status": "untested",
+      "priority": "high",
+      "summary": "The header shows archive.json and parked.json paths and the long parked needs text, and Viewer version not recorded even though the viewer record has a version.",
+      "impact": "The header is hard to read and looks broken.",
+      "done_when": "The header uses plain words (for example 67 archived, 4 parked waiting on a microphone or Windows), no file paths, and shows the viewer version from its record; named tests and a live page.",
+      "observed": "18 Nov 2026 14:49 IST, #116 page and viewer records on installed 0.1.41: header showed archive.json and parked.json paths, the full parked needs text, and Viewer version not recorded.",
+      "recommendation": "Summarize counts in words and read the version from the viewer record."
+    },
+    {
+      "id": "BCL-62",
+      "title": "A finding with no fix yet shows Verdict: Blocked",
+      "source": "User reported",
+      "status": "untested",
+      "priority": "high",
+      "summary": "The BCL-57 verification row on the new list reads Verdict: Blocked only because no fix existed in the last install; Blocked means an outside blocker.",
+      "impact": "Status reads wrong; the rule is that Blocked needs an external blocker.",
+      "done_when": "A finding with no fix in the installed build shows Not checked or Untested on the new list, the manager rejects a blocked outcome without an external blocker reason, and carried findings start not checked; named tests and a live page.",
+      "observed": "18 Nov 2026 14:49 IST, #116 page and viewer records on installed 0.1.41: BCL-57 row showed Verdict: Blocked (from the #115 run check finished as blocked because no fix code existed).",
+      "recommendation": "Only allow blocked with an external blocker; show not checked for unbuilt findings."
+    },
+    {
+      "id": "BCL-63",
+      "title": "Viewers for merged lists keep running",
+      "source": "User reported",
+      "status": "untested",
+      "priority": "high",
+      "summary": "bcl merged does not stop the merged list viewer, so viewers for merged #111, #113, #114 and #115 kept running, and bcl has no exact-pid stop path.",
+      "impact": "Old pages stay served and processes pile up.",
+      "done_when": "bcl merged stops that list viewer by its recorded pid after checking the pid still serves that list, and a bcl stop-viewer stage does the same for one list; open lists such as #112 are untouched; named tests and a live merged-list check.",
+      "observed": "18 Nov 2026 14:49 IST, #116 page and viewer records on installed 0.1.41: pids 38807 (#111), 58656 (#113), 21113 (#114) and 81189 (#115) were still serving merged lists; they were stopped by exact recorded pid with an artifact script because bcl has no stop path. #112 (open draft) left running.",
+      "recommendation": "Stop the viewer in bcl merged by recorded pid and add bcl stop-viewer."
     }
   ]
 }
