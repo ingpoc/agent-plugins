@@ -7176,9 +7176,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-18T19:30:14Z",
-      "now": "2026-11-18T19:30:14Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-18T19:30:15Z",
+      "now": "2026-11-18T19:30:15Z — Fix job started"
     },
     "rollover": {
       "source_pr": 115,
@@ -7221,7 +7221,7 @@
       }
     },
     "cycle": 8,
-    "round": 3,
+    "round": 4,
     "round_history": [
       {
         "round": 2,
@@ -7332,10 +7332,15 @@
         "round": 2,
         "fixed": 9,
         "ended_at": "2026-11-18T16:44:06Z"
+      },
+      {
+        "round": 3,
+        "fixed": 14,
+        "ended_at": "2026-11-18T19:30:15Z"
       }
     ],
     "plan": {
-      "round": 3,
+      "round": 4,
       "cycle": 8,
       "groups": [
         {
@@ -9214,10 +9219,7 @@
       "collect",
       "present",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "verification_run": {
       "id": "bcl-0.1.44-6d62c6dc-116",
