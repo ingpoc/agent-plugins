@@ -7176,9 +7176,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-18T19:30:39Z",
-      "now": "2026-11-18T19:30:39Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-18T19:34:21Z",
+      "now": "2026-11-18T19:34:21Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 115,
@@ -7517,8 +7517,8 @@
             "BCL-74"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl116-r3-g4",
           "reason": "Same change list code: run closing, lane state, description, test lookup, row labels.",
           "codex": {
@@ -7545,13 +7545,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4.sh",
             "method": "Strict shape check and plugin tests on the merged source after one shared check for this install; change list items on the installed copy plus the live page.",
-            "status": "pending",
+            "status": "verified",
             "total": 4,
-            "fixed": 0,
+            "fixed": 4,
             "failed": 0,
-            "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+            "failure": null,
+            "summary": "Runs, interrupted jobs and old rows read correctly"
           },
-          "updated_at": "2026-11-18T19:30:16Z",
+          "updated_at": "2026-11-18T19:30:56Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -7560,7 +7561,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-18T19:30:33Z"
-          }
+          },
+          "verify_summary": "Runs, interrupted jobs and old rows read correctly"
         }
       ],
       "status": "closed"
@@ -9201,6 +9203,92 @@
         },
         "round": 3,
         "cycle": 8
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-18T19:34:21Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: SR-ACU",
+          "Codex review: SR-ACU",
+          "Polling and rework review: SR-ACU",
+          "Test command: SR-ACU: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.sh",
+          "Codex write: SR-COMET",
+          "Codex review: SR-COMET",
+          "Polling and rework review: SR-COMET",
+          "Test command: SR-COMET: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g2.sh",
+          "Codex write: SR-LEDGER-OBS",
+          "Codex review: SR-LEDGER-OBS",
+          "Polling and rework review: SR-LEDGER-OBS",
+          "Test command: SR-LEDGER-OBS: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.sh",
+          "Codex write: BCL-FLOW",
+          "Codex review: BCL-FLOW",
+          "Polling and rework review: BCL-FLOW",
+          "Test command: BCL-FLOW: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4.sh"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Parallel group count: 4",
+          "Codex write: SR-ACU",
+          "Codex review: SR-ACU",
+          "Polling and rework review: SR-ACU",
+          "Codex write: SR-COMET",
+          "Codex review: SR-COMET",
+          "Polling and rework review: SR-COMET",
+          "Test command: SR-COMET: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g2.sh",
+          "Codex review: SR-LEDGER-OBS",
+          "Polling and rework review: SR-LEDGER-OBS",
+          "Test command: SR-LEDGER-OBS: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.sh",
+          "Codex write: BCL-FLOW",
+          "Codex review: BCL-FLOW",
+          "Test command: BCL-FLOW: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4.sh"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Polling and rework review: BCL-FLOW",
+                "evidence": "One wrong card lookup in my page-reading script cost a lane failure, an early Introspect, a restart job and a second install record before the lane could rerun. Page-reading scripts now get one dry run against the live page before lane verify, which removes that four-step loop.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Stage: Verify",
+                "evidence": "The first recording of the three skill lanes was refused because each lane summary was longer than ten words, so the batch had to be redone. Lane summaries are now written at ten words or fewer up front.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Codex write: SR-LEDGER-OBS",
+                "evidence": "Shared checks ran once in about 4 minutes and the skill lanes each took under 2 minutes on a clean copy, so the 4 lane checks finished within 5 minutes of the shared check.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Test command: SR-ACU: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.sh",
+                "evidence": "The strict skill check also read git-ignored build output in the pull request folder and reported failures that do not ship. The pre-push suite and lane checks now run the strict check on the tracked files only.",
+                "outcome": "fixed inline"
+              }
+            ]
+          }
+        },
+        "round": 4,
+        "cycle": 8
       }
     ],
     "archive": {
@@ -9221,7 +9309,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "verification_run": {
       "id": "bcl-0.1.44-6d62c6dc-116",
@@ -9229,40 +9318,128 @@
       "revision": "6d62c6dca0e0e14a5047165a77faf216d53a5b42",
       "installed_at": "2026-11-18T19:19:30Z",
       "install_evidence": "bcl install-local from PR #116 head 6d62c6dc (code 08f39dac) at 00:49 IST: plugin 57 files sha256 c52f93508b79493b2cafbd960aa6b8636641ef7e5e1333b135ad2968ab180fe7, skill 50 files sha256 9018dc9d646c5b0a8667a14582b04c2f5a5a525a0b4cc092e4c5f56161dbe3b7. Receipt /Users/gurusharan/.agents/artifacts/bcl-116/r3/install-0.1.44.txt",
-      "status": "active",
+      "status": "complete",
       "checks": {
         "BCL-57": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on the new install",
+          "observed_at": "2026-11-18T19:33:10Z",
+          "started_at": "2026-11-18T19:33:11Z",
+          "updated_at": "2026-11-18T19:33:11Z",
+          "check_id": "1365e46a8b234e62b01550d648eb45a0",
+          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+          "details": "Regression: 34 named tests from rounds 1 and 2 passed on installed 0.1.44 and the 24 repository check tests passed after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/regress-57-65.log",
+          "finished_at": "2026-11-18T19:33:11.122715Z"
         },
         "BCL-58": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on the new install",
+          "observed_at": "2026-11-18T19:33:10Z",
+          "started_at": "2026-11-18T19:33:11Z",
+          "updated_at": "2026-11-18T19:33:11Z",
+          "check_id": "e6bbec64043f41c9b1cf32510e86a55e",
+          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+          "details": "Regression: 34 named tests from rounds 1 and 2 passed on installed 0.1.44 and the 24 repository check tests passed after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/regress-57-65.log",
+          "finished_at": "2026-11-18T19:33:11.122907Z"
         },
         "BCL-59": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on the new install",
+          "observed_at": "2026-11-18T19:33:10Z",
+          "started_at": "2026-11-18T19:33:11Z",
+          "updated_at": "2026-11-18T19:33:11Z",
+          "check_id": "0e366b55808841268cfe1f9f0acb162d",
+          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+          "details": "Regression: 34 named tests from rounds 1 and 2 passed on installed 0.1.44 and the 24 repository check tests passed after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/regress-57-65.log",
+          "finished_at": "2026-11-18T19:33:11.122946Z"
         },
         "BCL-60": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on the new install",
+          "observed_at": "2026-11-18T19:33:10Z",
+          "started_at": "2026-11-18T19:33:11Z",
+          "updated_at": "2026-11-18T19:33:11Z",
+          "check_id": "3cf7ccf5cbc944c484e7c93241443012",
+          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+          "details": "Regression: 34 named tests from rounds 1 and 2 passed on installed 0.1.44 and the 24 repository check tests passed after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/regress-57-65.log",
+          "finished_at": "2026-11-18T19:33:11.122976Z"
         },
         "BCL-61": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on the new install",
+          "observed_at": "2026-11-18T19:33:10Z",
+          "started_at": "2026-11-18T19:33:11Z",
+          "updated_at": "2026-11-18T19:33:11Z",
+          "check_id": "3575452efc9a406c834935eb03fc7a8b",
+          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+          "details": "Regression: 34 named tests from rounds 1 and 2 passed on installed 0.1.44 and the 24 repository check tests passed after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/regress-57-65.log",
+          "finished_at": "2026-11-18T19:33:11.123003Z"
         },
         "BCL-62": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on the new install",
+          "observed_at": "2026-11-18T19:33:10Z",
+          "started_at": "2026-11-18T19:33:11Z",
+          "updated_at": "2026-11-18T19:33:11Z",
+          "check_id": "f01cb9afd09f4934a82d45bec9012164",
+          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+          "details": "Regression: 34 named tests from rounds 1 and 2 passed on installed 0.1.44 and the 24 repository check tests passed after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/regress-57-65.log",
+          "finished_at": "2026-11-18T19:33:11.123032Z"
         },
         "BCL-63": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on the new install",
+          "observed_at": "2026-11-18T19:33:10Z",
+          "started_at": "2026-11-18T19:33:11Z",
+          "updated_at": "2026-11-18T19:33:11Z",
+          "check_id": "0388fbad23b2425394fd4f3a9273b374",
+          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+          "details": "Regression: 34 named tests from rounds 1 and 2 passed on installed 0.1.44 and the 24 repository check tests passed after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/regress-57-65.log",
+          "finished_at": "2026-11-18T19:33:11.123059Z"
         },
         "BCL-64": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on the new install",
+          "observed_at": "2026-11-18T19:33:10Z",
+          "started_at": "2026-11-18T19:33:11Z",
+          "updated_at": "2026-11-18T19:33:11Z",
+          "check_id": "ead2a6c850974d14948bfb5d02d9e98d",
+          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+          "details": "Regression: 34 named tests from rounds 1 and 2 passed on installed 0.1.44 and the 24 repository check tests passed after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/regress-57-65.log",
+          "finished_at": "2026-11-18T19:33:11.123084Z"
         },
         "BCL-65": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on the new install",
+          "observed_at": "2026-11-18T19:33:10Z",
+          "started_at": "2026-11-18T19:33:11Z",
+          "updated_at": "2026-11-18T19:33:11Z",
+          "check_id": "7376c879c458412b8a2c4243574be7d3",
+          "evidence": "Checked: Whether the earlier fix still works on the new install; Expected: It behaves as it did when first verified; Observed: Its checks still pass on the new install",
+          "details": "Regression: 34 named tests from rounds 1 and 2 passed on installed 0.1.44 and the 24 repository check tests passed after the shared check passed once. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/regress-57-65.log",
+          "finished_at": "2026-11-18T19:33:11.123109Z"
         },
         "BCL-66": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-18T19:30:56Z",
+          "started_at": "2026-11-18T19:30:56Z",
+          "updated_at": "2026-11-18T19:30:56Z",
+          "check_id": "f71968d34fe44ee4a7e106e8bdf44d16",
+          "evidence": "Checked: Whether an old row from before the fix reads Not checked on the live page, and cards stay in plain words; Expected: The old Blocked row on the review issue reads Not checked, rows that name a blocker still read Blocked, and no technical names show outside Details; Observed: On the live page the old row on the review issue now reads Not checked, rows that name a real blocker still read Blocked, and the cards show no technical names outside Details. All 12 checks on the installed copy passed.",
+          "details": "live_rows.py: BCL-57 0.1.41 row 'Not checked' (headless Chrome, temp profile, :56268); live_plain.py BCL-57 BCL-66 BCL-67 clean; named test test_legacy_blocked_history_needs_named_blocker_in_verdict. First lane verify exited 1 because live_rows.py anchored on the wrong card (orchestrator script bug); fixed and rerun. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4b.log. Run bcl-0.1.44-6d62c6dc-116.",
+          "finished_at": "2026-11-18T19:30:56.585357Z"
         },
         "BCL-67": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-18T19:30:56Z",
+          "started_at": "2026-11-18T19:30:56Z",
+          "updated_at": "2026-11-18T19:30:56Z",
+          "check_id": "534ad8358b9e4c6aafcd65bcb69b917f",
+          "evidence": "Checked: Whether a run finishes with its starting issues, and interrupted jobs say so; Expected: Issues added later read Not checked and never reopen a finished run, dead jobs read Interrupted with resume needed, and plan updates keep the lane stage; Observed: A run now finishes with the issues it started with, later issues read Not checked and do not reopen it, and a job that died in fixing, review or the pre-push suite reads Interrupted with resume needed on the page and in the status command. Plan updates keep the lane stage.",
+          "details": "named tests: test_verification_completion_ignores_findings_added_after_start, test_add_does_not_reopen_completed_verification_run_for_new_finding, test_dead_unfinished_fix_job_renders_as_interrupted_and_resume_needed, test_dead_unfinished_review_job_renders_interrupted, test_dead_unfinished_presuite_job_renders_interrupted, test_status_labels_dead_unfinished_lane_job_as_interrupted, test_update_plan_group_preserves_phase_without_phase_patch, test_status_only_plan_update_preserves_lane_phase, test_install_progress_shows_findings_added_after_run_start. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4b.log. Run bcl-0.1.44-6d62c6dc-116.",
+          "finished_at": "2026-11-18T19:30:56.585731Z"
         },
         "BCL-68": {
           "state": "fixed",
@@ -9320,10 +9497,26 @@
           "finished_at": "2026-11-18T19:29:02.061462Z"
         },
         "BCL-73": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-18T19:30:56Z",
+          "started_at": "2026-11-18T19:30:56Z",
+          "updated_at": "2026-11-18T19:30:56Z",
+          "check_id": "f4af3658e4d748f68f7e998c7e1c801e",
+          "evidence": "Checked: Whether the change list skill description fits the limit; Expected: The description is within 200 characters and still covers every use; Observed: The description now fits within the 200 character limit and still names every use. The strict check passed on the installed copy.",
+          "details": "test_description_covers_every_use_case; skill_shape --strict PASS on installed copy (shared verify). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4b.log. Run bcl-0.1.44-6d62c6dc-116.",
+          "finished_at": "2026-11-18T19:30:56.585875Z"
         },
         "BCL-74": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-18T19:30:56Z",
+          "started_at": "2026-11-18T19:30:56Z",
+          "updated_at": "2026-11-18T19:30:56Z",
+          "check_id": "311f45c532b24dd4a34a32757e6068cc",
+          "evidence": "Checked: Whether the skill shape test still runs after a restart wipes temporary folders; Expected: The test finds the installed skill checker instead of a temporary folder; Observed: The test now finds the installed skill checker, with an override for other setups, so a restart no longer makes it skip.",
+          "details": "test_shape_tool_lookup_uses_skill_refine_install; previously used /tmp/sr-scripts. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4b.log. Run bcl-0.1.44-6d62c6dc-116.",
+          "finished_at": "2026-11-18T19:30:56.586026Z"
         }
       },
       "shared_check": {
@@ -9335,7 +9528,7 @@
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-18T19:30:14Z",
+      "at": "2026-11-18T19:34:21Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
@@ -9363,27 +9556,27 @@
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
-        "Stage: Verify",
         "Parallel group count: 4",
+        "Codex write: SR-ACU",
+        "Codex review: SR-ACU",
         "Polling and rework review: SR-ACU",
-        "Test command: SR-ACU: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.sh",
         "Codex write: SR-COMET",
         "Codex review: SR-COMET",
+        "Polling and rework review: SR-COMET",
         "Test command: SR-COMET: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g2.sh",
-        "Codex write: SR-LEDGER-OBS",
         "Codex review: SR-LEDGER-OBS",
         "Polling and rework review: SR-LEDGER-OBS",
         "Test command: SR-LEDGER-OBS: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.sh",
         "Codex write: BCL-FLOW",
         "Codex review: BCL-FLOW",
-        "Polling and rework review: BCL-FLOW"
+        "Test command: BCL-FLOW: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4.sh"
       ],
       "sections": {
         "delete": {
           "items": [
             {
-              "item": "Polling and rework review: SR-COMET",
-              "evidence": "The first briefs asked each skill lane to freeze a benchmark before editing, but the benchmark tool records both the old and new copies when it freezes, so all three skill lanes came back without a benchmark and each needed an extra resume. The brief now freezes once after the batch against an untouched copy of main, and the pre-edit freeze step is gone.",
+              "item": "Polling and rework review: BCL-FLOW",
+              "evidence": "One wrong card lookup in my page-reading script cost a lane failure, an early Introspect, a restart job and a second install record before the lane could rerun. Page-reading scripts now get one dry run against the live page before lane verify, which removes that four-step loop.",
               "outcome": "fixed inline"
             }
           ]
@@ -9391,8 +9584,8 @@
         "simplify": {
           "items": [
             {
-              "item": "Codex write: SR-ACU",
-              "evidence": "Two follow-ups came back saying the lane was read-only and changed nothing, because the coding agent treats unprefixed follow-ups as scan work. Follow-up briefs now start by saying it is a write lane; the next follow-ups changed files first time.",
+              "item": "Stage: Verify",
+              "evidence": "The first recording of the three skill lanes was refused because each lane summary was longer than ten words, so the batch had to be redone. Lane summaries are now written at ten words or fewer up front.",
               "outcome": "fixed inline"
             }
           ]
@@ -9400,8 +9593,8 @@
         "optimize": {
           "items": [
             {
-              "item": "Test command: BCL-FLOW: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4.sh",
-              "evidence": "All 12 named checks passed on the installed copy, but my page-reading script looked for the old row in the wrong card and failed the lane, which forced this Introspect before the lane could rerun. The script now anchors on the card's own history entry and finds the row reading Not checked.",
+              "item": "Codex write: SR-LEDGER-OBS",
+              "evidence": "Shared checks ran once in about 4 minutes and the skill lanes each took under 2 minutes on a clean copy, so the 4 lane checks finished within 5 minutes of the shared check.",
               "outcome": "fixed inline"
             }
           ]
@@ -9409,14 +9602,14 @@
         "automate": {
           "items": [
             {
-              "item": "Codex review: SR-ACU",
-              "evidence": "The reviewer caught dropped rules in all three skill lanes, and the first pre-push run failed on version files the lanes forgot, then the push hook failed on a quoting warning in a file a lane touched. The lane brief now asks for an old-versus-new rule comparison, the package check and the push hook on changed files before reporting, which replaces two extra full pre-push runs.",
+              "item": "Test command: SR-ACU: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.sh",
+              "evidence": "The strict skill check also read git-ignored build output in the pull request folder and reported failures that do not ship. The pre-push suite and lane checks now run the strict check on the tracked files only.",
               "outcome": "fixed inline"
             }
           ]
         }
       },
-      "round": 3,
+      "round": 4,
       "cycle": 8
     }
   },
@@ -9706,7 +9899,7 @@
       "id": "BCL-66",
       "title": "Verification reasons show test function names and log paths instead of plain language",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "summary": "The Checked, Expected, Observed and Verdict lines on a verified issue list test function names, folders and log files, which tells the owner nothing about what now works.",
       "impact": "The owner cannot tell from the page what was fixed or how it was checked.",
@@ -9725,11 +9918,23 @@
           "timestamp": "2026-11-18T16:41:31Z",
           "reference": "70503ee48c809515cd2ffc6879f4374bd3c53603:BCL-66:installed-check",
           "details": "Named tests (16): test_failed_lane_verify_spawn_error_is_recorded_in_details, test_record_evidence_rejects_{snake_case,dotted_code_name,paths,filenames,hashes,technical_labels}, test_record_evidence_accepts_counts_versions_and_details, test_add_rejects_flags_in_finding_text, test_update_rejects_field_names_in_finding_text, test_finish_check_rejects_technical_parsed_fields, test_finish_check_keeps_optional_details_separate, test_legacy_evidence_moves_identifiers_to_details, test_legacy_evidence_and_finding_text_render_plain_in_details_dom, test_pre_fix_and_carried_blocked_rows_render_not_checked, test_viewer_footer_reports_missing_identity_deterministically. Live: r2/live_plain.py dumped http://127.0.0.1:56268/ for BCL-57, BCL-64, BCL-66 with headless Chrome (temp profile) and found no identifiers outside <details>. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g3.log. Run bcl-0.1.43-70503ee4-116."
+        },
+        {
+          "checked": "Whether an old row from before the fix reads Not checked on the live page, and cards stay in plain words",
+          "expected": "The old Blocked row on the review issue reads Not checked, rows that name a blocker still read Blocked, and no technical names show outside Details",
+          "observed": "On the live page the old row on the review issue now reads Not checked, rows that name a real blocker still read Blocked, and the cards show no technical names outside Details. All 12 checks on the installed copy passed.",
+          "verdict": "On the live page the old row on the review issue now reads Not checked, rows that name a real blocker still read Blocked, and the cards show no technical names outside Details. All 12 checks on the installed copy passed.",
+          "check_id": "bcl-66-0.1.44-6d62c6dc",
+          "build": "batched-change-list 0.1.44",
+          "session": "bcl-0.1.44-6d62c6dc-116",
+          "timestamp": "2026-11-18T19:30:56Z",
+          "reference": "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-66:installed-check",
+          "details": "live_rows.py: BCL-57 0.1.41 row 'Not checked' (headless Chrome, temp profile, :56268); live_plain.py BCL-57 BCL-66 BCL-67 clean; named test test_legacy_blocked_history_needs_named_blocker_in_verdict. First lane verify exited 1 because live_rows.py anchored on the wrong card (orchestrator script bug); fixed and rerun. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4b.log. Run bcl-0.1.44-6d62c6dc-116."
         }
       ],
-      "verification": "Checked: The live BCL-57 card after the install; Expected: The row from the version before any fix existed reads Not checked; Observed: That older row still reads Blocked, because the page only recognises certain wording and this row uses different words, so part of the fix is missing",
+      "verification": "On the live page the old row on the review issue now reads Not checked, rows that name a real blocker still read Blocked, and the cards show no technical names outside Details. All 12 checks on the installed copy passed. live_rows.py: BCL-57 0.1.41 row 'Not checked' (headless Chrome, temp profile, :56268); live_plain.py BCL-57 BCL-66 BCL-67 clean; named test test_legacy_blocked_history_needs_named_blocker_in_verdict. First lane verify exited 1 because live_rows.py anchored on the wrong card (orchestrator script bug); fixed and rerun. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4b.log. Run bcl-0.1.44-6d62c6dc-116.",
       "verification_refs": [
-        "70503ee48c809515cd2ffc6879f4374bd3c53603:BCL-66:installed-check"
+        "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-66:installed-check"
       ]
     },
     {
@@ -9742,7 +9947,25 @@
       "done_when": "A run closes when every finding it started with is checked, later findings show Not checked and do not block it; a lane whose job died reads as interrupted and needing resume; tracker updates keep the lane stage; proven by named tests.",
       "observed": "18 Nov 2026: round-1 run bcl-0.1.42-7b59a1b6-116 could not complete after BCL-64/65 were added (complete-verification requires every current finding) and was archived as interrupted at 21:58 IST. After the 20:20 IST Mini restart the plan lanes kept job pids from dead processes and the 20:24 screenshot showed Stale with Updated 6:34 PM until bcl job resumes started. update-plan-group with a codex/status patch left phase empty, so bcl job --phase presuite refused until phase was set to review.",
       "recommendation": "Scope complete-verification to run.checks keys; detect dead job pids in bcl status and render; merge plan-group patches without dropping phase.",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "Whether a run finishes with its starting issues, and interrupted jobs say so",
+          "expected": "Issues added later read Not checked and never reopen a finished run, dead jobs read Interrupted with resume needed, and plan updates keep the lane stage",
+          "observed": "A run now finishes with the issues it started with, later issues read Not checked and do not reopen it, and a job that died in fixing, review or the pre-push suite reads Interrupted with resume needed on the page and in the status command. Plan updates keep the lane stage.",
+          "verdict": "A run now finishes with the issues it started with, later issues read Not checked and do not reopen it, and a job that died in fixing, review or the pre-push suite reads Interrupted with resume needed on the page and in the status command. Plan updates keep the lane stage.",
+          "check_id": "bcl-67-0.1.44-6d62c6dc",
+          "build": "batched-change-list 0.1.44",
+          "session": "bcl-0.1.44-6d62c6dc-116",
+          "timestamp": "2026-11-18T19:30:56Z",
+          "reference": "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-67:installed-check",
+          "details": "named tests: test_verification_completion_ignores_findings_added_after_start, test_add_does_not_reopen_completed_verification_run_for_new_finding, test_dead_unfinished_fix_job_renders_as_interrupted_and_resume_needed, test_dead_unfinished_review_job_renders_interrupted, test_dead_unfinished_presuite_job_renders_interrupted, test_status_labels_dead_unfinished_lane_job_as_interrupted, test_update_plan_group_preserves_phase_without_phase_patch, test_status_only_plan_update_preserves_lane_phase, test_install_progress_shows_findings_added_after_run_start. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4b.log. Run bcl-0.1.44-6d62c6dc-116."
+        }
+      ],
+      "verification": "A run now finishes with the issues it started with, later issues read Not checked and do not reopen it, and a job that died in fixing, review or the pre-push suite reads Interrupted with resume needed on the page and in the status command. Plan updates keep the lane stage. named tests: test_verification_completion_ignores_findings_added_after_start, test_add_does_not_reopen_completed_verification_run_for_new_finding, test_dead_unfinished_fix_job_renders_as_interrupted_and_resume_needed, test_dead_unfinished_review_job_renders_interrupted, test_dead_unfinished_presuite_job_renders_interrupted, test_status_labels_dead_unfinished_lane_job_as_interrupted, test_update_plan_group_preserves_phase_without_phase_patch, test_status_only_plan_update_preserves_lane_phase, test_install_progress_shows_findings_added_after_run_start. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4b.log. Run bcl-0.1.44-6d62c6dc-116.",
+      "verification_refs": [
+        "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-67:installed-check"
+      ]
     },
     {
       "id": "BCL-68",
@@ -9904,7 +10127,25 @@
       "done_when": "The description says only when to use the skill, within the limit, and the strict shape check passes.",
       "observed": "Reported by Efficient agent 18 Nov 2026 21:19 IST: batched-change-list SKILL.md description 205 chars > 200.",
       "recommendation": "Trim to when-to-use.",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "Whether the change list skill description fits the limit",
+          "expected": "The description is within 200 characters and still covers every use",
+          "observed": "The description now fits within the 200 character limit and still names every use. The strict check passed on the installed copy.",
+          "verdict": "The description now fits within the 200 character limit and still names every use. The strict check passed on the installed copy.",
+          "check_id": "bcl-73-0.1.44-6d62c6dc",
+          "build": "batched-change-list 0.1.44",
+          "session": "bcl-0.1.44-6d62c6dc-116",
+          "timestamp": "2026-11-18T19:30:56Z",
+          "reference": "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-73:installed-check",
+          "details": "test_description_covers_every_use_case; skill_shape --strict PASS on installed copy (shared verify). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4b.log. Run bcl-0.1.44-6d62c6dc-116."
+        }
+      ],
+      "verification": "The description now fits within the 200 character limit and still names every use. The strict check passed on the installed copy. test_description_covers_every_use_case; skill_shape --strict PASS on installed copy (shared verify). Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4b.log. Run bcl-0.1.44-6d62c6dc-116.",
+      "verification_refs": [
+        "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-73:installed-check"
+      ]
     },
     {
       "id": "BCL-74",
@@ -9916,7 +10157,25 @@
       "done_when": "The test finds the shape checker in its installed place, skips only when it is truly missing, and the repository check passes after a restart; proven by a named test.",
       "observed": "18 Nov 2026 21:48 IST presuite: scripts/check.py reported unallowed unittest skip test_skill.SkillLayoutTests.test_shape_tool_strict_passes_when_available: skill_shape.py unavailable (/tmp/sr-scripts wiped by the 20:20 restart). Restored /tmp/sr-scripts by copy to unblock round 2.",
       "recommendation": "Use ~/.agents/skills/skill-refine/scripts/skill_shape.py with an env override.",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "Whether the skill shape test still runs after a restart wipes temporary folders",
+          "expected": "The test finds the installed skill checker instead of a temporary folder",
+          "observed": "The test now finds the installed skill checker, with an override for other setups, so a restart no longer makes it skip.",
+          "verdict": "The test now finds the installed skill checker, with an override for other setups, so a restart no longer makes it skip.",
+          "check_id": "bcl-74-0.1.44-6d62c6dc",
+          "build": "batched-change-list 0.1.44",
+          "session": "bcl-0.1.44-6d62c6dc-116",
+          "timestamp": "2026-11-18T19:30:56Z",
+          "reference": "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-74:installed-check",
+          "details": "test_shape_tool_lookup_uses_skill_refine_install; previously used /tmp/sr-scripts. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4b.log. Run bcl-0.1.44-6d62c6dc-116."
+        }
+      ],
+      "verification": "The test now finds the installed skill checker, with an override for other setups, so a restart no longer makes it skip. test_shape_tool_lookup_uses_skill_refine_install; previously used /tmp/sr-scripts. Log: /Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4b.log. Run bcl-0.1.44-6d62c6dc-116.",
+      "verification_refs": [
+        "6d62c6dca0e0e14a5047165a77faf216d53a5b42:BCL-74:installed-check"
+      ]
     }
   ]
 }
