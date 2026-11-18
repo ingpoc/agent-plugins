@@ -229,7 +229,9 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
     if running and owns_old and not legacy:
         if not _viewer_responds(old_port, old):
             raise RuntimeError(f"cannot verify viewer ownership on port {old_port}; inspect its state before retrying")
-        if old.get("version") == plugin_version:
+        page, base = report_paths(record, live)
+        same_target = old.get("report") == str(page.resolve()) and old.get("base") == str(base.resolve()) and old.get("scripts") == str(SCRIPTS.resolve())
+        if old.get("version") == plugin_version and same_target:
             return old
         request = urllib.request.Request(f"http://127.0.0.1:{old_port}/__bcl_shutdown", method="POST", headers={"X-BCL-Instance": old["instance"]})
         try:
@@ -240,6 +242,8 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
             raise RuntimeError(f"viewer shutdown failed on port {old_port}; inspect it before retrying") from error
         if not _wait_for_port(old_port):
             raise RuntimeError(f"viewer on port {old_port} did not stop; inspect it before retrying")
+    else:
+        page, base = report_paths(record, live)
     reserved = _reserved_ports(state)
     candidates = []
     if owns_old and old_port:
@@ -260,7 +264,6 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
     if not port:
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0)); port = sock.getsockname()[1]
-    page, base = report_paths(record, live)
     if not page.exists():
         raise RuntimeError(f"viewer report missing: {page}; render the report and retry")
     started = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%b %-d, %Y, %-I:%M %p IST")
@@ -282,7 +285,8 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
         detail = f": {cause}" if cause else ""
         raise RuntimeError(f"viewer failed to start on port {port}{detail}; check {log} and retry")
     value = {"port": port, "pid": proc.pid, "version": plugin_version, "instance": instance,
-             "data": str(Path(live).resolve()), "started_at": started}
+             "data": str(Path(live).resolve()), "report": str(page.resolve()), "base": str(base.resolve()),
+             "scripts": str(SCRIPTS.resolve()), "started_at": started}
     state.write_text(json.dumps(value, indent=2) + "\n")
     return value
 
@@ -342,12 +346,21 @@ def snapshot(record, live):
             raise RuntimeError(f"snapshot capture missing: {missing}; restore it and retry") from error
         snapshot_path.write_bytes(captured)
         html_path.write_text(rendered)
-        subprocess.run(["git", "-C", str(home), "add", record["snapshot"], record["html"]], check=True)
-        changed = subprocess.run(["git", "-C", str(home), "diff", "HEAD", "--quiet", "--", record["snapshot"], record["html"]])
-        if changed.returncode not in (0, 1):
-            raise RuntimeError(f"snapshot diff failed with exit {changed.returncode}")
-        if changed.returncode == 1:
-            subprocess.run(["git", "-C", str(home), "commit", "--only", "-m", "Change list: snapshot live tracker", "--", record["snapshot"], record["html"]], check=True)
+        previous = subprocess.run(["git", "-C", str(home), "show", f"HEAD:{record['snapshot']}"], capture_output=True, text=True)
+        current_tracking = doc.get("tracking", {})
+        current_identity = (current_tracking.get("workflow", {}).get("stage"), current_tracking.get("cycle", 1))
+        try:
+            previous_tracking = json.loads(previous.stdout).get("tracking", {}) if previous.returncode == 0 else None
+            previous_identity = (previous_tracking.get("workflow", {}).get("stage"), previous_tracking.get("cycle", 1))
+        except (ValueError, AttributeError):
+            previous_identity = None
+        if previous_identity is None or current_identity != previous_identity:
+            subprocess.run(["git", "-C", str(home), "add", record["snapshot"], record["html"]], check=True)
+            changed = subprocess.run(["git", "-C", str(home), "diff", "--cached", "HEAD", "--quiet", "--", record["snapshot"], record["html"]])
+            if changed.returncode not in (0, 1):
+                raise RuntimeError(f"snapshot diff failed with exit {changed.returncode}")
+            if changed.returncode == 1:
+                subprocess.run(["git", "-C", str(home), "commit", "--only", "-m", "Change list: snapshot live tracker", "--", record["snapshot"], record["html"]], check=True)
         with tracker_lock.exclusive_lock(tracker_lock.tracker_lock_path(live)):
             current = live.read_bytes()
             if current != captured:

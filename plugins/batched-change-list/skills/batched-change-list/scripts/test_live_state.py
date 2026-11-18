@@ -1,5 +1,6 @@
 import json
 import hashlib
+import base64
 import os
 import subprocess
 import sys
@@ -8,13 +9,72 @@ import threading
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
+from urllib.request import Request, urlopen
 
 import live_state
 import render
 
 
 class ViewerLivenessTests(unittest.TestCase):
+    def test_real_viewer_restarts_and_serves_new_worktree(self):
+        temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
+        root = Path(temp.name); state = root / 'state'; live = root / 'live.json'
+        doc = json.loads((Path(__file__).resolve().parents[1] / 'examples/findings.json').read_text())
+        doc['findings'][0]['evidence'] = [{'src': 'capture.png', 'alt': 'capture', 'caption': 'capture'}]
+        live.write_text(json.dumps(doc))
+        records = []
+        for name in ('first', 'second'):
+            home = root / name; (home / 'report').mkdir(parents=True)
+            (home / 'report/capture.png').write_bytes(name.encode())
+            records.append({'home': str(home), 'snapshot': 'report/data.json', 'html': 'report/page.html'})
+        def cleanup():
+            for path in (state / 'viewers').glob('*.json'):
+                try:
+                    info = json.loads(path.read_text())
+                    if not info.get('instance') or Path(info['data']).resolve() != live.resolve(): continue
+                    request = Request(f"http://127.0.0.1:{info['port']}/__bcl_shutdown", method='POST', headers={'X-BCL-Instance': info['instance']})
+                    with urlopen(request, timeout=2): pass
+                    self.assertTrue(live_state._wait_for_port(info['port']))
+                except (OSError, ValueError, KeyError): pass
+        self.addCleanup(cleanup)
+        with patch.object(live_state, 'STATE', state):
+            first = live_state.ensure_viewer('repo/1', records[0], live, 'v1')
+            with urlopen(f"http://127.0.0.1:{first['port']}/") as response:
+                self.assertIn(base64.b64encode(b'first'), response.read())
+            second = live_state.ensure_viewer('repo/1', records[1], live, 'v1')
+            with urlopen(f"http://127.0.0.1:{second['port']}/") as response:
+                self.assertIn(base64.b64encode(b'second'), response.read())
+            self.assertNotEqual(first['pid'], second['pid'])
+
+    def test_viewer_restarts_when_worktree_changes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); state = root / 'state'
+            live = root / 'live.json'; live.write_text((Path(__file__).resolve().parents[1] / 'examples/findings.json').read_text())
+            first_home, second_home = root / 'first', root / 'second'
+            first_home.mkdir(); second_home.mkdir()
+            first = {'home': str(first_home), 'snapshot': 'report/data.json', 'html': 'report/page.html'}
+            second = {'home': str(second_home), 'snapshot': 'report/data.json', 'html': 'report/page.html'}
+            class Response:
+                status = 204
+                def __enter__(self): return self
+                def __exit__(self, *args): return False
+            pids = iter((12301, 12302))
+            with patch.object(live_state, 'STATE', state), \
+                 patch.object(live_state, '_pid_is_running', return_value=True), \
+                 patch.object(live_state, '_viewer_responds', return_value=True), \
+                 patch.object(live_state, '_viewer_ready', return_value=True), \
+                 patch.object(live_state, '_port_is_free', return_value=True), \
+                 patch.object(live_state, '_wait_for_port', return_value=True), \
+                 patch.object(live_state.subprocess, 'Popen', side_effect=lambda command, **kwargs: SimpleNamespace(pid=next(pids))) as popen, \
+                 patch.object(live_state.urllib.request, 'urlopen', return_value=Response()):
+                live_state.ensure_viewer('repo/1', first, live, 'v1')
+                value = live_state.ensure_viewer('repo/1', second, live, 'v1')
+            self.assertEqual(value['report'], str((second_home / 'report/page.html').resolve()))
+            self.assertEqual(value['port'], 53366)
+            self.assertEqual(popen.call_count, 2)
+
     def test_legacy_health_requires_pid_and_data_path(self):
         class Response:
             status = 200
@@ -197,6 +257,24 @@ class SnapshotTests(unittest.TestCase):
             with self.assertRaises(subprocess.CalledProcessError):
                 live_state.snapshot(self.record, self.live)
         self.assertTrue(self.live.with_suffix('.unsnapshotted').exists())
+
+    def test_snapshot_commits_once_per_stage_change(self):
+        self.record['snapshot'] = 'report/data.json'
+        self.record['html'] = 'report/page.html'
+        def write(stage, value):
+            self.live.write_text(json.dumps({'title': str(value), 'tracking': {'workflow': {'stage': stage}, 'cycle': 1}}))
+            with patch.object(render, 'render', return_value=str(value)):
+                live_state.snapshot(self.record, self.live)
+        write('collect', 1)
+        write('collect', 2)
+        (self.home / 'unrelated').write_text('other')
+        subprocess.run(['git', '-C', str(self.home), 'add', 'unrelated'], check=True)
+        subprocess.run(['git', '-C', str(self.home), 'commit', '-qm', 'unrelated'], check=True)
+        self.assertEqual(subprocess.check_output(['git', '-C', str(self.home), 'show', '--format=', '--name-only', 'HEAD'], text=True).strip(), 'unrelated')
+        write('collect', 3)
+        self.assertEqual(subprocess.check_output(['git', '-C', str(self.home), 'rev-list', '--count', 'HEAD'], text=True).strip(), '3')
+        write('plan_fix', 4)
+        self.assertEqual(subprocess.check_output(['git', '-C', str(self.home), 'rev-list', '--count', 'HEAD'], text=True).strip(), '4')
 
     def test_snapshot_fails_closed_when_locking_is_unavailable(self):
         with patch.object(live_state.tracker_lock, 'fcntl', None), patch.object(live_state.tracker_lock, 'msvcrt', None):

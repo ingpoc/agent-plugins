@@ -1,6 +1,6 @@
 # Viewer
 
-Every adopted-list `bcl` call ensures its per-list viewer, except a new list created by rollover: its viewer stays deferred until `bcl start` begins Collect. It starts or restarts `serve.py --data <live-file>` on an available loopback port and records port, pid, plugin version, data path, and started-at in `$BCL_STATE_DIR/viewers/<list-id>.json`. The viewer always serves the live file, not a stale in-repo snapshot.
+Every adopted-list `bcl` call ensures its per-list viewer, except a new list created by rollover: its viewer stays deferred until `bcl start` begins Collect. It starts or restarts `serve.py --data <live-file>` on an available loopback port and records port, pid, plugin version, live data path, report path, base directory, scripts directory, and started-at in `$BCL_STATE_DIR/viewers/<list-id>.json`. A viewer is reused only when all paths match the current list; an owned viewer for the same live file is restarted when its worktree or report changes. The viewer always serves the live file, not a stale in-repo snapshot.
 
 The live page footer shows `reading <path>, viewer <version>, started <IST>` only when the viewer is live. Default `render.py` output stays deterministic and has no footer. Times on the page are IST; never leave visible ISO timestamps in the user view.
 

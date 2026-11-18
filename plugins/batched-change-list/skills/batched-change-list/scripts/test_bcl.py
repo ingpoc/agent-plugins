@@ -3,14 +3,20 @@ import contextlib
 import io
 from importlib.machinery import SourceFileLoader
 import errno, json, os, shutil, signal, socket, subprocess, sys, tempfile, threading, time, unittest
+import shlex
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-ROOT = Path(__file__).resolve().parents[5]
-PLUGIN = ROOT / "plugins/batched-change-list"
-if not (PLUGIN / "bin/bcl").is_file():
-    PLUGIN = Path.home() / ".agents/plugins/batched-change-list"
+def plugin_root(skill_dir, installed_root=None):
+    candidate = skill_dir.parents[1]
+    manifest = candidate / "plugin.json"
+    if (candidate / "bin/bcl").is_file() and manifest.is_file() and json.loads(manifest.read_text()).get("name") == "batched-change-list":
+        return candidate
+    return Path(installed_root or Path.home() / ".agents/plugins/batched-change-list")
+
+SKILL_DIR = Path(__file__).resolve().parents[1]
+PLUGIN = plugin_root(SKILL_DIR)
 BCL = PLUGIN / "bin/bcl"
 if not BCL.is_file():
     raise unittest.SkipTest("plugin bin is not shipped beside the skill and is not installed")
@@ -26,7 +32,46 @@ try:
 finally:
     sys.path.remove(str(bcl_entrypoint.SCRIPTS))
 
+CLEANED_VIEWER_PIDS = set()
+TEMP_TEST_ROOTS = set()
+
+def viewer_pids_under(roots):
+    pids = set()
+    rows = subprocess.run(["ps", "-ww", "-axo", "pid,command"], capture_output=True, text=True).stdout.splitlines()[1:]
+    roots = [Path(root).resolve() for root in roots]
+    for row in rows:
+        try:
+            pid, command = row.strip().split(None, 1)
+            args = shlex.split(command)
+            if "--data" not in args or not any(Path(arg).name == "serve.py" for arg in args): continue
+            data = Path(args[args.index("--data") + 1]).resolve()
+            if any(data.is_relative_to(root) for root in roots): pids.add(int(pid))
+        except (ValueError, IndexError): pass
+    return pids
+
+def tearDownModule():
+    pids = viewer_pids_under(TEMP_TEST_ROOTS)
+    for pid in pids:
+        try: os.kill(pid, signal.SIGTERM)
+        except OSError: pass
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline and any(live_state._pid_is_running(pid) for pid in pids): time.sleep(.05)
+    CLEANED_VIEWER_PIDS.update(pids)
+    leaked = [pid for pid in CLEANED_VIEWER_PIDS if live_state._pid_is_running(pid)]
+    if leaked:
+        raise AssertionError(f"viewer processes survived suite cleanup: {leaked}")
+
 class BclTests(unittest.TestCase):
+    def test_plugin_root_stays_inside_plugin_or_installed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); plugin = root / "plugins/batched-change-list"
+            skill = plugin / "skills/batched-change-list"; skill.mkdir(parents=True)
+            (plugin / "bin").mkdir(); (plugin / "bin/bcl").write_text("")
+            (plugin / "plugin.json").write_text('{"name":"batched-change-list"}')
+            self.assertEqual(plugin_root(skill), plugin)
+            installed = root / "installed/batched-change-list"
+            self.assertEqual(plugin_root(root / "outside/skills/batched-change-list", installed), installed)
+
     def test_verify_failure_reason_has_checked_expected_and_observed(self):
         reason = bcl_entrypoint._verification_failure_reason('python3 check.py', 'Verification command exited 7')
         self.assertIn('Checked: python3 check.py', reason)
@@ -36,6 +81,8 @@ class BclTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name); self.state = self.root / "state"
+        TEMP_TEST_ROOTS.add(self.root.resolve())
+        self.extra_pids = set(); self.addCleanup(self.cleanup_viewers)
         self.bin = self.root / "bin"; self.bin.mkdir()
         self.command_log = self.root / "commands.jsonl"
         fake_cli = """#!/usr/bin/env python3
@@ -54,7 +101,6 @@ elif args[:2] != ['pr', 'edit']:
             executable = self.bin / name; executable.write_text(fake_cli); executable.chmod(0o755)
         self.env = {**os.environ, "BCL_STATE_DIR": str(self.state), "BCL_COMMAND_LOG": str(self.command_log),
                     "PATH": str(self.bin) + os.pathsep + os.environ.get("PATH", "")}
-        self.extra_pids = set()
         self.home = self.root / "home"; self.home.mkdir()
         self.git(self.home, "init", "-q"); self.git(self.home, "config", "user.email", "test@example.com"); self.git(self.home, "config", "user.name", "Test")
         self.git(self.home, "remote", "add", "github", "https://github.com/example/project.git")
@@ -67,18 +113,41 @@ elif args[:2] != ['pr', 'edit']:
         other_viewer = self.state / "viewers" / "other-list.json"; other_viewer.parent.mkdir(parents=True, exist_ok=True)
         other_viewer.write_text(json.dumps({"port":53366, "data":"/another/list.json"}))
         self.call("adopt", self.data)
-        def cleanup_viewer():
-            pids = set(self.extra_pids)
-            for path in (self.state / "viewers").glob("*.json") if (self.state / "viewers").exists() else []:
-                try:
-                    pid = json.loads(path.read_text()).get("pid")
-                    if pid: pids.add(int(pid))
-                except (OSError, ValueError): pass
-            for pid in pids:
-                if pid not in (87005, 28743):
-                    try: os.kill(pid, signal.SIGTERM)
-                    except OSError: pass
-        self.addCleanup(cleanup_viewer)
+
+    def cleanup_viewers(self):
+        pids = set(self.extra_pids)
+        for path in (self.state / 'viewers').glob('*.json'):
+            try:
+                record = json.loads(path.read_text())
+                if record.get('pid') and Path(record.get('data', '')).resolve().is_relative_to(self.root.resolve()):
+                    pids.add(int(record['pid']))
+            except (OSError, ValueError, TypeError): pass
+        pids.update(viewer_pids_under([self.root]))
+        owned = set()
+        for pid in pids - {87005, 28743}:
+            result = subprocess.run(["ps", "-ww", "-o", "command=", "-p", str(pid)], capture_output=True, text=True)
+            try: command = shlex.split(result.stdout.strip()) if result.returncode == 0 else []
+            except ValueError: command = []
+            if "--data" in command and any(Path(arg).name == "serve.py" for arg in command):
+                data = Path(command[command.index("--data") + 1]).resolve()
+                if data.is_relative_to(self.root.resolve()): owned.add(pid)
+        for pid in owned:
+            try: os.kill(pid, signal.SIGTERM)
+            except OSError: pass
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline and any(live_state._pid_is_running(pid) for pid in owned):
+            time.sleep(.05)
+        CLEANED_VIEWER_PIDS.update(owned)
+
+    def test_suite_leaves_no_viewer_processes(self):
+        result = self.call("start")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        viewers = [json.loads(path.read_text()) for path in (self.state / "viewers").glob("*.json")]
+        self.assertTrue(any(value.get("pid") for value in viewers))
+        pid = next(int(value["pid"]) for value in viewers if value.get("pid"))
+        self.cleanup_viewers()
+        self.assertFalse(live_state._pid_is_running(pid))
+        self.assertTrue(all(not live_state._pid_is_running(pid) for pid in CLEANED_VIEWER_PIDS))
 
     @staticmethod
     def merge_ready(document):
