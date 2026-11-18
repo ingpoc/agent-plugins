@@ -21,7 +21,7 @@ class WF06RegressionTests(unittest.TestCase):
     def test_review_policy_allows_one_round_and_logs_leftover_nits(self) -> None:
         policy = (
             ROOT
-            / "plugins/batched-change-list/skills/batched-change-list/references/plan-fix.md"
+            / "plugins/batched-change-list/skills/batched-change-list/references/review.md"
         ).read_text()
 
         self.assertIn("Use one review round per group", policy)

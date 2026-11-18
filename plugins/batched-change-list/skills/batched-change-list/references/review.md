@@ -6,4 +6,4 @@ The review transition checks those session records in `check_install_sessions.py
 
 Run the full source suite before Install with `bcl job --phase presuite -- python3 -m unittest discover -s <skill-dir>/scripts -p 'test_*.py'`; the page shows this as **Pre-push suite** within Review. The pre-push suite is a source check, not the post-install Verify stage. Install requires a passed suite and a passed review or recorded one-file skip for each lane.
 
-Use one review round per lane. Record leftover nits as new issues rather than starting another review. The main agent reviews the result before changing issue status; source tests do not replace installed verification.
+Use one review round per group; log leftover nits as new issues and do not start a second review. The main agent reviews the result before changing issue status; source tests do not replace installed verification.
