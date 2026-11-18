@@ -6483,9 +6483,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-18T06:10:55Z",
-      "now": "2026-11-18T06:10:55Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-18T06:53:27Z",
+      "now": "2026-11-18T06:53:27Z — Lane FLAKY-CHECK updated"
     },
     "rollover": {
       "source_pr": 114,
@@ -6636,27 +6636,46 @@
           "finding_ids": [
             "BCL-50",
             "BCL-51",
-            "BCL-53"
+            "BCL-53",
+            "BCL-54"
           ],
           "depends_on": [],
           "status": "planned",
-          "phase": "pending",
+          "phase": "fix",
           "worktree": "bcl115-r3-g6",
           "reason": "Same viewer and render code; BCL-50 is proven live by running this lane fix through bcl job with the interim heartbeat script off.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 11728,
+              "phase": "fix",
+              "started_at": "2026-11-18T06:43:52Z",
+              "command": "resume2-g6.sh",
+              "heartbeat_at": "2026-11-18T06:51:38Z",
+              "exit_code": 0,
+              "duration_s": 466,
+              "finished_at": "2026-11-18T06:51:38Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed",
+            "implementer_session": "01a1ed47-c138-7f12-907a-b5d527e13cea",
+            "reviewer_session": "01a1ed61-19e2-7a50-affa-43e029bac406",
+            "reviewer_model": "gpt-6.1-terra",
+            "review_status": "failed",
+            "review_note": "Terra: presuite job replaces codex.job so a later bcl review rejects the lane; fixed in the same Luna session with BCL-54"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
             "method": "Full suite, strict shape and chart check on worktree and installed copy, named tests on the installed copy, live page screenshot after install-local and live job heartbeats.",
             "status": "pending",
-            "total": 3,
+            "total": 4,
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T06:10:55Z"
+          "updated_at": "2026-11-18T06:51:38Z",
+          "verify_summary": "Terra review running"
         },
         {
           "id": "FLAKY-CHECK",
@@ -6665,14 +6684,28 @@
             "BCL-52"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "pending",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl115-r3-g7",
           "reason": "Test-only root cause in test_bcl.py; independent of the viewer lane.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": true
+            "one_file": true,
+            "job": {
+              "pid": 26968,
+              "phase": "fix",
+              "started_at": "2026-11-18T06:29:24Z",
+              "command": "resume-g7.sh",
+              "heartbeat_at": "2026-11-18T06:50:28Z",
+              "exit_code": 0,
+              "duration_s": 1264,
+              "finished_at": "2026-11-18T06:50:28Z",
+              "finished_phase_status": "passed"
+            },
+            "implementer_session": "01a1ed47-c138-70d1-8c82-fb3ee5ab03af",
+            "fix_status": "passed",
+            "review_status": "skipped_one_file"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.sh",
@@ -6682,14 +6715,15 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T06:10:55Z"
+          "updated_at": "2026-11-18T06:53:27Z"
         }
       ]
     },
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix"
+      "plan_fix",
+      "review"
     ],
     "verification_run": {
       "id": "bcl-0.1.39-aff3cdd9-115",
@@ -6766,6 +6800,9 @@
           "state": "pending"
         },
         "BCL-53": {
+          "state": "pending"
+        },
+        "BCL-54": {
           "state": "pending"
         }
       }
@@ -8466,7 +8503,20 @@
       "impact": "The owner sees Stale and the wrong lane phase (TRACKER-LEAN still Fixing after its follow-up finished) and cannot tell whether work is happening.",
       "done_when": "While any lane has a live job, the page never shows Stale; each Codex job start and finish and each lane transition writes the tracker and re-renders through the bcl CLI; Stale still appears when no job is alive and nothing has updated. Proven by a named test and checked on the installed copy. Lane labels never run ahead of reality: the source suite run before push and install shows as Pre-push suite (distinct from Verify, the post-install check), and Installing appears only when bcl install starts.",
       "observed": "On 18 Nov 2026 Guru saw the #115 page marked Updated 9:25 IST, Stale, with TRACKER-LEAN still Fixing although its Luna follow-up had finished; at 09:46 IST he reported Stale again. render.py marks Stale after tracking.workflow.stale_after_min (10) minutes without a workflow update even when lanes are running, and lane progress was written only by hand. At 09:47 IST the page also showed all four lanes Installing while nothing was installed: the groups were committed (head 0cceb4d1), the version bump was uncommitted and the pre-push full suite was running, because the lane vocabulary has no testing step and the orchestrator set Installing ahead of the real install.",
-      "recommendation": "Add a bcl job wrapper that records the job pid on the plan group, heartbeats the tracker while the job runs, and writes the lane transition with duration on exit; the page treats a lane with a live recorded job as active instead of Stale."
+      "recommendation": "Add a bcl job wrapper that records the job pid on the plan group, heartbeats the tracker while the job runs, and writes the lane transition with duration on exit; the page treats a lane with a live recorded job as active instead of Stale.",
+      "verification_evidence": [
+        {
+          "checked": "two live bcl job --phase fix wrappers on the installed aff3cdd9 build, 11:41-11:56 IST, interim heartbeat script off",
+          "expected": "heartbeats keep the page not Stale and both jobs record their exit",
+          "observed": "heartbeats advanced and Stale stayed hidden, but at 11:50:43 IST a heartbeat snapshot conflict made the FLAKY-CHECK wrapper terminate its Codex child, leaving the lane running with a dead pid; a passed fix showed Planned",
+          "verdict": "not fixed: a concurrent heartbeat conflict kills live work",
+          "check_id": "bcl-50-live-jobs-aff3cdd9",
+          "build": "0.1.39 aff3cdd9",
+          "session": "bcl-0.1.39-aff3cdd9-115",
+          "timestamp": "2026-11-18T06:28:15Z",
+          "reference": "aff3cdd9:BCL-50:live-jobs"
+        }
+      ]
     },
     {
       "id": "BCL-51",
@@ -8503,6 +8553,18 @@
       "done_when": "The viewer identity includes the installed tree hash or revision, so bcl restarts the viewer after any reinstall, proven by a named test and a live reinstall.",
       "observed": "18 Nov 2026: viewer pid 94418 started 10:17 IST from the first 0.1.39 build kept serving a strip without Review after the 11:25 IST install of aff3cdd9; the rendered pr-115.html file had Review. A SIGTERM plus live_state.ensure_viewer at 11:37 IST started pid 84170 with the new code on port 53779.",
       "recommendation": "Compare the install tree digest that install-local already computes with the one recorded for the running viewer."
+    },
+    {
+      "id": "BCL-54",
+      "title": "bcl review cannot start before the reviewer session exists",
+      "source": "Agent reported",
+      "status": "in_progress",
+      "priority": "medium",
+      "summary": "bcl review refuses to start until codex.reviewer_session is recorded, but a reviewer session id only exists after the reviewer has started, so the Review step cannot begin through bcl.",
+      "impact": "The orchestrator has to start the reviewer outside bcl job, so the page does not track the review as a live job.",
+      "done_when": "bcl review and a review job start with only the implementer session and a passed fix, install still requires the reviewer session, proven by named tests and a live review job on the installed copy.",
+      "observed": "18 Nov 2026 12:08 IST on installed 0.1.39 aff3cdd9: bcl review --ids BCL-50 --ids BCL-51 --ids BCL-53 failed with VIEWER-STRIP: review requires codex.reviewer_session; record the session with bcl plan; Terra had to be launched directly (session 01a1ed61-19e2-7a50-affa-43e029bac406).",
+      "recommendation": "Check the reviewer session at install, not at review start."
     }
   ]
 }
