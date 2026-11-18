@@ -6483,9 +6483,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-18T06:09:22Z",
-      "now": "2026-11-18T06:09:22Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-18T06:10:55Z",
+      "now": "2026-11-18T06:10:55Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 114,
@@ -6532,7 +6532,7 @@
       }
     },
     "cycle": 7,
-    "round": 2,
+    "round": 3,
     "round_history": [
       {
         "round": 2,
@@ -6618,214 +6618,78 @@
         "round": 1,
         "fixed": 1,
         "ended_at": "2026-11-18T03:04:03Z"
+      },
+      {
+        "round": 2,
+        "fixed": 12,
+        "ended_at": "2026-11-18T06:10:55Z"
       }
     ],
     "plan": {
-      "round": 2,
+      "round": 3,
       "cycle": 7,
+      "status": "active",
       "groups": [
         {
-          "id": "TRACKER-LEAN",
-          "name": "Archive history, Introspect history and parked items",
-          "finding_ids": [
-            "BCL-39",
-            "BCL-40",
-            "BCL-42"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl115-r2-g1",
-          "reason": "All three change what the tracker keeps on the list at rollover and Introspect, in manage_findings.py and its checks.",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "max",
-            "status": "passed",
-            "implementer_session": "01a1ec9b-b4ed-7001-86b5-7ca36af6e7de",
-            "one_file": false,
-            "updated_at": "2026-11-18T03:04:03Z",
-            "reviewer_session": "01a1ecc5-c2e4-7543-80bc-21abb5432ae8",
-            "reviewer_model": "gpt-6.1-terra",
-            "review_status": "passed",
-            "review_note": "Review items 1-4 fixed in the same Luna session (one resume was cut by the Mini usage limit and resumed after the account switch); the regenerated chart diff was dropped and is regenerated at integration."
-          },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g1.sh",
-            "method": "Full suite, strict shape check and chart check on the worktree and the installed copy, plus the named tests for each finding run against the installed copy.",
-            "status": "verified",
-            "fixed": 3,
-            "failed": 0,
-            "total": 3,
-            "summary": "Archive, Introspect history and parking verified on live list",
-            "failure": null
-          },
-          "updated_at": "2026-11-18T05:08:57Z",
-          "verify_summary": "Archive, Introspect history and parking verified on live list"
-        },
-        {
-          "id": "GATE-RULES",
-          "name": "Gate thresholds and round rules",
-          "finding_ids": [
-            "BCL-43",
-            "BCL-47",
-            "BCL-44"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl115-r2-g2",
-          "reason": "All three are gate and round rules in check_gate_count.py, gate.md and plan-fix.md.",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "status": "passed",
-            "implementer_session": "01a1ec9b-b4eb-7b42-9d74-8422e0417e4a",
-            "one_file": false,
-            "updated_at": "2026-11-18T03:04:03Z",
-            "duration_s": 815,
-            "reviewer_session": "01a1ecb1-8cec-7702-bbb6-db9ade686011",
-            "reviewer_model": "gpt-6.1-terra",
-            "review_status": "passed",
-            "review_note": "Review items 1-3 fixed in the same Luna session; test_render scope accepted; the fourth eval was dropped because skill-refine caps evals at three, BCL-44 is covered by test_plan_fix_lets_small_docs_items_share_round."
-          },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g2.sh",
-            "method": "Full suite, strict shape check and chart check on the worktree and the installed copy, plus the named tests for each finding run against the installed copy.",
-            "status": "verified",
-            "fixed": 3,
-            "failed": 0,
-            "total": 3,
-            "failure": null,
-            "summary": "Gate rules and docs verified on installed 0.1.39"
-          },
-          "updated_at": "2026-11-18T04:55:43Z",
-          "verify_summary": "Gate rules and docs verified on installed 0.1.39"
-        },
-        {
-          "id": "CHART-EDGES",
-          "name": "Drawn chart edges and badges",
-          "finding_ids": [
-            "BCL-49"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl115-r2-g3",
-          "reason": "Only statechart.py and its generated page; reads gate labels from the definition so it stays independent of GATE-RULES.",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "status": "passed",
-            "implementer_session": "01a1ec9b-b4eb-75f0-a60f-66d875352ccc",
-            "one_file": false,
-            "updated_at": "2026-11-18T03:04:03Z",
-            "duration_s": 1211,
-            "reviewer_session": "01a1ecb1-8cb8-7da3-96f9-fa2f0d913003",
-            "reviewer_model": "gpt-6.1-terra",
-            "review_status": "passed",
-            "review_note": "Review items 1-3 fixed in the same Luna session."
-          },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g3.sh",
-            "method": "Full suite, strict shape check and chart check on the worktree and the installed copy, plus the named tests for each finding run against the installed copy.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "summary": "Chart edges, labels and badges verified on installed 0.1.39",
-            "failure": null
-          },
-          "updated_at": "2026-11-18T06:07:51Z",
-          "verify_summary": "Chart edges, labels and badges verified on installed 0.1.39",
-          "blocked_reason": "Entry edge crosses labels",
-          "parked_to": 2
-        },
-        {
-          "id": "TESTS-VIEWER",
-          "name": "Test cleanup, viewer identity and snapshot commits",
-          "finding_ids": [
-            "BCL-46",
-            "BCL-48",
-            "BCL-45",
-            "BCL-41"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl115-r2-g4",
-          "reason": "All four live in test_bcl.py, serve.py and live_state.py viewer and snapshot code.",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "status": "passed",
-            "implementer_session": "01a1ec9b-b4ec-7411-a116-16c31bdc9953",
-            "one_file": false,
-            "updated_at": "2026-11-18T03:04:03Z",
-            "duration_s": 1358,
-            "reviewer_session": "01a1ecb1-8cc3-7e80-92f5-86e8ed5b0f4a",
-            "reviewer_model": "gpt-6.1-terra",
-            "review_status": "passed",
-            "review_note": "Review items 1-3 and 5 fixed in the same Luna session; the regenerated chart diff was dropped and is regenerated at integration."
-          },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g4.sh",
-            "method": "Full suite, strict shape check and chart check on the worktree and the installed copy, plus the named tests for each finding run against the installed copy.",
-            "status": "verified",
-            "fixed": 4,
-            "failed": 0,
-            "total": 4,
-            "summary": "Viewer, test cleanup and snapshots verified on 0.1.39",
-            "failure": null
-          },
-          "updated_at": "2026-11-18T05:03:52Z",
-          "verify_summary": "Viewer, test cleanup and snapshots verified on 0.1.39"
-        },
-        {
-          "id": "LANE-HEARTBEAT",
-          "name": "Live lane heartbeat and a Review stage",
+          "id": "VIEWER-STRIP",
+          "name": "Strip layout, viewer reload and live lane job",
           "finding_ids": [
             "BCL-50",
-            "BCL-51"
+            "BCL-51",
+            "BCL-53"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "verify",
-          "worktree": "bcl115-r2-g5",
-          "reason": "Owner-raised during the round; same viewer and lane-state code as BCL-45 but a separate lane so the four reviewed lanes are not held. Fifth lane is an owner-directed exception to the 3-4 cap.",
+          "status": "planned",
+          "phase": "pending",
+          "worktree": "bcl115-r3-g6",
+          "reason": "Same viewer and render code; BCL-50 is proven live by running this lane fix through bcl job with the interim heartbeat script off.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "status": "passed",
-            "one_file": false,
-            "implementer_session": "01a1ece5-3c7e-7da1-afac-8f59ff896000",
-            "updated_at": "2026-11-18T04:23:56Z",
-            "reviewer_session": "01a1ed0a-858f-78c2-912a-b16e023cae71",
-            "reviewer_model": "gpt-6.1-terra",
-            "review_status": "passed",
-            "review_note": "Review items 1-5 fixed in the same Luna session; item 6 (net deletion) not met: product code +210/-33, justified as replacing the orchestrator interim upd.py and heartbeat.py and manual lane writes."
+            "one_file": false
           },
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g5.sh",
-            "method": "Full suite, strict shape and chart check on the worktree and installed copy, plus the BCL-50 named tests on the installed copy.",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g6.sh",
+            "method": "Full suite, strict shape and chart check on worktree and installed copy, named tests on the installed copy, live page screenshot after install-local and live job heartbeats.",
             "status": "pending",
+            "total": 3,
             "fixed": 0,
-            "failed": 0,
-            "total": 2
+            "failed": 0
           },
-          "updated_at": "2026-11-18T06:08:27Z",
-          "verify_summary": "Review shown live; strip wraps; live job pending",
-          "blocked_reason": "Strip layout regressed"
+          "updated_at": "2026-11-18T06:10:55Z"
+        },
+        {
+          "id": "FLAKY-CHECK",
+          "name": "Deterministic test_bcl under the full check",
+          "finding_ids": [
+            "BCL-52"
+          ],
+          "depends_on": [],
+          "status": "planned",
+          "phase": "pending",
+          "worktree": "bcl115-r3-g7",
+          "reason": "Test-only root cause in test_bcl.py; independent of the viewer lane.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "one_file": true
+          },
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-115/r3/verify-g7.sh",
+            "method": "Named test on the installed copy plus three consecutive full scripts/check.py runs.",
+            "status": "pending",
+            "total": 1,
+            "fixed": 0,
+            "failed": 0
+          },
+          "updated_at": "2026-11-18T06:10:55Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "verification_run": {
       "id": "bcl-0.1.39-aff3cdd9-115",
@@ -8620,7 +8484,7 @@
       "id": "BCL-52",
       "title": "test_bcl.py fails intermittently under the full repo check and hardcodes two process ids",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "During the round-2 pre-push run, scripts/check.py failed test_bcl.py with AssertionError 0 != 5 while 146 test processes ran 10 at a time; the same file passed alone and in the next two check runs. Its viewer cleanup also skips the literal pids 87005 and 28743.",
       "impact": "A flaky suite can block a push or hide a real regression, and literal pids can skip a real leaked viewer on another run.",
@@ -8632,7 +8496,7 @@
       "id": "BCL-53",
       "title": "A reinstall with the same version leaves the viewer serving the old code",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "summary": "After the second 0.1.39 install the running viewer kept rendering with the first 0.1.39 build, so the page lacked the new Review step until the viewer was restarted by hand.",
       "impact": "The page can show an old layout or old rules after an install, which makes Verify on the live page unreliable.",
