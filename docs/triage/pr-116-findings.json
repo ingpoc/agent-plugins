@@ -7008,9 +7008,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-18T16:43:14Z",
-      "now": "2026-11-18T16:43:14Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-18T16:44:06Z",
+      "now": "2026-11-18T16:44:06Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 115,
@@ -7053,7 +7053,7 @@
       }
     },
     "cycle": 8,
-    "round": 2,
+    "round": 3,
     "round_history": [
       {
         "round": 2,
@@ -7159,177 +7159,127 @@
         "round": 1,
         "fixed": 7,
         "ended_at": "2026-11-18T13:01:10Z"
+      },
+      {
+        "round": 2,
+        "fixed": 9,
+        "ended_at": "2026-11-18T16:44:06Z"
       }
     ],
     "plan": {
-      "round": 2,
+      "round": 3,
       "cycle": 8,
       "groups": [
         {
-          "id": "CHECK-NAME",
-          "name": "Repo check names a failing test; flaky test made steady",
+          "id": "SR-ACU",
+          "name": "macOS and voice computer-use skills pass the strict shape check",
           "finding_ids": [
-            "BCL-64"
+            "BCL-68",
+            "BCL-69"
           ],
           "depends_on": [],
-          "status": "verified",
-          "worktree": "bcl116-r2-g1",
-          "reason": "scripts/check.py output and the load-dependent test in test_bcl.py.",
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl116-r3-g1",
+          "reason": "Both skills live in the computer-use plugin.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false,
-            "job": {
-              "pid": 44248,
-              "phase": "presuite",
-              "started_at": "2026-11-18T16:23:45Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-18T16:28:00Z",
-              "exit_code": 0,
-              "duration_s": 255,
-              "finished_at": "2026-11-18T16:28:00Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "implementer_session": "01a1eebf-5e63-7bd0-b3ff-5e5e3c2cd5fb",
-            "review_status": "passed",
-            "reviewer_session": "01a1ef39-27a9-72c3-bd14-fae846d1c7dd",
-            "review_note": "Terra asked for 3 changes (verifier child wait, writer lock handshake, viewer port race); Luna applied all in the same session and the suite passed 8 of 8 stress runs."
+            "one_file": false
           },
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g1.sh",
-            "method": "Named tests on the installed copy after one shared check (fresh clone suite, strict shape, statechart) for this install, plus live page checks where the finding is visible.",
-            "status": "verified",
-            "total": 1,
-            "fixed": 1,
-            "failed": 0,
-            "summary": "Failing tests are named and parallel runs hold steady",
-            "failure": null
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g1.sh",
+            "method": "Strict shape check and plugin tests on the merged source after one shared check for this install; change list items on the installed copy plus the live page.",
+            "status": "pending",
+            "total": 2,
+            "fixed": 0,
+            "failed": 0
           },
-          "updated_at": "2026-11-18T16:39:21Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-18T16:28:00Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-18T16:28:27Z"
-          },
-          "verify_summary": "Failing tests are named and parallel runs hold steady"
+          "updated_at": "2026-11-18T16:44:06Z"
         },
         {
-          "id": "VERIFY-ONCE",
-          "name": "Shared checks run once per install",
+          "id": "SR-COMET",
+          "name": "Comet control skill passes the strict shape check",
           "finding_ids": [
-            "BCL-65"
+            "BCL-70"
           ],
           "depends_on": [],
-          "status": "verified",
-          "worktree": "bcl116-r2-g2",
-          "reason": "bin/bcl verify, verification run record, verify reference.",
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl116-r3-g2",
+          "reason": "One plugin.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false,
-            "job": {
-              "pid": 44248,
-              "phase": "presuite",
-              "started_at": "2026-11-18T16:23:45Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-18T16:28:00Z",
-              "exit_code": 0,
-              "duration_s": 255,
-              "finished_at": "2026-11-18T16:28:00Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "implementer_session": "01a1eebf-6637-7673-959d-1d87762164c8",
-            "review_status": "passed",
-            "reviewer_session": "01a1ef39-36a3-7ab0-b11a-b4d7e074c44a",
-            "review_note": "Terra passed it."
+            "one_file": false
           },
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g2.sh",
-            "method": "Named tests on the installed copy after one shared check (fresh clone suite, strict shape, statechart) for this install, plus live page checks where the finding is visible.",
-            "status": "verified",
-            "total": 1,
-            "fixed": 1,
-            "failed": 0,
-            "summary": "Shared checks ran once for this install",
-            "failure": null
-          },
-          "updated_at": "2026-11-18T16:35:14Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-18T16:28:00Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-18T16:28:27Z"
-          },
-          "verify_summary": "Shared checks ran once for this install"
-        },
-        {
-          "id": "PLAIN-REASONS",
-          "name": "Plain-language verification reasons",
-          "finding_ids": [
-            "BCL-66"
-          ],
-          "depends_on": [],
-          "status": "blocked",
-          "worktree": "bcl116-r2-g3",
-          "reason": "manage_findings evidence validation, render.py and the page template.",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "one_file": false,
-            "job": {
-              "pid": 44248,
-              "phase": "presuite",
-              "started_at": "2026-11-18T16:23:45Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-18T16:28:00Z",
-              "exit_code": 0,
-              "duration_s": 255,
-              "finished_at": "2026-11-18T16:28:00Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "implementer_session": "01a1eebf-6ddc-7342-9e6d-00d5def1e891",
-            "review_status": "passed",
-            "reviewer_session": "01a1ef3f-716a-74b2-806b-de2514faa303",
-            "review_note": "Terra asked for 2 changes (plain spawn-error text, real page test); Luna applied both, then the owner-widened scope (summary text, footer path, Not checked rows)."
-          },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r2/verify-g3.sh",
-            "method": "Named tests on the installed copy after one shared check (fresh clone suite, strict shape, statechart) for this install, plus live page checks where the finding is visible.",
-            "status": "failed",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g2.sh",
+            "method": "Strict shape check and plugin tests on the merged source after one shared check for this install; change list items on the installed copy plus the live page.",
+            "status": "pending",
             "total": 1,
             "fixed": 0,
-            "failed": 1,
-            "summary": "Verification reasons read in plain words",
-            "failure": null
+            "failed": 0
           },
-          "updated_at": "2026-11-18T16:42:13Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-18T16:28:00Z"
+          "updated_at": "2026-11-18T16:44:06Z"
+        },
+        {
+          "id": "SR-LEDGER-OBS",
+          "name": "Context ledger and developer observability skills pass the strict shape check",
+          "finding_ids": [
+            "BCL-71",
+            "BCL-72"
+          ],
+          "depends_on": [],
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl116-r3-g3",
+          "reason": "Two small plugins, same kind of edits.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "one_file": false
           },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-18T16:28:27Z"
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g3.sh",
+            "method": "Strict shape check and plugin tests on the merged source after one shared check for this install; change list items on the installed copy plus the live page.",
+            "status": "pending",
+            "total": 2,
+            "fixed": 0,
+            "failed": 0
           },
-          "verify_summary": "Verification reasons read in plain words",
-          "blocked_reason": "Prerequisite verification changed"
+          "updated_at": "2026-11-18T16:44:06Z"
+        },
+        {
+          "id": "BCL-FLOW",
+          "name": "Change list run, lane and wording fixes",
+          "finding_ids": [
+            "BCL-66",
+            "BCL-67",
+            "BCL-73",
+            "BCL-74"
+          ],
+          "depends_on": [],
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl116-r3-g4",
+          "reason": "Same change list code: run closing, lane state, description, test lookup, row labels.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "one_file": false
+          },
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-116/r3/verify-g4.sh",
+            "method": "Strict shape check and plugin tests on the merged source after one shared check for this install; change list items on the installed copy plus the live page.",
+            "status": "partial",
+            "total": 4,
+            "fixed": 0,
+            "failed": 1
+          },
+          "updated_at": "2026-11-18T16:44:06Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "introspect_history": [
       {
@@ -8899,10 +8849,7 @@
       "collect",
       "present",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "verification_run": {
       "id": "bcl-0.1.43-70503ee4-116",
