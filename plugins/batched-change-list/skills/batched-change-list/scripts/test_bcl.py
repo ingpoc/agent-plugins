@@ -2,8 +2,7 @@ import importlib.util
 import contextlib
 import io
 from importlib.machinery import SourceFileLoader
-import errno, json, os, shutil, signal, socket, subprocess, sys, tempfile, threading, time, unittest
-import shlex
+import errno, json, os, shutil, socket, subprocess, sys, tempfile, threading, time, unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -23,6 +22,7 @@ if not BCL.is_file():
 EXAMPLE = PLUGIN / "skills/batched-change-list/examples/findings.json"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import live_state
+import viewer_test_guard
 import check_introspect
 loader = SourceFileLoader("bcl_entrypoint", str(BCL))
 spec = importlib.util.spec_from_loader("bcl_entrypoint", loader)
@@ -36,26 +36,11 @@ CLEANED_VIEWER_PIDS = set()
 TEMP_TEST_ROOTS = set()
 
 def viewer_pids_under(roots):
-    pids = set()
-    rows = subprocess.run(["ps", "-ww", "-axo", "pid,command"], capture_output=True, text=True).stdout.splitlines()[1:]
-    roots = [Path(root).resolve() for root in roots]
-    for row in rows:
-        try:
-            pid, command = row.strip().split(None, 1)
-            args = shlex.split(command)
-            if "--data" not in args or not any(Path(arg).name == "serve.py" for arg in args): continue
-            data = Path(args[args.index("--data") + 1]).resolve()
-            if any(data.is_relative_to(root) for root in roots): pids.add(int(pid))
-        except (ValueError, IndexError): pass
-    return pids
+    return viewer_test_guard.viewer_pids_under(roots)
 
 def tearDownModule():
     pids = viewer_pids_under(TEMP_TEST_ROOTS)
-    for pid in pids:
-        try: os.kill(pid, signal.SIGTERM)
-        except OSError: pass
-    deadline = time.monotonic() + 3
-    while time.monotonic() < deadline and any(live_state._pid_is_running(pid) for pid in pids): time.sleep(.05)
+    viewer_test_guard.stop_viewers(TEMP_TEST_ROOTS, pids)
     CLEANED_VIEWER_PIDS.update(pids)
     leaked = [pid for pid in CLEANED_VIEWER_PIDS if live_state._pid_is_running(pid)]
     if leaked:
@@ -82,7 +67,7 @@ class BclTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name); self.state = self.root / "state"
         TEMP_TEST_ROOTS.add(self.root.resolve())
-        self.extra_pids = set(); self.addCleanup(self.cleanup_viewers)
+        self.addCleanup(self.cleanup_viewers)
         self.bin = self.root / "bin"; self.bin.mkdir()
         self.command_log = self.root / "commands.jsonl"
         fake_cli = """#!/usr/bin/env python3
@@ -115,28 +100,8 @@ elif args[:2] != ['pr', 'edit']:
         self.call("adopt", self.data)
 
     def cleanup_viewers(self):
-        pids = set(self.extra_pids)
-        for path in (self.state / 'viewers').glob('*.json'):
-            try:
-                record = json.loads(path.read_text())
-                if record.get('pid') and Path(record.get('data', '')).resolve().is_relative_to(self.root.resolve()):
-                    pids.add(int(record['pid']))
-            except (OSError, ValueError, TypeError): pass
-        pids.update(viewer_pids_under([self.root]))
-        owned = set()
-        for pid in pids:
-            result = subprocess.run(["ps", "-ww", "-o", "command=", "-p", str(pid)], capture_output=True, text=True)
-            try: command = shlex.split(result.stdout.strip()) if result.returncode == 0 else []
-            except ValueError: command = []
-            if "--data" in command and any(Path(arg).name == "serve.py" for arg in command):
-                data = Path(command[command.index("--data") + 1]).resolve()
-                if data.is_relative_to(self.root.resolve()): owned.add(pid)
-        for pid in owned:
-            try: os.kill(pid, signal.SIGTERM)
-            except OSError: pass
-        deadline = time.monotonic() + 3
-        while time.monotonic() < deadline and any(live_state._pid_is_running(pid) for pid in owned):
-            time.sleep(.05)
+        owned = viewer_pids_under([self.root])
+        viewer_test_guard.stop_viewers(self.root, owned)
         CLEANED_VIEWER_PIDS.update(owned)
 
     def test_suite_leaves_no_viewer_processes(self):
@@ -413,6 +378,19 @@ elif args[:2] != ['pr', 'edit']:
                 code = result.code if isinstance(result.code, int) else 1
         return SimpleNamespace(returncode=code, stdout=output.getvalue(), stderr=error.getvalue())
 
+    def call_job_without_viewer(self, live, *args):
+        output, error = io.StringIO(), io.StringIO()
+        argv = [str(BCL), "--data", str(live), *map(str, args)]
+        with patch.object(sys, "argv", argv), patch.object(bcl_entrypoint, "_ensure_viewer"), \
+                patch.object(live_state, "STATE", self.state), patch.dict(os.environ, self.env), \
+                contextlib.redirect_stdout(output), contextlib.redirect_stderr(error):
+            try:
+                bcl_entrypoint.main()
+                code = 0
+            except SystemExit as result:
+                code = result.code if isinstance(result.code, int) else 1
+        return SimpleNamespace(returncode=code, stdout=output.getvalue(), stderr=error.getvalue())
+
     def viewer_state_path(self, live=None):
         if live is None:
             live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
@@ -598,7 +576,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(group['status'], 'failed')
         self.assertEqual(group['phase'], 'verify')
         self.assertIn('exited 7', group['verify']['failure'])
-        self.assertEqual(next(item for item in written['findings'] if item['id'] == 'ISSUE-01')['status'], 'blocked')
+        self.assertEqual(next(item for item in written['findings'] if item['id'] == 'ISSUE-01')['status'], 'in_progress')
         self.assertIn('exited 7', self.page.read_text())
 
         masked = command + ' ; true'
@@ -630,7 +608,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(written['findings'][0]['status'], 'failing')
         self.assertEqual(written['tracking']['plan']['groups'][0]['status'], 'failed')
 
-    def test_failed_command_blocks_active_check_without_losing_observation(self):
+    def test_failed_lane_verify_keeps_findings_in_progress(self):
         self.assertEqual(self.call('start').returncode, 0)
         fail = self.root / 'fail.py'; fail.write_text('raise SystemExit(7)\n')
         command = f'"{sys.executable}" "{fail}"'
@@ -652,10 +630,62 @@ elif args[:2] != ['pr', 'edit']:
         self.assertNotEqual(result.returncode, 0)
         written = json.loads(live.read_text())
         check = written['tracking']['verification_run']['checks']['ISSUE-01']
-        self.assertEqual(check['state'], 'blocked', result.stderr)
+        self.assertEqual(check['state'], 'inconclusive', result.stderr)
         self.assertEqual(check['observation'], 'Visible before check')
         self.assertIn('exited 7', check['evidence'])
-        self.assertEqual(next(item for item in written['findings'] if item['id'] == 'ISSUE-01')['status'], 'blocked')
+        self.assertEqual(next(item for item in written['findings'] if item['id'] == 'ISSUE-01')['status'], 'in_progress')
+        group = written['tracking']['plan']['groups'][0]
+        self.assertEqual(group['status'], 'failed')
+        self.assertIn('exited 7', group['verify']['failure'])
+
+    def test_fix_job_restarts_failed_lane(self):
+        self.assertEqual(self.call('start').returncode, 0)
+        live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
+        document = json.loads(live.read_text())
+        document['findings'][0]['status'] = 'in_progress'
+        tracking = document['tracking']
+        tracking['plan'] = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'failed','phase':'verify'}]}
+        tracking['workflow'] = {'stage':'introspect'}
+        tracking['introspect'] = {
+            'cycle':1,'round':1,'at':'2026-11-18T00:00:00Z','result':'Retry after failed verification',
+            'steps':['rework'],'none':[],
+            'sections':{name:{'items':[]} for name in ('delete','simplify','optimize','automate')},
+        }
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+        result = self.call_job_without_viewer(live,'--ids','ISSUE-01','--phase','fix','job','--',sys.executable,'-c','pass')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        tracking = json.loads(live.read_text())['tracking']
+        self.assertEqual(tracking['round'], 2)
+        self.assertEqual(tracking['plan']['groups'][0]['status'], 'review')
+        self.assertEqual(tracking['plan']['groups'][0]['codex']['fix_status'], 'passed')
+
+    def test_fix_job_does_not_run_command_without_current_introspect(self):
+        self.assertEqual(self.call('start').returncode, 0)
+        live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
+        document = json.loads(live.read_text())
+        document['findings'][0]['status'] = 'in_progress'
+        tracking = document['tracking']
+        tracking['plan'] = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'failed','phase':'verify'}]}
+        tracking['workflow'] = {'stage':'verify'}
+        tracking.pop('introspect', None); tracking.pop('introspect_history', None)
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+        marker = self.root / 'command-ran'
+        command = f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')"
+        result = self.call_job_without_viewer(live,'--ids','ISSUE-01','--phase','fix','job','--',sys.executable,'-c',command)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("record this round's introspect", result.stderr)
+        self.assertFalse(marker.exists())
+
+    def test_fix_job_still_refuses_blocked_lane(self):
+        self.assertEqual(self.call('start').returncode, 0)
+        live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
+        document = json.loads(live.read_text())
+        document['findings'][0]['status'] = 'in_progress'
+        document['tracking']['plan'] = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'blocked'}]}
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+        result = self.call_job_without_viewer(live,'--ids','ISSUE-01','--phase','fix','job','--',sys.executable,'-c','pass')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('fix job cannot start a blocked, parked, or deferred lane', result.stderr)
 
     def test_failed_command_does_not_overwrite_newer_plan(self):
         self.assertEqual(self.call('start').returncode, 0)
@@ -712,7 +742,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(written['tracking']['plan']['groups'][0]['status'], 'review')
         self.assertEqual(written['tracking']['plan']['groups'][1]['status'], 'failed')
         self.assertIn('exited 7', written['tracking']['plan']['groups'][1]['verify']['failure'])
-        self.assertEqual(next(item for item in written['findings'] if item['id'] == 'ISSUE-02')['status'], 'blocked')
+        self.assertEqual(next(item for item in written['findings'] if item['id'] == 'ISSUE-02')['status'], 'in_progress')
 
     def test_verify_rejects_plan_change_during_snapshot(self):
         self.assertEqual(self.call('start').returncode, 0)
@@ -1182,7 +1212,6 @@ elif args[:2] != ['pr', 'edit']:
         updated = json.loads(path.read_text()); self.assertNotEqual(updated["pid"], first_pid)
         updated["data"] = "/tmp/wrong.json"; path.write_text(json.dumps(updated))
         old_pid = updated["pid"]
-        self.extra_pids.add(old_pid)
         self.assertEqual(self.call("merge").returncode, 0)
         self.assertNotEqual(json.loads(path.read_text())["pid"], old_pid)
 
@@ -1223,7 +1252,6 @@ elif args[:2] != ['pr', 'edit']:
         live = Path(record["live"])
         viewer_path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
         current = json.loads(viewer_path.read_text())
-        self.extra_pids.add(int(current["pid"]))
         viewer_path.write_text(json.dumps({"port":53366, "pid":None, "version":"old", "data":str(live)}))
         (self.state / "viewers" / "other-list.json").unlink()
         binds = []
@@ -1246,7 +1274,6 @@ elif args[:2] != ['pr', 'edit']:
         live = Path(record["live"]).resolve()
         viewer_path = self.viewer_state_path(live)
         current = json.loads(viewer_path.read_text())
-        self.extra_pids.add(int(current["pid"]))
         viewer_path.write_text(json.dumps({"port":53366, "pid":12345, "version":"old", "data":str(live), "instance":"test"}))
         (self.state / "viewers" / "other-list.json").unlink()
         signals, probes, binds = [], [], []

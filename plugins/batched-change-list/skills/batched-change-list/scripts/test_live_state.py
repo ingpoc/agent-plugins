@@ -16,6 +16,7 @@ from urllib.request import Request, urlopen
 
 import live_state
 import render
+import viewer_test_guard
 
 
 class ViewerLivenessTests(unittest.TestCase):
@@ -28,6 +29,7 @@ class ViewerLivenessTests(unittest.TestCase):
         (home / 'report').mkdir(parents=True)
         (home / 'report/page.html').write_text('<html>viewer test</html>')
         record = {'home': str(home), 'snapshot': 'report/data.json', 'html': 'report/page.html'}
+        pids = set()
         def cleanup():
             for path in (state / 'viewers').glob('*.json'):
                 try:
@@ -37,27 +39,35 @@ class ViewerLivenessTests(unittest.TestCase):
                     with urlopen(request, timeout=2): pass
                     live_state._wait_for_port(info['port'])
                 except (OSError, ValueError, KeyError): pass
+            viewer_test_guard.stop_viewers(root, pids)
         self.addCleanup(cleanup)
-        return state, live, record, scripts
+        return state, live, record, scripts, pids
 
     def test_same_version_reinstall_restarts_viewer(self):
-        with tempfile.TemporaryDirectory() as temp:
-            state, live, record, scripts = self._viewer_fixture(Path(temp))
-            with patch.object(live_state, 'STATE', state), patch.object(live_state, 'SCRIPTS', scripts):
-                first = live_state.ensure_viewer('repo/1', record, live, 'same-version')
-                with (scripts / 'render.py').open('a') as installed_script:
-                    installed_script.write('\n# reinstall changed this script\n')
-                second = live_state.ensure_viewer('repo/1', record, live, 'same-version')
-            self.assertNotEqual(first['pid'], second['pid'])
-            self.assertEqual(first['port'], second['port'])
+        temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
+        state, live, record, scripts, pids = self._viewer_fixture(Path(temp.name))
+        with patch.object(live_state, 'STATE', state), patch.object(live_state, 'SCRIPTS', scripts):
+            first = live_state.ensure_viewer('repo/1', record, live, 'same-version'); pids.add(first['pid'])
+            with (scripts / 'render.py').open('a') as installed_script:
+                installed_script.write('\n# reinstall changed this script\n')
+            second = live_state.ensure_viewer('repo/1', record, live, 'same-version'); pids.add(second['pid'])
+        self.assertNotEqual(first['pid'], second['pid'])
+        self.assertEqual(first['port'], second['port'])
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            try: os.waitpid(first['pid'], os.WNOHANG)
+            except ChildProcessError: pass
+            if not live_state._pid_is_running(first['pid']): break
+            time.sleep(.05)
+        self.assertFalse(live_state._pid_is_running(first['pid']))
 
     def test_unchanged_script_tree_reuses_viewer(self):
-        with tempfile.TemporaryDirectory() as temp:
-            state, live, record, scripts = self._viewer_fixture(Path(temp))
-            with patch.object(live_state, 'STATE', state), patch.object(live_state, 'SCRIPTS', scripts):
-                first = live_state.ensure_viewer('repo/1', record, live, 'same-version')
-                second = live_state.ensure_viewer('repo/1', record, live, 'same-version')
-            self.assertEqual(first['pid'], second['pid'])
+        temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
+        state, live, record, scripts, pids = self._viewer_fixture(Path(temp.name))
+        with patch.object(live_state, 'STATE', state), patch.object(live_state, 'SCRIPTS', scripts):
+            first = live_state.ensure_viewer('repo/1', record, live, 'same-version'); pids.add(first['pid'])
+            second = live_state.ensure_viewer('repo/1', record, live, 'same-version')
+        self.assertEqual(first['pid'], second['pid'])
 
     def test_real_viewer_restarts_and_serves_new_worktree(self):
         temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
@@ -79,12 +89,16 @@ class ViewerLivenessTests(unittest.TestCase):
                     with urlopen(request, timeout=2): pass
                     self.assertTrue(live_state._wait_for_port(info['port']))
                 except (OSError, ValueError, KeyError): pass
+            viewer_test_guard.stop_viewers(root, pids)
+        pids = set()
         self.addCleanup(cleanup)
         with patch.object(live_state, 'STATE', state):
             first = live_state.ensure_viewer('repo/1', records[0], live, 'v1')
+            pids.add(first['pid'])
             with urlopen(f"http://127.0.0.1:{first['port']}/") as response:
                 self.assertIn(base64.b64encode(b'first'), response.read())
             second = live_state.ensure_viewer('repo/1', records[1], live, 'v1')
+            pids.add(second['pid'])
             with urlopen(f"http://127.0.0.1:{second['port']}/") as response:
                 self.assertIn(base64.b64encode(b'second'), response.read())
             self.assertNotEqual(first['pid'], second['pid'])

@@ -62,7 +62,7 @@ class LaneStateTests(unittest.TestCase):
         output = SimpleNamespace(returncode=0, stderr="", stdout="")
         with patch.object(test_bcl.bcl_entrypoint.subprocess, "Popen", return_value=process), \
              patch.object(test_bcl.bcl_entrypoint.subprocess, "run", return_value=output), \
-             patch.object(test_bcl.bcl_entrypoint.live_state, "snapshot", side_effect=[None, conflict, conflict, conflict, None]) as snapshot, \
+             patch.object(test_bcl.bcl_entrypoint.live_state, "snapshot", side_effect=[None, None, conflict, conflict, conflict, None]) as snapshot, \
              patch.object(test_bcl.bcl_entrypoint.time, "sleep"), \
              patch.object(test_bcl.bcl_entrypoint, "_utc_now", side_effect=["2026-11-18T09:00:00Z",
                    "2026-11-18T09:01:00Z", "2026-11-18T09:02:00Z"]), \
@@ -70,7 +70,7 @@ class LaneStateTests(unittest.TestCase):
             result = test_bcl.bcl_entrypoint._run_job({}, Path("live"), Path("report"), Path("base"),
                 [self.lane()], "fix", ["ISSUE-01"], ["python3", "check.py"])
         self.assertEqual(result, 0)
-        self.assertEqual(snapshot.call_count, 5)
+        self.assertEqual(snapshot.call_count, 6)
         process.terminate.assert_not_called()
         self.assertIn("heartbeat write failed; will retry", errors.getvalue())
 
@@ -78,7 +78,7 @@ class LaneStateTests(unittest.TestCase):
         process = MagicMock(pid=90212)
         process.wait.return_value = 7
         with patch.object(test_bcl.bcl_entrypoint.subprocess, "Popen", return_value=process), \
-             patch.object(test_bcl.bcl_entrypoint, "_job_write", side_effect=[None, OSError("write failed"),
+             patch.object(test_bcl.bcl_entrypoint, "_job_write", side_effect=[None, None, OSError("write failed"),
                    OSError("write failed"), OSError("write failed")]), \
              patch.object(test_bcl.bcl_entrypoint.time, "sleep"):
             with self.assertRaisesRegex(RuntimeError, "child exited with code 7; final tracker write failed"):

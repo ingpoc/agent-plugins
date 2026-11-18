@@ -1,3 +1,8 @@
+## 0.1.41
+
+- Viewer-identity tests stop every viewer they start, and a suite-wide guard fails the run when any test leaves a viewer under its temp root (BCL-53, BCL-56).
+- A failed lane Verify keeps its findings in progress with an inconclusive check, and a fix job can restart the failed lane after Introspect; the plan_fix check runs before the command starts (BCL-55).
+
 ## 0.1.40
 
 - bcl job retries snapshot conflicts and keeps the child running when a heartbeat write fails; a passed fix shows Review, not Planned (BCL-50).

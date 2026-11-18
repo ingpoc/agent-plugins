@@ -128,11 +128,13 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args):
              if phase == "fix" else [])
     status = "running" if phase == "fix" else "review"
     started_at = _utc_now()
+    if first:
+        _job_write_retry(record, live, report, base, first)
     process = subprocess.Popen(command_args)
     job = {"pid": process.pid, "phase": phase, "started_at": started_at,
            "command": Path(command_args[0]).name, "heartbeat_at": started_at}
     try:
-        _job_write_retry(record, live, report, base, first + _job_operations(groups, phase, job, status))
+        _job_write_retry(record, live, report, base, _job_operations(groups, phase, job, status))
     except Exception:
         process.terminate()
         process.wait()
@@ -447,8 +449,8 @@ def main():
         if not groups or not set(args.ids).issubset(covered):
             parser.error("job IDs must be covered by current plan groups")
         if args.phase == "fix":
-            if any(group.get("status") in ("blocked", "failed", "parked", "deferred") for group in groups):
-                parser.error("fix job cannot start a blocked or parked lane")
+            if any(group.get("status") in ("blocked", "parked", "deferred") for group in groups):
+                parser.error("fix job cannot start a blocked, parked, or deferred lane")
         elif any(group.get("phase") != "review" or (group.get("codex") or {}).get("fix_status") != "passed" for group in groups):
             parser.error("review and presuite jobs require each lane to finish fix and enter review")
         elif args.phase == "review":
@@ -668,7 +670,6 @@ def main():
             if code:
                 reason = _verification_failure_reason(expected, reason)
                 print(reason, file=sys.stderr)
-                previous = {item['id']: item.get('status') for item in data['findings']}
                 recorded = False
                 for group in groups:
                     current = json.loads(live.read_text())
@@ -683,12 +684,9 @@ def main():
                     for identifier in ids:
                         if identifier not in group.get('finding_ids', []) or current_status.get(identifier) != 'in_progress':
                             continue
-                        status = previous.get(identifier)
-                        failed.append({"action":"update", "id":identifier, "expected_status":"in_progress", "patch":{
-                            "status": "blocked" if status == "in_progress" else status}})
                         if run.get('status') == 'active' and run.get('checks', {}).get(identifier, {}).get('state') == 'checking':
                             failed.append({"action":"finish-check", "run_id":run['id'], "id":identifier,
-                                           "outcome":"blocked", "evidence":reason})
+                                           "outcome":"inconclusive", "evidence":reason})
                     saved = subprocess.run(command, input=json.dumps(failed), text=True, capture_output=True)
                     if saved.returncode and len(failed) > 1:
                         sys.stderr.write(f"Could not update verification findings for {group['id']}: " + (saved.stderr or saved.stdout))
