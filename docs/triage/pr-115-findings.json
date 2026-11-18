@@ -6337,6 +6337,138 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "bcl-0.1.39-38ea7e49-115",
+        "build": "batched-change-list 0.1.39",
+        "revision": "38ea7e490d104e97b28a9817f312642183624e38",
+        "installed_at": "2026-11-18T04:47:01Z",
+        "install_evidence": "bcl install-local from PR #115 head 38ea7e49 (plugin tree of f53899cc) at 10:17 IST: plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444; ~/.agents/plugins/batched-change-list/plugin.json reads 0.1.39. Receipt /Users/gurusharan/.agents/artifacts/bcl-115/r2/install-0.1.39-f53899cc.txt",
+        "status": "interrupted",
+        "checks": {
+          "BCL-38": {
+            "state": "pending"
+          },
+          "BCL-39": {
+            "state": "fixed",
+            "observation": "Running verify-g1.sh on installed 0.1.39 for named tests test_rollover_archives_verified_history, test_archive_keeps_gate_count, test_start_verification_skips_archived, test_archive_matches_0_1_38_gate_for_mixed_wf_findings, test_rejected_rollover_never_changes_archive, test_rollover_restores_archive_if_registration_fails, test_sibling_trackers_serialize_archive_and_park_writes",
+            "observed_at": "2026-11-18T05:08:57Z",
+            "started_at": "2026-11-18T05:08:57Z",
+            "updated_at": "2026-11-18T05:08:57Z",
+            "check_id": "4e2b00c14369453b80ba9f5b9a81c8ce",
+            "evidence": "Checked: verify-g1.sh on installed 0.1.39, then the archive action on a copy and on the live #115 list; Expected: Merged verified history moves to archive.json, the gate count is unchanged, and verification checks exist only for findings still on the list; Observed: verify-g1.sh exited 0 at 10:38 IST (292 tests OK on the clone and the installed copy, strict PASS, --check OK, 15 named tests passed). At 10:38 IST the live archive moved 67 merged verified findings to ~/.agents/state/batched-change-list/ingpoc--agent-plugins/archive.json; the list went from 101 to 14 findings and the open verification run from 101 checks to 14; check_gate_count.py read 8 of 15 before and after. Pre-migration copy: /Users/gurusharan/.agents/artifacts/bcl-115/r2/115-before-archive.json. Named tests: test_rollover_archives_verified_history, test_archive_keeps_gate_count, test_start_verification_skips_archived, test_archive_matches_0_1_38_gate_for_mixed_wf_findings, test_rejected_rollover_never_changes_archive, test_rollover_restores_archive_if_registration_fails, test_sibling_trackers_serialize_archive_and_park_writes. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g1.log.; Verdict because: Fixed because carried history now leaves the list without changing the count, so new runs open checks only for current work. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
+            "finished_at": "2026-11-18T05:08:57.447216Z"
+          },
+          "BCL-40": {
+            "state": "fixed",
+            "observation": "Running verify-g1.sh on installed 0.1.39 for named tests test_introspect_records_history_not_finding, test_archive_moves_wf_introspect_records, test_legacy_introspect_preserves_provenance_and_unattributed_never_covers, test_gate_waits_for_current_round_introspect_history_after_install",
+            "observed_at": "2026-11-18T05:08:57Z",
+            "started_at": "2026-11-18T05:08:57Z",
+            "updated_at": "2026-11-18T05:08:57Z",
+            "check_id": "a6b2c5809cdd4e3b8889b34667035d85",
+            "evidence": "Checked: Introspect storage on installed 0.1.39 and the live migration of earlier WF Introspect records; Expected: Introspect writes introspect history, not a WF finding; earlier WF Introspect records move to history with provenance, without changing the gate count; Observed: The four named tests passed on the installed copy; the live archive moved 16 completed WF Introspect records into tracking.introspect_history and the gate count stayed at 8. Named tests: test_introspect_records_history_not_finding, test_archive_moves_wf_introspect_records, test_legacy_introspect_preserves_provenance_and_unattributed_never_covers, test_gate_waits_for_current_round_introspect_history_after_install. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g1.log.; Verdict because: Fixed because Introspect no longer adds findings and the old records live in round history. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
+            "finished_at": "2026-11-18T05:08:57.447432Z"
+          },
+          "BCL-41": {
+            "state": "fixed",
+            "observation": "Running verify-g4.sh on installed 0.1.39 for named tests test_snapshot_commits_once_per_stage_change",
+            "observed_at": "2026-11-18T05:03:52Z",
+            "started_at": "2026-11-18T05:03:52Z",
+            "updated_at": "2026-11-18T05:03:52Z",
+            "check_id": "032c61c3c42942acb525c2269c6ef66a",
+            "evidence": "Checked: Commit count on the #115 branch across bcl verify calls on installed 0.1.39; Expected: At most one snapshot commit per stage change; ordinary tracker writes within a stage add none; Observed: The first 0.1.39 bcl verify (install to verify, 10:17 IST) added one snapshot commit 768dc687; the three later bcl verify calls in the same stage (10:20 to 10:30 IST) and every manager write since added none (1170 commits before and after the last one); the named test passed on the installed copy. Named tests: test_snapshot_commits_once_per_stage_change. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g4.log.; Verdict because: Fixed because snapshots now commit only on a stage change or rollover. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
+            "finished_at": "2026-11-18T05:03:52.652476Z"
+          },
+          "BCL-42": {
+            "state": "fixed",
+            "observation": "Running verify-g1.sh on installed 0.1.39 for named tests test_park_moves_blocked_to_parked_file, test_unpark_restores_blocked, test_parked_not_counted_open, test_rollover_keeps_parked_out_of_new_list",
+            "observed_at": "2026-11-18T05:08:57Z",
+            "started_at": "2026-11-18T05:08:57Z",
+            "updated_at": "2026-11-18T05:08:57Z",
+            "check_id": "6f0318ecdb824b78be703162d59ddbcd",
+            "evidence": "Checked: park on installed 0.1.39 against the four hardware-blocked #115 items; Expected: OBS-23, OBS-25, BCL-13 and BCL-18 sit in parked.json with what they need, off the list, not counted and not carried at rollover; Observed: The named tests passed on the installed copy; at 10:38 IST the live park moved OBS-23 and OBS-25 (needs a real microphone and spoken playback) and BCL-13 and BCL-18 (needs a live Windows runtime) to ~/.agents/state/batched-change-list/ingpoc--agent-plugins/parked.json; they are no longer on the list and remain blocked there, untouched. Named tests: test_park_moves_blocked_to_parked_file, test_unpark_restores_blocked, test_parked_not_counted_open, test_rollover_keeps_parked_out_of_new_list. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g1.log.; Verdict because: Fixed because hardware-blocked items are parked until that hardware is available instead of riding every list. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
+            "finished_at": "2026-11-18T05:08:57.447495Z"
+          },
+          "BCL-43": {
+            "state": "fixed",
+            "observation": "Running verify-g2.sh on installed 0.1.39 for named tests test_rollover_waits_for_merge_threshold, test_report_gate_unchanged_at_default_threshold, test_rollover_no_open_exception_removed, test_status_shows_report_and_rollover_gates",
+            "observed_at": "2026-11-18T04:55:43Z",
+            "started_at": "2026-11-18T04:55:43Z",
+            "updated_at": "2026-11-18T04:55:43Z",
+            "check_id": "04b476c16adb46b191cbdd8bf0f9aa39",
+            "evidence": "Checked: Installed 0.1.39 manager rollover action and bcl rollover at the threshold boundary, the report gate, and bcl status; Expected: Rollover refuses below gate.merge_previous_pr_threshold even when no open findings remain, report still opens at gate.default_threshold, and status shows both gates; Observed: verify-g2.sh exited 0 at 10:24 IST: 292 tests OK on a clean clone of 38ea7e49 and on the installed copy, strict skill_shape PASS, statechart --check OK, and the four named rollover/report/status tests passed on the installed copy. Named tests: test_rollover_waits_for_merge_threshold, test_report_gate_unchanged_at_default_threshold, test_rollover_no_open_exception_removed, test_status_shows_report_and_rollover_gates. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g2b.log.; Verdict because: Fixed because rollover now waits for the merge number, so an earlier PR can no longer be left unmergeable after rollover. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
+            "finished_at": "2026-11-18T04:55:43.622124Z"
+          },
+          "BCL-44": {
+            "state": "fixed",
+            "observation": "Running verify-g2.sh on installed 0.1.39 for named tests test_plan_fix_lets_small_docs_items_share_round",
+            "observed_at": "2026-11-18T04:55:43Z",
+            "started_at": "2026-11-18T04:55:43Z",
+            "updated_at": "2026-11-18T04:55:43Z",
+            "check_id": "940902d19c5f47fd9a06f11434beefc5",
+            "evidence": "Checked: plan-fix.md Plan check on the installed copy; Expected: A small independent docs- or chart-only item may join a round or ride as an extra lane without counting toward the group cap, keeping its own test and verify; Observed: The named test passed on the installed copy, and this round already used the rule: CHART-EDGES (one chart item) ran alongside the other three lanes instead of its own round. Named tests: test_plan_fix_lets_small_docs_items_share_round. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g2b.log.; Verdict because: Fixed because the round rule now lets small items share a round, and the rule is tested. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
+            "finished_at": "2026-11-18T04:55:43.622444Z"
+          },
+          "BCL-45": {
+            "state": "fixed",
+            "observation": "Running verify-g4.sh on installed 0.1.39 for named tests test_viewer_restarts_when_worktree_changes, test_page_not_stale_during_active_round",
+            "observed_at": "2026-11-18T05:03:52Z",
+            "started_at": "2026-11-18T05:03:52Z",
+            "updated_at": "2026-11-18T05:03:52Z",
+            "check_id": "35dc76f6b8a44943872b76eb49d36c07",
+            "evidence": "Checked: The live #115 viewer on port 53779 after the 0.1.39 install and the first bcl verify call; Expected: The viewer runs from the #115 worktree report and the installed 0.1.39 scripts, restarted by bcl on the same port, without a manual restart; Observed: bcl replaced the 0.1.38 viewer (pid 28597) with pid 94418 on port 53779; its record shows version 0.1.39, data 115.json, and report /Users/gurusharan/code/worktrees/agent-plugins/samantha-pr115-rollover/docs/triage/pr-115.html; both named tests passed on the installed copy. Stale during long Codex jobs is tracked separately as BCL-50. Named tests: test_viewer_restarts_when_worktree_changes, test_page_not_stale_during_active_round. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g4.log.; Verdict because: Fixed because the viewer identity now includes the worktree, report and scripts paths, so a viewer from another list or version is restarted from this list's worktree. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
+            "finished_at": "2026-11-18T05:03:52.652409Z"
+          },
+          "BCL-46": {
+            "state": "fixed",
+            "observation": "Running verify-g4.sh on installed 0.1.39 for named tests test_suite_leaves_no_viewer_processes",
+            "observed_at": "2026-11-18T05:03:52Z",
+            "started_at": "2026-11-18T05:03:52Z",
+            "updated_at": "2026-11-18T05:03:52Z",
+            "check_id": "41c028c58e4a43ae998d99c185aed5d7",
+            "evidence": "Checked: Both full suite runs in verify-g4.sh (clean clone and installed copy) with TMPDIR pointed at the verifier's own temp dir; Expected: No serve.py viewer whose data lives under that temp dir survives the suite, and the named leak test passes; Observed: verify-g4.sh exited 0 at 10:33 IST: 292 tests OK twice, then 3 s later no viewer remained under the verifier temp dir; the named test passed on the installed copy. (The first GATE-RULES verify at 10:20 IST tripped only because the verifier then counted a viewer from the concurrent LANE-HEARTBEAT Luna suite; the check is now scoped.) Named tests: test_suite_leaves_no_viewer_processes. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g4.log.; Verdict because: Fixed because every test that starts a viewer now stops it in cleanup, and the suite leaves none behind. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
+            "finished_at": "2026-11-18T05:03:52.652104Z"
+          },
+          "BCL-47": {
+            "state": "fixed",
+            "observation": "Running verify-g2.sh on installed 0.1.39 for named tests test_references_have_no_literal_gate_numbers",
+            "observed_at": "2026-11-18T04:55:43Z",
+            "started_at": "2026-11-18T04:55:43Z",
+            "updated_at": "2026-11-18T04:55:43Z",
+            "check_id": "59dfd33cf35c484fb599d13c743ce3f2",
+            "evidence": "Checked: gate.md and every reference plus SKILL.md on the installed copy; Expected: No literal gate threshold numbers; the text names gate.default_threshold and gate.merge_previous_pr_threshold, and skill-refine strict passes; Observed: The named test, which reads the threshold values from workflow_definition.json and scans all references recursively, passed on the installed copy; skill_shape --strict printed PASS for the installed skill. Named tests: test_references_have_no_literal_gate_numbers. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g2b.log.; Verdict because: Fixed because the reference text now names the definition fields and strict skill-refine no longer flags gate.md. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
+            "finished_at": "2026-11-18T04:55:43.622356Z"
+          },
+          "BCL-48": {
+            "state": "fixed",
+            "observation": "Running verify-g4.sh on installed 0.1.39 for named tests test_plugin_root_stays_inside_plugin_or_installed",
+            "observed_at": "2026-11-18T05:03:52Z",
+            "started_at": "2026-11-18T05:03:52Z",
+            "updated_at": "2026-11-18T05:03:52Z",
+            "check_id": "1cf1270eaa614aaab3e80b74ed948c56",
+            "evidence": "Checked: test_bcl.py plugin-root resolution in the repo layout and the installed layout; Expected: bin/bcl is found only inside the skill's own plugin or the installed plugin, and skill-refine strict passes; Observed: The named test passed; the installed copy at ~/.agents/skills/batched-change-list ran its 292 tests using the installed ~/.agents/plugins/batched-change-list/bin/bcl, and skill_shape --strict printed PASS for both copies. Named tests: test_plugin_root_stays_inside_plugin_or_installed. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g4.log.; Verdict because: Fixed because the resolver no longer climbs above the plugin. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
+            "finished_at": "2026-11-18T05:03:52.652321Z"
+          },
+          "BCL-49": {
+            "state": "not_fixed",
+            "observation": "verify-g3.sh passed (7 named chart tests, strict shape, --check); rendering the installed statechart.html to PNG to check labels and edges by eye",
+            "observed_at": "2026-11-18T04:59:48Z",
+            "started_at": "2026-11-18T04:59:48Z",
+            "updated_at": "2026-11-18T04:59:48Z",
+            "check_id": "72a578ad419043c08d00487dcd0a83ef",
+            "evidence": "Checked: installed 0.1.39 statechart.html rendered with headless Chrome at 10:29 IST (/Users/gurusharan/.agents/artifacts/bcl-115/r2/statechart-installed-0.1.39.png) after verify-g3.sh exited 0 (7 named tests, strict shape PASS, --check OK; log /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g3.log); Expected: loop-back and exit edges are SVG paths with arrowheads and condition labels, no backticks, no overlaps, verdict badges in Current and After; Observed: edges, arrowheads, condition labels and KEEP badges in Current are drawn and no backticks remain, but the Present to Plan & fix entry edge runs through the bcl start label under Collect and the plan-fix.md label, so labels still overlap an edge; the overlap test only checks label boxes against nodes and labels, not edges; Verdict because: not fixed yet because the done-when requires no overlaps and the rendered chart still shows one.",
+            "finished_at": "2026-11-18T04:59:48.629137Z"
+          },
+          "BCL-50": {
+            "state": "pending"
+          },
+          "BCL-51": {
+            "state": "pending"
+          },
+          "BCL-52": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -6351,9 +6483,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-18T05:55:15Z",
-      "now": "2026-11-18T05:55:15Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-18T05:55:45Z",
+      "now": "2026-11-18T05:55:45Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 114,
@@ -6576,8 +6708,8 @@
             "BCL-49"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl115-r2-g3",
           "reason": "Only statechart.py and its generated page; reads gate labels from the definition so it stays independent of GATE-RULES.",
           "codex": {
@@ -6601,8 +6733,8 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-18T05:40:56Z",
-          "verify_summary": "Committed; shared pre-push suite running before install",
+          "updated_at": "2026-11-18T05:55:35Z",
+          "verify_summary": "Installed 0.1.39 at aff3cdd9; verify queued",
           "blocked_reason": "Entry edge crosses labels",
           "parked_to": 2
         },
@@ -6654,8 +6786,8 @@
             "BCL-51"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl115-r2-g5",
           "reason": "Owner-raised during the round; same viewer and lane-state code as BCL-45 but a separate lane so the four reviewed lanes are not held. Fifth lane is an owner-directed exception to the 3-4 cap.",
           "codex": {
@@ -6678,8 +6810,8 @@
             "failed": 0,
             "total": 2
           },
-          "updated_at": "2026-11-18T05:50:48Z",
-          "verify_summary": "Test pin fixed; pre-push suite rerunning before install"
+          "updated_at": "2026-11-18T05:55:35Z",
+          "verify_summary": "Installed 0.1.39 at aff3cdd9; verify queued"
         }
       ]
     },
@@ -6691,125 +6823,48 @@
       "verify"
     ],
     "verification_run": {
-      "id": "bcl-0.1.39-38ea7e49-115",
+      "id": "bcl-0.1.39-aff3cdd9-115",
       "build": "batched-change-list 0.1.39",
-      "revision": "38ea7e490d104e97b28a9817f312642183624e38",
-      "installed_at": "2026-11-18T04:47:01Z",
-      "install_evidence": "bcl install-local from PR #115 head 38ea7e49 (plugin tree of f53899cc) at 10:17 IST: plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444; ~/.agents/plugins/batched-change-list/plugin.json reads 0.1.39. Receipt /Users/gurusharan/.agents/artifacts/bcl-115/r2/install-0.1.39-f53899cc.txt",
+      "revision": "aff3cdd9d71eed63229a4eef25426608e877cba9",
+      "installed_at": "2026-11-18T05:55:16Z",
+      "install_evidence": "bcl install-local from PR #115 head aff3cdd9 (plugin tree of 01da0d83) at 11:25 IST: plugin 55 files sha256 0a93680b8d1059eb314b37a91238716d9d40432b79c7fc4f6f9d15f5d8d50e26, skill 48 files sha256 f60132b295bb158a95da9e3e146301fb7ff0194e513601c28ad52a1f84feb0e0. Receipt /Users/gurusharan/.agents/artifacts/bcl-115/r2/install-0.1.39-b.txt",
       "status": "active",
       "checks": {
         "BCL-38": {
           "state": "pending"
         },
         "BCL-39": {
-          "state": "fixed",
-          "observation": "Running verify-g1.sh on installed 0.1.39 for named tests test_rollover_archives_verified_history, test_archive_keeps_gate_count, test_start_verification_skips_archived, test_archive_matches_0_1_38_gate_for_mixed_wf_findings, test_rejected_rollover_never_changes_archive, test_rollover_restores_archive_if_registration_fails, test_sibling_trackers_serialize_archive_and_park_writes",
-          "observed_at": "2026-11-18T05:08:57Z",
-          "started_at": "2026-11-18T05:08:57Z",
-          "updated_at": "2026-11-18T05:08:57Z",
-          "check_id": "4e2b00c14369453b80ba9f5b9a81c8ce",
-          "evidence": "Checked: verify-g1.sh on installed 0.1.39, then the archive action on a copy and on the live #115 list; Expected: Merged verified history moves to archive.json, the gate count is unchanged, and verification checks exist only for findings still on the list; Observed: verify-g1.sh exited 0 at 10:38 IST (292 tests OK on the clone and the installed copy, strict PASS, --check OK, 15 named tests passed). At 10:38 IST the live archive moved 67 merged verified findings to ~/.agents/state/batched-change-list/ingpoc--agent-plugins/archive.json; the list went from 101 to 14 findings and the open verification run from 101 checks to 14; check_gate_count.py read 8 of 15 before and after. Pre-migration copy: /Users/gurusharan/.agents/artifacts/bcl-115/r2/115-before-archive.json. Named tests: test_rollover_archives_verified_history, test_archive_keeps_gate_count, test_start_verification_skips_archived, test_archive_matches_0_1_38_gate_for_mixed_wf_findings, test_rejected_rollover_never_changes_archive, test_rollover_restores_archive_if_registration_fails, test_sibling_trackers_serialize_archive_and_park_writes. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g1.log.; Verdict because: Fixed because carried history now leaves the list without changing the count, so new runs open checks only for current work. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
-          "finished_at": "2026-11-18T05:08:57.447216Z"
+          "state": "pending"
         },
         "BCL-40": {
-          "state": "fixed",
-          "observation": "Running verify-g1.sh on installed 0.1.39 for named tests test_introspect_records_history_not_finding, test_archive_moves_wf_introspect_records, test_legacy_introspect_preserves_provenance_and_unattributed_never_covers, test_gate_waits_for_current_round_introspect_history_after_install",
-          "observed_at": "2026-11-18T05:08:57Z",
-          "started_at": "2026-11-18T05:08:57Z",
-          "updated_at": "2026-11-18T05:08:57Z",
-          "check_id": "a6b2c5809cdd4e3b8889b34667035d85",
-          "evidence": "Checked: Introspect storage on installed 0.1.39 and the live migration of earlier WF Introspect records; Expected: Introspect writes introspect history, not a WF finding; earlier WF Introspect records move to history with provenance, without changing the gate count; Observed: The four named tests passed on the installed copy; the live archive moved 16 completed WF Introspect records into tracking.introspect_history and the gate count stayed at 8. Named tests: test_introspect_records_history_not_finding, test_archive_moves_wf_introspect_records, test_legacy_introspect_preserves_provenance_and_unattributed_never_covers, test_gate_waits_for_current_round_introspect_history_after_install. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g1.log.; Verdict because: Fixed because Introspect no longer adds findings and the old records live in round history. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
-          "finished_at": "2026-11-18T05:08:57.447432Z"
+          "state": "pending"
         },
         "BCL-41": {
-          "state": "fixed",
-          "observation": "Running verify-g4.sh on installed 0.1.39 for named tests test_snapshot_commits_once_per_stage_change",
-          "observed_at": "2026-11-18T05:03:52Z",
-          "started_at": "2026-11-18T05:03:52Z",
-          "updated_at": "2026-11-18T05:03:52Z",
-          "check_id": "032c61c3c42942acb525c2269c6ef66a",
-          "evidence": "Checked: Commit count on the #115 branch across bcl verify calls on installed 0.1.39; Expected: At most one snapshot commit per stage change; ordinary tracker writes within a stage add none; Observed: The first 0.1.39 bcl verify (install to verify, 10:17 IST) added one snapshot commit 768dc687; the three later bcl verify calls in the same stage (10:20 to 10:30 IST) and every manager write since added none (1170 commits before and after the last one); the named test passed on the installed copy. Named tests: test_snapshot_commits_once_per_stage_change. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g4.log.; Verdict because: Fixed because snapshots now commit only on a stage change or rollover. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
-          "finished_at": "2026-11-18T05:03:52.652476Z"
+          "state": "pending"
         },
         "BCL-42": {
-          "state": "fixed",
-          "observation": "Running verify-g1.sh on installed 0.1.39 for named tests test_park_moves_blocked_to_parked_file, test_unpark_restores_blocked, test_parked_not_counted_open, test_rollover_keeps_parked_out_of_new_list",
-          "observed_at": "2026-11-18T05:08:57Z",
-          "started_at": "2026-11-18T05:08:57Z",
-          "updated_at": "2026-11-18T05:08:57Z",
-          "check_id": "6f0318ecdb824b78be703162d59ddbcd",
-          "evidence": "Checked: park on installed 0.1.39 against the four hardware-blocked #115 items; Expected: OBS-23, OBS-25, BCL-13 and BCL-18 sit in parked.json with what they need, off the list, not counted and not carried at rollover; Observed: The named tests passed on the installed copy; at 10:38 IST the live park moved OBS-23 and OBS-25 (needs a real microphone and spoken playback) and BCL-13 and BCL-18 (needs a live Windows runtime) to ~/.agents/state/batched-change-list/ingpoc--agent-plugins/parked.json; they are no longer on the list and remain blocked there, untouched. Named tests: test_park_moves_blocked_to_parked_file, test_unpark_restores_blocked, test_parked_not_counted_open, test_rollover_keeps_parked_out_of_new_list. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g1.log.; Verdict because: Fixed because hardware-blocked items are parked until that hardware is available instead of riding every list. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
-          "finished_at": "2026-11-18T05:08:57.447495Z"
+          "state": "pending"
         },
         "BCL-43": {
-          "state": "fixed",
-          "observation": "Running verify-g2.sh on installed 0.1.39 for named tests test_rollover_waits_for_merge_threshold, test_report_gate_unchanged_at_default_threshold, test_rollover_no_open_exception_removed, test_status_shows_report_and_rollover_gates",
-          "observed_at": "2026-11-18T04:55:43Z",
-          "started_at": "2026-11-18T04:55:43Z",
-          "updated_at": "2026-11-18T04:55:43Z",
-          "check_id": "04b476c16adb46b191cbdd8bf0f9aa39",
-          "evidence": "Checked: Installed 0.1.39 manager rollover action and bcl rollover at the threshold boundary, the report gate, and bcl status; Expected: Rollover refuses below gate.merge_previous_pr_threshold even when no open findings remain, report still opens at gate.default_threshold, and status shows both gates; Observed: verify-g2.sh exited 0 at 10:24 IST: 292 tests OK on a clean clone of 38ea7e49 and on the installed copy, strict skill_shape PASS, statechart --check OK, and the four named rollover/report/status tests passed on the installed copy. Named tests: test_rollover_waits_for_merge_threshold, test_report_gate_unchanged_at_default_threshold, test_rollover_no_open_exception_removed, test_status_shows_report_and_rollover_gates. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g2b.log.; Verdict because: Fixed because rollover now waits for the merge number, so an earlier PR can no longer be left unmergeable after rollover. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
-          "finished_at": "2026-11-18T04:55:43.622124Z"
+          "state": "pending"
         },
         "BCL-44": {
-          "state": "fixed",
-          "observation": "Running verify-g2.sh on installed 0.1.39 for named tests test_plan_fix_lets_small_docs_items_share_round",
-          "observed_at": "2026-11-18T04:55:43Z",
-          "started_at": "2026-11-18T04:55:43Z",
-          "updated_at": "2026-11-18T04:55:43Z",
-          "check_id": "940902d19c5f47fd9a06f11434beefc5",
-          "evidence": "Checked: plan-fix.md Plan check on the installed copy; Expected: A small independent docs- or chart-only item may join a round or ride as an extra lane without counting toward the group cap, keeping its own test and verify; Observed: The named test passed on the installed copy, and this round already used the rule: CHART-EDGES (one chart item) ran alongside the other three lanes instead of its own round. Named tests: test_plan_fix_lets_small_docs_items_share_round. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g2b.log.; Verdict because: Fixed because the round rule now lets small items share a round, and the rule is tested. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
-          "finished_at": "2026-11-18T04:55:43.622444Z"
+          "state": "pending"
         },
         "BCL-45": {
-          "state": "fixed",
-          "observation": "Running verify-g4.sh on installed 0.1.39 for named tests test_viewer_restarts_when_worktree_changes, test_page_not_stale_during_active_round",
-          "observed_at": "2026-11-18T05:03:52Z",
-          "started_at": "2026-11-18T05:03:52Z",
-          "updated_at": "2026-11-18T05:03:52Z",
-          "check_id": "35dc76f6b8a44943872b76eb49d36c07",
-          "evidence": "Checked: The live #115 viewer on port 53779 after the 0.1.39 install and the first bcl verify call; Expected: The viewer runs from the #115 worktree report and the installed 0.1.39 scripts, restarted by bcl on the same port, without a manual restart; Observed: bcl replaced the 0.1.38 viewer (pid 28597) with pid 94418 on port 53779; its record shows version 0.1.39, data 115.json, and report /Users/gurusharan/code/worktrees/agent-plugins/samantha-pr115-rollover/docs/triage/pr-115.html; both named tests passed on the installed copy. Stale during long Codex jobs is tracked separately as BCL-50. Named tests: test_viewer_restarts_when_worktree_changes, test_page_not_stale_during_active_round. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g4.log.; Verdict because: Fixed because the viewer identity now includes the worktree, report and scripts paths, so a viewer from another list or version is restarted from this list's worktree. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
-          "finished_at": "2026-11-18T05:03:52.652409Z"
+          "state": "pending"
         },
         "BCL-46": {
-          "state": "fixed",
-          "observation": "Running verify-g4.sh on installed 0.1.39 for named tests test_suite_leaves_no_viewer_processes",
-          "observed_at": "2026-11-18T05:03:52Z",
-          "started_at": "2026-11-18T05:03:52Z",
-          "updated_at": "2026-11-18T05:03:52Z",
-          "check_id": "41c028c58e4a43ae998d99c185aed5d7",
-          "evidence": "Checked: Both full suite runs in verify-g4.sh (clean clone and installed copy) with TMPDIR pointed at the verifier's own temp dir; Expected: No serve.py viewer whose data lives under that temp dir survives the suite, and the named leak test passes; Observed: verify-g4.sh exited 0 at 10:33 IST: 292 tests OK twice, then 3 s later no viewer remained under the verifier temp dir; the named test passed on the installed copy. (The first GATE-RULES verify at 10:20 IST tripped only because the verifier then counted a viewer from the concurrent LANE-HEARTBEAT Luna suite; the check is now scoped.) Named tests: test_suite_leaves_no_viewer_processes. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g4.log.; Verdict because: Fixed because every test that starts a viewer now stops it in cleanup, and the suite leaves none behind. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
-          "finished_at": "2026-11-18T05:03:52.652104Z"
+          "state": "pending"
         },
         "BCL-47": {
-          "state": "fixed",
-          "observation": "Running verify-g2.sh on installed 0.1.39 for named tests test_references_have_no_literal_gate_numbers",
-          "observed_at": "2026-11-18T04:55:43Z",
-          "started_at": "2026-11-18T04:55:43Z",
-          "updated_at": "2026-11-18T04:55:43Z",
-          "check_id": "59dfd33cf35c484fb599d13c743ce3f2",
-          "evidence": "Checked: gate.md and every reference plus SKILL.md on the installed copy; Expected: No literal gate threshold numbers; the text names gate.default_threshold and gate.merge_previous_pr_threshold, and skill-refine strict passes; Observed: The named test, which reads the threshold values from workflow_definition.json and scans all references recursively, passed on the installed copy; skill_shape --strict printed PASS for the installed skill. Named tests: test_references_have_no_literal_gate_numbers. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g2b.log.; Verdict because: Fixed because the reference text now names the definition fields and strict skill-refine no longer flags gate.md. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
-          "finished_at": "2026-11-18T04:55:43.622356Z"
+          "state": "pending"
         },
         "BCL-48": {
-          "state": "fixed",
-          "observation": "Running verify-g4.sh on installed 0.1.39 for named tests test_plugin_root_stays_inside_plugin_or_installed",
-          "observed_at": "2026-11-18T05:03:52Z",
-          "started_at": "2026-11-18T05:03:52Z",
-          "updated_at": "2026-11-18T05:03:52Z",
-          "check_id": "1cf1270eaa614aaab3e80b74ed948c56",
-          "evidence": "Checked: test_bcl.py plugin-root resolution in the repo layout and the installed layout; Expected: bin/bcl is found only inside the skill's own plugin or the installed plugin, and skill-refine strict passes; Observed: The named test passed; the installed copy at ~/.agents/skills/batched-change-list ran its 292 tests using the installed ~/.agents/plugins/batched-change-list/bin/bcl, and skill_shape --strict printed PASS for both copies. Named tests: test_plugin_root_stays_inside_plugin_or_installed. Log: /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g4.log.; Verdict because: Fixed because the resolver no longer climbs above the plugin. Installed bcl 0.1.39 at 38ea7e49 via bcl install-local (plugin 53 files sha256 eeb0f20d6570e840315197c110aac12ff87b98b4dafdf9eaa1b49a3edf640a9e, skill 46 files sha256 8f422d4e5c04b5ef34cdb170c6a8d49c7d74ab339cfc22596c7d9789141db444).",
-          "finished_at": "2026-11-18T05:03:52.652321Z"
+          "state": "pending"
         },
         "BCL-49": {
-          "state": "not_fixed",
-          "observation": "verify-g3.sh passed (7 named chart tests, strict shape, --check); rendering the installed statechart.html to PNG to check labels and edges by eye",
-          "observed_at": "2026-11-18T04:59:48Z",
-          "started_at": "2026-11-18T04:59:48Z",
-          "updated_at": "2026-11-18T04:59:48Z",
-          "check_id": "72a578ad419043c08d00487dcd0a83ef",
-          "evidence": "Checked: installed 0.1.39 statechart.html rendered with headless Chrome at 10:29 IST (/Users/gurusharan/.agents/artifacts/bcl-115/r2/statechart-installed-0.1.39.png) after verify-g3.sh exited 0 (7 named tests, strict shape PASS, --check OK; log /Users/gurusharan/.agents/artifacts/bcl-115/r2/verify-g3.log); Expected: loop-back and exit edges are SVG paths with arrowheads and condition labels, no backticks, no overlaps, verdict badges in Current and After; Observed: edges, arrowheads, condition labels and KEEP badges in Current are drawn and no backticks remain, but the Present to Plan & fix entry edge runs through the bcl start label under Collect and the plan-fix.md label, so labels still overlap an edge; the overlap test only checks label boxes against nodes and labels, not edges; Verdict because: not fixed yet because the done-when requires no overlaps and the rendered chart still shows one.",
-          "finished_at": "2026-11-18T04:59:48.629137Z"
+          "state": "pending"
         },
         "BCL-50": {
           "state": "pending"
