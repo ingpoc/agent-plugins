@@ -7008,9 +7008,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-18T17:02:51Z",
-      "now": "2026-11-18T17:02:51Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-18T17:02:53Z",
+      "now": "2026-11-18T17:02:53Z — Review started"
     },
     "rollover": {
       "source_pr": 115,
@@ -7283,7 +7283,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T17:01:20Z"
+          "updated_at": "2026-11-18T17:02:53Z"
         },
         {
           "id": "BCL-FLOW",
@@ -7295,8 +7295,8 @@
             "BCL-74"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "review",
+          "status": "running",
+          "phase": "fix",
           "worktree": "bcl116-r3-g4",
           "reason": "Same change list code: run closing, lane state, description, test lookup, row labels.",
           "codex": {
@@ -7304,15 +7304,11 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 76352,
-              "phase": "review",
-              "started_at": "2026-11-18T17:00:33Z",
-              "command": "launch-review-g4.sh",
-              "heartbeat_at": "2026-11-18T17:02:21Z",
-              "exit_code": 0,
-              "duration_s": 108,
-              "finished_at": "2026-11-18T17:02:21Z",
-              "finished_phase_status": "failed"
+              "pid": 82121,
+              "phase": "fix",
+              "started_at": "2026-11-18T17:02:51Z",
+              "command": "run-fu-g4.sh",
+              "heartbeat_at": "2026-11-18T17:02:51Z"
             },
             "fix_status": "passed",
             "implementer_session": "01a1ef8b-a97d-7d90-80d1-84933311de79",
@@ -7326,7 +7322,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-18T17:02:21Z"
+          "updated_at": "2026-11-18T17:02:51Z"
         }
       ]
     },
