@@ -7729,9 +7729,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-19T17:13:42Z",
-      "now": "2026-11-19T17:13:42Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-19T18:16:44Z",
+      "now": "2026-11-19T18:16:44Z — Install in progress"
     },
     "rollover": {
       "source_pr": 116,
@@ -10050,8 +10050,8 @@
             "ACU-05"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r3-g2",
           "reason": "Grok is fixed; on GPT-Live the backend task behind the story keeps running after a redirect.",
           "codex": {
@@ -10060,18 +10060,21 @@
             "one_file": false,
             "implementer_session": "01a1f3a3-6347-7f42-b395-61f27206dbe7",
             "job": {
-              "pid": 74008,
-              "phase": "fix",
-              "started_at": "2026-11-19T17:04:02Z",
-              "command": "run-race2-g2.sh",
-              "heartbeat_at": "2026-11-19T17:11:50Z",
+              "pid": 90252,
+              "phase": "presuite",
+              "started_at": "2026-11-19T18:11:31Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-19T18:15:43Z",
               "exit_code": 0,
-              "duration_s": 468,
-              "finished_at": "2026-11-19T17:11:50Z",
+              "duration_s": 252,
+              "finished_at": "2026-11-19T18:15:43Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
-            "previous_review": "race fix review 1: CHANGES only because the read-only reviewer could not run the stress; second cause (fake backend queue) found and fixed"
+            "previous_review": "race fix review 1: CHANGES only because the read-only reviewer could not run the stress; second cause (fake backend queue) found and fixed",
+            "review_status": "passed",
+            "reviewer_session": "01a1f500-9f6c-7921-a076-871e16a98801",
+            "review_note": "race fix PASS (duplicate call ids ignored; test fake releases deferred creates; stress 400/400 orchestrator)"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g2.sh",
@@ -10081,11 +10084,15 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T17:13:42Z",
+          "updated_at": "2026-11-19T18:15:43Z",
           "presuite": {
-            "status": "failed",
-            "exit_code": 1,
-            "finished_at": "2026-11-19T16:44:24Z"
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-19T18:15:43Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-19T18:16:44Z"
           }
         },
         {
@@ -10095,8 +10102,8 @@
             "ACU-01"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r4-g7",
           "reason": "Deferred from round 3 by the four-lane cap.",
           "codex": {
@@ -10104,15 +10111,15 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 64307,
+              "pid": 90252,
               "phase": "presuite",
-              "started_at": "2026-11-19T16:40:08Z",
+              "started_at": "2026-11-19T18:11:31Z",
               "command": "presuite.sh",
-              "heartbeat_at": "2026-11-19T16:44:24Z",
-              "exit_code": 1,
-              "duration_s": 256,
-              "finished_at": "2026-11-19T16:44:24Z",
-              "finished_phase_status": "failed"
+              "heartbeat_at": "2026-11-19T18:15:43Z",
+              "exit_code": 0,
+              "duration_s": 252,
+              "finished_at": "2026-11-19T18:15:43Z",
+              "finished_phase_status": "passed"
             },
             "implementer_session": "01a1f460-32c2-7d62-a7d7-2bae1a069868",
             "fix_status": "passed",
@@ -10128,11 +10135,15 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T16:44:24Z",
+          "updated_at": "2026-11-19T18:15:43Z",
           "presuite": {
-            "status": "failed",
-            "exit_code": 1,
-            "finished_at": "2026-11-19T16:44:24Z"
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-19T18:15:43Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-19T18:16:44Z"
           }
         },
         {
@@ -10145,8 +10156,8 @@
             "ACU-13"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r4-g8",
           "reason": "All four come from what the voice models are told and how memory saves are passed on.",
           "codex": {
@@ -10154,15 +10165,15 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 64307,
+              "pid": 90252,
               "phase": "presuite",
-              "started_at": "2026-11-19T16:40:08Z",
+              "started_at": "2026-11-19T18:11:31Z",
               "command": "presuite.sh",
-              "heartbeat_at": "2026-11-19T16:44:24Z",
-              "exit_code": 1,
-              "duration_s": 256,
-              "finished_at": "2026-11-19T16:44:24Z",
-              "finished_phase_status": "failed"
+              "heartbeat_at": "2026-11-19T18:15:43Z",
+              "exit_code": 0,
+              "duration_s": 252,
+              "finished_at": "2026-11-19T18:15:43Z",
+              "finished_phase_status": "passed"
             },
             "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428",
             "fix_status": "passed",
@@ -10178,11 +10189,15 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T16:44:24Z",
+          "updated_at": "2026-11-19T18:15:43Z",
           "presuite": {
-            "status": "failed",
-            "exit_code": 1,
-            "finished_at": "2026-11-19T16:44:24Z"
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-19T18:15:43Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-19T18:16:44Z"
           }
         },
         {
@@ -10193,8 +10208,8 @@
             "ACU-12"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r4-g9",
           "reason": "Both are test and check fixes in the Mac control skill.",
           "codex": {
@@ -10202,15 +10217,15 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 64307,
+              "pid": 90252,
               "phase": "presuite",
-              "started_at": "2026-11-19T16:40:08Z",
+              "started_at": "2026-11-19T18:11:31Z",
               "command": "presuite.sh",
-              "heartbeat_at": "2026-11-19T16:44:24Z",
-              "exit_code": 1,
-              "duration_s": 256,
-              "finished_at": "2026-11-19T16:44:24Z",
-              "finished_phase_status": "failed"
+              "heartbeat_at": "2026-11-19T18:15:43Z",
+              "exit_code": 0,
+              "duration_s": 252,
+              "finished_at": "2026-11-19T18:15:43Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f460-41d6-74a2-ad1a-cdf8bfb6366a",
@@ -10226,11 +10241,15 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T16:44:24Z",
+          "updated_at": "2026-11-19T18:15:43Z",
           "presuite": {
-            "status": "failed",
-            "exit_code": 1,
-            "finished_at": "2026-11-19T16:44:24Z"
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-19T18:15:43Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-19T18:16:44Z"
           }
         }
       ]
