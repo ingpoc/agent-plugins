@@ -7729,9 +7729,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-19T16:59:45Z",
-      "now": "2026-11-19T16:59:45Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-19T17:04:02Z",
+      "now": "2026-11-19T17:04:02Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10050,7 +10050,7 @@
             "ACU-05"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl117-r3-g2",
           "reason": "Grok is fixed; on GPT-Live the backend task behind the story keeps running after a redirect.",
@@ -10060,18 +10060,19 @@
             "one_file": false,
             "implementer_session": "01a1f3a3-6347-7f42-b395-61f27206dbe7",
             "job": {
-              "pid": 4079,
-              "phase": "fix",
-              "started_at": "2026-11-19T16:55:47Z",
-              "command": "run-waits-g2.sh",
-              "heartbeat_at": "2026-11-19T16:59:18Z",
+              "pid": 8995,
+              "phase": "review",
+              "started_at": "2026-11-19T16:59:46Z",
+              "command": "launch-review-g2.sh",
+              "heartbeat_at": "2026-11-19T17:00:48Z",
               "exit_code": 0,
-              "duration_s": 211,
-              "finished_at": "2026-11-19T16:59:18Z",
-              "finished_phase_status": "passed"
+              "duration_s": 62,
+              "finished_at": "2026-11-19T17:00:48Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
-            "previous_review": "passed for the ACU-05 cancel work; the race fix needs its own review"
+            "previous_review": "passed for the ACU-05 cancel work; the race fix needs its own review",
+            "review_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g2.sh",
@@ -10081,7 +10082,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T16:59:45Z",
+          "updated_at": "2026-11-19T17:00:48Z",
           "presuite": {
             "status": "failed",
             "exit_code": 1,
