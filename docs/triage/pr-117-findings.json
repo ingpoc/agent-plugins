@@ -7574,9 +7574,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-19T13:49:21Z",
-      "now": "2026-11-19T13:49:21Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-19T13:51:41Z",
+      "now": "2026-11-19T13:51:41Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -9891,7 +9891,7 @@
             "status": "partial",
             "total": 4,
             "fixed": 2,
-            "failed": 1,
+            "failed": 0,
             "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
           "updated_at": "2026-11-19T13:45:37Z",
@@ -10678,7 +10678,7 @@
       "done_when": "A new request during a reply stops the current reply within about a second and the redirect is answered next; a test proves it for typed and spoken turns.",
       "observed": "19 Nov 2026 typed test: long story then a redirect 3 seconds later. Grok Voice 3.0: story ran 22.9 s to the end, redirect answered after 19.9 s. GPT-Live-1: story ran 11.5 s, redirect answered after 8.5 s.",
       "recommendation": "Cancel the active response when a new typed or spoken request arrives, as the spoken stop-word path already does.",
-      "status": "failing",
+      "status": "in_progress",
       "details": {
         "Technical wording": "send_text() sends conversation.item.create + response.create without response.cancel when _active_response_ids is non-empty.",
         "Dev-obs evidence": "GPT session sref_8a6f2dba34a1bb4ef2de2b5299e0cf93: model_response_end p95 13.1 s (col-6be7b29503e9ce22). Dev-obs has no interruption signal, so this came from the test runner timings."
