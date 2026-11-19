@@ -501,7 +501,7 @@ def render_plan(data, tracking, plan, round_number, now):
 
 
 def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, round_number, reached=None,
-                    cycle=1, introspect_record=None):
+                    cycle=1, introspect_record=None, report_exception=False):
     order = [stage["id"] for stage in WF.STAGES]
     active_index = order.index(active) if active in order else -1
     reached = [step for step in (reached or []) if isinstance(step, str)]
@@ -581,6 +581,8 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
 
     gate_state = "done" if gate_met else "current" if active == "gate" else "upcoming"
     accessible = f"{fixed} of {threshold} fixes verified, {in_progress} in progress, gate {'met' if gate_met else 'not met'}"
+    if report_exception:
+        accessible += "; report gate exception applies"
     amount = min(100, round(100 * fixed / threshold))
     if gate_met:
         icon = (f'<svg width="22" height="22" viewBox="0 0 22 22" role="img" aria-label="{html.escape(accessible, quote=True)}">'
@@ -591,7 +593,8 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
         icon = (f'<svg width="22" height="22" viewBox="0 0 22 22" role="img" aria-label="{html.escape(accessible, quote=True)}">'
                 '<circle cx="11" cy="11" r="8.5" fill="#fff" stroke="var(--sage-line)" stroke-width="3"/>' + arc + '</svg>')
     gate = (f'<li data-stage="gate" class="wf-step {gate_state} wf-gate"><span class="wf-dot">{icon}</span>'
-            f'<span class="wf-label">{WF.DEFINITION["gate"]["badge_label"]} <b>{fixed}/{threshold}</b> verified<small>{in_progress} in progress</small></span>'
+            f'<span class="wf-label">{WF.DEFINITION["gate"]["badge_label"]} <b>{fixed}/{threshold}</b> verified<small>{in_progress} in progress</small>'
+            f'{"<small>Report gate exception: no counted findings remain open.</small>" if report_exception else ""}</span>'
             '<span class="lanes"></span></li>')
     pips = "".join("<i></i>" for _ in range(min(round_number, 5)))
     spread = f'<span class="spread">· {len(lanes)} lanes across {occupied} steps</span>' if occupied > 1 else ""
@@ -638,7 +641,7 @@ def rollover_gate(findings, tracking):
     return fixed, threshold, fixed >= threshold or not has_open
 
 
-def rollover_gate_state(findings, tracking):
+def report_gate_state(findings, tracking):
     fixed, threshold, met = rollover_gate(findings, tracking)
     reached = tracking.get("stages_reached", [])
     if not isinstance(reached, list) or any(not isinstance(stage, str) for stage in reached):
@@ -646,6 +649,11 @@ def rollover_gate_state(findings, tracking):
     if "install" in reached and introspect_record_for_round(tracking) is None:
         met = False
     return fixed, threshold, met
+
+
+def rollover_gate_state(findings, tracking):
+    fixed, threshold, phase_met = report_gate_state(findings, tracking)
+    return fixed, threshold, fixed >= threshold and phase_met
 
 
 def merge_gate(findings, tracking):
@@ -742,6 +750,7 @@ def render_tracking(tracking, inventory_override=None):
     if not isinstance(tracking, dict):
         raise ValueError("tracking must be an object")
     context = []
+    details = []
     pull_request = tracking.get("pull_request")
     if pull_request is not None:
         if not isinstance(pull_request, dict):
@@ -751,7 +760,13 @@ def render_tracking(tracking, inventory_override=None):
         context.append(f'<a class="header-pr" href="{url}">{label}</a>')
     worktree = tracking.get("worktree")
     if worktree is not None:
-        context.append(f'<span class="header-worktree">{html.escape(required_text(worktree, "tracking.worktree"))}</span>')
+        worktree = required_text(worktree, "tracking.worktree")
+        short_worktree = Path(worktree.rstrip("/\\")).name
+        if not short_worktree:
+            raise ValueError("tracking.worktree must include a worktree name")
+        context.append(f'<span class="header-worktree">{html.escape(short_worktree)}</span>')
+        if short_worktree != worktree:
+            details.append(f'<details class="worktree-details"><summary>Details</summary><p>{html.escape(worktree)}</p></details>')
     archive = tracking.get("archive")
     if archive is not None:
         if (not isinstance(archive, dict) or type(archive.get("count")) is not int
@@ -835,10 +850,11 @@ def render_tracking(tracking, inventory_override=None):
         context_line = f'<p class="header-context">{context_html}</p>' if context_html else ""
         chips_html = f'<div class="plugin-chips">{"".join(chips)}</div>' if chips else ""
         title = html.escape(" · ".join(tips), quote=True)
-        if context_line or chips_html:
-            build_card = f'<div class="header-meta" title="{title}">{context_line}{chips_html}</div>'
+        details_html = ''.join(details)
+        if context_line or chips_html or details_html:
+            build_card = f'<div class="header-meta" title="{title}">{context_line}{details_html}{chips_html}</div>'
         context = []  # consumed into the header
-    if not build_card and (context or run is not None):
+    if not build_card and (context or run is not None or details):
         tips = []
         if run is not None:
             tips.append(f"Verification run: {build} · {revision}, installed {installed} · {run['status']}")
@@ -846,8 +862,9 @@ def render_tracking(tracking, inventory_override=None):
         context_line = f'<p class="header-context">{context_html}</p>' if context_html else ""
         title = html.escape(" · ".join(tips), quote=True) if tips else ""
         attr = f' title="{title}"' if title else ""
-        if context_line:
-            build_card = f'<div class="header-meta"{attr}>{context_line}</div>'
+        details_html = ''.join(details)
+        if context_line or details_html:
+            build_card = f'<div class="header-meta"{attr}>{context_line}{details_html}</div>'
     return "", build_card
 
 
@@ -1049,6 +1066,7 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
         raise ValueError("verification run checks must match the tracked issue IDs")
     template = TEMPLATE.read_text(encoding="utf-8")
     fixed_count, threshold, gate_met = rollover_gate_state(findings, tracking_data)
+    report_exception = fixed_count < threshold and report_gate_state(findings, tracking_data)[2]
     rollover = tracking_data.get("rollover", {})
     excluded = rollover.get("excluded_ids", [])
     if not isinstance(excluded, list) or any(not isinstance(item, str) for item in excluded) or not set(excluded) <= seen:
@@ -1065,7 +1083,7 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
                   if time_html else '<span class="fresh">No update recorded</span>')
     timeline_steps = render_workflow(active, groups, fixed_count, threshold, gate_met, in_progress, round_number,
                                     tracking_data.get("stages_reached") or [], rollover_cycle(tracking_data),
-                                    introspect_record_for_round(tracking_data))
+                                    introspect_record_for_round(tracking_data), report_exception)
     plan_view = render_plan(data, tracking_data, plan, round_number, render_now)
     viewer_html = (f'<div class="viewer-footer">Live view, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}'
                    f'<details><summary>Details</summary><p>Report path: {html.escape(str(viewer["path"]))}</p></details></div>'

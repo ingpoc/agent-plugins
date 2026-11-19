@@ -126,6 +126,27 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
                 self.assertEqual(renderer.rollover_gate([finding], tracking), (0, 1, False))
         self.assertEqual(finding['verification_refs'], ['old receipt'])
 
+    def test_zero_verified_fixes_never_marks_workflow_gate_done(self):
+        self.data['findings'] = []
+        self.data['tracking'] = {'workflow': {'stage':'collect','updated_at':'2026-11-14T07:00:00Z'}}
+        page = renderer.render(self.data, self.base)
+        gate = page.split('data-stage="gate"', 1)[1].split('</li>', 1)[0]
+        self.assertNotIn('class="wf-step done wf-gate"', gate)
+        self.assertIn('class="wf-step upcoming wf-gate"', gate)
+        self.assertIn('0 of 15 fixes verified, 0 in progress, gate not met', gate)
+        self.assertNotIn('aria-label="0 of 15 fixes verified, 0 in progress, gate met"', gate)
+        self.assertIn('Report gate exception: no counted findings remain open.', gate)
+
+    def test_legacy_worktree_path_is_short_in_header_and_full_in_details(self):
+        self.data['tracking'] = {'worktree':'/Users/guru/worktrees/samantha-next-rollover'}
+        page = renderer.render(self.data, self.base)
+        header = page.split('class="header-meta"', 1)[1].split('</header>', 1)[0]
+        self.assertIn('class="header-worktree">samantha-next-rollover</span>', header)
+        details = page.split('<details class="worktree-details">', 1)[1].split('</details>', 1)[0]
+        self.assertIn('/Users/guru/worktrees/samantha-next-rollover', details)
+        self.assertNotIn('/Users/guru/worktrees/samantha-next-rollover', header.replace(
+            f'<details class="worktree-details">{details}</details>', ''))
+
         self.data['findings'][0]['status'] = 'verified_fixed'
         self.data['findings'][0]['verification'] = 'Verified on the installed build.'
         self.data['findings'][0]['verification_refs'] = ['Example receipt']
@@ -605,10 +626,11 @@ setImmediate(async()=>{
         self.assertIn('Fixes <b>7/15</b> verified', page)
         self.assertIn('Round 3', page)
         self.assertIn('under 15 verified', page)
-        self.assertIn('class="wf-band gate-met"', page)
-        self.assertIn('class="wf-step done wf-gate"', page)
+        self.assertIn('class="wf-band gate-pending"', page)
+        self.assertIn('class="wf-step current wf-gate"', page)
+        self.assertIn('Report gate exception: no counted findings remain open.', page)
         self.assertIn('class="wf-exit"', page)
-        self.assertIn('gate-met .wf-loop', page)
+        self.assertIn('class="wf-band gate-pending"', page)
         timeline = page
         stages = ['>Collect<','>Plan &amp; fix<','>Install<','>Verify<',
                   '>Introspect<','Fixes <b>7/15</b> verified','>Report &amp; roll over<','>Merge previous PR<']

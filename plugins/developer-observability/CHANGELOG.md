@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.32
+
+- Findings collected for a project directory are attributed to that project even when no projects are configured, and their issue IDs expand in diagnosis; triage explains how to read and fix unassigned findings (BCL-77).
+- A pytest run gives one finding per failing test. Summary lines such as "2 failed, 41 passed" are not findings, and a log failure is merged with its JUnit result only when both belong to the same run (BCL-78).
+- The suggested fix for a failing test names the test and quotes its assertion; the CI log is mentioned only for CI check sources (BCL-79).
+
 ## 0.1.31
 
 - Route triage and task-usage guidance through explicit skill references.

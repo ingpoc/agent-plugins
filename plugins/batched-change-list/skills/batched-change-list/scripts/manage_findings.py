@@ -1096,7 +1096,10 @@ def prepare_rollover(document, operation, force=False):
     rollover["unresolved_ids"] = [item["id"] for item in findings if item.get("status") not in CLOSED_STATUSES]
     if tracking.get("merged"):
         rollover["source_merge"] = tracking.pop("merged")
-    tracking["pull_request"], tracking["worktree"] = {"label": pr["label"], "url": pr["url"]}, worktree.strip()
+    worktree_name = Path(worktree.strip().rstrip("/\\")).name
+    if not worktree_name:
+        raise ValueError("rollover worktree must include a worktree name")
+    tracking["pull_request"], tracking["worktree"] = {"label": pr["label"], "url": pr["url"]}, worktree_name
     timestamp = operation.get("now") or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     validate_record({"check":"rollover", "outcome":"started", "build":"unknown", "session":"rollover",
                      "timestamp":timestamp, "reference":"rollover"})
@@ -1168,7 +1171,7 @@ def rollover_live(path, operation, force=False):
     if archive_changed:
         atomic_write(archive_file, archive_original, archive_content, tracker=False)
     try:
-        return live_state.register_rollover(record, live, document, document["tracking"]["worktree"])[2]
+        return live_state.register_rollover(record, live, document, operation["worktree"].strip())[2]
     except BaseException as error:
         if archive_changed:
             try:

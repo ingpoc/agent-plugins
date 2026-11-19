@@ -249,10 +249,14 @@ class ObservabilityAPI:
         owners = [key for key, entry in self.project_map.items() if owner in entry.get('owners', [])]
         if owners:
             return owners == [project_id]
+        if owner == f'owner:{project_id}' and not self.project_map[project_id].get('owners'):
+            return True
         label = finding.get('latest_evidence', {}).get('project')
         labels = [key for key, entry in self.project_map.items() if label in entry.get('labels', [])]
         if labels:
             return labels == [project_id]
+        if label == project_id:
+            return True
         return self._fallback_project(label) == project_id
 
     def _envelope(self, data, revision, project_id=None, include_coverage=False):
@@ -387,8 +391,18 @@ class ObservabilityAPI:
                 'unassigned_issue_count': len(unassigned),
                 'unassigned_findings': [{**self._summary(finding),
                     'reported_label': redact(finding.get('latest_evidence', {}).get('project', 'unknown'), 80),
-                    'attribution_reason': self._attribution_reason(finding)} for finding in unassigned[:25]],
+                    'attribution_reason': self._attribution_reason(finding),
+                    'details': self._unassigned_details(finding)} for finding in unassigned[:25]],
                 'unassigned_truncated': len(unassigned) > 25}
+
+    @staticmethod
+    def _unassigned_details(finding):
+        evidence = finding.get('latest_evidence')
+        evidence = evidence if isinstance(evidence, dict) else {}
+        return {'what_happened': redact(finding.get('what_happened'), 240),
+                'first_error_line': redact(evidence.get('first_error_line'), 240),
+                'tool': redact(evidence.get('tool'), 80), 'error_type': redact(evidence.get('error_type'), 80),
+                'suggested_investigation': redact(finding.get('fix'), 240)}
 
     def _attribution_reason(self, finding):
         owner = finding.get('owner_ref')

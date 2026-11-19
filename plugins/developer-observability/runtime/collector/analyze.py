@@ -40,6 +40,8 @@ ROLLUP_LEAD_S = 5
 TURN_SLOW_MS = 10_000
 TURN_TOP_N = 3
 TURN_METRICS = ('speech_to_playback_ms', 'turn_ms')
+RUN_ARTIFACT_SKEW_S = 1.0
+# shortcut: run-id-free pytest artifacts need JUnit suite timestamps within 1 s, upgrade when producers share run IDs.
 SESSION_STAGES = frozenset({'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready',
                             'stack_begin', 'response_done', 'ledger_task', 'task_outcome', 'comet_begin', 'comet_act',
                             'comet_end', 'cua_act', 'cua_state', 'voice_latency', 'usage', 'island_layout',
@@ -65,11 +67,16 @@ def _label(event):
 
 
 def _test_fix(kind, finding, events):
-    if not any(event.get('metric') == 'test_ms' for event in events):
+    test_events = [event for event in events if event.get('metric') == 'test_ms' or event.get('pytest_test_id')]
+    if not test_events:
         return None
     if kind == 'failure':
-        failed = next((event.get('step') for event in events if event.get('error')), 'the named test')
-        return f'Inspect the CI check log for the failed test {failed}.'
+        failed_event = next((event for event in test_events if event.get('error')), test_events[0])
+        failed = failed_event.get('step') or 'the named test'
+        message = scrub(failed_event.get('message'), 120)
+        ci = ' in the CI check log' if failed_event.get('ci_check') else ''
+        detail = f': "{message}"' if message else '; its failure message was not retained'
+        return f'Inspect the failed assertion for test {failed}{ci}{detail}.'
     if kind == 'latency_hotspot':
         latency = finding.get('latency', {})
         name = next((event.get('step') for event in events if event.get('step')), 'the named slow test')
@@ -125,6 +132,20 @@ def prepare(events, include_tests=False):
             nxt[key] = e.get('turn')
         e['turn_ctx'] = nxt.get(key)
     return kept, excluded
+
+
+def _junit_owns_pytest_failures(events):
+    def same_run(log, junit):
+        if log.get('run_ref') is not None or junit.get('run_ref') is not None:
+            return log.get('run_ref') is not None and log.get('run_ref') == junit.get('run_ref')
+        log_time, junit_end = log.get('ts'), junit.get('run_end_at')
+        return (type(log_time) in (int, float) and type(junit_end) in (int, float)
+                and abs(log_time - junit_end) <= RUN_ARTIFACT_SKEW_S)
+
+    junit = [event for event in events if event.get('junit') and event.get('error')]
+    return [event for event in events if not (event.get('pytest_test_id') and any(
+        event['project'] == test['project'] and event['pytest_test_id'] == test['step'] and same_run(event, test)
+        for test in junit))]
 
 
 def _family(event):
@@ -314,7 +335,11 @@ def failures(ctx, events, roll):
             continue
         # A tool's failure stays with that tool; other kinds (startup step, realtime_error, log line) share a cause.
         tool = e['step'] if 'tool' in e['kind'] else ''
-        key = (e['project'], signature(e['message']) or f"{e['kind']}/{e['step']}", tool)
+        test = e.get('pytest_test_id') or (e.get('step') if e.get('junit') or e.get('ci_check') else None)
+        cause = f"test:{test}:{e.get('run_ref') or e['source']}" if test else (
+            signature(e['message']) or f"{e['kind']}/{e['step']}"
+        )
+        key = (e['project'], cause, tool)
         clusters[key].append(e)
         if e['step'] and e.get('session') is not None:
             phase_home.setdefault((e['project'], e.get('session'), e['step']), key)
@@ -808,6 +833,7 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
           include_sessions=True):
     now = time.time() if now is None else now
     events, excluded = prepare(events, include_tests)
+    events = _junit_owns_pytest_failures(events)
     roll = rollup(events)
     ctx = Context(events, now, window_h, threshold_ms, test_threshold_ms)
     findings = (failures(ctx, events, roll) + collector_failures(ctx, stats) + latency(ctx, events)

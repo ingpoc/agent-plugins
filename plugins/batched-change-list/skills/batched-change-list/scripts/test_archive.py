@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 import check_gate_count
+import live_state
 import manage_findings
 import render
 import workflow_definition
@@ -242,6 +243,35 @@ class ArchiveTests(unittest.TestCase):
         self.assertEqual(len(saved["tracking"]["introspect_history"]), 17)
         self.assertEqual(saved["tracking"]["archive"]["count"], 67)
         self.assertEqual(saved["tracking"]["rollover"]["excluded_ids"], [])
+
+    def test_rollover_stores_worktree_name_from_full_path(self):
+        document = self.large_tracker()
+        live = self.register_live(document)
+        result = self.batch([{"action":"rollover", "source_pr":115,
+                              "worktree":"/Users/guru/worktrees/samantha-next-rollover",
+                              "pull_request":{"label":"PR #116", "url":"https://example.test/repo/pull/116"}}],
+                            data=live, render=False, force=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved = json.loads((live.parent / "116.json").read_text())
+        self.assertEqual(saved["tracking"]["worktree"], "samantha-next-rollover")
+
+    def test_rollover_uses_explicit_path_when_worktree_names_duplicate(self):
+        document = self.large_tracker()
+        live = self.register_live(document)
+        first = self.root / "first" / "same-worktree"
+        explicit = self.root / "second" / "same-worktree"
+        first.mkdir(parents=True)
+        explicit.mkdir(parents=True)
+        worktrees = (f"worktree {first}\nHEAD abc\nbranch refs/heads/first\n\n"
+                     f"worktree {explicit}\nHEAD def\nbranch refs/heads/second\n")
+        operation = {"action":"rollover", "source_pr":115, "worktree":str(explicit),
+                     "pull_request":{"label":"PR #116", "url":"https://example.test/repo/pull/116"}}
+        with mock.patch.object(live_state, "STATE", self.state), \
+             mock.patch.object(live_state, "git", return_value=worktrees):
+            manage_findings.rollover_live(live, operation, force=True)
+            record = live_state.registry()["example/repo/116"]
+        self.assertEqual(record["home"], str(explicit))
+        self.assertEqual(json.loads(Path(record["live"]).read_text())["tracking"]["worktree"], "same-worktree")
 
     def test_rejected_rollover_never_changes_archive(self):
         for rejection in ("gate", "target"):

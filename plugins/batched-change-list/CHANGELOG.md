@@ -1,3 +1,8 @@
+## 0.1.45
+
+- The page header shows only the worktree name; the full path appears under Details. Rollover stores the name but still registers the exact path it was given, so two worktrees with the same name stay apart (BCL-75).
+- The gate step turns green only when enough fixes are verified. The report exception for a list with nothing open is now a separate note on the page and a separate field in bcl status; bcl report and the documented gate count keep that exception (BCL-76).
+
 ## 0.1.44
 
 - Verification completion checks only the findings the run started with; findings added later read Not checked this install and never reopen a finished run. Dead unfinished fix, review and presuite jobs read Interrupted, resume needed, on the page and in bcl status; plan updates keep the lane phase (BCL-67).

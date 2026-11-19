@@ -27,7 +27,7 @@ class AppsExtension(Extension):
         return {'mimeTypes': ['text/html;profile=mcp-app']}
 
 
-server = MCPServer('developer-observability', extensions=[AppsExtension()], version='0.1.31', instructions=(
+server = MCPServer('developer-observability', extensions=[AppsExtension()], version='0.1.32', instructions=(
     'Start with observability_tasks or observability_task for what happened in a task; '
     'start with observability_diagnose for triage and selected issue evidence. '
     'If findings are missing or stale, call observability_collect once, then repeat diagnosis. '
@@ -63,7 +63,7 @@ def backend():
     projects = config.get('projects') or {}
     if not isinstance(projects, dict):
         raise ValueError('backend_unavailable: config projects must be an object')
-    return ObservabilityAPI(runtime, projects, decider, bool(config.get('discover_projects', False)), collected_dir(config))
+    return ObservabilityAPI(runtime, projects, decider, bool(config.get('discover_projects', True)), collected_dir(config))
 
 
 def harness_name() -> str:
