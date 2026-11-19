@@ -7475,9 +7475,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-19T13:16:05Z",
-      "now": "2026-11-19T13:16:05Z — Lane BCL-TESTS updated"
+      "stage": "install",
+      "updated_at": "2026-11-19T13:20:28Z",
+      "now": "2026-11-19T13:20:28Z — Install in progress"
     },
     "rollover": {
       "source_pr": 116,
@@ -9596,7 +9596,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "round": 3,
@@ -9610,8 +9611,8 @@
             "ACU-03"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r3-g1",
           "reason": "Bring the two finished fixes from the voice helper branch.",
           "codex": {
@@ -9648,6 +9649,10 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-19T13:16:05Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-19T13:20:28Z"
           }
         },
         {
@@ -9660,8 +9665,8 @@
             "ACU-10"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r3-g2",
           "reason": "All four live in the voice session code.",
           "codex": {
@@ -9698,6 +9703,10 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-19T13:16:05Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-19T13:20:28Z"
           }
         },
         {
@@ -9787,8 +9796,8 @@
             "DEVOBS-07"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r3-g5",
           "reason": "All three are gaps in how dev-obs reads the voice activity log.",
           "codex": {
@@ -9825,6 +9834,10 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-19T13:16:05Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-19T13:20:28Z"
           }
         },
         {
@@ -9834,8 +9847,8 @@
             "BCL-82"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r3-g6",
           "reason": "Timing and isolation in the test suites.",
           "codex": {
@@ -9872,6 +9885,10 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-19T13:16:05Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-19T13:20:28Z"
           }
         }
       ]
