@@ -453,10 +453,14 @@ def main():
     begins_collect = args.stage == "start" and ("collect" not in stages or record.get("rollover_pending"))
     stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     if args.stage == "status":
+        recorded_stage = tracking.get("workflow", {}).get("stage")
+        plan = tracking.get("plan")
+        groups = lane_render.plan_groups_for_round(plan, lane_render.rollover_round(tracking))
+        current_stage = lane_render.current_workflow_stage(recorded_stage, groups)
         fixed, threshold, report_met = workflow_definition.run_check("gate", data)
         verified_fixed, verified_threshold, verified_met = manage_findings.check_gate_count.verified_gate_count(data)
         _, rollover_threshold, rollover_met = manage_findings.check_gate_count.rollover_gate_count(data)
-        print(json.dumps({"adopted": True, "live": str(live), "stage": tracking.get("workflow", {}).get("stage"), "cycle": tracking.get("cycle", 1), "report_gate": {"fixed": fixed, "threshold": threshold, "met": report_met}, "verified_gate": {"fixed": verified_fixed, "threshold": verified_threshold, "met": verified_met}, "rollover_gate": {"fixed": fixed, "threshold": rollover_threshold, "met": rollover_met}, "plan": [{"id": g.get("id"), "status": g.get("status"), "message": lane_render.lane_issue_status(g, tracking.get("cycle", 1)).get("copy")} for g in tracking.get("plan", {}).get("groups", [])]}, indent=2)); return
+        print(json.dumps({"adopted": True, "live": str(live), "stage": current_stage, "recorded_stage": recorded_stage, "cycle": tracking.get("cycle", 1), "report_gate": {"fixed": fixed, "threshold": threshold, "met": report_met}, "verified_gate": {"fixed": verified_fixed, "threshold": verified_threshold, "met": verified_met}, "rollover_gate": {"fixed": fixed, "threshold": rollover_threshold, "met": rollover_met}, "plan": [{"id": g.get("id"), "status": g.get("status"), "message": lane_render.lane_issue_status(g, tracking.get("cycle", 1)).get("copy")} for g in tracking.get("plan", {}).get("groups", [])]}, indent=2)); return
     if record.get("rollover_pending") and (args.stage != "start" or not begins_collect):
         parser.error("run bcl start to begin Collect before using the new list")
     if args.stage == "job":

@@ -79,6 +79,30 @@ class GateCountTests(unittest.TestCase):
         self.assertEqual(status["verified_gate"], {"fixed": 0, "threshold": 15, "met": False})
         self.assertEqual(status["rollover_gate"], {"fixed": 0, "threshold": 16, "met": False})
 
+    def test_status_current_stage_matches_active_lanes(self):
+        bcl_path = test_bcl.BCL
+        loader = SourceFileLoader("bcl_lane_status_test", str(bcl_path))
+        spec = importlib.util.spec_from_loader("bcl_lane_status_test", loader)
+        bcl = importlib.util.module_from_spec(spec)
+        loader.exec_module(bcl)
+        data = self.tracker(0)
+        data["tracking"] = {"workflow": {"stage": "plan_fix"}, "round": 1,
+                            "plan": {"round": 1, "groups": [
+                                {"id": "A", "status": "review"},
+                                {"id": "B", "status": "review"}]}}
+        with tempfile.TemporaryDirectory() as directory:
+            data_path = Path(directory) / "tracker.json"
+            data_path.write_text(json.dumps(data))
+            output = io.StringIO()
+            with patch.object(bcl.live_state, "locate", return_value=("test", {"id": "test"}, data_path)), \
+                 patch.object(bcl, "_ensure_viewer"), \
+                 patch.object(sys, "argv", [str(bcl_path), "--data", str(data_path), "status"]), \
+                 contextlib.redirect_stdout(output):
+                bcl.main()
+        status = json.loads(output.getvalue())
+        self.assertEqual(status["stage"], "review")
+        self.assertEqual(status["recorded_stage"], "plan_fix")
+
     def test_entry_point_rollover_boundaries_and_force(self):
         default = render.WF.DEFAULT_ROLLOVER_THRESHOLD
         merge = render.WF.MERGE_PREVIOUS_PR_THRESHOLD

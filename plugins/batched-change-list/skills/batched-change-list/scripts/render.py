@@ -291,6 +291,15 @@ def plan_phase(group):
     return "fix"
 
 
+def current_workflow_stage(recorded_stage, groups):
+    phase_order = WF.DEFINITION["lane_phase_rank"]
+    active = [group for group in groups if plan_status(group) not in ("parked", "verified")]
+    if not active:
+        return recorded_stage
+    phase = min((plan_phase(group) for group in active), key=phase_order.__getitem__)
+    return next(stage["id"] for stage in WF.LOOP if stage.get("lane_phase") == phase)
+
+
 def lane_job_running(group):
     codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
     job = codex.get("job") if isinstance(codex.get("job"), dict) else group.get("job")
@@ -502,6 +511,7 @@ def render_plan(data, tracking, plan, round_number, now):
 
 def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, round_number, reached=None,
                     cycle=1, introspect_record=None, report_exception=False):
+    active = current_workflow_stage(active, groups)
     order = [stage["id"] for stage in WF.STAGES]
     active_index = order.index(active) if active in order else -1
     reached = [step for step in (reached or []) if isinstance(step, str)]
@@ -561,8 +571,8 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
         running = any(status in ("running", "review", "installing", "verifying") for _, status in step_lanes)
         if not lanes:
             past = key in reached and active_index > order.index(key)
-        current = active == key and (running or not lanes or key == "introspect")
-        state = "busy" if running and active == key else "done" if past else "current" if current else "upcoming"
+        current = active == key
+        state = "busy" if running and current else "current" if current else "done" if past else "upcoming"
         chips = []
         for status in ("planned", "running", "review", "installing", "verifying"):
             amount = sum(lane_status == status for _, lane_status in step_lanes)

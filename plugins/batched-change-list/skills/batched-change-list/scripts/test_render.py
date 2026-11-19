@@ -17,6 +17,27 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_all_active_lanes_in_review_make_review_current(self):
+        groups = [{'id': 'A', 'status': 'review'}, {'id': 'B', 'status': 'review'},
+                  {'id': 'DONE', 'status': 'verified', 'phase': 'fix'}]
+        workflow = renderer.render_workflow('plan_fix', groups, 0, 15, False, 0, 1)
+        review = workflow.split('data-stage="review"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('class="wf-step busy"', review)
+
+    def test_fix_and_review_lanes_keep_plan_fix_current(self):
+        groups = [{'id': 'A', 'status': 'planned', 'phase': 'fix'},
+                  {'id': 'B', 'status': 'review'}]
+        workflow = renderer.render_workflow('review', groups, 0, 15, False, 0, 1)
+        fix = workflow.split('data-stage="plan_fix"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('class="wf-step current"', fix)
+
+    def test_no_active_lanes_fall_back_to_tracker_stage(self):
+        groups = [{'id': 'P', 'status': 'parked', 'phase': 'fix'},
+                  {'id': 'DONE', 'status': 'verified', 'phase': 'verify'}]
+        workflow = renderer.render_workflow('review', groups, 0, 15, False, 0, 1)
+        review = workflow.split('data-stage="review"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('class="wf-step current"', review)
+
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute rendered page JavaScript')
     def test_legacy_evidence_and_finding_text_render_plain_in_details_dom(self):
         data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
@@ -82,11 +103,11 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         self.assertEqual(blocked["kind"], "blk")
         self.assertEqual(blocked["status"], "blocked")
 
-    def test_blocked_or_planned_lanes_do_not_make_recorded_stage_busy(self):
+    def test_blocked_or_planned_lanes_keep_plan_fix_current(self):
         groups = [{'id':'A', 'status':'blocked', 'phase':'fix'}, {'id':'B', 'status':'planned'}]
         page = renderer.render_workflow('plan_fix', groups, 0, 15, False, 0, 1)
         plan = page.split('>Plan &amp; fix<', 1)[0].rsplit('<li ', 1)[-1]
-        self.assertIn('wf-step upcoming', plan)
+        self.assertIn('wf-step current', plan)
         track = renderer.row_phase_track({'id':'A', 'status':'verified'}, 'verified')
         self.assertEqual(track.count('<i'), 4)
         self.assertEqual(track.count('class="d"'), 4)

@@ -562,8 +562,9 @@ class ManageFindingsTests(unittest.TestCase):
             doc = json.loads(self.data.read_text())
             self.assertEqual(doc['tracking']['workflow']['stage'], stage)
             html = page.read_text()
-            current_steps = 1 if stage in ('collect', 'present', 'report_rollover') else 0
-            self.assertEqual(html.count('aria-current="step"'), current_steps)
+            current_steps = 1 if stage in ('collect', 'present') else 0
+            with self.subTest(stage=stage):
+                self.assertEqual(html.count('aria-current="step"'), current_steps)
             self.assertNotIn('class="workflow-now"', html)
 
     def test_workflow_stage_guard_and_clear(self):

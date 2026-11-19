@@ -2,6 +2,7 @@
 
 - The page header shows only the worktree name; the full path appears under Details. Rollover stores the name but still registers the exact path it was given, so two worktrees with the same name stay apart (BCL-75).
 - The gate step turns green only when enough fixes are verified. The report exception for a list with nothing open is now a separate note on the page and a separate field in bcl status; bcl report and the documented gate count keep that exception (BCL-76).
+- The workflow bar marks the stage the active lanes are in (the earliest one any lane is still in), so a round whose lanes are all in review shows Review; bcl status reports the same stage (BCL-80).
 
 ## 0.1.44
 
