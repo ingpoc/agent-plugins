@@ -7390,9 +7390,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-19T09:15:10Z",
-      "now": "2026-11-19T09:15:10Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-19T09:17:43Z",
+      "now": "2026-11-19T09:17:43Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 116,
@@ -9277,6 +9277,76 @@
         },
         "round": 4,
         "cycle": 8
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-19T09:17:43Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 2",
+          "Codex write: BCL-PAGE",
+          "Codex review: BCL-PAGE",
+          "Polling and rework review: BCL-PAGE",
+          "Test command: BCL-PAGE: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1.sh",
+          "Codex write: DEVOBS",
+          "Codex review: DEVOBS",
+          "Polling and rework review: DEVOBS",
+          "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.sh"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 2",
+          "Codex review: BCL-PAGE",
+          "Test command: BCL-PAGE: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1.sh",
+          "Codex write: DEVOBS",
+          "Polling and rework review: DEVOBS"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Polling and rework review: BCL-PAGE",
+                "evidence": "My page-checking script copied the live list to draw an empty list but kept its open verification run, so the renderer refused it and the lane failed for a script fault, not a product fault. That cost an early Introspect, a restart job and a second install record. I dry-ran the script before the run started, when no run existed. Page scripts are now dry-run once right after the verification run starts, and empty-list drafts drop every verification field; the lane loop goes away.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Codex review: DEVOBS",
+                "evidence": "The isolated review and the lane's own fixture tests both passed work that the real fault case then failed twice: no project was found when none was set up, and the second failing test had no finding. The real-case check now exists before the lane starts and is handed to the lane as its acceptance test, so the lane fixes against real output instead of a hand-written log.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Codex write: BCL-PAGE",
+                "evidence": "A new page bug arrived mid-round. I committed the lane's earlier work locally as its base, resumed the same coding session for only the new change and applied just that increment, so no lane was rebuilt and the review round was not repeated; the cost was one extra pre-push suite of about four minutes.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.sh",
+                "evidence": "The real-use probe used to need a separate coding-agent run, an isolated copy of the plugin and a hand grade. One script now rebuilds the fault, collects into a throwaway store, reads it back through the installed tools and prints pass or fail per issue in about four seconds, and it showed the old version failing all three. It replaces the probe run and the hand grade for these checks.",
+                "outcome": "fixed inline"
+              }
+            ]
+          }
+        },
+        "round": 1,
+        "cycle": 9
       }
     ],
     "archive": {
@@ -9297,7 +9367,8 @@
       "plan_fix",
       "review",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 1,
@@ -9312,8 +9383,8 @@
             "BCL-80"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "failed",
+          "phase": "verify",
           "worktree": "bcl117-r1-g1",
           "reason": "Both are in the change list page and rollover code.",
           "codex": {
@@ -9343,9 +9414,10 @@
             "status": "pending",
             "total": 3,
             "fixed": 0,
-            "failed": 0
+            "failed": 0,
+            "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-19T09:09:26Z",
+          "updated_at": "2026-11-19T09:15:14Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -9365,8 +9437,8 @@
             "BCL-79"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl117-r1-g2",
           "reason": "All three come from one real-use test of the same collector and skill.",
           "codex": {
@@ -9393,12 +9465,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.sh",
             "method": "Rebuild the real fault case and collect it with the installed developer observability, then check the project view, the log findings and the suggested fix.",
-            "status": "pending",
+            "status": "verified",
             "total": 3,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 3,
+            "failed": 0,
+            "summary": "Real fault case checked on installed developer observability",
+            "failure": null
           },
-          "updated_at": "2026-11-19T09:09:26Z",
+          "updated_at": "2026-11-19T09:16:42Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -9407,9 +9481,11 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-19T09:09:51Z"
-          }
+          },
+          "verify_summary": "Real fault case checked on installed developer observability"
         }
-      ]
+      ],
+      "status": "closed"
     },
     "verification_run": {
       "id": "bcl-0.1.45-748cd8b6-117",
@@ -9426,13 +9502,37 @@
           "state": "pending"
         },
         "BCL-77": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T09:16:42Z",
+          "started_at": "2026-11-19T09:16:42Z",
+          "updated_at": "2026-11-19T09:16:42Z",
+          "check_id": "98d1b62455ec43ddae0ebddedde28ecd",
+          "evidence": "Checked: A fresh copy of Context Ledger with the trust threshold broken, collected for its folder into a store with no projects set up, then the project's issues listed and expanded.; Expected: The failures appear under the Context Ledger project and their details open.; Observed: Both test failures appear under Context Ledger and their details open; the old version listed none.",
+          "details": "verify-g2.py on installed 0.1.32: BCL-77 PASS: 2 project issues, 2 from this case; diagnose expanded=True. Baseline on installed 0.1.30: 0 project issues. Config: isolated, no projects, collector.out temp. Installed dev-obs unittest: 139 OK (1 skipped). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117.",
+          "finished_at": "2026-11-19T09:16:42.485934Z"
         },
         "BCL-78": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T09:16:42Z",
+          "started_at": "2026-11-19T09:16:42Z",
+          "updated_at": "2026-11-19T09:16:42Z",
+          "check_id": "e0138d7d1fb548bca887ddc23e133e6e",
+          "evidence": "Checked: The same real pytest run with two failing tests, collected from its log and its test report.; Expected: One finding per failing test and no finding for the run summary line.; Observed: Two findings, one for each failing test, and no summary finding; the old version made four rows for one test.",
+          "details": "BCL-78 PASS: 0 log + 2 junit findings for 2 failing tests; per test {test_find_tiers_from_outcomes: 1, test_pure_boundaries: 1}; session-summary findings 0. Baseline 0.1.30: 3 log + 1 junit, test_pure_boundaries 0, summary 1. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117.",
+          "finished_at": "2026-11-19T09:16:42.486585Z"
         },
         "BCL-79": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T09:16:42Z",
+          "started_at": "2026-11-19T09:16:42Z",
+          "updated_at": "2026-11-19T09:16:42Z",
+          "check_id": "4402867cbe3f4e048603e3842f2704df",
+          "evidence": "Checked: The suggested fix shown for each failing test in the same real run.; Expected: It names the test and quotes what the test expected and got, without pointing at a CI log.; Observed: Each suggestion names its test and quotes the expected and actual values, hint versus trusted; CI is not mentioned.",
+          "details": "BCL-79 PASS: fix 'Inspect the failed assertion for test tests.test_v2.TrustTierTests.test_find_tiers_from_outcomes: \"AssertionError: 'hint' != 'trusted'\".' Baseline 0.1.30: 'Inspect the CI check log for the failed test ...'. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117.",
+          "finished_at": "2026-11-19T09:16:42.486754Z"
         },
         "BCL-80": {
           "state": "pending"
@@ -9444,6 +9544,76 @@
         "exit_code": 0,
         "finished_at": "2026-11-19T09:15:09Z"
       }
+    },
+    "introspect": {
+      "result": "Introspect recorded",
+      "at": "2026-11-19T09:17:43Z",
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 2",
+        "Codex write: BCL-PAGE",
+        "Codex review: BCL-PAGE",
+        "Polling and rework review: BCL-PAGE",
+        "Test command: BCL-PAGE: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1.sh",
+        "Codex write: DEVOBS",
+        "Codex review: DEVOBS",
+        "Polling and rework review: DEVOBS",
+        "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.sh"
+      ],
+      "none": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 2",
+        "Codex review: BCL-PAGE",
+        "Test command: BCL-PAGE: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1.sh",
+        "Codex write: DEVOBS",
+        "Polling and rework review: DEVOBS"
+      ],
+      "sections": {
+        "delete": {
+          "items": [
+            {
+              "item": "Polling and rework review: BCL-PAGE",
+              "evidence": "My page-checking script copied the live list to draw an empty list but kept its open verification run, so the renderer refused it and the lane failed for a script fault, not a product fault. That cost an early Introspect, a restart job and a second install record. I dry-ran the script before the run started, when no run existed. Page scripts are now dry-run once right after the verification run starts, and empty-list drafts drop every verification field; the lane loop goes away.",
+              "outcome": "fixed inline"
+            }
+          ]
+        },
+        "simplify": {
+          "items": [
+            {
+              "item": "Codex review: DEVOBS",
+              "evidence": "The isolated review and the lane's own fixture tests both passed work that the real fault case then failed twice: no project was found when none was set up, and the second failing test had no finding. The real-case check now exists before the lane starts and is handed to the lane as its acceptance test, so the lane fixes against real output instead of a hand-written log.",
+              "outcome": "fixed inline"
+            }
+          ]
+        },
+        "optimize": {
+          "items": [
+            {
+              "item": "Codex write: BCL-PAGE",
+              "evidence": "A new page bug arrived mid-round. I committed the lane's earlier work locally as its base, resumed the same coding session for only the new change and applied just that increment, so no lane was rebuilt and the review round was not repeated; the cost was one extra pre-push suite of about four minutes.",
+              "outcome": "fixed inline"
+            }
+          ]
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.sh",
+              "evidence": "The real-use probe used to need a separate coding-agent run, an isolated copy of the plugin and a hand grade. One script now rebuilds the fault, collects into a throwaway store, reads it back through the installed tools and prints pass or fail per issue in about four seconds, and it showed the old version failing all three. It replaces the probe run and the hand grade for these checks.",
+              "outcome": "fixed inline"
+            }
+          ]
+        }
+      },
+      "round": 1,
+      "cycle": 9
     }
   },
   "findings": [
@@ -9473,7 +9643,7 @@
     },
     {
       "id": "BCL-77",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "source": "Agent reported",
       "priority": "medium",
       "title": "Collected problems are not linked to the project, so the project view shows none",
@@ -9481,11 +9651,29 @@
       "impact": "An agent can conclude a project has no recorded problems when the problems were collected but not linked to it, and loses the details it needs.",
       "done_when": "Problems collected from a project's folder show up in that project's view and their details open; when some still end up unlinked, the skill's triage checks all projects, reports the unlinked count and why, and says how to read their details; named tests prove both.",
       "observed": "Source: real-use diagnosis test, 19 Nov 2026 08:36-08:45 IST, Mini /Users/gurusharan/code/_devobs-realuse-case (grade/GRADE.md, runs/luna-high-refined/findings.json, runs/luna-high-old/). All 5 findings came back unassigned with reason no_owner_or_label_match; project-scoped diagnose and issue list returned 0 and IDs could not be expanded. Refined run (skill references/triage.md step 1 asks to re-query all projects) did not repeat the all-project diagnosis; old-skill run (2f1216cf SKILL.md triage) found the 5 unassigned rows. Grade notes the cause of the attribution failure is not isolated (collector vs read side).",
-      "recommendation": "Fix collector attribution for findings collected with an explicit project directory; add an explicit recovery step in references/triage.md: collector reports findings but project shows zero -> re-query all projects, inspect unassigned counts and attribution, then tell a routing gap from no failures."
+      "recommendation": "Fix collector attribution for findings collected with an explicit project directory; add an explicit recovery step in references/triage.md: collector reports findings but project shows zero -> re-query all projects, inspect unassigned counts and attribution, then tell a routing gap from no failures.",
+      "verification_evidence": [
+        {
+          "checked": "A fresh copy of Context Ledger with the trust threshold broken, collected for its folder into a store with no projects set up, then the project's issues listed and expanded.",
+          "expected": "The failures appear under the Context Ledger project and their details open.",
+          "observed": "Both test failures appear under Context Ledger and their details open; the old version listed none.",
+          "verdict": "Both test failures appear under Context Ledger and their details open; the old version listed none.",
+          "check_id": "bcl-77-0.1.32-748cd8b6",
+          "build": "developer-observability 0.1.32",
+          "session": "bcl-0.1.45-748cd8b6-117",
+          "timestamp": "2026-11-19T09:16:42Z",
+          "reference": "748cd8b64748102991462f9b0105209e628232e2:BCL-77:installed-check",
+          "details": "verify-g2.py on installed 0.1.32: BCL-77 PASS: 2 project issues, 2 from this case; diagnose expanded=True. Baseline on installed 0.1.30: 0 project issues. Config: isolated, no projects, collector.out temp. Installed dev-obs unittest: 139 OK (1 skipped). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117."
+        }
+      ],
+      "verification": "Both test failures appear under Context Ledger and their details open; the old version listed none. verify-g2.py on installed 0.1.32: BCL-77 PASS: 2 project issues, 2 from this case; diagnose expanded=True. Baseline on installed 0.1.30: 0 project issues. Config: isolated, no projects, collector.out temp. Installed dev-obs unittest: 139 OK (1 skipped). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117.",
+      "verification_refs": [
+        "748cd8b64748102991462f9b0105209e628232e2:BCL-77:installed-check"
+      ]
     },
     {
       "id": "BCL-78",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "source": "Agent reported",
       "priority": "medium",
       "title": "One failed test in a test log is reported as three separate log errors",
@@ -9493,11 +9681,29 @@
       "impact": "Extra problems crowd the list, inflate counts and leave agents explaining rows that are not real separate failures.",
       "done_when": "One failing test in a test log yields one problem tied to that test, the closing summary line never becomes its own problem, and a named test proves it.",
       "observed": "Source: real-use diagnosis test, 19 Nov 2026 08:36-08:45 IST, Mini /Users/gurusharan/code/_devobs-realuse-case (grade/GRADE.md, runs/luna-high-refined/findings.json, runs/luna-high-old/). luna-high-refined findings.json: 3 log_error findings from context-ledger:logs/pytest.log with first_error_line '...test_pure_boundaries FAILED [100%]', 'FAILED tests/test_v2.py::TrustTierTests::test_pure_boundaries - AssertionErro...', and '============================== 1 failed in 0.06s ==============================='. The old-skill run said it could not explain two extra log-derived rows.",
-      "recommendation": "Group pytest log lines per failing test id and skip the session summary line (N failed in Xs); dedupe against the JUnit finding for the same test."
+      "recommendation": "Group pytest log lines per failing test id and skip the session summary line (N failed in Xs); dedupe against the JUnit finding for the same test.",
+      "verification_evidence": [
+        {
+          "checked": "The same real pytest run with two failing tests, collected from its log and its test report.",
+          "expected": "One finding per failing test and no finding for the run summary line.",
+          "observed": "Two findings, one for each failing test, and no summary finding; the old version made four rows for one test.",
+          "verdict": "Two findings, one for each failing test, and no summary finding; the old version made four rows for one test.",
+          "check_id": "bcl-78-0.1.32-748cd8b6",
+          "build": "developer-observability 0.1.32",
+          "session": "bcl-0.1.45-748cd8b6-117",
+          "timestamp": "2026-11-19T09:16:42Z",
+          "reference": "748cd8b64748102991462f9b0105209e628232e2:BCL-78:installed-check",
+          "details": "BCL-78 PASS: 0 log + 2 junit findings for 2 failing tests; per test {test_find_tiers_from_outcomes: 1, test_pure_boundaries: 1}; session-summary findings 0. Baseline 0.1.30: 3 log + 1 junit, test_pure_boundaries 0, summary 1. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117."
+        }
+      ],
+      "verification": "Two findings, one for each failing test, and no summary finding; the old version made four rows for one test. BCL-78 PASS: 0 log + 2 junit findings for 2 failing tests; per test {test_find_tiers_from_outcomes: 1, test_pure_boundaries: 1}; session-summary findings 0. Baseline 0.1.30: 3 log + 1 junit, test_pure_boundaries 0, summary 1. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117.",
+      "verification_refs": [
+        "748cd8b64748102991462f9b0105209e628232e2:BCL-78:installed-check"
+      ]
     },
     {
       "id": "BCL-79",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "source": "Agent reported",
       "priority": "medium",
       "title": "The suggested fix for a failed test is generic instead of pointing at the failed check",
@@ -9505,7 +9711,25 @@
       "impact": "Agents get a vague next step and must dig for information the tool already had.",
       "done_when": "A failed-test problem from a test results file suggests looking at the named test and its failed check, quoting the mismatch, and a named test proves it.",
       "observed": "Source: real-use diagnosis test, 19 Nov 2026 08:36-08:45 IST, Mini /Users/gurusharan/code/_devobs-realuse-case (grade/GRADE.md, runs/luna-high-refined/findings.json, runs/luna-high-old/). luna-high-refined findings.json, source context-ledger:test-results/junit.xml, error 'AssertionError: 'hint' != 'trusted'', suggested fix 'Inspect the CI check log for the failed test tests.test_v2.TrustTierTests.test_pure_boundaries.' although the run was local with no CI check.",
-      "recommendation": "Build the JUnit suggested fix from testcase name, file/line if present and the failure message (e.g. 'Check the assertion in TrustTierTests.test_pure_boundaries: expected trusted, got hint'); reserve CI wording for CI-sourced results."
+      "recommendation": "Build the JUnit suggested fix from testcase name, file/line if present and the failure message (e.g. 'Check the assertion in TrustTierTests.test_pure_boundaries: expected trusted, got hint'); reserve CI wording for CI-sourced results.",
+      "verification_evidence": [
+        {
+          "checked": "The suggested fix shown for each failing test in the same real run.",
+          "expected": "It names the test and quotes what the test expected and got, without pointing at a CI log.",
+          "observed": "Each suggestion names its test and quotes the expected and actual values, hint versus trusted; CI is not mentioned.",
+          "verdict": "Each suggestion names its test and quotes the expected and actual values, hint versus trusted; CI is not mentioned.",
+          "check_id": "bcl-79-0.1.32-748cd8b6",
+          "build": "developer-observability 0.1.32",
+          "session": "bcl-0.1.45-748cd8b6-117",
+          "timestamp": "2026-11-19T09:16:42Z",
+          "reference": "748cd8b64748102991462f9b0105209e628232e2:BCL-79:installed-check",
+          "details": "BCL-79 PASS: fix 'Inspect the failed assertion for test tests.test_v2.TrustTierTests.test_find_tiers_from_outcomes: \"AssertionError: 'hint' != 'trusted'\".' Baseline 0.1.30: 'Inspect the CI check log for the failed test ...'. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117."
+        }
+      ],
+      "verification": "Each suggestion names its test and quotes the expected and actual values, hint versus trusted; CI is not mentioned. BCL-79 PASS: fix 'Inspect the failed assertion for test tests.test_v2.TrustTierTests.test_find_tiers_from_outcomes: \"AssertionError: 'hint' != 'trusted'\".' Baseline 0.1.30: 'Inspect the CI check log for the failed test ...'. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117.",
+      "verification_refs": [
+        "748cd8b64748102991462f9b0105209e628232e2:BCL-79:installed-check"
+      ]
     },
     {
       "id": "BCL-80",
