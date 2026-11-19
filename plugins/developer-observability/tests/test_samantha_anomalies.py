@@ -10,6 +10,10 @@ from collector.analyze import build
 from collector.sources import iter_jsonl
 
 NOW = 1795089000.0
+REALTIME_EMPTY_ERROR_LINES = (
+    '{"ts": 1795087496.7384331, "kind": "realtime_error", "session_id": "79dcac41", "build": "0.2.151+275ffb075643", "error": "", "error_type": "websocket", "classification": "transport", "exception_type": "StopIteration", "epoch": 1}',
+    '{"ts": 1795087496.738178, "kind": "startup", "session_id": "79dcac41", "build": "0.2.151+275ffb075643", "phase": "realtime_ws_error", "status": "fail", "source": "voice_stack", "elapsed_ms": 1256, "step_ms": 18, "error": "", "mirror_id": "f5d8146004d348219853b7afbdca442d"}',
+)
 
 
 class SamanthaAnomalyTests(unittest.TestCase):
@@ -29,6 +33,8 @@ class SamanthaAnomalyTests(unittest.TestCase):
             document = self.build_rows(root, [{
                 'ts': NOW - 1, 'session_id': 'failed-start', 'kind': 'realtime_error',
                 'error_type': 'invalid_request_error',
+                'exception_type': 'RuntimeError Bearer synthetic-secret-value',
+                'classification': 'transport',
                 'error': 'RuntimeError: request rejected with Bearer synthetic-secret-value',
             }])
             finding = next(f for f in document['findings'] if f.get('kind') == 'failure')
@@ -37,10 +43,39 @@ class SamanthaAnomalyTests(unittest.TestCase):
             excerpts = inspected['evidence']['excerpts']
             timeline = inspected['evidence']['timeline'][0]['evidence']
             self.assertEqual(excerpts['error_type'], 'invalid_request_error')
+            self.assertIn('RuntimeError', excerpts['exception_type'])
+            self.assertEqual(excerpts['classification'], 'transport')
             self.assertIn('request rejected', excerpts['first_error_line'])
             self.assertEqual(timeline['error_type'], 'invalid_request_error')
             self.assertIn('request rejected', timeline['first_error_line'])
             self.assertNotIn('synthetic-secret-value', json.dumps(inspected))
+
+    def test_real_empty_realtime_errors_show_exception_in_inspected_issues(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / 'activity.jsonl'
+            source.write_text('\n'.join(REALTIME_EMPTY_ERROR_LINES) + '\n')
+            stats = {}
+            events = list(iter_jsonl(source, 'samantha', 'samantha:activity', stats))
+            document = build(events, stats, NOW)
+            failures = [finding for finding in document['findings'] if finding.get('kind') == 'failure']
+            self.assertEqual({f['latest_evidence']['tool'] for f in failures},
+                             {'realtime_error', 'realtime_ws_error'})
+            api = self.api(root, document)
+            for finding in failures:
+                self.assertEqual(finding['latest_evidence']['exception_type'], 'StopIteration')
+                self.assertEqual(finding['latest_evidence']['classification'], 'transport')
+                self.assertIn('StopIteration with an empty message',
+                              finding['latest_evidence']['first_error_line'])
+                inspected = api.inspect('samantha', finding['finding_key'])
+                self.assertNotEqual(inspected['observed'], 'unknown')
+                self.assertIn('StopIteration with an empty message', inspected['observed'])
+                self.assertEqual(inspected['evidence']['excerpts']['exception_type'], 'StopIteration')
+                self.assertEqual(inspected['evidence']['excerpts']['classification'], 'transport')
+                timeline = inspected['evidence']['timeline'][0]['evidence']
+                self.assertEqual(timeline['exception_type'], 'StopIteration')
+                self.assertEqual(timeline['classification'], 'transport')
+                self.assertIn('StopIteration with an empty message', timeline['first_error_line'])
 
     def test_explicit_test_purpose_survives_user_request_and_session_stays_visible(self):
         with tempfile.TemporaryDirectory() as td:

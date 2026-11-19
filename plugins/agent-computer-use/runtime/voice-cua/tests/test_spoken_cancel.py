@@ -170,11 +170,10 @@ class SpokenStopTests(unittest.TestCase):
                 session.send_text("Open Calendar")
                 request_id = session._active_task_run_id
                 self.assertIn(request_id, session._response_start_watchdogs)
-                if output_type == "session.output_transcript.delta":
-                    session._on_message(session.ws, json.dumps({"type": output_type, "delta": "Done."}))
-                else:
-                    event = {"type": "response.output_audio.delta", "response_id": "live_out_1", "delta": ""}
-                    session._dispatch_event(event)
+                event_id = next(event["event_id"] for event in session.ws.events
+                                if event.get("type") == "response.create")
+                session._on_message(session.ws, json.dumps({"type": output_type,
+                    "client_event_id": event_id, "delta": "Done." if "transcript" in output_type else "QQ=="}))
                 self.assertNotIn(request_id, session._response_start_watchdogs)
 
     def test_spoken_request_without_response_start_reconnects_and_reports_error(self) -> None:

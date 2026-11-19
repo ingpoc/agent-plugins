@@ -1315,11 +1315,13 @@ class ObservabilityAPI:
         evidence = finding.get('latest_evidence', {})
         # Re-redact already bounded stored excerpts; never open their referenced files.
         excerpts = {key: redact(str(evidence[key]), 120) for key in
-                    ('tool', 'program', 'error_type', 'exit_code', 'failing_test', 'command', 'first_error_line')
+                    ('tool', 'program', 'error_type', 'exception_type', 'classification', 'exit_code',
+                     'failing_test', 'command', 'first_error_line')
                     if evidence.get(key) is not None}
         raw_timeline = finding.get('event_timeline', [])
         timeline = []
-        safe_evidence_fields = ('tool', 'program', 'error_type', 'exit_code', 'failing_test', 'version', 'first_error_line',
+        safe_evidence_fields = ('tool', 'program', 'error_type', 'exception_type', 'classification', 'exit_code',
+                                'failing_test', 'version', 'first_error_line',
                                 'version_attribution', 'session_attribution',
                                 'latest_attempt', 'samantha_label', 'app', 'ledger_operation', 'ledger_result_status',
                                 'task_outcome', 'task_check_id', 'task_evidence_class', 'run_ref', 'response_ref')

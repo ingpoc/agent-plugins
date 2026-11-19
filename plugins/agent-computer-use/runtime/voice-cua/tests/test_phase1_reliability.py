@@ -247,6 +247,9 @@ class ResponseDonePartsTests(unittest.TestCase):
 
     def _assistant_reply(self, session: LiveSession, response: dict) -> str:
         replies: list[str] = []
+        with session._response_lock:
+            session._response_request_ids[response["id"]] = "test-request"
+            session._response_task_run_ids[response["id"]] = "test-request"
         with patch(
             "voice_cua.live_session.island_publish",
         ), patch(

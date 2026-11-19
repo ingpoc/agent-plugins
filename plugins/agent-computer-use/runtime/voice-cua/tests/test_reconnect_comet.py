@@ -716,7 +716,12 @@ class DropRecoveryTests(unittest.TestCase):
     def test_finished_turn_and_requested_reconnect_do_nothing(self) -> None:
         session = self._session()
         session.send_text("hi")
-        session._note_response_done({"id": "r1", "status": "completed", "output": []})
+        request_id = session._active_task_run_id
+        session._dispatch_event({"type": "response.created", "response": {
+            "id": "r1", "metadata": {"voice_cua_request_id": request_id},
+        }})
+        session._note_response_done({"id": "r1", "status": "completed",
+                                     "metadata": {"voice_cua_request_id": request_id}, "output": []})
         self.assertEqual(self._drop_and_reopen(session).events, [])
         session.send_text("again")
         session._reconnect_requested = True  # planned rotation / error-driven reconnect

@@ -347,23 +347,35 @@ class TranscriptBurst:
     """Groups GPT-Live transcript deltas into utterances (the docs: deltas carry no item id or
     turn-end event, so the app groups them). Flushes after a quiet gap on a timer."""
 
-    def __init__(self, on_flush: Callable[[str], None], gap_s: float = 1.2) -> None:
+    def __init__(self, on_flush: Callable[..., None], gap_s: float = 1.2) -> None:
         self._on_flush = on_flush
         self._gap_s = gap_s
         self._parts: list[str] = []
+        self._context: str | None = None
         self._lock = threading.Lock()
         self._timer: threading.Timer | None = None
 
-    def add(self, delta: str) -> bool:
+    def add(self, delta: str, *, context: str | None = None) -> bool:
         """Append a fragment exactly as received; True when it opens a new utterance."""
+        previous: tuple[str, str | None] | None = None
         with self._lock:
+            if self._parts and self._context != context:
+                previous = ("".join(self._parts).strip(), self._context)
+                self._parts = []
+                if self._timer:
+                    self._timer.cancel()
+                    self._timer = None
             fresh = not self._parts
+            if fresh:
+                self._context = context
             self._parts.append(delta)
             if self._timer:
                 self._timer.cancel()
             self._timer = threading.Timer(self._gap_s, self.flush)
             self._timer.daemon = True
             self._timer.start()
+        if previous and previous[0]:
+            self._deliver(*previous)
         return fresh
 
     def pending(self) -> bool:
@@ -373,12 +385,26 @@ class TranscriptBurst:
 
     def flush(self) -> None:
         with self._lock:
-            text, self._parts = "".join(self._parts).strip(), []
+            text, context = "".join(self._parts).strip(), self._context
+            self._parts, self._context = [], None
             if self._timer:
                 self._timer.cancel()
                 self._timer = None
         if text:
+            self._deliver(text, context)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._parts, self._context = [], None
+            if self._timer:
+                self._timer.cancel()
+                self._timer = None
+
+    def _deliver(self, text: str, context: str | None) -> None:
+        if context is None:
             self._on_flush(text)
+        else:
+            self._on_flush(text, context)
 
 
 class LiveProvider(VoiceProvider):
@@ -449,10 +475,123 @@ class LiveProvider(VoiceProvider):
         print(f"You: {text}", flush=True)
         island_publish("thinking", title=text[:120], detail="Thinking")
 
-    def _on_said(self, text: str) -> None:
+    def _on_said(self, text: str, request_id: str = "") -> None:
+        with self._lock:
+            stale = bool(request_id and request_id in self._retired_live_requests)
+            uncorrelated_typed = not request_id and bool(self._active_live_request)
+        if stale or uncorrelated_typed:
+            log_event("live_stale_turn_output", chars=len(text), run_id=request_id or None,
+                      run_ref_status="linked" if request_id else "unknown",
+                      run_ref_gap=None if request_id else "live_output_request_correlation_missing")
+            return
         self._remember("assistant", text)
-        log_event("assistant_reply", text=text[:2000], source="live_voice")
+        log_event("assistant_reply", text=text[:2000], source="live_voice", run_id=request_id or None,
+                  run_ref_status="linked" if request_id else "unknown",
+                  run_ref_gap=None if request_id else "live_output_request_correlation_missing")
         print(f"Samantha: {text}", flush=True)
+
+    def _retire_live_request_locked(self, request_id: str) -> None:
+        if not request_id:
+            return
+        self._retired_live_requests.pop(request_id, None)
+        self._retired_live_requests[request_id] = None
+        for output_id in self._live_output_ids_by_request.pop(request_id, set()):
+            self._live_output_id_requests.pop(output_id, None)
+            self._retired_live_output_ids[output_id] = request_id
+        while len(self._retired_live_requests) > 256:
+            self._retired_live_requests.pop(next(iter(self._retired_live_requests)))
+        while len(self._retired_live_output_ids) > 512:
+            self._retired_live_output_ids.pop(next(iter(self._retired_live_output_ids)))
+
+    def _remember_live_output_id_locked(self, request_id: str, kind: str, value: str) -> None:
+        if not request_id or not value:
+            return
+        output_id = (kind, value)
+        if output_id in self._retired_live_output_ids:
+            return
+        previous_request = self._live_output_id_requests.get(output_id)
+        if previous_request and previous_request != request_id:
+            self._live_output_id_requests.pop(output_id, None)
+            self._live_output_ids_by_request.get(previous_request, set()).discard(output_id)
+            self._retired_live_output_ids[output_id] = previous_request
+            while len(self._retired_live_output_ids) > 512:
+                self._retired_live_output_ids.pop(next(iter(self._retired_live_output_ids)))
+            return
+        self._live_output_id_requests[output_id] = request_id
+        self._live_output_ids_by_request.setdefault(request_id, set()).add(output_id)
+        while len(self._live_output_id_requests) > 512:
+            old_id = next(iter(self._live_output_id_requests))
+            old_request = self._live_output_id_requests.pop(old_id)
+            self._live_output_ids_by_request.get(old_request, set()).discard(old_id)
+            self._retired_live_output_ids[old_id] = old_request
+        while len(self._retired_live_output_ids) > 512:
+            self._retired_live_output_ids.pop(next(iter(self._retired_live_output_ids)))
+
+    def interrupt_request(self, request_id: str = "") -> None:
+        with self._lock:
+            self._retire_live_request_locked(request_id or self._active_live_request)
+        self.said.clear()
+
+    def _live_output_request(self, event: dict[str, Any]) -> tuple[str, bool]:
+        response = event.get("response") if isinstance(event.get("response"), dict) else {}
+        item = event.get("item") if isinstance(event.get("item"), dict) else {}
+        output_ids = [
+            ("client_event_id", str(event.get("client_event_id") or "")),
+            ("response_id", str(event.get("response_id") or response.get("id") or "")),
+            ("item_id", str(event.get("item_id") or item.get("id") or "")),
+        ]
+        output_ids = [(kind, value) for kind, value in output_ids if value]
+        with self._lock:
+            if any(output_id in self._retired_live_output_ids for output_id in output_ids):
+                return "", True
+            requests = {self._live_output_id_requests[output_id] for output_id in output_ids
+                        if output_id in self._live_output_id_requests}
+            if len(requests) > 1:
+                return "", True
+            request_id = next(iter(requests), "")
+            if not request_id:
+                spoken = self._pending_spoken_request[0] if self._pending_spoken_request else ""
+                request_id = self._active_live_request or spoken or self._spoken_turn_request
+            if request_id in self._retired_live_requests:
+                return "", True
+            for kind, value in output_ids:
+                self._remember_live_output_id_locked(request_id, kind, value)
+            return request_id, False
+
+    def _live_response_event(self, event: dict[str, Any]) -> list[dict[str, Any]]:
+        response = event.get("response") or {}
+        if not isinstance(response, dict):
+            return [event]
+        response_id = str(response.get("id") or event.get("response_id") or "")
+        metadata = response.get("metadata")
+        metadata = metadata if isinstance(metadata, dict) else {}
+        request_id = str(metadata.get("voice_cua_request_id") or "")
+        with self._lock:
+            output_id = ("response_id", response_id)
+            retired_request_id = self._retired_live_output_ids.get(output_id, "")
+            terminal_retired = bool(retired_request_id and event.get("type") == "response.done")
+            if retired_request_id:
+                if not terminal_retired:
+                    return []
+                if request_id and request_id != retired_request_id:
+                    return []
+                request_id = retired_request_id
+            mapped_request_id = self._live_output_id_requests.get(output_id, "")
+            if request_id and mapped_request_id and request_id != mapped_request_id:
+                return []
+            request_id = (request_id or mapped_request_id
+                          or self._active_live_request
+                          or (self._pending_spoken_request[0] if self._pending_spoken_request else "")
+                          or self._spoken_turn_request)
+            if request_id in self._retired_live_requests and not terminal_retired:
+                return []
+            if not terminal_retired:
+                self._remember_live_output_id_locked(request_id, "response_id", response_id)
+        if not request_id:
+            return [event]
+        enriched = dict(response)
+        enriched["metadata"] = {**metadata, "voice_cua_request_id": request_id}
+        return [{**event, "response": enriched}]
 
     # -- state ---------------------------------------------------------------
     def reset(self) -> None:
@@ -479,6 +618,11 @@ class LiveProvider(VoiceProvider):
             self._pending_calls: dict[str, set[str]] = {}  # delegation -> outstanding call ids
             self._last_delegation = ""
             self._pending_request = ""  # voice_cua_request_id of the last typed request
+            self._live_output_id_requests: dict[tuple[str, str], str] = {}
+            self._live_output_ids_by_request: dict[str, set[tuple[str, str]]] = {}
+            self._retired_live_output_ids: dict[tuple[str, str], str] = {}
+            self._retired_live_requests: dict[str, None] = {}
+            self._active_live_request = ""
             self._pending_spoken_request: tuple[str, int] | None = None
             self._request_step_refs: dict[str, str] = getattr(self, "_request_step_refs", {})
             self._spoken_turn_request = ""
@@ -682,6 +826,7 @@ class LiveProvider(VoiceProvider):
             meta = (event.get("response") or {}).get("metadata") or {}
             request_id = str(meta.get("voice_cua_request_id") or "") if isinstance(meta, dict) else ""
             request_step_ref = str(meta.get("voice_cua_request_step_ref") or "") if isinstance(meta, dict) else ""
+            event_id = str(event.get("event_id") or "")
             with self._lock:
                 if request_id and request_step_ref:
                     self._request_step_refs[request_id] = request_step_ref
@@ -692,10 +837,15 @@ class LiveProvider(VoiceProvider):
                 if new_turn:
                     # A typed request (or its drop-recovery replay); a tool continuation that
                     # carries the same request id stays in its turn.
+                    previous_request = self._active_live_request
+                    if previous_request and previous_request != request_id:
+                        self._retire_live_request_locked(previous_request)
+                    self._active_live_request = request_id
                     self._pending_request = request_id
                     self._turn_seq += 1
                     self._turn_request = request_id
                     self._pending_spoken_request = None
+                    self.said.clear()
                     if outstanding:
                         # The queued message rides on the waiting delegation's continuation:
                         # that delegation now answers this turn.
@@ -713,6 +863,7 @@ class LiveProvider(VoiceProvider):
                 update = "" if self._active_backend_responses else self._pending_spoken_update
                 if update:
                     self._pending_spoken_update = ""
+                self._remember_live_output_id_locked(request_id, "client_event_id", event_id)
             out = []
             if update:
                 # Only amend the backend input between responses, never mid-generation.
@@ -722,7 +873,10 @@ class LiveProvider(VoiceProvider):
                         + update[:LIVE_APPEND_MAX_CHARS]
                         + "\nUse this to revise the pending task. Do not repeat completed actions or guess at incomplete speech."}]}})
                 log_event("live_backend_input_updated", chars=len(update))
-            return out + [{"type": "response.create"}]
+            create: dict[str, Any] = {"type": "response.create"}
+            if event_id:
+                create["event_id"] = event_id
+            return out + [create]
         return [event]
 
     def _tool_output(self, item: dict[str, Any]) -> list[dict[str, Any]]:
@@ -816,7 +970,12 @@ class LiveProvider(VoiceProvider):
             return []
         if et == "session.updated":
             return [{"type": "session.updated", "session": event.get("session") or {}}]
+        if et in {"response.created", "response.done"}:
+            return self._live_response_event(event)
         if et == "session.output_audio.delta":
+            request_id, stale = self._live_output_request(event)
+            if stale:
+                return []
             now = time.monotonic()
             audible = not _is_silence(str(event.get("delta") or ""))
             with self._lock:
@@ -826,17 +985,27 @@ class LiveProvider(VoiceProvider):
                     if not self._out_seq or now - self._last_out > 1.5:
                         self._out_seq += 1
                     self._last_out = now
-                rid = f"live_out_{self._out_seq}"
-            return [{"type": "response.output_audio.delta", "response_id": rid, "item_id": rid,
-                     "delta": event.get("delta") or ""}]
+                client_event_id = str(event.get("client_event_id") or "")
+                rid = str(event.get("response_id") or
+                          f"live_{client_event_id or request_id or self._out_seq}")
+            output = {"type": "response.output_audio.delta", "response_id": rid,
+                      "item_id": str(event.get("item_id") or rid), "delta": event.get("delta") or ""}
+            if request_id:
+                output["response"] = {"id": rid, "metadata": {"voice_cua_request_id": request_id}}
+            return [output]
         if et == "session.input_transcript.delta":
             # Buffer per response: the user talking over a reply must not cut it into one row per word.
             fresh = self.heard.add(str(event.get("delta") or ""))
             start_ms = event.get("start_ms")
+            retired_live_output = False
             if fresh and isinstance(start_ms, int) and not isinstance(start_ms, bool):
                 with self._lock:
                     backend_busy = bool(self._active_backend_responses or any(self._pending_calls.values()))
                     if not backend_busy and not self._pending_request:
+                        if self._active_live_request:
+                            self._retire_live_request_locked(self._active_live_request)
+                            self._active_live_request = ""
+                            retired_live_output = True
                         request_id = uuid.uuid4().hex
                         self._pending_spoken_request = (request_id, start_ms)
                         self._request_step_refs[request_id] = new_step_ref()
@@ -849,14 +1018,26 @@ class LiveProvider(VoiceProvider):
                             self._delegation_turn.pop(delegation, None)
                             self._delegation_request.pop(delegation, None)
                             self._claim_delegation(delegation, offset_ms=self._unmatched_delegation_offsets.pop(delegation))
+            if retired_live_output:
+                self.said.clear()
             return [{"type": "input_audio_buffer.speech_started"}] if fresh or self._new_user_burst() else []
         if et == "session.output_transcript.delta":
+            request_id, stale = self._live_output_request(event)
+            if stale:
+                return []
             if not self.said.pending():
                 self.heard.flush()  # a new reply closes the user's utterance; mid-reply deltas do not
             with self._lock:
                 self._pending_spoken_request = None
-            self.said.add(str(event.get("delta") or ""))
-            return []
+            self.said.add(str(event.get("delta") or ""), context=request_id or None)
+            output = {"type": "response.output_text.delta",
+                      "response_id": str(event.get("response_id") or
+                                           f"live_{event.get('client_event_id') or request_id}"),
+                      "delta": event.get("delta") or ""}
+            if request_id:
+                output["response"] = {"id": output["response_id"],
+                                      "metadata": {"voice_cua_request_id": request_id}}
+            return [output]
         if et in {"session.usage.updated", "session.closed"}:
             usage = event.get("usage") or {}
             seconds = usage.get("seconds") if isinstance(usage, dict) else None
@@ -953,6 +1134,7 @@ class LiveProvider(VoiceProvider):
                     self._claim_delegation(delegation)  # no delegation.created seen
                 request_id = self._current_request(delegation)
                 if rid:
+                    self._remember_live_output_id_locked(request_id, "response_id", rid)
                     self._response_delegation[rid] = delegation
                     self._response_tier[rid] = (self.tier, self.backend_model())
                     if len(self._response_tier) > 256:
@@ -966,10 +1148,15 @@ class LiveProvider(VoiceProvider):
             return [{"type": "response.created", "response": created}]
         if it == "response.output_text.done":
             with self._lock:
+                self._remember_live_output_id_locked(self._current_request(delegation), "response_id", rid)
                 self._response_text[rid] = str(inner.get("text") or "")[:4000]
             return []
         if it == "response.output_item.done":
             item = inner.get("item") or {}
+            with self._lock:
+                request_id = self._current_request(delegation)
+                self._remember_live_output_id_locked(request_id, "response_id", rid)
+                self._remember_live_output_id_locked(request_id, "item_id", str(item.get("id") or ""))
             if item.get("type") == "message":
                 text = " ".join(str(c.get("text") or "") for c in item.get("content") or []
                                 if isinstance(c, dict) and c.get("type") == "output_text").strip()
@@ -998,6 +1185,7 @@ class LiveProvider(VoiceProvider):
                     self._pending_spoken_update = ""  # no continuation: do not leak speech into a later task
                 text = self._response_text.pop(rid, "")
                 request_id = self._current_request(delegation)
+                self._remember_live_output_id_locked(request_id, "response_id", rid)
                 stale = bool(text) and not had_calls and not request_id and bool(
                     self._delegation_request.get(delegation))
                 if not had_calls and not outstanding and request_id and request_id == self._spoken_turn_request:

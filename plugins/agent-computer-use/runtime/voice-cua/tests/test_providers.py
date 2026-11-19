@@ -569,7 +569,7 @@ class LiveSessionLoopTests(_Rows):
         self.assertFalse(new_waiter["event"].is_set())
         self.assertEqual(new_waiter["reply"], "")
 
-    def test_broken_request_id_binds_typed_confirm_and_final_response(self) -> None:
+    def test_broken_request_id_does_not_bind_or_settle_a_typed_waiter(self) -> None:
         from contextlib import nullcontext
 
         s = live_session()
@@ -585,9 +585,9 @@ class LiveSessionLoopTests(_Rows):
             s._task_expected_outcomes[request_id] = "Confirm build"
             s._task_started_at[request_id] = time.monotonic()
         s._on_message(s.ws, json.dumps({"type": "response.created", "response": {
-            "id": "response-1", "metadata": {"voice_cua_request_id": "broken-request"},
+            "id": "response-1", "metadata": {"voice_cua_request_id": "b" * 32},
         }}))
-        self.assertEqual(s._response_typed_turn_ids["response-1"], "typed-1")
+        self.assertNotIn("response-1", s._response_typed_turn_ids)
 
         contexts = []
         dispatched = threading.Event()
@@ -608,16 +608,16 @@ class LiveSessionLoopTests(_Rows):
             s._run_tool("confirm-call", "confirm_risky", "{}", response_id="response-1")
             self.assertTrue(dispatched.wait(1))
 
-        self.assertEqual(contexts[0]["typed_turn_id"], "typed-1")
+        self.assertEqual(contexts[0]["typed_turn_id"], "")
         s._on_message(s.ws, json.dumps({"type": "response.done", "response": {
             "id": "response-1", "status": "completed",
-            "metadata": {"voice_cua_request_id": "broken-request"},
+            "metadata": {"voice_cua_request_id": "b" * 32},
             "output": [{"type": "message", "content": [{"type": "output_text", "text": "That confirm timed out too."}]}],
         }}))
-        self.assertTrue(waiter["event"].is_set())
-        self.assertEqual(waiter["reply"], "That confirm timed out too.")
+        self.assertFalse(waiter["event"].is_set())
+        self.assertEqual(waiter["reply"], "")
 
-    def test_final_response_falls_back_to_one_open_typed_waiter(self) -> None:
+    def test_uncorrelated_final_response_never_falls_back_to_a_typed_waiter(self) -> None:
         s = live_session()
         waiter = {"event": threading.Event(), "reply": "", "error": "", "typed_turn_id": "typed-1"}
         with s._response_lock:
@@ -629,8 +629,8 @@ class LiveSessionLoopTests(_Rows):
                 {"type": "output_text", "text": "The typed turn is settled."},
             ]}],
         })
-        self.assertTrue(waiter["event"].is_set())
-        self.assertEqual(waiter["reply"], "The typed turn is settled.")
+        self.assertFalse(waiter["event"].is_set())
+        self.assertEqual(waiter["reply"], "")
 
         ambiguous = live_session()
         waiters = [{"event": threading.Event(), "reply": "", "error": "", "typed_turn_id": turn_id}

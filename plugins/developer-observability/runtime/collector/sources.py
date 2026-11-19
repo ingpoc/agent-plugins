@@ -185,7 +185,7 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
            ledger_rule=None, ledger_selected_count=None, ledger_selected_id=None, ledger_supersedes=None,
            ledger_decision_id=None, ledger_revision=None, step_ref=None, retry_of_step_ref=None,
            retry_of_run_ref=None, mirror_of=None, caused_by=None, task_data=None, error_type=None,
-           input_tokens=None, output_tokens=None, total_tokens=None):
+           exception_type=None, classification=None, input_tokens=None, output_tokens=None, total_tokens=None):
     item = _stat(stats, source)
     item['events'] += 1
     item['errors'] += bool(error)
@@ -207,7 +207,8 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
                 'task_outcome': task_outcome, 'task_check_id': task_check_id,
                 'task_evidence_class': task_evidence_class, 'task_tools': task_tools,
                 'call_ref': call_ref, 'response_ref': response_ref, 'run_ref': run_ref,
-                'error_type': error_type, 'input_tokens': input_tokens, 'output_tokens': output_tokens,
+                'error_type': error_type, 'exception_type': exception_type, 'classification': classification,
+                'input_tokens': input_tokens, 'output_tokens': output_tokens,
                 'total_tokens': total_tokens,
                 'error_details': error_details, 'ledger_result_detail': ledger_result_detail,
                 'ledger_detail_truncated': ledger_detail_truncated, 'input_availability': input_availability,
@@ -408,6 +409,10 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
         if not isinstance(error_type, str) and isinstance(err, dict):
             error_type = _first_str(err, ('type', 'name'))
         error_type = scrub(error_type, 120) if isinstance(error_type, str) else None
+        exception_type = (scrub(obj.get('exception_type'), 120) or None
+                          if isinstance(obj.get('exception_type'), str) else None)
+        classification = (scrub(obj.get('classification'), 80) or None
+                          if isinstance(obj.get('classification'), str) else None)
         token_counts = {key: obj[key] for key in ('input_tokens', 'output_tokens', 'total_tokens')
                         if type(obj.get(key)) is int and 0 <= obj[key] <= 2**53 - 1}
         raw_message = text if isinstance(text, str) else _first_str(obj, ('error', 'error_message', 'detail', 'message', 'reason', 'msg'))
@@ -494,7 +499,8 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
                      input_recovery=obj.get('input_recovery') if obj.get('input_recovery') in ('recovered','not_observed','unknown') else None,
                      input_selection=obj.get('input_selection') if obj.get('input_selection') == 'system_default_snapshot' else None,
                      call_ref=opaque_id('call_id'), response_ref=opaque_id('response_id'), run_ref=_run_ref(obj.get('run_id')),
-                     error_type=error_type, input_tokens=token_counts.get('input_tokens'),
+                     error_type=error_type, exception_type=exception_type, classification=classification,
+                     input_tokens=token_counts.get('input_tokens'),
                      output_tokens=token_counts.get('output_tokens'), total_tokens=token_counts.get('total_tokens'),
                      mirror_ref=opaque_id('mirror_id'), build=build,
                      ledger_rule=ledger_rule, ledger_selected_count=selected_count,
@@ -508,6 +514,18 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
                      mirror_of=_task_id(obj.get('mirror_of')), caused_by=caused_by,
                      task_data=_task_fields(obj),
                      outcome='failure' if error else ('success' if obj.get('ok') is True or status == 'ok' else 'unknown')))
+    realtime_errors = [event for event in produced if event['kind'] == 'realtime_error'
+                       and event.get('exception_type') and event.get('session') and event.get('ts') is not None]
+    for event in produced:
+        if event['kind'] != 'startup' or event['step'] != 'realtime_ws_error' or not event.get('session') or event.get('ts') is None:
+            continue
+        nearby = [error for error in realtime_errors if error['session'] == event['session']
+                  and abs(error['ts'] - event['ts']) <= 1.0]
+        if nearby:
+            error = min(nearby, key=lambda candidate: abs(candidate['ts'] - event['ts']))
+            for field in ('exception_type', 'classification'):
+                if not event.get(field) and error.get(field):
+                    event[field] = error[field]
     for event in produced:
         _apply_session_flags(event, info, stats, source)
         yield event

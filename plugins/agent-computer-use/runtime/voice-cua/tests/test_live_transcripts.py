@@ -40,7 +40,8 @@ class LiveInboundTranscriptTests(unittest.TestCase):
             live = providers.LiveProvider()
             out = live.inbound({"type": "session.input_transcript.delta", "delta": "Open Calculator", "start_ms": 0, "end_ms": 900})
             self.assertEqual(out, [{"type": "input_audio_buffer.speech_started"}])
-            self.assertEqual(live.inbound({"type": "session.output_transcript.delta", "delta": "Opening it now."}), [])
+            reply_event = live.inbound({"type": "session.output_transcript.delta", "delta": "Opening it now."})
+            self.assertEqual(reply_event[0]["type"], "response.output_text.delta")
             live.said.flush()
         kinds = [k for k, _ in events]
         self.assertIn("user_transcript", kinds)
@@ -50,7 +51,9 @@ class LiveInboundTranscriptTests(unittest.TestCase):
         self.assertEqual(user["run_ref_status"], "linked")
         self.assertTrue(user["run_id"])
         self.assertTrue(user["step_ref"])
-        self.assertEqual(dict(events)["assistant_reply"]["text"], "Opening it now.")
+        reply = dict(events)["assistant_reply"]
+        self.assertEqual(reply["text"], "Opening it now.")
+        self.assertEqual(reply["run_id"], user["run_id"])
 
     def test_assistant_reply_log_is_capped_at_2000_chars(self):
         events = []

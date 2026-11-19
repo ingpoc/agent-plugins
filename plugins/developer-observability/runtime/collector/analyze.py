@@ -215,6 +215,19 @@ def _status(ctx, project, last_ts, by_version):
     return 'active' if ctx.recent(last_ts) else 'stale'
 
 
+def _failure_excerpt(event):
+    message = scrub(event.get('message'), 120) or ''
+    exception_type = scrub(event.get('exception_type'), 80) or ''
+    classification = scrub(event.get('classification'), 80) or ''
+    if not message:
+        label = exception_type or classification or 'Failure'
+        suffix = f' ({classification})' if exception_type and classification else ''
+        return scrub(f'{label} with an empty message{suffix}', 120)
+    prefix = f'{exception_type}: ' if exception_type else ''
+    suffix = f' ({classification})' if classification else ''
+    return scrub(f'{prefix}{message}{suffix}', 120)
+
+
 def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None, by_version=None):
     project = events[0]['project']
     stamped = sorted((e for e in events if e.get('ts') is not None), key=lambda e: e.get('ts'))
@@ -226,7 +239,8 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
     plain = [e for e in newest if not e.get('alias')] or newest
     text_events = [e for e in plain if e.get('kind') != 'island_layout'] or plain
     latest = text_events[-1]
-    message = latest.get('message') or ''
+    raw_message = latest.get('message') or ''
+    message = _failure_excerpt(latest) if kind == 'failure' else raw_message
     times = [iso(e.get('ts')) for e in stamped[-64:]]
     sources = Counter(e['source'] for e in events)
     finding = {
@@ -240,14 +254,19 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
         'recovery_times': [], 'recovery_times_complete': True,
         'workflow_id': f"wf:{sources.most_common(1)[0][0]}", 'step_id': f'step:{project}-{step}',
         'latest_evidence': {'project': project, 'tool': step, 'first_error_line': message,
-                            'error_type': latest.get('error_type') or latest['kind']},
+                            'error_type': latest.get('error_type') or latest['kind'],
+                            'exception_type': latest.get('exception_type'),
+                            'classification': latest.get('classification')},
         'event_timeline': [{'event_id': e['ref'], 'event_at': iso(e.get('ts')) if e.get('ts') is not None else None,
                             'event_type': e['kind'], 'outcome': 'failure' if e['error'] else 'unknown',
                             'safe_evidence': {'tool': e['step'], 'version': e.get('version'),
                                               'version_attribution': e.get('version_attribution', 'unknown'),
                                               'session_attribution': e.get('session_attribution', 'unknown'),
-                                              'first_error_line': scrub(e.get('message'), 120) or None,
+                                              'first_error_line': (_failure_excerpt(e) if kind == 'failure'
+                                                                   else scrub(e.get('message'), 120) or None),
                                               'error_type': e.get('error_type'),
+                                              'exception_type': e.get('exception_type'),
+                                              'classification': e.get('classification'),
                                               'input_tokens': e.get('input_tokens'),
                                               'output_tokens': e.get('output_tokens'),
                                               'total_tokens': e.get('total_tokens'),
@@ -263,6 +282,8 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
                            for e in list(reversed(plain))[:20]],
         'event_timeline_total': len(plain), 'event_timeline_truncated': len(plain) > 20,
     }
+    if kind == 'failure' and (latest.get('exception_type') or latest.get('classification') or not raw_message):
+        finding['what_happened'] = message
     if by_version and set(by_version) != {'unknown'}:
         finding['by_version'] = dict(by_version)
         latest = ctx.latest.get(project)
@@ -270,7 +291,7 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
             after = by_version.get(latest, 0)
             finding['before_after'] = {'version': latest, 'before': count - after, 'after': after}
     finding.update(extra or {})
-    if kind == 'failure' and any(e.get('metric') == 'test_ms' for e in events) and not message:
+    if kind == 'failure' and any(e.get('metric') == 'test_ms' for e in events) and not raw_message:
         finding['what_happened'] = 'A CI test process failed; its failure output was not retained.'
     if test_fix := _test_fix(kind, finding, events):
         finding['fix'] = test_fix

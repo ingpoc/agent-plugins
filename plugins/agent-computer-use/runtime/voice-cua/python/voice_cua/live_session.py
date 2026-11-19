@@ -391,6 +391,7 @@ class LiveSession:
         self._comet_active = False
         self._speaking_response_ids: set[str] = set()
         self._cancelled_response_ids: set[str] = set()
+        self._stop_requested_response_ids: set[str] = set()
         self._current_response_id = ""
         self._last_user_text = ""
         self._last_assistant_reply = ""
@@ -1062,8 +1063,6 @@ class LiveSession:
             self._last_activity = time.monotonic()
         if event.get("type") in {"session.input_transcript.delta", "session.delegation.created", "response.event"}:
             self._last_user_activity = time.monotonic()
-        if event.get("type") == "session.output_transcript.delta":
-            self._mark_response_started({"type": "response.output_text.delta"})
         for loop_event in self.provider.inbound(event):
             self._dispatch_event(loop_event)
         restart = getattr(self.provider, "restart_requested", "")
@@ -1196,14 +1195,6 @@ class LiveSession:
             run_ref_source = "response_metadata" if explicit_run_id else ""
             with self._response_lock:
                 typed_turn_id = self._typed_turn_ids_by_request.get(request_id, "") if request_id else ""
-                if (not typed_turn_id and request_id not in self._text_waiters
-                        and request_id not in self._task_runs):
-                    typed_waiters = [(key, waiter) for key, waiter in self._text_waiters.items()
-                                     if waiter.get("typed_turn_id") and not waiter["event"].is_set()]
-                    if len(typed_waiters) == 1:
-                        request_id, waiter = typed_waiters[0]
-                        typed_turn_id = waiter["typed_turn_id"]
-                        run_ref_source = "typed_waiter_fallback"
             metadata = response.get("metadata") or {}
             request_step_ref = (str(metadata.get("voice_cua_request_step_ref") or "")
                                 if isinstance(metadata, dict) else "")
@@ -2235,6 +2226,7 @@ class LiveSession:
                 return {"ok": False, "error": "session disconnected", "error_type": "session_disconnected"}
             if timeout is not None and time.monotonic() - started >= timeout:
                 return {"ok": False, "error": "timeout waiting for another text request"}
+            self._interrupt_answer_for_new_request("typed_request")
         request_id = uuid.uuid4().hex
         waiter = {"event": threading.Event(), "reply": "", "error": "", "error_type": "",
                   "typed_turn_id": typed_turn_id, "last_progress": time.monotonic(),
@@ -2301,9 +2293,11 @@ class LiveSession:
         with self._response_lock:
             stale = (response_id in self._retired_response_ids
                      or request_id in self._retired_request_ids)
+            cancelled_output = (response_id in self._cancelled_response_ids
+                                and event.get("type") != "response.done")
             if stale and response_id:
                 self._remember_retired_id(self._retired_response_ids, response_id)
-            return stale
+            return stale or cancelled_output
 
     def _retire_text_waiter(self, request_id: str) -> None:
         with self._response_lock:
@@ -2351,6 +2345,7 @@ class LiveSession:
             self._active_response_ids.discard(response_id)
             self._speaking_response_ids.discard(response_id)
             self._cancelled_response_ids.discard(response_id)
+            self._stop_requested_response_ids.discard(response_id)
             if self._current_response_id == response_id:
                 self._current_response_id = ""
             self._response_request_ids.pop(response_id, None)
@@ -2385,15 +2380,17 @@ class LiveSession:
         response_id = str(response.get("id") or "")
         request_id = self._request_id(response) or self._request_for_response(response_id)
         with self._response_lock:
-            if request_id not in self._text_waiters and request_id not in self._task_runs:
-                typed_turn_id = self._response_typed_turn_ids.get(response_id, "")
-                matches = [key for key, waiter in self._text_waiters.items()
-                           if waiter.get("typed_turn_id") and not waiter["event"].is_set()
-                           and (not typed_turn_id or waiter.get("typed_turn_id") == typed_turn_id)]
-                if len(matches) == 1:
-                    request_id = matches[0]
             task_run_id = (self._response_task_run_ids.get(response_id)
                            or (request_id if request_id in self._task_runs else ""))
+            typed_turn_id = self._response_typed_turn_ids.get(response_id, "")
+            request_id = request_id or task_run_id
+            if not request_id and typed_turn_id:
+                matches = [key for key, waiter in self._text_waiters.items()
+                           if waiter.get("typed_turn_id") == typed_turn_id and not waiter["event"].is_set()]
+                if len(matches) == 1:
+                    request_id = matches[0]
+            if not request_id:
+                return  # An uncorrelated response cannot complete whichever typed waiter arrived last.
             task_settling = bool(task_run_id and task_run_id in self._task_runs)
             task_results = self._task_runs.pop(task_run_id, []) if task_settling else []
             task_started_at = self._task_started_at.pop(task_run_id, None) if task_settling else None
@@ -2659,10 +2656,21 @@ class LiveSession:
 
     def _interrupt_answer_for_new_request(self, source: str) -> bool:
         with self._response_lock:
-            active = self._current_response_id in self._active_response_ids
+            response_id = self._current_response_id
+            active = response_id in self._active_response_ids
+            already_requested = response_id in self._stop_requested_response_ids
+            request_id = self._response_request_ids.get(response_id, "")
         audio = self._audio
         playing = audio is not None and getattr(audio, "has_playback", lambda: False)()
-        if active or playing:
+        if (active and not already_requested) or (playing and not active):
+            if active:
+                with self._response_condition:
+                    self._stop_requested_response_ids.add(response_id)
+                    self._cancelled_response_ids.add(response_id)
+                    self._response_condition.notify_all()
+            retire = getattr(self.provider, "interrupt_request", None)
+            if callable(retire):
+                retire(request_id)
             self.island_control("stopSpeaking", caused_by_step_ref=new_step_ref(), cancel_source=source)
         return active
 

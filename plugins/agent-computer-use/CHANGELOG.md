@@ -1,3 +1,7 @@
+## 0.2.153
+
+- After a redirect, each turn gets the reply of its own response: late output from a stopped answer no longer completes a later turn, and delegated tasks still run their tools. On Grok Voice a redirect now stops the active answer and is answered next (ACU-05).
+
 ## 0.2.152
 
 - The installer refuses to build without the voice helper build tool, no longer offers to skip the voice helper, and fails before signing if the helper is missing (ACU-02).

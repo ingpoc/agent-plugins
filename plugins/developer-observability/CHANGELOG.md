@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.34
+
+- A failure with an empty message shows its exception type and says the message was empty, and a failed connect start borrows the exception type from the error logged for the same session (DEVOBS-05).
+
 ## 0.1.33
 
 - Failure issues show the logged error type and message (DEVOBS-05).
