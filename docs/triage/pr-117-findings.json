@@ -7390,9 +7390,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-19T09:19:04Z",
-      "now": "2026-11-19T09:19:04Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-19T10:59:21Z",
+      "now": "2026-11-19T10:59:21Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 116,
@@ -7556,8 +7556,8 @@
       },
       {
         "round": 1,
-        "fixed": 3,
-        "ended_at": "2026-11-19T09:17:44Z"
+        "fixed": 6,
+        "ended_at": "2026-11-19T10:59:21Z"
       }
     ],
     "introspect_history": [
@@ -9424,7 +9424,7 @@
             ]
           }
         },
-        "round": 2,
+        "round": 1,
         "cycle": 9
       }
     ],
@@ -9444,129 +9444,39 @@
       "collect",
       "present",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
       "round": 2,
       "cycle": 9,
       "groups": [
         {
-          "id": "BCL-PAGE",
-          "name": "Change list page header and gate read correctly",
+          "id": "BCL-ROUND",
+          "name": "Round counter stays put when a round is restarted",
           "finding_ids": [
-            "BCL-75",
-            "BCL-76",
-            "BCL-80"
+            "BCL-81"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl117-r1-g1",
-          "reason": "Both are in the change list page and rollover code.",
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl117-r2-g1",
+          "reason": "One change in how the change list decides a new round has begun.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false,
-            "job": {
-              "pid": 33258,
-              "phase": "fix",
-              "started_at": "2026-11-19T09:17:43Z",
-              "command": "restart-g1.sh",
-              "heartbeat_at": "2026-11-19T09:17:44Z",
-              "exit_code": 0,
-              "duration_s": 1,
-              "finished_at": "2026-11-19T09:17:44Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "implementer_session": "01a1f2da-307f-7b71-bc04-18a5ca4f8963",
-            "review_status": "passed",
-            "reviewer_session": "01a1f2e5-7cbf-7cc0-846a-28d3e5036794",
-            "review_note": "One review round asked for 3 changes; all fixed in the same session with tests."
+            "one_file": false
           },
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1.sh",
-            "method": "Named tests on the installed change list plus a check of the live page header and gate.",
-            "status": "verified",
-            "total": 3,
-            "fixed": 3,
-            "failed": 0,
-            "failure": null,
-            "summary": "Header, gate and workflow bar checked on the live page"
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.sh",
+            "method": "Named tests on the installed change list, plus a real restart inside a round on a copy of a live list.",
+            "status": "pending",
+            "total": 1,
+            "fixed": 0,
+            "failed": 0
           },
-          "updated_at": "2026-11-19T09:18:23Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-19T09:09:26Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-19T09:17:54Z"
-          },
-          "verify_summary": "Header, gate and workflow bar checked on the live page"
-        },
-        {
-          "id": "DEVOBS",
-          "name": "Developer observability links, groups and explains test failures",
-          "finding_ids": [
-            "BCL-77",
-            "BCL-78",
-            "BCL-79"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl117-r1-g2",
-          "reason": "All three come from one real-use test of the same collector and skill.",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "max",
-            "one_file": false,
-            "job": {
-              "pid": 98474,
-              "phase": "presuite",
-              "started_at": "2026-11-19T09:05:08Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-19T09:09:26Z",
-              "exit_code": 0,
-              "duration_s": 258,
-              "finished_at": "2026-11-19T09:09:26Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "implementer_session": "01a1f2da-3c74-72a1-9d90-b19d1d0b7c58",
-            "review_status": "passed",
-            "reviewer_session": "01a1f2ea-cbaa-7c53-8955-aae1a70524cc",
-            "review_note": "One review round asked for 3 changes; all fixed in the same session with tests; real case passes."
-          },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.sh",
-            "method": "Rebuild the real fault case and collect it with the installed developer observability, then check the project view, the log findings and the suggested fix.",
-            "status": "verified",
-            "total": 3,
-            "fixed": 3,
-            "failed": 0,
-            "summary": "Real fault case checked on installed developer observability",
-            "failure": null
-          },
-          "updated_at": "2026-11-19T09:16:42Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-19T09:09:26Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-19T09:09:51Z"
-          },
-          "verify_summary": "Real fault case checked on installed developer observability"
+          "updated_at": "2026-11-19T10:59:21Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "verification_run": {
       "id": "bcl-0.1.45-748cd8b6-117",
@@ -9721,7 +9631,7 @@
           ]
         }
       },
-      "round": 2,
+      "round": 1,
       "cycle": 9
     }
   },
@@ -9905,6 +9815,18 @@
       "verification_refs": [
         "748cd8b64748102991462f9b0105209e628232e2:BCL-80:installed-check"
       ]
+    },
+    {
+      "id": "BCL-81",
+      "title": "The round counter goes up when a round is restarted midway",
+      "source": "User reported",
+      "priority": "medium",
+      "summary": "Restarting a lane inside a round, such as after an early Introspect, moves the page to the next round, so #117 showed Round 2 for what was one round of work.",
+      "impact": "The page overstates how many rounds of work a list took and splits one round's history in two.",
+      "done_when": "A restart or resumed run inside the same round keeps the round number; the counter only moves on when a new round begins after Introspect, and a named test that fails on the old code proves it.",
+      "observed": "19 Nov 2026 14:46 IST: in #117 cycle 9 the BCL-PAGE lane verify failed on a verifier fault; bcl introspect (round 1) then bcl job --phase fix restart called manage_findings.advance_plan_round, appending round_history {round 1, fixed 3} and setting tracking.round 2. Final Introspect was recorded as round 2; page shows Round 2.",
+      "recommendation": "Advance the round only when new work is planned after the round's Introspect is complete, not when a failed lane is restarted inside the same round.",
+      "status": "untested"
     }
   ]
 }
