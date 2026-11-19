@@ -7729,9 +7729,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-19T15:49:16Z",
-      "now": "2026-11-19T15:49:16Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-19T15:51:04Z",
+      "now": "2026-11-19T15:51:04Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10064,7 +10064,7 @@
               "phase": "fix",
               "started_at": "2026-11-19T15:36:45Z",
               "command": "run-rs4-fix-g2.sh",
-              "heartbeat_at": "2026-11-19T15:48:47Z"
+              "heartbeat_at": "2026-11-19T15:50:47Z"
             },
             "fix_status": "passed",
             "review_status": "failed"
@@ -10077,7 +10077,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:48:47Z"
+          "updated_at": "2026-11-19T15:50:47Z"
         },
         {
           "id": "ACU-MENU",
@@ -10086,7 +10086,7 @@
             "ACU-01"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl117-r4-g7",
           "reason": "Deferred from round 3 by the four-lane cap.",
@@ -10095,18 +10095,19 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 13536,
-              "phase": "fix",
-              "started_at": "2026-11-19T15:15:06Z",
-              "command": "launch-g7.sh",
-              "heartbeat_at": "2026-11-19T15:49:01Z",
+              "pid": 87733,
+              "phase": "review",
+              "started_at": "2026-11-19T15:49:17Z",
+              "command": "launch-review-g7.sh",
+              "heartbeat_at": "2026-11-19T15:50:46Z",
               "exit_code": 0,
-              "duration_s": 2035,
-              "finished_at": "2026-11-19T15:49:01Z",
-              "finished_phase_status": "passed"
+              "duration_s": 89,
+              "finished_at": "2026-11-19T15:50:46Z",
+              "finished_phase_status": "failed"
             },
             "implementer_session": "01a1f460-32c2-7d62-a7d7-2bae1a069868",
-            "fix_status": "passed"
+            "fix_status": "passed",
+            "review_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g7.sh",
@@ -10116,7 +10117,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:49:16Z"
+          "updated_at": "2026-11-19T15:50:46Z"
         },
         {
           "id": "ACU-PROMPT",
@@ -10141,7 +10142,7 @@
               "phase": "fix",
               "started_at": "2026-11-19T15:45:02Z",
               "command": "run-fix-g8.sh",
-              "heartbeat_at": "2026-11-19T15:49:02Z"
+              "heartbeat_at": "2026-11-19T15:51:03Z"
             },
             "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428",
             "fix_status": "passed",
@@ -10155,7 +10156,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:49:02Z"
+          "updated_at": "2026-11-19T15:51:03Z"
         },
         {
           "id": "ACU-TESTS",
@@ -10178,7 +10179,7 @@
               "phase": "fix",
               "started_at": "2026-11-19T15:42:53Z",
               "command": "run-fix-g9.sh",
-              "heartbeat_at": "2026-11-19T15:48:54Z"
+              "heartbeat_at": "2026-11-19T15:50:54Z"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f460-41d6-74a2-ad1a-cdf8bfb6366a",
@@ -10192,7 +10193,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:48:54Z"
+          "updated_at": "2026-11-19T15:50:55Z"
         }
       ]
     },
