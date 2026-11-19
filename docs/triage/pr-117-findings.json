@@ -7475,9 +7475,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-19T11:48:40Z",
-      "now": "2026-11-19T11:48:40Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-19T12:03:13Z",
+      "now": "2026-11-19T12:03:13Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -9610,14 +9610,27 @@
             "ACU-03"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r3-g1",
           "reason": "Bring the two finished fixes from the voice helper branch.",
           "codex": {
             "model": "cherry-pick",
             "effort": "none",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 86728,
+              "phase": "fix",
+              "started_at": "2026-11-19T12:00:07Z",
+              "command": "run-chk-g1.sh",
+              "heartbeat_at": "2026-11-19T12:02:47Z",
+              "exit_code": 0,
+              "duration_s": 160,
+              "finished_at": "2026-11-19T12:02:47Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed",
+            "implementer_session": "01a1f3a4-2587-7430-8708-48fe8a91628a"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
@@ -9627,7 +9640,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T11:48:40Z"
+          "updated_at": "2026-11-19T12:03:13Z"
         },
         {
           "id": "ACU-SESSION",
@@ -9639,14 +9652,21 @@
             "ACU-10"
           ],
           "depends_on": [],
-          "status": "planned",
+          "status": "running",
           "phase": "fix",
           "worktree": "bcl117-r3-g2",
           "reason": "All four live in the voice session code.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 55855,
+              "phase": "fix",
+              "started_at": "2026-11-19T11:48:53Z",
+              "command": "launch-g2.sh",
+              "heartbeat_at": "2026-11-19T12:02:55Z"
+            }
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
@@ -9656,7 +9676,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T11:48:40Z"
+          "updated_at": "2026-11-19T12:02:55Z"
         },
         {
           "id": "ACU-MENU",
@@ -9666,13 +9686,25 @@
           ],
           "depends_on": [],
           "status": "planned",
-          "phase": "fix",
+          "phase": "deferred",
           "worktree": "bcl117-r3-g3",
-          "reason": "Status reporting from the voice helper to the menu.",
+          "reason": "Deferred to next round: it builds on the not-ready status that ACU-SESSION adds, and the round is capped at four groups.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 56743,
+              "phase": "fix",
+              "started_at": "2026-11-19T11:48:55Z",
+              "command": "launch-g3.sh",
+              "heartbeat_at": "2026-11-19T11:50:33Z",
+              "exit_code": -15,
+              "duration_s": 98,
+              "finished_at": "2026-11-19T11:50:33Z",
+              "finished_phase_status": "failed"
+            },
+            "fix_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g3.sh",
@@ -9682,7 +9714,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T11:48:40Z"
+          "updated_at": "2026-11-19T11:50:49Z"
         },
         {
           "id": "ACU-PROMPT",
@@ -9694,13 +9726,25 @@
           ],
           "depends_on": [],
           "status": "planned",
-          "phase": "fix",
+          "phase": "deferred",
           "worktree": "bcl117-r3-g4",
-          "reason": "All three are about her instructions and when she hands work to the backend.",
+          "reason": "Deferred to next round: it changes the same voice session code as ACU-SESSION, and the round is capped at four groups.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 57693,
+              "phase": "fix",
+              "started_at": "2026-11-19T11:48:57Z",
+              "command": "launch-g4.sh",
+              "heartbeat_at": "2026-11-19T11:50:33Z",
+              "exit_code": -15,
+              "duration_s": 96,
+              "finished_at": "2026-11-19T11:50:33Z",
+              "finished_phase_status": "failed"
+            },
+            "fix_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g4.sh",
@@ -9710,7 +9754,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T11:48:40Z"
+          "updated_at": "2026-11-19T11:50:49Z"
         },
         {
           "id": "DEVOBS",
@@ -9721,14 +9765,21 @@
             "DEVOBS-07"
           ],
           "depends_on": [],
-          "status": "planned",
+          "status": "running",
           "phase": "fix",
           "worktree": "bcl117-r3-g5",
           "reason": "All three are gaps in how dev-obs reads the voice activity log.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 58654,
+              "phase": "fix",
+              "started_at": "2026-11-19T11:48:59Z",
+              "command": "launch-g5.sh",
+              "heartbeat_at": "2026-11-19T12:03:01Z"
+            }
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
@@ -9738,7 +9789,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T11:48:40Z"
+          "updated_at": "2026-11-19T12:03:01Z"
         },
         {
           "id": "BCL-TESTS",
@@ -9747,14 +9798,21 @@
             "BCL-82"
           ],
           "depends_on": [],
-          "status": "planned",
+          "status": "running",
           "phase": "fix",
           "worktree": "bcl117-r3-g6",
           "reason": "Timing and isolation in the test suites.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "high",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 59679,
+              "phase": "fix",
+              "started_at": "2026-11-19T11:49:01Z",
+              "command": "launch-g6.sh",
+              "heartbeat_at": "2026-11-19T12:03:03Z"
+            }
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.sh",
@@ -9764,7 +9822,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T11:48:40Z"
+          "updated_at": "2026-11-19T12:03:03Z"
         }
       ]
     },
@@ -10151,7 +10209,7 @@
       "done_when": "A failed start leaves the toggle in a visible failed state with a plain reason taken from the supervisor (helper missing, mic denied, key missing), and a named test that fails on the old code proves it.",
       "observed": "19 Nov 2026 16:34 IST: ACU 0.2.146 on the Mini; every start logged resolve_launch status=fail detail=no voice helper in ~/.cache/macos-cua/voice.log, and the toggle went back off with nothing shown.",
       "recommendation": "Carry the supervisor's failure reason to the menu and island and show it until the next attempt.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "Technical wording": "VoiceSupervisor resolve_launch fail detail=no voice helper; toggle flips off ~0.5 s with no reason surfaced to menu or island.",
         "Dev-obs evidence": "col-6e73c74984279674 (startup/resolve_launch failed 15x, recovered on 0.2.151) and col-a6864f7a1ca81b62 (resolve_launch repeated 9x burst, 11:04:21-11:04:26Z)."
@@ -10167,7 +10225,7 @@
       "done_when": "The installer refuses to start without the helper build tool, no longer offers a way to skip the voice helper, and fails before signing or reporting success if the helper is missing; tests prove each case.",
       "observed": "~/.agents/artifacts/bcl-110/logs/acu-02146-install.log: externally-managed-environment, No module named PyInstaller, INSTALL_EXIT:1; acu-02146-install-signed.log has no voice step and INSTALL_EXIT:0.",
       "recommendation": "Take branch codex/acu-voice-helper-guard (commit 9941740a) into #117 with a version bump.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "Technical wording": "Homebrew python3.12 lacked PyInstaller; build_voice_helper.py pip install hit PEP 668; second run produced no Contents/Helpers/voice-cua.app. Fix 9941740a on codex/acu-voice-helper-guard: no --skip-voice-bundle, PyInstaller preflight before touching the destination, require_voice_helper before signing and before success.",
         "Dev-obs evidence": "Not visible in dev-obs: install logs are not a collected source; found in the bcl-110 install logs."
@@ -10183,7 +10241,7 @@
       "done_when": "The installed helper reaches ready on both voice models, and a test that fails on the old code proves the plugin file is found beside the scripts.",
       "observed": "19 Nov 2026 16:54 IST: ACU 0.2.151 build 1253, Grok Voice 3.0: socket opened, then an empty websocket error; session status stayed not ready. Same in text-only mode from the installed helper; the source checkout worked. Reproduced the stop in compact_backend at import.",
       "recommendation": "Take commit 9385c8e8 on codex/acu-voice-helper-guard (one-line fix plus test) into #117 with a version bump.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "Technical wording": "compact_backend.py PLUGIN_ROOT = next(p for p in SCRIPT_DIR.parents ...) raises StopIteration in the PyInstaller bundle (plugin.json sits in Contents/Resources with the scripts). Regression from 4041f991 (18 Nov). Fix iterates (SCRIPT_DIR, *SCRIPT_DIR.parents).",
         "Dev-obs evidence": "observability_inspect_issue col-094b3a882656ae8f (samantha: realtime_error failed 2x, 0.2.151, first 11:24:56Z) and col-adf864d4de65fcd8 (startup/realtime_ws_error 2x). Dev-obs showed observed=unknown and no exception type; cause found by reproducing outside dev-obs."
@@ -10199,7 +10257,7 @@
       "done_when": "Any failure before the session is ready either retries or ends the start with a visible reason, and the status check reports not ready; a test proves it.",
       "observed": "19 Nov 2026 16:54 to 16:56 IST: status said running and healthy while the session stayed not ready for over two minutes; no retry was logged.",
       "recommendation": "Treat an error raised while opening the session as fatal for that connection: close and retry with backoff, and report not ready to the menu until ready.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "Technical wording": "websocket-client catches the exception from _on_open and calls _on_error without closing; LiveSession logs realtime_error classification=transport and waits. voice_control status returns healthy=true because /health answers.",
         "Dev-obs evidence": "Same two events as ACU-03 (col-094b3a882656ae8f, col-adf864d4de65fcd8); dev-obs raised no issue for 'started but never ready'."
@@ -10215,7 +10273,7 @@
       "done_when": "A new request during a reply stops the current reply within about a second and the redirect is answered next; a test proves it for typed and spoken turns.",
       "observed": "19 Nov 2026 typed test: long story then a redirect 3 seconds later. Grok Voice 3.0: story ran 22.9 s to the end, redirect answered after 19.9 s. GPT-Live-1: story ran 11.5 s, redirect answered after 8.5 s.",
       "recommendation": "Cancel the active response when a new typed or spoken request arrives, as the spoken stop-word path already does.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "Technical wording": "send_text() sends conversation.item.create + response.create without response.cancel when _active_response_ids is non-empty.",
         "Dev-obs evidence": "GPT session sref_8a6f2dba34a1bb4ef2de2b5299e0cf93: model_response_end p95 13.1 s (col-6be7b29503e9ce22). Dev-obs has no interruption signal, so this came from the test runner timings."
@@ -10231,7 +10289,7 @@
       "done_when": "After a browser task on Grok Voice, the next turns are answered normally; a repeat of the five-scenario typed run passes on Grok Voice.",
       "observed": "19 Nov 2026 17:04:48 IST: empathy message logged as a user request, but no model response started in 180 s; a probe at 17:08 also got nothing in 40 s. Before that, each of the four tool calls was delivered twice and the tools were resent mid-task.",
       "recommendation": "Check how the mid-task tool resend and the duplicate tool-call deliveries leave the Grok session, and recover or reconnect when a request gets no response.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "Technical wording": "Activity log session 5b1ee07a: tool_call_mirror source=duplicate_function_call_delivery x4, session_update+comet_tools_synced at +1.65 s after comet_end, then user_request with no model_response_start.",
         "Dev-obs evidence": "Dev-obs did not list this Grok session at all (see DEVOBS-06) and raised no unanswered-turn issue (DEVOBS-07); evidence is from the activity log read-only."
@@ -10247,7 +10305,7 @@
       "done_when": "Small talk with a passing personal fact gets a warm conversational reply and no save; a scenario test proves it on both voice models.",
       "observed": "19 Nov 2026 17:03:58 IST typed: one save-preference tool call, reply in 5.6 s. GPT-Live-1 replied conversationally with no tool call.",
       "recommendation": "Tighten the instructions so memory saves happen only when Guru asks Samantha to remember something.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "Technical wording": "ledger_task operation=preference scope=fleet rule=favourite_colour; reply text 'Saved: teal for fleet.'",
         "Dev-obs evidence": "Grok session missing in dev-obs (DEVOBS-06); taken from the activity log."
@@ -10263,7 +10321,7 @@
       "done_when": "The reply includes the facts the request asked for; a scenario test checks the heading on both voice models.",
       "observed": "19 Nov 2026 17:04:34 IST typed: four tool calls, all succeeded, 12.0 s; page read returned 'Example Domain' but the reply omitted it. GPT-Live-1 included it.",
       "recommendation": "Make the closing reply restate the requested facts from the page read before confirming cleanup.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "Technical wording": "comet_act text result final_title 'Example Domain'; reply 'Done. Calculator stays open, and the Comet test window is closed.'",
         "Dev-obs evidence": "Grok session missing in dev-obs (DEVOBS-06); taken from the activity log."
@@ -10279,7 +10337,7 @@
       "done_when": "Small talk, recall and empathy turns are answered by the live model with no backend call; the backend is used only for tasks; a test proves the routing.",
       "observed": "19 Nov 2026 17:10 IST typed: small talk sent to the backend took 5.0 s with 5,864 input, 384 output and 363 reasoning tokens; recall took 1.6 s with 7,248 input tokens; empathy took 2.4 s with 10,367 input tokens.",
       "recommendation": "Answer conversational turns in the live model and delegate only when a tool or task is needed.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "Technical wording": "usage rows provider=openai-live model=gpt-6-luna tier=bulk for every typed turn in session 8f02ce25.",
         "Dev-obs evidence": "sref_8a6f2dba34a1bb4ef2de2b5299e0cf93 summary: usage 10, response_done 6; col-ffa528ff4fa3470c usage latency p95 9.1 s (p50 2.3 s, n=1009)."
@@ -10295,7 +10353,7 @@
       "done_when": "Usage records carry real input and output token counts for Grok Voice and for the GPT live model; a test checks both providers.",
       "observed": "19 Nov 2026 typed run: all 9 Grok Voice usage rows showed 0 tokens; GPT-Live-1 run had usage rows only for the backend model.",
       "recommendation": "Read the providers' response usage fields (or the closest available) into the usage records, and mark them unknown rather than zero when absent.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "Technical wording": "usage rows provider=xai model=grok-voice-latest input_tokens=0 output_tokens=0; no usage rows with model=gpt-live-1.",
         "Dev-obs evidence": "Dev-obs sums these rows (col-ffa528ff4fa3470c) without flagging that every Grok row is zero."
@@ -10311,7 +10369,7 @@
       "done_when": "Dev-obs shows the error type and message for each failure occurrence; a test with a recorded error proves it.",
       "observed": "19 Nov 2026 16:58 IST: inspect with diagnostics on returned observed unknown, first error line unknown, diagnostics not available.",
       "recommendation": "Carry the logged exception type into the issue excerpt and occurrence timeline.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "Technical wording": "activity row kind=realtime_error exception_type=StopIteration error=''; observability_inspect_issue col-094b3a882656ae8f include_diagnostics=true -> observed 'unknown', excerpts.first_error_line 'unknown', diagnostics_available false."
       }
@@ -10326,7 +10384,7 @@
       "done_when": "Every Samantha session with requests or tool calls appears in the session list with its steps; a test with a Grok Voice session proves it.",
       "observed": "19 Nov 2026 17:12 IST: session list after a fresh collect had the GPT session and island-only sessions, but none for the Grok session from 17:03:44 to 17:09:53.",
       "recommendation": "Check how sessions are grouped when the provider is Grok Voice and include them.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "Technical wording": "activity session_id 5b1ee07a (provider xai) absent from observability_sessions(project_id=samantha, limit=40); GPT session 8f02ce25 present as sref_8a6f2dba34a1bb4ef2de2b5299e0cf93."
       }
@@ -10341,7 +10399,7 @@
       "done_when": "Dev-obs flags a request with no response within a set time, a reply that keeps going after a new request, and usage records that are all zero; tests prove each.",
       "observed": "19 Nov 2026 17:13 IST: issues list after the typed runs had only latency hotspots and one log line for the window.",
       "recommendation": "Add rules for unanswered requests, overlapping responses after a new request, and all-zero usage.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "Technical wording": "observability_issues(project_id=samantha) after collect at 11:42:38Z: no failure/redundancy entries for session 5b1ee07a user_request 11:34:48Z with no model_response_start."
       }
@@ -10356,7 +10414,7 @@
       "done_when": "Each of these tests passes reliably under load without proving less than before, shown by repeated runs while the full suite is busy.",
       "observed": "19 Nov 2026: ACU reinstall run full suite: test_bcl test_failed_command_does_not_overwrite_newer_plan failed twice. 16:47 IST #117 r2 presuite at load ~11: test_serve test_health_requires_matching_instance_tracker_and_pid, test_bcl test_fix_then_presuite_then_review_succeeds, dev-obs test_collector test_four_megabyte_jsonl_under_ten_seconds (10.2 s > 10 s); all passed alone and on rerun.",
       "recommendation": "Replace fixed sleeps and tight timeouts with condition waits that have generous limits, isolate shared temp state and ports, and make the speed check independent of machine load.",
-      "status": "untested"
+      "status": "in_progress"
     }
   ]
 }
