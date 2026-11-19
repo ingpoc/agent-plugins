@@ -35,7 +35,7 @@ from compact_form_fills import (
 )
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PLUGIN_ROOT = next(parent for parent in SCRIPT_DIR.parents if (parent / "plugin.json").is_file())
+PLUGIN_ROOT = next(parent for parent in (SCRIPT_DIR, *SCRIPT_DIR.parents) if (parent / "plugin.json").is_file())
 SERVICE_DIR = SCRIPT_DIR.parent / "service"
 DEFAULT_MAX = 80
 MODERN_VERSION = "2026-07-28"

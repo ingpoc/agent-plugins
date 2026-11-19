@@ -4,14 +4,20 @@ from __future__ import annotations
 
 import plistlib
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 SERVICE = Path(__file__).resolve().parents[1] / "service"
 sys.path.insert(0, str(SERVICE))
 import install_service as inst  # noqa: E402
+
+VOICE_SCRIPTS = Path(__file__).resolve().parents[3] / "runtime" / "voice-cua" / "scripts"
+sys.path.insert(0, str(VOICE_SCRIPTS))
+import build_voice_helper as voice_builder  # noqa: E402
 
 
 class InstallReleaseTests(unittest.TestCase):
@@ -24,6 +30,42 @@ class InstallReleaseTests(unittest.TestCase):
     def test_install_target_is_applications(self):
         self.assertEqual(inst.INSTALL_DIR, Path("/Applications/Agent Computer Use.app"))
         self.assertEqual(inst.LEGACY_DIR, Path("~/.cache/macos-cua/CUAService.app").expanduser())
+
+    def test_require_voice_helper(self):
+        app = self.tmp / "Agent Computer Use.app"
+        helper = app / "Contents" / "Helpers" / "voice-cua.app" / "Contents" / "MacOS" / "voice-cua"
+        helper.parent.mkdir(parents=True)
+        helper.write_text("helper")
+        helper.chmod(0o755)
+        inst.require_voice_helper(app)
+        helper.chmod(0o644)
+        with self.assertRaisesRegex(RuntimeError, "missing or not executable"):
+            inst.require_voice_helper(app)
+        helper.unlink()
+        with self.assertRaisesRegex(RuntimeError, "missing or not executable"):
+            inst.require_voice_helper(app)
+
+    def test_skip_voice_bundle_argument_is_rejected(self):
+        with patch.object(sys, "argv", ["install_service.py", "--skip-voice-bundle"]):
+            with self.assertRaises(SystemExit) as raised:
+                inst.main()
+        self.assertEqual(raised.exception.code, 2)
+
+    def test_pyinstaller_preflight_fails_before_bundle_destination_is_created(self):
+        dest = self.tmp / "Agent Computer Use.app"
+        error = subprocess.CalledProcessError(1, [sys.executable, "-c", "import PyInstaller"])
+        with patch.object(inst.subprocess, "run", side_effect=error):
+            with self.assertRaises(SystemExit) as raised:
+                inst.create_app_bundle(self.tmp / "CUAService", dest)
+        self.assertEqual(raised.exception.code, 1)
+        self.assertFalse(dest.exists())
+
+    def test_voice_builder_does_not_install_missing_pyinstaller(self):
+        with patch("builtins.__import__", side_effect=ImportError), patch.object(voice_builder, "run") as run:
+            with self.assertRaises(SystemExit) as raised:
+                voice_builder.ensure_pyinstaller()
+        self.assertEqual(raised.exception.code, 1)
+        run.assert_not_called()
 
     def test_compat_link_created_kept_and_legacy_bundle_trashed(self):
         dest = self.tmp / "Applications" / "Agent Computer Use.app"

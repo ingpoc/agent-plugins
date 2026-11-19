@@ -8,9 +8,10 @@ from http.server import HTTPServer
 from pathlib import Path
 import tempfile
 import threading
+import time
 import unittest
 from datetime import datetime, timezone, timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -125,12 +126,52 @@ class ServerTests(unittest.TestCase):
                 thread.start()
                 try:
                     expected = {'pid': os.getpid(), 'data': str(data), 'instance': 'specific-viewer'}
-                    self.assertTrue(server_module.live_state._viewer_responds(server.server_port, expected))
-                    self.assertFalse(server_module.live_state._viewer_responds(server.server_port, {**expected, 'pid': os.getpid() + 1}))
-                    self.assertFalse(server_module.live_state._viewer_responds(server.server_port, {**expected, 'instance': 'other'}))
-                    self.assertFalse(server_module.live_state._viewer_responds(server.server_port, {**expected, 'data': str(root / 'other.json')}))
+                    deadline = time.monotonic() + 5
+                    ready = server_module.live_state._viewer_responds(server.server_port, expected)
+                    while not ready and time.monotonic() < deadline:
+                        time.sleep(0.02)
+                        ready = server_module.live_state._viewer_responds(server.server_port, expected)
+                    self.assertTrue(ready, 'health endpoint did not become ready')
+
+                    health = {'pid': os.getpid(), 'path': str(data.resolve()), 'instance': 'specific-viewer'}
+                    health_url = f'http://127.0.0.1:{server.server_port}/__bcl_health'
+                    def assert_healthy():
+                        with urlopen(health_url, timeout=2) as response:
+                            self.assertEqual(response.status, 200)
+                            self.assertEqual(json.load(response), health)
+
+                    def health_response():
+                        response = MagicMock(status=200)
+                        response.__enter__.return_value = response
+                        response.read.return_value = json.dumps(health).encode()
+                        return response
+
+                    for mismatch in ({**expected, 'pid': os.getpid() + 1},
+                                     {**expected, 'instance': 'other'},
+                                     {**expected, 'data': str(root / 'other.json')}):
+                        with self.subTest(mismatch=mismatch):
+                            assert_healthy()
+                            with patch.object(server_module.live_state.urllib.request, 'urlopen',
+                                              return_value=health_response()) as request:
+                                self.assertFalse(server_module.live_state._viewer_responds(server.server_port, mismatch))
+                                request.assert_called_once()
+                                self.assertEqual(request.call_args.args[0], health_url)
+                            assert_healthy()
+
                     data.write_text('{')
-                    self.assertFalse(server_module.live_state._viewer_responds(server.server_port, expected))
+                    assert_healthy()
+                    with self.assertRaises(HTTPError) as unavailable:
+                        urlopen(f'http://127.0.0.1:{server.server_port}/', timeout=2)
+                    self.assertEqual(unavailable.exception.code, 503)
+                    with patch.object(server_module.live_state.urllib.request, 'urlopen',
+                                      side_effect=[health_response(), HTTPError(
+                                          f'http://127.0.0.1:{server.server_port}/', 503,
+                                          'Report unavailable', None, None)]) as request:
+                        self.assertFalse(server_module.live_state._viewer_responds(server.server_port, expected))
+                        self.assertEqual(request.call_count, 2)
+                        self.assertEqual(request.call_args_list[0].args[0], health_url)
+                        self.assertEqual(request.call_args_list[1].args[0], f'http://127.0.0.1:{server.server_port}/')
+                    assert_healthy()
                 finally:
                     stop_server(server, thread)
 

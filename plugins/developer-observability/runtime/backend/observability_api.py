@@ -878,6 +878,9 @@ class ObservabilityAPI:
         stages = {'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready', 'stack_begin',
                   'response_done', 'ledger_task', 'task_outcome', 'comet_begin', 'comet_act', 'comet_end',
                   'cua_act', 'cua_state', 'voice_latency', 'usage', 'island_layout',
+                  'user_request', 'model_response_start', 'model_response_end', 'assistant_reply',
+                  'live_backend_input_queued',
+                  'tool_start', 'tool_result', 'tool_error', 'tool_call_mirror',
                   'ledger_select', 'ledger_save_receipt', 'ledger_supersede'}
         metrics = {'speech_to_playback_ms', 'latency_ms', 'duration_ms', 'took_ms', 'backend_ms', 'duration_s', 'step_ms'}
         timeline = []
@@ -893,6 +896,12 @@ class ObservabilityAPI:
                                        and re.fullmatch(r'[A-Za-z0-9_.+\-]{1,40}', event['build']) else 'unknown'),
                              'version': redact(str(event['version']), 40) if event.get('version') else 'unknown',
                              'version_attribution': event.get('version_attribution') if event.get('version_attribution') in ('event', 'session_inferred', 'unknown') else 'unknown'}
+            if isinstance(event.get('error_type'), str):
+                item['error_type'] = redact(event['error_type'], 120)
+            for key in ('input_tokens', 'output_tokens', 'total_tokens'):
+                value = event.get(key)
+                if type(value) is int and 0 <= value <= 2**53 - 1:
+                    item[key] = value
             if event['stage'] in ('ledger_select', 'ledger_save_receipt', 'ledger_supersede'):
                 if isinstance(event.get('ledger_rule'), str):
                     item['ledger_rule'] = event['ledger_rule'][:64]
@@ -1334,6 +1343,10 @@ class ObservabilityAPI:
                 }
                 if type(safe.get('ledger_decision_count')) is int and 0 <= safe['ledger_decision_count'] <= 3:
                     timeline_item['evidence']['ledger_decision_count'] = safe['ledger_decision_count']
+                for key in ('input_tokens', 'output_tokens', 'total_tokens'):
+                    value = safe.get(key)
+                    if type(value) is int and 0 <= value <= 2**53 - 1:
+                        timeline_item['evidence'][key] = value
                 task_tools = safe.get('task_tools')
                 if isinstance(task_tools, list):
                     timeline_item['evidence']['task_tools'] = sorted({tool for tool in task_tools if isinstance(tool, str) and tool in ('cua_act', 'comet_act', 'system_volume')})

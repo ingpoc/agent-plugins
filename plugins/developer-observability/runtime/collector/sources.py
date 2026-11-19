@@ -184,7 +184,8 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
            input_rate=None, input_recovery=None, input_selection=None, mirror_ref=None, build=None,
            ledger_rule=None, ledger_selected_count=None, ledger_selected_id=None, ledger_supersedes=None,
            ledger_decision_id=None, ledger_revision=None, step_ref=None, retry_of_step_ref=None,
-           retry_of_run_ref=None, mirror_of=None, caused_by=None, task_data=None):
+           retry_of_run_ref=None, mirror_of=None, caused_by=None, task_data=None, error_type=None,
+           input_tokens=None, output_tokens=None, total_tokens=None):
     item = _stat(stats, source)
     item['events'] += 1
     item['errors'] += bool(error)
@@ -206,6 +207,8 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
                 'task_outcome': task_outcome, 'task_check_id': task_check_id,
                 'task_evidence_class': task_evidence_class, 'task_tools': task_tools,
                 'call_ref': call_ref, 'response_ref': response_ref, 'run_ref': run_ref,
+                'error_type': error_type, 'input_tokens': input_tokens, 'output_tokens': output_tokens,
+                'total_tokens': total_tokens,
                 'error_details': error_details, 'ledger_result_detail': ledger_result_detail,
                 'ledger_detail_truncated': ledger_detail_truncated, 'input_availability': input_availability,
                 'input_device': input_device, 'input_rate': input_rate, 'input_recovery': input_recovery,
@@ -336,7 +339,8 @@ def _session_flags_update(info, obj):
     session = obj.get('session_id') or obj.get('session')
     if not isinstance(session, str) or not session:
         return
-    entry = info.setdefault(session, {'versions': set(), 'purpose_test': False, 'canned': False, 'instant': False})
+    entry = info.setdefault(session, {'versions': set(), 'purpose_test': False,
+                                      'canned': False, 'instant': False})
     if isinstance(obj.get('version'), str) and obj['version']:
         entry['versions'].add(obj['version'][:40])
     if obj.get('purpose') in TEST_PURPOSES:
@@ -400,6 +404,12 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
         mirror = kind in MIRROR_KINDS
         error = error and not mirror
         text = err.get('message') if isinstance(err, dict) else None
+        error_type = obj.get('error_type')
+        if not isinstance(error_type, str) and isinstance(err, dict):
+            error_type = _first_str(err, ('type', 'name'))
+        error_type = scrub(error_type, 120) if isinstance(error_type, str) else None
+        token_counts = {key: obj[key] for key in ('input_tokens', 'output_tokens', 'total_tokens')
+                        if type(obj.get(key)) is int and 0 <= obj[key] <= 2**53 - 1}
         raw_message = text if isinstance(text, str) else _first_str(obj, ('error', 'error_message', 'detail', 'message', 'reason', 'msg'))
         cause = obj.get('cause') if isinstance(obj.get('cause'), str) else _cause(obj.get('detail'), obj.get('error'))
         condition = cause if cause and (error or status == 'skip') else None
@@ -484,6 +494,8 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
                      input_recovery=obj.get('input_recovery') if obj.get('input_recovery') in ('recovered','not_observed','unknown') else None,
                      input_selection=obj.get('input_selection') if obj.get('input_selection') == 'system_default_snapshot' else None,
                      call_ref=opaque_id('call_id'), response_ref=opaque_id('response_id'), run_ref=_run_ref(obj.get('run_id')),
+                     error_type=error_type, input_tokens=token_counts.get('input_tokens'),
+                     output_tokens=token_counts.get('output_tokens'), total_tokens=token_counts.get('total_tokens'),
                      mirror_ref=opaque_id('mirror_id'), build=build,
                      ledger_rule=ledger_rule, ledger_selected_count=selected_count,
                      ledger_selected_id=opaque_id('ledger_selected_id'), ledger_supersedes=opaque_id('supersedes')

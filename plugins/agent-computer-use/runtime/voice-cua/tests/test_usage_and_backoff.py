@@ -8,6 +8,7 @@ import os
 import random
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from contextlib import redirect_stdout
@@ -32,7 +33,7 @@ from test_phase1_reliability import feed, make_session  # noqa: E402
 
 USAGE_FIELDS = [
     "input_tokens", "output_tokens", "cached_tokens", "input_text_tokens", "input_audio_tokens",
-    "output_text_tokens", "output_audio_tokens", "total_tokens",
+    "output_text_tokens", "output_audio_tokens", "total_tokens", "reasoning_tokens", "voice_seconds",
 ]
 
 RESPONSE_DONE = {
@@ -99,12 +100,13 @@ class UsageRowTests(_LogCase):
                 "input_tokens": 1200, "output_tokens": 340, "cached_tokens": 896,
                 "input_text_tokens": 1000, "input_audio_tokens": 200,
                 "output_text_tokens": 60, "output_audio_tokens": 280, "total_tokens": 1540,
+                "reasoning_tokens": None, "voice_seconds": None,
             },
         )
         for key in USAGE_FIELDS:
-            self.assertIs(type(row[key]), int)
+            self.assertTrue(row[key] is None or type(row[key]) is int)
 
-    def test_missing_and_non_numeric_fields_are_omitted(self) -> None:
+    def test_missing_and_non_numeric_fields_are_unknown(self) -> None:
         row = usage_row({
             "id": "resp_2",
             "usage": {
@@ -115,15 +117,24 @@ class UsageRowTests(_LogCase):
                 "output_token_details": "nope",
             },
         })
-        self.assertEqual(
-            set(row) - {"ts", "ts_iso", "step_ref"},
-            {"kind", "session_id", "build", "response_id", "input_tokens", "input_text_tokens"},
-        )
+        self.assertEqual(row["input_tokens"], 10)
+        self.assertEqual(row["input_text_tokens"], 10)
+        for field in set(USAGE_FIELDS) - {"input_tokens", "input_text_tokens"}:
+            self.assertIsNone(row[field], field)
 
-    def test_no_usage_still_logs_ids_only(self) -> None:
+    def test_no_usage_still_records_unknown_counts(self) -> None:
         row = usage_row({"id": "resp_3"})
-        self.assertEqual(set(row), {"kind", "step_ref", "ts", "ts_iso", "session_id", "build", "response_id"})
-        self.assertEqual(set(usage_row(None)), {"kind", "step_ref", "ts", "ts_iso", "session_id", "build"})
+        self.assertEqual(set(row), {"kind", "step_ref", "ts", "ts_iso", "session_id", "build", "response_id", *USAGE_FIELDS})
+        self.assertEqual(set(usage_row(None)), {"kind", "step_ref", "ts", "ts_iso", "session_id", "build", *USAGE_FIELDS})
+        self.assertTrue(all(row[field] is None for field in USAGE_FIELDS))
+
+    def test_final_usage_keeps_unreported_token_totals_null(self) -> None:
+        activity_log._usage_totals.pop("abcd1234", None)
+        activity_log.log_usage_final(reason="test")
+        final = self.rows()[-1]
+        self.assertTrue(final["final"])
+        for field in ("input_tokens", "output_tokens", "cached_tokens", "reasoning_tokens", "total_tokens"):
+            self.assertIsNone(final[field])
 
     def test_response_done_appends_one_usage_row(self) -> None:
         session = make_session()
@@ -161,6 +172,10 @@ class UsageRowTests(_LogCase):
                 patch.object(session, "_send_response_create", side_effect=lambda **_: done.append(1)):
             feed(session, {"type": "response.output_item.done", "response_id": "resp_t",
                            "item": {"type": "function_call", "call_id": "call_t", "name": "cua_state", "arguments": "{}"}})
+            feed(session, {"type": "response.done", "response": {
+                "id": "resp_t", "status": "completed",
+                "output": [{"type": "function_call", "call_id": "call_t", "name": "cua_state"}],
+            }})
             deadline = time.monotonic() + 3
             while not done and time.monotonic() < deadline:
                 time.sleep(0.01)
@@ -168,6 +183,46 @@ class UsageRowTests(_LogCase):
         self.assertEqual(len(tool_rows), 1)
         self.assertEqual((tool_rows[0]["call_id"], tool_rows[0]["response_id"]), ("call_t", "resp_t"))
         self.assertIn("result_chars", tool_rows[0])
+
+    def test_parallel_tool_calls_send_one_followup_after_both_results(self) -> None:
+        session = make_session()
+        calls: list[tuple[str, int]] = []
+        sent = threading.Event()
+        response_id, request_id = "resp_batch", "request_batch"
+        with patch.object(session, "_send_tool_followup",
+                          side_effect=lambda req, epoch: (calls.append((req, epoch)), sent.set())):
+            session._pending_calls.update({
+                "call_a": {"response_id": response_id},
+                "call_b": {"response_id": response_id},
+            })
+            session._note_tool_response_done({
+                "id": response_id, "status": "completed", "output": [
+                    {"type": "function_call", "call_id": "call_a"},
+                    {"type": "function_call", "call_id": "call_b"},
+                ],
+            }, request_id)
+            session._mark_tool_call_completed("call_a", response_id, request_id)
+            session._pending_calls.pop("call_a")
+            session._maybe_resume_tool_batch(response_id)
+            self.assertEqual(calls, [])
+            session._mark_tool_call_completed("call_b", response_id, request_id)
+            session._pending_calls.pop("call_b")
+            session._maybe_resume_tool_batch(response_id)
+            self.assertTrue(sent.wait(1))
+        self.assertEqual(calls, [(request_id, session._conn_epoch)])
+
+    def test_late_duplicate_tool_call_delivery_after_completion_does_not_rerun(self) -> None:
+        session = make_session()
+        with patch("voice_cua.live_session.dispatch", return_value={"ok": True}), \
+                patch("voice_cua.live_session.island_publish"), \
+                patch("voice_cua.live_session.plugin_island.tool_started"), \
+                patch("voice_cua.live_session.plugin_island.tool_finished") as finished:
+            session._run_tool("call_once", "cua_state", "{}", response_id="resp_once")
+            deadline = time.monotonic() + 2
+            while session._inflight_tools and time.monotonic() < deadline:
+                time.sleep(0.01)
+            session._run_tool("call_once", "cua_state", "{}", response_id="resp_once")
+        self.assertEqual(finished.call_count, 1)
 
     def test_session_update_bytes_logged(self) -> None:
         session = make_session()

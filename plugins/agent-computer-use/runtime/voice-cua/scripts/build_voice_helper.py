@@ -50,7 +50,12 @@ def ensure_pyinstaller() -> None:
     try:
         import PyInstaller  # noqa: F401
     except ImportError:
-        run([sys.executable, "-m", "pip", "install", "-q", "pyinstaller>=6.0"])
+        print(
+            f"ERROR: PyInstaller is unavailable in {sys.executable}; "
+            "run the installer with a Python that has PyInstaller (for example, pyenv python3).",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 def build(*, clean: bool = True, onefile: bool = False) -> Path:

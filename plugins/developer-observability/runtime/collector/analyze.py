@@ -45,6 +45,9 @@ RUN_ARTIFACT_SKEW_S = 1.0
 SESSION_STAGES = frozenset({'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready',
                             'stack_begin', 'response_done', 'ledger_task', 'task_outcome', 'comet_begin', 'comet_act',
                             'comet_end', 'cua_act', 'cua_state', 'voice_latency', 'usage', 'island_layout',
+                            'user_request', 'model_response_start', 'model_response_end', 'assistant_reply',
+                            'live_backend_input_queued',
+                            'tool_start', 'tool_result', 'tool_error', 'tool_call_mirror',
                             'ledger_select', 'ledger_save_receipt', 'ledger_supersede'})
 LAYOUT_TOLERANCE_PT = 2
 
@@ -222,7 +225,8 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
     step = lead[0][0][1] if lead else (events[0]['step'] or events[0]['kind'])
     plain = [e for e in newest if not e.get('alias')] or newest
     text_events = [e for e in plain if e.get('kind') != 'island_layout'] or plain
-    message = text_events[-1].get('message') or ''
+    latest = text_events[-1]
+    message = latest.get('message') or ''
     times = [iso(e.get('ts')) for e in stamped[-64:]]
     sources = Counter(e['source'] for e in events)
     finding = {
@@ -236,13 +240,17 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
         'recovery_times': [], 'recovery_times_complete': True,
         'workflow_id': f"wf:{sources.most_common(1)[0][0]}", 'step_id': f'step:{project}-{step}',
         'latest_evidence': {'project': project, 'tool': step, 'first_error_line': message,
-                            'error_type': (text_events[0]['kind'] if text_events else events[0]['kind'])},
+                            'error_type': latest.get('error_type') or latest['kind']},
         'event_timeline': [{'event_id': e['ref'], 'event_at': iso(e.get('ts')) if e.get('ts') is not None else None,
                             'event_type': e['kind'], 'outcome': 'failure' if e['error'] else 'unknown',
                             'safe_evidence': {'tool': e['step'], 'version': e.get('version'),
                                               'version_attribution': e.get('version_attribution', 'unknown'),
                                               'session_attribution': e.get('session_attribution', 'unknown'),
                                               'first_error_line': scrub(e.get('message'), 120) or None,
+                                              'error_type': e.get('error_type'),
+                                              'input_tokens': e.get('input_tokens'),
+                                              'output_tokens': e.get('output_tokens'),
+                                              'total_tokens': e.get('total_tokens'),
                                               'error_details': e.get('error_details'),
                                               'ledger_result_detail': e.get('ledger_result_detail'),
                                               'ledger_result_status': e.get('ledger_result_status'),
@@ -828,15 +836,103 @@ def _task_records(events, snapshot_id, sidecar_writer):
     return index, gap_index
 
 
+REALTIME_REPLY_TIMEOUT_S = 180
+
+
+def _anomaly_event(event, code, message):
+    return {**event, 'kind': code, 'step': code, 'error': True, 'error_type': code,
+            'message': message, 'outcome': 'failure'}
+
+
+def realtime_anomalies(ctx, events):
+    sessions = defaultdict(list)
+    for event in events:
+        if (event.get('project') == 'samantha' and event.get('session')
+                and event.get('session_attribution') == 'event' and event.get('ts') is not None):
+            sessions[(event['project'], event['session'])].append(event)
+    missing_replies, overlapping_responses, zero_usage = [], [], []
+    messages = {
+        'no_reply': 'No assistant reply was observed within 180 seconds of a request.',
+        'response_overlap': 'A model response remained active after a new request was queued.',
+        'zero_token_usage': 'The provider reported zero input, output, and total tokens.',
+    }
+    for rows in sessions.values():
+        requests = sorted((e for e in rows if e['kind'] == 'user_request'), key=lambda e: e['ts'])
+        queued = [e for e in rows if e['kind'] == 'live_backend_input_queued']
+        replies = [e for e in rows if e['kind'] == 'assistant_reply']
+        starts = [e for e in rows if e['kind'] == 'model_response_start']
+        ends = defaultdict(list)
+        starts_by_run = defaultdict(list)
+        for event in starts:
+            if event.get('run_ref'):
+                starts_by_run[event['run_ref']].append(event)
+        for event in rows:
+            if event['kind'] == 'model_response_end' and event.get('response_ref'):
+                ends[event['response_ref']].append(event['ts'])
+
+        for index, request in enumerate(requests):
+            at, deadline = request['ts'], request['ts'] + REALTIME_REPLY_TIMEOUT_S
+            if ctx.now >= deadline:
+                boundary = min(deadline, requests[index + 1]['ts']) if index + 1 < len(requests) else deadline
+                response_starts = [e for e in starts_by_run.get(request.get('run_ref'), [])
+                                   if at <= e['ts'] <= boundary] if request.get('run_ref') else []
+                response_refs = {e['response_ref'] for e in response_starts if e.get('response_ref')}
+                correlated = [e for e in replies if at <= e['ts'] <= deadline and (
+                    (request.get('turn') is not None and e.get('turn') == request['turn'])
+                    or (request.get('run_ref') and e.get('run_ref') == request['run_ref'])
+                    or (e.get('response_ref') and e['response_ref'] in response_refs))]
+                if not correlated and (response_starts or not request.get('run_ref')):
+                    anchor = min((e['ts'] for e in response_starts), default=at)
+                    correlated = [e for e in replies if anchor <= e['ts'] <= boundary
+                                  and not e.get('run_ref') and not e.get('response_ref')
+                                  and e.get('turn') is None]
+                if not any(at <= e['ts'] <= deadline for e in correlated):
+                    missing_replies.append(_anomaly_event(request, 'no_reply', messages['no_reply']))
+
+        redirects = sorted(requests + queued + starts, key=lambda e: e['ts'])
+        seen_redirects = set()
+        for redirect in redirects:
+            at = redirect['ts']
+            identity = redirect.get('run_ref') or redirect['ref']
+            if identity in seen_redirects:
+                continue
+            active = any(e['ts'] < at and at - e['ts'] <= REALTIME_REPLY_TIMEOUT_S
+                         and (redirect['kind'] != 'model_response_start' or
+                              not ((redirect.get('run_ref') and e.get('run_ref') == redirect['run_ref']) or
+                                   (redirect.get('response_ref') and e.get('response_ref') == redirect['response_ref'])))
+                         and (not ends.get(e.get('response_ref')) or max(ends[e['response_ref']]) > at)
+                         for e in starts)
+            if active:
+                overlapping_responses.append(_anomaly_event(redirect, 'response_overlap', messages['response_overlap']))
+                seen_redirects.add(identity)
+
+        zero_usage.extend(_anomaly_event(e, 'zero_token_usage', messages['zero_token_usage']) for e in rows
+                          if e['kind'] == 'usage' and all(type(e.get(key)) is int and e[key] == 0
+                                                          for key in ('input_tokens', 'output_tokens', 'total_tokens')))
+
+    findings = []
+    for code, items in (('no_reply', missing_replies), ('response_overlap', overlapping_responses),
+                        ('zero_token_usage', zero_usage)):
+        if not items:
+            continue
+        count, by_version, _ = _occurrences(items)
+        description = messages[code]
+        headline = f"Samantha: {description} ({count} occurrence{'s' if count != 1 else ''})"
+        findings.append(_finding(ctx, 'failure', 'telemetry_anomaly', ('samantha', code), items,
+                                 headline, count, {'anomaly': code, 'what_happened': description}, dict(by_version)))
+    return findings
+
+
 def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H, threshold_ms=HOTSPOT_MS,
           test_threshold_ms=TEST_HOTSPOT_MS, *, scoped=True, snapshot_id=None, sidecar_writer=None,
           include_sessions=True):
     now = time.time() if now is None else now
-    events, excluded = prepare(events, include_tests)
+    session_events = list(events)
+    events, excluded = prepare(session_events, include_tests)
     events = _junit_owns_pytest_failures(events)
     roll = rollup(events)
     ctx = Context(events, now, window_h, threshold_ms, test_threshold_ms)
-    findings = (failures(ctx, events, roll) + collector_failures(ctx, stats) + latency(ctx, events)
+    findings = (failures(ctx, events, roll) + realtime_anomalies(ctx, events) + collector_failures(ctx, stats) + latency(ctx, events)
                 + turn_latency(ctx, events) + redundancy(ctx, events, roll) + island_layout(ctx, events))
     findings.sort(key=_rank, reverse=True)
     for rank, finding in enumerate(findings, 1):
@@ -846,7 +942,7 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
     stamp = iso(now)
     session_groups = defaultdict(list)
     if include_sessions:
-        for event in events:
+        for event in session_events:
             if not event.get('session') or event.get('session_attribution') != 'event' or event.get('ts') is None:
                 continue
             stage = event.get('step') if event.get('step') in SESSION_STAGES else event.get('kind')
@@ -890,6 +986,10 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
                     ('run_ref', event.get('run_ref')),
                     ('call_ref', event.get('call_ref')),
                     ('response_ref', event.get('response_ref')),
+                    ('error_type', event.get('error_type')),
+                    ('input_tokens', event.get('input_tokens')),
+                    ('output_tokens', event.get('output_tokens')),
+                    ('total_tokens', event.get('total_tokens')),
                     ('mirror_ref', event.get('mirror_ref')),
                     ('build', event.get('build')),
                     ('ledger_rule', event.get('ledger_rule')),

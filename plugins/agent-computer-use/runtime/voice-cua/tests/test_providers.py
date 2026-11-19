@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT / "python"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from voice_cua import auth, providers, tools  # noqa: E402
+from voice_cua.activity_log import usage_row  # noqa: E402
 from voice_cua.providers import (  # noqa: E402
     ESCALATE_TOOL, LiveProvider, XAIProvider, make_provider, provider_for,
 )
@@ -71,6 +72,19 @@ class SelectionTests(unittest.TestCase):
 
 
 class XAITests(unittest.TestCase):
+    def test_grok_zero_usage_is_unknown_and_positive_usage_is_preserved(self) -> None:
+        p = XAIProvider("grok-voice-latest")
+        (unknown,) = p.inbound({"type": "response.done", "response": {
+            "id": "r-zero", "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+        }})
+        row = usage_row(unknown["response"], labels=p.usage_labels(unknown["response"]))
+        self.assertIsNone(row["input_tokens"])
+        self.assertIsNone(row["total_tokens"])
+        (measured,) = p.inbound({"type": "response.done", "response": {
+            "id": "r-used", "usage": {"input_tokens": 4, "output_tokens": 2, "total_tokens": 6},
+        }})
+        self.assertEqual(measured["response"]["usage"]["total_tokens"], 6)
+
     def test_session_update_is_flattened(self) -> None:
         p = XAIProvider("grok-voice-latest")
         self.assertEqual(p.url(), "wss://api.x.ai/v1/realtime?model=grok-voice-latest")
@@ -432,15 +446,26 @@ class LiveTests(_Rows):
                              "event": {"type": "response.completed", "response": {"id": "r9", "status": "completed"}}})
         self.assertEqual(done["response"]["output"][0]["content"][0]["text"], "Done.")
 
-    def test_voice_seconds_logged_separately(self) -> None:
+    def test_live_session_usage_keeps_tokens_and_seconds_and_leaves_missing_tokens_unknown(self) -> None:
         p, _ = _live()
-        self.assertEqual(p.inbound({"type": "session.usage.updated", "usage": {"seconds": 12},
+        self.assertEqual(p.inbound({"type": "session.usage.updated", "usage": {
+            "seconds": 12, "input_tokens": 24, "output_tokens": 11, "cached_tokens": 7,
+        },
                                     "context_window": {"usage_ratio": 0.4}}), [])
         p.inbound({"type": "session.closed", "usage": {"seconds": 15}, "reason": "close_requested"})
         rows = self.rows("live_usage")
         self.assertEqual([r["voice_seconds"] for r in rows], [12, 15])
         self.assertTrue(rows[1]["final"])
         self.assertNotIn("input_tokens", rows[0])
+        usage = self.rows("usage")
+        self.assertEqual([row["voice_seconds"] for row in usage], [12, 15])
+        self.assertTrue(all(row["provider"] == "openai-live" for row in usage))
+        self.assertTrue(all(row["live_model"] == "gpt-live-1" for row in usage))
+        self.assertEqual((usage[0]["input_tokens"], usage[0]["output_tokens"], usage[0]["cached_tokens"]),
+                         (24, 11, 7))
+        self.assertTrue(all(row["input_tokens"] is None and row["output_tokens"] is None
+                            and row["cached_tokens"] is None and row["total_tokens"] is None
+                            for row in usage[1:]))
 
 
 def live_session() -> LiveSession:

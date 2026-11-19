@@ -35,6 +35,16 @@ class StartupTextTurnTest(unittest.TestCase):
         self.assertTrue(result["turn_id"])
         self.assertLess(time.monotonic() - started, 5)
 
+    def test_status_reports_setup_reason_until_session_is_ready(self):
+        sess = _session()
+        sess._session_error_reason = "Realtime open failed (RuntimeError)."
+        session_hub.register(sess)
+        status = session_hub.status()
+        self.assertFalse(status["ready"])
+        self.assertEqual(status["reason"], "Realtime open failed (RuntimeError).")
+        sess._session_ready.set()
+        self.assertIsNone(session_hub.status()["reason"])
+
     def test_never_ready_reports_typed_error(self):
         session_hub.register(_session())
         old, session_hub.WAKE_WAIT_S = session_hub.WAKE_WAIT_S, 0.1

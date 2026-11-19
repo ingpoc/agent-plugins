@@ -36,7 +36,7 @@ from urllib.parse import urlencode
 import uuid
 from typing import Any, Callable
 
-from voice_cua.activity_log import log_event, new_step_ref
+from voice_cua.activity_log import log_event, log_usage, new_step_ref
 
 LIVE_MODEL = "gpt-live-1"  # the only OpenAI voice path (Realtime removed)
 XAI_MODEL = "grok-voice-latest"
@@ -195,9 +195,12 @@ class VoiceProvider:
     def __init__(self, model: str, *, send_raw: Callable[[dict[str, Any]], bool] | None = None) -> None:
         self.model = model
         self._send_raw = send_raw or (lambda _e: False)
+        self._on_spoken_request: Callable[[str], None] | None = None
 
-    def bind(self, send_raw: Callable[[dict[str, Any]], bool]) -> None:
+    def bind(self, send_raw: Callable[[dict[str, Any]], bool], *,
+             on_spoken_request: Callable[[str], None] | None = None) -> None:
         self._send_raw = send_raw
+        self._on_spoken_request = on_spoken_request
 
     def url(self) -> str:
         raise NotImplementedError
@@ -306,7 +309,19 @@ class XAIProvider(VoiceProvider):
         if et not in {"response.created", "response.done"}:
             return [event]
         response = event.get("response")
-        if not isinstance(response, dict) or response.get("metadata"):
+        if not isinstance(response, dict):
+            return [event]
+        if et == "response.done" and isinstance(response.get("usage"), dict):
+            usage = response["usage"]
+            details = [usage.get("input_token_details"), usage.get("output_token_details")]
+            counts = [usage.get(key) for key in ("input_tokens", "output_tokens", "total_tokens")]
+            counts += [detail.get(key) for detail in details if isinstance(detail, dict)
+                       for key in ("cached_tokens", "text_tokens", "audio_tokens")]
+            numeric = [value for value in counts if isinstance(value, (int, float)) and not isinstance(value, bool)]
+            if numeric and not any(value > 0 for value in numeric):
+                response = {**response, "usage": {}}
+                event = {**event, "response": response}
+        if response.get("metadata"):
             return [event]
         rid = str(response.get("id") or "")
         with self._meta_lock:
@@ -407,7 +422,8 @@ class LiveProvider(VoiceProvider):
         self._remember("user", text)
         with self._lock:
             backend_busy = bool(self._active_backend_responses or any(self._pending_calls.values()))
-            request_id = (self._pending_spoken_request[0] if self._pending_spoken_request else
+            spoken_request_id = self._pending_spoken_request[0] if self._pending_spoken_request else ""
+            request_id = (spoken_request_id or
                           self._pending_request or self._turn_request)
             step_ref = self._request_step_refs.get(request_id) if request_id else None
             if request_id and not step_ref:
@@ -418,6 +434,8 @@ class LiveProvider(VoiceProvider):
                 self._pending_spoken_update = text
             else:
                 self._pending_spoken_update = ""
+        if spoken_request_id and self._on_spoken_request:
+            self._on_spoken_request(spoken_request_id)
         if backend_busy:
             log_event("live_backend_input_queued", run_id=request_id or None,
                       run_ref_status="linked" if request_id else "unknown",
@@ -846,6 +864,11 @@ class LiveProvider(VoiceProvider):
                 self.voice_seconds = int(seconds)
             log_event("live_usage", live_model=self.model, voice_seconds=self.voice_seconds,
                       final=et == "session.closed", reason=str(event.get("reason") or "") or None)
+            live_usage: dict[str, Any] = {"usage": dict(usage) if isinstance(usage, dict) else {}}
+            if isinstance(self.voice_seconds, int) and not isinstance(self.voice_seconds, bool):
+                live_usage["usage"]["seconds"] = self.voice_seconds
+            log_usage(live_usage, labels={"provider": self.name, "model": self.model,
+                                          "live_model": self.model}, accumulate=False)
             if et == "session.closed":
                 with self._lock:
                     self.closed.set()

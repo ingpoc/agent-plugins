@@ -1,3 +1,12 @@
+## 0.2.152
+
+- The installer refuses to build without the voice helper build tool, no longer offers to skip the voice helper, and fails before signing if the helper is missing (ACU-02).
+- The packaged voice helper finds its plugin file beside its scripts, so Samantha can connect from the installed app (ACU-03).
+- A failure while setting up a voice session closes it and retries, and status says not ready with the reason until the session is ready (ACU-04).
+- A new typed or spoken request stops the current answer first and is answered next, on both voice models (ACU-05).
+- Duplicate tool call deliveries are ignored, a tool batch gets one follow-up, and a request with no reply reconnects and ends with a plain error instead of hanging (ACU-06).
+- Usage records keep the live model token counts when the provider sends them; all-zero Grok Voice usage is recorded as unknown instead of zero (ACU-10).
+
 ## 0.2.151
 
 - Thin and route the macos-cua and Samantha verification skills; make release metadata failures explicit and bind package roots to the installed manifest.

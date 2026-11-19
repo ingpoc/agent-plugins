@@ -540,12 +540,12 @@ elif args[:2] != ['pr', 'edit']:
         prepared = self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01")
         self.assertEqual(prepared.returncode, 0, prepared.stderr)
         review_result = self.root / "review-result.txt"
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
         def job(phase):
             command = [sys.executable, "-c", f"from pathlib import Path; Path({str(review_result)!r}).write_text('VERDICT: PASS\\n')"] if phase == "review" else [sys.executable, "-c", "pass"]
-            return subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
-                *( ["--result", str(review_result)] if phase == "review" else []),
-                "--phase", phase, "job", "--", *command],
-                env=self.env, capture_output=True, text=True)
+            args = ["--ids", "ISSUE-01", *( ["--result", str(review_result)] if phase == "review" else []),
+                    "--phase", phase, "job", "--", *command]
+            return self.call_job_without_viewer(live, *args)
         self.assertEqual(job("fix").returncode, 0)
         self.assertEqual(job("presuite").returncode, 0)
         reviewed = self.call_without_viewer("review", "--ids", "ISSUE-01")
@@ -878,16 +878,20 @@ elif args[:2] != ['pr', 'edit']:
         self.assertIn('fix job cannot start a blocked, parked, or deferred lane', result.stderr)
 
     def test_failed_command_does_not_overwrite_newer_plan(self):
-        self.assertEqual(self.call('start').returncode, 0)
+        self.assertEqual(self.call_without_viewer('start').returncode, 0)
         live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
         fail = self.root / 'replan.py'
         fail.write_text(f"import json\nfrom pathlib import Path\np=Path({str(live)!r})\nd=json.loads(p.read_text())\nd['tracking']['plan']['groups'][0]['status']='review'\np.write_text(json.dumps(d))\nraise SystemExit(7)\n")
         command = f'"{sys.executable}" "{fail}"'
-        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending','verify':{'command':command}}]}
-        path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
-        self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
-        self.assertEqual(self.install_after_review('--ids','ISSUE-01').returncode, 0)
-        result = self.call('verify','--ids','ISSUE-01','--then',command)
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending',
+            'verify':{'command':command}, 'codex': {'implementer_session':'fixture-implementer',
+            'reviewer_session':'fixture-reviewer', 'review_status':'pending'}}]}
+        path = self.root / 'plan.json'
+        path.write_text(json.dumps(plan))
+        self.assertEqual(self.call_without_viewer('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
+        self.prepare_review(['ISSUE-01'])
+        self.assertEqual(self.call_without_viewer('install','--ids','ISSUE-01').returncode, 0)
+        result = self.call_without_viewer('verify','--ids','ISSUE-01','--then',command)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('Could not record failed lanes', result.stderr)
         self.assertEqual(json.loads(live.read_text())['tracking']['plan']['groups'][0]['status'], 'review')

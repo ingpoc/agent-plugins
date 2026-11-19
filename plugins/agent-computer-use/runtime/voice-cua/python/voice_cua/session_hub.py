@@ -41,10 +41,13 @@ def status() -> dict[str, Any]:
         sess = _active
     if sess is None:
         return {"ok": True, "active": False, "ready": False}
+    ready = sess._session_ready.is_set() and not sess._stop.is_set()
+    reason = getattr(sess, "_session_error_reason", "")
     return {
         "ok": True,
         "active": True,
-        "ready": sess._session_ready.is_set() and not sess._stop.is_set(),
+        "ready": ready,
+        "reason": None if ready else reason or "Realtime session is not ready.",
         "text_only": sess._text_only,
         "audio": sess._audio_enabled,
     }

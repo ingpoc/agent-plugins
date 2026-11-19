@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.33
+
+- Failure issues show the logged error type and message (DEVOBS-05).
+- Samantha sessions with requests, tool calls or replies stay in the session list on every voice model; explicit test sessions stay out of normal findings (DEVOBS-06).
+- New issues for a request with no reply after three minutes, an answer that keeps going after a new request, and usage records that are all zero (DEVOBS-07).
+- The large-log speed test measures processor time, so a busy machine does not fail it (BCL-82).
+
 ## 0.1.32
 
 - Findings collected for a project directory are attributed to that project even when no projects are configured, and their issue IDs expand in diagnosis; triage explains how to read and fix unassigned findings (BCL-77).

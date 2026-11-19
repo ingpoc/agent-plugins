@@ -1,3 +1,7 @@
+## 0.1.47
+
+- Tests that failed at random on a busy machine no longer start real viewers they do not need, wait for the viewer to answer before checking it, and prove each rejection with a real answer (BCL-82).
+
 ## 0.1.46
 
 - Restarting a lane inside a round, for example after an early Introspect, keeps the same round number and adds no round history; the round only moves on when new work is planned after a finished round (BCL-81).
