@@ -7574,9 +7574,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-19T13:42:17Z",
-      "now": "2026-11-19T13:42:17Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-19T13:49:21Z",
+      "now": "2026-11-19T13:49:21Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 116,
@@ -9677,6 +9677,97 @@
         },
         "round": 2,
         "cycle": 9
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-19T13:49:21Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: ACU-HELPER",
+          "Codex review: ACU-HELPER",
+          "Polling and rework review: ACU-HELPER",
+          "Test command: ACU-HELPER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
+          "Codex write: ACU-SESSION",
+          "Codex review: ACU-SESSION",
+          "Polling and rework review: ACU-SESSION",
+          "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
+          "Codex write: DEVOBS",
+          "Codex review: DEVOBS",
+          "Polling and rework review: DEVOBS",
+          "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
+          "Codex write: BCL-TESTS",
+          "Codex review: BCL-TESTS",
+          "Polling and rework review: BCL-TESTS",
+          "Test command: BCL-TESTS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.sh"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Codex write: ACU-HELPER",
+          "Codex review: ACU-HELPER",
+          "Polling and rework review: ACU-HELPER",
+          "Test command: ACU-HELPER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
+          "Codex review: ACU-SESSION",
+          "Polling and rework review: ACU-SESSION",
+          "Codex write: DEVOBS",
+          "Codex review: DEVOBS",
+          "Polling and rework review: DEVOBS",
+          "Codex write: BCL-TESTS",
+          "Codex review: BCL-TESTS",
+          "Polling and rework review: BCL-TESTS"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Test command: BCL-TESTS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.sh",
+                "evidence": "The load check for the flaky tests failed only because the check script put a test filter before the test folder, so the lane was marked failed with no product fault. A check script that has not been run once by hand is now removed from the flow: every new check runs alone once before bcl verify uses it.",
+                "outcome": "fixed inline"
+              },
+              {
+                "item": "Parallel group count: 4",
+                "evidence": "I first started six coding jobs, above the limit of four groups a round. Two were stopped, their partial work kept aside and both groups deferred to the next round; one other job was caught by that stop and had to be restarted. Only four groups are started from now on.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
+                "evidence": "One typed run on both voice models now serves the helper lane and the session lane, and it always ends by selecting Grok Voice and turning Samantha off, so the app is switched on twice instead of four times.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Codex write: ACU-SESSION",
+                "evidence": "The offline tests passed but the real run showed Grok still finishing its story and GPT giving stale replies to the next two turns. The restart brief adds the real 19:14 timeline and asks for a two-provider test that checks the reply of each turn after a redirect.",
+                "outcome": "issue",
+                "issue_id": "ACU-05"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
+                "evidence": "The real connect error line carries its exception type in a field the fixtures never had, so the fix missed it. The check reads the real log every time, and a script now runs every new test against the old code in one go, which showed all 30 new tests failing there.",
+                "outcome": "fixed inline"
+              }
+            ]
+          }
+        },
+        "round": 3,
+        "cycle": 9
       }
     ],
     "archive": {
@@ -9697,7 +9788,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 3,
@@ -9711,8 +9803,8 @@
             "ACU-03"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl117-r3-g1",
           "reason": "Bring the two finished fixes from the voice helper branch.",
           "codex": {
@@ -9739,12 +9831,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
             "method": "Checked on the installed copy.",
-            "status": "pending",
+            "status": "verified",
             "total": 2,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 2,
+            "failed": 0,
+            "summary": "Helper installed and connects on both models",
+            "failure": null
           },
-          "updated_at": "2026-11-19T13:16:05Z",
+          "updated_at": "2026-11-19T13:47:42Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -9753,7 +9847,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-19T13:20:28Z"
-          }
+          },
+          "verify_summary": "Helper installed and connects on both models"
         },
         {
           "id": "ACU-SESSION",
@@ -9765,8 +9860,8 @@
             "ACU-10"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "failed",
+          "phase": "verify",
           "worktree": "bcl117-r3-g2",
           "reason": "All four live in the voice session code.",
           "codex": {
@@ -9793,12 +9888,13 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
             "method": "Checked on the installed copy.",
-            "status": "pending",
+            "status": "partial",
             "total": 4,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 2,
+            "failed": 1,
+            "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-19T13:16:05Z",
+          "updated_at": "2026-11-19T13:45:37Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -9896,8 +9992,8 @@
             "DEVOBS-07"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "failed",
+          "phase": "verify",
           "worktree": "bcl117-r3-g5",
           "reason": "All three are gaps in how dev-obs reads the voice activity log.",
           "codex": {
@@ -9924,12 +10020,13 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
             "method": "Checked on the installed copy.",
-            "status": "pending",
+            "status": "partial",
             "total": 3,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 2,
+            "failed": 1,
+            "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-19T13:16:05Z",
+          "updated_at": "2026-11-19T13:42:34Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -9947,8 +10044,8 @@
             "BCL-82"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "failed",
+          "phase": "verify",
           "worktree": "bcl117-r3-g6",
           "reason": "Timing and isolation in the test suites.",
           "codex": {
@@ -9978,9 +10075,10 @@
             "status": "pending",
             "total": 1,
             "fixed": 0,
-            "failed": 0
+            "failed": 0,
+            "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-19T13:16:05Z",
+          "updated_at": "2026-11-19T13:47:57Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -9991,7 +10089,8 @@
             "started_at": "2026-11-19T13:20:28Z"
           }
         }
-      ]
+      ],
+      "status": "closed"
     },
     "verification_run": {
       "id": "r3-356d68f6-117",
@@ -10026,19 +10125,59 @@
           "state": "pending"
         },
         "ACU-02": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T13:47:42Z",
+          "started_at": "2026-11-19T13:47:42Z",
+          "updated_at": "2026-11-19T13:47:42Z",
+          "check_id": "bb831ce8c1514f99a5dd704228cc7bbb",
+          "evidence": "Checked: The installed app and the installer checks; Expected: The helper is always inside the signed app and the installer refuses to skip it; Observed: The helper is inside the signed app and every installer guard holds",
+          "details": "Installed 0.2.152 via the local signed release: voice-cua helper present, codesign deep strict ok. Named tests on the installed copy pass: require voice helper, skip voice bundle argument rejected, PyInstaller preflight fails before the bundle is created, builder does not install PyInstaller; all fail or hang on old code (r3/old-fails-r3.log). Before: 14 Nov install finished without the helper. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.log. Run r3-356d68f6-117.",
+          "finished_at": "2026-11-19T13:47:42.480761Z"
         },
         "ACU-03": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T13:47:42Z",
+          "started_at": "2026-11-19T13:47:42Z",
+          "updated_at": "2026-11-19T13:47:42Z",
+          "check_id": "20df9ed735c54af1864b55f4f09847eb",
+          "evidence": "Checked: Samantha start from the installed helper on both models; Expected: The helper reaches ready on both voice models; Observed: Ready in 8.1 s on GPT-Live-1 and 4.1 s on Grok Voice",
+          "details": "Installed 0.2.152 frozen helper: both models reached ready and answered typed turns. test_plugin_root_includes_script_directory passes on the installed copy and fails on old code. Before (0.2.151 build 1253): empty websocket error, StopIteration, never ready. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.log. Run r3-356d68f6-117.",
+          "finished_at": "2026-11-19T13:47:42.481091Z"
         },
         "ACU-04": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T13:47:05Z",
+          "started_at": "2026-11-19T13:47:05Z",
+          "updated_at": "2026-11-19T13:47:05Z",
+          "check_id": "04dc7f9ffbf74c3d82889ca150d809da",
+          "evidence": "Checked: Samantha start and status on the installed app; Expected: Not ready shows a reason, and a setup failure retries or ends; Observed: Both models reach ready and status carries a reason field",
+          "details": "Installed 0.2.152: GPT-Live-1 ready in 8.1 s, Grok Voice 3.0 ready in 4.1 s, status reason null when ready. Named tests on the installed copy pass (setup callback error closes and reports not ready reason; status reports setup reason until ready); they fail on old code (r3/old-fails-r3.log). Before: status said healthy while not ready for over two minutes. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117.",
+          "finished_at": "2026-11-19T13:47:05.311691Z"
         },
         "ACU-05": {
-          "state": "pending"
+          "state": "not_fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T13:47:05Z",
+          "started_at": "2026-11-19T13:47:05Z",
+          "updated_at": "2026-11-19T13:47:05Z",
+          "check_id": "2e4e9e482ac54b23b3d0c2d20b95561e",
+          "evidence": "Checked: A redirect three seconds into a long story, both models; Expected: The story stops within about a second and the redirect is answered next; Observed: Grok kept talking; GPT stopped but later replies went astray",
+          "details": "Installed 0.2.152: Grok Voice story ended 13.2 s after the redirect (before 19.9 s), full story text returned. GPT-Live-1 story stopped and redirect answered in 3.1 s (before 8.5 s), but the next turns got a stale reply (recall answered with the Pune line) and Okay for multi_step with no tools run; live log 19:14 IST session 9db3abab. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117.",
+          "finished_at": "2026-11-19T13:47:05.312058Z"
         },
         "ACU-06": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T13:47:05Z",
+          "started_at": "2026-11-19T13:47:05Z",
+          "updated_at": "2026-11-19T13:47:05Z",
+          "check_id": "92bdf0e861114ace8eacd1e11da9a34e",
+          "evidence": "Checked: The five typed scenarios on Grok Voice 3.0; Expected: Every turn answered, including empathy after the browser task; Observed: All six turns answered; empathy in 1.6 seconds",
+          "details": "Installed 0.2.152 run-grok-after.json: multi_step gave the heading Example Domain and closed the window in 9.2 s; empathy answered in 1.57 s; each tool ran once. Before: empathy got no reply in 180 s and tools ran twice. Named watchdog and duplicate tests pass on installed copy. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117.",
+          "finished_at": "2026-11-19T13:47:05.312020Z"
         },
         "ACU-07": {
           "state": "pending"
@@ -10050,16 +10189,49 @@
           "state": "pending"
         },
         "ACU-10": {
-          "state": "pending"
+          "state": "blocked",
+          "observation": "Checking usage records from the installed version now",
+          "observed_at": "2026-11-19T13:47:14Z",
+          "started_at": "2026-11-19T13:47:14Z",
+          "updated_at": "2026-11-19T13:47:14Z",
+          "check_id": "ea664cbd55a545a0836c178b4c59a0d9",
+          "evidence": "Checked: Usage records from both models; Expected: Real input and output token counts; Observed: GPT-Live-1 sends only voice seconds and Grok Voice sends zeros, now recorded as unknown",
+          "details": "Installed 0.2.152 typed runs 19:14 IST: GPT-Live-1 live usage rows carry voice_seconds 12 and 27 with null tokens (backend gpt-6-luna rows carry real tokens); Grok Voice 3.0 11 usage rows with null tokens (before: 9 rows of 0). Logging change is in and tested; real counts need provider support. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log",
+          "blocker": "The voice providers do not send live model token counts",
+          "finished_at": "2026-11-19T13:47:14.951653Z"
         },
         "DEVOBS-05": {
-          "state": "pending"
+          "state": "not_fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T13:43:21Z",
+          "started_at": "2026-11-19T13:43:21Z",
+          "updated_at": "2026-11-19T13:43:21Z",
+          "check_id": "c457fa84c8ee41b18b8e6307c5d85c8b",
+          "evidence": "Checked: Failure details for the real Samantha connect error; Expected: The error type and message show for each failure; Observed: Two of four failures still show an unknown message",
+          "details": "realtime_error row of 16:57 IST has exception_type StopIteration and an empty error; dev-obs 0.1.33 shows error type websocket and first error line unknown, ignoring exception_type. The session_phase failures do show type and message. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117.",
+          "finished_at": "2026-11-19T13:43:44.527064Z"
         },
         "DEVOBS-06": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T13:43:21Z",
+          "started_at": "2026-11-19T13:43:21Z",
+          "updated_at": "2026-11-19T13:43:21Z",
+          "check_id": "8fb2b3501e424ed086398e8899abf126",
+          "evidence": "Checked: The session list on the real Samantha log; Expected: The Grok Voice session from 17:03 to 17:09 is listed; Observed: It is listed with its steps",
+          "details": "Installed 0.1.33 after a fresh collect: session sref_6f5b63fc3fa55f933d770e10a3bb60de last seen 11:39:53Z. Before (0.1.32, 17:12 IST): missing. Named tests pass on the installed copy; 9 new tests fail on old code (r3/old-fails-r3.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117.",
+          "finished_at": "2026-11-19T13:43:44.526713Z"
         },
         "DEVOBS-07": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T13:43:21Z",
+          "started_at": "2026-11-19T13:43:21Z",
+          "updated_at": "2026-11-19T13:43:21Z",
+          "check_id": "f08e39483b814d1199f46689986ac8e1",
+          "evidence": "Checked: The issue list on the real Samantha log; Expected: Issues for no reply, a reply that kept going, and all-zero usage; Observed: All three issues are raised",
+          "details": "Installed 0.1.33: no reply within 180 s (4 occurrences), response still active after a new request (15), zero token usage (88). Before (0.1.32): only latency hotspots for the window. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117.",
+          "finished_at": "2026-11-19T13:43:44.527022Z"
         },
         "BCL-82": {
           "state": "pending"
@@ -10077,31 +10249,59 @@
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-19T11:30:00Z",
+      "at": "2026-11-19T13:49:21Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 1",
-        "Codex write: BCL-ROUND",
-        "One-file review exemption: BCL-ROUND",
-        "Polling and rework review: BCL-ROUND",
-        "Test command: BCL-ROUND: /Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.sh"
+        "Parallel group count: 4",
+        "Codex write: ACU-HELPER",
+        "Codex review: ACU-HELPER",
+        "Polling and rework review: ACU-HELPER",
+        "Test command: ACU-HELPER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
+        "Codex write: ACU-SESSION",
+        "Codex review: ACU-SESSION",
+        "Polling and rework review: ACU-SESSION",
+        "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
+        "Codex write: DEVOBS",
+        "Codex review: DEVOBS",
+        "Polling and rework review: DEVOBS",
+        "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
+        "Codex write: BCL-TESTS",
+        "Codex review: BCL-TESTS",
+        "Polling and rework review: BCL-TESTS",
+        "Test command: BCL-TESTS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.sh"
       ],
       "none": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
-        "Parallel group count: 1",
-        "One-file review exemption: BCL-ROUND"
+        "Stage: Verify",
+        "Codex write: ACU-HELPER",
+        "Codex review: ACU-HELPER",
+        "Polling and rework review: ACU-HELPER",
+        "Test command: ACU-HELPER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
+        "Codex review: ACU-SESSION",
+        "Polling and rework review: ACU-SESSION",
+        "Codex write: DEVOBS",
+        "Codex review: DEVOBS",
+        "Polling and rework review: DEVOBS",
+        "Codex write: BCL-TESTS",
+        "Codex review: BCL-TESTS",
+        "Polling and rework review: BCL-TESTS"
       ],
       "sections": {
         "delete": {
           "items": [
             {
-              "item": "Polling and rework review: BCL-ROUND",
-              "evidence": "The first full suite failed on three timing tests while the Mini was under heavy load from a parallel install; all three passed alone and the rerun passed. No product change was needed. Before a full suite I now check the machine load and wait for a quiet moment, which removes a wasted four minute run.",
+              "item": "Test command: BCL-TESTS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.sh",
+              "evidence": "The load check for the flaky tests failed only because the check script put a test filter before the test folder, so the lane was marked failed with no product fault. A check script that has not been run once by hand is now removed from the flow: every new check runs alone once before bcl verify uses it.",
+              "outcome": "fixed inline"
+            },
+            {
+              "item": "Parallel group count: 4",
+              "evidence": "I first started six coding jobs, above the limit of four groups a round. Two were stopped, their partial work kept aside and both groups deferred to the next round; one other job was caught by that stop and had to be restarted. Only four groups are started from now on.",
               "outcome": "fixed inline"
             }
           ]
@@ -10109,8 +10309,8 @@
         "simplify": {
           "items": [
             {
-              "item": "Stage: Verify",
-              "evidence": "Completing the run needed a recheck of every earlier verified issue. I reused the round 1 check scripts unchanged against the new install instead of writing new ones, so the recheck took one command per lane.",
+              "item": "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
+              "evidence": "One typed run on both voice models now serves the helper lane and the session lane, and it always ends by selecting Grok Voice and turning Samantha off, so the app is switched on twice instead of four times.",
               "outcome": "fixed inline"
             }
           ]
@@ -10118,23 +10318,24 @@
         "optimize": {
           "items": [
             {
-              "item": "Codex write: BCL-ROUND",
-              "evidence": "The brief gave the exact call site, the real sequence that caused the bug and the old-code proof required, so the coding agent finished in one pass with no follow-up.",
-              "outcome": "fixed inline"
+              "item": "Codex write: ACU-SESSION",
+              "evidence": "The offline tests passed but the real run showed Grok still finishing its story and GPT giving stale replies to the next two turns. The restart brief adds the real 19:14 timeline and asks for a two-provider test that checks the reply of each turn after a redirect.",
+              "outcome": "issue",
+              "issue_id": "ACU-05"
             }
           ]
         },
         "automate": {
           "items": [
             {
-              "item": "Test command: BCL-ROUND: /Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.sh",
-              "evidence": "The proof that the old version fails is a one-line run of the new test against a copy of the installed old copy; it replaces a hand-built tracker replay and now sits next to the verify script for the next fix.",
+              "item": "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
+              "evidence": "The real connect error line carries its exception type in a field the fixtures never had, so the fix missed it. The check reads the real log every time, and a script now runs every new test against the old code in one go, which showed all 30 new tests failing there.",
               "outcome": "fixed inline"
             }
           ]
         }
       },
-      "round": 2,
+      "round": 3,
       "cycle": 9
     }
   },
@@ -10375,11 +10576,29 @@
       "done_when": "The installer refuses to start without the helper build tool, no longer offers a way to skip the voice helper, and fails before signing or reporting success if the helper is missing; tests prove each case.",
       "observed": "~/.agents/artifacts/bcl-110/logs/acu-02146-install.log: externally-managed-environment, No module named PyInstaller, INSTALL_EXIT:1; acu-02146-install-signed.log has no voice step and INSTALL_EXIT:0.",
       "recommendation": "Take branch codex/acu-voice-helper-guard (commit 9941740a) into #117 with a version bump.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "Technical wording": "Homebrew python3.12 lacked PyInstaller; build_voice_helper.py pip install hit PEP 668; second run produced no Contents/Helpers/voice-cua.app. Fix 9941740a on codex/acu-voice-helper-guard: no --skip-voice-bundle, PyInstaller preflight before touching the destination, require_voice_helper before signing and before success.",
         "Dev-obs evidence": "Not visible in dev-obs: install logs are not a collected source; found in the bcl-110 install logs."
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The installed app and the installer checks",
+          "expected": "The helper is always inside the signed app and the installer refuses to skip it",
+          "observed": "The helper is inside the signed app and every installer guard holds",
+          "verdict": "The helper is inside the signed app and every installer guard holds",
+          "check_id": "acu-02-0.2.152-356d68f6",
+          "build": "agent-computer-use 0.2.152",
+          "session": "r3-356d68f6-117",
+          "timestamp": "2026-11-19T13:47:42Z",
+          "reference": "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-02:installed-check",
+          "details": "Installed 0.2.152 via the local signed release: voice-cua helper present, codesign deep strict ok. Named tests on the installed copy pass: require voice helper, skip voice bundle argument rejected, PyInstaller preflight fails before the bundle is created, builder does not install PyInstaller; all fail or hang on old code (r3/old-fails-r3.log). Before: 14 Nov install finished without the helper. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.log. Run r3-356d68f6-117."
+        }
+      ],
+      "verification": "The helper is inside the signed app and every installer guard holds Installed 0.2.152 via the local signed release: voice-cua helper present, codesign deep strict ok. Named tests on the installed copy pass: require voice helper, skip voice bundle argument rejected, PyInstaller preflight fails before the bundle is created, builder does not install PyInstaller; all fail or hang on old code (r3/old-fails-r3.log). Before: 14 Nov install finished without the helper. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.log. Run r3-356d68f6-117.",
+      "verification_refs": [
+        "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-02:installed-check"
+      ]
     },
     {
       "id": "ACU-03",
@@ -10391,11 +10610,29 @@
       "done_when": "The installed helper reaches ready on both voice models, and a test that fails on the old code proves the plugin file is found beside the scripts.",
       "observed": "19 Nov 2026 16:54 IST: ACU 0.2.151 build 1253, Grok Voice 3.0: socket opened, then an empty websocket error; session status stayed not ready. Same in text-only mode from the installed helper; the source checkout worked. Reproduced the stop in compact_backend at import.",
       "recommendation": "Take commit 9385c8e8 on codex/acu-voice-helper-guard (one-line fix plus test) into #117 with a version bump.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "Technical wording": "compact_backend.py PLUGIN_ROOT = next(p for p in SCRIPT_DIR.parents ...) raises StopIteration in the PyInstaller bundle (plugin.json sits in Contents/Resources with the scripts). Regression from 4041f991 (18 Nov). Fix iterates (SCRIPT_DIR, *SCRIPT_DIR.parents).",
         "Dev-obs evidence": "observability_inspect_issue col-094b3a882656ae8f (samantha: realtime_error failed 2x, 0.2.151, first 11:24:56Z) and col-adf864d4de65fcd8 (startup/realtime_ws_error 2x). Dev-obs showed observed=unknown and no exception type; cause found by reproducing outside dev-obs."
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "Samantha start from the installed helper on both models",
+          "expected": "The helper reaches ready on both voice models",
+          "observed": "Ready in 8.1 s on GPT-Live-1 and 4.1 s on Grok Voice",
+          "verdict": "Ready in 8.1 s on GPT-Live-1 and 4.1 s on Grok Voice",
+          "check_id": "acu-03-0.2.152-356d68f6",
+          "build": "agent-computer-use 0.2.152",
+          "session": "r3-356d68f6-117",
+          "timestamp": "2026-11-19T13:47:42Z",
+          "reference": "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-03:installed-check",
+          "details": "Installed 0.2.152 frozen helper: both models reached ready and answered typed turns. test_plugin_root_includes_script_directory passes on the installed copy and fails on old code. Before (0.2.151 build 1253): empty websocket error, StopIteration, never ready. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.log. Run r3-356d68f6-117."
+        }
+      ],
+      "verification": "Ready in 8.1 s on GPT-Live-1 and 4.1 s on Grok Voice Installed 0.2.152 frozen helper: both models reached ready and answered typed turns. test_plugin_root_includes_script_directory passes on the installed copy and fails on old code. Before (0.2.151 build 1253): empty websocket error, StopIteration, never ready. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.log. Run r3-356d68f6-117.",
+      "verification_refs": [
+        "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-03:installed-check"
+      ]
     },
     {
       "id": "ACU-04",
@@ -10407,11 +10644,29 @@
       "done_when": "Any failure before the session is ready either retries or ends the start with a visible reason, and the status check reports not ready; a test proves it.",
       "observed": "19 Nov 2026 16:54 to 16:56 IST: status said running and healthy while the session stayed not ready for over two minutes; no retry was logged.",
       "recommendation": "Treat an error raised while opening the session as fatal for that connection: close and retry with backoff, and report not ready to the menu until ready.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "Technical wording": "websocket-client catches the exception from _on_open and calls _on_error without closing; LiveSession logs realtime_error classification=transport and waits. voice_control status returns healthy=true because /health answers.",
         "Dev-obs evidence": "Same two events as ACU-03 (col-094b3a882656ae8f, col-adf864d4de65fcd8); dev-obs raised no issue for 'started but never ready'."
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "Samantha start and status on the installed app",
+          "expected": "Not ready shows a reason, and a setup failure retries or ends",
+          "observed": "Both models reach ready and status carries a reason field",
+          "verdict": "Both models reach ready and status carries a reason field",
+          "check_id": "acu-04-0.2.152-356d68f6",
+          "build": "agent-computer-use 0.2.152",
+          "session": "r3-356d68f6-117",
+          "timestamp": "2026-11-19T13:47:05Z",
+          "reference": "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-04:installed-check",
+          "details": "Installed 0.2.152: GPT-Live-1 ready in 8.1 s, Grok Voice 3.0 ready in 4.1 s, status reason null when ready. Named tests on the installed copy pass (setup callback error closes and reports not ready reason; status reports setup reason until ready); they fail on old code (r3/old-fails-r3.log). Before: status said healthy while not ready for over two minutes. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117."
+        }
+      ],
+      "verification": "Both models reach ready and status carries a reason field Installed 0.2.152: GPT-Live-1 ready in 8.1 s, Grok Voice 3.0 ready in 4.1 s, status reason null when ready. Named tests on the installed copy pass (setup callback error closes and reports not ready reason; status reports setup reason until ready); they fail on old code (r3/old-fails-r3.log). Before: status said healthy while not ready for over two minutes. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117.",
+      "verification_refs": [
+        "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-04:installed-check"
+      ]
     },
     {
       "id": "ACU-05",
@@ -10423,7 +10678,7 @@
       "done_when": "A new request during a reply stops the current reply within about a second and the redirect is answered next; a test proves it for typed and spoken turns.",
       "observed": "19 Nov 2026 typed test: long story then a redirect 3 seconds later. Grok Voice 3.0: story ran 22.9 s to the end, redirect answered after 19.9 s. GPT-Live-1: story ran 11.5 s, redirect answered after 8.5 s.",
       "recommendation": "Cancel the active response when a new typed or spoken request arrives, as the spoken stop-word path already does.",
-      "status": "in_progress",
+      "status": "failing",
       "details": {
         "Technical wording": "send_text() sends conversation.item.create + response.create without response.cancel when _active_response_ids is non-empty.",
         "Dev-obs evidence": "GPT session sref_8a6f2dba34a1bb4ef2de2b5299e0cf93: model_response_end p95 13.1 s (col-6be7b29503e9ce22). Dev-obs has no interruption signal, so this came from the test runner timings."
@@ -10439,11 +10694,29 @@
       "done_when": "After a browser task on Grok Voice, the next turns are answered normally; a repeat of the five-scenario typed run passes on Grok Voice.",
       "observed": "19 Nov 2026 17:04:48 IST: empathy message logged as a user request, but no model response started in 180 s; a probe at 17:08 also got nothing in 40 s. Before that, each of the four tool calls was delivered twice and the tools were resent mid-task.",
       "recommendation": "Check how the mid-task tool resend and the duplicate tool-call deliveries leave the Grok session, and recover or reconnect when a request gets no response.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "Technical wording": "Activity log session 5b1ee07a: tool_call_mirror source=duplicate_function_call_delivery x4, session_update+comet_tools_synced at +1.65 s after comet_end, then user_request with no model_response_start.",
         "Dev-obs evidence": "Dev-obs did not list this Grok session at all (see DEVOBS-06) and raised no unanswered-turn issue (DEVOBS-07); evidence is from the activity log read-only."
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The five typed scenarios on Grok Voice 3.0",
+          "expected": "Every turn answered, including empathy after the browser task",
+          "observed": "All six turns answered; empathy in 1.6 seconds",
+          "verdict": "All six turns answered; empathy in 1.6 seconds",
+          "check_id": "acu-06-0.2.152-356d68f6",
+          "build": "agent-computer-use 0.2.152",
+          "session": "r3-356d68f6-117",
+          "timestamp": "2026-11-19T13:47:05Z",
+          "reference": "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-06:installed-check",
+          "details": "Installed 0.2.152 run-grok-after.json: multi_step gave the heading Example Domain and closed the window in 9.2 s; empathy answered in 1.57 s; each tool ran once. Before: empathy got no reply in 180 s and tools ran twice. Named watchdog and duplicate tests pass on installed copy. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117."
+        }
+      ],
+      "verification": "All six turns answered; empathy in 1.6 seconds Installed 0.2.152 run-grok-after.json: multi_step gave the heading Example Domain and closed the window in 9.2 s; empathy answered in 1.57 s; each tool ran once. Before: empathy got no reply in 180 s and tools ran twice. Named watchdog and duplicate tests pass on installed copy. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117.",
+      "verification_refs": [
+        "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-06:installed-check"
+      ]
     },
     {
       "id": "ACU-07",
@@ -10503,7 +10776,7 @@
       "done_when": "Usage records carry real input and output token counts for Grok Voice and for the GPT live model; a test checks both providers.",
       "observed": "19 Nov 2026 typed run: all 9 Grok Voice usage rows showed 0 tokens; GPT-Live-1 run had usage rows only for the backend model.",
       "recommendation": "Read the providers' response usage fields (or the closest available) into the usage records, and mark them unknown rather than zero when absent.",
-      "status": "in_progress",
+      "status": "blocked",
       "details": {
         "Technical wording": "usage rows provider=xai model=grok-voice-latest input_tokens=0 output_tokens=0; no usage rows with model=gpt-live-1.",
         "Dev-obs evidence": "Dev-obs sums these rows (col-ffa528ff4fa3470c) without flagging that every Grok row is zero."
@@ -10519,7 +10792,7 @@
       "done_when": "Dev-obs shows the error type and message for each failure occurrence; a test with a recorded error proves it.",
       "observed": "19 Nov 2026 16:58 IST: inspect with diagnostics on returned observed unknown, first error line unknown, diagnostics not available.",
       "recommendation": "Carry the logged exception type into the issue excerpt and occurrence timeline.",
-      "status": "in_progress",
+      "status": "failing",
       "details": {
         "Technical wording": "activity row kind=realtime_error exception_type=StopIteration error=''; observability_inspect_issue col-094b3a882656ae8f include_diagnostics=true -> observed 'unknown', excerpts.first_error_line 'unknown', diagnostics_available false."
       }
@@ -10534,10 +10807,28 @@
       "done_when": "Every Samantha session with requests or tool calls appears in the session list with its steps; a test with a Grok Voice session proves it.",
       "observed": "19 Nov 2026 17:12 IST: session list after a fresh collect had the GPT session and island-only sessions, but none for the Grok session from 17:03:44 to 17:09:53.",
       "recommendation": "Check how sessions are grouped when the provider is Grok Voice and include them.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "Technical wording": "activity session_id 5b1ee07a (provider xai) absent from observability_sessions(project_id=samantha, limit=40); GPT session 8f02ce25 present as sref_8a6f2dba34a1bb4ef2de2b5299e0cf93."
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The session list on the real Samantha log",
+          "expected": "The Grok Voice session from 17:03 to 17:09 is listed",
+          "observed": "It is listed with its steps",
+          "verdict": "It is listed with its steps",
+          "check_id": "devobs-06-0.1.33-356d68f6",
+          "build": "developer-observability 0.1.33",
+          "session": "r3-356d68f6-117",
+          "timestamp": "2026-11-19T13:43:44Z",
+          "reference": "356d68f6590f4dda227935d9f8f6b55b490d7b4c:DEVOBS-06:installed-check",
+          "details": "Installed 0.1.33 after a fresh collect: session sref_6f5b63fc3fa55f933d770e10a3bb60de last seen 11:39:53Z. Before (0.1.32, 17:12 IST): missing. Named tests pass on the installed copy; 9 new tests fail on old code (r3/old-fails-r3.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117."
+        }
+      ],
+      "verification": "It is listed with its steps Installed 0.1.33 after a fresh collect: session sref_6f5b63fc3fa55f933d770e10a3bb60de last seen 11:39:53Z. Before (0.1.32, 17:12 IST): missing. Named tests pass on the installed copy; 9 new tests fail on old code (r3/old-fails-r3.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117.",
+      "verification_refs": [
+        "356d68f6590f4dda227935d9f8f6b55b490d7b4c:DEVOBS-06:installed-check"
+      ]
     },
     {
       "id": "DEVOBS-07",
@@ -10549,10 +10840,28 @@
       "done_when": "Dev-obs flags a request with no response within a set time, a reply that keeps going after a new request, and usage records that are all zero; tests prove each.",
       "observed": "19 Nov 2026 17:13 IST: issues list after the typed runs had only latency hotspots and one log line for the window.",
       "recommendation": "Add rules for unanswered requests, overlapping responses after a new request, and all-zero usage.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "Technical wording": "observability_issues(project_id=samantha) after collect at 11:42:38Z: no failure/redundancy entries for session 5b1ee07a user_request 11:34:48Z with no model_response_start."
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The issue list on the real Samantha log",
+          "expected": "Issues for no reply, a reply that kept going, and all-zero usage",
+          "observed": "All three issues are raised",
+          "verdict": "All three issues are raised",
+          "check_id": "devobs-07-0.1.33-356d68f6",
+          "build": "developer-observability 0.1.33",
+          "session": "r3-356d68f6-117",
+          "timestamp": "2026-11-19T13:43:44Z",
+          "reference": "356d68f6590f4dda227935d9f8f6b55b490d7b4c:DEVOBS-07:installed-check",
+          "details": "Installed 0.1.33: no reply within 180 s (4 occurrences), response still active after a new request (15), zero token usage (88). Before (0.1.32): only latency hotspots for the window. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117."
+        }
+      ],
+      "verification": "All three issues are raised Installed 0.1.33: no reply within 180 s (4 occurrences), response still active after a new request (15), zero token usage (88). Before (0.1.32): only latency hotspots for the window. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117.",
+      "verification_refs": [
+        "356d68f6590f4dda227935d9f8f6b55b490d7b4c:DEVOBS-07:installed-check"
+      ]
     },
     {
       "id": "BCL-82",
