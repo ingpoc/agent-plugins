@@ -7475,9 +7475,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-19T12:16:49Z",
-      "now": "2026-11-19T12:16:49Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-19T12:18:31Z",
+      "now": "2026-11-19T12:18:31Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -9668,7 +9668,7 @@
               "phase": "fix",
               "started_at": "2026-11-19T11:48:53Z",
               "command": "launch-g2.sh",
-              "heartbeat_at": "2026-11-19T12:15:56Z"
+              "heartbeat_at": "2026-11-19T12:17:56Z"
             }
           },
           "verify": {
@@ -9679,7 +9679,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T12:15:56Z"
+          "updated_at": "2026-11-19T12:17:56Z"
         },
         {
           "id": "ACU-MENU",
@@ -9768,7 +9768,7 @@
             "DEVOBS-07"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl117-r3-g5",
           "reason": "All three are gaps in how dev-obs reads the voice activity log.",
@@ -9777,18 +9777,19 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 58654,
-              "phase": "fix",
-              "started_at": "2026-11-19T11:48:59Z",
-              "command": "launch-g5.sh",
-              "heartbeat_at": "2026-11-19T12:16:26Z",
+              "pid": 25248,
+              "phase": "review",
+              "started_at": "2026-11-19T12:16:49Z",
+              "command": "launch-review-g5.sh",
+              "heartbeat_at": "2026-11-19T12:18:11Z",
               "exit_code": 0,
-              "duration_s": 1647,
-              "finished_at": "2026-11-19T12:16:26Z",
-              "finished_phase_status": "passed"
+              "duration_s": 82,
+              "finished_at": "2026-11-19T12:18:11Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
-            "implementer_session": "01a1f3a3-7af3-7c33-87dd-ba1bd819d9a8"
+            "implementer_session": "01a1f3a3-7af3-7c33-87dd-ba1bd819d9a8",
+            "review_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
@@ -9798,7 +9799,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T12:16:49Z"
+          "updated_at": "2026-11-19T12:18:11Z"
         },
         {
           "id": "BCL-TESTS",
