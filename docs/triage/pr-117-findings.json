@@ -7574,9 +7574,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-19T14:32:04Z",
-      "now": "2026-11-19T14:32:04Z — Fix job started"
+      "stage": "install",
+      "updated_at": "2026-11-19T14:52:04Z",
+      "now": "2026-11-19T14:52:04Z — Install in progress"
     },
     "rollover": {
       "source_pr": 116,
@@ -9860,8 +9860,8 @@
             "ACU-10"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r3-g2",
           "reason": "All four live in the voice session code.",
           "codex": {
@@ -9869,20 +9869,22 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 27633,
-              "phase": "review",
-              "started_at": "2026-11-19T14:30:14Z",
-              "command": "launch-review-g2.sh",
-              "heartbeat_at": "2026-11-19T14:31:50Z",
+              "pid": 44447,
+              "phase": "presuite",
+              "started_at": "2026-11-19T14:45:55Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-19T14:50:19Z",
               "exit_code": 0,
-              "duration_s": 96,
-              "finished_at": "2026-11-19T14:31:50Z",
-              "finished_phase_status": "failed"
+              "duration_s": 264,
+              "finished_at": "2026-11-19T14:50:19Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f3a3-6347-7f42-b395-61f27206dbe7",
             "previous_review": "passed before restart; restart code needs its own review",
-            "review_status": "failed"
+            "review_status": "passed",
+            "reviewer_session": "01a1f437-1c42-7fc2-91f5-27f81e5e5db5",
+            "review_note": "Terra review CHANGES: untagged GPT-Live output dropped; fixed in same Luna session (bind by response/item id, fallback to active turn, 3 new tests, 207 focused pass)"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
@@ -9893,15 +9895,15 @@
             "failed": 0,
             "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-19T14:31:50Z",
+          "updated_at": "2026-11-19T14:50:19Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
-            "finished_at": "2026-11-19T13:16:05Z"
+            "finished_at": "2026-11-19T14:50:19Z"
           },
           "install": {
             "status": "running",
-            "started_at": "2026-11-19T13:20:28Z"
+            "started_at": "2026-11-19T14:52:04Z"
           }
         },
         {
@@ -9991,8 +9993,8 @@
             "DEVOBS-07"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r3-g5",
           "reason": "All three are gaps in how dev-obs reads the voice activity log.",
           "codex": {
@@ -10000,15 +10002,15 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 98001,
-              "phase": "review",
-              "started_at": "2026-11-19T13:58:33Z",
-              "command": "launch-review-g5.sh",
-              "heartbeat_at": "2026-11-19T13:59:49Z",
+              "pid": 44447,
+              "phase": "presuite",
+              "started_at": "2026-11-19T14:45:55Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-19T14:50:19Z",
               "exit_code": 0,
-              "duration_s": 76,
-              "finished_at": "2026-11-19T13:59:49Z",
-              "finished_phase_status": "failed"
+              "duration_s": 264,
+              "finished_at": "2026-11-19T14:50:19Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f3a3-7af3-7c33-87dd-ba1bd819d9a8",
@@ -10026,15 +10028,15 @@
             "failed": 0,
             "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-19T14:00:00Z",
+          "updated_at": "2026-11-19T14:50:19Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
-            "finished_at": "2026-11-19T13:16:05Z"
+            "finished_at": "2026-11-19T14:50:19Z"
           },
           "install": {
             "status": "running",
-            "started_at": "2026-11-19T13:20:28Z"
+            "started_at": "2026-11-19T14:52:04Z"
           }
         },
         {
@@ -10044,8 +10046,8 @@
             "BCL-82"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r3-g6",
           "reason": "Timing and isolation in the test suites.",
           "codex": {
@@ -10053,14 +10055,14 @@
             "effort": "high",
             "one_file": false,
             "job": {
-              "pid": 86837,
-              "phase": "fix",
-              "started_at": "2026-11-19T13:51:41Z",
-              "command": "rs-g6.sh",
-              "heartbeat_at": "2026-11-19T13:51:43Z",
+              "pid": 44447,
+              "phase": "presuite",
+              "started_at": "2026-11-19T14:45:55Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-19T14:50:19Z",
               "exit_code": 0,
-              "duration_s": 2,
-              "finished_at": "2026-11-19T13:51:43Z",
+              "duration_s": 264,
+              "finished_at": "2026-11-19T14:50:19Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -10078,15 +10080,15 @@
             "failed": 0,
             "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-19T13:51:43Z",
+          "updated_at": "2026-11-19T14:50:19Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
-            "finished_at": "2026-11-19T13:16:05Z"
+            "finished_at": "2026-11-19T14:50:19Z"
           },
           "install": {
             "status": "running",
-            "started_at": "2026-11-19T13:20:28Z"
+            "started_at": "2026-11-19T14:52:04Z"
           }
         }
       ],
