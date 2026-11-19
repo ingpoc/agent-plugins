@@ -28,6 +28,47 @@ class FakeWS:
         self.events.append({"type": "__closed__"})
 
 
+class BackendQueueWS(FakeWS):
+    """Fake Live server that accepts a new turn only after the delegated response is cancelled."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._lock = threading.Lock()
+        self.backend_response_id = ""
+        self.cancel_callback = None
+        self.cancelled_response_ids: list[str] = []
+        self.queued_creates: list[dict] = []
+
+    def hold_backend(self, response_id: str, cancel_callback) -> None:
+        with self._lock:
+            self.backend_response_id = response_id
+            self.cancel_callback = cancel_callback
+
+    def finish_backend(self, response_id: str) -> None:
+        with self._lock:
+            if self.backend_response_id == response_id:
+                self.backend_response_id = ""
+                self.cancel_callback = None
+
+    def send(self, raw: str) -> None:
+        event = json.loads(raw)
+        callback = None
+        response_id = str(event.get("response_id") or "")
+        with self._lock:
+            if event.get("type") == "response.create" and self.backend_response_id:
+                self.queued_creates.append(event)
+                return
+            self.events.append(event)
+            if event.get("type") == "response.cancel" and response_id == self.backend_response_id:
+                self.cancelled_response_ids.append(response_id)
+                self.backend_response_id = ""
+                callback, self.cancel_callback = self.cancel_callback, None
+                self.events.extend(self.queued_creates)
+                self.queued_creates.clear()
+        if callback:
+            callback(response_id)
+
+
 class PlaybackAudio(FakeAudio):
     def has_playback(self) -> bool:
         return bool(self.received) and not self.cleared
@@ -63,8 +104,8 @@ class TypedTurnReplayTests(unittest.TestCase):
         return session
 
     @staticmethod
-    def _wait_for(predicate, message: str) -> None:
-        deadline = time.monotonic() + 2.0
+    def _wait_for(predicate, message: str, timeout: float = 2.0) -> None:
+        deadline = time.monotonic() + timeout
         while not predicate() and time.monotonic() < deadline:
             time.sleep(0.005)
         if not predicate():
@@ -97,6 +138,10 @@ class TypedTurnReplayTests(unittest.TestCase):
             session._on_message(None, json.dumps({"type": "session.delegation.created",
                                                  "delegation": {"id": delegation, "target": "responses"}}))
             self._live_event(session, delegation, {"type": "response.created", "response": {"id": response_id}})
+            if isinstance(session.ws, BackendQueueWS):
+                session.ws.hold_backend(response_id, lambda rid: self._live_event(
+                    session, delegation, {"type": "response.completed",
+                    "response": {"id": rid, "status": "cancelled"}}))
         else:
             session._on_message(None, json.dumps({"type": "response.created", "response": {"id": response_id}}))
 
@@ -115,6 +160,8 @@ class TypedTurnReplayTests(unittest.TestCase):
             self._live_event(session, delegation, {"type": "response.completed", "response": {
                 "id": response_id, "status": status, "output": output,
             }})
+            if isinstance(session.ws, BackendQueueWS):
+                session.ws.finish_backend(response_id)
         else:
             session._on_message(None, json.dumps({"type": "response.done", "response": {
                 "id": response_id, "status": status, "output": output,
@@ -135,6 +182,8 @@ class TypedTurnReplayTests(unittest.TestCase):
 
     def _replay(self, provider) -> None:
         session = self._make(provider)
+        if isinstance(provider, LiveProvider):
+            session.ws = BackendQueueWS()
         rows: list[dict] = []
         dispatches: list[tuple[str, dict]] = []
         fake_result = lambda name, args: dispatches.append((name, dict(args))) or {
@@ -149,6 +198,19 @@ class TypedTurnReplayTests(unittest.TestCase):
                 patch.object(session, "_sync_tool_groups"), \
                 patch.object(session, "_on_comet_change"), \
                 patch.object(activity_log, "_append_row", side_effect=rows.append):
+            previous_request = ""
+            if isinstance(provider, LiveProvider):
+                provider.heard = providers.TranscriptBurst(provider._on_heard, gap_s=60)
+                provider.said = providers.TranscriptBurst(provider._on_said, gap_s=60)
+                provider.inbound({"type": "session.input_transcript.delta", "delta": "What was my favourite colour?",
+                                  "start_ms": 100, "end_ms": 700})
+                previous_request = provider._pending_spoken_request[0]
+                provider.inbound({"type": "response.created", "response": {"id": "previous-live-response"}})
+                session._on_message(None, json.dumps({"type": "session.output_transcript.delta",
+                    "response_id": "previous-live-response", "item_id": "previous-live-item",
+                    "delta": "That teal's your favourite colour."}))
+                provider.said.flush()
+
             story_thread, story_result, story_request = self._start_turn(session, self.STORY)
             self._response_created(session, provider, "story-delegation", "story-response")
             story_event_id = self._event_id(session, story_request)
@@ -161,26 +223,63 @@ class TypedTurnReplayTests(unittest.TestCase):
             story_audio_chunks = len(session._audio.received)
             time.sleep(0.03)  # scaled 3s scenario gap; keep the offline replay fast
             if isinstance(provider, LiveProvider):
-                self._live_event(session, "story-delegation", {"type": "response.output_item.done",
-                    "response_id": "story-response", "item": {"type": "message", "content": [
-                        {"type": "output_text", "text": "Pune began as a town on the Mutha River."}]}})
+                session._on_message(None, json.dumps({"type": "session.output_transcript.delta",
+                    "response_id": "previous-live-response", "item_id": "previous-live-item",
+                    "delta": "I mentioned teal in the previous turn."}))
+                provider.said.flush()
+                self._live_event(session, "story-delegation", {"type": "response.output_text.delta",
+                    "response_id": "story-response", "delta": "Pune began as a town on the Mutha River."})
             else:
                 session._on_message(None, json.dumps({"type": "response.output_audio_transcript.done",
                     "response_id": "story-response", "transcript": "Pune began as a town on the Mutha River."}))
 
+            redirect_started = time.monotonic()
             redirect_thread, redirect_result, redirect_create_count = self._launch_turn(session, self.REDIRECT)
-            cancel_type = "session.instructions.append" if isinstance(provider, LiveProvider) else "response.cancel"
+            cancel_type = "response.cancel"
             self._wait_for(lambda: any(e.get("type") == cancel_type for e in session.ws.events),
                            "redirect did not interrupt the active story")
-            self.assertEqual(self._create_count(session), 1, "redirect must wait for cancel settlement")
+            if isinstance(provider, LiveProvider):
+                self._wait_for(lambda: self._create_count(session) > redirect_create_count,
+                               "GPT-Live redirect did not start after backend cancellation", timeout=1.0)
+                self.assertLess(time.monotonic() - redirect_started, 1.0)
+                self.assertFalse(story_result.get("ok"), "the cancelled story should settle as interrupted")
+                self.assertEqual(story_result.get("reply"), "Pune began as a town on the Mutha River.")
+                self.assertTrue(any(row.get("kind") == "cancel_ack" and row.get("cancel_ack") is True
+                                    for row in rows), "cancel acknowledgement should be prompt")
+                self.assertEqual(session.ws.cancelled_response_ids, ["story-response"])
+                self.assertFalse(session.ws.queued_creates, "cancel must release the backend turn queue")
+            else:
+                self.assertEqual(self._create_count(session), 1, "redirect must wait for cancel settlement")
             self._feed_late_output(session, provider, "story-response", story_event_id)
             self.assertEqual(len(session._audio.received), story_audio_chunks,
                              "late audio from the cancelled story must be dropped")
-            # A cancelled story response carries only the partial text already produced.
-            self._response_done(session, provider, "story-delegation", "story-response",
-                                "Pune began as a town on the Mutha River.", status="cancelled")
-            self._wait_for(lambda: self._create_count(session) > redirect_create_count,
-                           "redirect response.create missing after cancellation")
+            if isinstance(provider, LiveProvider):
+                # Ten one-second fake backend chunks arrive after cancellation without wall-clock delay.
+                for second in range(10):
+                    self._live_event(session, "story-delegation", {"type": "response.output_text.delta",
+                        "response_id": "story-response", "delta": f" late story chunk {second}."})
+                self._live_event(session, "story-delegation", {"type": "response.output_text.done",
+                    "response_id": "story-response", "text": "The full story arrived after cancellation."})
+                self._live_event(session, "story-delegation", {"type": "response.output_item.done",
+                    "response_id": "story-response", "item": {"type": "message", "content": [
+                        {"type": "output_text", "text": "The full story arrived after cancellation."}]}})
+                self._live_event(session, "story-delegation", {"type": "response.completed",
+                    "response": {"id": "story-response", "status": "completed"}})
+                self.assertFalse(any("full story arrived after cancellation" in row.get("text", "").lower()
+                                     for row in rows), "late backend output must be discarded")
+                previous_replies = [row for row in rows if row.get("kind") == "assistant_reply"
+                                    and "teal" in row.get("text", "").lower()]
+                self.assertTrue(previous_replies)
+                self.assertTrue(all(row.get("run_id") == previous_request for row in previous_replies),
+                                "previous-turn transcript tail must keep its original run id")
+                story_thread.join(timeout=2)
+                self.assertFalse(story_thread.is_alive())
+            else:
+                # A cancelled story response carries only the partial text already produced.
+                self._response_done(session, provider, "story-delegation", "story-response",
+                                    "Pune began as a town on the Mutha River.", status="cancelled")
+                self._wait_for(lambda: self._create_count(session) > redirect_create_count,
+                               "redirect response.create missing after cancellation")
             redirect_request = session._active_task_run_id
             self._response_created(session, provider, "redirect-delegation", "redirect-response")
             self._response_done(session, provider, "redirect-delegation", "redirect-response",
@@ -259,6 +358,191 @@ class TypedTurnReplayTests(unittest.TestCase):
 
     def test_gpt_live_replays_five_turns_with_own_replies_and_tools_once(self) -> None:
         self._replay(LiveProvider())
+
+    def test_gpt_live_cancel_settles_pending_tool_call_and_releases_backend_queue(self) -> None:
+        provider = LiveProvider()
+        session = self._make(provider)
+        session.ws = BackendQueueWS()
+        rows: list[dict] = []
+        with patch("voice_cua.workflow_store.begin_engagement"), \
+                patch("voice_cua.tools.note_user_turn"), \
+                patch("voice_cua.live_session.island_publish"), \
+                patch.object(activity_log, "_append_row", side_effect=rows.append), \
+                patch("builtins.print"):
+            story_thread, story_result, _story_request = self._start_turn(session, self.STORY)
+            self._response_created(session, provider, "pending-story-delegation", "pending-story-response")
+            self._live_event(session, "pending-story-delegation", {"type": "response.output_text.delta",
+                "response_id": "pending-story-response", "delta": "Pune began as a town on the Mutha River."})
+            call = {"type": "function_call", "call_id": "pending-call", "name": "cua_act",
+                    "arguments": "{\"app\":\"Calculator\"}"}
+            with patch.object(session, "_handle_function_item") as handle:
+                self._live_event(session, "pending-story-delegation", {"type": "response.output_item.done",
+                    "response_id": "pending-story-response", "item": call})
+                handle.assert_called_once()
+            self.assertEqual(provider._pending_calls["pending-story-delegation"], {"pending-call"})
+
+            redirect_started = time.monotonic()
+            redirect_thread, redirect_result, create_count = self._launch_turn(session, self.REDIRECT)
+            self._wait_for(lambda: "pending-story-response" in session.ws.cancelled_response_ids,
+                           "backend did not receive response.cancel")
+            self._wait_for(lambda: self._create_count(session) > create_count,
+                           "redirect remained queued behind the pending tool call", timeout=1.0)
+            self.assertLess(time.monotonic() - redirect_started, 1.0)
+            self.assertFalse(story_result.get("ok"))
+            self.assertEqual(story_result.get("reply"), "Pune began as a town on the Mutha River.")
+            self.assertFalse(provider._pending_calls.get("pending-story-delegation"))
+
+            sent = session._send({"type": "conversation.item.create", "item": {
+                "type": "function_call_output", "call_id": "pending-call", "output": "late result"}})
+            self.assertTrue(sent)
+            self.assertFalse(any((event.get("item") or {}).get("call_id") == "pending-call"
+                                 for event in session.ws.events), "cancelled tool output must not resume the old task")
+            self._live_event(session, "pending-story-delegation", {"type": "response.completed",
+                "response": {"id": "pending-story-response", "status": "completed"}})
+            self.assertFalse(any("late result" in row.get("text", "") for row in rows))
+
+            redirect_request = session._active_task_run_id
+            self._response_created(session, provider, "pending-redirect-delegation", "pending-redirect-response")
+            self._response_done(session, provider, "pending-redirect-delegation", "pending-redirect-response",
+                                "Pune is famous for its Maratha heritage.")
+            redirect_thread.join(timeout=2)
+            story_thread.join(timeout=2)
+            self.assertFalse(redirect_thread.is_alive())
+            self.assertFalse(story_thread.is_alive())
+            self.assertEqual(redirect_result.get("reply"), "Pune is famous for its Maratha heritage.")
+            self.assertTrue(redirect_request)
+
+    def test_gpt_live_completed_tool_call_is_settled_without_cancel_ack(self) -> None:
+        provider = LiveProvider()
+        session = self._make(provider)
+        with patch("voice_cua.workflow_store.begin_engagement"), \
+                patch("voice_cua.tools.note_user_turn"), \
+                patch("voice_cua.live_session.island_publish"), \
+                patch("builtins.print"):
+            story_thread, story_result, _story_request = self._start_turn(session, self.STORY)
+            self._response_created(session, provider, "completed-tool-delegation", "completed-tool-response")
+            self._live_event(session, "completed-tool-delegation", {"type": "response.output_text.delta",
+                "response_id": "completed-tool-response", "delta": "Pune began as a town on the Mutha River."})
+            call = {"type": "function_call", "call_id": "completed-call", "name": "cua_act",
+                    "arguments": "{\"app\":\"Calculator\"}"}
+            with patch.object(session, "_handle_function_item") as handle:
+                self._live_event(session, "completed-tool-delegation", {"type": "response.output_item.done",
+                    "response_id": "completed-tool-response", "item": call})
+                handle.assert_called_once()
+            self._live_event(session, "completed-tool-delegation", {"type": "response.completed",
+                "response": {"id": "completed-tool-response", "status": "completed"}})
+            story_thread.join(timeout=0.02)
+            self.assertTrue(story_thread.is_alive(), "tool-call response must not settle the interrupted turn")
+
+            redirect_thread, redirect_result, _ = self._launch_turn(session, self.REDIRECT)
+            self._wait_for(lambda: self._create_count(session) >= 2,
+                           "redirect did not start after the backend response had completed", timeout=1.0)
+            story_thread.join(timeout=1)
+            self.assertFalse(story_thread.is_alive(), "pending tool call must not leave the story waiter open")
+            self.assertFalse(story_result.get("ok"))
+            self.assertEqual(story_result.get("reply"), "Pune began as a town on the Mutha River.")
+            self.assertFalse(provider._pending_calls.get("completed-tool-delegation"))
+
+            self.assertEqual(session._send({"type": "conversation.item.create", "item": {
+                "type": "function_call_output", "call_id": "completed-call", "output": "late result"}}), True)
+            self.assertFalse(any((event.get("item") or {}).get("call_id") == "completed-call"
+                                 for event in session.ws.events), "interrupted tool output must be dropped")
+            self._response_created(session, provider, "completed-redirect-delegation", "completed-redirect-response")
+            self._live_event(session, "completed-tool-delegation", {"type": "response.completed",
+                "response": {"id": "completed-tool-response", "status": "completed"}})
+            redirect_thread.join(timeout=0.02)
+            self.assertTrue(redirect_thread.is_alive(), "late completion from the cancelled turn must not settle redirect")
+            self._response_done(session, provider, "completed-redirect-delegation", "completed-redirect-response",
+                                "Pune is famous for its Maratha heritage.")
+            redirect_thread.join(timeout=2)
+            self.assertFalse(redirect_thread.is_alive())
+            self.assertEqual(redirect_result.get("reply"), "Pune is famous for its Maratha heritage.")
+
+    def test_gpt_live_unknown_late_transcript_keeps_previous_run_id(self) -> None:
+        provider = LiveProvider()
+        provider._ready = True
+        provider.heard = providers.TranscriptBurst(provider._on_heard, gap_s=60)
+        provider.said = providers.TranscriptBurst(provider._on_said, gap_s=60)
+        rows: list[dict] = []
+        with patch("voice_cua.workflow_store.begin_engagement"), \
+                patch("voice_cua.tools.note_user_turn"), \
+                patch("voice_cua.island_facade.island_publish"), \
+                patch.object(providers, "log_event", side_effect=lambda kind, **fields:
+                             rows.append({"kind": kind, **fields}) if kind == "assistant_reply" else None), \
+                patch("builtins.print"):
+            provider.inbound({"type": "session.input_transcript.delta", "delta": "What was my favourite colour?",
+                              "start_ms": 100, "end_ms": 700})
+            previous_request = provider._pending_spoken_request[0]
+            provider.inbound({"type": "response.created", "response": {"id": "previous-response"}})
+            provider.inbound({"type": "session.output_transcript.delta", "response_id": "previous-response",
+                              "item_id": "previous-item", "delta": "That teal's your favourite colour."})
+            provider.said.flush()
+            provider.outbound({"type": "response.create", "event_id": "story-event", "response": {
+                "metadata": {"voice_cua_request_id": "story-request"}}})
+            provider.inbound({"type": "session.delegation.created", "delegation": {"id": "story-delegation"}})
+            provider.inbound({"type": "response.event", "delegation_id": "story-delegation",
+                              "event": {"type": "response.created", "response": {"id": "story-backend-response"}}})
+
+            output = provider.inbound({"type": "session.output_transcript.delta",
+                "response_id": "unregistered-late-response", "item_id": "unregistered-late-item",
+                "delta": "One last thought about teal."})
+            provider.said.flush()
+            self.assertEqual(output[0]["response"]["metadata"]["voice_cua_request_id"], previous_request)
+            self.assertTrue(rows)
+            self.assertEqual(rows[-1].get("run_id"), previous_request)
+            self.assertNotEqual(rows[-1].get("run_id"), "story-request")
+        provider.heard.clear()
+        provider.said.clear()
+
+    def test_gpt_live_spoken_redirect_cancels_delegation_and_discards_late_story(self) -> None:
+        provider = LiveProvider()
+        session = self._make(provider)
+        session.ws = BackendQueueWS()
+        rows: list[dict] = []
+        provider.heard = providers.TranscriptBurst(provider._on_heard, gap_s=60)
+        with patch("voice_cua.workflow_store.begin_engagement"), \
+                patch("voice_cua.tools.note_user_turn"), \
+                patch("voice_cua.live_session.island_publish"), \
+                patch.object(activity_log, "_append_row", side_effect=rows.append), \
+                patch("builtins.print"):
+            story_thread, story_result, _story_request = self._start_turn(session, self.STORY)
+            self._response_created(session, provider, "spoken-story-delegation", "spoken-story-response")
+            self._live_event(session, "spoken-story-delegation", {"type": "response.output_text.delta",
+                "response_id": "spoken-story-response", "delta": "Pune began as a town on the Mutha River."})
+            for event in provider.inbound({"type": "session.input_transcript.delta",
+                    "delta": self.REDIRECT, "start_ms": 3000, "end_ms": 4200}):
+                session._dispatch_event(event)
+            session._dispatch_event({"type": "conversation.item.input_audio_transcription.completed",
+                "transcript": self.REDIRECT, "item_id": "spoken-redirect"})
+            story_thread.join(timeout=1)
+            self.assertFalse(story_thread.is_alive(), "spoken redirect must settle the story immediately")
+            self.assertFalse(story_result.get("ok"))
+            self.assertEqual(story_result.get("reply"), "Pune began as a town on the Mutha River.")
+            spoken_request = provider.spoken_request_id()
+            self.assertTrue(spoken_request)
+            self.assertNotEqual(spoken_request, _story_request)
+            self.assertEqual(session._active_task_run_id, spoken_request)
+
+            session._on_message(None, json.dumps({"type": "session.delegation.created",
+                "delegation": {"id": "spoken-redirect-delegation", "target": "responses"},
+                "offset_ms": 3500}))
+            self._live_event(session, "spoken-redirect-delegation", {"type": "response.created",
+                "response": {"id": "spoken-redirect-response"}})
+            self._live_event(session, "spoken-redirect-delegation", {"type": "response.output_text.done",
+                "response_id": "spoken-redirect-response", "text": "Pune is famous for its Maratha heritage."})
+            self._live_event(session, "spoken-redirect-delegation", {"type": "response.completed",
+                "response": {"id": "spoken-redirect-response", "status": "completed"}})
+            self.assertEqual(session._conversation_context[spoken_request]["result"],
+                             "Pune is famous for its Maratha heritage.")
+            self.assertNotIn(spoken_request, session._task_runs)
+
+            self._live_event(session, "spoken-story-delegation", {"type": "response.output_text.delta",
+                "response_id": "spoken-story-response", "delta": " The full late story."})
+            self._live_event(session, "spoken-story-delegation", {"type": "response.completed",
+                "response": {"id": "spoken-story-response", "status": "completed"}})
+            self.assertFalse(any("full late story" in row.get("text", "").lower() for row in rows))
+            self.assertEqual(provider._active_live_request, "")
+        provider.heard.clear()
 
     def test_gpt_live_transcript_event_id_keeps_its_request_and_drops_retired_output(self) -> None:
         p = LiveProvider()

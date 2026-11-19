@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT / "python"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from voice_cua import auth, providers, tools  # noqa: E402
+from voice_cua import session_instructions  # noqa: E402
 from voice_cua.activity_log import usage_row  # noqa: E402
 from voice_cua.providers import (  # noqa: E402
     ESCALATE_TOOL, LiveProvider, XAIProvider, make_provider, provider_for,
@@ -127,6 +128,21 @@ class XAITests(unittest.TestCase):
     def test_live_prompt_uses_completed_transcripts_and_reports_app_misses(self) -> None:
         self.assertIn("Treat a completed user transcript as authoritative", providers.LIVE_INSTRUCTIONS)
         self.assertIn("ask only to confirm its path or installation", providers.LIVE_INSTRUCTIONS)
+        self.assertIn("Conversational recall from this conversation and empathy also stay in Live", providers.LIVE_INSTRUCTIONS)
+        self.assertIn("a casual preference mention is not a request to save it", providers.LIVE_INSTRUCTIONS)
+
+    def test_preference_and_result_rules_reach_both_voice_providers(self) -> None:
+        with patch("voice_cua.workflow_store.index_context", return_value=""):
+            instructions = session_instructions()
+        (xai_update,) = XAIProvider("grok-voice-latest").outbound({"type": "session.update", "session": {
+            "instructions": instructions, "tools": []}})
+        live_start = LiveProvider()._start({"instructions": instructions, "tools": []})
+        prompts = (xai_update["session"]["instructions"], live_start["session"]["delegation"]["responses"]["instructions"])
+        for prompt in prompts:
+            self.assertIn("A passing mention such as \"my favourite colour is teal\" is conversation", prompt)
+            self.assertIn("Use operation=preference for user preferences", prompt)
+            self.assertIn('An immediate follow-up such as "Please remember that" applies to the most recent quoted preference.', prompt)
+            self.assertIn("before confirming cleanup or closure, state every fact", prompt)
 
     def test_missing_key_is_reported_not_read(self) -> None:
         with patch.dict(os.environ, {"XAI_API_KEY": ""}), \
@@ -176,6 +192,41 @@ class LiveTests(_Rows):
         self.assertEqual(upd["type"], "session.update")
         self.assertIn("tools", upd["session"]["delegation"]["responses"])
         self.assertNotIn("model", upd["session"]["delegation"]["responses"])
+
+    def test_typed_turn_routing_covers_conversation_and_tasks(self) -> None:
+        cases = {
+            "Hey Samantha, how's your afternoon going? By the way, my favourite colour is teal.": "direct",
+            "Quick one: what did I say my favourite colour was?": "direct",
+            "I had a rough day.": "direct",
+            "Hi, check my calendar.": "delegate",
+            "I had a rough day, but please check my calendar.": "delegate",
+            "My favourite colour is teal. Also, check my calendar.": "delegate",
+            "Please remember that.": "delegate",
+            "Open Calculator": "delegate",
+            "Please open example.com and say the heading.": "delegate",
+            "Hey, could you open Calculator?": "delegate",
+        }
+        for text, expected in cases.items():
+            with self.subTest(text=text):
+                self.assertEqual(providers.typed_turn_route(text), expected)
+
+    def test_typed_turn_route_is_response_scoped_and_keeps_turn_correlation(self) -> None:
+        for text, expected in (
+            ("Hey, how are you?", "direct"),
+            ("Open Calculator", "delegate"),
+        ):
+            p, _ = _live()
+            p.outbound({"type": "conversation.item.create", "item": {
+                "type": "message", "role": "user", "content": [{"type": "input_text", "text": text}]}})
+            (created,) = p.outbound({"type": "response.create", "event_id": "response-event", "response": {
+                "metadata": {"voice_cua_request_id": "req-1", "voice_cua_request_step_ref": "step-1"}}})
+            self.assertEqual(created["event_id"], "response-event")
+            self.assertEqual((p._turn_seq, p._turn_request), (1, "req-1"))
+            instructions = created["response"]["instructions"]
+            if expected == "direct":
+                self.assertIn("without creating a Responses delegation", instructions)
+            else:
+                self.assertIn("use Responses delegation", instructions)
 
     def test_silent_output_does_not_merge_audible_replies(self) -> None:
         p, _ = _live()

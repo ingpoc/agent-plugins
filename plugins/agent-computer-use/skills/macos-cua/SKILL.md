@@ -12,6 +12,8 @@ CUAService is the only visible-cursor owner; its MCP exposes `state` and `act` f
 
 Act-first when labels or outcomes are known: one batched `act` per app, then verify the result. Compact `state` is for discovery or after a miss. Reuse the returned delta. Encode friction in the app-agnostic `scripts/fast_path.py` linter/grader so later runs fail on the old trace. Handle in-place label changes such as Clear → All Clear from the delta.
 
+Failed Samantha starts remain visible in the menu and Dynamic Island with a short category and detail. A new attempt clears the failure; a successful start clears it as well.
+
 ## Hard bans
 
 Never use browser DOM or terminal-only commands for native-app actions because they bypass the visible CUA path. Never stop another user's active voice session because it may belong to their work.

@@ -144,11 +144,15 @@ LIVE_INSTRUCTIONS = (
     "Style: Speak English unless the user clearly speaks a full sentence in another language. One or two "
     "short sentences. Say what was done, not what could be done. Never end with offers like 'anything else?'.\n"
     "Backchannel policy: Brief acknowledgments only ('On it.'). Greetings, small talk and 'can you hear me' "
-    "get a short spoken reply and no delegation.\n"
+    "get a short spoken reply and no delegation. Conversational recall from this conversation and empathy "
+    "also stay in Live; a casual preference mention is not a request to save it. An immediate follow-up such as "
+    "'Please remember that' applies to the most recent quoted preference.\n"
     "Treat a completed user transcript as authoritative: act on its clearly transcribed app or site name, even if "
     "the audio seemed unclear. If an app lookup says it was not found or is not installed, say that and ask only "
     "to confirm its path or installation; do not ask the user to repeat the name.\n"
-    "Honor exact output-format requests without adding a greeting or acknowledgment.\n"
+    "Honor exact output-format requests without adding a greeting or acknowledgment. Before confirming cleanup or "
+    "closure, state every fact the user explicitly asked you to report (for example, a page heading), then state "
+    "the cleanup result.\n"
     "Interruption policy: Stop speaking when interrupted and listen. If the user changes or cancels the "
     "request, delegate the change; never say work was cancelled until the backend confirms it. If a "
     "state-changing action was executing when the user stopped it, report its outcome as unknown; do not "
@@ -156,11 +160,13 @@ LIVE_INSTRUCTIONS = (
     "Delegation policy:\n"
     "Backend tools:\n- Mac apps (Calculator, Finder, TextEdit, Music, Calendar, Settings), Comet browsing, and "
     "saved credential lookup without revealing secrets, and Context Ledger decisions.\n"
-    "Do not delegate to the backend for greetings, small talk, brief clarifications, repeated results, "
-    "simple arithmetic (for example, 12 + 12 = 24), or answers from the conversation or a still-current result. "
+    "Do not delegate to the backend for greetings, small talk, empathy, brief clarifications, conversational "
+    "recall, repeated results, simple arithmetic (for example, 12 + 12 = 24), or answers from the conversation "
+    "or a still-current result. "
     "Answer these directly in Live, in the requested format; never generate <|SpawnThinking|> or create a Responses delegation.\n"
-    "Delegate to the backend when the user asks for computer, app, website, decision-memory or credential work, a "
-    "correction changes work already requested, or the answer depends on backend work or needs careful reasoning "
+    "Delegate to the backend when the user asks for computer, app, website, or credential work, or to remember/save/keep "
+    "a preference or clearly set it for future use; a passing preference mention is conversation, not a save request. "
+    "Also delegate when a correction changes work already requested, or the answer depends on backend work or needs careful reasoning "
     "beyond a simple reply. Generate <|SpawnThinking|> before answering when the answer depends on backend work. Do not guess "
     "the result while waiting. Never claim an "
     "action happened until the backend reports it. Unclear or partial speech, or a vague 'that thing'/'it' the last "
@@ -172,6 +178,49 @@ LIVE_INSTRUCTIONS = (
     "Ledger record, include its exact decision_id as ledger_decision_id on that action; omit it for records "
     "that were only considered or not applied."
 )
+
+_TASK_REQUEST = re.compile(
+    r"(?:(?:hey|hi|hello)(?:\s+\w+)?[,!.]?\s*)?(?:(?:please\s+)?(?:open|launch|start|close|quit|switch(?:\s+to)?|go\s+to|navigate\s+to|visit|browse|search(?:\s+for)?|click|type|fill|select|check)\b|"
+    r"(?:can|could|would)\s+you\s+(?:please\s+)?(?:open|launch|start|close|quit|switch(?:\s+to)?|go\s+to|navigate\s+to|visit|browse|search(?:\s+for)?|click|type|fill|select|check)\b)",
+    re.IGNORECASE,
+)
+_CURRENT_RECALL = re.compile(
+    r"^\s*(?:(?:quick one|quick question)[:,]?\s*)?(?:what did i (?:just )?(?:say|tell you)|"
+    r"what was my|remind me what i (?:said|told you))\b",
+    re.IGNORECASE,
+)
+_PREFERENCE_SAVE_REQUEST = re.compile(
+    r"^\s*(?:please\s+)?(?:remember|save|keep|store|record)\b|"
+    r"\b(?:please|could you|can you|would you|will you)\s+(?:please\s+)?(?:remember|save|keep|store|record)\b|"
+    r"\b(?:i want|i'd like) you to (?:please\s+)?(?:remember|save|keep|store|record)\b|"
+    r"\b(?:going forward|from now on|in the future|for (?:all )?future|always|whenever|every time|in general|generally|as my default)\b",
+    re.IGNORECASE,
+)
+_CONVERSATIONAL_TURN = re.compile(
+    r"^\s*(?:hi|hello|hey|good (?:morning|afternoon|evening))\b|"
+    r"\bhow (?:are you|is your (?:day|morning|afternoon|evening))\b|"
+    r"\b(?:i(?:'m| am) (?:having|feeling|sad|upset|tired|overwhelmed|stressed|worried|anxious|frustrated|lonely|angry|excited|happy|nervous)|"
+    r"i feel (?:sad|upset|tired|overwhelmed|stressed|worried|anxious|frustrated|lonely|angry|nervous)|"
+    r"i had a (?:rough|hard|bad|long|awful) day)\b|"
+    r"\bmy (?:favo[u]?rite|preferred) [\w -]+ (?:is|are)\b|\bi (?:like|love|prefer)\b",
+    re.IGNORECASE,
+)
+
+
+def typed_turn_route(text: str) -> str | None:
+    """Pin obvious typed turns to direct conversation or the tool backend."""
+    text = " ".join(str(text or "").split())
+    if not text:
+        return None
+    if _TASK_REQUEST.search(text):
+        return "delegate"
+    if _CURRENT_RECALL.search(text):
+        return "direct"
+    if _PREFERENCE_SAVE_REQUEST.search(text):
+        return "delegate"
+    if _CONVERSATIONAL_TURN.search(text):
+        return "direct"
+    return None
 
 ROUTING_INSTRUCTIONS = (
     "\n\nRouting: you are the Bulk tier, for simple, high-volume tool work (open an app, click, "
@@ -201,6 +250,9 @@ class VoiceProvider:
              on_spoken_request: Callable[[str], None] | None = None) -> None:
         self._send_raw = send_raw
         self._on_spoken_request = on_spoken_request
+
+    def spoken_request_id(self) -> str:
+        return ""
 
     def url(self) -> str:
         raise NotImplementedError
@@ -411,7 +463,7 @@ class LiveProvider(VoiceProvider):
     """GPT-Live-1 with Responses delegation and a Bulk → Intelligence router."""
 
     name = "openai-live"
-    manages_barge_in = True  # no response.cancel / truncate: Live owns turn-taking
+    manages_barge_in = True  # Live owns audio turn-taking; delegated Responses cancel by response ID.
 
     def __init__(self, model: str = LIVE_MODEL, *, bulk: str | None = None, intelligence: str | None = None,
                  voice: str = "marin", store: bool = True, send_raw: Callable[[dict[str, Any]], bool] | None = None) -> None:
@@ -527,10 +579,60 @@ class LiveProvider(VoiceProvider):
         while len(self._retired_live_output_ids) > 512:
             self._retired_live_output_ids.pop(next(iter(self._retired_live_output_ids)))
 
-    def interrupt_request(self, request_id: str = "") -> None:
+    def interrupt_request(self, request_id: str = "") -> tuple[list[str], list[dict[str, Any]]]:
+        response_ids: list[str] = []
+        settled: list[dict[str, Any]] = []
         with self._lock:
-            self._retire_live_request_locked(request_id or self._active_live_request)
+            request_id = request_id or self._active_live_request
+            self._retire_live_request_locked(request_id)
+            if request_id and self._active_live_request == request_id:
+                self._active_live_request = ""
+            if request_id:
+                self._previous_live_request = request_id
+            delegations = [delegation for delegation, owner in self._delegation_request.items()
+                           if owner == request_id]
+            for delegation in delegations:
+                self._cancelled_backend_delegations[delegation] = request_id
+                response_id = self._delegation_response.get(delegation, "")
+                calls = self._pending_calls.pop(delegation, set())
+                active = response_id in self._active_backend_responses or response_id in self._response_calls
+                if not response_id or (not active and not calls):
+                    continue
+                text = self._response_text.pop(response_id, "")
+                self._cancelled_backend_responses[response_id] = (request_id, text, not active)
+                self._active_backend_responses.discard(response_id)
+                self._response_calls.discard(response_id)
+                if active:
+                    response_ids.append(response_id)
+                else:
+                    settled.append(self._interrupted_backend_event(response_id, request_id, text,
+                                                                   local_settlement=True))
+            while len(self._cancelled_backend_delegations) > 256:
+                self._cancelled_backend_delegations.pop(next(iter(self._cancelled_backend_delegations)))
+            while len(self._cancelled_backend_responses) > 256:
+                self._cancelled_backend_responses.pop(next(iter(self._cancelled_backend_responses)))
         self.said.clear()
+        if settled:
+            self._deescalate()
+        return response_ids, settled
+
+    @staticmethod
+    def _interrupted_backend_event(response_id: str, request_id: str, text: str, *,
+                                   local_settlement: bool = False) -> dict[str, Any]:
+        output = ([{"type": "message", "content": [{"type": "output_text", "text": text}]}]
+                  if text else [])
+        metadata = {"voice_cua_request_id": request_id, "voice_cua_interrupted": True}
+        if local_settlement:
+            metadata["voice_cua_local_settlement"] = True
+        return {"type": "response.done", "response": {
+            "id": response_id, "status": "cancelled", "usage": {}, "output": output,
+            "metadata": metadata,
+        }}
+
+    def spoken_request_id(self) -> str:
+        with self._lock:
+            return (self._pending_spoken_request[0] if self._pending_spoken_request
+                    else self._spoken_turn_request)
 
     def _live_output_request(self, event: dict[str, Any]) -> tuple[str, bool]:
         response = event.get("response") if isinstance(event.get("response"), dict) else {}
@@ -550,12 +652,19 @@ class LiveProvider(VoiceProvider):
                 return "", True
             request_id = next(iter(requests), "")
             if not request_id:
-                spoken = self._pending_spoken_request[0] if self._pending_spoken_request else ""
-                request_id = self._active_live_request or spoken or self._spoken_turn_request
-            if request_id in self._retired_live_requests:
+                if output_ids and self._active_backend_responses:
+                    if event.get("type") != "session.output_transcript.delta" or not self._previous_live_request:
+                        return "", True
+                    request_id = self._previous_live_request
+                else:
+                    spoken = self._pending_spoken_request[0] if self._pending_spoken_request else ""
+                    request_id = self._active_live_request or spoken or self._spoken_turn_request
+            if request_id in self._retired_live_requests and request_id != self._previous_live_request:
                 return "", True
             for kind, value in output_ids:
                 self._remember_live_output_id_locked(request_id, kind, value)
+            if request_id:
+                self._last_live_output_request = request_id
             return request_id, False
 
     def _live_response_event(self, event: dict[str, Any]) -> list[dict[str, Any]]:
@@ -623,6 +732,8 @@ class LiveProvider(VoiceProvider):
             self._retired_live_output_ids: dict[tuple[str, str], str] = {}
             self._retired_live_requests: dict[str, None] = {}
             self._active_live_request = ""
+            self._previous_live_request = ""
+            self._last_live_output_request = ""
             self._pending_spoken_request: tuple[str, int] | None = None
             self._request_step_refs: dict[str, str] = getattr(self, "_request_step_refs", {})
             self._spoken_turn_request = ""
@@ -640,7 +751,10 @@ class LiveProvider(VoiceProvider):
             self._response_text: dict[str, str] = {}
             self._response_calls: set[str] = set()
             self._active_backend_responses: set[str] = set()
+            self._cancelled_backend_delegations: dict[str, str] = {}
+            self._cancelled_backend_responses: dict[str, tuple[str, str, bool]] = {}
             self._pending_spoken_update = ""
+            self._pending_turn_route: str | None = None
             self.voice_seconds = 0
             self._out_seq = getattr(self, "_out_seq", 0)
             self._last_out = 0.0
@@ -793,7 +907,16 @@ class LiveProvider(VoiceProvider):
                     del self._pending_audio[:-PENDING_AUDIO_MAX]
                     return []
             return [wire]
-        if et in {"input_audio_buffer.clear", "input_audio_buffer.commit", "response.cancel",
+        if et == "response.cancel":
+            response_id = str(event.get("response_id") or "")
+            with self._lock:
+                cancelled = self._cancelled_backend_responses.get(response_id)
+                cancellable = bool(cancelled and not cancelled[2])
+            if not cancellable:
+                return []
+            return [{"type": "response.cancel", "event_id": str(event.get("event_id") or self.event_id("cancel")),
+                     "response_id": response_id}]
+        if et in {"input_audio_buffer.clear", "input_audio_buffer.commit",
                   "conversation.item.truncate", "conversation.item.delete"}:
             return []  # GPT-Live manages turns, barge-in and truncation itself
         if et == "conversation.item.create":
@@ -812,6 +935,7 @@ class LiveProvider(VoiceProvider):
                              "content": text[:LIVE_APPEND_MAX_CHARS], "delegation_id": None}]
                 self._remember("user", text)  # typed turns seed restarts like spoken ones
                 with self._lock:
+                    self._pending_turn_route = typed_turn_route(text)
                     self._pending_spoken_update = ""  # this newer explicit request supersedes queued speech
                     self._pending_spoken_request = None
                     self._user_item_queued = True  # the next response.create opens a turn
@@ -837,7 +961,12 @@ class LiveProvider(VoiceProvider):
                 if new_turn:
                     # A typed request (or its drop-recovery replay); a tool continuation that
                     # carries the same request id stays in its turn.
-                    previous_request = self._active_live_request
+                    previous_request = (self._active_live_request
+                                        or (self._pending_spoken_request[0] if self._pending_spoken_request else "")
+                                        or self._spoken_turn_request or self._turn_request
+                                        or self._last_live_output_request)
+                    if previous_request and previous_request != request_id:
+                        self._previous_live_request = previous_request
                     if previous_request and previous_request != request_id:
                         self._retire_live_request_locked(previous_request)
                     self._active_live_request = request_id
@@ -876,6 +1005,16 @@ class LiveProvider(VoiceProvider):
             create: dict[str, Any] = {"type": "response.create"}
             if event_id:
                 create["event_id"] = event_id
+            with self._lock:
+                route, self._pending_turn_route = self._pending_turn_route, None
+            if route:
+                # response.instructions overrides the session prompt for this response only.
+                instruction = (
+                    "For this response only, answer directly in Live without creating a Responses delegation."
+                    if route == "direct" else
+                    "For this response, use Responses delegation because the user requested a computer, browser, or preference task."
+                )
+                create["response"] = {"instructions": LIVE_INSTRUCTIONS + "\n" + instruction}
             return out + [create]
         return [event]
 
@@ -883,7 +1022,11 @@ class LiveProvider(VoiceProvider):
         call_id = str(item.get("call_id") or "")
         out: list[dict[str, Any]] = []
         with self._lock:
-            known = call_id in self._call_delegation
+            delegation = self._call_delegation.get(call_id, "")
+            if delegation in self._cancelled_backend_delegations:
+                self._call_delegation.pop(call_id, None)
+                return []
+            known = bool(delegation)
         if not known:
             # The call belongs to a session that reconnected away (a new Live session has no
             # such delegation): hand the result over as context; the caller's response.create
@@ -971,6 +1114,14 @@ class LiveProvider(VoiceProvider):
         if et == "session.updated":
             return [{"type": "session.updated", "session": event.get("session") or {}}]
         if et in {"response.created", "response.done"}:
+            if et == "response.done":
+                response = event.get("response") or {}
+                response_id = str(response.get("id") or "") if isinstance(response, dict) else ""
+                with self._lock:
+                    delegation = self._response_delegation.get(response_id, "")
+                    cancelled = response_id in self._cancelled_backend_responses
+                if delegation and cancelled:
+                    return self._backend_event(delegation, event)
             return self._live_response_event(event)
         if et == "session.output_audio.delta":
             request_id, stale = self._live_output_request(event)
@@ -1001,8 +1152,8 @@ class LiveProvider(VoiceProvider):
             if fresh and isinstance(start_ms, int) and not isinstance(start_ms, bool):
                 with self._lock:
                     backend_busy = bool(self._active_backend_responses or any(self._pending_calls.values()))
-                    if not backend_busy and not self._pending_request:
-                        if self._active_live_request:
+                    if not self._pending_request:
+                        if not backend_busy and self._active_live_request:
                             self._retire_live_request_locked(self._active_live_request)
                             self._active_live_request = ""
                             retired_live_output = True
@@ -1109,6 +1260,25 @@ class LiveProvider(VoiceProvider):
             return []  # a rejected context/mic command is logged, not surfaced as a session failure
         return [event]
 
+    def _cancelled_backend_done(self, delegation: str, response: dict[str, Any], status: str) -> list[dict[str, Any]]:
+        response_id = str(response.get("id") or "")
+        with self._lock:
+            cancelled = self._cancelled_backend_responses.pop(response_id, None)
+            if not cancelled:
+                return []
+            request_id, partial, settled = cancelled
+            self._active_backend_responses.discard(response_id)
+            self._response_calls.discard(response_id)
+            self._pending_calls.pop(delegation, None)
+            self._response_text.pop(response_id, None)
+        if settled:
+            return []
+        done = self._interrupted_backend_event(response_id, request_id, partial)["response"]
+        done["status"] = response.get("status") or status
+        done["usage"] = response.get("usage") or {}
+        self._deescalate()
+        return [{"type": "response.done", "response": done}]
+
     def _new_user_burst(self) -> bool:
         now = time.monotonic()
         with self._lock:
@@ -1118,17 +1288,35 @@ class LiveProvider(VoiceProvider):
 
     def _backend_event(self, delegation: str, inner: dict[str, Any]) -> list[dict[str, Any]]:
         it = inner.get("type")
-        response = inner.get("response") or {}
+        response = inner.get("response")
+        response = response if isinstance(response, dict) else {}
         rid = str(response.get("id") or inner.get("response_id") or "")
-        if it == "response.created":
-            with self._lock:
+        terminal = it in {"response.completed", "response.done", "response.failed", "response.incomplete"}
+        with self._lock:
+            if not rid:
+                # Nested item/text events carry no response id: use this delegation's response.
+                rid = self._delegation_response.get(delegation, "")
+            cancelled_response = rid in self._cancelled_backend_responses
+            if delegation in self._cancelled_backend_delegations and not cancelled_response:
+                return []
+            if cancelled_response:
+                pass
+            elif rid in self._cancelled_backend_responses:
+                return []
+            if it == "response.created":
+                previous_response_id = self._delegation_response.get(delegation, "")
+                if previous_response_id and previous_response_id != rid:
+                    self._response_text.pop(previous_response_id, None)
                 self._active_backend_responses.add(rid)
                 self._delegation_response[delegation] = rid
-        elif not rid:
-            # Nested item/text events carry no response id: use the delegation's current response.
-            rid = self._delegation_response.get(delegation, "")
+        if cancelled_response:
+            return self._cancelled_backend_done(delegation, response | {"id": rid},
+                                                str(response.get("status") or it.split(".")[-1])
+                                                if terminal else "cancelled") if terminal else []
         if it == "response.created":
             with self._lock:
+                if delegation in self._cancelled_backend_delegations or rid in self._cancelled_backend_responses:
+                    return []
                 self._last_delegation = delegation or self._last_delegation
                 if delegation not in self._delegation_turn:
                     self._claim_delegation(delegation)  # no delegation.created seen
@@ -1146,14 +1334,25 @@ class LiveProvider(VoiceProvider):
                 if request_step_ref:
                     created["metadata"]["voice_cua_request_step_ref"] = request_step_ref
             return [{"type": "response.created", "response": created}]
+        if it == "response.output_text.delta":
+            with self._lock:
+                if delegation in self._cancelled_backend_delegations or rid in self._cancelled_backend_responses:
+                    return []
+                self._response_text[rid] = (self._response_text.get(rid, "")
+                                            + str(inner.get("delta") or ""))[:4000]
+            return []
         if it == "response.output_text.done":
             with self._lock:
+                if delegation in self._cancelled_backend_delegations or rid in self._cancelled_backend_responses:
+                    return []
                 self._remember_live_output_id_locked(self._current_request(delegation), "response_id", rid)
                 self._response_text[rid] = str(inner.get("text") or "")[:4000]
             return []
         if it == "response.output_item.done":
             item = inner.get("item") or {}
             with self._lock:
+                if delegation in self._cancelled_backend_delegations or rid in self._cancelled_backend_responses:
+                    return []
                 request_id = self._current_request(delegation)
                 self._remember_live_output_id_locked(request_id, "response_id", rid)
                 self._remember_live_output_id_locked(request_id, "item_id", str(item.get("id") or ""))
@@ -1177,13 +1376,17 @@ class LiveProvider(VoiceProvider):
             return [{"type": "response.output_item.done", "response_id": rid, "item": item}]
         if it in {"response.completed", "response.done", "response.failed", "response.incomplete"}:
             with self._lock:
+                if delegation in self._cancelled_backend_delegations or rid in self._cancelled_backend_responses:
+                    return []
                 self._active_backend_responses.discard(rid)
                 outstanding = bool(self._pending_calls.get(delegation))
                 had_calls = rid in self._response_calls
                 self._response_calls.discard(rid)
                 if not had_calls and not outstanding:
                     self._pending_spoken_update = ""  # no continuation: do not leak speech into a later task
-                text = self._response_text.pop(rid, "")
+                text = self._response_text.get(rid, "")
+                if not had_calls and not outstanding:
+                    self._response_text.pop(rid, None)
                 request_id = self._current_request(delegation)
                 self._remember_live_output_id_locked(request_id, "response_id", rid)
                 stale = bool(text) and not had_calls and not request_id and bool(
@@ -1226,6 +1429,8 @@ class LiveProvider(VoiceProvider):
         if (self._pending_spoken_request and isinstance(offset_ms, int)
                 and not isinstance(offset_ms, bool)
                 and offset_ms >= self._pending_spoken_request[1]):
+            self._previous_live_request = (self._turn_request or self._active_live_request
+                                           or self._last_live_output_request)
             request_id, _ = self._pending_spoken_request
             self._pending_spoken_request = None
             self._turn_seq += 1

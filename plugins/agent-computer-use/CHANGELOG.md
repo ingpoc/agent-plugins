@@ -1,3 +1,11 @@
+## 0.2.154
+
+- On GPT-Live, a redirect now stops the answer that was handed to the backend and starts the new request at once; late output from the stopped answer is dropped (ACU-05).
+- When Samantha cannot start, the menu and island stay in a visible failed state with a plain reason until the next try (ACU-01).
+- Small talk is answered by the live voice model and passing mentions are not saved as memories; explicit remember requests save, including on Grok Voice, and a rejected save names the field (ACU-07, ACU-09, ACU-13).
+- After a browser task, the reply states the facts asked for before confirming cleanup (ACU-08).
+- The island cold-start test no longer depends on real timers, the release test finds files from the skill folder, and the repo check fails on a strict skill shape error (ACU-11, ACU-12).
+
 ## 0.2.153
 
 - After a redirect, each turn gets the reply of its own response: late output from a stopped answer no longer completes a later turn, and delegated tasks still run their tools. On Grok Voice a redirect now stops the active answer and is answered next (ACU-05).

@@ -1,16 +1,33 @@
-"""Scoped and fail-closed Ledger reads; capture remains disabled."""
+"""Scoped and fail-closed Ledger reads and writes."""
 import os
 import sys
 import unittest
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'python'))
 # Test hygiene (0.2.86): these tests must never write rows into the real ~/.cache/macos-cua activity log.
 _ACTIVITY_DIR = tempfile.TemporaryDirectory(prefix="voice-cua-test-ledger-")
 os.environ["VOICE_CUA_ACTIVITY_LOG"] = str(Path(_ACTIVITY_DIR.name) / "activity.jsonl")
+from voice_cua import tools
 from voice_cua.ledger_helper import LedgerHelper
 from voice_cua.ledger_transport import LedgerInvalidArgument
+
+ACU13_GROK_REQUEST = {
+    "operation": "capture",
+    "scope": "fleet",
+    "rule": "favourite_colour",
+    "value": "teal",
+    "owner_quote": "my favourite colour is teal",
+    "capture_gate": {
+        "owner_decision": "User stated their favourite colour is teal",
+        "future_task": "Any future preference involving colour choices",
+        "changed_choice": "No prior colour preference on record",
+        "unique_value": "teal",
+        "lifetime": "durable",
+        "sensitivity": "model_safe",
+    },
+}
 
 class LedgerHelperTests(unittest.TestCase):
     def test_activity_log_is_redirected_to_a_temp_path(self):
@@ -236,6 +253,34 @@ class LedgerHelperTests(unittest.TestCase):
         self.helper.note_user('Cancel that decision; do not store it')
         gate = {'owner_decision': quote, 'future_task': 'site design', 'changed_choice': 'separate sites', 'unique_value': 'preference', 'lifetime': 'durable', 'sensitivity': 'model_safe'}
         self.assertFalse(self.helper.run(operation='capture', situation='site', need='save', project='agent-plugins', capture_gate=gate)['ok'])
+
+    def test_acu13_grok_capture_fixture_saves_preference_in_same_turn(self):
+        self.helper.note_user("Please remember my favourite colour is teal")
+        self.transport.call.return_value = {'ok': True, 'data': {'decision_id': 'grok-saved'}}
+        with patch("voice_cua.tools._LEDGER_HELPER", self.helper):
+            result = tools._ledger_task(ACU13_GROK_REQUEST)
+        self.assertEqual(result['status'], 'saved')
+        self.assertEqual(result['decision_id'], 'grok-saved')
+        operation, args = self.transport.call.call_args.args
+        self.assertEqual(operation, 'save')
+        self.assertEqual((args['type'], args['decision']), ('user_decision', 'teal'))
+
+    def test_oversized_lookup_context_names_situation_need_and_project(self):
+        cases = (
+            ('situation', {'situation': 's' * 1001, 'need': 'calendar'}),
+            ('need', {'situation': 'choose calendar', 'need': 'n' * 501}),
+            ('project', {'situation': 'choose calendar', 'need': 'calendar', 'project': 'p' * 81}),
+        )
+        for field, values in cases:
+            with self.subTest(field=field):
+                result = self.helper.run(operation='lookup', **values)
+                self.assertIn(field, result['error'])
+                self.transport.call.assert_not_called()
+
+    def test_capture_names_missing_situation_and_need(self):
+        result = self.helper.run(operation='capture', project='agent-plugins')
+        self.assertIn('situation', result['error'])
+        self.assertIn('need', result['error'])
         self.transport.call.assert_not_called()
 
     def test_substring_project_cannot_authorize_scope(self):

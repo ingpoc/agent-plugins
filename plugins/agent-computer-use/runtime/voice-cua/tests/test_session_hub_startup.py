@@ -4,9 +4,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 import threading
 import time
 import unittest
+from unittest.mock import patch
 from types import SimpleNamespace
 
-from voice_cua import session_hub
+from voice_cua import auth, live_session, session_hub
 
 
 def _session(ready=False):
@@ -23,6 +24,9 @@ def _session(ready=False):
 class StartupTextTurnTest(unittest.TestCase):
     def tearDown(self):
         session_hub._active = None
+        clear_failure = getattr(session_hub, "clear_startup_failure", None)
+        if clear_failure:
+            clear_failure()
 
     def test_text_turn_during_startup_waits_for_ready(self):
         sess = _session()
@@ -41,9 +45,37 @@ class StartupTextTurnTest(unittest.TestCase):
         session_hub.register(sess)
         status = session_hub.status()
         self.assertFalse(status["ready"])
-        self.assertEqual(status["reason"], "Realtime open failed (RuntimeError).")
+        self.assertEqual(status["reason"], "setup_error: Realtime open failed (RuntimeError).")
         sess._session_ready.set()
         self.assertIsNone(session_hub.status()["reason"])
+
+    def test_status_reports_helper_missing_failure(self):
+        session_hub.report_startup_failure("helper_missing", "Bundled voice helper is missing.")
+        self.assertEqual(session_hub.status()["reason"], "helper_missing: Bundled voice helper is missing.")
+
+    def test_status_reports_mic_denied_failure(self):
+        session_hub.report_startup_failure("mic_denied", "Microphone access was not granted.")
+        self.assertEqual(session_hub.status()["reason"], "mic_denied: Microphone access was not granted.")
+
+    def test_status_reports_key_missing_failure(self):
+        session_hub.report_startup_failure("key_missing", "Add the Grok Voice API key to Keychain.")
+        self.assertEqual(session_hub.status()["reason"], "key_missing: Add the Grok Voice API key to Keychain.")
+
+    def test_status_reports_setup_error_failure(self):
+        session_hub.report_startup_failure("setup_error", "Setup could not complete (RuntimeError).")
+        self.assertEqual(session_hub.status()["reason"], "setup_error: Setup could not complete (RuntimeError).")
+
+    def test_status_clears_failure_after_successful_start(self):
+        session_hub.report_startup_failure("setup_error", "Previous attempt failed.")
+        session_hub.register(_session(ready=True))
+        self.assertIsNone(session_hub.status()["reason"])
+
+    def test_status_keeps_setup_failure_after_session_unregisters(self):
+        sess = _session()
+        sess._session_error_reason = "Realtime open failed (RuntimeError)."
+        session_hub.register(sess)
+        session_hub.unregister(sess)
+        self.assertEqual(session_hub.status()["reason"], "setup_error: Realtime open failed (RuntimeError).")
 
     def test_never_ready_reports_typed_error(self):
         session_hub.register(_session())
@@ -62,6 +94,34 @@ class StartupTextTurnTest(unittest.TestCase):
         self.assertEqual(result["status"], "error")
         self.assertTrue(result["turn_id"])
         self.assertLess(time.monotonic() - started, 1)
+
+
+class StartupFailureStatusTest(unittest.TestCase):
+    def setUp(self):
+        session_hub.clear_startup_failure()
+
+    def tearDown(self):
+        session_hub._active = None
+        session_hub.clear_startup_failure()
+
+    def test_missing_key_startup_reaches_session_status(self):
+        with patch.object(live_session, "LiveSession", side_effect=auth.MissingApiKey("missing")), \
+                patch.object(live_session, "island_publish"), patch.object(live_session, "log_event"):
+            result = live_session.main([])
+
+        self.assertEqual(result, live_session.EXIT_NEEDS_API_KEY)
+        self.assertEqual(session_hub.status()["reason"], "key_missing: Grok Voice: add xai-api to Keychain")
+
+    def test_setup_error_startup_reaches_session_status(self):
+        with patch.object(live_session, "LiveSession", side_effect=RuntimeError("private exception detail")), \
+                patch.object(live_session, "island_publish"), patch.object(live_session, "log_event"):
+            result = live_session.main([])
+
+        self.assertEqual(result, 1)
+        self.assertEqual(
+            session_hub.status()["reason"],
+            "setup_error: RuntimeError; voice session setup did not complete.",
+        )
 
 
 if __name__ == "__main__":

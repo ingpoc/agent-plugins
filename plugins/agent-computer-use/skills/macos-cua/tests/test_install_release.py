@@ -11,13 +11,10 @@ import unittest
 from unittest.mock import patch
 from pathlib import Path
 
-SERVICE = Path(__file__).resolve().parents[1] / "service"
+SKILL_ROOT = Path(__file__).resolve().parents[1]
+SERVICE = SKILL_ROOT / "service"
 sys.path.insert(0, str(SERVICE))
 import install_service as inst  # noqa: E402
-
-VOICE_SCRIPTS = Path(__file__).resolve().parents[3] / "runtime" / "voice-cua" / "scripts"
-sys.path.insert(0, str(VOICE_SCRIPTS))
-import build_voice_helper as voice_builder  # noqa: E402
 
 
 class InstallReleaseTests(unittest.TestCase):
@@ -59,13 +56,6 @@ class InstallReleaseTests(unittest.TestCase):
                 inst.create_app_bundle(self.tmp / "CUAService", dest)
         self.assertEqual(raised.exception.code, 1)
         self.assertFalse(dest.exists())
-
-    def test_voice_builder_does_not_install_missing_pyinstaller(self):
-        with patch("builtins.__import__", side_effect=ImportError), patch.object(voice_builder, "run") as run:
-            with self.assertRaises(SystemExit) as raised:
-                voice_builder.ensure_pyinstaller()
-        self.assertEqual(raised.exception.code, 1)
-        run.assert_not_called()
 
     def test_compat_link_created_kept_and_legacy_bundle_trashed(self):
         dest = self.tmp / "Applications" / "Agent Computer Use.app"

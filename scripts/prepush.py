@@ -8,7 +8,7 @@ checks the files each pushed range changes:
 - lint: `ruff check --select E9,F63,F7,F82` (syntax errors, undefined names) on
   changed .py; `bash -n` and `shellcheck -S error` on changed .sh
 - typecheck: `python -m py_compile` on changed .py (no type checker is configured)
-- contract: `scripts/check.py --validate-only` (manifests and catalogs)
+- contract: `scripts/check.py --validate-only` (manifests, catalogs, strict skill shape)
 - placement: the pushing checkout is the canonical one or a worktree under
   `worktree_root` (scripts/placement.py; override AGENT_PLUGINS_ALLOW_PLACEMENT=1)
 

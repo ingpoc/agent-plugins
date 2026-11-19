@@ -1,9 +1,10 @@
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from voice_cua import SYSTEM_INSTRUCTIONS
+from voice_cua import tools
 from voice_cua.ledger_helper import LedgerHelper
 from voice_cua.tools import tool_definitions
 
@@ -20,8 +21,8 @@ def test_preferences_and_recall_without_helper(tmp_path):
     decide = Mock(side_effect=AssertionError('helper model called'))
     helper = LedgerHelper(transport, decide, tmp_path / 'pending')
     for scope, rule, value, quote in [
-        ('tool:gmail', 'account_select', 'Work', 'Please use Work for my email account'),
-        ('tool:macos', 'default_browser', 'Safari', 'Please use Safari as my browser'),
+        ('tool:gmail', 'account_select', 'Work', 'Please use Work for my email account for future choices'),
+        ('tool:macos', 'default_browser', 'Safari', 'Please use Safari as my browser going forward'),
     ]:
         helper.note_user(quote)
         result = helper.run(operation='preference', scope=scope, rule=rule, value=value, owner_quote=quote)
@@ -45,6 +46,72 @@ def test_preferences_and_recall_without_helper(tmp_path):
     assert 'If `has_more` is true, ask rather than select from an incomplete set' in skill
 
 
+def test_casual_preference_mention_is_not_saved(tmp_path):
+    transport = Mock()
+    helper = LedgerHelper(transport, Mock(), tmp_path / 'pending')
+    quote = 'My favourite colour is teal.'
+    helper.note_user(quote)
+    with patch('voice_cua.tools._LEDGER_HELPER', helper):
+        result = tools._ledger_task({
+            'operation': 'preference', 'scope': 'fleet', 'rule': 'favourite_colour',
+            'value': 'teal', 'owner_quote': quote,
+        })
+    assert result['error_type'] == 'ledger_invalid_argument'
+    assert 'owner_quote' in result['error']
+    transport.call.assert_not_called()
+
+
+def test_acu13_corrected_explicit_preference_request_is_accepted(tmp_path):
+    transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'decision_id': 'saved'}}
+    helper = LedgerHelper(transport, Mock(), tmp_path / 'pending')
+    quote = 'Please remember my favourite colour is teal.'
+    helper.note_user(quote)
+    result = helper.run(operation='preference', scope='fleet', rule='favourite_colour',
+                        value='teal', owner_quote=quote)
+    assert result['status'] == 'saved'
+    name, payload = transport.call.call_args.args
+    assert name == 'save'
+    assert (payload['type'], payload['scope'], payload['rule'], payload['decision']) == (
+        'user_decision', 'fleet', 'favourite_colour', 'teal')
+
+
+def test_followup_remember_that_saves_the_preceding_quoted_preference(tmp_path):
+    transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'decision_id': 'followup-saved'}}
+    helper = LedgerHelper(transport, Mock(side_effect=AssertionError('helper model called')), tmp_path / 'pending')
+    helper.note_user('My favourite colour is teal.')
+    helper.note_user('Please remember that.')
+    result = helper.run(operation='preference', scope='fleet', rule='favourite_colour', value='teal',
+                        owner_quote='my favourite colour is teal')
+    assert result['status'] == 'saved'
+    assert result['decision_id'] == 'followup-saved'
+    assert transport.call.call_args.args[0] == 'save'
+
+
+def test_followup_save_without_reference_does_not_save_preference(tmp_path):
+    transport = Mock()
+    helper = LedgerHelper(transport, Mock(side_effect=AssertionError('helper model called')), tmp_path / 'pending')
+    helper.note_user('My favourite colour is teal.')
+    helper.note_user('Please remember to call Mom.')
+    result = helper.run(operation='preference', scope='fleet', rule='favourite_colour', value='teal',
+                        owner_quote='my favourite colour is teal')
+    assert result['error_type'] == 'ledger_invalid_argument'
+    assert 'explicit save or future-use intent' in result['error']
+    transport.call.assert_not_called()
+
+
+def test_ledger_schema_separates_preference_and_capture_fields():
+    tool = next(tool for tool in tool_definitions(groups={'ledger'}) if tool['name'] == 'ledger_task')
+    fields = tool['parameters']['properties']
+    assert 'Use preference for user preferences' in fields['operation']['description']
+    assert 'do not use capture for a preference' in fields['operation']['description']
+    assert 'immediate' in fields['operation']['description']
+    assert 'save intent may be in an immediate follow-up' in fields['owner_quote']['description']
+    assert 'required for lookup/capture' in fields['situation']['description']
+    assert 'required for lookup/capture' in fields['need']['description']
+
+
 def test_preference_instructions_cover_agreement_and_conflict():
     ledger_tool = next(tool for tool in tool_definitions() if tool['name'] == 'ledger_task')
     skill = (Path(__file__).resolve().parents[3] / 'skills/macos-cua/SKILL.md').read_text()
@@ -61,7 +128,7 @@ def test_preference_normalizes_bare_app_scope(tmp_path):
     transport = Mock()
     transport.call.return_value = {'ok': True, 'data': {'decision_id': 'saved'}}
     helper = LedgerHelper(transport, Mock(), tmp_path / 'pending')
-    quote = 'Please use Work for my email account'
+    quote = 'Please use Work for my email account for future choices'
     helper.note_user(quote)
 
     result = helper.run(operation='preference', scope='Gmail', rule='Account Select',
@@ -76,7 +143,7 @@ def test_preference_normalizes_scope_and_rule_before_lookup_or_save(tmp_path):
     transport = Mock()
     transport.call.return_value = {'ok': True, 'data': {'decision_id': 'saved'}}
     helper = LedgerHelper(transport, Mock(), tmp_path / 'pending')
-    quote = 'Please use Work for my email account'
+    quote = 'Please use Work for my email account going forward'
     helper.note_user(quote)
     result = helper.run(operation='preference', scope=' Tool:Gmail ', rule='Account Select',
                         value='Work', owner_quote=quote)
@@ -116,11 +183,11 @@ def test_lookup_observes_preference_saved_after_empty_lookup(tmp_path):
     helper = LedgerHelper(Mock(call=call), lambda _: {'status': 'found', 'decision_ids': ['saved']}, tmp_path / 'pending')
     lookup = {'operation': 'lookup', 'scope': 'tool:gmail', 'situation': 'choose account', 'need': 'account'}
     assert helper.run(**lookup)['status'] == 'none'
-    quote = 'Please use Work for my email account'
+    quote = 'Please use Work for my email account going forward'
     helper.note_user(quote)
     assert helper.run(operation='preference', scope='tool:gmail', rule='account_select', value='Work', owner_quote=quote)['status'] == 'saved'
     assert helper.run(**lookup)['decisions'][0]['decision'] == 'Work'
-    quote = 'Please use Personal for my email account'
+    quote = 'Please use Personal for my email account going forward'
     helper.note_user(quote)
     assert helper.run(operation='preference', scope='tool:gmail', rule='account_select', value='Personal', owner_quote=quote)['status'] == 'saved'
     assert helper.run(**lookup)['decisions'][0]['decision'] == 'Personal'

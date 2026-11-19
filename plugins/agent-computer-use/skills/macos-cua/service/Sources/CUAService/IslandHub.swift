@@ -322,8 +322,8 @@ final class IslandHub {
         changed()
     }
 
-    func clearSamantha() {
-        samantha = nil
+    func clearSamantha(preservingFailure: Bool = false) {
+        if !preservingFailure || samantha?.kind != "error" { samantha = nil }
         let owned = entries.compactMap { id, entry in
             entry.agent.name == IslandSourceGroups.samantha && entry.agent.plugin != nil ? id : nil
         }
@@ -332,6 +332,12 @@ final class IslandHub {
             pendingControls[id] = nil
             for waiter in (controlWaiters.removeValue(forKey: id) ?? [:]).values { waiter.resume() }
         }
+        changed()
+    }
+
+    func clearSamanthaFailure() {
+        guard samantha?.kind == "error" else { return }
+        samantha = nil
         changed()
     }
 

@@ -238,6 +238,10 @@ final class IslandTests: XCTestCase {
             ("Ledger save outcome unknown; do not retry without checking", "Ledger save unconfirmed"),
             ("comet_not_frontmost", "Couldn't bring Comet to front"),
             ("confirmation required", "Needs your OK"),
+            ("setup_error: Unknown voice model 'invalid-model'", "Voice model unavailable"),
+            ("helper_missing: Voice helper is missing", "Voice helper is missing"),
+            ("mic_denied: Microphone access denied", "Microphone access denied"),
+            ("key_missing: Grok Voice: add xai-api to Keychain", "Voice API key needs access"),
         ]
         for (raw, copy) in cases {
             XCTAssertEqual(IslandCopy.humanError(raw), copy, raw)

@@ -78,15 +78,12 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
             inputActions: inputActions,
             logger: logger
         )
-        router?.voiceControl = { [weak voiceSupervisor] operation in
-            guard let voice = voiceSupervisor else { return ["ok": false, "error": "Samantha control unavailable"] }
-            if operation == "start" && !voice.running {
-                IslandSettingsStore.shared.ensureToken(.samantha)
-                guard await voice.start() else { return ["ok": false, "running": false, "error": "Samantha failed to start"] }
-            } else if operation == "stop" && voice.running {
-                voice.stop()
-            }
-            return ["ok": true, "running": voice.running, "healthy": voice.running && voice.isHealthy(), "gateway_port": voice.gatewayPort]
+        if let voiceSupervisor, let islandController {
+            router?.voiceControl = Self.voiceControlHandler(
+                voice: voiceSupervisor,
+                island: islandController,
+                ensureSamanthaToken: { IslandSettingsStore.shared.ensureToken(.samantha) }
+            )
         }
         islandController?.setCursorOverlay(cursorOverlay!)
 
@@ -107,6 +104,40 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
             return
         }
         logger.info("CUAService ready", metadata: ["socket": "\(socketPath)"])
+    }
+
+    static func voiceControlHandler(
+        voice: VoiceSupervisor,
+        island: IslandController,
+        ensureSamanthaToken: @escaping () -> Void,
+        startVoice: @escaping @MainActor (VoiceSupervisor) async -> Bool = { await $0.start() }
+    ) -> @MainActor (String) async -> [String: Any] {
+        { [weak voice, weak island] operation in
+            guard let voice, let island else { return ["ok": false, "error": "Samantha control unavailable"] }
+            if operation == "start" {
+                if !voice.running {
+                    ensureSamanthaToken()
+                    let started = await startVoice(voice)
+                    if !started || island.failureReason != nil || voice.startFailure != nil {
+                        let reason = island.failureReason ?? voice.startFailure?.reason ?? "Samantha failed to start"
+                        return ["ok": false, "running": voice.running, "error": "Samantha failed to start", "failure_reason": reason]
+                    }
+                } else if island.failureReason != nil || voice.startFailure != nil {
+                    let reason = island.failureReason ?? voice.startFailure?.reason ?? "Samantha failed to start"
+                    return ["ok": false, "running": voice.running, "error": "Samantha failed to start", "failure_reason": reason]
+                }
+            } else if operation == "stop", voice.running {
+                voice.stop()
+            }
+            let failureReason: Any
+            if let reason = island.failureReason ?? voice.startFailure?.reason {
+                failureReason = reason
+            } else {
+                failureReason = NSNull()
+            }
+            return ["ok": true, "running": voice.running, "healthy": voice.running && voice.isHealthy(),
+                    "gateway_port": voice.gatewayPort, "failure_reason": failureReason]
+        }
     }
 
     /// AppKit exits on SIGTERM without `applicationWillTerminate`, which used to

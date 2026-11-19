@@ -9,6 +9,8 @@ import SwiftUI
 final class IslandController {
     private let gate: IslandGate?
     var onVoiceStateChanged: ((String) -> Void)?
+    var onVoiceFailureChanged: ((String?) -> Void)?
+    private(set) var failureReason: String?
     // ServiceDelegate supplies the production gate; standalone panel tests own their visibility policy.
     var panelAllowed: Bool { (gate?.isUnlocked ?? true) && store.bool(IslandSettingsSchema.showIsland) }
     var gateLiveStatus: IslandGateLiveStatus {
@@ -183,6 +185,15 @@ final class IslandController {
 
     /// Hub snapshot → model (dwell / connecting rules as before; meters-only updates are cheap).
     func ingest(_ snap: IslandSnapshot) {
+        if let samantha = hub.samantha {
+            if samantha.kind == "error", !sawReady {
+                let raw = [samantha.title, samantha.detail].filter { !$0.isEmpty }.joined(separator: " · ")
+                setFailureReason(IslandCopy.humanError(raw) ?? "Samantha failed to start")
+            } else if samantha.kind == "listening", samantha.title == "Listening" {
+                sawReady = true
+                setFailureReason(nil)
+            }
+        }
         onVoiceStateChanged?(hub.samantha?.kind ?? (voiceSessionActive ? snap.kind : "idle"))
         if last == nil || !snap.sameVisual(as: last!) {
             last = snap
@@ -543,13 +554,16 @@ final class IslandController {
         deferred = nil
         deferTask?.cancel()
         deferTask = nil
-        last = nil
-        ingest(hub.compose())
+        if failureReason == nil {
+            last = nil
+            ingest(hub.compose())
+        }
         SamanthaActivityLog.startup(phase: "island_voice_begin", status: "ok", detail: "Connecting pill")
     }
 
     /// Samantha stopped: drop her state; the island stays up for other sources.
     func stopStreaming() {
+        let preserveFailure = failureReason != nil && !sawReady
         CredentialEntryController.shared.cancelActive()
         voiceSessionActive = false
         hub.samanthaActive = false
@@ -561,7 +575,22 @@ final class IslandController {
         hideAgentCursor()
         pendingConfirmId = ""
         last = nil
-        hub.clearSamantha()
+        hub.clearSamantha(preservingFailure: preserveFailure)
+    }
+
+    func prepareVoiceStart() {
+        sawReady = false
+        setFailureReason(nil)
+        hub.clearSamanthaFailure()
+    }
+
+    func showVoiceStartFailure(category: String, detail: String) {
+        hub.samanthaActive = false
+        hub.ingestSamantha(IslandSnapshot(
+            kind: "error",
+            title: "Samantha failed to start",
+            detail: "\(category): \(detail)"
+        ))
     }
 
 
@@ -591,7 +620,7 @@ final class IslandController {
             effective = sawReady
                 ? IslandSnapshot(kind: "reconnecting", title: "Reconnecting")
                 : IslandSnapshot(kind: "listening", title: "Connecting")
-        } else if snap.kind != "idle" && snap.title != "Connecting" {
+        } else if snap.kind != "idle" && snap.kind != "error" && snap.title != "Connecting" {
             sawReady = true
         }
         if IslandDwell.shouldHold(
@@ -613,6 +642,12 @@ final class IslandController {
         deferTask = nil
         deferred = nil
         render(effective)
+    }
+
+    private func setFailureReason(_ reason: String?) {
+        guard failureReason != reason else { return }
+        failureReason = reason
+        onVoiceFailureChanged?(reason)
     }
 
     private func flushDeferred() {

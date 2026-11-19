@@ -2,6 +2,23 @@ import AVFoundation
 import AppKit
 import Foundation
 
+struct SamanthaMenuStatus {
+    private(set) var reason: String?
+
+    var label: String { reason == nil ? "Samantha" : "Samantha — Failed" }
+    var failureText: String? { reason.map { "Samantha failed — \($0)" } }
+
+    mutating func beginAttempt() { reason = nil }
+    mutating func startSucceeded() { reason = nil }
+    mutating func fail(category: String, detail: String) { setFailure("\(category): \(detail)") }
+    mutating func fail(reason: String) { setFailure(reason) }
+
+    private mutating func setFailure(_ reason: String) {
+        let clean = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.reason = String((clean.isEmpty ? "setup_error: Samantha did not start." : clean).prefix(240))
+    }
+}
+
 /// Wi‑Fi-style menu row: label + trailing `NSSwitch`.
 @MainActor
 final class MenuSwitchRowView: NSView {
@@ -40,11 +57,13 @@ final class StatusBarController: NSObject {
     private var active = false
     private var voiceRunning = false
     private var suppressToggleAction = false
+    private var samanthaStatus = SamanthaMenuStatus()
 
     private weak var voiceSupervisor: VoiceSupervisor?
     private weak var islandController: IslandController?
 
     private var samanthaRow: MenuSwitchRowView?
+    private var samanthaFailureItem: NSMenuItem?
     private var showIslandItem: NSMenuItem?
 
     /// The bar that owns `item`. `.system` in the app; tests pass a private `NSStatusBar()` so
@@ -65,8 +84,27 @@ final class StatusBarController: NSObject {
             self?.voiceState = kind
             self?.updateGateStatus()
         }
+        island.onVoiceFailureChanged = { [weak self] reason in
+            if let reason {
+                self?.samanthaStatus.fail(reason: reason)
+            } else {
+                self?.samanthaStatus.startSucceeded()
+            }
+            self?.updateSamanthaMenuStatus()
+        }
         voiceSupervisor = voice
         islandController = island
+        voice.onStartAttempt = { [weak self, weak island] in
+            self?.samanthaStatus.beginAttempt()
+            self?.updateSamanthaMenuStatus()
+            island?.prepareVoiceStart()
+        }
+        voice.onStartFailure = { [weak self, weak island] failure in
+            guard let self, self.samanthaStatus.failureText == nil else { return }
+            self.samanthaStatus.fail(category: failure.category, detail: failure.detail)
+            self.updateSamanthaMenuStatus()
+            island?.showVoiceStartFailure(category: failure.category, detail: failure.detail)
+        }
         voice.onGatewayPortChanged = { [weak island] port in
             island?.updateGateway(port: port)
         }
@@ -124,6 +162,12 @@ final class StatusBarController: NSObject {
         menu.addItem(samanthaItem)
         samanthaRow = row
 
+        let failure = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        failure.isEnabled = false
+        failure.isHidden = true
+        menu.addItem(failure)
+        samanthaFailureItem = failure
+
         let access = NSMenuItem(title: gate.accessSummary, action: #selector(openGate), keyEquivalent: "")
         access.target = self
         menu.addItem(access)
@@ -175,7 +219,10 @@ final class StatusBarController: NSObject {
 
     private func setVoiceRunning(_ on: Bool) {
         voiceRunning = on
-        defer { updateGateStatus() }
+        defer {
+            updateSamanthaMenuStatus()
+            updateGateStatus()
+        }
         suppressToggleAction = true
         samanthaRow?.toggle.state = on ? .on : .off
         samanthaRow?.toggle.isEnabled = true
@@ -192,7 +239,18 @@ final class StatusBarController: NSObject {
             IslandSettingsStore.shared.ensureToken(.samantha)
             Task { @MainActor in
                 let started = await self.voiceSupervisor?.start() ?? false
-                guard !started else { return }
+                if started {
+                    return
+                }
+                guard sender.state == .on else { return }
+                if self.samanthaStatus.failureText == nil {
+                    let failure = self.voiceSupervisor?.startFailure
+                    let category = failure?.category ?? "setup_error"
+                    let detail = failure?.detail ?? "Voice helper did not start."
+                    self.samanthaStatus.fail(category: category, detail: detail)
+                    self.islandController?.showVoiceStartFailure(category: category, detail: detail)
+                }
+                self.updateSamanthaMenuStatus()
                 self.suppressToggleAction = true
                 sender.state = .off
                 self.suppressToggleAction = false
@@ -237,11 +295,18 @@ final class StatusBarController: NSObject {
         }
         if !gate.isUnlocked, let symbol {
             button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Samantha \(kind)")
-            button.toolTip = "Agent Computer Use — Samantha \(kind)"
+            button.toolTip = samanthaStatus.failureText ?? "Agent Computer Use — Samantha \(kind)"
         } else {
             button.image = Self.loadIcon()
-            button.toolTip = voiceRunning ? "Agent Computer Use — Samantha on" : (active ? "Agent Computer Use — active" : "Agent Computer Use")
+            button.toolTip = samanthaStatus.failureText ?? (voiceRunning ? "Agent Computer Use — Samantha on" : (active ? "Agent Computer Use — active" : "Agent Computer Use"))
         }
+    }
+
+    private func updateSamanthaMenuStatus() {
+        samanthaRow?.label.stringValue = samanthaStatus.label
+        samanthaFailureItem?.title = samanthaStatus.failureText ?? ""
+        samanthaFailureItem?.isHidden = samanthaStatus.failureText == nil
+        updateGateStatus()
     }
 
     @objc private func toggleShowIsland(_ sender: NSMenuItem) {

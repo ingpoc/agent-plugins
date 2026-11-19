@@ -20,6 +20,13 @@ enum IslandCopy {
     /// (lower-cased needles, copy) — first match wins. `{target}` = app/control.
     private static let errorTable: [([String], String)] = [
         // Known causes first (0.2.85), so the generic needles below never swallow them.
+        (["unknown voice model", "unsupported voice model", "model not found"], "Voice model unavailable"),
+        (["voice helper is missing", "bundled voice helper missing", "no voice helper"], "Voice helper is missing"),
+        (["microphone access denied"], "Microphone access denied"),
+        (["available api key", "needs an api key", "voice api key", "xai-api"], "Voice API key needs access"),
+        (["voice gateway did not become healthy", "gateway health timeout"], "Voice gateway did not start"),
+        (["voice helper could not launch"], "Voice helper could not launch"),
+        (["voice helper exited"], "Voice helper exited unexpectedly"),
         (["ledger rejected", "ledger_invalid_argument", "owner decision not found", "project scope",
           "capture requires", "capture_gate"], "Ledger needs clearer details"),
         (["outcome unknown", "ledger_outcome_unknown"], "Ledger save unconfirmed"),
@@ -43,6 +50,8 @@ enum IslandCopy {
 
     private static let humanCopy: Set<String> = [
         fallbackError, "Ledger needs clearer details", "Ledger save unconfirmed", "Ledger busy, try again", "Ledger unavailable",
+        "Voice model unavailable", "Voice helper is missing", "Microphone access denied", "Voice API key needs access",
+        "Voice gateway did not start", "Voice helper could not launch", "Voice helper exited unexpectedly",
         "Couldn't bring Comet to front", "Needs your OK", "Action not confirmed", "Action stopped after failures", "Can't hear you, check mic", "Connection dropped, reconnecting",
         "Stopped — you said no", "Comet isn't available", "That took too long", "Voice hiccup, still here",
     ]

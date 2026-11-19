@@ -47,6 +47,20 @@ final class IslandHubTests: XCTestCase {
         XCTAssertTrue(hub.compose().samantha_on)
     }
 
+    func testSamanthaFailureSurvivesStopAndClearsForRetry() {
+        let hub = IslandHub(store: store)
+        hub.ingestSamantha(IslandSnapshot(kind: "error", title: "Samantha failed to start", detail: "mic_denied: Microphone access is required."))
+        hub.samanthaActive = false
+
+        hub.clearSamantha(preservingFailure: true)
+        XCTAssertEqual(hub.compose().kind, "error")
+        XCTAssertEqual(hub.compose().detail, "mic_denied: Microphone access is required.")
+        XCTAssertFalse(hub.compose().samantha_on)
+
+        hub.clearSamanthaFailure()
+        XCTAssertEqual(hub.compose().kind, "idle")
+    }
+
 
     func testTokenRequiredAndChecked() throws {
         let hub = IslandHub(store: store)

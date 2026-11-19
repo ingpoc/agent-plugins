@@ -815,6 +815,9 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertEqual(step_props["checked"]["type"], "boolean")
         self.assertEqual(props["expect"]["oneOf"][1]["properties"]["value"]["type"], "object")
 
+    def test_instructions_report_requested_facts_before_cleanup(self):
+        self.assertIn("preserve and report it before confirming completion or cleanup", compact_mcp.INSTRUCTIONS)
+
     def test_exact_path_uses_one_native_plan_and_verifies_result(self):
         calls = []
 

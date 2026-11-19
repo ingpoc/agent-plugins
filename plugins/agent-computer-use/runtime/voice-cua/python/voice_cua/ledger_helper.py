@@ -51,6 +51,21 @@ def _norm_text(text: str) -> str:
 
 _REJECTS = re.compile(r"\b(?:do not|don't|dont|never)\s+(?:save|remember|store|record)\b|\b(?:reject(?:ed)?|not approved)\b"
                       r"|\b(?:cancel|scratch|forget|undo|revoke)\s+(?:that|it|this)\b", re.IGNORECASE)
+_PERSISTENCE_INTENT = re.compile(
+    r"^\s*(?:please\s+)?(?:remember|save|keep|store|record)\b|"
+    r"\b(?:could|can|would|will) you (?:please\s+)?(?:remember|save|keep|store|record)\b|"
+    r"\b(?:i want|i'd like) you to (?:please\s+)?(?:remember|save|keep|store|record)\b|"
+    r"\b(?:going forward|from now on|in the future|for (?:all )?future|always|whenever|every time|in general|generally|as my default)\b",
+    re.IGNORECASE,
+)
+_FOLLOWUP_SAVE_REQUEST = re.compile(
+    r"^\s*(?:(?:please|could you|can you|would you|will you)\s+)?(?:please\s+)?"
+    r"(?:remember|save|keep|store|record)\s+(?:that|it|this)[.!?]*\s*$",
+    re.IGNORECASE,
+)
+_CAPTURE_GATE_FIELDS = frozenset({
+    'owner_decision', 'future_task', 'changed_choice', 'unique_value', 'lifetime', 'sensitivity',
+})
 
 
 def _project_named(project: str, text: str) -> bool:
@@ -144,6 +159,22 @@ class LedgerHelper:
             return {'ok': False, 'error': 'Ledger helper session closed'}
         if operation == 'recall' and self._rejected_recall:
             return _invalid('Context Ledger already rejected this recall; stop and explain the earlier reason')
+        if operation == 'capture' and any((scope, rule, value, owner_quote)):
+            gate = capture_gate if isinstance(capture_gate, dict) else {}
+            preference_capture = (
+                project in (None, '')
+                and set(gate) == _CAPTURE_GATE_FIELDS
+                and all(isinstance(v, str) and v.strip() and len(v) <= 300 for v in gate.values())
+                and re.search(r'\bpreferences?\b', gate['future_task'], re.IGNORECASE)
+                and gate['lifetime'].strip().lower() == 'durable'
+                and gate['sensitivity'] == 'model_safe'
+                and _norm_text(value) == _norm_text(gate['unique_value'])
+                and _norm_text(value) in _norm_text(gate['owner_decision'])
+            )
+            if preference_capture:
+                operation = 'preference'
+            else:
+                return _invalid("operation must be 'preference' for a user preference; 'capture' is for project decisions")
         if operation in {'recall', 'preference'}:
             if not all(isinstance(item, str) for item in (scope, rule, value, owner_quote)):
                 return _invalid('Scope, rule, value, and owner_quote must be text')
@@ -172,6 +203,14 @@ class LedgerHelper:
                 if not _norm_text(value) or source is None or (' ' + _norm_text(value) + ' ') not in (' ' + _norm_text(owner_quote) + ' '):
                     return _invalid('Value and owner quote must occur in a recent user statement')
                 recent = self._recent()[source:]
+                explicit_followup = (
+                    len(recent) == 2
+                    and _PERSISTENCE_INTENT.search(recent[1])
+                    and (_FOLLOWUP_SAVE_REQUEST.fullmatch(recent[1])
+                         or (' ' + _norm_text(value) + ' ') in (' ' + _norm_text(recent[1]) + ' '))
+                )
+                if not _PERSISTENCE_INTENT.search(recent[0]) and not explicit_followup:
+                    return _invalid('owner_quote must quote a recent value; explicit save or future-use intent must be in that statement or an immediate follow-up referring to it')
                 if any(_REJECTS.search(u) or re.search(r"\b(?:do not|dont|don.t|never|not)\b", u, re.I) or re.search(r"\b(?:just this once|only once|one[ -]off|only this time|just for (?:today|now)|temporar(?:y|ily)|password|passcode|secret|api[ -]?key|token|otp)\b", u, re.I) for u in recent) or re.search(r'(?:sk-[A-Za-z0-9]{12,}|[A-Za-z0-9+/=_-]{32,})', value):
                     return _invalid('Temporary or sensitive choice cannot be saved')
                 result = self.transport.call('save', {'request_id': str(uuid.uuid4()), 'type': 'user_decision',
@@ -184,18 +223,21 @@ class LedgerHelper:
                 return self._reject_recall(f'Context Ledger rejected the request: {exc.message or exc.code}')
             except Exception:
                 return {'ok': False, 'error': 'Context Ledger unavailable or save outcome unknown', 'error_type': 'ledger_unavailable' if operation == 'recall' else 'ledger_outcome_unknown'}
-        if operation not in {'lookup', 'capture'} or not situation.strip() or not need.strip():
-            return _invalid('invalid request')
+        if operation not in {'lookup', 'capture'}:
+            return _invalid("operation must be 'lookup', 'capture', 'recall', or 'preference'")
+        missing = [name for name, value in (('situation', situation), ('need', need)) if not isinstance(value, str) or not value.strip()]
+        if missing:
+            return _invalid(f"{operation} requires non-empty field(s): {', '.join(missing)}")
         raw_project = project if isinstance(project, str) else ''
         project = normalize_project(raw_project)
         personal = project in _PERSONAL_ALIASES
         if personal:
             project = PERSONAL_SCOPE if operation == 'capture' or raw_project.strip() else ''
-        if len(situation) > 1000 or len(need) > 500 or len(raw_project) > 80:
-            return _invalid('invalid request')
+        for field, text, maximum in (('situation', situation, 1000), ('need', need, 500), ('project', raw_project, 80)):
+            if len(text) > maximum:
+                return _invalid(f'{field} must be at most {maximum} characters')
         if operation == 'capture':
-            required = {'owner_decision', 'future_task', 'changed_choice', 'unique_value', 'lifetime', 'sensitivity'}
-            if not isinstance(capture_gate, dict) or set(capture_gate) != required or any(not isinstance(v, str) or not v.strip() or len(v) > 300 for v in capture_gate.values()):
+            if not isinstance(capture_gate, dict) or set(capture_gate) != _CAPTURE_GATE_FIELDS or any(not isinstance(v, str) or not v.strip() or len(v) > 300 for v in capture_gate.values()):
                 return _invalid('Capture requires all capture_gate checks (owner_decision, future_task, changed_choice, unique_value, lifetime, sensitivity)')
             if capture_gate['lifetime'].strip().lower() != 'durable':
                 return _invalid('Only durable decisions can be captured')
