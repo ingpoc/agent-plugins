@@ -7390,9 +7390,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-19T10:59:21Z",
-      "now": "2026-11-19T10:59:21Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-19T11:11:37Z",
+      "now": "2026-11-19T11:11:37Z — Lane BCL-ROUND updated"
     },
     "rollover": {
       "source_pr": 116,
@@ -9457,14 +9457,28 @@
             "BCL-81"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r2-g1",
           "reason": "One change in how the change list decides a new round has begun.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false
+            "one_file": true,
+            "job": {
+              "pid": 10616,
+              "phase": "fix",
+              "started_at": "2026-11-19T10:59:22Z",
+              "command": "launch-g1.sh",
+              "heartbeat_at": "2026-11-19T11:10:32Z",
+              "exit_code": 0,
+              "duration_s": 670,
+              "finished_at": "2026-11-19T11:10:32Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed",
+            "implementer_session": "01a1f376-0d3a-7b13-80f6-c708a4e9d527",
+            "review_status": "skipped_one_file"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.sh",
@@ -9474,7 +9488,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T10:59:21Z"
+          "updated_at": "2026-11-19T11:11:37Z"
         }
       ]
     },
@@ -9826,7 +9840,7 @@
       "done_when": "A restart or resumed run inside the same round keeps the round number; the counter only moves on when a new round begins after Introspect, and a named test that fails on the old code proves it.",
       "observed": "19 Nov 2026 14:46 IST: in #117 cycle 9 the BCL-PAGE lane verify failed on a verifier fault; bcl introspect (round 1) then bcl job --phase fix restart called manage_findings.advance_plan_round, appending round_history {round 1, fixed 3} and setting tracking.round 2. Final Introspect was recorded as round 2; page shows Round 2.",
       "recommendation": "Advance the round only when new work is planned after the round's Introspect is complete, not when a failed lane is restarted inside the same round.",
-      "status": "untested"
+      "status": "in_progress"
     }
   ]
 }
