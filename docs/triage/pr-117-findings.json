@@ -7729,9 +7729,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-19T15:42:53Z",
-      "now": "2026-11-19T15:42:53Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-19T15:43:52Z",
+      "now": "2026-11-19T15:43:52Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10064,7 +10064,7 @@
               "phase": "fix",
               "started_at": "2026-11-19T15:36:45Z",
               "command": "run-rs4-fix-g2.sh",
-              "heartbeat_at": "2026-11-19T15:42:46Z"
+              "heartbeat_at": "2026-11-19T15:43:46Z"
             },
             "fix_status": "passed",
             "review_status": "failed"
@@ -10077,7 +10077,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:42:46Z"
+          "updated_at": "2026-11-19T15:43:46Z"
         },
         {
           "id": "ACU-MENU",
@@ -10099,7 +10099,7 @@
               "phase": "fix",
               "started_at": "2026-11-19T15:15:06Z",
               "command": "launch-g7.sh",
-              "heartbeat_at": "2026-11-19T15:42:10Z"
+              "heartbeat_at": "2026-11-19T15:43:10Z"
             },
             "implementer_session": "01a1f460-32c2-7d62-a7d7-2bae1a069868"
           },
@@ -10111,7 +10111,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:42:10Z"
+          "updated_at": "2026-11-19T15:43:10Z"
         },
         {
           "id": "ACU-PROMPT",
@@ -10123,8 +10123,8 @@
             "ACU-13"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r4-g8",
           "reason": "All four come from what the voice models are told and how memory saves are passed on.",
           "codex": {
@@ -10136,9 +10136,14 @@
               "phase": "fix",
               "started_at": "2026-11-19T15:15:09Z",
               "command": "launch-g8.sh",
-              "heartbeat_at": "2026-11-19T15:42:13Z"
+              "heartbeat_at": "2026-11-19T15:43:33Z",
+              "exit_code": 0,
+              "duration_s": 1704,
+              "finished_at": "2026-11-19T15:43:33Z",
+              "finished_phase_status": "passed"
             },
-            "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428"
+            "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428",
+            "fix_status": "passed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g8.sh",
@@ -10148,7 +10153,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:42:13Z"
+          "updated_at": "2026-11-19T15:43:52Z"
         },
         {
           "id": "ACU-TESTS",
@@ -10158,8 +10163,8 @@
             "ACU-12"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "review",
+          "status": "running",
+          "phase": "fix",
           "worktree": "bcl117-r4-g9",
           "reason": "Both are test and check fixes in the Mac control skill.",
           "codex": {
@@ -10167,15 +10172,11 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 72191,
-              "phase": "review",
-              "started_at": "2026-11-19T15:41:47Z",
-              "command": "launch-review-g9.sh",
-              "heartbeat_at": "2026-11-19T15:42:33Z",
-              "exit_code": 0,
-              "duration_s": 46,
-              "finished_at": "2026-11-19T15:42:33Z",
-              "finished_phase_status": "failed"
+              "pid": 75614,
+              "phase": "fix",
+              "started_at": "2026-11-19T15:42:53Z",
+              "command": "run-fix-g9.sh",
+              "heartbeat_at": "2026-11-19T15:42:53Z"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f460-41d6-74a2-ad1a-cdf8bfb6366a",
@@ -10189,7 +10190,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:42:33Z"
+          "updated_at": "2026-11-19T15:42:53Z"
         }
       ]
     },
