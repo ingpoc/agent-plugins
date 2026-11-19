@@ -1,3 +1,7 @@
+## 0.1.46
+
+- Restarting a lane inside a round, for example after an early Introspect, keeps the same round number and adds no round history; the round only moves on when new work is planned after a finished round (BCL-81).
+
 ## 0.1.45
 
 - The page header shows only the worktree name; the full path appears under Details. Rollover stores the name but still registers the exact path it was given, so two worktrees with the same name stay apart (BCL-75).

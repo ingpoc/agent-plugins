@@ -1056,6 +1056,15 @@ def require_current_round_introspect(tracking, action):
         raise ValueError(f"record this round's introspect with --sections before {action}")
 
 
+def should_advance_plan_round(tracking, previous_stage):
+    if previous_stage not in ("verify", "introspect", "gate") or not introspect_covers_current_round(tracking):
+        return False
+    groups = RENDERER.plan_groups_for_round(
+        tracking.get("plan"), RENDERER.rollover_round(tracking))
+    return bool(groups) and all(RENDERER.plan_status(group) in ("verified", "blocked", "parked")
+                                for group in groups)
+
+
 def advance_plan_round(tracking, findings, timestamp):
     round_number = RENDERER.rollover_round(tracking)
     fixed = RENDERER.rollover_gate(findings, tracking)[0]
@@ -1514,12 +1523,10 @@ def run(args, parser):
                             and type(requested_plan.get("round")) is int
                             and requested_plan["round"] == current_round
                         )
-                        starting_new_round = (
-                            previous_stage in ("verify", "introspect", "gate")
-                            and (not same_current_plan or introspect_covers_current_round(tracking))
-                        )
-                        if starting_new_round:
+                        starting_new_round = should_advance_plan_round(tracking, previous_stage)
+                        if previous_stage in ("verify", "introspect", "gate") and not same_current_plan:
                             require_current_round_introspect(tracking, "returning to plan_fix")
+                        if starting_new_round:
                             advance_plan_round(tracking, findings,
                                                datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
                         plan = copy.deepcopy(operation.get("plan"))
@@ -1770,10 +1777,6 @@ def run(args, parser):
                                 install = group.get('install') if isinstance(group.get('install'), dict) else {}
                                 group.update(status='installing', phase='install',
                                              install={**install, 'status': 'running', 'started_at': timestamp})
-                    if (stage == "plan_fix" and previous_stage in ("verify", "introspect", "gate")
-                            and (introspect_covers_current_round(tracking)
-                                 or not RENDERER.rollover_gate(findings, tracking)[2])):
-                        advance_plan_round(tracking, findings, timestamp)
                     tracking["workflow"] = {"stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
                     if stale_after is not None:
                         tracking["workflow"]["stale_after_min"] = stale_after

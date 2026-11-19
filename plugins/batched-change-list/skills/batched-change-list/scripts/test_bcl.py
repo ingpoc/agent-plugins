@@ -811,9 +811,43 @@ elif args[:2] != ['pr', 'edit']:
         result = self.call_job_without_viewer(live,'--ids','ISSUE-01','--phase','fix','job','--',sys.executable,'-c','pass')
         self.assertEqual(result.returncode, 0, result.stderr)
         tracking = json.loads(live.read_text())['tracking']
-        self.assertEqual(tracking['round'], 2)
+        self.assertEqual(tracking.get('round', tracking['plan']['round']), 1)
         self.assertEqual(tracking['plan']['groups'][0]['status'], 'review')
         self.assertEqual(tracking['plan']['groups'][0]['codex']['fix_status'], 'passed')
+
+    def test_restart_after_early_introspect_keeps_round_through_final_introspect(self):
+        live, command = self._lane_ready()
+        check = Path(command.split('"')[3])
+        check.write_text("raise SystemExit(7)\n")
+        failed = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertEqual(failed.returncode, 7, failed.stderr)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["status"], "failed")
+
+        sections = self.root / "early-introspect.json"
+        self.assertEqual(self.call_without_viewer("introspect", "--draft", sections).returncode, 0)
+        payload = json.loads(sections.read_text())
+        payload["none"] = payload["steps"]
+        sections.write_text(json.dumps(payload))
+        introspect = self.call_without_viewer("introspect", "--sections", sections)
+        self.assertEqual(introspect.returncode, 0, introspect.stderr)
+
+        restarted = self.call_job_without_viewer(
+            live, "--ids", "ISSUE-01", "--phase", "fix", "job", "--", sys.executable, "-c", "pass")
+        self.assertEqual(restarted.returncode, 0, restarted.stderr)
+        check.write_text("pass\n")
+        self.assertEqual(self.install_after_review("--ids", "ISSUE-01").returncode, 0)
+        verified = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertEqual(verified.returncode, 0, verified.stderr)
+
+        self.assertEqual(self.call_without_viewer("introspect", "--draft", sections).returncode, 0)
+        payload = json.loads(sections.read_text())
+        payload["none"] = payload["steps"]
+        sections.write_text(json.dumps(payload))
+        introspect = self.call_without_viewer("introspect", "--sections", sections)
+        self.assertEqual(introspect.returncode, 0, introspect.stderr)
+        tracking = json.loads(live.read_text())["tracking"]
+        self.assertEqual(tracking.get("round", tracking["plan"]["round"]), 1)
+        self.assertEqual(tracking.get("round_history", []), [])
 
     def test_fix_job_does_not_run_command_without_current_introspect(self):
         self.assertEqual(self.call('start').returncode, 0)
