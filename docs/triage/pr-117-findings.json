@@ -7376,6 +7376,91 @@
           "exit_code": 0,
           "finished_at": "2026-11-18T19:24:48Z"
         }
+      },
+      {
+        "id": "bcl-0.1.45-748cd8b6-117",
+        "build": "batched-change-list 0.1.45, developer-observability 0.1.32",
+        "revision": "748cd8b64748102991462f9b0105209e628232e2",
+        "installed_at": "2026-11-19T09:10:29Z",
+        "install_evidence": "bcl install-local from PR #117 head 748cd8b6 (code f88cf6e9) at 14:39 IST: /Users/gurusharan/.agents/plugins/batched-change-list (57 files, sha256 5d72da5aa38ab80eed12dfdbeb84b6d29beea7ced13fa0fe72d6a326f8ec4ce3); /Users/gurusharan/.agents/skills/batched-change-list (50 files, sha256 1336301fea92236fd23154639ea3be189973a38a6d7e6caa72e07df78f755caf). developer-observability 0.1.32 from the same revision into ~/.agents/plugins and the Codex personal cache. Receipts /Users/gurusharan/.agents/artifacts/bcl-117/r1/install-0.1.45.txt, /Users/gurusharan/.agents/artifacts/bcl-117/r1/install-devobs-0.1.32.txt",
+        "status": "interrupted",
+        "checks": {
+          "BCL-75": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-19T09:18:23Z",
+            "started_at": "2026-11-19T09:18:23Z",
+            "updated_at": "2026-11-19T09:18:23Z",
+            "check_id": "851df94f87384a918b2801622b2e11d7",
+            "evidence": "Checked: The header of the live change list page drawn by the installed version, and the rollover tests on the installed copy.; Expected: The header shows only the worktree name, with the full path under Details.; Observed: The header shows samantha-next-rollover and the full path sits under Details; the old version showed the full path.",
+            "details": "live_page.py: BCL-75 PASS header 'samantha-next-rollover', stored full path. Named tests on installed 0.1.45: test_rollover_stores_worktree_name_from_full_path, test_rollover_uses_explicit_path_when_worktree_names_duplicate, test_legacy_worktree_path_is_short_in_header_and_full_in_details. Baseline 0.1.44: header showed /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-rollover. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
+            "finished_at": "2026-11-19T09:18:23.138884Z"
+          },
+          "BCL-76": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-19T09:18:23Z",
+            "started_at": "2026-11-19T09:18:23Z",
+            "updated_at": "2026-11-19T09:18:23Z",
+            "check_id": "0876b5c32acf43268d1cf6eecdfa5800",
+            "evidence": "Checked: The gate step on the live page, and the same list drawn empty with nothing verified, using the installed version.; Expected: The gate is not shown as met until enough fixes are verified, even when nothing is open.; Observed: Live page at 3 of 15 and the empty list at 0 of 15 both show the gate as not met.",
+            "details": "live_page.py: BCL-76 live PASS 3/15 class 'wf-step upcoming wf-gate' label gate not met; empty list PASS 0/15 class upcoming. Baseline 0.1.44 empty list: class 'wf-step done wf-gate', label 'gate met'. Named tests: test_zero_verified_fixes_never_marks_workflow_gate_done, test_report_gate_keeps_no_open_exception_separate_from_ui_gate, test_status_keeps_empty_report_exception_separate_from_verified_gate, test_documented_gate_count_command_keeps_report_exception. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
+            "finished_at": "2026-11-19T09:18:23.139211Z"
+          },
+          "BCL-77": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-19T09:16:42Z",
+            "started_at": "2026-11-19T09:16:42Z",
+            "updated_at": "2026-11-19T09:16:42Z",
+            "check_id": "98d1b62455ec43ddae0ebddedde28ecd",
+            "evidence": "Checked: A fresh copy of Context Ledger with the trust threshold broken, collected for its folder into a store with no projects set up, then the project's issues listed and expanded.; Expected: The failures appear under the Context Ledger project and their details open.; Observed: Both test failures appear under Context Ledger and their details open; the old version listed none.",
+            "details": "verify-g2.py on installed 0.1.32: BCL-77 PASS: 2 project issues, 2 from this case; diagnose expanded=True. Baseline on installed 0.1.30: 0 project issues. Config: isolated, no projects, collector.out temp. Installed dev-obs unittest: 139 OK (1 skipped). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117.",
+            "finished_at": "2026-11-19T09:16:42.485934Z"
+          },
+          "BCL-78": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-19T09:16:42Z",
+            "started_at": "2026-11-19T09:16:42Z",
+            "updated_at": "2026-11-19T09:16:42Z",
+            "check_id": "e0138d7d1fb548bca887ddc23e133e6e",
+            "evidence": "Checked: The same real pytest run with two failing tests, collected from its log and its test report.; Expected: One finding per failing test and no finding for the run summary line.; Observed: Two findings, one for each failing test, and no summary finding; the old version made four rows for one test.",
+            "details": "BCL-78 PASS: 0 log + 2 junit findings for 2 failing tests; per test {test_find_tiers_from_outcomes: 1, test_pure_boundaries: 1}; session-summary findings 0. Baseline 0.1.30: 3 log + 1 junit, test_pure_boundaries 0, summary 1. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117.",
+            "finished_at": "2026-11-19T09:16:42.486585Z"
+          },
+          "BCL-79": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-19T09:16:42Z",
+            "started_at": "2026-11-19T09:16:42Z",
+            "updated_at": "2026-11-19T09:16:42Z",
+            "check_id": "4402867cbe3f4e048603e3842f2704df",
+            "evidence": "Checked: The suggested fix shown for each failing test in the same real run.; Expected: It names the test and quotes what the test expected and got, without pointing at a CI log.; Observed: Each suggestion names its test and quotes the expected and actual values, hint versus trusted; CI is not mentioned.",
+            "details": "BCL-79 PASS: fix 'Inspect the failed assertion for test tests.test_v2.TrustTierTests.test_find_tiers_from_outcomes: \"AssertionError: 'hint' != 'trusted'\".' Baseline 0.1.30: 'Inspect the CI check log for the failed test ...'. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117.",
+            "finished_at": "2026-11-19T09:16:42.486754Z"
+          },
+          "BCL-80": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-19T09:18:23Z",
+            "started_at": "2026-11-19T09:18:23Z",
+            "updated_at": "2026-11-19T09:18:23Z",
+            "check_id": "0c6e6180fd474ba88c757e8017e7561c",
+            "evidence": "Checked: The workflow bar on the live page with lanes at different steps, and this list drawn with both lanes in review, using the installed version.; Expected: The bar marks the step the lanes are in, so both lanes in review shows Review.; Observed: Both lanes in review now marks Review; the live page marks the earliest step a lane is in.",
+            "details": "live_page.py: BCL-80 all lanes in review PASS bar 'review'; live PASS lanes (BCL-PAGE install, DEVOBS verify) bar 'install'. Baseline 0.1.44 at 14:35 IST with both lanes in review: plan_fix done, review upcoming. Named tests: test_all_active_lanes_in_review_make_review_current, test_fix_and_review_lanes_keep_plan_fix_current, test_no_active_lanes_fall_back_to_tracker_stage, test_status_current_stage_matches_active_lanes. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
+            "finished_at": "2026-11-19T09:18:23.139388Z"
+          },
+          "ACU-01": {
+            "state": "pending"
+          }
+        },
+        "shared_check": {
+          "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-shared.sh",
+          "state": "passed",
+          "exit_code": 0,
+          "finished_at": "2026-11-19T09:15:09Z"
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -7390,9 +7475,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-19T11:22:47Z",
-      "now": "2026-11-19T11:22:47Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-19T11:27:45Z",
+      "now": "2026-11-19T11:27:45Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 116,
@@ -9445,7 +9530,8 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 2,
@@ -9503,88 +9589,46 @@
       ]
     },
     "verification_run": {
-      "id": "bcl-0.1.45-748cd8b6-117",
-      "build": "batched-change-list 0.1.45, developer-observability 0.1.32",
-      "revision": "748cd8b64748102991462f9b0105209e628232e2",
-      "installed_at": "2026-11-19T09:10:29Z",
-      "install_evidence": "bcl install-local from PR #117 head 748cd8b6 (code f88cf6e9) at 14:39 IST: /Users/gurusharan/.agents/plugins/batched-change-list (57 files, sha256 5d72da5aa38ab80eed12dfdbeb84b6d29beea7ced13fa0fe72d6a326f8ec4ce3); /Users/gurusharan/.agents/skills/batched-change-list (50 files, sha256 1336301fea92236fd23154639ea3be189973a38a6d7e6caa72e07df78f755caf). developer-observability 0.1.32 from the same revision into ~/.agents/plugins and the Codex personal cache. Receipts /Users/gurusharan/.agents/artifacts/bcl-117/r1/install-0.1.45.txt, /Users/gurusharan/.agents/artifacts/bcl-117/r1/install-devobs-0.1.32.txt",
+      "id": "bcl-0.1.46-4e76cd24-117",
+      "build": "batched-change-list 0.1.46",
+      "revision": "4e76cd24a5125fca4ec63dd00e285e0e5694b10b",
+      "installed_at": "2026-11-19T11:22:58Z",
+      "install_evidence": "bcl install-local from PR #117 head 4e76cd24 (code 79f2e0a4) at 16:53 IST: /Users/gurusharan/.agents/plugins/batched-change-list (57 files, sha256 121ccf70fcf811a732d7f3663d2b070b317b10cae0ef83f3c44e9f7b69ce512d); /Users/gurusharan/.agents/skills/batched-change-list (50 files, sha256 55415a1941be48c523f2c8e7b99ccc0d1096ca38b72a2362ef7bda7efe2cb1b9). Receipt /Users/gurusharan/.agents/artifacts/bcl-117/r2/install-0.1.46.txt",
       "status": "active",
       "checks": {
         "BCL-75": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-19T09:18:23Z",
-          "started_at": "2026-11-19T09:18:23Z",
-          "updated_at": "2026-11-19T09:18:23Z",
-          "check_id": "851df94f87384a918b2801622b2e11d7",
-          "evidence": "Checked: The header of the live change list page drawn by the installed version, and the rollover tests on the installed copy.; Expected: The header shows only the worktree name, with the full path under Details.; Observed: The header shows samantha-next-rollover and the full path sits under Details; the old version showed the full path.",
-          "details": "live_page.py: BCL-75 PASS header 'samantha-next-rollover', stored full path. Named tests on installed 0.1.45: test_rollover_stores_worktree_name_from_full_path, test_rollover_uses_explicit_path_when_worktree_names_duplicate, test_legacy_worktree_path_is_short_in_header_and_full_in_details. Baseline 0.1.44: header showed /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-rollover. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
-          "finished_at": "2026-11-19T09:18:23.138884Z"
+          "state": "pending"
         },
         "BCL-76": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-19T09:18:23Z",
-          "started_at": "2026-11-19T09:18:23Z",
-          "updated_at": "2026-11-19T09:18:23Z",
-          "check_id": "0876b5c32acf43268d1cf6eecdfa5800",
-          "evidence": "Checked: The gate step on the live page, and the same list drawn empty with nothing verified, using the installed version.; Expected: The gate is not shown as met until enough fixes are verified, even when nothing is open.; Observed: Live page at 3 of 15 and the empty list at 0 of 15 both show the gate as not met.",
-          "details": "live_page.py: BCL-76 live PASS 3/15 class 'wf-step upcoming wf-gate' label gate not met; empty list PASS 0/15 class upcoming. Baseline 0.1.44 empty list: class 'wf-step done wf-gate', label 'gate met'. Named tests: test_zero_verified_fixes_never_marks_workflow_gate_done, test_report_gate_keeps_no_open_exception_separate_from_ui_gate, test_status_keeps_empty_report_exception_separate_from_verified_gate, test_documented_gate_count_command_keeps_report_exception. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
-          "finished_at": "2026-11-19T09:18:23.139211Z"
+          "state": "pending"
         },
         "BCL-77": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-19T09:16:42Z",
-          "started_at": "2026-11-19T09:16:42Z",
-          "updated_at": "2026-11-19T09:16:42Z",
-          "check_id": "98d1b62455ec43ddae0ebddedde28ecd",
-          "evidence": "Checked: A fresh copy of Context Ledger with the trust threshold broken, collected for its folder into a store with no projects set up, then the project's issues listed and expanded.; Expected: The failures appear under the Context Ledger project and their details open.; Observed: Both test failures appear under Context Ledger and their details open; the old version listed none.",
-          "details": "verify-g2.py on installed 0.1.32: BCL-77 PASS: 2 project issues, 2 from this case; diagnose expanded=True. Baseline on installed 0.1.30: 0 project issues. Config: isolated, no projects, collector.out temp. Installed dev-obs unittest: 139 OK (1 skipped). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117.",
-          "finished_at": "2026-11-19T09:16:42.485934Z"
+          "state": "pending"
         },
         "BCL-78": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-19T09:16:42Z",
-          "started_at": "2026-11-19T09:16:42Z",
-          "updated_at": "2026-11-19T09:16:42Z",
-          "check_id": "e0138d7d1fb548bca887ddc23e133e6e",
-          "evidence": "Checked: The same real pytest run with two failing tests, collected from its log and its test report.; Expected: One finding per failing test and no finding for the run summary line.; Observed: Two findings, one for each failing test, and no summary finding; the old version made four rows for one test.",
-          "details": "BCL-78 PASS: 0 log + 2 junit findings for 2 failing tests; per test {test_find_tiers_from_outcomes: 1, test_pure_boundaries: 1}; session-summary findings 0. Baseline 0.1.30: 3 log + 1 junit, test_pure_boundaries 0, summary 1. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117.",
-          "finished_at": "2026-11-19T09:16:42.486585Z"
+          "state": "pending"
         },
         "BCL-79": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-19T09:16:42Z",
-          "started_at": "2026-11-19T09:16:42Z",
-          "updated_at": "2026-11-19T09:16:42Z",
-          "check_id": "4402867cbe3f4e048603e3842f2704df",
-          "evidence": "Checked: The suggested fix shown for each failing test in the same real run.; Expected: It names the test and quotes what the test expected and got, without pointing at a CI log.; Observed: Each suggestion names its test and quotes the expected and actual values, hint versus trusted; CI is not mentioned.",
-          "details": "BCL-79 PASS: fix 'Inspect the failed assertion for test tests.test_v2.TrustTierTests.test_find_tiers_from_outcomes: \"AssertionError: 'hint' != 'trusted'\".' Baseline 0.1.30: 'Inspect the CI check log for the failed test ...'. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117.",
-          "finished_at": "2026-11-19T09:16:42.486754Z"
+          "state": "pending"
         },
         "BCL-80": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-19T09:18:23Z",
-          "started_at": "2026-11-19T09:18:23Z",
-          "updated_at": "2026-11-19T09:18:23Z",
-          "check_id": "0c6e6180fd474ba88c757e8017e7561c",
-          "evidence": "Checked: The workflow bar on the live page with lanes at different steps, and this list drawn with both lanes in review, using the installed version.; Expected: The bar marks the step the lanes are in, so both lanes in review shows Review.; Observed: Both lanes in review now marks Review; the live page marks the earliest step a lane is in.",
-          "details": "live_page.py: BCL-80 all lanes in review PASS bar 'review'; live PASS lanes (BCL-PAGE install, DEVOBS verify) bar 'install'. Baseline 0.1.44 at 14:35 IST with both lanes in review: plan_fix done, review upcoming. Named tests: test_all_active_lanes_in_review_make_review_current, test_fix_and_review_lanes_keep_plan_fix_current, test_no_active_lanes_fall_back_to_tracker_stage, test_status_current_stage_matches_active_lanes. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
-          "finished_at": "2026-11-19T09:18:23.139388Z"
+          "state": "pending"
+        },
+        "BCL-81": {
+          "state": "pending"
         },
         "ACU-01": {
+          "state": "pending"
+        },
+        "ACU-02": {
           "state": "pending"
         }
       },
       "shared_check": {
-        "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-shared.sh",
+        "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r2/verify-shared.sh",
         "state": "passed",
         "exit_code": 0,
-        "finished_at": "2026-11-19T09:15:09Z"
+        "finished_at": "2026-11-19T11:27:44Z"
       }
     },
     "introspect": {
