@@ -7390,9 +7390,9 @@
       }
     },
     "workflow": {
-      "stage": "collect",
-      "updated_at": "2026-11-18T19:40:59Z",
-      "now": "2026-11-18T19:40:59Z — Started collection"
+      "stage": "present",
+      "updated_at": "2026-11-19T08:07:36Z",
+      "now": "2026-11-19T08:07:36Z — Started collection"
     },
     "rollover": {
       "source_pr": 116,
@@ -9292,8 +9292,70 @@
       ]
     },
     "stages_reached": [
-      "collect"
+      "collect",
+      "present"
     ]
   },
-  "findings": []
+  "findings": [
+    {
+      "id": "BCL-75",
+      "title": "The new list's page header shows a full folder path instead of the list's short name",
+      "source": "Agent reported",
+      "priority": "medium",
+      "summary": "After the move to the new list, the top of its page shows the whole folder location on the Mac Mini where it should show the short working copy name.",
+      "impact": "The header is harder to read and shows machine details that should stay under Details.",
+      "done_when": "The header shows only the short working copy name even when the rollover is given a full folder location, and a named test proves it.",
+      "observed": "19 Nov 2026 01:11 IST: #117 page header reads 'PR #117 · /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-rollover'. Cause: bcl rollover was run with --worktree set to the full path (references/report-rollover.md asks for NAME); tracking.worktree stores the path and the header renders it verbatim. Screenshot: Mini ~/.agents/artifacts/bcl-116/r3/pr117-new-list.png.",
+      "recommendation": "Have rollover reduce a path to its last folder name (or reject a path), and have the header render only the name; keep the full path under Details.",
+      "status": "untested"
+    },
+    {
+      "id": "BCL-76",
+      "title": "The gate shows a green tick at 0 of 15 verified, which reads as done",
+      "source": "Agent reported",
+      "priority": "medium",
+      "summary": "On the new list the gate step shows a green tick next to 0 of 15 verified fixes, so it looks finished before any work has started.",
+      "impact": "Someone glancing at the page can think the list has already passed its gate.",
+      "done_when": "With no verified fixes the gate shows as not yet met, the green tick appears only once the gate is truly met, and a named test proves it.",
+      "observed": "19 Nov 2026 01:11 IST: #117 page in Collect with 0 findings shows the gate circle checked green beside 'Fixes 0/15 verified'. Likely from the report gate's no-open-findings exception (gate.md: report met when no counted findings remain open), which render.py uses for gate_met. Screenshot: Mini ~/.agents/artifacts/bcl-116/r3/pr117-new-list.png.",
+      "recommendation": "Draw the green tick only when the verified count reaches the threshold; show the no-open-findings exception as a separate plain note.",
+      "status": "untested"
+    },
+    {
+      "id": "BCL-77",
+      "status": "untested",
+      "source": "Agent reported",
+      "priority": "medium",
+      "title": "Collected problems are not linked to the project, so the project view shows none",
+      "summary": "After collecting five problems from a project's test results, the project's own view showed zero problems, and their details could not be opened. The refined skill also stopped at that empty view instead of checking all projects for unlinked problems, which the old skill did.",
+      "impact": "An agent can conclude a project has no recorded problems when the problems were collected but not linked to it, and loses the details it needs.",
+      "done_when": "Problems collected from a project's folder show up in that project's view and their details open; when some still end up unlinked, the skill's triage checks all projects, reports the unlinked count and why, and says how to read their details; named tests prove both.",
+      "observed": "Source: real-use diagnosis test, 19 Nov 2026 08:36-08:45 IST, Mini /Users/gurusharan/code/_devobs-realuse-case (grade/GRADE.md, runs/luna-high-refined/findings.json, runs/luna-high-old/). All 5 findings came back unassigned with reason no_owner_or_label_match; project-scoped diagnose and issue list returned 0 and IDs could not be expanded. Refined run (skill references/triage.md step 1 asks to re-query all projects) did not repeat the all-project diagnosis; old-skill run (2f1216cf SKILL.md triage) found the 5 unassigned rows. Grade notes the cause of the attribution failure is not isolated (collector vs read side).",
+      "recommendation": "Fix collector attribution for findings collected with an explicit project directory; add an explicit recovery step in references/triage.md: collector reports findings but project shows zero -> re-query all projects, inspect unassigned counts and attribution, then tell a routing gap from no failures."
+    },
+    {
+      "id": "BCL-78",
+      "status": "untested",
+      "source": "Agent reported",
+      "priority": "medium",
+      "title": "One failed test in a test log is reported as three separate log errors",
+      "summary": "A single failing test in a test run log produced three separate log problems, one of them from the closing summary line that only says one test failed.",
+      "impact": "Extra problems crowd the list, inflate counts and leave agents explaining rows that are not real separate failures.",
+      "done_when": "One failing test in a test log yields one problem tied to that test, the closing summary line never becomes its own problem, and a named test proves it.",
+      "observed": "Source: real-use diagnosis test, 19 Nov 2026 08:36-08:45 IST, Mini /Users/gurusharan/code/_devobs-realuse-case (grade/GRADE.md, runs/luna-high-refined/findings.json, runs/luna-high-old/). luna-high-refined findings.json: 3 log_error findings from context-ledger:logs/pytest.log with first_error_line '...test_pure_boundaries FAILED [100%]', 'FAILED tests/test_v2.py::TrustTierTests::test_pure_boundaries - AssertionErro...', and '============================== 1 failed in 0.06s ==============================='. The old-skill run said it could not explain two extra log-derived rows.",
+      "recommendation": "Group pytest log lines per failing test id and skip the session summary line (N failed in Xs); dedupe against the JUnit finding for the same test."
+    },
+    {
+      "id": "BCL-79",
+      "status": "untested",
+      "source": "Agent reported",
+      "priority": "medium",
+      "title": "The suggested fix for a failed test is generic instead of pointing at the failed check",
+      "summary": "For a failed test read from the test results file, the suggested next step only says to look at a CI check log, even though the file already names the failed check and the values that did not match.",
+      "impact": "Agents get a vague next step and must dig for information the tool already had.",
+      "done_when": "A failed-test problem from a test results file suggests looking at the named test and its failed check, quoting the mismatch, and a named test proves it.",
+      "observed": "Source: real-use diagnosis test, 19 Nov 2026 08:36-08:45 IST, Mini /Users/gurusharan/code/_devobs-realuse-case (grade/GRADE.md, runs/luna-high-refined/findings.json, runs/luna-high-old/). luna-high-refined findings.json, source context-ledger:test-results/junit.xml, error 'AssertionError: 'hint' != 'trusted'', suggested fix 'Inspect the CI check log for the failed test tests.test_v2.TrustTierTests.test_pure_boundaries.' although the run was local with no CI check.",
+      "recommendation": "Build the JUnit suggested fix from testcase name, file/line if present and the failure message (e.g. 'Check the assertion in TrustTierTests.test_pure_boundaries: expected trusted, got hint'); reserve CI wording for CI-sourced results."
+    }
+  ]
 }
