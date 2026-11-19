@@ -7390,9 +7390,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-19T08:21:27Z",
-      "now": "2026-11-19T08:21:27Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-19T08:24:12Z",
+      "now": "2026-11-19T08:24:12Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -9309,7 +9309,7 @@
             "BCL-76"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl117-r1-g1",
           "reason": "Both are in the change list page and rollover code.",
@@ -9318,18 +9318,19 @@
             "effort": "medium",
             "one_file": false,
             "job": {
-              "pid": 87048,
-              "phase": "fix",
-              "started_at": "2026-11-19T08:09:07Z",
-              "command": "launch-g1.sh",
-              "heartbeat_at": "2026-11-19T08:20:57Z",
+              "pid": 16804,
+              "phase": "review",
+              "started_at": "2026-11-19T08:21:27Z",
+              "command": "launch-review-g1.sh",
+              "heartbeat_at": "2026-11-19T08:23:44Z",
               "exit_code": 0,
-              "duration_s": 710,
-              "finished_at": "2026-11-19T08:20:57Z",
-              "finished_phase_status": "passed"
+              "duration_s": 137,
+              "finished_at": "2026-11-19T08:23:44Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
-            "implementer_session": "01a1f2da-307f-7b71-bc04-18a5ca4f8963"
+            "implementer_session": "01a1f2da-307f-7b71-bc04-18a5ca4f8963",
+            "review_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1.sh",
@@ -9339,7 +9340,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T08:21:27Z"
+          "updated_at": "2026-11-19T08:23:44Z"
         },
         {
           "id": "DEVOBS",
@@ -9363,7 +9364,7 @@
               "phase": "fix",
               "started_at": "2026-11-19T08:09:10Z",
               "command": "launch-g2.sh",
-              "heartbeat_at": "2026-11-19T08:21:11Z"
+              "heartbeat_at": "2026-11-19T08:23:12Z"
             }
           },
           "verify": {
@@ -9374,7 +9375,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T08:21:12Z"
+          "updated_at": "2026-11-19T08:23:12Z"
         }
       ]
     }
