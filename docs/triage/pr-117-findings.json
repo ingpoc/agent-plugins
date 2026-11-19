@@ -7390,9 +7390,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-19T09:17:43Z",
-      "now": "2026-11-19T09:17:43Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-19T09:17:44Z",
+      "now": "2026-11-19T09:17:44Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -7432,7 +7432,7 @@
       }
     },
     "cycle": 9,
-    "round": 1,
+    "round": 2,
     "round_history": [
       {
         "round": 2,
@@ -7553,6 +7553,11 @@
         "round": 4,
         "fixed": 18,
         "ended_at": "2026-11-18T19:37:23Z"
+      },
+      {
+        "round": 1,
+        "fixed": 3,
+        "ended_at": "2026-11-19T09:17:44Z"
       }
     ],
     "introspect_history": [
@@ -9364,14 +9369,11 @@
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix",
       "review",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "round": 1,
+      "round": 2,
       "cycle": 9,
       "groups": [
         {
