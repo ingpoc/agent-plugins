@@ -7729,9 +7729,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-19T15:51:04Z",
-      "now": "2026-11-19T15:51:04Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-19T16:59:45Z",
+      "now": "2026-11-19T16:59:45Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10050,8 +10050,8 @@
             "ACU-05"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r3-g2",
           "reason": "Grok is fixed; on GPT-Live the backend task behind the story keeps running after a redirect.",
           "codex": {
@@ -10060,14 +10060,18 @@
             "one_file": false,
             "implementer_session": "01a1f3a3-6347-7f42-b395-61f27206dbe7",
             "job": {
-              "pid": 62068,
+              "pid": 4079,
               "phase": "fix",
-              "started_at": "2026-11-19T15:36:45Z",
-              "command": "run-rs4-fix-g2.sh",
-              "heartbeat_at": "2026-11-19T15:50:47Z"
+              "started_at": "2026-11-19T16:55:47Z",
+              "command": "run-waits-g2.sh",
+              "heartbeat_at": "2026-11-19T16:59:18Z",
+              "exit_code": 0,
+              "duration_s": 211,
+              "finished_at": "2026-11-19T16:59:18Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
-            "review_status": "failed"
+            "previous_review": "passed for the ACU-05 cancel work; the race fix needs its own review"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g2.sh",
@@ -10077,7 +10081,12 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:50:47Z"
+          "updated_at": "2026-11-19T16:59:45Z",
+          "presuite": {
+            "status": "failed",
+            "exit_code": 1,
+            "finished_at": "2026-11-19T16:44:24Z"
+          }
         },
         {
           "id": "ACU-MENU",
@@ -10095,19 +10104,21 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 87733,
-              "phase": "review",
-              "started_at": "2026-11-19T15:49:17Z",
-              "command": "launch-review-g7.sh",
-              "heartbeat_at": "2026-11-19T15:50:46Z",
-              "exit_code": 0,
-              "duration_s": 89,
-              "finished_at": "2026-11-19T15:50:46Z",
+              "pid": 64307,
+              "phase": "presuite",
+              "started_at": "2026-11-19T16:40:08Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-19T16:44:24Z",
+              "exit_code": 1,
+              "duration_s": 256,
+              "finished_at": "2026-11-19T16:44:24Z",
               "finished_phase_status": "failed"
             },
             "implementer_session": "01a1f460-32c2-7d62-a7d7-2bae1a069868",
             "fix_status": "passed",
-            "review_status": "failed"
+            "review_status": "passed",
+            "reviewer_session": "01a1f47f-7aed-7780-b2e1-530a0b791713",
+            "review_note": "Terra CHANGES (voice_control lacked failure reason, gateway health cleared island error, tests skipped supervisor path) plus unknown-model start fixed in same session"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g7.sh",
@@ -10117,7 +10128,12 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:50:46Z"
+          "updated_at": "2026-11-19T16:44:24Z",
+          "presuite": {
+            "status": "failed",
+            "exit_code": 1,
+            "finished_at": "2026-11-19T16:44:24Z"
+          }
         },
         {
           "id": "ACU-PROMPT",
@@ -10129,8 +10145,8 @@
             "ACU-13"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "fix",
+          "status": "failed",
+          "phase": "review",
           "worktree": "bcl117-r4-g8",
           "reason": "All four come from what the voice models are told and how memory saves are passed on.",
           "codex": {
@@ -10138,15 +10154,21 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 81485,
-              "phase": "fix",
-              "started_at": "2026-11-19T15:45:02Z",
-              "command": "run-fix-g8.sh",
-              "heartbeat_at": "2026-11-19T15:51:03Z"
+              "pid": 64307,
+              "phase": "presuite",
+              "started_at": "2026-11-19T16:40:08Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-19T16:44:24Z",
+              "exit_code": 1,
+              "duration_s": 256,
+              "finished_at": "2026-11-19T16:44:24Z",
+              "finished_phase_status": "failed"
             },
             "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428",
             "fix_status": "passed",
-            "review_status": "failed"
+            "review_status": "passed",
+            "reviewer_session": "01a1f47a-8848-71d3-a982-d41e02a02332",
+            "review_note": "Terra CHANGES (mixed greeting+task routing, follow-up remember, unnamed oversized fields) plus Grok same-turn save fixed in same session; 603 runtime tests pass"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g8.sh",
@@ -10156,7 +10178,12 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:51:03Z"
+          "updated_at": "2026-11-19T16:44:24Z",
+          "presuite": {
+            "status": "failed",
+            "exit_code": 1,
+            "finished_at": "2026-11-19T16:44:24Z"
+          }
         },
         {
           "id": "ACU-TESTS",
@@ -10166,8 +10193,8 @@
             "ACU-12"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "fix",
+          "status": "failed",
+          "phase": "review",
           "worktree": "bcl117-r4-g9",
           "reason": "Both are test and check fixes in the Mac control skill.",
           "codex": {
@@ -10175,15 +10202,21 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 75614,
-              "phase": "fix",
-              "started_at": "2026-11-19T15:42:53Z",
-              "command": "run-fix-g9.sh",
-              "heartbeat_at": "2026-11-19T15:50:54Z"
+              "pid": 64307,
+              "phase": "presuite",
+              "started_at": "2026-11-19T16:40:08Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-19T16:44:24Z",
+              "exit_code": 1,
+              "duration_s": 256,
+              "finished_at": "2026-11-19T16:44:24Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f460-41d6-74a2-ad1a-cdf8bfb6366a",
-            "review_status": "failed"
+            "review_status": "passed",
+            "reviewer_session": "01a1f478-9d9d-7553-86fb-787299d4a385",
+            "review_note": "Terra CHANGES (real wake timer, CI shape skip, mocked checker test) fixed in same session: manual wake scheduler, 20/20 under load, missing checker fails outside CI with visible CI skip, subprocess failure test"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g9.sh",
@@ -10193,7 +10226,12 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:50:55Z"
+          "updated_at": "2026-11-19T16:44:24Z",
+          "presuite": {
+            "status": "failed",
+            "exit_code": 1,
+            "finished_at": "2026-11-19T16:44:24Z"
+          }
         }
       ]
     },
