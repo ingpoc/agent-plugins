@@ -7390,9 +7390,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-19T08:27:15Z",
-      "now": "2026-11-19T08:27:15Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-19T08:30:55Z",
+      "now": "2026-11-19T08:30:55Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -9322,7 +9322,7 @@
               "phase": "fix",
               "started_at": "2026-11-19T08:24:12Z",
               "command": "run-fix1-g1.sh",
-              "heartbeat_at": "2026-11-19T08:27:12Z"
+              "heartbeat_at": "2026-11-19T08:30:13Z"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f2da-307f-7b71-bc04-18a5ca4f8963",
@@ -9336,7 +9336,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T08:27:12Z"
+          "updated_at": "2026-11-19T08:30:13Z"
         },
         {
           "id": "DEVOBS",
@@ -9347,7 +9347,7 @@
             "BCL-79"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl117-r1-g2",
           "reason": "All three come from one real-use test of the same collector and skill.",
@@ -9356,18 +9356,19 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 88376,
-              "phase": "fix",
-              "started_at": "2026-11-19T08:09:10Z",
-              "command": "launch-g2.sh",
-              "heartbeat_at": "2026-11-19T08:27:03Z",
+              "pid": 26082,
+              "phase": "review",
+              "started_at": "2026-11-19T08:27:15Z",
+              "command": "launch-review-g2.sh",
+              "heartbeat_at": "2026-11-19T08:28:08Z",
               "exit_code": 0,
-              "duration_s": 1073,
-              "finished_at": "2026-11-19T08:27:03Z",
-              "finished_phase_status": "passed"
+              "duration_s": 53,
+              "finished_at": "2026-11-19T08:28:08Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
-            "implementer_session": "01a1f2da-3c74-72a1-9d90-b19d1d0b7c58"
+            "implementer_session": "01a1f2da-3c74-72a1-9d90-b19d1d0b7c58",
+            "review_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.sh",
@@ -9377,7 +9378,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T08:27:15Z"
+          "updated_at": "2026-11-19T08:28:08Z"
         }
       ]
     }
