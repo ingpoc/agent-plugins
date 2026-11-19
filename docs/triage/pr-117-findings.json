@@ -7390,9 +7390,9 @@
       }
     },
     "workflow": {
-      "stage": "present",
-      "updated_at": "2026-11-19T08:07:36Z",
-      "now": "2026-11-19T08:07:36Z — Started collection"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-19T08:09:06Z",
+      "now": "2026-11-19T08:09:06Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 116,
@@ -9293,8 +9293,70 @@
     },
     "stages_reached": [
       "collect",
-      "present"
-    ]
+      "present",
+      "plan_fix"
+    ],
+    "plan": {
+      "round": 1,
+      "cycle": 9,
+      "groups": [
+        {
+          "id": "BCL-PAGE",
+          "name": "Change list page header and gate read correctly",
+          "finding_ids": [
+            "BCL-75",
+            "BCL-76"
+          ],
+          "depends_on": [],
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl117-r1-g1",
+          "reason": "Both are in the change list page and rollover code.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "one_file": false
+          },
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1.sh",
+            "method": "Named tests on the installed change list plus a check of the live page header and gate.",
+            "status": "pending",
+            "total": 2,
+            "fixed": 0,
+            "failed": 0
+          },
+          "updated_at": "2026-11-19T08:09:06Z"
+        },
+        {
+          "id": "DEVOBS",
+          "name": "Developer observability links, groups and explains test failures",
+          "finding_ids": [
+            "BCL-77",
+            "BCL-78",
+            "BCL-79"
+          ],
+          "depends_on": [],
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl117-r1-g2",
+          "reason": "All three come from one real-use test of the same collector and skill.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "max",
+            "one_file": false
+          },
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.sh",
+            "method": "Rebuild the real fault case and collect it with the installed developer observability, then check the project view, the log findings and the suggested fix.",
+            "status": "pending",
+            "total": 3,
+            "fixed": 0,
+            "failed": 0
+          },
+          "updated_at": "2026-11-19T08:09:06Z"
+        }
+      ]
+    }
   },
   "findings": [
     {
