@@ -7574,9 +7574,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-19T13:51:41Z",
-      "now": "2026-11-19T13:51:41Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-19T13:58:33Z",
+      "now": "2026-11-19T13:58:33Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -9860,8 +9860,8 @@
             "ACU-10"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "verify",
+          "status": "running",
+          "phase": "fix",
           "worktree": "bcl117-r3-g2",
           "reason": "All four live in the voice session code.",
           "codex": {
@@ -9869,15 +9869,11 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 81430,
-              "phase": "presuite",
-              "started_at": "2026-11-19T13:11:41Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-19T13:16:05Z",
-              "exit_code": 0,
-              "duration_s": 264,
-              "finished_at": "2026-11-19T13:16:05Z",
-              "finished_phase_status": "passed"
+              "pid": 86853,
+              "phase": "fix",
+              "started_at": "2026-11-19T13:51:41Z",
+              "command": "run-rs-g2.sh",
+              "heartbeat_at": "2026-11-19T13:57:42Z"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f3a3-6347-7f42-b395-61f27206dbe7",
@@ -9894,7 +9890,7 @@
             "failed": 0,
             "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-19T13:45:37Z",
+          "updated_at": "2026-11-19T13:57:42Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -9992,8 +9988,8 @@
             "DEVOBS-07"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "verify",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r3-g5",
           "reason": "All three are gaps in how dev-obs reads the voice activity log.",
           "codex": {
@@ -10001,21 +9997,19 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 81430,
-              "phase": "presuite",
-              "started_at": "2026-11-19T13:11:41Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-19T13:16:05Z",
+              "pid": 86840,
+              "phase": "fix",
+              "started_at": "2026-11-19T13:51:41Z",
+              "command": "run-rs-g5.sh",
+              "heartbeat_at": "2026-11-19T13:58:00Z",
               "exit_code": 0,
-              "duration_s": 264,
-              "finished_at": "2026-11-19T13:16:05Z",
+              "duration_s": 379,
+              "finished_at": "2026-11-19T13:58:00Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f3a3-7af3-7c33-87dd-ba1bd819d9a8",
-            "review_status": "passed",
-            "reviewer_session": "01a1f3bc-f748-77d1-97d0-ede4a03f56cc",
-            "review_note": "Terra must-fixes done in same session; bump at integration"
+            "previous_review": "passed before restart; restart code needs its own review"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
@@ -10023,10 +10017,10 @@
             "status": "partial",
             "total": 3,
             "fixed": 2,
-            "failed": 1,
+            "failed": 0,
             "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-19T13:42:34Z",
+          "updated_at": "2026-11-19T13:58:33Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -10044,8 +10038,8 @@
             "BCL-82"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "verify",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r3-g6",
           "reason": "Timing and isolation in the test suites.",
           "codex": {
@@ -10053,14 +10047,14 @@
             "effort": "high",
             "one_file": false,
             "job": {
-              "pid": 81430,
-              "phase": "presuite",
-              "started_at": "2026-11-19T13:11:41Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-19T13:16:05Z",
+              "pid": 86837,
+              "phase": "fix",
+              "started_at": "2026-11-19T13:51:41Z",
+              "command": "rs-g6.sh",
+              "heartbeat_at": "2026-11-19T13:51:43Z",
               "exit_code": 0,
-              "duration_s": 264,
-              "finished_at": "2026-11-19T13:16:05Z",
+              "duration_s": 2,
+              "finished_at": "2026-11-19T13:51:43Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -10078,7 +10072,7 @@
             "failed": 0,
             "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-19T13:47:57Z",
+          "updated_at": "2026-11-19T13:51:43Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -10792,7 +10786,7 @@
       "done_when": "Dev-obs shows the error type and message for each failure occurrence; a test with a recorded error proves it.",
       "observed": "19 Nov 2026 16:58 IST: inspect with diagnostics on returned observed unknown, first error line unknown, diagnostics not available.",
       "recommendation": "Carry the logged exception type into the issue excerpt and occurrence timeline.",
-      "status": "failing",
+      "status": "in_progress",
       "details": {
         "Technical wording": "activity row kind=realtime_error exception_type=StopIteration error=''; observability_inspect_issue col-094b3a882656ae8f include_diagnostics=true -> observed 'unknown', excerpts.first_error_line 'unknown', diagnostics_available false."
       }
