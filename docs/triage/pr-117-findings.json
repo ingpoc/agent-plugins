@@ -7574,9 +7574,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-19T13:58:33Z",
-      "now": "2026-11-19T13:58:33Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-19T14:32:04Z",
+      "now": "2026-11-19T14:32:04Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -9860,8 +9860,8 @@
             "ACU-10"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "fix",
+          "status": "failed",
+          "phase": "review",
           "worktree": "bcl117-r3-g2",
           "reason": "All four live in the voice session code.",
           "codex": {
@@ -9869,17 +9869,20 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 86853,
-              "phase": "fix",
-              "started_at": "2026-11-19T13:51:41Z",
-              "command": "run-rs-g2.sh",
-              "heartbeat_at": "2026-11-19T13:57:42Z"
+              "pid": 27633,
+              "phase": "review",
+              "started_at": "2026-11-19T14:30:14Z",
+              "command": "launch-review-g2.sh",
+              "heartbeat_at": "2026-11-19T14:31:50Z",
+              "exit_code": 0,
+              "duration_s": 96,
+              "finished_at": "2026-11-19T14:31:50Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f3a3-6347-7f42-b395-61f27206dbe7",
-            "review_status": "passed",
-            "reviewer_session": "01a1f3d0-6bd9-7b30-980a-f7ec2b3cd538",
-            "review_note": "Terra must-fixes done in same session; bump at integration"
+            "previous_review": "passed before restart; restart code needs its own review",
+            "review_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
@@ -9890,7 +9893,7 @@
             "failed": 0,
             "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-19T13:57:42Z",
+          "updated_at": "2026-11-19T14:31:50Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -9988,7 +9991,7 @@
             "DEVOBS-07"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl117-r3-g5",
           "reason": "All three are gaps in how dev-obs reads the voice activity log.",
@@ -9997,19 +10000,22 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 86840,
-              "phase": "fix",
-              "started_at": "2026-11-19T13:51:41Z",
-              "command": "run-rs-g5.sh",
-              "heartbeat_at": "2026-11-19T13:58:00Z",
+              "pid": 98001,
+              "phase": "review",
+              "started_at": "2026-11-19T13:58:33Z",
+              "command": "launch-review-g5.sh",
+              "heartbeat_at": "2026-11-19T13:59:49Z",
               "exit_code": 0,
-              "duration_s": 379,
-              "finished_at": "2026-11-19T13:58:00Z",
-              "finished_phase_status": "passed"
+              "duration_s": 76,
+              "finished_at": "2026-11-19T13:59:49Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f3a3-7af3-7c33-87dd-ba1bd819d9a8",
-            "previous_review": "passed before restart; restart code needs its own review"
+            "previous_review": "passed before restart; restart code needs its own review",
+            "review_status": "passed",
+            "reviewer_session": "01a1f41a-1ade-7123-a693-d6aafed03997",
+            "review_note": "Restart review: only must-fix is the version bump, done at integration"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
@@ -10020,7 +10026,7 @@
             "failed": 0,
             "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-19T13:58:33Z",
+          "updated_at": "2026-11-19T14:00:00Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
