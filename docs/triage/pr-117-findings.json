@@ -7476,8 +7476,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-19T12:40:15Z",
-      "now": "2026-11-19T12:40:15Z — Fix job started"
+      "updated_at": "2026-11-19T13:16:05Z",
+      "now": "2026-11-19T13:16:05Z — Lane BCL-TESTS updated"
     },
     "rollover": {
       "source_pr": 116,
@@ -9619,14 +9619,14 @@
             "effort": "none",
             "one_file": false,
             "job": {
-              "pid": 96250,
-              "phase": "review",
-              "started_at": "2026-11-19T12:03:14Z",
-              "command": "launch-review-g1.sh",
-              "heartbeat_at": "2026-11-19T12:04:25Z",
+              "pid": 81430,
+              "phase": "presuite",
+              "started_at": "2026-11-19T13:11:41Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-19T13:16:05Z",
               "exit_code": 0,
-              "duration_s": 71,
-              "finished_at": "2026-11-19T12:04:25Z",
+              "duration_s": 264,
+              "finished_at": "2026-11-19T13:16:05Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -9643,7 +9643,12 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T12:07:01Z"
+          "updated_at": "2026-11-19T13:16:05Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-19T13:16:05Z"
+          }
         },
         {
           "id": "ACU-SESSION",
@@ -9655,7 +9660,7 @@
             "ACU-10"
           ],
           "depends_on": [],
-          "status": "failed",
+          "status": "review",
           "phase": "review",
           "worktree": "bcl117-r3-g2",
           "reason": "All four live in the voice session code.",
@@ -9664,19 +9669,21 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 48364,
-              "phase": "review",
-              "started_at": "2026-11-19T12:38:04Z",
-              "command": "launch-review-g2.sh",
-              "heartbeat_at": "2026-11-19T12:39:32Z",
+              "pid": 81430,
+              "phase": "presuite",
+              "started_at": "2026-11-19T13:11:41Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-19T13:16:05Z",
               "exit_code": 0,
-              "duration_s": 88,
-              "finished_at": "2026-11-19T12:39:32Z",
-              "finished_phase_status": "failed"
+              "duration_s": 264,
+              "finished_at": "2026-11-19T13:16:05Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f3a3-6347-7f42-b395-61f27206dbe7",
-            "review_status": "failed"
+            "review_status": "passed",
+            "reviewer_session": "01a1f3d0-6bd9-7b30-980a-f7ec2b3cd538",
+            "review_note": "Terra must-fixes done in same session; bump at integration"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
@@ -9686,7 +9693,12 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T12:39:32Z"
+          "updated_at": "2026-11-19T13:16:05Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-19T13:16:05Z"
+          }
         },
         {
           "id": "ACU-MENU",
@@ -9784,14 +9796,14 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 28123,
-              "phase": "fix",
-              "started_at": "2026-11-19T12:18:31Z",
-              "command": "run-mf-g5.sh",
-              "heartbeat_at": "2026-11-19T12:29:19Z",
+              "pid": 81430,
+              "phase": "presuite",
+              "started_at": "2026-11-19T13:11:41Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-19T13:16:05Z",
               "exit_code": 0,
-              "duration_s": 648,
-              "finished_at": "2026-11-19T12:29:19Z",
+              "duration_s": 264,
+              "finished_at": "2026-11-19T13:16:05Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -9808,7 +9820,12 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T12:29:36Z"
+          "updated_at": "2026-11-19T13:16:05Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-19T13:16:05Z"
+          }
         },
         {
           "id": "BCL-TESTS",
@@ -9826,14 +9843,14 @@
             "effort": "high",
             "one_file": false,
             "job": {
-              "pid": 9182,
-              "phase": "fix",
-              "started_at": "2026-11-19T12:08:05Z",
-              "command": "run-mf-g6.sh",
-              "heartbeat_at": "2026-11-19T12:13:26Z",
+              "pid": 81430,
+              "phase": "presuite",
+              "started_at": "2026-11-19T13:11:41Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-19T13:16:05Z",
               "exit_code": 0,
-              "duration_s": 321,
-              "finished_at": "2026-11-19T12:13:26Z",
+              "duration_s": 264,
+              "finished_at": "2026-11-19T13:16:05Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -9850,7 +9867,12 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T12:13:35Z"
+          "updated_at": "2026-11-19T13:16:05Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-19T13:16:05Z"
+          }
         }
       ]
     },
