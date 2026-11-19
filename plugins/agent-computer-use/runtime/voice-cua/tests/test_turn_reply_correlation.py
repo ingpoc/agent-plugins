@@ -49,6 +49,8 @@ class BackendQueueWS(FakeWS):
             if self.backend_response_id == response_id:
                 self.backend_response_id = ""
                 self.cancel_callback = None
+                self.events.extend(self.queued_creates)
+                self.queued_creates.clear()
 
     def send(self, raw: str) -> None:
         event = json.loads(raw)
@@ -104,7 +106,7 @@ class TypedTurnReplayTests(unittest.TestCase):
         return session
 
     @staticmethod
-    def _wait_for(predicate, message: str, timeout: float = 15.0) -> None:
+    def _wait_for(predicate, message: str, timeout: float = 2.0) -> None:
         deadline = time.monotonic() + timeout
         while not predicate() and time.monotonic() < deadline:
             time.sleep(0.005)
@@ -240,7 +242,7 @@ class TypedTurnReplayTests(unittest.TestCase):
                            "redirect did not interrupt the active story")
             if isinstance(provider, LiveProvider):
                 self._wait_for(lambda: self._create_count(session) > redirect_create_count,
-                               "GPT-Live redirect did not start after backend cancellation", timeout=15.0)
+                               "GPT-Live redirect did not start after backend cancellation", timeout=1.0)
                 self.assertLess(time.monotonic() - redirect_started, 1.0)
                 self.assertFalse(story_result.get("ok"), "the cancelled story should settle as interrupted")
                 self.assertEqual(story_result.get("reply"), "Pune began as a town on the Mutha River.")
@@ -272,7 +274,7 @@ class TypedTurnReplayTests(unittest.TestCase):
                 self.assertTrue(previous_replies)
                 self.assertTrue(all(row.get("run_id") == previous_request for row in previous_replies),
                                 "previous-turn transcript tail must keep its original run id")
-                story_thread.join(timeout=15)
+                story_thread.join(timeout=2)
                 self.assertFalse(story_thread.is_alive())
             else:
                 # A cancelled story response carries only the partial text already produced.
@@ -284,8 +286,8 @@ class TypedTurnReplayTests(unittest.TestCase):
             self._response_created(session, provider, "redirect-delegation", "redirect-response")
             self._response_done(session, provider, "redirect-delegation", "redirect-response",
                                 "Pune is famous for its Maratha heritage and universities.")
-            redirect_thread.join(timeout=15)
-            story_thread.join(timeout=15)
+            redirect_thread.join(timeout=2)
+            story_thread.join(timeout=2)
             self.assertFalse(redirect_thread.is_alive())
             self.assertFalse(story_thread.is_alive())
             self.assertEqual(story_result.get("reply"), "Pune began as a town on the Mutha River.")
@@ -297,7 +299,7 @@ class TypedTurnReplayTests(unittest.TestCase):
             self._feed_late_output(session, provider, "redirect-response", redirect_event_id)
             self._response_created(session, provider, "recall-delegation", "recall-response")
             self._response_done(session, provider, "recall-delegation", "recall-response", "You said teal.")
-            recall_thread.join(timeout=15)
+            recall_thread.join(timeout=2)
             self.assertFalse(recall_thread.is_alive())
             self.assertEqual(recall_result.get("reply"), "You said teal.")
 
@@ -333,7 +335,7 @@ class TypedTurnReplayTests(unittest.TestCase):
             self._response_created(session, provider, "multi-delegation", "multi-final-response")
             self._response_done(session, provider, "multi-delegation", "multi-final-response",
                                 "Calculator is open; Example Domain was read and the Comet window is closed.")
-            multi_thread.join(timeout=15)
+            multi_thread.join(timeout=2)
             self.assertFalse(multi_thread.is_alive())
             self.assertEqual(multi_result.get("reply"),
                              "Calculator is open; Example Domain was read and the Comet window is closed.")
@@ -344,7 +346,7 @@ class TypedTurnReplayTests(unittest.TestCase):
             self._response_created(session, provider, "empathy-delegation", "empathy-response")
             empathy = "I'm sorry; that sounds heavy, and a setback doesn't mean you've let everyone down."
             self._response_done(session, provider, "empathy-delegation", "empathy-response", empathy)
-            empathy_thread.join(timeout=15)
+            empathy_thread.join(timeout=2)
             self.assertFalse(empathy_thread.is_alive())
             self.assertEqual(empathy_result.get("reply"), empathy)
 
@@ -358,6 +360,19 @@ class TypedTurnReplayTests(unittest.TestCase):
 
     def test_gpt_live_replays_five_turns_with_own_replies_and_tools_once(self) -> None:
         self._replay(LiveProvider())
+
+    def test_backend_queue_releases_deferred_create_after_response_finishes(self) -> None:
+        ws = BackendQueueWS()
+        create = {"type": "response.create", "event_id": "follow-up"}
+        ws.hold_backend("current", lambda _response_id: None)
+        ws.send(json.dumps(create))
+        self.assertEqual(ws.events, [])
+        self.assertEqual(ws.queued_creates, [create])
+
+        ws.finish_backend("current")
+
+        self.assertEqual(ws.events, [create])
+        self.assertEqual(ws.queued_creates, [])
 
     def test_gpt_live_cancel_settles_pending_tool_call_and_releases_backend_queue(self) -> None:
         provider = LiveProvider()
@@ -386,7 +401,7 @@ class TypedTurnReplayTests(unittest.TestCase):
             self._wait_for(lambda: "pending-story-response" in session.ws.cancelled_response_ids,
                            "backend did not receive response.cancel")
             self._wait_for(lambda: self._create_count(session) > create_count,
-                               "redirect remained queued behind the pending tool call", timeout=15.0)
+                           "redirect remained queued behind the pending tool call", timeout=1.0)
             self.assertLess(time.monotonic() - redirect_started, 1.0)
             self.assertFalse(story_result.get("ok"))
             self.assertEqual(story_result.get("reply"), "Pune began as a town on the Mutha River.")
@@ -405,8 +420,8 @@ class TypedTurnReplayTests(unittest.TestCase):
             self._response_created(session, provider, "pending-redirect-delegation", "pending-redirect-response")
             self._response_done(session, provider, "pending-redirect-delegation", "pending-redirect-response",
                                 "Pune is famous for its Maratha heritage.")
-            redirect_thread.join(timeout=15)
-            story_thread.join(timeout=15)
+            redirect_thread.join(timeout=2)
+            story_thread.join(timeout=2)
             self.assertFalse(redirect_thread.is_alive())
             self.assertFalse(story_thread.is_alive())
             self.assertEqual(redirect_result.get("reply"), "Pune is famous for its Maratha heritage.")
@@ -437,7 +452,7 @@ class TypedTurnReplayTests(unittest.TestCase):
             redirect_thread, redirect_result, _ = self._launch_turn(session, self.REDIRECT)
             self._wait_for(lambda: self._create_count(session) >= 2,
                            "redirect did not start after the backend response had completed", timeout=1.0)
-            story_thread.join(timeout=15)
+            story_thread.join(timeout=1)
             self.assertFalse(story_thread.is_alive(), "pending tool call must not leave the story waiter open")
             self.assertFalse(story_result.get("ok"))
             self.assertEqual(story_result.get("reply"), "Pune began as a town on the Mutha River.")
@@ -454,7 +469,7 @@ class TypedTurnReplayTests(unittest.TestCase):
             self.assertTrue(redirect_thread.is_alive(), "late completion from the cancelled turn must not settle redirect")
             self._response_done(session, provider, "completed-redirect-delegation", "completed-redirect-response",
                                 "Pune is famous for its Maratha heritage.")
-            redirect_thread.join(timeout=15)
+            redirect_thread.join(timeout=2)
             self.assertFalse(redirect_thread.is_alive())
             self.assertEqual(redirect_result.get("reply"), "Pune is famous for its Maratha heritage.")
 
@@ -494,6 +509,28 @@ class TypedTurnReplayTests(unittest.TestCase):
         provider.heard.clear()
         provider.said.clear()
 
+    def test_gpt_live_late_duplicate_tool_call_does_not_reopen_pending_call(self) -> None:
+        provider = LiveProvider()
+        delegation, response_id, call_id = "duplicate-delegation", "duplicate-response", "duplicate-call"
+        provider.inbound({"type": "session.delegation.created",
+                          "delegation": {"id": delegation, "target": "responses"}})
+        provider.inbound({"type": "response.event", "delegation_id": delegation,
+                          "event": {"type": "response.created", "response": {"id": response_id}}})
+        event = {"type": "response.event", "delegation_id": delegation, "event": {
+            "type": "response.output_item.done", "response_id": response_id,
+            "item": {"type": "function_call", "call_id": call_id, "name": "cua_act", "arguments": "{}"},
+        }}
+
+        first = provider.inbound(event)
+        self.assertEqual(first[0]["item"]["call_id"], call_id)
+        self.assertEqual(provider._pending_calls[delegation], {call_id})
+        provider.outbound({"type": "conversation.item.create", "item": {
+            "type": "function_call_output", "call_id": call_id, "output": "{}"}})
+        self.assertEqual(provider._pending_calls[delegation], set())
+
+        self.assertEqual(provider.inbound(event), [])
+        self.assertEqual(provider._pending_calls[delegation], set())
+
     def test_gpt_live_spoken_redirect_cancels_delegation_and_discards_late_story(self) -> None:
         provider = LiveProvider()
         session = self._make(provider)
@@ -514,7 +551,7 @@ class TypedTurnReplayTests(unittest.TestCase):
                 session._dispatch_event(event)
             session._dispatch_event({"type": "conversation.item.input_audio_transcription.completed",
                 "transcript": self.REDIRECT, "item_id": "spoken-redirect"})
-            story_thread.join(timeout=15)
+            story_thread.join(timeout=1)
             self.assertFalse(story_thread.is_alive(), "spoken redirect must settle the story immediately")
             self.assertFalse(story_result.get("ok"))
             self.assertEqual(story_result.get("reply"), "Pune began as a town on the Mutha River.")
@@ -582,7 +619,7 @@ class TypedTurnReplayTests(unittest.TestCase):
                 "id": "typed-live-response", "status": "completed", "output": [{"type": "message",
                     "content": [{"type": "output_text", "text": "This turn is distinct."}]}]}}))
             provider.said.flush()
-            thread.join(timeout=15)
+            thread.join(timeout=2)
         self.assertFalse(thread.is_alive())
         self.assertEqual(result.get("reply"), "This turn is distinct.")
         self.assertTrue(request_id)
@@ -603,7 +640,7 @@ class TypedTurnReplayTests(unittest.TestCase):
             session._on_message(None, json.dumps({"type": "response.done", "response": {
                 "id": "old-live-response", "status": "cancelled", "output": [{"type": "message",
                     "content": [{"type": "output_text", "text": "First reply."}]}]}}))
-            first_thread.join(timeout=15)
+            first_thread.join(timeout=2)
             self.assertFalse(first_thread.is_alive())
             self.assertEqual(first_result.get("reply"), "First reply.")
             self.assertFalse(first_result.get("ok"))
@@ -626,7 +663,7 @@ class TypedTurnReplayTests(unittest.TestCase):
                 "id": "new-live-response", "status": "completed", "output": [{"type": "message",
                     "content": [{"type": "output_text", "text": "Second reply."}]}]}}))
             provider.said.flush()
-            next_thread.join(timeout=15)
+            next_thread.join(timeout=2)
         self.assertFalse(next_thread.is_alive())
         self.assertEqual(next_result.get("reply"), "Second reply.")
 

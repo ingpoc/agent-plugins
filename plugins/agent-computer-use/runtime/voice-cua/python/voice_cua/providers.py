@@ -1367,6 +1367,8 @@ class LiveProvider(VoiceProvider):
                 return []
             call_id = str(item.get("call_id") or "")
             with self._lock:
+                if call_id in self._call_delegation:
+                    return []
                 self._response_calls.add(rid)
                 self._call_delegation[call_id] = delegation
                 self._pending_calls.setdefault(delegation, set()).add(call_id)
