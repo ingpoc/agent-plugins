@@ -7390,9 +7390,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-19T08:09:06Z",
-      "now": "2026-11-19T08:09:06Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-19T08:21:27Z",
+      "now": "2026-11-19T08:21:27Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -9294,7 +9294,8 @@
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix"
+      "plan_fix",
+      "review"
     ],
     "plan": {
       "round": 1,
@@ -9308,14 +9309,27 @@
             "BCL-76"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r1-g1",
           "reason": "Both are in the change list page and rollover code.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 87048,
+              "phase": "fix",
+              "started_at": "2026-11-19T08:09:07Z",
+              "command": "launch-g1.sh",
+              "heartbeat_at": "2026-11-19T08:20:57Z",
+              "exit_code": 0,
+              "duration_s": 710,
+              "finished_at": "2026-11-19T08:20:57Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed",
+            "implementer_session": "01a1f2da-307f-7b71-bc04-18a5ca4f8963"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1.sh",
@@ -9325,7 +9339,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T08:09:06Z"
+          "updated_at": "2026-11-19T08:21:27Z"
         },
         {
           "id": "DEVOBS",
@@ -9336,14 +9350,21 @@
             "BCL-79"
           ],
           "depends_on": [],
-          "status": "planned",
+          "status": "running",
           "phase": "fix",
           "worktree": "bcl117-r1-g2",
           "reason": "All three come from one real-use test of the same collector and skill.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 88376,
+              "phase": "fix",
+              "started_at": "2026-11-19T08:09:10Z",
+              "command": "launch-g2.sh",
+              "heartbeat_at": "2026-11-19T08:21:11Z"
+            }
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.sh",
@@ -9353,7 +9374,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T08:09:06Z"
+          "updated_at": "2026-11-19T08:21:12Z"
         }
       ]
     }
@@ -9369,7 +9390,7 @@
       "done_when": "The header shows only the short working copy name even when the rollover is given a full folder location, and a named test proves it.",
       "observed": "19 Nov 2026 01:11 IST: #117 page header reads 'PR #117 · /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-rollover'. Cause: bcl rollover was run with --worktree set to the full path (references/report-rollover.md asks for NAME); tracking.worktree stores the path and the header renders it verbatim. Screenshot: Mini ~/.agents/artifacts/bcl-116/r3/pr117-new-list.png.",
       "recommendation": "Have rollover reduce a path to its last folder name (or reject a path), and have the header render only the name; keep the full path under Details.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "BCL-76",
@@ -9381,11 +9402,11 @@
       "done_when": "With no verified fixes the gate shows as not yet met, the green tick appears only once the gate is truly met, and a named test proves it.",
       "observed": "19 Nov 2026 01:11 IST: #117 page in Collect with 0 findings shows the gate circle checked green beside 'Fixes 0/15 verified'. Likely from the report gate's no-open-findings exception (gate.md: report met when no counted findings remain open), which render.py uses for gate_met. Screenshot: Mini ~/.agents/artifacts/bcl-116/r3/pr117-new-list.png.",
       "recommendation": "Draw the green tick only when the verified count reaches the threshold; show the no-open-findings exception as a separate plain note.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "BCL-77",
-      "status": "untested",
+      "status": "in_progress",
       "source": "Agent reported",
       "priority": "medium",
       "title": "Collected problems are not linked to the project, so the project view shows none",
@@ -9397,7 +9418,7 @@
     },
     {
       "id": "BCL-78",
-      "status": "untested",
+      "status": "in_progress",
       "source": "Agent reported",
       "priority": "medium",
       "title": "One failed test in a test log is reported as three separate log errors",
@@ -9409,7 +9430,7 @@
     },
     {
       "id": "BCL-79",
-      "status": "untested",
+      "status": "in_progress",
       "source": "Agent reported",
       "priority": "medium",
       "title": "The suggested fix for a failed test is generic instead of pointing at the failed check",
