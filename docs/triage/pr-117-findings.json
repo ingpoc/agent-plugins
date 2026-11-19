@@ -7475,9 +7475,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-19T11:27:45Z",
-      "now": "2026-11-19T11:27:45Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-19T11:30:00Z",
+      "now": "2026-11-19T11:30:00Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 116,
@@ -9511,6 +9511,68 @@
         },
         "round": 1,
         "cycle": 9
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-19T11:30:00Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 1",
+          "Codex write: BCL-ROUND",
+          "One-file review exemption: BCL-ROUND",
+          "Polling and rework review: BCL-ROUND",
+          "Test command: BCL-ROUND: /Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.sh"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Parallel group count: 1",
+          "One-file review exemption: BCL-ROUND"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Polling and rework review: BCL-ROUND",
+                "evidence": "The first full suite failed on three timing tests while the Mini was under heavy load from a parallel install; all three passed alone and the rerun passed. No product change was needed. Before a full suite I now check the machine load and wait for a quiet moment, which removes a wasted four minute run.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Stage: Verify",
+                "evidence": "Completing the run needed a recheck of every earlier verified issue. I reused the round 1 check scripts unchanged against the new install instead of writing new ones, so the recheck took one command per lane.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Codex write: BCL-ROUND",
+                "evidence": "The brief gave the exact call site, the real sequence that caused the bug and the old-code proof required, so the coding agent finished in one pass with no follow-up.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Test command: BCL-ROUND: /Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.sh",
+                "evidence": "The proof that the old version fails is a one-line run of the new test against a copy of the installed old copy; it replaces a hand-built tracker replay and now sits next to the verify script for the next fix.",
+                "outcome": "fixed inline"
+              }
+            ]
+          }
+        },
+        "round": 2,
+        "cycle": 9
       }
     ],
     "archive": {
@@ -9531,7 +9593,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 2,
@@ -9544,8 +9607,8 @@
             "BCL-81"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl117-r2-g1",
           "reason": "One change in how the change list decides a new round has begun.",
           "codex": {
@@ -9570,12 +9633,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.sh",
             "method": "Named tests on the installed change list, plus a real restart inside a round on a copy of a live list.",
-            "status": "pending",
+            "status": "verified",
             "total": 1,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 1,
+            "failed": 0,
+            "summary": "Restart inside a round keeps the round number",
+            "failure": null
           },
-          "updated_at": "2026-11-19T11:22:22Z",
+          "updated_at": "2026-11-19T11:28:19Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -9584,9 +9649,11 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-19T11:22:47Z"
-          }
+          },
+          "verify_summary": "Restart inside a round keeps the round number"
         }
-      ]
+      ],
+      "status": "closed"
     },
     "verification_run": {
       "id": "bcl-0.1.46-4e76cd24-117",
@@ -9597,25 +9664,81 @@
       "status": "active",
       "checks": {
         "BCL-75": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on the new install",
+          "observed_at": "2026-11-19T11:29:03Z",
+          "started_at": "2026-11-19T11:29:09Z",
+          "updated_at": "2026-11-19T11:29:09Z",
+          "check_id": "fdb7d82148a243fca3e57a666bf5047e",
+          "evidence": "Checked: The live page header on 0.1.46; Expected: Only the worktree name shows; Observed: It shows samantha-next-rollover",
+          "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-page.log",
+          "finished_at": "2026-11-19T11:29:39.131341Z"
         },
         "BCL-76": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on the new install",
+          "observed_at": "2026-11-19T11:29:03Z",
+          "started_at": "2026-11-19T11:29:09Z",
+          "updated_at": "2026-11-19T11:29:09Z",
+          "check_id": "bfe43cd5bccb4e94b0f37ccf86a0522e",
+          "evidence": "Checked: The gate on the live page and on an empty list; Expected: Not met until enough fixes are verified; Observed: Not met at 7 of 15 and at 0 of 15",
+          "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-page.log",
+          "finished_at": "2026-11-19T11:29:39.131534Z"
         },
         "BCL-77": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on the new install",
+          "observed_at": "2026-11-19T11:29:03Z",
+          "started_at": "2026-11-19T11:29:09Z",
+          "updated_at": "2026-11-19T11:29:09Z",
+          "check_id": "98623af43b2c4a8c8bff68295be7a304",
+          "evidence": "Checked: The real fault case on developer observability 0.1.32; Expected: Failures show under the project; Observed: Both failures show under Context Ledger",
+          "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-g2.log",
+          "finished_at": "2026-11-19T11:29:39.131596Z"
         },
         "BCL-78": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on the new install",
+          "observed_at": "2026-11-19T11:29:03Z",
+          "started_at": "2026-11-19T11:29:09Z",
+          "updated_at": "2026-11-19T11:29:09Z",
+          "check_id": "07f04f1188cb44289972289e11f23b8a",
+          "evidence": "Checked: The same real pytest run; Expected: One finding per failing test; Observed: Two findings for two failing tests, no summary finding",
+          "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-g2.log",
+          "finished_at": "2026-11-19T11:29:39.131621Z"
         },
         "BCL-79": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on the new install",
+          "observed_at": "2026-11-19T11:29:03Z",
+          "started_at": "2026-11-19T11:29:09Z",
+          "updated_at": "2026-11-19T11:29:09Z",
+          "check_id": "fc15bc29d69f4db6b9f994024b2afc84",
+          "evidence": "Checked: The suggested fix in the same run; Expected: It names the test and its assertion; Observed: It names each test and quotes hint versus trusted",
+          "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-g2.log",
+          "finished_at": "2026-11-19T11:29:39.131646Z"
         },
         "BCL-80": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking on the new install",
+          "observed_at": "2026-11-19T11:29:03Z",
+          "started_at": "2026-11-19T11:29:09Z",
+          "updated_at": "2026-11-19T11:29:09Z",
+          "check_id": "bcf345e014ee4ea28306f05d0177e37e",
+          "evidence": "Checked: The workflow bar with lanes in review; Expected: Review is marked as current; Observed: Review is marked as current",
+          "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-page.log + regress-g1.log (11 named tests on installed 0.1.46)",
+          "finished_at": "2026-11-19T11:29:39.131566Z"
         },
         "BCL-81": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T11:28:19Z",
+          "started_at": "2026-11-19T11:28:19Z",
+          "updated_at": "2026-11-19T11:28:19Z",
+          "check_id": "5fd551622635492ab7ddc16285279329",
+          "evidence": "Checked: A round on the installed version where a lane fails its check, Introspect runs early, the lane is restarted, installed, checked again and the round's Introspect finishes; plus the live #117 page.; Expected: The round number stays the same through the restart, and the live page shows the true round.; Observed: The round stayed at 1 with no extra history; the old version moved to round 2. The live page reads Round 2, the real second round.",
+          "details": "Named tests on installed 0.1.46: test_restart_after_early_introspect_keeps_round_through_final_introspect (drives bcl verify fail -> introspect -> job --phase fix restart -> install -> verify -> introspect), test_new_plan_after_completed_round_advances_once. Same restart test on installed 0.1.45: AssertionError 2 != 1 (r2/old-fails.log). Live: live_round.py page Round 2 = tracker round 2; cycle 9 history one entry round 1 fixed 6 after correcting the spurious advance (backup r2/117.before-round-fix.*.json). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.log. Run bcl-0.1.46-4e76cd24-117.",
+          "finished_at": "2026-11-19T11:28:19.385473Z"
         },
         "ACU-01": {
           "state": "pending"
@@ -9633,38 +9756,31 @@
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-19T09:19:04Z",
+      "at": "2026-11-19T11:30:00Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 2",
-        "Codex write: BCL-PAGE",
-        "Codex review: BCL-PAGE",
-        "Polling and rework review: BCL-PAGE",
-        "Test command: BCL-PAGE: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1.sh",
-        "Codex write: DEVOBS",
-        "Codex review: DEVOBS",
-        "Polling and rework review: DEVOBS",
-        "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.sh"
+        "Parallel group count: 1",
+        "Codex write: BCL-ROUND",
+        "One-file review exemption: BCL-ROUND",
+        "Polling and rework review: BCL-ROUND",
+        "Test command: BCL-ROUND: /Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.sh"
       ],
       "none": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
-        "Parallel group count: 2",
-        "Codex review: BCL-PAGE",
-        "Test command: BCL-PAGE: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1.sh",
-        "Codex write: DEVOBS",
-        "Polling and rework review: DEVOBS"
+        "Parallel group count: 1",
+        "One-file review exemption: BCL-ROUND"
       ],
       "sections": {
         "delete": {
           "items": [
             {
-              "item": "Polling and rework review: BCL-PAGE",
-              "evidence": "My page-checking script copied the live list to draw an empty list but kept its open verification run, so the renderer refused it and the lane failed for a script fault, not a product fault. That cost an early Introspect, a restart job and a second install record. I dry-ran the script before the run started, when no run existed. Page scripts are now dry-run once right after the verification run starts, and empty-list drafts drop every verification field; the lane loop goes away.",
+              "item": "Polling and rework review: BCL-ROUND",
+              "evidence": "The first full suite failed on three timing tests while the Mini was under heavy load from a parallel install; all three passed alone and the rerun passed. No product change was needed. Before a full suite I now check the machine load and wait for a quiet moment, which removes a wasted four minute run.",
               "outcome": "fixed inline"
             }
           ]
@@ -9672,13 +9788,8 @@
         "simplify": {
           "items": [
             {
-              "item": "Codex review: DEVOBS",
-              "evidence": "The isolated review and the lane's own fixture tests both passed work that the real fault case then failed twice: no project was found when none was set up, and the second failing test had no finding. The real-case check now exists before the lane starts and is handed to the lane as its acceptance test, so the lane fixes against real output instead of a hand-written log.",
-              "outcome": "fixed inline"
-            },
-            {
               "item": "Stage: Verify",
-              "evidence": "The developer observability check script ran the installed unit tests through a pipe without failing on a broken pipe stage, so a failing test run could have been hidden behind a passing real-case check. It now stops on any failure in the pipe; the same run then showed all 139 tests passing.",
+              "evidence": "Completing the run needed a recheck of every earlier verified issue. I reused the round 1 check scripts unchanged against the new install instead of writing new ones, so the recheck took one command per lane.",
               "outcome": "fixed inline"
             }
           ]
@@ -9686,8 +9797,8 @@
         "optimize": {
           "items": [
             {
-              "item": "Codex write: BCL-PAGE",
-              "evidence": "A new page bug arrived mid-round. I committed the lane's earlier work locally as its base, resumed the same coding session for only the new change and applied just that increment, so no lane was rebuilt and the review round was not repeated; the cost was one extra pre-push suite of about four minutes.",
+              "item": "Codex write: BCL-ROUND",
+              "evidence": "The brief gave the exact call site, the real sequence that caused the bug and the old-code proof required, so the coding agent finished in one pass with no follow-up.",
               "outcome": "fixed inline"
             }
           ]
@@ -9695,14 +9806,14 @@
         "automate": {
           "items": [
             {
-              "item": "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.sh",
-              "evidence": "The real-use probe used to need a separate coding-agent run, an isolated copy of the plugin and a hand grade. One script now rebuilds the fault, collects into a throwaway store, reads it back through the installed tools and prints pass or fail per issue in about four seconds, and it showed the old version failing all three. It replaces the probe run and the hand grade for these checks.",
+              "item": "Test command: BCL-ROUND: /Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.sh",
+              "evidence": "The proof that the old version fails is a one-line run of the new test against a copy of the installed old copy; it replaces a hand-built tracker replay and now sits next to the verify script for the next fix.",
               "outcome": "fixed inline"
             }
           ]
         }
       },
-      "round": 1,
+      "round": 2,
       "cycle": 9
     }
   },
@@ -9897,7 +10008,25 @@
       "done_when": "A restart or resumed run inside the same round keeps the round number; the counter only moves on when a new round begins after Introspect, and a named test that fails on the old code proves it.",
       "observed": "19 Nov 2026 14:46 IST: in #117 cycle 9 the BCL-PAGE lane verify failed on a verifier fault; bcl introspect (round 1) then bcl job --phase fix restart called manage_findings.advance_plan_round, appending round_history {round 1, fixed 3} and setting tracking.round 2. Final Introspect was recorded as round 2; page shows Round 2.",
       "recommendation": "Advance the round only when new work is planned after the round's Introspect is complete, not when a failed lane is restarted inside the same round.",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "A round on the installed version where a lane fails its check, Introspect runs early, the lane is restarted, installed, checked again and the round's Introspect finishes; plus the live #117 page.",
+          "expected": "The round number stays the same through the restart, and the live page shows the true round.",
+          "observed": "The round stayed at 1 with no extra history; the old version moved to round 2. The live page reads Round 2, the real second round.",
+          "verdict": "The round stayed at 1 with no extra history; the old version moved to round 2. The live page reads Round 2, the real second round.",
+          "check_id": "bcl-81-0.1.46-4e76cd24",
+          "build": "batched-change-list 0.1.46",
+          "session": "bcl-0.1.46-4e76cd24-117",
+          "timestamp": "2026-11-19T11:28:19Z",
+          "reference": "4e76cd24a5125fca4ec63dd00e285e0e5694b10b:BCL-81:installed-check",
+          "details": "Named tests on installed 0.1.46: test_restart_after_early_introspect_keeps_round_through_final_introspect (drives bcl verify fail -> introspect -> job --phase fix restart -> install -> verify -> introspect), test_new_plan_after_completed_round_advances_once. Same restart test on installed 0.1.45: AssertionError 2 != 1 (r2/old-fails.log). Live: live_round.py page Round 2 = tracker round 2; cycle 9 history one entry round 1 fixed 6 after correcting the spurious advance (backup r2/117.before-round-fix.*.json). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.log. Run bcl-0.1.46-4e76cd24-117."
+        }
+      ],
+      "verification": "The round stayed at 1 with no extra history; the old version moved to round 2. The live page reads Round 2, the real second round. Named tests on installed 0.1.46: test_restart_after_early_introspect_keeps_round_through_final_introspect (drives bcl verify fail -> introspect -> job --phase fix restart -> install -> verify -> introspect), test_new_plan_after_completed_round_advances_once. Same restart test on installed 0.1.45: AssertionError 2 != 1 (r2/old-fails.log). Live: live_round.py page Round 2 = tracker round 2; cycle 9 history one entry round 1 fixed 6 after correcting the spurious advance (backup r2/117.before-round-fix.*.json). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.log. Run bcl-0.1.46-4e76cd24-117.",
+      "verification_refs": [
+        "4e76cd24a5125fca4ec63dd00e285e0e5694b10b:BCL-81:installed-check"
+      ]
     },
     {
       "id": "ACU-01",
