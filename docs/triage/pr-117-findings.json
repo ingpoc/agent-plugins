@@ -7729,9 +7729,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-19T15:03:07Z",
-      "now": "2026-11-19T15:03:07Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-19T15:09:52Z",
+      "now": "2026-11-19T15:09:52Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 116,
@@ -9923,6 +9923,99 @@
         },
         "round": 3,
         "cycle": 9
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-19T15:09:52Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: ACU-HELPER",
+          "Codex review: ACU-HELPER",
+          "Polling and rework review: ACU-HELPER",
+          "Test command: ACU-HELPER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
+          "Codex write: ACU-SESSION",
+          "Codex review: ACU-SESSION",
+          "Polling and rework review: ACU-SESSION",
+          "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
+          "Codex write: DEVOBS",
+          "Codex review: DEVOBS",
+          "Polling and rework review: DEVOBS",
+          "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
+          "Codex write: BCL-TESTS",
+          "Codex review: BCL-TESTS",
+          "Polling and rework review: BCL-TESTS",
+          "Test command: BCL-TESTS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.sh"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: ACU-HELPER",
+          "Codex review: ACU-HELPER",
+          "Polling and rework review: ACU-HELPER",
+          "Polling and rework review: ACU-SESSION",
+          "Codex write: DEVOBS",
+          "Codex review: DEVOBS",
+          "Polling and rework review: DEVOBS",
+          "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
+          "Codex write: BCL-TESTS",
+          "Codex review: BCL-TESTS",
+          "Polling and rework review: BCL-TESTS",
+          "Test command: BCL-TESTS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.sh"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Codex write: ACU-SESSION",
+                "evidence": "The first job sent to fix the review finding got an empty request because the request file was given as a short path and the job runs from another folder. The job did nothing and was started again. The lane restart script now turns the path into a full one and refuses to start when the request file is missing or empty.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
+                "evidence": "The Grok Voice recheck failed only because the check expected the interrupted story to finish, while the fix now stops it on purpose. The check now leaves that one turn out and still requires every other turn, including empathy, to be answered.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Codex write: ACU-SESSION",
+                "evidence": "Grok Voice now stops the story within half a second and the stale replies on GPT-Live are gone, but on GPT-Live the story is handed to the backend task, which keeps running for about eleven seconds and holds back the redirect. The next restart brief carries the 20:34 timeline: audio stopped at 3.1 s, cancel confirmed and redirect started only at 13.8 s.",
+                "outcome": "issue",
+                "issue_id": "ACU-05"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Codex review: ACU-SESSION",
+                "evidence": "The first restart fix dropped GPT-Live replies that carry no request tag, which the offline tests missed and the reviewer caught. The live check now also requires the recall and tool turns after the redirect to give their own answers on both models, so that kind of break fails automatically; it fails on the earlier run and passes on this one.",
+                "outcome": "fixed inline"
+              },
+              {
+                "item": "Test command: ACU-HELPER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
+                "evidence": "The pre-push suite prints a strict skill shape failure for the Mac control skill but still passes, so the break has been there since round 3 without stopping anything. Filed so the test is fixed and the suite stops on any shape failure.",
+                "outcome": "issue",
+                "issue_id": "ACU-12"
+              }
+            ]
+          }
+        },
+        "round": 3,
+        "cycle": 9
       }
     ],
     "archive": {
@@ -9958,7 +10051,7 @@
             "ACU-03"
           ],
           "depends_on": [],
-          "status": "verified",
+          "status": "blocked",
           "phase": "verify",
           "worktree": "bcl117-r3-g1",
           "reason": "Bring the two finished fixes from the voice helper branch.",
@@ -9993,7 +10086,7 @@
             "summary": "Helper installed and connects on both models",
             "failure": null
           },
-          "updated_at": "2026-11-19T13:47:42Z",
+          "updated_at": "2026-11-19T15:07:54Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -10003,7 +10096,8 @@
             "status": "running",
             "started_at": "2026-11-19T13:20:28Z"
           },
-          "verify_summary": "Helper installed and connects on both models"
+          "verify_summary": "Helper installed and connects on both models",
+          "blocked_reason": "Prerequisite verification changed"
         },
         {
           "id": "ACU-SESSION",
@@ -10015,8 +10109,8 @@
             "ACU-10"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "failed",
+          "phase": "verify",
           "worktree": "bcl117-r3-g2",
           "reason": "All four live in the voice session code.",
           "codex": {
@@ -10047,10 +10141,10 @@
             "status": "partial",
             "total": 4,
             "fixed": 2,
-            "failed": 0,
+            "failed": 1,
             "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-19T14:50:19Z",
+          "updated_at": "2026-11-19T15:06:03Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -10148,8 +10242,8 @@
             "DEVOBS-07"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl117-r3-g5",
           "reason": "All three are gaps in how dev-obs reads the voice activity log.",
           "codex": {
@@ -10177,13 +10271,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
             "method": "Checked on the installed copy.",
-            "status": "partial",
+            "status": "verified",
             "total": 3,
-            "fixed": 2,
+            "fixed": 3,
             "failed": 0,
-            "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+            "failure": null,
+            "summary": "Failure details now show the error type and message"
           },
-          "updated_at": "2026-11-19T14:50:19Z",
+          "updated_at": "2026-11-19T15:07:53Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -10192,7 +10287,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-19T14:52:04Z"
-          }
+          },
+          "verify_summary": "Failure details now show the error type and message"
         },
         {
           "id": "BCL-TESTS",
@@ -10201,8 +10297,8 @@
             "BCL-82"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl117-r3-g6",
           "reason": "Timing and isolation in the test suites.",
           "codex": {
@@ -10229,13 +10325,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.sh",
             "method": "Checked on the installed copy.",
-            "status": "pending",
+            "status": "verified",
             "total": 1,
-            "fixed": 0,
+            "fixed": 1,
             "failed": 0,
-            "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+            "failure": null,
+            "summary": "Timing tests pass while the computer is busy"
           },
-          "updated_at": "2026-11-19T14:50:19Z",
+          "updated_at": "2026-11-19T15:07:54Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -10244,7 +10341,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-19T14:52:04Z"
-          }
+          },
+          "verify_summary": "Timing tests pass while the computer is busy"
         }
       ],
       "status": "closed"
@@ -10255,73 +10353,250 @@
       "revision": "880d8f52bea54ed3f82701108df53dc7adc22972",
       "installed_at": "2026-11-19T14:56:30Z",
       "install_evidence": "ACU 0.2.153 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-117/r3/acu-release-0.2.153.json; app and ~/.agents/plugins/agent-computer-use at 0.2.153); dev-obs 0.1.34 receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-devobs-0.1.34.txt; bcl 0.1.47 unchanged (receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-0.1.47.txt)",
-      "status": "active",
+      "status": "complete",
       "checks": {
         "BCL-75": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:54Z",
+          "started_at": "2026-11-19T15:07:54Z",
+          "updated_at": "2026-11-19T15:07:54Z",
+          "check_id": "66a98f6c3cad4e7b84b2292567d964ce",
+          "evidence": "Checked: Named tests on installed bcl 0.1.47 (recheck); Expected: Pass; Observed: Pass",
+          "details": "verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:55.019972Z"
         },
         "BCL-76": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:54Z",
+          "started_at": "2026-11-19T15:07:54Z",
+          "updated_at": "2026-11-19T15:07:54Z",
+          "check_id": "ffabfc267e644fd1ac062cb3a7ee9ba9",
+          "evidence": "Checked: Named tests on installed bcl 0.1.47 (recheck); Expected: Pass; Observed: Pass",
+          "details": "verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:55.020086Z"
         },
         "BCL-77": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:54Z",
+          "started_at": "2026-11-19T15:07:54Z",
+          "updated_at": "2026-11-19T15:07:54Z",
+          "check_id": "6a4ed4562cd541fca1db76bcbc1df61f",
+          "evidence": "Checked: Real-case check on installed dev-obs 0.1.34 (recheck); Expected: Pass; Observed: Pass",
+          "details": "verify-reg-devobs.log: BCL-77 2 project issues, diagnose expanded; BCL-78 2 junit findings for 2 failing tests; BCL-79 suggested fix names the failed assertion. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:55.020445Z"
         },
         "BCL-78": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:54Z",
+          "started_at": "2026-11-19T15:07:54Z",
+          "updated_at": "2026-11-19T15:07:54Z",
+          "check_id": "11d42a3ccfbe419dbca9f207809d49b1",
+          "evidence": "Checked: Real-case check on installed dev-obs 0.1.34 (recheck); Expected: Pass; Observed: Pass",
+          "details": "verify-reg-devobs.log: BCL-77 2 project issues, diagnose expanded; BCL-78 2 junit findings for 2 failing tests; BCL-79 suggested fix names the failed assertion. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:55.020562Z"
         },
         "BCL-79": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:54Z",
+          "started_at": "2026-11-19T15:07:54Z",
+          "updated_at": "2026-11-19T15:07:54Z",
+          "check_id": "418cecd9e88e4b2bbc790eff25566ad9",
+          "evidence": "Checked: Real-case check on installed dev-obs 0.1.34 (recheck); Expected: Pass; Observed: Pass",
+          "details": "verify-reg-devobs.log: BCL-77 2 project issues, diagnose expanded; BCL-78 2 junit findings for 2 failing tests; BCL-79 suggested fix names the failed assertion. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:55.020691Z"
         },
         "BCL-80": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:54Z",
+          "started_at": "2026-11-19T15:07:54Z",
+          "updated_at": "2026-11-19T15:07:54Z",
+          "check_id": "27ec3ac61ed7443faf379cf7e3f55244",
+          "evidence": "Checked: Named tests on installed bcl 0.1.47 (recheck); Expected: Pass; Observed: Pass",
+          "details": "verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:55.020198Z"
         },
         "BCL-81": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:54Z",
+          "started_at": "2026-11-19T15:07:54Z",
+          "updated_at": "2026-11-19T15:07:54Z",
+          "check_id": "3394a7f2b32c48eaa7e2a76c0a5985fd",
+          "evidence": "Checked: Named tests on installed bcl 0.1.47 (recheck); Expected: Pass; Observed: Pass",
+          "details": "verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:55.020318Z"
         },
         "ACU-01": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:12:00Z",
+          "started_at": "2026-11-19T15:08:20Z",
+          "updated_at": "2026-11-19T15:08:20Z",
+          "check_id": "728d92dca9b547e680dd97018ddf4665",
+          "evidence": "Checked: nothing yet; Expected: a fix in this install; Observed: this item was moved to round 4 and is not in this install",
+          "details": "Deferred by the four-lane cap; planned for round 4 (ACU-MENU, ACU-PROMPT, ACU-11). Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:08:20.697074Z"
         },
         "ACU-02": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:54Z",
+          "started_at": "2026-11-19T15:07:54Z",
+          "updated_at": "2026-11-19T15:07:54Z",
+          "check_id": "ac3431dddc9d4b3d9ab8411b750c121b",
+          "evidence": "Checked: Voice helper inside the installed app (recheck); Expected: Helper present, signed, guard tests pass; Observed: Present and signed; tests pass",
+          "details": "Installed 0.2.153: codesign deep strict ok, 5 named tests passed (verify-g1.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:55.019535Z"
         },
         "ACU-03": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:54Z",
+          "started_at": "2026-11-19T15:07:54Z",
+          "updated_at": "2026-11-19T15:07:54Z",
+          "check_id": "61e1c36ba9d347e881fa251bda6964c9",
+          "evidence": "Checked: Installed helper reaches ready on both models (recheck); Expected: Ready on both; Observed: Ready on both",
+          "details": "live3: GPT-Live-1 4.1 s, Grok Voice 3.0 2.0 s (verify-g1.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:55.019829Z"
         },
         "ACU-04": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:54Z",
+          "started_at": "2026-11-19T15:07:54Z",
+          "updated_at": "2026-11-19T15:07:54Z",
+          "check_id": "08559e14cdfd44709a428c3da8510bab",
+          "evidence": "Checked: Samantha start and status on the installed app (recheck); Expected: Ready with a reason field on both models; Observed: Both ready; GPT-Live-1 in 4.1 s, Grok Voice 3.0 in 2.0 s",
+          "details": "Installed 0.2.153 live3 run 20:34 IST; status reason null when ready; named tests pass on the installed copy (22 passed). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:54.656607Z"
         },
         "ACU-05": {
-          "state": "pending"
+          "state": "not_fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:54Z",
+          "started_at": "2026-11-19T15:07:54Z",
+          "updated_at": "2026-11-19T15:07:54Z",
+          "check_id": "28e04ae042844daaaa7da54736809808",
+          "evidence": "Checked: A redirect three seconds into a long story, both models; Expected: The story stops within about a second and the redirect is answered next; Observed: Fixed on Grok Voice; on GPT-Live-1 the story still ran to the end",
+          "details": "Installed 0.2.153 live3 20:34 IST. Grok Voice 3.0: story stopped 0.4 s after the redirect (before 19.9 s, r3a 13.2 s), redirect answered in 1.9 s, recall teal, tools ran. GPT-Live-1: recall now correct (teal) and multi_step ran its tools (both broken in r3a), but the story was handed to the backend task and that task was not stopped: audio stopped at 3.1 s, cancel_ack and story end only at 13.8 s, then the redirect ran (10.8 s after it was sent; before 8.5 s). Timeline: evidence-acu05-gpt-r3b.txt. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:54.657008Z"
         },
         "ACU-06": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:54Z",
+          "started_at": "2026-11-19T15:07:54Z",
+          "updated_at": "2026-11-19T15:07:54Z",
+          "check_id": "7b2900d5e316461c8646e2fd8ac2317e",
+          "evidence": "Checked: The typed scenarios on Grok Voice 3.0 (recheck); Expected: Every turn answered, including empathy after the browser task; Observed: Every turn answered; empathy in 1.7 s; the interrupted story is now stopped on purpose",
+          "details": "Installed 0.2.153 live3/run-grok-after.json: multi_step gave Example Domain and closed the window in 9.9 s; empathy 1.68 s. The check script first counted the deliberately stopped story turn as a failure; fixed to skip that turn (evaluate_live.py). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:54.656976Z"
         },
         "ACU-07": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:12:00Z",
+          "started_at": "2026-11-19T15:08:20Z",
+          "updated_at": "2026-11-19T15:08:20Z",
+          "check_id": "376ed089517c46dba647283a1e085af8",
+          "evidence": "Checked: nothing yet; Expected: a fix in this install; Observed: this item was moved to round 4 and is not in this install",
+          "details": "Deferred by the four-lane cap; planned for round 4 (ACU-MENU, ACU-PROMPT, ACU-11). Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:08:20.697106Z"
         },
         "ACU-08": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:12:00Z",
+          "started_at": "2026-11-19T15:08:20Z",
+          "updated_at": "2026-11-19T15:08:20Z",
+          "check_id": "d21e2bb8e45840a4bdd7e6e3fdbf3175",
+          "evidence": "Checked: nothing yet; Expected: a fix in this install; Observed: this item was moved to round 4 and is not in this install",
+          "details": "Deferred by the four-lane cap; planned for round 4 (ACU-MENU, ACU-PROMPT, ACU-11). Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:08:20.697129Z"
         },
         "ACU-09": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:12:00Z",
+          "started_at": "2026-11-19T15:08:20Z",
+          "updated_at": "2026-11-19T15:08:20Z",
+          "check_id": "1ba937322a4949a490af20332ea3452b",
+          "evidence": "Checked: nothing yet; Expected: a fix in this install; Observed: this item was moved to round 4 and is not in this install",
+          "details": "Deferred by the four-lane cap; planned for round 4 (ACU-MENU, ACU-PROMPT, ACU-11). Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:08:20.697150Z"
         },
         "ACU-10": {
-          "state": "pending"
+          "state": "blocked",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:12:00Z",
+          "started_at": "2026-11-19T15:08:20Z",
+          "updated_at": "2026-11-19T15:08:20Z",
+          "check_id": "06b94c2ba3764d24af3f5f78985fdba8",
+          "evidence": "Checked: Usage records from both models; Expected: Real input and output token counts; Observed: Still none from the providers; unknown is recorded instead of zero",
+          "details": "Installed 0.2.153 live3 20:34 IST: GPT-Live-1 live_usage carries voice_seconds only (29); Grok Voice usage tokens null. Unchanged provider limit since r3a. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log",
+          "blocker": "The voice providers do not send live model token counts",
+          "finished_at": "2026-11-19T15:08:20.696891Z"
         },
         "DEVOBS-05": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:53Z",
+          "started_at": "2026-11-19T15:07:53Z",
+          "updated_at": "2026-11-19T15:07:53Z",
+          "check_id": "8481f29188184e7fad86ab097d94c5a4",
+          "evidence": "Checked: Failure details for the real Samantha connect error; Expected: The error type and message show for each failure; Observed: Every failure shows a type and a message; the empty one says StopIteration with an empty message",
+          "details": "Installed 0.1.34 on the real activity log: realtime_error -> type websocket, message StopIteration with an empty message (transport); startup/realtime_ws_error -> type startup, same message; session_phase failures keep their own text. Before (0.1.33, 19:13 IST): message unknown. New tests fail on the old code (fixture from the real 16:57 IST row). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:53.859906Z"
         },
         "DEVOBS-06": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:53Z",
+          "started_at": "2026-11-19T15:07:53Z",
+          "updated_at": "2026-11-19T15:07:53Z",
+          "check_id": "62d7345d80c64a7a8abb2cf6b03102f5",
+          "evidence": "Checked: The session list on the real Samantha log (recheck); Expected: The Grok Voice session from 17:03 to 17:09 is listed; Observed: Still listed",
+          "details": "Installed 0.1.34: session sref_6f5b63fc3fa55f933d770e10a3bb60de listed. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:53.860319Z"
         },
         "DEVOBS-07": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:53Z",
+          "started_at": "2026-11-19T15:07:53Z",
+          "updated_at": "2026-11-19T15:07:53Z",
+          "check_id": "57ebaa5f8f624346b9d59a2256082009",
+          "evidence": "Checked: The issue list on the real Samantha log (recheck); Expected: Issues for no reply, a reply that kept going, and all-zero usage; Observed: All three still raised",
+          "details": "Installed 0.1.34: no reply (5), response still active after a new request (17), zero token usage (88). Installed dev-obs unit tests 147 OK. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:53.860470Z"
         },
         "BCL-82": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:07:54Z",
+          "started_at": "2026-11-19T15:07:54Z",
+          "updated_at": "2026-11-19T15:07:54Z",
+          "check_id": "c6f0b7c9841e4518b2bedbe7a7136da8",
+          "evidence": "Checked: The four timing-sensitive tests on the installed copies with four busy CPU loops running; Expected: All pass every time; Observed: All four passed in each of five rounds",
+          "details": "Installed bcl 0.1.47 and dev-obs 0.1.34: 3 named bcl tests and the dev-obs 4 MB parse test, 5 rounds under 4 CPU burners. Before (r2): these failed under load. The r3a verify failure was a fault in the check script (argument order), fixed and re-run through a no-code restart job. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.log. Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:07:54.251183Z"
         },
         "ACU-11": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T15:12:00Z",
+          "started_at": "2026-11-19T15:08:20Z",
+          "updated_at": "2026-11-19T15:08:20Z",
+          "check_id": "e36b60c4b06e412aae4c5ad94fbbec88",
+          "evidence": "Checked: nothing yet; Expected: a fix in this install; Observed: this item was moved to round 4 and is not in this install",
+          "details": "Deferred by the four-lane cap; planned for round 4 (ACU-MENU, ACU-PROMPT, ACU-11). Run r3b-880d8f52-117.",
+          "finished_at": "2026-11-19T15:08:20.697170Z"
         }
       },
       "shared_check": {
@@ -10333,7 +10608,7 @@
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-19T13:49:21Z",
+      "at": "2026-11-19T15:09:52Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
@@ -10362,30 +10637,26 @@
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
+        "Parallel group count: 4",
         "Codex write: ACU-HELPER",
         "Codex review: ACU-HELPER",
         "Polling and rework review: ACU-HELPER",
-        "Test command: ACU-HELPER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
-        "Codex review: ACU-SESSION",
         "Polling and rework review: ACU-SESSION",
         "Codex write: DEVOBS",
         "Codex review: DEVOBS",
         "Polling and rework review: DEVOBS",
+        "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
         "Codex write: BCL-TESTS",
         "Codex review: BCL-TESTS",
-        "Polling and rework review: BCL-TESTS"
+        "Polling and rework review: BCL-TESTS",
+        "Test command: BCL-TESTS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.sh"
       ],
       "sections": {
         "delete": {
           "items": [
             {
-              "item": "Test command: BCL-TESTS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.sh",
-              "evidence": "The load check for the flaky tests failed only because the check script put a test filter before the test folder, so the lane was marked failed with no product fault. A check script that has not been run once by hand is now removed from the flow: every new check runs alone once before bcl verify uses it.",
-              "outcome": "fixed inline"
-            },
-            {
-              "item": "Parallel group count: 4",
-              "evidence": "I first started six coding jobs, above the limit of four groups a round. Two were stopped, their partial work kept aside and both groups deferred to the next round; one other job was caught by that stop and had to be restarted. Only four groups are started from now on.",
+              "item": "Codex write: ACU-SESSION",
+              "evidence": "The first job sent to fix the review finding got an empty request because the request file was given as a short path and the job runs from another folder. The job did nothing and was started again. The lane restart script now turns the path into a full one and refuses to start when the request file is missing or empty.",
               "outcome": "fixed inline"
             }
           ]
@@ -10394,7 +10665,7 @@
           "items": [
             {
               "item": "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
-              "evidence": "One typed run on both voice models now serves the helper lane and the session lane, and it always ends by selecting Grok Voice and turning Samantha off, so the app is switched on twice instead of four times.",
+              "evidence": "The Grok Voice recheck failed only because the check expected the interrupted story to finish, while the fix now stops it on purpose. The check now leaves that one turn out and still requires every other turn, including empathy, to be answered.",
               "outcome": "fixed inline"
             }
           ]
@@ -10403,7 +10674,7 @@
           "items": [
             {
               "item": "Codex write: ACU-SESSION",
-              "evidence": "The offline tests passed but the real run showed Grok still finishing its story and GPT giving stale replies to the next two turns. The restart brief adds the real 19:14 timeline and asks for a two-provider test that checks the reply of each turn after a redirect.",
+              "evidence": "Grok Voice now stops the story within half a second and the stale replies on GPT-Live are gone, but on GPT-Live the story is handed to the backend task, which keeps running for about eleven seconds and holds back the redirect. The next restart brief carries the 20:34 timeline: audio stopped at 3.1 s, cancel confirmed and redirect started only at 13.8 s.",
               "outcome": "issue",
               "issue_id": "ACU-05"
             }
@@ -10412,9 +10683,15 @@
         "automate": {
           "items": [
             {
-              "item": "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
-              "evidence": "The real connect error line carries its exception type in a field the fixtures never had, so the fix missed it. The check reads the real log every time, and a script now runs every new test against the old code in one go, which showed all 30 new tests failing there.",
+              "item": "Codex review: ACU-SESSION",
+              "evidence": "The first restart fix dropped GPT-Live replies that carry no request tag, which the offline tests missed and the reviewer caught. The live check now also requires the recall and tool turns after the redirect to give their own answers on both models, so that kind of break fails automatically; it fails on the earlier run and passes on this one.",
               "outcome": "fixed inline"
+            },
+            {
+              "item": "Test command: ACU-HELPER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
+              "evidence": "The pre-push suite prints a strict skill shape failure for the Mac control skill but still passes, so the break has been there since round 3 without stopping anything. Filed so the test is fixed and the suite stops on any shape failure.",
+              "outcome": "issue",
+              "issue_id": "ACU-12"
             }
           ]
         }
@@ -10447,11 +10724,23 @@
           "timestamp": "2026-11-19T09:18:23Z",
           "reference": "748cd8b64748102991462f9b0105209e628232e2:BCL-75:installed-check",
           "details": "live_page.py: BCL-75 PASS header 'samantha-next-rollover', stored full path. Named tests on installed 0.1.45: test_rollover_stores_worktree_name_from_full_path, test_rollover_uses_explicit_path_when_worktree_names_duplicate, test_legacy_worktree_path_is_short_in_header_and_full_in_details. Baseline 0.1.44: header showed /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-rollover. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117."
+        },
+        {
+          "checked": "Named tests on installed bcl 0.1.47 (recheck)",
+          "expected": "Pass",
+          "observed": "Pass",
+          "verdict": "Pass",
+          "check_id": "bcl-75-0.1.34-880d8f52",
+          "build": "agent-computer-use 0.2.153, batched-change-list 0.1.47, developer-observability 0.1.34",
+          "session": "r3b-880d8f52-117",
+          "timestamp": "2026-11-19T15:07:54Z",
+          "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-75:installed-check",
+          "details": "verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
         }
       ],
-      "verification": "The header shows samantha-next-rollover and the full path sits under Details; the old version showed the full path. live_page.py: BCL-75 PASS header 'samantha-next-rollover', stored full path. Named tests on installed 0.1.45: test_rollover_stores_worktree_name_from_full_path, test_rollover_uses_explicit_path_when_worktree_names_duplicate, test_legacy_worktree_path_is_short_in_header_and_full_in_details. Baseline 0.1.44: header showed /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-rollover. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
+      "verification": "Pass verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
       "verification_refs": [
-        "748cd8b64748102991462f9b0105209e628232e2:BCL-75:installed-check"
+        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-75:installed-check"
       ]
     },
     {
@@ -10477,11 +10766,23 @@
           "timestamp": "2026-11-19T09:18:23Z",
           "reference": "748cd8b64748102991462f9b0105209e628232e2:BCL-76:installed-check",
           "details": "live_page.py: BCL-76 live PASS 3/15 class 'wf-step upcoming wf-gate' label gate not met; empty list PASS 0/15 class upcoming. Baseline 0.1.44 empty list: class 'wf-step done wf-gate', label 'gate met'. Named tests: test_zero_verified_fixes_never_marks_workflow_gate_done, test_report_gate_keeps_no_open_exception_separate_from_ui_gate, test_status_keeps_empty_report_exception_separate_from_verified_gate, test_documented_gate_count_command_keeps_report_exception. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117."
+        },
+        {
+          "checked": "Named tests on installed bcl 0.1.47 (recheck)",
+          "expected": "Pass",
+          "observed": "Pass",
+          "verdict": "Pass",
+          "check_id": "bcl-76-0.1.34-880d8f52",
+          "build": "agent-computer-use 0.2.153, batched-change-list 0.1.47, developer-observability 0.1.34",
+          "session": "r3b-880d8f52-117",
+          "timestamp": "2026-11-19T15:07:54Z",
+          "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-76:installed-check",
+          "details": "verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
         }
       ],
-      "verification": "Live page at 3 of 15 and the empty list at 0 of 15 both show the gate as not met. live_page.py: BCL-76 live PASS 3/15 class 'wf-step upcoming wf-gate' label gate not met; empty list PASS 0/15 class upcoming. Baseline 0.1.44 empty list: class 'wf-step done wf-gate', label 'gate met'. Named tests: test_zero_verified_fixes_never_marks_workflow_gate_done, test_report_gate_keeps_no_open_exception_separate_from_ui_gate, test_status_keeps_empty_report_exception_separate_from_verified_gate, test_documented_gate_count_command_keeps_report_exception. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
+      "verification": "Pass verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
       "verification_refs": [
-        "748cd8b64748102991462f9b0105209e628232e2:BCL-76:installed-check"
+        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-76:installed-check"
       ]
     },
     {
@@ -10507,11 +10808,23 @@
           "timestamp": "2026-11-19T09:16:42Z",
           "reference": "748cd8b64748102991462f9b0105209e628232e2:BCL-77:installed-check",
           "details": "verify-g2.py on installed 0.1.32: BCL-77 PASS: 2 project issues, 2 from this case; diagnose expanded=True. Baseline on installed 0.1.30: 0 project issues. Config: isolated, no projects, collector.out temp. Installed dev-obs unittest: 139 OK (1 skipped). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117."
+        },
+        {
+          "checked": "Real-case check on installed dev-obs 0.1.34 (recheck)",
+          "expected": "Pass",
+          "observed": "Pass",
+          "verdict": "Pass",
+          "check_id": "bcl-77-0.1.34-880d8f52",
+          "build": "agent-computer-use 0.2.153, batched-change-list 0.1.47, developer-observability 0.1.34",
+          "session": "r3b-880d8f52-117",
+          "timestamp": "2026-11-19T15:07:54Z",
+          "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-77:installed-check",
+          "details": "verify-reg-devobs.log: BCL-77 2 project issues, diagnose expanded; BCL-78 2 junit findings for 2 failing tests; BCL-79 suggested fix names the failed assertion. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
         }
       ],
-      "verification": "Both test failures appear under Context Ledger and their details open; the old version listed none. verify-g2.py on installed 0.1.32: BCL-77 PASS: 2 project issues, 2 from this case; diagnose expanded=True. Baseline on installed 0.1.30: 0 project issues. Config: isolated, no projects, collector.out temp. Installed dev-obs unittest: 139 OK (1 skipped). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117.",
+      "verification": "Pass verify-reg-devobs.log: BCL-77 2 project issues, diagnose expanded; BCL-78 2 junit findings for 2 failing tests; BCL-79 suggested fix names the failed assertion. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
       "verification_refs": [
-        "748cd8b64748102991462f9b0105209e628232e2:BCL-77:installed-check"
+        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-77:installed-check"
       ]
     },
     {
@@ -10537,11 +10850,23 @@
           "timestamp": "2026-11-19T09:16:42Z",
           "reference": "748cd8b64748102991462f9b0105209e628232e2:BCL-78:installed-check",
           "details": "BCL-78 PASS: 0 log + 2 junit findings for 2 failing tests; per test {test_find_tiers_from_outcomes: 1, test_pure_boundaries: 1}; session-summary findings 0. Baseline 0.1.30: 3 log + 1 junit, test_pure_boundaries 0, summary 1. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117."
+        },
+        {
+          "checked": "Real-case check on installed dev-obs 0.1.34 (recheck)",
+          "expected": "Pass",
+          "observed": "Pass",
+          "verdict": "Pass",
+          "check_id": "bcl-78-0.1.34-880d8f52",
+          "build": "agent-computer-use 0.2.153, batched-change-list 0.1.47, developer-observability 0.1.34",
+          "session": "r3b-880d8f52-117",
+          "timestamp": "2026-11-19T15:07:54Z",
+          "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-78:installed-check",
+          "details": "verify-reg-devobs.log: BCL-77 2 project issues, diagnose expanded; BCL-78 2 junit findings for 2 failing tests; BCL-79 suggested fix names the failed assertion. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
         }
       ],
-      "verification": "Two findings, one for each failing test, and no summary finding; the old version made four rows for one test. BCL-78 PASS: 0 log + 2 junit findings for 2 failing tests; per test {test_find_tiers_from_outcomes: 1, test_pure_boundaries: 1}; session-summary findings 0. Baseline 0.1.30: 3 log + 1 junit, test_pure_boundaries 0, summary 1. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117.",
+      "verification": "Pass verify-reg-devobs.log: BCL-77 2 project issues, diagnose expanded; BCL-78 2 junit findings for 2 failing tests; BCL-79 suggested fix names the failed assertion. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
       "verification_refs": [
-        "748cd8b64748102991462f9b0105209e628232e2:BCL-78:installed-check"
+        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-78:installed-check"
       ]
     },
     {
@@ -10567,11 +10892,23 @@
           "timestamp": "2026-11-19T09:16:42Z",
           "reference": "748cd8b64748102991462f9b0105209e628232e2:BCL-79:installed-check",
           "details": "BCL-79 PASS: fix 'Inspect the failed assertion for test tests.test_v2.TrustTierTests.test_find_tiers_from_outcomes: \"AssertionError: 'hint' != 'trusted'\".' Baseline 0.1.30: 'Inspect the CI check log for the failed test ...'. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117."
+        },
+        {
+          "checked": "Real-case check on installed dev-obs 0.1.34 (recheck)",
+          "expected": "Pass",
+          "observed": "Pass",
+          "verdict": "Pass",
+          "check_id": "bcl-79-0.1.34-880d8f52",
+          "build": "agent-computer-use 0.2.153, batched-change-list 0.1.47, developer-observability 0.1.34",
+          "session": "r3b-880d8f52-117",
+          "timestamp": "2026-11-19T15:07:54Z",
+          "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-79:installed-check",
+          "details": "verify-reg-devobs.log: BCL-77 2 project issues, diagnose expanded; BCL-78 2 junit findings for 2 failing tests; BCL-79 suggested fix names the failed assertion. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
         }
       ],
-      "verification": "Each suggestion names its test and quotes the expected and actual values, hint versus trusted; CI is not mentioned. BCL-79 PASS: fix 'Inspect the failed assertion for test tests.test_v2.TrustTierTests.test_find_tiers_from_outcomes: \"AssertionError: 'hint' != 'trusted'\".' Baseline 0.1.30: 'Inspect the CI check log for the failed test ...'. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.log. Run bcl-0.1.45-748cd8b6-117.",
+      "verification": "Pass verify-reg-devobs.log: BCL-77 2 project issues, diagnose expanded; BCL-78 2 junit findings for 2 failing tests; BCL-79 suggested fix names the failed assertion. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
       "verification_refs": [
-        "748cd8b64748102991462f9b0105209e628232e2:BCL-79:installed-check"
+        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-79:installed-check"
       ]
     },
     {
@@ -10597,11 +10934,23 @@
           "timestamp": "2026-11-19T09:18:23Z",
           "reference": "748cd8b64748102991462f9b0105209e628232e2:BCL-80:installed-check",
           "details": "live_page.py: BCL-80 all lanes in review PASS bar 'review'; live PASS lanes (BCL-PAGE install, DEVOBS verify) bar 'install'. Baseline 0.1.44 at 14:35 IST with both lanes in review: plan_fix done, review upcoming. Named tests: test_all_active_lanes_in_review_make_review_current, test_fix_and_review_lanes_keep_plan_fix_current, test_no_active_lanes_fall_back_to_tracker_stage, test_status_current_stage_matches_active_lanes. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117."
+        },
+        {
+          "checked": "Named tests on installed bcl 0.1.47 (recheck)",
+          "expected": "Pass",
+          "observed": "Pass",
+          "verdict": "Pass",
+          "check_id": "bcl-80-0.1.34-880d8f52",
+          "build": "agent-computer-use 0.2.153, batched-change-list 0.1.47, developer-observability 0.1.34",
+          "session": "r3b-880d8f52-117",
+          "timestamp": "2026-11-19T15:07:54Z",
+          "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-80:installed-check",
+          "details": "verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
         }
       ],
-      "verification": "Both lanes in review now marks Review; the live page marks the earliest step a lane is in. live_page.py: BCL-80 all lanes in review PASS bar 'review'; live PASS lanes (BCL-PAGE install, DEVOBS verify) bar 'install'. Baseline 0.1.44 at 14:35 IST with both lanes in review: plan_fix done, review upcoming. Named tests: test_all_active_lanes_in_review_make_review_current, test_fix_and_review_lanes_keep_plan_fix_current, test_no_active_lanes_fall_back_to_tracker_stage, test_status_current_stage_matches_active_lanes. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
+      "verification": "Pass verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
       "verification_refs": [
-        "748cd8b64748102991462f9b0105209e628232e2:BCL-80:installed-check"
+        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-80:installed-check"
       ]
     },
     {
@@ -10627,11 +10976,23 @@
           "timestamp": "2026-11-19T11:28:19Z",
           "reference": "4e76cd24a5125fca4ec63dd00e285e0e5694b10b:BCL-81:installed-check",
           "details": "Named tests on installed 0.1.46: test_restart_after_early_introspect_keeps_round_through_final_introspect (drives bcl verify fail -> introspect -> job --phase fix restart -> install -> verify -> introspect), test_new_plan_after_completed_round_advances_once. Same restart test on installed 0.1.45: AssertionError 2 != 1 (r2/old-fails.log). Live: live_round.py page Round 2 = tracker round 2; cycle 9 history one entry round 1 fixed 6 after correcting the spurious advance (backup r2/117.before-round-fix.*.json). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.log. Run bcl-0.1.46-4e76cd24-117."
+        },
+        {
+          "checked": "Named tests on installed bcl 0.1.47 (recheck)",
+          "expected": "Pass",
+          "observed": "Pass",
+          "verdict": "Pass",
+          "check_id": "bcl-81-0.1.34-880d8f52",
+          "build": "agent-computer-use 0.2.153, batched-change-list 0.1.47, developer-observability 0.1.34",
+          "session": "r3b-880d8f52-117",
+          "timestamp": "2026-11-19T15:07:54Z",
+          "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-81:installed-check",
+          "details": "verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
         }
       ],
-      "verification": "The round stayed at 1 with no extra history; the old version moved to round 2. The live page reads Round 2, the real second round. Named tests on installed 0.1.46: test_restart_after_early_introspect_keeps_round_through_final_introspect (drives bcl verify fail -> introspect -> job --phase fix restart -> install -> verify -> introspect), test_new_plan_after_completed_round_advances_once. Same restart test on installed 0.1.45: AssertionError 2 != 1 (r2/old-fails.log). Live: live_round.py page Round 2 = tracker round 2; cycle 9 history one entry round 1 fixed 6 after correcting the spurious advance (backup r2/117.before-round-fix.*.json). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.log. Run bcl-0.1.46-4e76cd24-117.",
+      "verification": "Pass verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
       "verification_refs": [
-        "4e76cd24a5125fca4ec63dd00e285e0e5694b10b:BCL-81:installed-check"
+        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-81:installed-check"
       ]
     },
     {
@@ -10677,11 +11038,23 @@
           "timestamp": "2026-11-19T13:47:42Z",
           "reference": "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-02:installed-check",
           "details": "Installed 0.2.152 via the local signed release: voice-cua helper present, codesign deep strict ok. Named tests on the installed copy pass: require voice helper, skip voice bundle argument rejected, PyInstaller preflight fails before the bundle is created, builder does not install PyInstaller; all fail or hang on old code (r3/old-fails-r3.log). Before: 14 Nov install finished without the helper. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.log. Run r3-356d68f6-117."
+        },
+        {
+          "checked": "Voice helper inside the installed app (recheck)",
+          "expected": "Helper present, signed, guard tests pass",
+          "observed": "Present and signed; tests pass",
+          "verdict": "Present and signed; tests pass",
+          "check_id": "acu-02-0.1.34-880d8f52",
+          "build": "agent-computer-use 0.2.153, batched-change-list 0.1.47, developer-observability 0.1.34",
+          "session": "r3b-880d8f52-117",
+          "timestamp": "2026-11-19T15:07:54Z",
+          "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-02:installed-check",
+          "details": "Installed 0.2.153: codesign deep strict ok, 5 named tests passed (verify-g1.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
         }
       ],
-      "verification": "The helper is inside the signed app and every installer guard holds Installed 0.2.152 via the local signed release: voice-cua helper present, codesign deep strict ok. Named tests on the installed copy pass: require voice helper, skip voice bundle argument rejected, PyInstaller preflight fails before the bundle is created, builder does not install PyInstaller; all fail or hang on old code (r3/old-fails-r3.log). Before: 14 Nov install finished without the helper. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.log. Run r3-356d68f6-117.",
+      "verification": "Present and signed; tests pass Installed 0.2.153: codesign deep strict ok, 5 named tests passed (verify-g1.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
       "verification_refs": [
-        "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-02:installed-check"
+        "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-02:installed-check"
       ]
     },
     {
@@ -10711,11 +11084,23 @@
           "timestamp": "2026-11-19T13:47:42Z",
           "reference": "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-03:installed-check",
           "details": "Installed 0.2.152 frozen helper: both models reached ready and answered typed turns. test_plugin_root_includes_script_directory passes on the installed copy and fails on old code. Before (0.2.151 build 1253): empty websocket error, StopIteration, never ready. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.log. Run r3-356d68f6-117."
+        },
+        {
+          "checked": "Installed helper reaches ready on both models (recheck)",
+          "expected": "Ready on both",
+          "observed": "Ready on both",
+          "verdict": "Ready on both",
+          "check_id": "acu-03-0.1.34-880d8f52",
+          "build": "agent-computer-use 0.2.153, batched-change-list 0.1.47, developer-observability 0.1.34",
+          "session": "r3b-880d8f52-117",
+          "timestamp": "2026-11-19T15:07:54Z",
+          "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-03:installed-check",
+          "details": "live3: GPT-Live-1 4.1 s, Grok Voice 3.0 2.0 s (verify-g1.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
         }
       ],
-      "verification": "Ready in 8.1 s on GPT-Live-1 and 4.1 s on Grok Voice Installed 0.2.152 frozen helper: both models reached ready and answered typed turns. test_plugin_root_includes_script_directory passes on the installed copy and fails on old code. Before (0.2.151 build 1253): empty websocket error, StopIteration, never ready. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.log. Run r3-356d68f6-117.",
+      "verification": "Ready on both live3: GPT-Live-1 4.1 s, Grok Voice 3.0 2.0 s (verify-g1.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
       "verification_refs": [
-        "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-03:installed-check"
+        "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-03:installed-check"
       ]
     },
     {
@@ -10745,11 +11130,23 @@
           "timestamp": "2026-11-19T13:47:05Z",
           "reference": "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-04:installed-check",
           "details": "Installed 0.2.152: GPT-Live-1 ready in 8.1 s, Grok Voice 3.0 ready in 4.1 s, status reason null when ready. Named tests on the installed copy pass (setup callback error closes and reports not ready reason; status reports setup reason until ready); they fail on old code (r3/old-fails-r3.log). Before: status said healthy while not ready for over two minutes. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117."
+        },
+        {
+          "checked": "Samantha start and status on the installed app (recheck)",
+          "expected": "Ready with a reason field on both models",
+          "observed": "Both ready; GPT-Live-1 in 4.1 s, Grok Voice 3.0 in 2.0 s",
+          "verdict": "Both ready; GPT-Live-1 in 4.1 s, Grok Voice 3.0 in 2.0 s",
+          "check_id": "acu-04-0.2.153-880d8f52",
+          "build": "agent-computer-use 0.2.153",
+          "session": "r3b-880d8f52-117",
+          "timestamp": "2026-11-19T15:07:54Z",
+          "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-04:installed-check",
+          "details": "Installed 0.2.153 live3 run 20:34 IST; status reason null when ready; named tests pass on the installed copy (22 passed). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3b-880d8f52-117."
         }
       ],
-      "verification": "Both models reach ready and status carries a reason field Installed 0.2.152: GPT-Live-1 ready in 8.1 s, Grok Voice 3.0 ready in 4.1 s, status reason null when ready. Named tests on the installed copy pass (setup callback error closes and reports not ready reason; status reports setup reason until ready); they fail on old code (r3/old-fails-r3.log). Before: status said healthy while not ready for over two minutes. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117.",
+      "verification": "Both ready; GPT-Live-1 in 4.1 s, Grok Voice 3.0 in 2.0 s Installed 0.2.153 live3 run 20:34 IST; status reason null when ready; named tests pass on the installed copy (22 passed). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3b-880d8f52-117.",
       "verification_refs": [
-        "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-04:installed-check"
+        "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-04:installed-check"
       ]
     },
     {
@@ -10762,7 +11159,7 @@
       "done_when": "A new request during a reply stops the current reply within about a second and the redirect is answered next; a test proves it for typed and spoken turns.",
       "observed": "19 Nov 2026 typed test: long story then a redirect 3 seconds later. Grok Voice 3.0: story ran 22.9 s to the end, redirect answered after 19.9 s. GPT-Live-1: story ran 11.5 s, redirect answered after 8.5 s.",
       "recommendation": "Cancel the active response when a new typed or spoken request arrives, as the spoken stop-word path already does.",
-      "status": "in_progress",
+      "status": "failing",
       "details": {
         "Technical wording": "send_text() sends conversation.item.create + response.create without response.cancel when _active_response_ids is non-empty.",
         "Dev-obs evidence": "GPT session sref_8a6f2dba34a1bb4ef2de2b5299e0cf93: model_response_end p95 13.1 s (col-6be7b29503e9ce22). Dev-obs has no interruption signal, so this came from the test runner timings."
@@ -10795,11 +11192,23 @@
           "timestamp": "2026-11-19T13:47:05Z",
           "reference": "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-06:installed-check",
           "details": "Installed 0.2.152 run-grok-after.json: multi_step gave the heading Example Domain and closed the window in 9.2 s; empathy answered in 1.57 s; each tool ran once. Before: empathy got no reply in 180 s and tools ran twice. Named watchdog and duplicate tests pass on installed copy. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117."
+        },
+        {
+          "checked": "The typed scenarios on Grok Voice 3.0 (recheck)",
+          "expected": "Every turn answered, including empathy after the browser task",
+          "observed": "Every turn answered; empathy in 1.7 s; the interrupted story is now stopped on purpose",
+          "verdict": "Every turn answered; empathy in 1.7 s; the interrupted story is now stopped on purpose",
+          "check_id": "acu-06-0.2.153-880d8f52",
+          "build": "agent-computer-use 0.2.153",
+          "session": "r3b-880d8f52-117",
+          "timestamp": "2026-11-19T15:07:54Z",
+          "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-06:installed-check",
+          "details": "Installed 0.2.153 live3/run-grok-after.json: multi_step gave Example Domain and closed the window in 9.9 s; empathy 1.68 s. The check script first counted the deliberately stopped story turn as a failure; fixed to skip that turn (evaluate_live.py). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3b-880d8f52-117."
         }
       ],
-      "verification": "All six turns answered; empathy in 1.6 seconds Installed 0.2.152 run-grok-after.json: multi_step gave the heading Example Domain and closed the window in 9.2 s; empathy answered in 1.57 s; each tool ran once. Before: empathy got no reply in 180 s and tools ran twice. Named watchdog and duplicate tests pass on installed copy. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117.",
+      "verification": "Every turn answered; empathy in 1.7 s; the interrupted story is now stopped on purpose Installed 0.2.153 live3/run-grok-after.json: multi_step gave Example Domain and closed the window in 9.9 s; empathy 1.68 s. The check script first counted the deliberately stopped story turn as a failure; fixed to skip that turn (evaluate_live.py). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3b-880d8f52-117.",
       "verification_refs": [
-        "356d68f6590f4dda227935d9f8f6b55b490d7b4c:ACU-06:installed-check"
+        "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-06:installed-check"
       ]
     },
     {
@@ -10876,10 +11285,28 @@
       "done_when": "Dev-obs shows the error type and message for each failure occurrence; a test with a recorded error proves it.",
       "observed": "19 Nov 2026 16:58 IST: inspect with diagnostics on returned observed unknown, first error line unknown, diagnostics not available.",
       "recommendation": "Carry the logged exception type into the issue excerpt and occurrence timeline.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "Technical wording": "activity row kind=realtime_error exception_type=StopIteration error=''; observability_inspect_issue col-094b3a882656ae8f include_diagnostics=true -> observed 'unknown', excerpts.first_error_line 'unknown', diagnostics_available false."
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "Failure details for the real Samantha connect error",
+          "expected": "The error type and message show for each failure",
+          "observed": "Every failure shows a type and a message; the empty one says StopIteration with an empty message",
+          "verdict": "Every failure shows a type and a message; the empty one says StopIteration with an empty message",
+          "check_id": "devobs-05-0.1.34-880d8f52",
+          "build": "developer-observability 0.1.34",
+          "session": "r3b-880d8f52-117",
+          "timestamp": "2026-11-19T15:07:53Z",
+          "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:DEVOBS-05:installed-check",
+          "details": "Installed 0.1.34 on the real activity log: realtime_error -> type websocket, message StopIteration with an empty message (transport); startup/realtime_ws_error -> type startup, same message; session_phase failures keep their own text. Before (0.1.33, 19:13 IST): message unknown. New tests fail on the old code (fixture from the real 16:57 IST row). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3b-880d8f52-117."
+        }
+      ],
+      "verification": "Every failure shows a type and a message; the empty one says StopIteration with an empty message Installed 0.1.34 on the real activity log: realtime_error -> type websocket, message StopIteration with an empty message (transport); startup/realtime_ws_error -> type startup, same message; session_phase failures keep their own text. Before (0.1.33, 19:13 IST): message unknown. New tests fail on the old code (fixture from the real 16:57 IST row). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3b-880d8f52-117.",
+      "verification_refs": [
+        "880d8f52bea54ed3f82701108df53dc7adc22972:DEVOBS-05:installed-check"
+      ]
     },
     {
       "id": "DEVOBS-06",
@@ -10907,11 +11334,23 @@
           "timestamp": "2026-11-19T13:43:44Z",
           "reference": "356d68f6590f4dda227935d9f8f6b55b490d7b4c:DEVOBS-06:installed-check",
           "details": "Installed 0.1.33 after a fresh collect: session sref_6f5b63fc3fa55f933d770e10a3bb60de last seen 11:39:53Z. Before (0.1.32, 17:12 IST): missing. Named tests pass on the installed copy; 9 new tests fail on old code (r3/old-fails-r3.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117."
+        },
+        {
+          "checked": "The session list on the real Samantha log (recheck)",
+          "expected": "The Grok Voice session from 17:03 to 17:09 is listed",
+          "observed": "Still listed",
+          "verdict": "Still listed",
+          "check_id": "devobs-06-0.1.34-880d8f52",
+          "build": "developer-observability 0.1.34",
+          "session": "r3b-880d8f52-117",
+          "timestamp": "2026-11-19T15:07:53Z",
+          "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:DEVOBS-06:installed-check",
+          "details": "Installed 0.1.34: session sref_6f5b63fc3fa55f933d770e10a3bb60de listed. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3b-880d8f52-117."
         }
       ],
-      "verification": "It is listed with its steps Installed 0.1.33 after a fresh collect: session sref_6f5b63fc3fa55f933d770e10a3bb60de last seen 11:39:53Z. Before (0.1.32, 17:12 IST): missing. Named tests pass on the installed copy; 9 new tests fail on old code (r3/old-fails-r3.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117.",
+      "verification": "Still listed Installed 0.1.34: session sref_6f5b63fc3fa55f933d770e10a3bb60de listed. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3b-880d8f52-117.",
       "verification_refs": [
-        "356d68f6590f4dda227935d9f8f6b55b490d7b4c:DEVOBS-06:installed-check"
+        "880d8f52bea54ed3f82701108df53dc7adc22972:DEVOBS-06:installed-check"
       ]
     },
     {
@@ -10940,11 +11379,23 @@
           "timestamp": "2026-11-19T13:43:44Z",
           "reference": "356d68f6590f4dda227935d9f8f6b55b490d7b4c:DEVOBS-07:installed-check",
           "details": "Installed 0.1.33: no reply within 180 s (4 occurrences), response still active after a new request (15), zero token usage (88). Before (0.1.32): only latency hotspots for the window. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117."
+        },
+        {
+          "checked": "The issue list on the real Samantha log (recheck)",
+          "expected": "Issues for no reply, a reply that kept going, and all-zero usage",
+          "observed": "All three still raised",
+          "verdict": "All three still raised",
+          "check_id": "devobs-07-0.1.34-880d8f52",
+          "build": "developer-observability 0.1.34",
+          "session": "r3b-880d8f52-117",
+          "timestamp": "2026-11-19T15:07:53Z",
+          "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:DEVOBS-07:installed-check",
+          "details": "Installed 0.1.34: no reply (5), response still active after a new request (17), zero token usage (88). Installed dev-obs unit tests 147 OK. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3b-880d8f52-117."
         }
       ],
-      "verification": "All three issues are raised Installed 0.1.33: no reply within 180 s (4 occurrences), response still active after a new request (15), zero token usage (88). Before (0.1.32): only latency hotspots for the window. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117.",
+      "verification": "All three still raised Installed 0.1.34: no reply (5), response still active after a new request (17), zero token usage (88). Installed dev-obs unit tests 147 OK. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3b-880d8f52-117.",
       "verification_refs": [
-        "356d68f6590f4dda227935d9f8f6b55b490d7b4c:DEVOBS-07:installed-check"
+        "880d8f52bea54ed3f82701108df53dc7adc22972:DEVOBS-07:installed-check"
       ]
     },
     {
@@ -10957,7 +11408,25 @@
       "done_when": "Each of these tests passes reliably under load without proving less than before, shown by repeated runs while the full suite is busy.",
       "observed": "19 Nov 2026: ACU reinstall run full suite: test_bcl test_failed_command_does_not_overwrite_newer_plan failed twice. 16:47 IST #117 r2 presuite at load ~11: test_serve test_health_requires_matching_instance_tracker_and_pid, test_bcl test_fix_then_presuite_then_review_succeeds, dev-obs test_collector test_four_megabyte_jsonl_under_ten_seconds (10.2 s > 10 s); all passed alone and on rerun.",
       "recommendation": "Replace fixed sleeps and tight timeouts with condition waits that have generous limits, isolate shared temp state and ports, and make the speed check independent of machine load.",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "The four timing-sensitive tests on the installed copies with four busy CPU loops running",
+          "expected": "All pass every time",
+          "observed": "All four passed in each of five rounds",
+          "verdict": "All four passed in each of five rounds",
+          "check_id": "bcl-82-0.1.47-880d8f52",
+          "build": "batched-change-list 0.1.47",
+          "session": "r3b-880d8f52-117",
+          "timestamp": "2026-11-19T15:07:54Z",
+          "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-82:installed-check",
+          "details": "Installed bcl 0.1.47 and dev-obs 0.1.34: 3 named bcl tests and the dev-obs 4 MB parse test, 5 rounds under 4 CPU burners. Before (r2): these failed under load. The r3a verify failure was a fault in the check script (argument order), fixed and re-run through a no-code restart job. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.log. Run r3b-880d8f52-117."
+        }
+      ],
+      "verification": "All four passed in each of five rounds Installed bcl 0.1.47 and dev-obs 0.1.34: 3 named bcl tests and the dev-obs 4 MB parse test, 5 rounds under 4 CPU burners. Before (r2): these failed under load. The r3a verify failure was a fault in the check script (argument order), fixed and re-run through a no-code restart job. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.log. Run r3b-880d8f52-117.",
+      "verification_refs": [
+        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-82:installed-check"
+      ]
     },
     {
       "id": "ACU-11",
@@ -10969,6 +11438,18 @@
       "done_when": "The test passes reliably while the machine is busy without checking less than before, shown by repeated runs under load.",
       "observed": "19 Nov 2026 18:57 IST: ACU 0.2.152 local release, source checks: IslandGateColdStartTests testSubmitColdStartShowsWakingThenSucceeds said a quick first response must not show the waking state; load about 5 to 9; passed on the 19:01 rerun.",
       "recommendation": "Give the test control of time instead of relying on real delays, or use generous condition waits.",
+      "status": "untested"
+    },
+    {
+      "id": "ACU-12",
+      "title": "The skill shape check fails for the Mac control skill and the pre-push suite does not stop on it",
+      "source": "Agent reported",
+      "priority": "low",
+      "summary": "Since round 3, the strict skill shape check says a release test reaches outside the skill folder. The pre-push suite prints the failure but still passes.",
+      "impact": "A shape rule break can reach a release without anyone noticing.",
+      "done_when": "The strict shape check passes for the Mac control skill and the pre-push suite fails when any strict shape check fails.",
+      "observed": "19 Nov 2026 20:16 IST pre-push suite on 624e4afe: strict agent-computer-use/skills/macos-cua FAIL, test_install_release.py line 18 uses parents[3], which escapes the skill folder. Same failure at the round 3 pre-push suite (8f4d2407); it passed in round 2.",
+      "recommendation": "Find the skill root from the installed layout in that test, and make the pre-push suite exit non-zero on a strict shape failure.",
       "status": "untested"
     }
   ]
