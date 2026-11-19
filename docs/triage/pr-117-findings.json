@@ -7729,9 +7729,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-19T15:09:52Z",
-      "now": "2026-11-19T15:09:52Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-19T15:13:28Z",
+      "now": "2026-11-19T15:13:28Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 116,
@@ -10044,116 +10044,31 @@
       "cycle": 9,
       "groups": [
         {
-          "id": "ACU-HELPER",
-          "name": "Samantha's voice helper is always installed and can connect",
-          "finding_ids": [
-            "ACU-02",
-            "ACU-03"
-          ],
-          "depends_on": [],
-          "status": "blocked",
-          "phase": "verify",
-          "worktree": "bcl117-r3-g1",
-          "reason": "Bring the two finished fixes from the voice helper branch.",
-          "codex": {
-            "model": "cherry-pick",
-            "effort": "none",
-            "one_file": false,
-            "job": {
-              "pid": 81430,
-              "phase": "presuite",
-              "started_at": "2026-11-19T13:11:41Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-19T13:16:05Z",
-              "exit_code": 0,
-              "duration_s": 264,
-              "finished_at": "2026-11-19T13:16:05Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "implementer_session": "01a1f3a4-2587-7430-8708-48fe8a91628a",
-            "review_status": "passed",
-            "reviewer_session": "01a1f3b0-85c1-7b52-94a2-0b2a324daea8",
-            "review_note": "Terra review passed; no must-fix"
-          },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
-            "method": "Checked on the installed copy.",
-            "status": "verified",
-            "total": 2,
-            "fixed": 2,
-            "failed": 0,
-            "summary": "Helper installed and connects on both models",
-            "failure": null
-          },
-          "updated_at": "2026-11-19T15:07:54Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-19T13:16:05Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-19T13:20:28Z"
-          },
-          "verify_summary": "Helper installed and connects on both models",
-          "blocked_reason": "Prerequisite verification changed"
-        },
-        {
           "id": "ACU-SESSION",
-          "name": "Samantha recovers from failed setups, stops for redirects and records tokens",
+          "name": "A redirect stops the long answer on GPT-Live too",
           "finding_ids": [
-            "ACU-04",
-            "ACU-05",
-            "ACU-06",
-            "ACU-10"
+            "ACU-05"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "verify",
+          "status": "planned",
+          "phase": "fix",
           "worktree": "bcl117-r3-g2",
-          "reason": "All four live in the voice session code.",
+          "reason": "Grok is fixed; on GPT-Live the backend task behind the story keeps running after a redirect.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
             "one_file": false,
-            "job": {
-              "pid": 44447,
-              "phase": "presuite",
-              "started_at": "2026-11-19T14:45:55Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-19T14:50:19Z",
-              "exit_code": 0,
-              "duration_s": 264,
-              "finished_at": "2026-11-19T14:50:19Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "implementer_session": "01a1f3a3-6347-7f42-b395-61f27206dbe7",
-            "previous_review": "passed before restart; restart code needs its own review",
-            "review_status": "passed",
-            "reviewer_session": "01a1f437-1c42-7fc2-91f5-27f81e5e5db5",
-            "review_note": "Terra review CHANGES: untagged GPT-Live output dropped; fixed in same Luna session (bind by response/item id, fallback to active turn, 3 new tests, 207 focused pass)"
+            "implementer_session": "01a1f3a3-6347-7f42-b395-61f27206dbe7"
           },
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g2.sh",
             "method": "Checked on the installed copy.",
-            "status": "partial",
-            "total": 4,
-            "fixed": 2,
-            "failed": 1,
-            "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+            "status": "pending",
+            "total": 1,
+            "fixed": 0,
+            "failed": 0
           },
-          "updated_at": "2026-11-19T15:06:03Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-19T14:50:19Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-19T14:52:04Z"
-          }
+          "updated_at": "2026-11-19T15:13:28Z"
         },
         {
           "id": "ACU-MENU",
@@ -10163,189 +10078,81 @@
           ],
           "depends_on": [],
           "status": "planned",
-          "phase": "deferred",
-          "worktree": "bcl117-r3-g3",
-          "reason": "Deferred to next round: it builds on the not-ready status that ACU-SESSION adds, and the round is capped at four groups.",
+          "phase": "fix",
+          "worktree": "bcl117-r4-g7",
+          "reason": "Deferred from round 3 by the four-lane cap.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
-            "one_file": false,
-            "job": {
-              "pid": 56743,
-              "phase": "fix",
-              "started_at": "2026-11-19T11:48:55Z",
-              "command": "launch-g3.sh",
-              "heartbeat_at": "2026-11-19T11:50:33Z",
-              "exit_code": -15,
-              "duration_s": 98,
-              "finished_at": "2026-11-19T11:50:33Z",
-              "finished_phase_status": "failed"
-            },
-            "fix_status": "failed"
+            "one_file": false
           },
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g3.sh",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g7.sh",
             "method": "Checked on the installed copy.",
             "status": "pending",
             "total": 1,
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T11:50:49Z"
+          "updated_at": "2026-11-19T15:13:28Z"
         },
         {
           "id": "ACU-PROMPT",
-          "name": "Samantha chats, answers fully and keeps small talk local",
+          "name": "Samantha chats when chatting, answers what was asked and saves memories that stick",
           "finding_ids": [
             "ACU-07",
             "ACU-08",
-            "ACU-09"
+            "ACU-09",
+            "ACU-13"
           ],
           "depends_on": [],
           "status": "planned",
-          "phase": "deferred",
-          "worktree": "bcl117-r3-g4",
-          "reason": "Deferred to next round: it changes the same voice session code as ACU-SESSION, and the round is capped at four groups.",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "one_file": false,
-            "job": {
-              "pid": 57693,
-              "phase": "fix",
-              "started_at": "2026-11-19T11:48:57Z",
-              "command": "launch-g4.sh",
-              "heartbeat_at": "2026-11-19T11:50:33Z",
-              "exit_code": -15,
-              "duration_s": 96,
-              "finished_at": "2026-11-19T11:50:33Z",
-              "finished_phase_status": "failed"
-            },
-            "fix_status": "failed"
-          },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g4.sh",
-            "method": "Checked on the installed copy.",
-            "status": "pending",
-            "total": 3,
-            "fixed": 0,
-            "failed": 0
-          },
-          "updated_at": "2026-11-19T11:50:49Z"
-        },
-        {
-          "id": "DEVOBS",
-          "name": "Developer observability reads Samantha runs fully",
-          "finding_ids": [
-            "DEVOBS-05",
-            "DEVOBS-06",
-            "DEVOBS-07"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl117-r3-g5",
-          "reason": "All three are gaps in how dev-obs reads the voice activity log.",
+          "phase": "fix",
+          "worktree": "bcl117-r4-g8",
+          "reason": "All four come from what the voice models are told and how memory saves are passed on.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
-            "one_file": false,
-            "job": {
-              "pid": 44447,
-              "phase": "presuite",
-              "started_at": "2026-11-19T14:45:55Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-19T14:50:19Z",
-              "exit_code": 0,
-              "duration_s": 264,
-              "finished_at": "2026-11-19T14:50:19Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "implementer_session": "01a1f3a3-7af3-7c33-87dd-ba1bd819d9a8",
-            "previous_review": "passed before restart; restart code needs its own review",
-            "review_status": "passed",
-            "reviewer_session": "01a1f41a-1ade-7123-a693-d6aafed03997",
-            "review_note": "Restart review: only must-fix is the version bump, done at integration"
+            "one_file": false
           },
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g8.sh",
             "method": "Checked on the installed copy.",
-            "status": "verified",
-            "total": 3,
-            "fixed": 3,
-            "failed": 0,
-            "failure": null,
-            "summary": "Failure details now show the error type and message"
+            "status": "pending",
+            "total": 4,
+            "fixed": 0,
+            "failed": 0
           },
-          "updated_at": "2026-11-19T15:07:53Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-19T14:50:19Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-19T14:52:04Z"
-          },
-          "verify_summary": "Failure details now show the error type and message"
+          "updated_at": "2026-11-19T15:13:28Z"
         },
         {
-          "id": "BCL-TESTS",
-          "name": "Tests stop failing at random on a busy machine",
+          "id": "ACU-TESTS",
+          "name": "Mac app tests and shape checks hold up on a busy machine",
           "finding_ids": [
-            "BCL-82"
+            "ACU-11",
+            "ACU-12"
           ],
           "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl117-r3-g6",
-          "reason": "Timing and isolation in the test suites.",
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl117-r4-g9",
+          "reason": "Both are test and check fixes in the Mac control skill.",
           "codex": {
             "model": "gpt-6-luna",
-            "effort": "high",
-            "one_file": false,
-            "job": {
-              "pid": 44447,
-              "phase": "presuite",
-              "started_at": "2026-11-19T14:45:55Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-19T14:50:19Z",
-              "exit_code": 0,
-              "duration_s": 264,
-              "finished_at": "2026-11-19T14:50:19Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "implementer_session": "01a1f3a3-8433-7262-a7eb-68ab26ed359b",
-            "review_status": "passed",
-            "reviewer_session": "01a1f3b3-de7f-7901-995e-e0b06fdf66cb",
-            "review_note": "Terra must-fixes done in same session"
+            "effort": "max",
+            "one_file": false
           },
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.sh",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g9.sh",
             "method": "Checked on the installed copy.",
-            "status": "verified",
-            "total": 1,
-            "fixed": 1,
-            "failed": 0,
-            "failure": null,
-            "summary": "Timing tests pass while the computer is busy"
+            "status": "pending",
+            "total": 2,
+            "fixed": 0,
+            "failed": 0
           },
-          "updated_at": "2026-11-19T15:07:54Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-19T14:50:19Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-19T14:52:04Z"
-          },
-          "verify_summary": "Timing tests pass while the computer is busy"
+          "updated_at": "2026-11-19T15:13:28Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "verification_run": {
       "id": "r3b-880d8f52-117",
@@ -11159,7 +10966,7 @@
       "done_when": "A new request during a reply stops the current reply within about a second and the redirect is answered next; a test proves it for typed and spoken turns.",
       "observed": "19 Nov 2026 typed test: long story then a redirect 3 seconds later. Grok Voice 3.0: story ran 22.9 s to the end, redirect answered after 19.9 s. GPT-Live-1: story ran 11.5 s, redirect answered after 8.5 s.",
       "recommendation": "Cancel the active response when a new typed or spoken request arrives, as the spoken stop-word path already does.",
-      "status": "failing",
+      "status": "in_progress",
       "details": {
         "Technical wording": "send_text() sends conversation.item.create + response.create without response.cancel when _active_response_ids is non-empty.",
         "Dev-obs evidence": "GPT session sref_8a6f2dba34a1bb4ef2de2b5299e0cf93: model_response_end p95 13.1 s (col-6be7b29503e9ce22). Dev-obs has no interruption signal, so this came from the test runner timings."
@@ -11438,7 +11245,7 @@
       "done_when": "The test passes reliably while the machine is busy without checking less than before, shown by repeated runs under load.",
       "observed": "19 Nov 2026 18:57 IST: ACU 0.2.152 local release, source checks: IslandGateColdStartTests testSubmitColdStartShowsWakingThenSucceeds said a quick first response must not show the waking state; load about 5 to 9; passed on the 19:01 rerun.",
       "recommendation": "Give the test control of time instead of relying on real delays, or use generous condition waits.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "ACU-12",
@@ -11450,7 +11257,19 @@
       "done_when": "The strict shape check passes for the Mac control skill and the pre-push suite fails when any strict shape check fails.",
       "observed": "19 Nov 2026 20:16 IST pre-push suite on 624e4afe: strict agent-computer-use/skills/macos-cua FAIL, test_install_release.py line 18 uses parents[3], which escapes the skill folder. Same failure at the round 3 pre-push suite (8f4d2407); it passed in round 2.",
       "recommendation": "Find the skill root from the installed layout in that test, and make the pre-push suite exit non-zero on a strict shape failure.",
-      "status": "untested"
+      "status": "in_progress"
+    },
+    {
+      "id": "ACU-13",
+      "title": "On Grok Voice, saving a memory is rejected as an invalid request",
+      "source": "Agent reported",
+      "priority": "medium",
+      "summary": "When Samantha on Grok Voice tries to save a preference, the memory store turns the save down as an invalid request. She then tells Guru she could not save it, and the island shows Something went wrong.",
+      "impact": "Things Guru asks Samantha to remember on Grok Voice are lost, and a small-talk turn ends with an error.",
+      "done_when": "A memory save that Grok Voice sends is accepted, or Samantha is told plainly which part is wrong and fixes it once; a named test with the exact request Grok sent proves it, and a typed run on Grok Voice shows no invalid request.",
+      "observed": "19 Nov 2026 20:35 IST, ACU 0.2.153, Grok Voice 3.0 typed small-talk turn: the memory save tool was called with operation capture, scope fleet, rule favourite_colour, value teal and a capture_gate; it came back ok false, error invalid request, type ledger_invalid_argument, not retryable. The reply was: I could not save it, the ledger rejected that request as invalid. Same reply in the 19:14 IST run on 0.2.152. The tool call was also delivered twice (duplicate function call delivery).",
+      "recommendation": "Compare the request Grok sends with what the memory tool accepts (scope and capture_gate fields), and make the tool description, the conversion layer or the error message line up so a valid save goes through.",
+      "status": "in_progress"
     }
   ]
 }
