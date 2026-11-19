@@ -7560,6 +7560,161 @@
           "exit_code": 0,
           "finished_at": "2026-11-19T11:27:44Z"
         }
+      },
+      {
+        "id": "r3-356d68f6-117",
+        "build": "agent-computer-use 0.2.152, developer-observability 0.1.33, batched-change-list 0.1.47",
+        "revision": "356d68f6590f4dda227935d9f8f6b55b490d7b4c",
+        "installed_at": "2026-11-19T13:36:47Z",
+        "install_evidence": "ACU 0.2.152 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-117/r3/acu-release-0.2.152.json; app and ~/.agents/plugins/agent-computer-use at 0.2.152); dev-obs 0.1.33 receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-devobs-0.1.33.txt; bcl 0.1.47 install-local receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-0.1.47.txt",
+        "status": "interrupted",
+        "checks": {
+          "BCL-75": {
+            "state": "pending"
+          },
+          "BCL-76": {
+            "state": "pending"
+          },
+          "BCL-77": {
+            "state": "pending"
+          },
+          "BCL-78": {
+            "state": "pending"
+          },
+          "BCL-79": {
+            "state": "pending"
+          },
+          "BCL-80": {
+            "state": "pending"
+          },
+          "BCL-81": {
+            "state": "pending"
+          },
+          "ACU-01": {
+            "state": "pending"
+          },
+          "ACU-02": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-19T13:47:42Z",
+            "started_at": "2026-11-19T13:47:42Z",
+            "updated_at": "2026-11-19T13:47:42Z",
+            "check_id": "bb831ce8c1514f99a5dd704228cc7bbb",
+            "evidence": "Checked: The installed app and the installer checks; Expected: The helper is always inside the signed app and the installer refuses to skip it; Observed: The helper is inside the signed app and every installer guard holds",
+            "details": "Installed 0.2.152 via the local signed release: voice-cua helper present, codesign deep strict ok. Named tests on the installed copy pass: require voice helper, skip voice bundle argument rejected, PyInstaller preflight fails before the bundle is created, builder does not install PyInstaller; all fail or hang on old code (r3/old-fails-r3.log). Before: 14 Nov install finished without the helper. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.log. Run r3-356d68f6-117.",
+            "finished_at": "2026-11-19T13:47:42.480761Z"
+          },
+          "ACU-03": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-19T13:47:42Z",
+            "started_at": "2026-11-19T13:47:42Z",
+            "updated_at": "2026-11-19T13:47:42Z",
+            "check_id": "20df9ed735c54af1864b55f4f09847eb",
+            "evidence": "Checked: Samantha start from the installed helper on both models; Expected: The helper reaches ready on both voice models; Observed: Ready in 8.1 s on GPT-Live-1 and 4.1 s on Grok Voice",
+            "details": "Installed 0.2.152 frozen helper: both models reached ready and answered typed turns. test_plugin_root_includes_script_directory passes on the installed copy and fails on old code. Before (0.2.151 build 1253): empty websocket error, StopIteration, never ready. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.log. Run r3-356d68f6-117.",
+            "finished_at": "2026-11-19T13:47:42.481091Z"
+          },
+          "ACU-04": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-19T13:47:05Z",
+            "started_at": "2026-11-19T13:47:05Z",
+            "updated_at": "2026-11-19T13:47:05Z",
+            "check_id": "04dc7f9ffbf74c3d82889ca150d809da",
+            "evidence": "Checked: Samantha start and status on the installed app; Expected: Not ready shows a reason, and a setup failure retries or ends; Observed: Both models reach ready and status carries a reason field",
+            "details": "Installed 0.2.152: GPT-Live-1 ready in 8.1 s, Grok Voice 3.0 ready in 4.1 s, status reason null when ready. Named tests on the installed copy pass (setup callback error closes and reports not ready reason; status reports setup reason until ready); they fail on old code (r3/old-fails-r3.log). Before: status said healthy while not ready for over two minutes. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117.",
+            "finished_at": "2026-11-19T13:47:05.311691Z"
+          },
+          "ACU-05": {
+            "state": "not_fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-19T13:47:05Z",
+            "started_at": "2026-11-19T13:47:05Z",
+            "updated_at": "2026-11-19T13:47:05Z",
+            "check_id": "2e4e9e482ac54b23b3d0c2d20b95561e",
+            "evidence": "Checked: A redirect three seconds into a long story, both models; Expected: The story stops within about a second and the redirect is answered next; Observed: Grok kept talking; GPT stopped but later replies went astray",
+            "details": "Installed 0.2.152: Grok Voice story ended 13.2 s after the redirect (before 19.9 s), full story text returned. GPT-Live-1 story stopped and redirect answered in 3.1 s (before 8.5 s), but the next turns got a stale reply (recall answered with the Pune line) and Okay for multi_step with no tools run; live log 19:14 IST session 9db3abab. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117.",
+            "finished_at": "2026-11-19T13:47:05.312058Z"
+          },
+          "ACU-06": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-19T13:47:05Z",
+            "started_at": "2026-11-19T13:47:05Z",
+            "updated_at": "2026-11-19T13:47:05Z",
+            "check_id": "92bdf0e861114ace8eacd1e11da9a34e",
+            "evidence": "Checked: The five typed scenarios on Grok Voice 3.0; Expected: Every turn answered, including empathy after the browser task; Observed: All six turns answered; empathy in 1.6 seconds",
+            "details": "Installed 0.2.152 run-grok-after.json: multi_step gave the heading Example Domain and closed the window in 9.2 s; empathy answered in 1.57 s; each tool ran once. Before: empathy got no reply in 180 s and tools ran twice. Named watchdog and duplicate tests pass on installed copy. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117.",
+            "finished_at": "2026-11-19T13:47:05.312020Z"
+          },
+          "ACU-07": {
+            "state": "pending"
+          },
+          "ACU-08": {
+            "state": "pending"
+          },
+          "ACU-09": {
+            "state": "pending"
+          },
+          "ACU-10": {
+            "state": "blocked",
+            "observation": "Checking usage records from the installed version now",
+            "observed_at": "2026-11-19T13:47:14Z",
+            "started_at": "2026-11-19T13:47:14Z",
+            "updated_at": "2026-11-19T13:47:14Z",
+            "check_id": "ea664cbd55a545a0836c178b4c59a0d9",
+            "evidence": "Checked: Usage records from both models; Expected: Real input and output token counts; Observed: GPT-Live-1 sends only voice seconds and Grok Voice sends zeros, now recorded as unknown",
+            "details": "Installed 0.2.152 typed runs 19:14 IST: GPT-Live-1 live usage rows carry voice_seconds 12 and 27 with null tokens (backend gpt-6-luna rows carry real tokens); Grok Voice 3.0 11 usage rows with null tokens (before: 9 rows of 0). Logging change is in and tested; real counts need provider support. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log",
+            "blocker": "The voice providers do not send live model token counts",
+            "finished_at": "2026-11-19T13:47:14.951653Z"
+          },
+          "DEVOBS-05": {
+            "state": "not_fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-19T13:43:21Z",
+            "started_at": "2026-11-19T13:43:21Z",
+            "updated_at": "2026-11-19T13:43:21Z",
+            "check_id": "c457fa84c8ee41b18b8e6307c5d85c8b",
+            "evidence": "Checked: Failure details for the real Samantha connect error; Expected: The error type and message show for each failure; Observed: Two of four failures still show an unknown message",
+            "details": "realtime_error row of 16:57 IST has exception_type StopIteration and an empty error; dev-obs 0.1.33 shows error type websocket and first error line unknown, ignoring exception_type. The session_phase failures do show type and message. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117.",
+            "finished_at": "2026-11-19T13:43:44.527064Z"
+          },
+          "DEVOBS-06": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-19T13:43:21Z",
+            "started_at": "2026-11-19T13:43:21Z",
+            "updated_at": "2026-11-19T13:43:21Z",
+            "check_id": "8fb2b3501e424ed086398e8899abf126",
+            "evidence": "Checked: The session list on the real Samantha log; Expected: The Grok Voice session from 17:03 to 17:09 is listed; Observed: It is listed with its steps",
+            "details": "Installed 0.1.33 after a fresh collect: session sref_6f5b63fc3fa55f933d770e10a3bb60de last seen 11:39:53Z. Before (0.1.32, 17:12 IST): missing. Named tests pass on the installed copy; 9 new tests fail on old code (r3/old-fails-r3.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117.",
+            "finished_at": "2026-11-19T13:43:44.526713Z"
+          },
+          "DEVOBS-07": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-19T13:43:21Z",
+            "started_at": "2026-11-19T13:43:21Z",
+            "updated_at": "2026-11-19T13:43:21Z",
+            "check_id": "f08e39483b814d1199f46689986ac8e1",
+            "evidence": "Checked: The issue list on the real Samantha log; Expected: Issues for no reply, a reply that kept going, and all-zero usage; Observed: All three issues are raised",
+            "details": "Installed 0.1.33: no reply within 180 s (4 occurrences), response still active after a new request (15), zero token usage (88). Before (0.1.32): only latency hotspots for the window. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117.",
+            "finished_at": "2026-11-19T13:43:44.527022Z"
+          },
+          "BCL-82": {
+            "state": "pending"
+          },
+          "ACU-11": {
+            "state": "pending"
+          }
+        },
+        "shared_check": {
+          "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-shared.sh",
+          "state": "passed",
+          "exit_code": 0,
+          "finished_at": "2026-11-19T13:42:06Z"
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -7574,9 +7729,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-19T14:52:04Z",
-      "now": "2026-11-19T14:52:04Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-19T15:03:07Z",
+      "now": "2026-11-19T15:03:07Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 116,
@@ -10095,11 +10250,11 @@
       "status": "closed"
     },
     "verification_run": {
-      "id": "r3-356d68f6-117",
-      "build": "agent-computer-use 0.2.152, developer-observability 0.1.33, batched-change-list 0.1.47",
-      "revision": "356d68f6590f4dda227935d9f8f6b55b490d7b4c",
-      "installed_at": "2026-11-19T13:36:47Z",
-      "install_evidence": "ACU 0.2.152 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-117/r3/acu-release-0.2.152.json; app and ~/.agents/plugins/agent-computer-use at 0.2.152); dev-obs 0.1.33 receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-devobs-0.1.33.txt; bcl 0.1.47 install-local receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-0.1.47.txt",
+      "id": "r3b-880d8f52-117",
+      "build": "agent-computer-use 0.2.153, developer-observability 0.1.34, batched-change-list 0.1.47",
+      "revision": "880d8f52bea54ed3f82701108df53dc7adc22972",
+      "installed_at": "2026-11-19T14:56:30Z",
+      "install_evidence": "ACU 0.2.153 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-117/r3/acu-release-0.2.153.json; app and ~/.agents/plugins/agent-computer-use at 0.2.153); dev-obs 0.1.34 receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-devobs-0.1.34.txt; bcl 0.1.47 unchanged (receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-0.1.47.txt)",
       "status": "active",
       "checks": {
         "BCL-75": {
@@ -10127,59 +10282,19 @@
           "state": "pending"
         },
         "ACU-02": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-19T13:47:42Z",
-          "started_at": "2026-11-19T13:47:42Z",
-          "updated_at": "2026-11-19T13:47:42Z",
-          "check_id": "bb831ce8c1514f99a5dd704228cc7bbb",
-          "evidence": "Checked: The installed app and the installer checks; Expected: The helper is always inside the signed app and the installer refuses to skip it; Observed: The helper is inside the signed app and every installer guard holds",
-          "details": "Installed 0.2.152 via the local signed release: voice-cua helper present, codesign deep strict ok. Named tests on the installed copy pass: require voice helper, skip voice bundle argument rejected, PyInstaller preflight fails before the bundle is created, builder does not install PyInstaller; all fail or hang on old code (r3/old-fails-r3.log). Before: 14 Nov install finished without the helper. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.log. Run r3-356d68f6-117.",
-          "finished_at": "2026-11-19T13:47:42.480761Z"
+          "state": "pending"
         },
         "ACU-03": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-19T13:47:42Z",
-          "started_at": "2026-11-19T13:47:42Z",
-          "updated_at": "2026-11-19T13:47:42Z",
-          "check_id": "20df9ed735c54af1864b55f4f09847eb",
-          "evidence": "Checked: Samantha start from the installed helper on both models; Expected: The helper reaches ready on both voice models; Observed: Ready in 8.1 s on GPT-Live-1 and 4.1 s on Grok Voice",
-          "details": "Installed 0.2.152 frozen helper: both models reached ready and answered typed turns. test_plugin_root_includes_script_directory passes on the installed copy and fails on old code. Before (0.2.151 build 1253): empty websocket error, StopIteration, never ready. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.log. Run r3-356d68f6-117.",
-          "finished_at": "2026-11-19T13:47:42.481091Z"
+          "state": "pending"
         },
         "ACU-04": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-19T13:47:05Z",
-          "started_at": "2026-11-19T13:47:05Z",
-          "updated_at": "2026-11-19T13:47:05Z",
-          "check_id": "04dc7f9ffbf74c3d82889ca150d809da",
-          "evidence": "Checked: Samantha start and status on the installed app; Expected: Not ready shows a reason, and a setup failure retries or ends; Observed: Both models reach ready and status carries a reason field",
-          "details": "Installed 0.2.152: GPT-Live-1 ready in 8.1 s, Grok Voice 3.0 ready in 4.1 s, status reason null when ready. Named tests on the installed copy pass (setup callback error closes and reports not ready reason; status reports setup reason until ready); they fail on old code (r3/old-fails-r3.log). Before: status said healthy while not ready for over two minutes. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117.",
-          "finished_at": "2026-11-19T13:47:05.311691Z"
+          "state": "pending"
         },
         "ACU-05": {
-          "state": "not_fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-19T13:47:05Z",
-          "started_at": "2026-11-19T13:47:05Z",
-          "updated_at": "2026-11-19T13:47:05Z",
-          "check_id": "2e4e9e482ac54b23b3d0c2d20b95561e",
-          "evidence": "Checked: A redirect three seconds into a long story, both models; Expected: The story stops within about a second and the redirect is answered next; Observed: Grok kept talking; GPT stopped but later replies went astray",
-          "details": "Installed 0.2.152: Grok Voice story ended 13.2 s after the redirect (before 19.9 s), full story text returned. GPT-Live-1 story stopped and redirect answered in 3.1 s (before 8.5 s), but the next turns got a stale reply (recall answered with the Pune line) and Okay for multi_step with no tools run; live log 19:14 IST session 9db3abab. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117.",
-          "finished_at": "2026-11-19T13:47:05.312058Z"
+          "state": "pending"
         },
         "ACU-06": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-19T13:47:05Z",
-          "started_at": "2026-11-19T13:47:05Z",
-          "updated_at": "2026-11-19T13:47:05Z",
-          "check_id": "92bdf0e861114ace8eacd1e11da9a34e",
-          "evidence": "Checked: The five typed scenarios on Grok Voice 3.0; Expected: Every turn answered, including empathy after the browser task; Observed: All six turns answered; empathy in 1.6 seconds",
-          "details": "Installed 0.2.152 run-grok-after.json: multi_step gave the heading Example Domain and closed the window in 9.2 s; empathy answered in 1.57 s; each tool ran once. Before: empathy got no reply in 180 s and tools ran twice. Named watchdog and duplicate tests pass on installed copy. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3-356d68f6-117.",
-          "finished_at": "2026-11-19T13:47:05.312020Z"
+          "state": "pending"
         },
         "ACU-07": {
           "state": "pending"
@@ -10191,49 +10306,16 @@
           "state": "pending"
         },
         "ACU-10": {
-          "state": "blocked",
-          "observation": "Checking usage records from the installed version now",
-          "observed_at": "2026-11-19T13:47:14Z",
-          "started_at": "2026-11-19T13:47:14Z",
-          "updated_at": "2026-11-19T13:47:14Z",
-          "check_id": "ea664cbd55a545a0836c178b4c59a0d9",
-          "evidence": "Checked: Usage records from both models; Expected: Real input and output token counts; Observed: GPT-Live-1 sends only voice seconds and Grok Voice sends zeros, now recorded as unknown",
-          "details": "Installed 0.2.152 typed runs 19:14 IST: GPT-Live-1 live usage rows carry voice_seconds 12 and 27 with null tokens (backend gpt-6-luna rows carry real tokens); Grok Voice 3.0 11 usage rows with null tokens (before: 9 rows of 0). Logging change is in and tested; real counts need provider support. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log",
-          "blocker": "The voice providers do not send live model token counts",
-          "finished_at": "2026-11-19T13:47:14.951653Z"
+          "state": "pending"
         },
         "DEVOBS-05": {
-          "state": "not_fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-19T13:43:21Z",
-          "started_at": "2026-11-19T13:43:21Z",
-          "updated_at": "2026-11-19T13:43:21Z",
-          "check_id": "c457fa84c8ee41b18b8e6307c5d85c8b",
-          "evidence": "Checked: Failure details for the real Samantha connect error; Expected: The error type and message show for each failure; Observed: Two of four failures still show an unknown message",
-          "details": "realtime_error row of 16:57 IST has exception_type StopIteration and an empty error; dev-obs 0.1.33 shows error type websocket and first error line unknown, ignoring exception_type. The session_phase failures do show type and message. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117.",
-          "finished_at": "2026-11-19T13:43:44.527064Z"
+          "state": "pending"
         },
         "DEVOBS-06": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-19T13:43:21Z",
-          "started_at": "2026-11-19T13:43:21Z",
-          "updated_at": "2026-11-19T13:43:21Z",
-          "check_id": "8fb2b3501e424ed086398e8899abf126",
-          "evidence": "Checked: The session list on the real Samantha log; Expected: The Grok Voice session from 17:03 to 17:09 is listed; Observed: It is listed with its steps",
-          "details": "Installed 0.1.33 after a fresh collect: session sref_6f5b63fc3fa55f933d770e10a3bb60de last seen 11:39:53Z. Before (0.1.32, 17:12 IST): missing. Named tests pass on the installed copy; 9 new tests fail on old code (r3/old-fails-r3.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117.",
-          "finished_at": "2026-11-19T13:43:44.526713Z"
+          "state": "pending"
         },
         "DEVOBS-07": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-19T13:43:21Z",
-          "started_at": "2026-11-19T13:43:21Z",
-          "updated_at": "2026-11-19T13:43:21Z",
-          "check_id": "f08e39483b814d1199f46689986ac8e1",
-          "evidence": "Checked: The issue list on the real Samantha log; Expected: Issues for no reply, a reply that kept going, and all-zero usage; Observed: All three issues are raised",
-          "details": "Installed 0.1.33: no reply within 180 s (4 occurrences), response still active after a new request (15), zero token usage (88). Before (0.1.32): only latency hotspots for the window. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3-356d68f6-117.",
-          "finished_at": "2026-11-19T13:43:44.527022Z"
+          "state": "pending"
         },
         "BCL-82": {
           "state": "pending"
@@ -10246,7 +10328,7 @@
         "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-shared.sh",
         "state": "passed",
         "exit_code": 0,
-        "finished_at": "2026-11-19T13:42:06Z"
+        "finished_at": "2026-11-19T15:03:06Z"
       }
     },
     "introspect": {
