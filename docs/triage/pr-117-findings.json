@@ -7390,9 +7390,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-19T09:17:55Z",
-      "now": "2026-11-19T09:17:55Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-19T09:19:04Z",
+      "now": "2026-11-19T09:19:04Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 116,
@@ -9352,6 +9352,80 @@
         },
         "round": 1,
         "cycle": 9
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-19T09:19:04Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 2",
+          "Codex write: BCL-PAGE",
+          "Codex review: BCL-PAGE",
+          "Polling and rework review: BCL-PAGE",
+          "Test command: BCL-PAGE: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1.sh",
+          "Codex write: DEVOBS",
+          "Codex review: DEVOBS",
+          "Polling and rework review: DEVOBS",
+          "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.sh"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Parallel group count: 2",
+          "Codex review: BCL-PAGE",
+          "Test command: BCL-PAGE: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1.sh",
+          "Codex write: DEVOBS",
+          "Polling and rework review: DEVOBS"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Polling and rework review: BCL-PAGE",
+                "evidence": "My page-checking script copied the live list to draw an empty list but kept its open verification run, so the renderer refused it and the lane failed for a script fault, not a product fault. That cost an early Introspect, a restart job and a second install record. I dry-ran the script before the run started, when no run existed. Page scripts are now dry-run once right after the verification run starts, and empty-list drafts drop every verification field; the lane loop goes away.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Codex review: DEVOBS",
+                "evidence": "The isolated review and the lane's own fixture tests both passed work that the real fault case then failed twice: no project was found when none was set up, and the second failing test had no finding. The real-case check now exists before the lane starts and is handed to the lane as its acceptance test, so the lane fixes against real output instead of a hand-written log.",
+                "outcome": "fixed inline"
+              },
+              {
+                "item": "Stage: Verify",
+                "evidence": "The developer observability check script ran the installed unit tests through a pipe without failing on a broken pipe stage, so a failing test run could have been hidden behind a passing real-case check. It now stops on any failure in the pipe; the same run then showed all 139 tests passing.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Codex write: BCL-PAGE",
+                "evidence": "A new page bug arrived mid-round. I committed the lane's earlier work locally as its base, resumed the same coding session for only the new change and applied just that increment, so no lane was rebuilt and the review round was not repeated; the cost was one extra pre-push suite of about four minutes.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g2.sh",
+                "evidence": "The real-use probe used to need a separate coding-agent run, an isolated copy of the plugin and a hand grade. One script now rebuilds the fault, collects into a throwaway store, reads it back through the installed tools and prints pass or fail per issue in about four seconds, and it showed the old version failing all three. It replaces the probe run and the hand grade for these checks.",
+                "outcome": "fixed inline"
+              }
+            ]
+          }
+        },
+        "round": 2,
+        "cycle": 9
       }
     ],
     "archive": {
@@ -9372,7 +9446,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 2,
@@ -9387,8 +9462,8 @@
             "BCL-80"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl117-r1-g1",
           "reason": "Both are in the change list page and rollover code.",
           "codex": {
@@ -9415,13 +9490,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1.sh",
             "method": "Named tests on the installed change list plus a check of the live page header and gate.",
-            "status": "pending",
+            "status": "verified",
             "total": 3,
-            "fixed": 0,
+            "fixed": 3,
             "failed": 0,
-            "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+            "failure": null,
+            "summary": "Header, gate and workflow bar checked on the live page"
           },
-          "updated_at": "2026-11-19T09:17:44Z",
+          "updated_at": "2026-11-19T09:18:23Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -9430,7 +9506,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-19T09:17:54Z"
-          }
+          },
+          "verify_summary": "Header, gate and workflow bar checked on the live page"
         },
         {
           "id": "DEVOBS",
@@ -9497,13 +9574,29 @@
       "revision": "748cd8b64748102991462f9b0105209e628232e2",
       "installed_at": "2026-11-19T09:10:29Z",
       "install_evidence": "bcl install-local from PR #117 head 748cd8b6 (code f88cf6e9) at 14:39 IST: /Users/gurusharan/.agents/plugins/batched-change-list (57 files, sha256 5d72da5aa38ab80eed12dfdbeb84b6d29beea7ced13fa0fe72d6a326f8ec4ce3); /Users/gurusharan/.agents/skills/batched-change-list (50 files, sha256 1336301fea92236fd23154639ea3be189973a38a6d7e6caa72e07df78f755caf). developer-observability 0.1.32 from the same revision into ~/.agents/plugins and the Codex personal cache. Receipts /Users/gurusharan/.agents/artifacts/bcl-117/r1/install-0.1.45.txt, /Users/gurusharan/.agents/artifacts/bcl-117/r1/install-devobs-0.1.32.txt",
-      "status": "active",
+      "status": "complete",
       "checks": {
         "BCL-75": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T09:18:23Z",
+          "started_at": "2026-11-19T09:18:23Z",
+          "updated_at": "2026-11-19T09:18:23Z",
+          "check_id": "851df94f87384a918b2801622b2e11d7",
+          "evidence": "Checked: The header of the live change list page drawn by the installed version, and the rollover tests on the installed copy.; Expected: The header shows only the worktree name, with the full path under Details.; Observed: The header shows samantha-next-rollover and the full path sits under Details; the old version showed the full path.",
+          "details": "live_page.py: BCL-75 PASS header 'samantha-next-rollover', stored full path. Named tests on installed 0.1.45: test_rollover_stores_worktree_name_from_full_path, test_rollover_uses_explicit_path_when_worktree_names_duplicate, test_legacy_worktree_path_is_short_in_header_and_full_in_details. Baseline 0.1.44: header showed /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-rollover. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
+          "finished_at": "2026-11-19T09:18:23.138884Z"
         },
         "BCL-76": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T09:18:23Z",
+          "started_at": "2026-11-19T09:18:23Z",
+          "updated_at": "2026-11-19T09:18:23Z",
+          "check_id": "0876b5c32acf43268d1cf6eecdfa5800",
+          "evidence": "Checked: The gate step on the live page, and the same list drawn empty with nothing verified, using the installed version.; Expected: The gate is not shown as met until enough fixes are verified, even when nothing is open.; Observed: Live page at 3 of 15 and the empty list at 0 of 15 both show the gate as not met.",
+          "details": "live_page.py: BCL-76 live PASS 3/15 class 'wf-step upcoming wf-gate' label gate not met; empty list PASS 0/15 class upcoming. Baseline 0.1.44 empty list: class 'wf-step done wf-gate', label 'gate met'. Named tests: test_zero_verified_fixes_never_marks_workflow_gate_done, test_report_gate_keeps_no_open_exception_separate_from_ui_gate, test_status_keeps_empty_report_exception_separate_from_verified_gate, test_documented_gate_count_command_keeps_report_exception. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
+          "finished_at": "2026-11-19T09:18:23.139211Z"
         },
         "BCL-77": {
           "state": "fixed",
@@ -9539,7 +9632,15 @@
           "finished_at": "2026-11-19T09:16:42.486754Z"
         },
         "BCL-80": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-19T09:18:23Z",
+          "started_at": "2026-11-19T09:18:23Z",
+          "updated_at": "2026-11-19T09:18:23Z",
+          "check_id": "0c6e6180fd474ba88c757e8017e7561c",
+          "evidence": "Checked: The workflow bar on the live page with lanes at different steps, and this list drawn with both lanes in review, using the installed version.; Expected: The bar marks the step the lanes are in, so both lanes in review shows Review.; Observed: Both lanes in review now marks Review; the live page marks the earliest step a lane is in.",
+          "details": "live_page.py: BCL-80 all lanes in review PASS bar 'review'; live PASS lanes (BCL-PAGE install, DEVOBS verify) bar 'install'. Baseline 0.1.44 at 14:35 IST with both lanes in review: plan_fix done, review upcoming. Named tests: test_all_active_lanes_in_review_make_review_current, test_fix_and_review_lanes_keep_plan_fix_current, test_no_active_lanes_fall_back_to_tracker_stage, test_status_current_stage_matches_active_lanes. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
+          "finished_at": "2026-11-19T09:18:23.139388Z"
         }
       },
       "shared_check": {
@@ -9551,7 +9652,7 @@
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-19T09:17:43Z",
+      "at": "2026-11-19T09:19:04Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
@@ -9571,7 +9672,6 @@
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
-        "Stage: Verify",
         "Parallel group count: 2",
         "Codex review: BCL-PAGE",
         "Test command: BCL-PAGE: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1.sh",
@@ -9593,6 +9693,11 @@
             {
               "item": "Codex review: DEVOBS",
               "evidence": "The isolated review and the lane's own fixture tests both passed work that the real fault case then failed twice: no project was found when none was set up, and the second failing test had no finding. The real-case check now exists before the lane starts and is handed to the lane as its acceptance test, so the lane fixes against real output instead of a hand-written log.",
+              "outcome": "fixed inline"
+            },
+            {
+              "item": "Stage: Verify",
+              "evidence": "The developer observability check script ran the installed unit tests through a pipe without failing on a broken pipe stage, so a failing test run could have been hidden behind a passing real-case check. It now stops on any failure in the pipe; the same run then showed all 139 tests passing.",
               "outcome": "fixed inline"
             }
           ]
@@ -9616,7 +9721,7 @@
           ]
         }
       },
-      "round": 1,
+      "round": 2,
       "cycle": 9
     }
   },
@@ -9631,7 +9736,25 @@
       "done_when": "The header shows only the short working copy name even when the rollover is given a full folder location, and a named test proves it.",
       "observed": "19 Nov 2026 01:11 IST: #117 page header reads 'PR #117 · /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-rollover'. Cause: bcl rollover was run with --worktree set to the full path (references/report-rollover.md asks for NAME); tracking.worktree stores the path and the header renders it verbatim. Screenshot: Mini ~/.agents/artifacts/bcl-116/r3/pr117-new-list.png.",
       "recommendation": "Have rollover reduce a path to its last folder name (or reject a path), and have the header render only the name; keep the full path under Details.",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "The header of the live change list page drawn by the installed version, and the rollover tests on the installed copy.",
+          "expected": "The header shows only the worktree name, with the full path under Details.",
+          "observed": "The header shows samantha-next-rollover and the full path sits under Details; the old version showed the full path.",
+          "verdict": "The header shows samantha-next-rollover and the full path sits under Details; the old version showed the full path.",
+          "check_id": "bcl-75-0.1.45-748cd8b6",
+          "build": "batched-change-list 0.1.45",
+          "session": "bcl-0.1.45-748cd8b6-117",
+          "timestamp": "2026-11-19T09:18:23Z",
+          "reference": "748cd8b64748102991462f9b0105209e628232e2:BCL-75:installed-check",
+          "details": "live_page.py: BCL-75 PASS header 'samantha-next-rollover', stored full path. Named tests on installed 0.1.45: test_rollover_stores_worktree_name_from_full_path, test_rollover_uses_explicit_path_when_worktree_names_duplicate, test_legacy_worktree_path_is_short_in_header_and_full_in_details. Baseline 0.1.44: header showed /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-rollover. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117."
+        }
+      ],
+      "verification": "The header shows samantha-next-rollover and the full path sits under Details; the old version showed the full path. live_page.py: BCL-75 PASS header 'samantha-next-rollover', stored full path. Named tests on installed 0.1.45: test_rollover_stores_worktree_name_from_full_path, test_rollover_uses_explicit_path_when_worktree_names_duplicate, test_legacy_worktree_path_is_short_in_header_and_full_in_details. Baseline 0.1.44: header showed /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-rollover. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
+      "verification_refs": [
+        "748cd8b64748102991462f9b0105209e628232e2:BCL-75:installed-check"
+      ]
     },
     {
       "id": "BCL-76",
@@ -9643,7 +9766,25 @@
       "done_when": "With no verified fixes the gate shows as not yet met, the green tick appears only once the gate is truly met, and a named test proves it.",
       "observed": "19 Nov 2026 01:11 IST: #117 page in Collect with 0 findings shows the gate circle checked green beside 'Fixes 0/15 verified'. Likely from the report gate's no-open-findings exception (gate.md: report met when no counted findings remain open), which render.py uses for gate_met. Screenshot: Mini ~/.agents/artifacts/bcl-116/r3/pr117-new-list.png.",
       "recommendation": "Draw the green tick only when the verified count reaches the threshold; show the no-open-findings exception as a separate plain note.",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "The gate step on the live page, and the same list drawn empty with nothing verified, using the installed version.",
+          "expected": "The gate is not shown as met until enough fixes are verified, even when nothing is open.",
+          "observed": "Live page at 3 of 15 and the empty list at 0 of 15 both show the gate as not met.",
+          "verdict": "Live page at 3 of 15 and the empty list at 0 of 15 both show the gate as not met.",
+          "check_id": "bcl-76-0.1.45-748cd8b6",
+          "build": "batched-change-list 0.1.45",
+          "session": "bcl-0.1.45-748cd8b6-117",
+          "timestamp": "2026-11-19T09:18:23Z",
+          "reference": "748cd8b64748102991462f9b0105209e628232e2:BCL-76:installed-check",
+          "details": "live_page.py: BCL-76 live PASS 3/15 class 'wf-step upcoming wf-gate' label gate not met; empty list PASS 0/15 class upcoming. Baseline 0.1.44 empty list: class 'wf-step done wf-gate', label 'gate met'. Named tests: test_zero_verified_fixes_never_marks_workflow_gate_done, test_report_gate_keeps_no_open_exception_separate_from_ui_gate, test_status_keeps_empty_report_exception_separate_from_verified_gate, test_documented_gate_count_command_keeps_report_exception. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117."
+        }
+      ],
+      "verification": "Live page at 3 of 15 and the empty list at 0 of 15 both show the gate as not met. live_page.py: BCL-76 live PASS 3/15 class 'wf-step upcoming wf-gate' label gate not met; empty list PASS 0/15 class upcoming. Baseline 0.1.44 empty list: class 'wf-step done wf-gate', label 'gate met'. Named tests: test_zero_verified_fixes_never_marks_workflow_gate_done, test_report_gate_keeps_no_open_exception_separate_from_ui_gate, test_status_keeps_empty_report_exception_separate_from_verified_gate, test_documented_gate_count_command_keeps_report_exception. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
+      "verification_refs": [
+        "748cd8b64748102991462f9b0105209e628232e2:BCL-76:installed-check"
+      ]
     },
     {
       "id": "BCL-77",
@@ -9745,7 +9886,25 @@
       "done_when": "The current stage on the workflow bar follows the lanes, so a round whose active lanes are all in review shows Review, and a named test proves it.",
       "observed": "19 Nov 2026 14:21 IST (Guru screenshot): #117 round 1, lanes BCL-PAGE and DEVOBS both 'In review', workflow '2 in review', bar highlights Plan & fix. Likely render.py render_workflow 'active' comes from tracking stage (plan_fix) rather than lane phases.",
       "recommendation": "Derive the round's current stage from the shared stage definition: the earliest stage any active lane is still in (equivalently, the furthest stage all active lanes have reached), so it reads Review here; keep the tracker stage as fallback when no lanes are active.",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "The workflow bar on the live page with lanes at different steps, and this list drawn with both lanes in review, using the installed version.",
+          "expected": "The bar marks the step the lanes are in, so both lanes in review shows Review.",
+          "observed": "Both lanes in review now marks Review; the live page marks the earliest step a lane is in.",
+          "verdict": "Both lanes in review now marks Review; the live page marks the earliest step a lane is in.",
+          "check_id": "bcl-80-0.1.45-748cd8b6",
+          "build": "batched-change-list 0.1.45",
+          "session": "bcl-0.1.45-748cd8b6-117",
+          "timestamp": "2026-11-19T09:18:23Z",
+          "reference": "748cd8b64748102991462f9b0105209e628232e2:BCL-80:installed-check",
+          "details": "live_page.py: BCL-80 all lanes in review PASS bar 'review'; live PASS lanes (BCL-PAGE install, DEVOBS verify) bar 'install'. Baseline 0.1.44 at 14:35 IST with both lanes in review: plan_fix done, review upcoming. Named tests: test_all_active_lanes_in_review_make_review_current, test_fix_and_review_lanes_keep_plan_fix_current, test_no_active_lanes_fall_back_to_tracker_stage, test_status_current_stage_matches_active_lanes. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117."
+        }
+      ],
+      "verification": "Both lanes in review now marks Review; the live page marks the earliest step a lane is in. live_page.py: BCL-80 all lanes in review PASS bar 'review'; live PASS lanes (BCL-PAGE install, DEVOBS verify) bar 'install'. Baseline 0.1.44 at 14:35 IST with both lanes in review: plan_fix done, review upcoming. Named tests: test_all_active_lanes_in_review_make_review_current, test_fix_and_review_lanes_keep_plan_fix_current, test_no_active_lanes_fall_back_to_tracker_stage, test_status_current_stage_matches_active_lanes. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
+      "verification_refs": [
+        "748cd8b64748102991462f9b0105209e628232e2:BCL-80:installed-check"
+      ]
     }
   ]
 }
