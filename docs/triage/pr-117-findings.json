@@ -7390,9 +7390,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-19T11:11:37Z",
-      "now": "2026-11-19T11:11:37Z — Lane BCL-ROUND updated"
+      "stage": "install",
+      "updated_at": "2026-11-19T11:22:47Z",
+      "now": "2026-11-19T11:22:47Z — Install in progress"
     },
     "rollover": {
       "source_pr": 116,
@@ -9444,7 +9444,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "round": 2,
@@ -9457,8 +9458,8 @@
             "BCL-81"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r2-g1",
           "reason": "One change in how the change list decides a new round has begun.",
           "codex": {
@@ -9466,14 +9467,14 @@
             "effort": "medium",
             "one_file": true,
             "job": {
-              "pid": 10616,
-              "phase": "fix",
-              "started_at": "2026-11-19T10:59:22Z",
-              "command": "launch-g1.sh",
-              "heartbeat_at": "2026-11-19T11:10:32Z",
+              "pid": 77663,
+              "phase": "presuite",
+              "started_at": "2026-11-19T11:17:45Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-19T11:22:22Z",
               "exit_code": 0,
-              "duration_s": 670,
-              "finished_at": "2026-11-19T11:10:32Z",
+              "duration_s": 277,
+              "finished_at": "2026-11-19T11:22:22Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -9488,7 +9489,16 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T11:11:37Z"
+          "updated_at": "2026-11-19T11:22:22Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-19T11:22:22Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-19T11:22:47Z"
+          }
         }
       ]
     },
@@ -9498,7 +9508,7 @@
       "revision": "748cd8b64748102991462f9b0105209e628232e2",
       "installed_at": "2026-11-19T09:10:29Z",
       "install_evidence": "bcl install-local from PR #117 head 748cd8b6 (code f88cf6e9) at 14:39 IST: /Users/gurusharan/.agents/plugins/batched-change-list (57 files, sha256 5d72da5aa38ab80eed12dfdbeb84b6d29beea7ced13fa0fe72d6a326f8ec4ce3); /Users/gurusharan/.agents/skills/batched-change-list (50 files, sha256 1336301fea92236fd23154639ea3be189973a38a6d7e6caa72e07df78f755caf). developer-observability 0.1.32 from the same revision into ~/.agents/plugins and the Codex personal cache. Receipts /Users/gurusharan/.agents/artifacts/bcl-117/r1/install-0.1.45.txt, /Users/gurusharan/.agents/artifacts/bcl-117/r1/install-devobs-0.1.32.txt",
-      "status": "complete",
+      "status": "active",
       "checks": {
         "BCL-75": {
           "state": "fixed",
@@ -9565,6 +9575,9 @@
           "evidence": "Checked: The workflow bar on the live page with lanes at different steps, and this list drawn with both lanes in review, using the installed version.; Expected: The bar marks the step the lanes are in, so both lanes in review shows Review.; Observed: Both lanes in review now marks Review; the live page marks the earliest step a lane is in.",
           "details": "live_page.py: BCL-80 all lanes in review PASS bar 'review'; live PASS lanes (BCL-PAGE install, DEVOBS verify) bar 'install'. Baseline 0.1.44 at 14:35 IST with both lanes in review: plan_fix done, review upcoming. Named tests: test_all_active_lanes_in_review_make_review_current, test_fix_and_review_lanes_keep_plan_fix_current, test_no_active_lanes_fall_back_to_tracker_stage, test_status_current_stage_matches_active_lanes. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-g1b.log. Run bcl-0.1.45-748cd8b6-117.",
           "finished_at": "2026-11-19T09:18:23.139388Z"
+        },
+        "ACU-01": {
+          "state": "pending"
         }
       },
       "shared_check": {
@@ -9841,6 +9854,30 @@
       "observed": "19 Nov 2026 14:46 IST: in #117 cycle 9 the BCL-PAGE lane verify failed on a verifier fault; bcl introspect (round 1) then bcl job --phase fix restart called manage_findings.advance_plan_round, appending round_history {round 1, fixed 3} and setting tracking.round 2. Final Introspect was recorded as round 2; page shows Round 2.",
       "recommendation": "Advance the round only when new work is planned after the round's Introspect is complete, not when a failed lane is restarted inside the same round.",
       "status": "in_progress"
+    },
+    {
+      "id": "ACU-01",
+      "title": "When Samantha cannot start, the menu toggle silently switches back off",
+      "source": "User reported",
+      "priority": "medium",
+      "summary": "When Samantha can't start, the menu toggle silently switches back off with no reason shown; it should stay visibly failed and say why, for example voice helper missing, mic denied or key missing.",
+      "impact": "Guru could not tell why Samantha would not turn on; the toggle just flipped off about half a second after each try.",
+      "done_when": "A failed start leaves the toggle in a visible failed state with a plain reason taken from the supervisor (helper missing, mic denied, key missing), and a named test that fails on the old code proves it.",
+      "observed": "19 Nov 2026 16:34 IST: ACU 0.2.146 on the Mini; every start logged resolve_launch status=fail detail=no voice helper in ~/.cache/macos-cua/voice.log, and the toggle went back off with nothing shown.",
+      "recommendation": "Carry the supervisor's failure reason to the menu and island and show it until the next attempt.",
+      "status": "untested"
+    },
+    {
+      "id": "ACU-02",
+      "title": "An app install could finish without the Samantha voice helper",
+      "source": "Agent reported",
+      "priority": "medium",
+      "summary": "The 14 Nov install ran with a Python that lacked the helper build tool. The voice helper build failed after the app was already in Applications, and a second run that skipped the voice helper produced a signed app without it.",
+      "impact": "Samantha could not start at all on the Mini from 14 to 19 Nov.",
+      "done_when": "The installer refuses to start without the helper build tool, no longer offers a way to skip the voice helper, and fails before signing or reporting success if the helper is missing; tests prove each case.",
+      "observed": "~/.agents/artifacts/bcl-110/logs/acu-02146-install.log: externally-managed-environment, No module named PyInstaller, INSTALL_EXIT:1; acu-02146-install-signed.log has no voice step and INSTALL_EXIT:0.",
+      "recommendation": "Take branch codex/acu-voice-helper-guard (commit 9941740a) into #117 with a version bump.",
+      "status": "untested"
     }
   ]
 }
