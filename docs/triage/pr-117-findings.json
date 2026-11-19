@@ -7729,9 +7729,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-19T15:13:28Z",
-      "now": "2026-11-19T15:13:28Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-19T15:34:50Z",
+      "now": "2026-11-19T15:34:50Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10050,15 +10050,27 @@
             "ACU-05"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r3-g2",
           "reason": "Grok is fixed; on GPT-Live the backend task behind the story keeps running after a redirect.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
             "one_file": false,
-            "implementer_session": "01a1f3a3-6347-7f42-b395-61f27206dbe7"
+            "implementer_session": "01a1f3a3-6347-7f42-b395-61f27206dbe7",
+            "job": {
+              "pid": 16386,
+              "phase": "fix",
+              "started_at": "2026-11-19T15:15:12Z",
+              "command": "run-rs4-g2.sh",
+              "heartbeat_at": "2026-11-19T15:34:16Z",
+              "exit_code": 0,
+              "duration_s": 1144,
+              "finished_at": "2026-11-19T15:34:16Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g2.sh",
@@ -10068,7 +10080,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:13:28Z"
+          "updated_at": "2026-11-19T15:34:50Z"
         },
         {
           "id": "ACU-MENU",
@@ -10077,14 +10089,21 @@
             "ACU-01"
           ],
           "depends_on": [],
-          "status": "planned",
+          "status": "running",
           "phase": "fix",
           "worktree": "bcl117-r4-g7",
           "reason": "Deferred from round 3 by the four-lane cap.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 13536,
+              "phase": "fix",
+              "started_at": "2026-11-19T15:15:06Z",
+              "command": "launch-g7.sh",
+              "heartbeat_at": "2026-11-19T15:34:09Z"
+            }
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g7.sh",
@@ -10094,7 +10113,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:13:28Z"
+          "updated_at": "2026-11-19T15:34:09Z"
         },
         {
           "id": "ACU-PROMPT",
@@ -10106,14 +10125,21 @@
             "ACU-13"
           ],
           "depends_on": [],
-          "status": "planned",
+          "status": "running",
           "phase": "fix",
           "worktree": "bcl117-r4-g8",
           "reason": "All four come from what the voice models are told and how memory saves are passed on.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 14458,
+              "phase": "fix",
+              "started_at": "2026-11-19T15:15:09Z",
+              "command": "launch-g8.sh",
+              "heartbeat_at": "2026-11-19T15:34:11Z"
+            }
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g8.sh",
@@ -10123,7 +10149,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:13:28Z"
+          "updated_at": "2026-11-19T15:34:11Z"
         },
         {
           "id": "ACU-TESTS",
@@ -10133,14 +10159,21 @@
             "ACU-12"
           ],
           "depends_on": [],
-          "status": "planned",
+          "status": "running",
           "phase": "fix",
           "worktree": "bcl117-r4-g9",
           "reason": "Both are test and check fixes in the Mac control skill.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 15391,
+              "phase": "fix",
+              "started_at": "2026-11-19T15:15:11Z",
+              "command": "launch-g9.sh",
+              "heartbeat_at": "2026-11-19T15:34:13Z"
+            }
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g9.sh",
@@ -10150,7 +10183,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:13:28Z"
+          "updated_at": "2026-11-19T15:34:13Z"
         }
       ]
     },
