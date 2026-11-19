@@ -7475,9 +7475,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-19T12:18:31Z",
-      "now": "2026-11-19T12:18:31Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-19T12:38:04Z",
+      "now": "2026-11-19T12:38:04Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -9655,8 +9655,8 @@
             "ACU-10"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r3-g2",
           "reason": "All four live in the voice session code.",
           "codex": {
@@ -9668,8 +9668,14 @@
               "phase": "fix",
               "started_at": "2026-11-19T11:48:53Z",
               "command": "launch-g2.sh",
-              "heartbeat_at": "2026-11-19T12:17:56Z"
-            }
+              "heartbeat_at": "2026-11-19T12:37:47Z",
+              "exit_code": 0,
+              "duration_s": 2934,
+              "finished_at": "2026-11-19T12:37:47Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed",
+            "implementer_session": "01a1f3a3-6347-7f42-b395-61f27206dbe7"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
@@ -9679,7 +9685,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T12:17:56Z"
+          "updated_at": "2026-11-19T12:38:04Z"
         },
         {
           "id": "ACU-MENU",
@@ -9768,7 +9774,7 @@
             "DEVOBS-07"
           ],
           "depends_on": [],
-          "status": "failed",
+          "status": "review",
           "phase": "review",
           "worktree": "bcl117-r3-g5",
           "reason": "All three are gaps in how dev-obs reads the voice activity log.",
@@ -9777,19 +9783,21 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 25248,
-              "phase": "review",
-              "started_at": "2026-11-19T12:16:49Z",
-              "command": "launch-review-g5.sh",
-              "heartbeat_at": "2026-11-19T12:18:11Z",
+              "pid": 28123,
+              "phase": "fix",
+              "started_at": "2026-11-19T12:18:31Z",
+              "command": "run-mf-g5.sh",
+              "heartbeat_at": "2026-11-19T12:29:19Z",
               "exit_code": 0,
-              "duration_s": 82,
-              "finished_at": "2026-11-19T12:18:11Z",
-              "finished_phase_status": "failed"
+              "duration_s": 648,
+              "finished_at": "2026-11-19T12:29:19Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f3a3-7af3-7c33-87dd-ba1bd819d9a8",
-            "review_status": "failed"
+            "review_status": "passed",
+            "reviewer_session": "01a1f3bc-f748-77d1-97d0-ede4a03f56cc",
+            "review_note": "Terra must-fixes done in same session; bump at integration"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
@@ -9799,7 +9807,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T12:18:11Z"
+          "updated_at": "2026-11-19T12:29:36Z"
         },
         {
           "id": "BCL-TESTS",
