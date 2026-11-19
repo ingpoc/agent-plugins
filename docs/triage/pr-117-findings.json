@@ -7390,9 +7390,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-19T09:09:51Z",
-      "now": "2026-11-19T09:09:51Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-19T09:15:10Z",
+      "now": "2026-11-19T09:15:10Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 116,
@@ -9296,7 +9296,8 @@
       "present",
       "plan_fix",
       "review",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 1,
@@ -9409,6 +9410,40 @@
           }
         }
       ]
+    },
+    "verification_run": {
+      "id": "bcl-0.1.45-748cd8b6-117",
+      "build": "batched-change-list 0.1.45, developer-observability 0.1.32",
+      "revision": "748cd8b64748102991462f9b0105209e628232e2",
+      "installed_at": "2026-11-19T09:10:29Z",
+      "install_evidence": "bcl install-local from PR #117 head 748cd8b6 (code f88cf6e9) at 14:39 IST: /Users/gurusharan/.agents/plugins/batched-change-list (57 files, sha256 5d72da5aa38ab80eed12dfdbeb84b6d29beea7ced13fa0fe72d6a326f8ec4ce3); /Users/gurusharan/.agents/skills/batched-change-list (50 files, sha256 1336301fea92236fd23154639ea3be189973a38a6d7e6caa72e07df78f755caf). developer-observability 0.1.32 from the same revision into ~/.agents/plugins and the Codex personal cache. Receipts /Users/gurusharan/.agents/artifacts/bcl-117/r1/install-0.1.45.txt, /Users/gurusharan/.agents/artifacts/bcl-117/r1/install-devobs-0.1.32.txt",
+      "status": "active",
+      "checks": {
+        "BCL-75": {
+          "state": "pending"
+        },
+        "BCL-76": {
+          "state": "pending"
+        },
+        "BCL-77": {
+          "state": "pending"
+        },
+        "BCL-78": {
+          "state": "pending"
+        },
+        "BCL-79": {
+          "state": "pending"
+        },
+        "BCL-80": {
+          "state": "pending"
+        }
+      },
+      "shared_check": {
+        "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r1/verify-shared.sh",
+        "state": "passed",
+        "exit_code": 0,
+        "finished_at": "2026-11-19T09:15:09Z"
+      }
     }
   },
   "findings": [
