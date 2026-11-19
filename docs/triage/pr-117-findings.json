@@ -7461,6 +7461,105 @@
           "exit_code": 0,
           "finished_at": "2026-11-19T09:15:09Z"
         }
+      },
+      {
+        "id": "bcl-0.1.46-4e76cd24-117",
+        "build": "batched-change-list 0.1.46",
+        "revision": "4e76cd24a5125fca4ec63dd00e285e0e5694b10b",
+        "installed_at": "2026-11-19T11:22:58Z",
+        "install_evidence": "bcl install-local from PR #117 head 4e76cd24 (code 79f2e0a4) at 16:53 IST: /Users/gurusharan/.agents/plugins/batched-change-list (57 files, sha256 121ccf70fcf811a732d7f3663d2b070b317b10cae0ef83f3c44e9f7b69ce512d); /Users/gurusharan/.agents/skills/batched-change-list (50 files, sha256 55415a1941be48c523f2c8e7b99ccc0d1096ca38b72a2362ef7bda7efe2cb1b9). Receipt /Users/gurusharan/.agents/artifacts/bcl-117/r2/install-0.1.46.txt",
+        "status": "interrupted",
+        "checks": {
+          "BCL-75": {
+            "state": "fixed",
+            "observation": "Rechecking on the new install",
+            "observed_at": "2026-11-19T11:29:03Z",
+            "started_at": "2026-11-19T11:29:09Z",
+            "updated_at": "2026-11-19T11:29:09Z",
+            "check_id": "fdb7d82148a243fca3e57a666bf5047e",
+            "evidence": "Checked: The live page header on 0.1.46; Expected: Only the worktree name shows; Observed: It shows samantha-next-rollover",
+            "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-page.log",
+            "finished_at": "2026-11-19T11:29:39.131341Z"
+          },
+          "BCL-76": {
+            "state": "fixed",
+            "observation": "Rechecking on the new install",
+            "observed_at": "2026-11-19T11:29:03Z",
+            "started_at": "2026-11-19T11:29:09Z",
+            "updated_at": "2026-11-19T11:29:09Z",
+            "check_id": "bfe43cd5bccb4e94b0f37ccf86a0522e",
+            "evidence": "Checked: The gate on the live page and on an empty list; Expected: Not met until enough fixes are verified; Observed: Not met at 7 of 15 and at 0 of 15",
+            "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-page.log",
+            "finished_at": "2026-11-19T11:29:39.131534Z"
+          },
+          "BCL-77": {
+            "state": "fixed",
+            "observation": "Rechecking on the new install",
+            "observed_at": "2026-11-19T11:29:03Z",
+            "started_at": "2026-11-19T11:29:09Z",
+            "updated_at": "2026-11-19T11:29:09Z",
+            "check_id": "98623af43b2c4a8c8bff68295be7a304",
+            "evidence": "Checked: The real fault case on developer observability 0.1.32; Expected: Failures show under the project; Observed: Both failures show under Context Ledger",
+            "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-g2.log",
+            "finished_at": "2026-11-19T11:29:39.131596Z"
+          },
+          "BCL-78": {
+            "state": "fixed",
+            "observation": "Rechecking on the new install",
+            "observed_at": "2026-11-19T11:29:03Z",
+            "started_at": "2026-11-19T11:29:09Z",
+            "updated_at": "2026-11-19T11:29:09Z",
+            "check_id": "07f04f1188cb44289972289e11f23b8a",
+            "evidence": "Checked: The same real pytest run; Expected: One finding per failing test; Observed: Two findings for two failing tests, no summary finding",
+            "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-g2.log",
+            "finished_at": "2026-11-19T11:29:39.131621Z"
+          },
+          "BCL-79": {
+            "state": "fixed",
+            "observation": "Rechecking on the new install",
+            "observed_at": "2026-11-19T11:29:03Z",
+            "started_at": "2026-11-19T11:29:09Z",
+            "updated_at": "2026-11-19T11:29:09Z",
+            "check_id": "fc15bc29d69f4db6b9f994024b2afc84",
+            "evidence": "Checked: The suggested fix in the same run; Expected: It names the test and its assertion; Observed: It names each test and quotes hint versus trusted",
+            "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-g2.log",
+            "finished_at": "2026-11-19T11:29:39.131646Z"
+          },
+          "BCL-80": {
+            "state": "fixed",
+            "observation": "Rechecking on the new install",
+            "observed_at": "2026-11-19T11:29:03Z",
+            "started_at": "2026-11-19T11:29:09Z",
+            "updated_at": "2026-11-19T11:29:09Z",
+            "check_id": "bcf345e014ee4ea28306f05d0177e37e",
+            "evidence": "Checked: The workflow bar with lanes in review; Expected: Review is marked as current; Observed: Review is marked as current",
+            "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-page.log + regress-g1.log (11 named tests on installed 0.1.46)",
+            "finished_at": "2026-11-19T11:29:39.131566Z"
+          },
+          "BCL-81": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-19T11:28:19Z",
+            "started_at": "2026-11-19T11:28:19Z",
+            "updated_at": "2026-11-19T11:28:19Z",
+            "check_id": "5fd551622635492ab7ddc16285279329",
+            "evidence": "Checked: A round on the installed version where a lane fails its check, Introspect runs early, the lane is restarted, installed, checked again and the round's Introspect finishes; plus the live #117 page.; Expected: The round number stays the same through the restart, and the live page shows the true round.; Observed: The round stayed at 1 with no extra history; the old version moved to round 2. The live page reads Round 2, the real second round.",
+            "details": "Named tests on installed 0.1.46: test_restart_after_early_introspect_keeps_round_through_final_introspect (drives bcl verify fail -> introspect -> job --phase fix restart -> install -> verify -> introspect), test_new_plan_after_completed_round_advances_once. Same restart test on installed 0.1.45: AssertionError 2 != 1 (r2/old-fails.log). Live: live_round.py page Round 2 = tracker round 2; cycle 9 history one entry round 1 fixed 6 after correcting the spurious advance (backup r2/117.before-round-fix.*.json). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.log. Run bcl-0.1.46-4e76cd24-117.",
+            "finished_at": "2026-11-19T11:28:19.385473Z"
+          },
+          "ACU-01": {
+            "state": "pending"
+          },
+          "ACU-02": {
+            "state": "pending"
+          }
+        },
+        "shared_check": {
+          "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r2/verify-shared.sh",
+          "state": "passed",
+          "exit_code": 0,
+          "finished_at": "2026-11-19T11:27:44Z"
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -7475,9 +7574,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-19T13:20:28Z",
-      "now": "2026-11-19T13:20:28Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-19T13:42:17Z",
+      "now": "2026-11-19T13:42:17Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 116,
@@ -9597,7 +9696,8 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 3,
@@ -9894,102 +9994,85 @@
       ]
     },
     "verification_run": {
-      "id": "bcl-0.1.46-4e76cd24-117",
-      "build": "batched-change-list 0.1.46",
-      "revision": "4e76cd24a5125fca4ec63dd00e285e0e5694b10b",
-      "installed_at": "2026-11-19T11:22:58Z",
-      "install_evidence": "bcl install-local from PR #117 head 4e76cd24 (code 79f2e0a4) at 16:53 IST: /Users/gurusharan/.agents/plugins/batched-change-list (57 files, sha256 121ccf70fcf811a732d7f3663d2b070b317b10cae0ef83f3c44e9f7b69ce512d); /Users/gurusharan/.agents/skills/batched-change-list (50 files, sha256 55415a1941be48c523f2c8e7b99ccc0d1096ca38b72a2362ef7bda7efe2cb1b9). Receipt /Users/gurusharan/.agents/artifacts/bcl-117/r2/install-0.1.46.txt",
+      "id": "r3-356d68f6-117",
+      "build": "agent-computer-use 0.2.152, developer-observability 0.1.33, batched-change-list 0.1.47",
+      "revision": "356d68f6590f4dda227935d9f8f6b55b490d7b4c",
+      "installed_at": "2026-11-19T13:36:47Z",
+      "install_evidence": "ACU 0.2.152 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-117/r3/acu-release-0.2.152.json; app and ~/.agents/plugins/agent-computer-use at 0.2.152); dev-obs 0.1.33 receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-devobs-0.1.33.txt; bcl 0.1.47 install-local receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-0.1.47.txt",
       "status": "active",
       "checks": {
         "BCL-75": {
-          "state": "fixed",
-          "observation": "Rechecking on the new install",
-          "observed_at": "2026-11-19T11:29:03Z",
-          "started_at": "2026-11-19T11:29:09Z",
-          "updated_at": "2026-11-19T11:29:09Z",
-          "check_id": "fdb7d82148a243fca3e57a666bf5047e",
-          "evidence": "Checked: The live page header on 0.1.46; Expected: Only the worktree name shows; Observed: It shows samantha-next-rollover",
-          "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-page.log",
-          "finished_at": "2026-11-19T11:29:39.131341Z"
+          "state": "pending"
         },
         "BCL-76": {
-          "state": "fixed",
-          "observation": "Rechecking on the new install",
-          "observed_at": "2026-11-19T11:29:03Z",
-          "started_at": "2026-11-19T11:29:09Z",
-          "updated_at": "2026-11-19T11:29:09Z",
-          "check_id": "bfe43cd5bccb4e94b0f37ccf86a0522e",
-          "evidence": "Checked: The gate on the live page and on an empty list; Expected: Not met until enough fixes are verified; Observed: Not met at 7 of 15 and at 0 of 15",
-          "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-page.log",
-          "finished_at": "2026-11-19T11:29:39.131534Z"
+          "state": "pending"
         },
         "BCL-77": {
-          "state": "fixed",
-          "observation": "Rechecking on the new install",
-          "observed_at": "2026-11-19T11:29:03Z",
-          "started_at": "2026-11-19T11:29:09Z",
-          "updated_at": "2026-11-19T11:29:09Z",
-          "check_id": "98623af43b2c4a8c8bff68295be7a304",
-          "evidence": "Checked: The real fault case on developer observability 0.1.32; Expected: Failures show under the project; Observed: Both failures show under Context Ledger",
-          "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-g2.log",
-          "finished_at": "2026-11-19T11:29:39.131596Z"
+          "state": "pending"
         },
         "BCL-78": {
-          "state": "fixed",
-          "observation": "Rechecking on the new install",
-          "observed_at": "2026-11-19T11:29:03Z",
-          "started_at": "2026-11-19T11:29:09Z",
-          "updated_at": "2026-11-19T11:29:09Z",
-          "check_id": "07f04f1188cb44289972289e11f23b8a",
-          "evidence": "Checked: The same real pytest run; Expected: One finding per failing test; Observed: Two findings for two failing tests, no summary finding",
-          "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-g2.log",
-          "finished_at": "2026-11-19T11:29:39.131621Z"
+          "state": "pending"
         },
         "BCL-79": {
-          "state": "fixed",
-          "observation": "Rechecking on the new install",
-          "observed_at": "2026-11-19T11:29:03Z",
-          "started_at": "2026-11-19T11:29:09Z",
-          "updated_at": "2026-11-19T11:29:09Z",
-          "check_id": "fc15bc29d69f4db6b9f994024b2afc84",
-          "evidence": "Checked: The suggested fix in the same run; Expected: It names the test and its assertion; Observed: It names each test and quotes hint versus trusted",
-          "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-g2.log",
-          "finished_at": "2026-11-19T11:29:39.131646Z"
+          "state": "pending"
         },
         "BCL-80": {
-          "state": "fixed",
-          "observation": "Rechecking on the new install",
-          "observed_at": "2026-11-19T11:29:03Z",
-          "started_at": "2026-11-19T11:29:09Z",
-          "updated_at": "2026-11-19T11:29:09Z",
-          "check_id": "bcf345e014ee4ea28306f05d0177e37e",
-          "evidence": "Checked: The workflow bar with lanes in review; Expected: Review is marked as current; Observed: Review is marked as current",
-          "details": "Regression recheck after installing batched-change-list 0.1.46. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/regress-page.log + regress-g1.log (11 named tests on installed 0.1.46)",
-          "finished_at": "2026-11-19T11:29:39.131566Z"
+          "state": "pending"
         },
         "BCL-81": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-19T11:28:19Z",
-          "started_at": "2026-11-19T11:28:19Z",
-          "updated_at": "2026-11-19T11:28:19Z",
-          "check_id": "5fd551622635492ab7ddc16285279329",
-          "evidence": "Checked: A round on the installed version where a lane fails its check, Introspect runs early, the lane is restarted, installed, checked again and the round's Introspect finishes; plus the live #117 page.; Expected: The round number stays the same through the restart, and the live page shows the true round.; Observed: The round stayed at 1 with no extra history; the old version moved to round 2. The live page reads Round 2, the real second round.",
-          "details": "Named tests on installed 0.1.46: test_restart_after_early_introspect_keeps_round_through_final_introspect (drives bcl verify fail -> introspect -> job --phase fix restart -> install -> verify -> introspect), test_new_plan_after_completed_round_advances_once. Same restart test on installed 0.1.45: AssertionError 2 != 1 (r2/old-fails.log). Live: live_round.py page Round 2 = tracker round 2; cycle 9 history one entry round 1 fixed 6 after correcting the spurious advance (backup r2/117.before-round-fix.*.json). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r2/verify.log. Run bcl-0.1.46-4e76cd24-117.",
-          "finished_at": "2026-11-19T11:28:19.385473Z"
+          "state": "pending"
         },
         "ACU-01": {
           "state": "pending"
         },
         "ACU-02": {
           "state": "pending"
+        },
+        "ACU-03": {
+          "state": "pending"
+        },
+        "ACU-04": {
+          "state": "pending"
+        },
+        "ACU-05": {
+          "state": "pending"
+        },
+        "ACU-06": {
+          "state": "pending"
+        },
+        "ACU-07": {
+          "state": "pending"
+        },
+        "ACU-08": {
+          "state": "pending"
+        },
+        "ACU-09": {
+          "state": "pending"
+        },
+        "ACU-10": {
+          "state": "pending"
+        },
+        "DEVOBS-05": {
+          "state": "pending"
+        },
+        "DEVOBS-06": {
+          "state": "pending"
+        },
+        "DEVOBS-07": {
+          "state": "pending"
+        },
+        "BCL-82": {
+          "state": "pending"
+        },
+        "ACU-11": {
+          "state": "pending"
         }
       },
       "shared_check": {
-        "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r2/verify-shared.sh",
+        "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-shared.sh",
         "state": "passed",
         "exit_code": 0,
-        "finished_at": "2026-11-19T11:27:44Z"
+        "finished_at": "2026-11-19T13:42:06Z"
       }
     },
     "introspect": {
@@ -10482,6 +10565,18 @@
       "observed": "19 Nov 2026: ACU reinstall run full suite: test_bcl test_failed_command_does_not_overwrite_newer_plan failed twice. 16:47 IST #117 r2 presuite at load ~11: test_serve test_health_requires_matching_instance_tracker_and_pid, test_bcl test_fix_then_presuite_then_review_succeeds, dev-obs test_collector test_four_megabyte_jsonl_under_ten_seconds (10.2 s > 10 s); all passed alone and on rerun.",
       "recommendation": "Replace fixed sleeps and tight timeouts with condition waits that have generous limits, isolate shared temp state and ports, and make the speed check independent of machine load.",
       "status": "in_progress"
+    },
+    {
+      "id": "ACU-11",
+      "title": "A Samantha island test fails at random when the machine is busy",
+      "source": "User requested",
+      "priority": "medium",
+      "summary": "A test that checks the island does not show its waking state for a quick first reply failed during a busy full test run and passed on the next run.",
+      "impact": "A busy machine can stop an app release for no real fault.",
+      "done_when": "The test passes reliably while the machine is busy without checking less than before, shown by repeated runs under load.",
+      "observed": "19 Nov 2026 18:57 IST: ACU 0.2.152 local release, source checks: IslandGateColdStartTests testSubmitColdStartShowsWakingThenSucceeds said a quick first response must not show the waking state; load about 5 to 9; passed on the 19:01 rerun.",
+      "recommendation": "Give the test control of time instead of relying on real delays, or use generous condition waits.",
+      "status": "untested"
     }
   ]
 }
