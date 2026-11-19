@@ -7729,9 +7729,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-19T15:34:50Z",
-      "now": "2026-11-19T15:34:50Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-19T15:36:45Z",
+      "now": "2026-11-19T15:36:45Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10050,7 +10050,7 @@
             "ACU-05"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl117-r3-g2",
           "reason": "Grok is fixed; on GPT-Live the backend task behind the story keeps running after a redirect.",
@@ -10060,17 +10060,18 @@
             "one_file": false,
             "implementer_session": "01a1f3a3-6347-7f42-b395-61f27206dbe7",
             "job": {
-              "pid": 16386,
-              "phase": "fix",
-              "started_at": "2026-11-19T15:15:12Z",
-              "command": "run-rs4-g2.sh",
-              "heartbeat_at": "2026-11-19T15:34:16Z",
+              "pid": 49681,
+              "phase": "review",
+              "started_at": "2026-11-19T15:34:51Z",
+              "command": "launch-review-g2.sh",
+              "heartbeat_at": "2026-11-19T15:36:30Z",
               "exit_code": 0,
-              "duration_s": 1144,
-              "finished_at": "2026-11-19T15:34:16Z",
-              "finished_phase_status": "passed"
+              "duration_s": 99,
+              "finished_at": "2026-11-19T15:36:30Z",
+              "finished_phase_status": "failed"
             },
-            "fix_status": "passed"
+            "fix_status": "passed",
+            "review_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g2.sh",
@@ -10080,7 +10081,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:34:50Z"
+          "updated_at": "2026-11-19T15:36:30Z"
         },
         {
           "id": "ACU-MENU",
@@ -10102,7 +10103,7 @@
               "phase": "fix",
               "started_at": "2026-11-19T15:15:06Z",
               "command": "launch-g7.sh",
-              "heartbeat_at": "2026-11-19T15:34:09Z"
+              "heartbeat_at": "2026-11-19T15:36:09Z"
             }
           },
           "verify": {
@@ -10113,7 +10114,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:34:09Z"
+          "updated_at": "2026-11-19T15:36:09Z"
         },
         {
           "id": "ACU-PROMPT",
@@ -10138,7 +10139,7 @@
               "phase": "fix",
               "started_at": "2026-11-19T15:15:09Z",
               "command": "launch-g8.sh",
-              "heartbeat_at": "2026-11-19T15:34:11Z"
+              "heartbeat_at": "2026-11-19T15:36:12Z"
             }
           },
           "verify": {
@@ -10149,7 +10150,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:34:11Z"
+          "updated_at": "2026-11-19T15:36:12Z"
         },
         {
           "id": "ACU-TESTS",
@@ -10172,7 +10173,7 @@
               "phase": "fix",
               "started_at": "2026-11-19T15:15:11Z",
               "command": "launch-g9.sh",
-              "heartbeat_at": "2026-11-19T15:34:13Z"
+              "heartbeat_at": "2026-11-19T15:36:14Z"
             }
           },
           "verify": {
@@ -10183,7 +10184,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-19T15:34:13Z"
+          "updated_at": "2026-11-19T15:36:14Z"
         }
       ]
     },
