@@ -10653,9 +10653,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-20T17:44:06Z",
-      "now": "2026-11-20T17:44:06Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T17:44:36Z",
+      "now": "2026-11-20T17:44:36Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 117,
@@ -10709,7 +10709,7 @@
       }
     },
     "cycle": 10,
-    "round": 2,
+    "round": 3,
     "round_history": [
       {
         "round": 2,
@@ -10860,6 +10860,11 @@
         "round": 1,
         "fixed": 2,
         "ended_at": "2026-11-20T15:22:28Z"
+      },
+      {
+        "round": 2,
+        "fixed": 6,
+        "ended_at": "2026-11-20T17:44:36Z"
       }
     ],
     "introspect_history": [
@@ -13729,25 +13734,72 @@
       "collect",
       "present",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "round": 2,
+      "round": 3,
       "groups": [
         {
-          "id": "BCL-VIEWER",
-          "name": "One fixed viewer port per project",
+          "id": "R3-PLAN",
+          "name": "Regression restore lane and no retry without a cause",
           "finding_ids": [
-            "BCL-94"
+            "BCL-95",
+            "BCL-98"
           ],
-          "status": "failed",
-          "worktree": "bcl118-r2-viewer",
-          "label": "BCL-94",
+          "status": "pending",
+          "worktree": "bcl118-r3-plan",
+          "label": "BCL-95, BCL-98",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-viewer.sh",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r3/verify-r3-plan.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "codex": {
+            "model": "Grok Bot subagent (own fix)",
+            "implementer_session": "grokbot-118r3-plan",
+            "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-plan",
+            "review_status": "pending"
+          },
+          "updated_at": "2026-11-20T17:44:36Z"
+        },
+        {
+          "id": "R3-VERIFY",
+          "name": "Verifier self-test and one check per issue",
+          "finding_ids": [
+            "BCL-96",
+            "BCL-97"
+          ],
+          "status": "pending",
+          "worktree": "bcl118-r3-verify",
+          "label": "BCL-96, BCL-97",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r3/verify-r3-verify.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "codex": {
+            "model": "Grok Bot subagent (own fix)",
+            "implementer_session": "grokbot-118r3-verify",
+            "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-verify",
+            "review_status": "pending"
+          },
+          "updated_at": "2026-11-20T17:44:36Z"
+        },
+        {
+          "id": "R3-ROUNDS",
+          "name": "Protected rounds",
+          "finding_ids": [
+            "BCL-99"
+          ],
+          "status": "pending",
+          "worktree": "bcl118-r3-rounds",
+          "label": "BCL-99",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r3/verify-r3-rounds.sh",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
@@ -13755,198 +13807,38 @@
           },
           "codex": {
             "model": "Grok Bot subagent (own fix)",
-            "implementer_session": "grokbot-118r2-bcl-viewer",
-            "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-bcl-viewer",
-            "review_status": "failed",
-            "job": {
-              "pid": 71748,
-              "phase": "review",
-              "started_at": "2026-11-20T16:12:52Z",
-              "command": "review-r6.sh",
-              "heartbeat_at": "2026-11-20T16:21:41Z",
-              "model": "grok-4.7-medium (Cursor CLI ask)",
-              "exit_code": 0,
-              "duration_s": 529,
-              "finished_at": "2026-11-20T16:21:41Z",
-              "finished_phase_status": "failed"
-            },
-            "fix_status": "passed",
-            "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
+            "implementer_session": "grokbot-118r3-rounds",
+            "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-rounds",
+            "review_status": "pending"
           },
-          "updated_at": "2026-11-20T16:21:41Z",
-          "phase": "review"
+          "updated_at": "2026-11-20T17:44:36Z"
         },
         {
-          "id": "ACU-HEADING",
-          "name": "Grok reports the page heading before cleanup",
+          "id": "R3-INTROSPECT",
+          "name": "Cross-round Introspect",
           "finding_ids": [
-            "ACU-22"
+            "BCL-100"
           ],
-          "status": "verified",
-          "worktree": "bcl118-r2-acu22",
-          "label": "ACU-22",
+          "status": "pending",
+          "worktree": "bcl118-r3-introspect",
+          "label": "BCL-100",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-acu-heading.sh",
-            "status": "verified",
-            "fixed": 1,
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r3/verify-r3-introspect.sh",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           },
           "codex": {
             "model": "Grok Bot subagent (own fix)",
-            "implementer_session": "grokbot-118r2-acu-heading",
-            "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-acu-heading",
-            "review_status": "passed",
-            "job": {
-              "pid": 41831,
-              "phase": "presuite",
-              "started_at": "2026-11-20T16:52:04Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T16:57:01Z",
-              "model": "No model (scripted check)",
-              "exit_code": 0,
-              "duration_s": 297,
-              "finished_at": "2026-11-20T16:57:01Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
+            "implementer_session": "grokbot-118r3-introspect",
+            "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-introspect",
+            "review_status": "pending"
           },
-          "updated_at": "2026-11-20T17:41:16Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-20T16:57:01Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T17:13:30Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "No model (typed runs, scripted judge)",
-            "at": "2026-11-20T17:41:16Z"
-          },
-          "verify_reruns": [
-            {
-              "round": 2,
-              "reason": "Cleanup step misread purge errors; all four typed cases passed; cleanup fixed",
-              "at": "2026-11-20T17:41:16Z",
-              "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
-            }
-          ]
-        },
-        {
-          "id": "BCL-MERGED",
-          "name": "Merged and report overrides",
-          "finding_ids": [
-            "BCL-92",
-            "BCL-93"
-          ],
-          "status": "verified",
-          "worktree": "bcl118-r2-merged",
-          "label": "BCL-92, BCL-93",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-merged.sh",
-            "status": "verified",
-            "fixed": 2,
-            "failed": 0,
-            "total": 2
-          },
-          "codex": {
-            "model": "Grok Bot subagent (own fix)",
-            "implementer_session": "grokbot-118r2-bcl-merged",
-            "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-bcl-merged",
-            "review_status": "passed",
-            "job": {
-              "pid": 41831,
-              "phase": "presuite",
-              "started_at": "2026-11-20T16:52:04Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T16:57:01Z",
-              "model": "No model (scripted check)",
-              "exit_code": 0,
-              "duration_s": 297,
-              "finished_at": "2026-11-20T16:57:01Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
-          },
-          "updated_at": "2026-11-20T17:18:56Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-20T16:57:01Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T17:13:30Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "No model (scripted check)",
-            "at": "2026-11-20T17:18:56Z"
-          }
-        },
-        {
-          "id": "BCL-SHARED",
-          "name": "Shared check rerun and executable checks",
-          "finding_ids": [
-            "BCL-91"
-          ],
-          "status": "verified",
-          "worktree": "bcl118-r2-shared",
-          "label": "BCL-91",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-shared.sh",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "codex": {
-            "model": "Grok Bot subagent (own fix)",
-            "implementer_session": "grokbot-118r2-bcl-shared",
-            "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-bcl-shared",
-            "review_status": "passed",
-            "job": {
-              "pid": 41831,
-              "phase": "presuite",
-              "started_at": "2026-11-20T16:52:04Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T16:57:01Z",
-              "model": "No model (scripted check)",
-              "exit_code": 0,
-              "duration_s": 297,
-              "finished_at": "2026-11-20T16:57:01Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
-          },
-          "updated_at": "2026-11-20T17:18:59Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-20T16:57:01Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T17:13:30Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "No model (scripted check)",
-            "at": "2026-11-20T17:18:59Z"
-          }
+          "updated_at": "2026-11-20T17:44:36Z"
         }
       ],
-      "cycle": 10,
-      "status": "closed"
+      "cycle": 10
     },
     "verification_run": {
       "id": "r2-6e3feedc-118",
