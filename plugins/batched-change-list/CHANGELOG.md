@@ -1,3 +1,15 @@
+## 0.1.52
+
+- `bcl job` owns every lane step: `--phase plan_review|fix|review|presuite` runs the real command as its child, and the tracker refuses out-of-order steps (fix needs a plan; review needs a finished fix; presuite needs a passed or skipped review; a new fix voids earlier passes) (BCL-101, BCL-102).
+- Strict review verdict: only a reply whose first line is `VERDICT: PASS` or `VERDICT: CHANGES` with a Must-fix section counts; cut-off or quoted verdicts are recorded as incomplete and fail (BCL-104).
+- Changes requested sends the lane back to fixing instead of showing "Fix failed"; the page shows plan review and its model, review passed, and interrupted only for a dead job (BCL-102).
+- Failure counter: each failed review or check is counted once per lane; the next fix needs a passed plan review, and a second failure blocks the lane with its reason. Replaces 0.1.51's `--failing-test`/`--evidence` retry flags (BCL-105).
+- Every gate override (`--force` on batch set-stage, rollover, merged, machine load) needs a one-line `--reason` before anything is written (BCL-107).
+- `bcl install` refuses a lane whose verify script is missing; verify commands share one validator and are refused before any reservation (BCL-96).
+- `bcl cleanup --run-id ID --outcome ...` records teardown apart from verdicts; Introspect `fixed inline` items need a proof (BCL-97, BCL-106).
+- `bcl archive-history` moves earlier cycles' run and Introspect history into the archive (BCL-108, partial: unstamped legacy rows stay).
+- Docs drop rules the tool now enforces; review docs say version and changelog belong to integration (BCL-103).
+
 ## 0.1.51
 
 - A finding marked as a regression against main must sit in a lane that restores main first (`restores_main`); a redesign is its own finding (BCL-95).
