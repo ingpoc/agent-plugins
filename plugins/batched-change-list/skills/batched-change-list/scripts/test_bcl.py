@@ -1574,7 +1574,9 @@ elif args[:2] != ['pr', 'edit']:
         self.assertIn("pass --force with --reason", refused.stderr)
         no_reason = self.call("merged", "--force")
         self.assertNotEqual(no_reason.returncode, 0)
-        self.assertIn("requires --reason", no_reason.stderr)
+        self.assertIn("requires a one-line --reason", no_reason.stderr)
+        multiline = self.call("merged", "--force", "--reason", "two\nlines")
+        self.assertNotEqual(multiline.returncode, 0)
         self.assertEqual(json.loads(live.read_text())["tracking"]["workflow"]["stage"], "report_rollover")
         result = self.call("merged", "--force", "--reason", "gate zeroed by a stopped run")
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -1582,6 +1584,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(doc["tracking"]["workflow"]["stage"], "merged")
         override = doc["tracking"]["rollover"]["forced_gate_overrides"][-1]
         self.assertEqual((override["action"], override["reason"]), ("merged", "gate zeroed by a stopped run"))
+        self.assertEqual((override["threshold"], override["verified_fixed"] < 16), (16, True))
 
     def test_report_force_passes_through_to_the_gate(self):
         live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])

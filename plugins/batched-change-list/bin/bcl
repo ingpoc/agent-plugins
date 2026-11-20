@@ -563,8 +563,8 @@ def main():
         sys.stdout.write(result.stdout)
         return
     if args.stage == "merged":
-        if args.force and not (args.reason or "").strip():
-            parser.error("merged --force requires --reason saying why the merge gate is overridden")
+        if args.force and (not (args.reason or "").strip() or "\n" in args.reason or "\r" in args.reason):
+            parser.error("merged --force requires a one-line --reason saying why the merge gate is overridden")
         url = tracking.get("pull_request", {}).get("url", "")
         repo = live_state.repo_id(record.get("home", ""), _provider(url)) if url else record.get("repo", "")
         try:

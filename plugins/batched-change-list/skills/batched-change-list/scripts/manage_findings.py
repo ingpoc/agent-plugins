@@ -1766,7 +1766,7 @@ def run(args, parser):
                             if not args.force:
                                 raise ValueError(f"merge requires {threshold} verified_fixed findings; count is {fixed}; "
                                                  "pass --force with --reason to record an already merged pull request")
-                            if not isinstance(reason, str) or not reason.strip() or "\n" in reason:
+                            if not isinstance(reason, str) or not reason.strip() or "\n" in reason or "\r" in reason:
                                 raise ValueError("merged override requires a one-line reason")
                             rollover = tracking.setdefault("rollover", {})
                             if not isinstance(rollover, dict):
