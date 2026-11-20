@@ -10523,6 +10523,122 @@
           "exit_code": 127,
           "finished_at": "2026-11-20T14:43:47Z"
         }
+      },
+      {
+        "id": "r1b-5171c4e2-118",
+        "build": "agent-computer-use 0.2.160, developer-observability 0.1.34, batched-change-list 0.1.49",
+        "revision": "5171c4e25b4b4a435d9a555e129255fd5fd3c666",
+        "installed_at": "2026-11-20T14:39:13Z",
+        "install_evidence": "ACU 0.2.160 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-118/r1/acu-release-0.2.160.json; all installed checks incl. native Calculator smoke passed; microphone step passed; notarization not attempted; run r1b replaces r1 whose shared check failed to start because the check script was not executable (BCL-91)); dev-obs 0.1.34 (unchanged); bcl 0.1.49 (unchanged, from main cd036757)",
+        "status": "complete",
+        "checks": {
+          "ACU-07": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T15:15:41Z",
+            "started_at": "2026-11-20T15:15:41Z",
+            "updated_at": "2026-11-20T15:15:41Z",
+            "check_id": "1b5a07747efa4e6bad843a3b264b74c8",
+            "evidence": "Checked: Small talk with a casual favourite colour and a casual favourite season, a passing mood and a small-talk line, on both voice models in two typed runs; Expected: Lasting preferences saved and confirmed briefly only after the save; moods and small talk not saved; Observed: Saved and confirmed after the save on both models in both runs; nothing saved for the mood, small talk or rough day",
+            "details": "GPT-Live-1: 'My afternoon's going well, thanks. Noted, teal.' / 'Noted, monsoon.' (run A), 'noted, teal.' / 'Noted, monsoon.' (run B). Grok Voice 3.0: 'Noted, teal. ...' / 'Saved: monsoon for fleet.' both runs. No reply mentioned a save before the ledger_task ok result. Mood 'I'm tired today.', 'My afternoon's good, thanks.' and the rough-day turn: 0 ledger saves on both models, both runs. Reply times 1.3 to 6.6 s. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r1/check8.log, live1a, live1b. Run r1b-5171c4e2-118.",
+            "finished_at": "2026-11-20T15:15:41.794421Z"
+          },
+          "ACU-10": {
+            "state": "blocked",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T15:15:55Z",
+            "started_at": "2026-11-20T15:15:55Z",
+            "updated_at": "2026-11-20T15:15:55Z",
+            "check_id": "288177b781564c45b0dbccd4ca2e3574",
+            "evidence": "Checked: nothing new; Expected: real token counts; Observed: unchanged provider limit",
+            "details": "Unchanged since round 5. Run r1b-5171c4e2-118.",
+            "blocker": "The voice providers do not send live model token counts",
+            "finished_at": "2026-11-20T15:15:55.944777Z"
+          },
+          "ACU-13": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T15:15:41Z",
+            "started_at": "2026-11-20T15:15:41Z",
+            "updated_at": "2026-11-20T15:15:41Z",
+            "check_id": "d8e00ccd0fa54b7aa06e6a269bf1ece7",
+            "evidence": "Checked: Remember, three personal facts said without remember, and a dummy credential, on both voice models in two typed runs; Expected: Facts saved to memory with no secrets tool; the credential goes only to secure entry and is never echoed; Observed: All facts saved to memory with no secrets tool; the credential went to secure entry with no memory save, on both models in both runs",
+            "details": "pineapple, Guru Netflix profile, chocolate chip ice cream, dark mode across apps: ledger_task ok 1 each, no secrets tool or more_tools(secrets), 2.9 to 6.8 s. Credential: secrets_put started, 0 ledger saves, value never in a reply; the secure form timed out unanswered (nobody typed). GPT-Live-1: 0 rejected fields (ACU-14) both runs. All 20 store-by-meaning turns (5 cases x 2 models x 2 runs) passed. Test ledger entries purged and no test secrets left. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r1/check8.log, live1a, live1b. Run r1b-5171c4e2-118.",
+            "finished_at": "2026-11-20T15:15:41.794843Z"
+          },
+          "ACU-20": {
+            "state": "inconclusive",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T15:15:55Z",
+            "started_at": "2026-11-20T15:15:55Z",
+            "updated_at": "2026-11-20T15:15:55Z",
+            "check_id": "e902ed517efe4a2192500292798148c3",
+            "evidence": "Checked: nothing; Expected: a fix first; Observed: not in this verify-only round",
+            "details": "Verify-only round with no new fix code (Guru, 19:51 IST). Run r1b-5171c4e2-118.",
+            "finished_at": "2026-11-20T15:15:55.944990Z"
+          },
+          "BCL-91": {
+            "state": "not_fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T15:15:55Z",
+            "started_at": "2026-11-20T15:15:55Z",
+            "updated_at": "2026-11-20T15:15:55Z",
+            "check_id": "0fe4faddd25943eea1f5c6497c5c0c4e",
+            "evidence": "Checked: rerunning a shared check that could not start; Expected: one rerun with a reason; Observed: refused as already recorded, so a new run had to be started",
+            "details": "20 Nov 2026 20:14 IST: the shared check could not start (script not executable, exit 127) and the rerun was refused; run r1b replaced r1 on the same install. Run r1b-5171c4e2-118.",
+            "finished_at": "2026-11-20T15:15:55.944962Z"
+          },
+          "ACU-21": {
+            "state": "inconclusive",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T15:15:55Z",
+            "started_at": "2026-11-20T15:15:55Z",
+            "updated_at": "2026-11-20T15:15:55Z",
+            "check_id": "8552212b1ad748b7a6591bad723fa9de",
+            "evidence": "Checked: nothing; Expected: a fix first; Observed: not in this verify-only round",
+            "details": "Verify-only round with no new fix code (Guru, 19:51 IST). Run r1b-5171c4e2-118.",
+            "finished_at": "2026-11-20T15:15:55.945010Z"
+          },
+          "BCL-92": {
+            "state": "inconclusive",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T15:15:55Z",
+            "started_at": "2026-11-20T15:15:55Z",
+            "updated_at": "2026-11-20T15:15:55Z",
+            "check_id": "d98b6d3f845b4201ba50983773f9cde1",
+            "evidence": "Checked: nothing; Expected: a fix first; Observed: not in this verify-only round",
+            "details": "Verify-only round with no new fix code (Guru, 19:51 IST). Run r1b-5171c4e2-118.",
+            "finished_at": "2026-11-20T15:15:55.945029Z"
+          },
+          "BCL-93": {
+            "state": "inconclusive",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T15:15:55Z",
+            "started_at": "2026-11-20T15:15:55Z",
+            "updated_at": "2026-11-20T15:15:55Z",
+            "check_id": "e37ec6f58f6c4beca5fc0ea79a9fa816",
+            "evidence": "Checked: nothing; Expected: a fix first; Observed: not in this verify-only round",
+            "details": "Verify-only round with no new fix code (Guru, 19:51 IST). Run r1b-5171c4e2-118.",
+            "finished_at": "2026-11-20T15:15:55.945045Z"
+          },
+          "BCL-94": {
+            "state": "inconclusive",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T15:15:55Z",
+            "started_at": "2026-11-20T15:15:55Z",
+            "updated_at": "2026-11-20T15:15:55Z",
+            "check_id": "947a5c7113ea4013b255f310c39e9f2d",
+            "evidence": "Checked: nothing; Expected: a fix first; Observed: not in this verify-only round",
+            "details": "Verify-only round with no new fix code (Guru, 19:51 IST). Run r1b-5171c4e2-118.",
+            "finished_at": "2026-11-20T15:15:55.945061Z"
+          }
+        },
+        "shared_check": {
+          "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r1/verify-shared.sh",
+          "state": "passed",
+          "exit_code": 0,
+          "finished_at": "2026-11-20T14:50:04Z"
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -10537,9 +10653,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-20T17:13:30Z",
-      "now": "2026-11-20T17:13:30Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-20T17:18:56Z",
+      "now": "2026-11-20T17:18:56Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 117,
@@ -13523,7 +13639,8 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 2,
@@ -13627,7 +13744,7 @@
             "BCL-92",
             "BCL-93"
           ],
-          "status": "installing",
+          "status": "verifying",
           "worktree": "bcl118-r2-merged",
           "label": "BCL-92, BCL-93",
           "verify": {
@@ -13657,8 +13774,8 @@
             "fix_status": "passed",
             "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
-          "updated_at": "2026-11-20T16:57:01Z",
-          "phase": "install",
+          "updated_at": "2026-11-20T17:18:56Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -13669,9 +13786,9 @@
             "started_at": "2026-11-20T17:13:30Z"
           },
           "stage_model": {
-            "stage": "install",
-            "model": "No model (scripted release)",
-            "at": "2026-11-20T17:13:30Z"
+            "stage": "verify",
+            "model": "No model (scripted check)",
+            "at": "2026-11-20T17:18:56Z"
           }
         },
         {
@@ -13731,119 +13848,67 @@
       "cycle": 10
     },
     "verification_run": {
-      "id": "r1b-5171c4e2-118",
-      "build": "agent-computer-use 0.2.160, developer-observability 0.1.34, batched-change-list 0.1.49",
-      "revision": "5171c4e25b4b4a435d9a555e129255fd5fd3c666",
-      "installed_at": "2026-11-20T14:39:13Z",
-      "install_evidence": "ACU 0.2.160 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-118/r1/acu-release-0.2.160.json; all installed checks incl. native Calculator smoke passed; microphone step passed; notarization not attempted; run r1b replaces r1 whose shared check failed to start because the check script was not executable (BCL-91)); dev-obs 0.1.34 (unchanged); bcl 0.1.49 (unchanged, from main cd036757)",
-      "status": "complete",
+      "id": "r2-6e3feedc-118",
+      "build": "agent-computer-use 0.2.161, developer-observability 0.1.34, batched-change-list 0.1.50",
+      "revision": "6e3feedc8576688d4646175f735c94e5d59832d6",
+      "installed_at": "2026-11-20T17:07:20Z",
+      "install_evidence": "ACU 0.2.161 local signed release (sign-only; report /Users/gurusharan/.agents/artifacts/bcl-118/r2/acu-release-0.2.161.json; source checks, build-install, sync, signature, live client/cursor/fd and native Calculator smoke passed; microphone step FAILED: no input device at 22:45 IST (AirPods not connected), typed verify does not use the microphone; notarization not attempted); bcl 0.1.50 install-local from 6e3feedc; dev-obs 0.1.34 unchanged",
+      "status": "active",
       "checks": {
         "ACU-07": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T15:15:41Z",
-          "started_at": "2026-11-20T15:15:41Z",
-          "updated_at": "2026-11-20T15:15:41Z",
-          "check_id": "1b5a07747efa4e6bad843a3b264b74c8",
-          "evidence": "Checked: Small talk with a casual favourite colour and a casual favourite season, a passing mood and a small-talk line, on both voice models in two typed runs; Expected: Lasting preferences saved and confirmed briefly only after the save; moods and small talk not saved; Observed: Saved and confirmed after the save on both models in both runs; nothing saved for the mood, small talk or rough day",
-          "details": "GPT-Live-1: 'My afternoon's going well, thanks. Noted, teal.' / 'Noted, monsoon.' (run A), 'noted, teal.' / 'Noted, monsoon.' (run B). Grok Voice 3.0: 'Noted, teal. ...' / 'Saved: monsoon for fleet.' both runs. No reply mentioned a save before the ledger_task ok result. Mood 'I'm tired today.', 'My afternoon's good, thanks.' and the rough-day turn: 0 ledger saves on both models, both runs. Reply times 1.3 to 6.6 s. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r1/check8.log, live1a, live1b. Run r1b-5171c4e2-118.",
-          "finished_at": "2026-11-20T15:15:41.794421Z"
+          "state": "pending"
         },
         "ACU-10": {
-          "state": "blocked",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T15:15:55Z",
-          "started_at": "2026-11-20T15:15:55Z",
-          "updated_at": "2026-11-20T15:15:55Z",
-          "check_id": "288177b781564c45b0dbccd4ca2e3574",
-          "evidence": "Checked: nothing new; Expected: real token counts; Observed: unchanged provider limit",
-          "details": "Unchanged since round 5. Run r1b-5171c4e2-118.",
-          "blocker": "The voice providers do not send live model token counts",
-          "finished_at": "2026-11-20T15:15:55.944777Z"
+          "state": "pending"
         },
         "ACU-13": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T15:15:41Z",
-          "started_at": "2026-11-20T15:15:41Z",
-          "updated_at": "2026-11-20T15:15:41Z",
-          "check_id": "d8e00ccd0fa54b7aa06e6a269bf1ece7",
-          "evidence": "Checked: Remember, three personal facts said without remember, and a dummy credential, on both voice models in two typed runs; Expected: Facts saved to memory with no secrets tool; the credential goes only to secure entry and is never echoed; Observed: All facts saved to memory with no secrets tool; the credential went to secure entry with no memory save, on both models in both runs",
-          "details": "pineapple, Guru Netflix profile, chocolate chip ice cream, dark mode across apps: ledger_task ok 1 each, no secrets tool or more_tools(secrets), 2.9 to 6.8 s. Credential: secrets_put started, 0 ledger saves, value never in a reply; the secure form timed out unanswered (nobody typed). GPT-Live-1: 0 rejected fields (ACU-14) both runs. All 20 store-by-meaning turns (5 cases x 2 models x 2 runs) passed. Test ledger entries purged and no test secrets left. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r1/check8.log, live1a, live1b. Run r1b-5171c4e2-118.",
-          "finished_at": "2026-11-20T15:15:41.794843Z"
+          "state": "pending"
         },
         "ACU-20": {
-          "state": "inconclusive",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T15:15:55Z",
-          "started_at": "2026-11-20T15:15:55Z",
-          "updated_at": "2026-11-20T15:15:55Z",
-          "check_id": "e902ed517efe4a2192500292798148c3",
-          "evidence": "Checked: nothing; Expected: a fix first; Observed: not in this verify-only round",
-          "details": "Verify-only round with no new fix code (Guru, 19:51 IST). Run r1b-5171c4e2-118.",
-          "finished_at": "2026-11-20T15:15:55.944990Z"
+          "state": "pending"
         },
         "BCL-91": {
-          "state": "not_fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T15:15:55Z",
-          "started_at": "2026-11-20T15:15:55Z",
-          "updated_at": "2026-11-20T15:15:55Z",
-          "check_id": "0fe4faddd25943eea1f5c6497c5c0c4e",
-          "evidence": "Checked: rerunning a shared check that could not start; Expected: one rerun with a reason; Observed: refused as already recorded, so a new run had to be started",
-          "details": "20 Nov 2026 20:14 IST: the shared check could not start (script not executable, exit 127) and the rerun was refused; run r1b replaced r1 on the same install. Run r1b-5171c4e2-118.",
-          "finished_at": "2026-11-20T15:15:55.944962Z"
+          "state": "pending"
         },
         "ACU-21": {
-          "state": "inconclusive",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T15:15:55Z",
-          "started_at": "2026-11-20T15:15:55Z",
-          "updated_at": "2026-11-20T15:15:55Z",
-          "check_id": "8552212b1ad748b7a6591bad723fa9de",
-          "evidence": "Checked: nothing; Expected: a fix first; Observed: not in this verify-only round",
-          "details": "Verify-only round with no new fix code (Guru, 19:51 IST). Run r1b-5171c4e2-118.",
-          "finished_at": "2026-11-20T15:15:55.945010Z"
+          "state": "pending"
         },
         "BCL-92": {
-          "state": "inconclusive",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T15:15:55Z",
-          "started_at": "2026-11-20T15:15:55Z",
-          "updated_at": "2026-11-20T15:15:55Z",
-          "check_id": "d98b6d3f845b4201ba50983773f9cde1",
-          "evidence": "Checked: nothing; Expected: a fix first; Observed: not in this verify-only round",
-          "details": "Verify-only round with no new fix code (Guru, 19:51 IST). Run r1b-5171c4e2-118.",
-          "finished_at": "2026-11-20T15:15:55.945029Z"
+          "state": "pending"
         },
         "BCL-93": {
-          "state": "inconclusive",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T15:15:55Z",
-          "started_at": "2026-11-20T15:15:55Z",
-          "updated_at": "2026-11-20T15:15:55Z",
-          "check_id": "e37ec6f58f6c4beca5fc0ea79a9fa816",
-          "evidence": "Checked: nothing; Expected: a fix first; Observed: not in this verify-only round",
-          "details": "Verify-only round with no new fix code (Guru, 19:51 IST). Run r1b-5171c4e2-118.",
-          "finished_at": "2026-11-20T15:15:55.945045Z"
+          "state": "pending"
         },
         "BCL-94": {
-          "state": "inconclusive",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T15:15:55Z",
-          "started_at": "2026-11-20T15:15:55Z",
-          "updated_at": "2026-11-20T15:15:55Z",
-          "check_id": "947a5c7113ea4013b255f310c39e9f2d",
-          "evidence": "Checked: nothing; Expected: a fix first; Observed: not in this verify-only round",
-          "details": "Verify-only round with no new fix code (Guru, 19:51 IST). Run r1b-5171c4e2-118.",
-          "finished_at": "2026-11-20T15:15:55.945061Z"
+          "state": "pending"
+        },
+        "ACU-22": {
+          "state": "pending"
+        },
+        "BCL-95": {
+          "state": "pending"
+        },
+        "BCL-96": {
+          "state": "pending"
+        },
+        "BCL-97": {
+          "state": "pending"
+        },
+        "BCL-98": {
+          "state": "pending"
+        },
+        "BCL-99": {
+          "state": "pending"
+        },
+        "BCL-100": {
+          "state": "pending"
         }
       },
       "shared_check": {
-        "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r1/verify-shared.sh",
+        "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-shared.sh",
         "state": "passed",
         "exit_code": 0,
-        "finished_at": "2026-11-20T14:50:04Z"
+        "finished_at": "2026-11-20T17:18:55Z"
       }
     },
     "introspect": {
