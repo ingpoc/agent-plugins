@@ -10653,9 +10653,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T19:20:19Z",
-      "now": "2026-11-20T19:20:19Z — Lane R3-ROUNDS updated"
+      "stage": "review",
+      "updated_at": "2026-11-20T23:39:50Z",
+      "now": "2026-11-20T23:39:50Z — Review started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13746,7 +13746,7 @@
             "BCL-95",
             "BCL-98"
           ],
-          "status": "failed",
+          "status": "review",
           "worktree": "bcl118-r3-plan",
           "label": "BCL-95, BCL-98",
           "verify": {
@@ -13760,30 +13760,24 @@
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-118r3-plan",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-plan",
-            "review_status": "passed",
             "job": {
-              "pid": 89553,
-              "phase": "presuite",
-              "started_at": "2026-11-20T19:15:07Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T19:20:19Z",
-              "model": "No model (scripted check)",
-              "exit_code": 1,
-              "duration_s": 312,
-              "finished_at": "2026-11-20T19:20:19Z",
-              "finished_phase_status": "failed"
+              "id": "9e7827c21ec246dc831cd11538ee9a1a",
+              "phase": "review",
+              "started_at": "2026-11-20T23:39:50Z",
+              "command": "review-terra.sh",
+              "heartbeat_at": "2026-11-20T23:39:50Z",
+              "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
+              "model": "gpt-6.1-terra medium (Codex CLI)",
+              "cycle": 10,
+              "round": 3
             },
             "fix_status": "passed",
-            "reviewer_model": "grok-4.7-medium"
+            "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
+            "review_status": "running"
           },
           "updated_at": "2026-11-20T19:20:19Z",
           "phase": "review",
-          "verify_summary": "Review passed; integrating in int3 with ROUNDS (0.1.51)",
-          "presuite": {
-            "status": "failed",
-            "exit_code": 1,
-            "finished_at": "2026-11-20T19:20:19Z"
-          }
+          "verify_summary": "Review passed; integrating in int3 with ROUNDS (0.1.51)"
         },
         {
           "id": "R3-VERIFY",
@@ -13834,7 +13828,7 @@
           "finding_ids": [
             "BCL-99"
           ],
-          "status": "failed",
+          "status": "review",
           "worktree": "bcl118-r3-rounds",
           "label": "BCL-99",
           "verify": {
@@ -13848,30 +13842,24 @@
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-118r3-rounds",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-rounds",
-            "review_status": "passed",
             "job": {
-              "pid": 89553,
-              "phase": "presuite",
-              "started_at": "2026-11-20T19:15:07Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T19:20:19Z",
-              "model": "No model (scripted check)",
-              "exit_code": 1,
-              "duration_s": 312,
-              "finished_at": "2026-11-20T19:20:19Z",
-              "finished_phase_status": "failed"
+              "id": "9e7827c21ec246dc831cd11538ee9a1a",
+              "phase": "review",
+              "started_at": "2026-11-20T23:39:50Z",
+              "command": "review-terra.sh",
+              "heartbeat_at": "2026-11-20T23:39:50Z",
+              "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
+              "model": "gpt-6.1-terra medium (Codex CLI)",
+              "cycle": 10,
+              "round": 3
             },
             "fix_status": "passed",
-            "reviewer_model": "grok-4.7-medium"
+            "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
+            "review_status": "running"
           },
           "updated_at": "2026-11-20T19:20:19Z",
           "phase": "review",
-          "verify_summary": "Review passed; integrating in int3 with PLAN (0.1.51)",
-          "presuite": {
-            "status": "failed",
-            "exit_code": 1,
-            "finished_at": "2026-11-20T19:20:19Z"
-          }
+          "verify_summary": "Review passed; integrating in int3 with PLAN (0.1.51)"
         },
         {
           "id": "R3-INTROSPECT",
