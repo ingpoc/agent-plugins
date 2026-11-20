@@ -10494,9 +10494,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T14:27:01Z",
-      "now": "2026-11-20T14:27:01Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-20T14:27:53Z",
+      "now": "2026-11-20T14:27:53Z — Review started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13408,7 +13408,8 @@
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix"
+      "plan_fix",
+      "review"
     ],
     "plan": {
       "round": 1,
@@ -13420,7 +13421,7 @@
             "ACU-07",
             "ACU-13"
           ],
-          "status": "pending",
+          "status": "review",
           "worktree": "samantha-next-r8",
           "label": "ACU-07, ACU-13",
           "reason": "Carried from #117: fix c21b1398/b4406c81 (reapplied 3444e1d6 + 4038b12c), fresh-eyes review pass 5 PASS on #117; verify only on #118",
@@ -13435,9 +13436,23 @@
             "model": "Grok Bot subagent (own fix, carried from #117)",
             "implementer_session": "grokbot-r7-own-fix-remember",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-remember-5",
-            "review_status": "pending"
+            "review_status": "pending",
+            "job": {
+              "pid": 10147,
+              "phase": "fix",
+              "started_at": "2026-11-20T14:27:21Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-20T14:27:44Z",
+              "model": "Grok Bot subagent (carried fix from #117, tests only; no new code)",
+              "exit_code": 0,
+              "duration_s": 23,
+              "finished_at": "2026-11-20T14:27:44Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed"
           },
-          "updated_at": "2026-11-20T14:27:01Z"
+          "updated_at": "2026-11-20T14:27:53Z",
+          "phase": "review"
         }
       ],
       "cycle": 10
