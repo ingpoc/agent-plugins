@@ -8776,9 +8776,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T09:11:18Z",
-      "now": "2026-11-20T09:11:18Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T09:19:00Z",
+      "now": "2026-11-20T09:19:00Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -11493,7 +11493,7 @@
             "ACU-13",
             "ACU-14"
           ],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl117-r7-remember",
           "label": "ACU-13, ACU-14",
@@ -11502,18 +11502,20 @@
             "implementer_session": "grokbot-r7-own-fix-remember",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-remember",
             "job": {
-              "pid": 58601,
-              "phase": "fix",
-              "started_at": "2026-11-20T09:10:48Z",
+              "pid": 59691,
+              "phase": "review",
+              "started_at": "2026-11-20T09:11:19Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-20T09:11:10Z",
-              "model": "Grok Bot subagent (own fix)",
-              "exit_code": 0,
-              "duration_s": 22,
-              "finished_at": "2026-11-20T09:11:10Z",
-              "finished_phase_status": "passed"
+              "heartbeat_at": "2026-11-20T09:14:19Z",
+              "model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 1)",
+              "exit_code": 143,
+              "duration_s": 180,
+              "finished_at": "2026-11-20T09:14:19Z",
+              "finished_phase_status": "failed"
             },
-            "fix_status": "passed"
+            "fix_status": "passed",
+            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 1)",
+            "review_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r7-remember.sh",
@@ -11522,7 +11524,7 @@
             "failed": 0,
             "total": 2
           },
-          "updated_at": "2026-11-20T09:11:18Z"
+          "updated_at": "2026-11-20T09:14:19Z"
         }
       ],
       "status": "closed"
@@ -13474,7 +13476,7 @@
       "priority": "medium",
       "summary": "When Samantha on Grok Voice tries to save a preference, the memory store turns the save down as an invalid request. She then tells Guru she could not save it, and the island shows Something went wrong.",
       "impact": "Things Guru asks Samantha to remember on Grok Voice are lost, and a small-talk turn ends with an error.",
-      "done_when": "A memory save that Grok Voice sends is accepted, or Samantha is told plainly which part is wrong and fixes it once; a named test with the exact request Grok sent proves it, and a typed run on Grok Voice shows no invalid request.",
+      "done_when": "Memory versus secrets is chosen by intent, by what is being stored, never by keywords such as remember or password, and only through tool descriptions and instructions (no regex or word list). A real secret value (a password, API key or token) goes to secure entry; personal facts and preferences go to ledger memory with or without the word remember. Typed Verify on GPT-Live-1 (2 runs) and Grok Voice 3.0 proves it for: 'I have a Guru profile on Netflix', 'I love chocolate chip ice cream', 'I like dark mode across apps' (no remember), the pineapple remember turn, and one credential case with a dummy value deleted afterwards. A memory save Grok Voice sends is accepted.",
       "observed": "19 Nov 2026 20:35 IST, ACU 0.2.153, Grok Voice 3.0 typed small-talk turn: the memory save tool was called with operation capture, scope fleet, rule favourite_colour, value teal and a capture_gate; it came back ok false, error invalid request, type ledger_invalid_argument, not retryable. The reply was: I could not save it, the ledger rejected that request as invalid. Same reply in the 19:14 IST run on 0.2.152. The tool call was also delivered twice (duplicate function call delivery).",
       "recommendation": "Compare the request Grok sends with what the memory tool accepts (scope and capture_gate fields), and make the tool description, the conversion layer or the error message line up so a valid save goes through.",
       "status": "in_progress",
@@ -13495,7 +13497,11 @@
       "verification": "Saved once on each model with no error live5 runs: ledger_task preference ok 1, errors none, GPT 8.7 s, Grok 2.8 s (test word pineapple). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8m.log. Run r5-b80ba41c-117.",
       "verification_refs": [
         "b80ba41cfdc086e4b1776f6e6c43ec5306105e34:ACU-13:installed-check"
-      ]
+      ],
+      "details": {
+        "Requirement (Guru 14:41 IST, 20 Nov 2026)": "Routing must be intent-based, never keyword-based. Don't key on 'remember' or 'password'; the model interprets what is being stored. Credential or secret value -> secrets; personal facts and preferences -> ledger memory, with or without 'remember'. Do it through tool descriptions and instructions, not a regex or word list.",
+        "Cause (GPT-Live-1, 0.2.156)": "No code change: tool lists and instructions sent were byte-identical to 0.2.155. The GPT-Live-1 backend read 'my test word ... is pineapple' as a credential (more_tools secrets, then secrets_put) in 2 of 2 runs; nothing said what each store is for."
+      }
     },
     {
       "id": "BCL-83",
