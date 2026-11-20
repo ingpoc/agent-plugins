@@ -10537,9 +10537,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T15:53:36Z",
-      "now": "2026-11-20T15:53:36Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-20T15:55:34Z",
+      "now": "2026-11-20T15:55:34Z — Review started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13533,7 +13533,7 @@
           "finding_ids": [
             "BCL-94"
           ],
-          "status": "failed",
+          "status": "review",
           "worktree": "bcl118-r2-viewer",
           "label": "BCL-94",
           "verify": {
@@ -13549,21 +13549,21 @@
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-bcl-viewer",
             "review_status": "failed",
             "job": {
-              "pid": 80498,
-              "phase": "review",
-              "started_at": "2026-11-20T15:40:47Z",
-              "command": "review-r6.sh",
-              "heartbeat_at": "2026-11-20T15:49:43Z",
-              "model": "grok-4.7-medium (Cursor CLI ask)",
+              "pid": 28955,
+              "phase": "fix",
+              "started_at": "2026-11-20T15:53:36Z",
+              "command": "fixjob.sh",
+              "heartbeat_at": "2026-11-20T15:55:33Z",
+              "model": "Grok Bot (own fix)",
               "exit_code": 0,
-              "duration_s": 536,
-              "finished_at": "2026-11-20T15:49:43Z",
-              "finished_phase_status": "failed"
+              "duration_s": 117,
+              "finished_at": "2026-11-20T15:55:33Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
-          "updated_at": "2026-11-20T15:49:43Z",
+          "updated_at": "2026-11-20T15:55:34Z",
           "phase": "review"
         },
         {
@@ -14093,6 +14093,96 @@
       "details": {
         "evidence": "bcl-118/r1/live1a and live1b run-grok-after.json, check8.log, activity log turn windows",
         "tools": "cua_act open, comet_begin, comet_act text, comet_end, all ok"
+      }
+    },
+    {
+      "id": "BCL-95",
+      "title": "A regression against main is not restored before any redesign",
+      "source": "User requested",
+      "priority": "high",
+      "summary": "When a change on the PR does worse than main, the next lane can try a new design instead of first putting main's behaviour back.",
+      "impact": "Regressions stay on the PR across rounds while redesigns are tried, and the gate stalls.",
+      "done_when": "When a check shows a regression against main, the workflow makes the first lane restore main's behaviour, and any redesign is filed as its own separate item.",
+      "observed": "20 Nov 2026 21:24 IST, Guru asked for this rule after round reviews on PR 117 and PR 118.",
+      "recommendation": "Add the rule to the plan step and have the plan check refuse a redesign lane for an item marked as a regression until a restore lane is recorded.",
+      "status": "untested",
+      "details": {
+        "approved": "Guru 21:24 IST t1579u"
+      }
+    },
+    {
+      "id": "BCL-96",
+      "title": "Check scripts are not self-tested before Verify",
+      "source": "User requested",
+      "priority": "high",
+      "summary": "Verify can start with check scripts that cannot run: no git repository, a stale plugin version, missing execute permission, a session limit in the observability tool, or a rerun that is not allowed.",
+      "impact": "A whole verification run is spent and recorded as failed for a reason in the checker, not in the product.",
+      "done_when": "Before Verify, a quick self-test of the check scripts confirms the git repository is present, the recorded plugin version matches the install, the scripts are executable, the observability session limit is fine, and a rerun is allowed; Verify refuses to start when it fails.",
+      "observed": "20 Nov 2026 21:24 IST, Guru, after PR 118 round 1 lost a shared check to a script without execute permission and earlier rounds lost runs to a missing repository and a version mismatch.",
+      "recommendation": "Run one self-test step inside the verify start and replace the separate manual preflight steps it covers.",
+      "status": "untested",
+      "details": {
+        "approved": "Guru 21:24 IST t1579u"
+      }
+    },
+    {
+      "id": "BCL-97",
+      "title": "Rechecks fold into an issue's verdict",
+      "source": "User requested",
+      "priority": "high",
+      "summary": "Extra rechecks run alongside an issue's own check can change that issue's pass or fail result.",
+      "impact": "An issue fails for an unrelated recheck, as happened when a page heading recheck failed a memory lane.",
+      "done_when": "Each issue has one check that decides its verdict; rechecks are recorded separately and never change another issue's verdict.",
+      "observed": "20 Nov 2026 21:24 IST, Guru; on PR 118 round 1 the memory lane first failed on an unrelated multi step recheck.",
+      "recommendation": "Record rechecks under their own issue entries and keep the lane verdict to its named issues.",
+      "status": "untested",
+      "details": {
+        "approved": "Guru 21:24 IST t1579u"
+      }
+    },
+    {
+      "id": "BCL-98",
+      "title": "A second fix attempt can start without a failing test from real evidence",
+      "source": "User requested",
+      "priority": "high",
+      "summary": "After a fix fails verification, another attempt can start on a guess instead of a test built from the recorded failure.",
+      "impact": "Retries repeat without learning the cause, wasting rounds and model time.",
+      "done_when": "A second fix attempt for the same issue is refused until a failing test built from the real observability evidence of the failure is recorded with it.",
+      "observed": "20 Nov 2026 21:24 IST, Guru asked for this rule after repeated retries in earlier rounds.",
+      "recommendation": "Have the fix job require a named failing test and its evidence path when the issue already has a failed attempt, replacing the free text retry note.",
+      "status": "untested",
+      "details": {
+        "approved": "Guru 21:24 IST t1579u"
+      }
+    },
+    {
+      "id": "BCL-99",
+      "title": "Rounds are not protected: lane cap, machine load and stopped runs",
+      "source": "User requested",
+      "priority": "high",
+      "summary": "The four lane cap is only a written rule, runs start without checking the Mini's load, and stopping a run can drop verified results so the gate falls to zero.",
+      "impact": "Rounds overrun, checks fail under load, and a stopped run forces overrides to record a real merge.",
+      "done_when": "The command line refuses a plan with more than four lanes, checks the Mini's load before runs, and keeps already verified results when a run is stopped so the gate is not zeroed.",
+      "observed": "20 Nov 2026 21:24 IST, Guru; on PR 117 a stopped run zeroed the gate and the merge needed an override.",
+      "recommendation": "Enforce the cap in the plan check, add a load check to job and verify starts, and carry verified results into the stopped run's history.",
+      "status": "untested",
+      "details": {
+        "approved": "Guru 21:24 IST t1579u"
+      }
+    },
+    {
+      "id": "BCL-100",
+      "title": "Introspect does not look across rounds for repeated waste",
+      "source": "User requested",
+      "priority": "medium",
+      "summary": "Introspect only looks at the current round, so the same kind of waste can repeat round after round with a new one off fix each time.",
+      "impact": "Workflow problems are patched repeatedly instead of fixed once in the workflow.",
+      "done_when": "Introspect also scans the last few rounds' introspect and progress records for repeated waste of the same kind, and on two or more repeats it must propose a workflow change rather than a one off fix.",
+      "observed": "20 Nov 2026 21:24 IST, Guru asked for this after repeated checker and retry waste across PR 115 to PR 118.",
+      "recommendation": "Add a cross round scan to the introspect draft and require a workflow change section when a kind repeats; keep it lean by replacing the current free form repeat notes.",
+      "status": "untested",
+      "details": {
+        "approved": "Guru 21:24 IST t1579u"
       }
     }
   ]
