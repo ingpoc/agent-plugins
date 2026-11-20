@@ -10537,9 +10537,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-20T14:50:07Z",
-      "now": "2026-11-20T14:50:07Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-20T15:16:19Z",
+      "now": "2026-11-20T15:16:19Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 117,
@@ -13425,6 +13425,71 @@
         },
         "round": 7,
         "cycle": 9
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-20T15:16:19Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 1",
+          "Codex write: ACU-REMEMBER",
+          "Codex review: ACU-REMEMBER",
+          "Polling and rework review: ACU-REMEMBER",
+          "Test command: ACU-REMEMBER: /Users/gurusharan/.agents/artifacts/bcl-118/r1/verify-remember.sh"
+        ],
+        "none": [
+          "Parallel group count: 1",
+          "Codex write: ACU-REMEMBER",
+          "Codex review: ACU-REMEMBER",
+          "Polling and rework review: ACU-REMEMBER",
+          "Stage: Plan & fix",
+          "Stage: Review"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Stage: Verify",
+                "evidence": "Run r1 was thrown away because the shared check script was not executable; bcl then refused a rerun (BCL-91). A start check that the stored commands are executable would have avoided the replacement run.",
+                "outcome": "issue",
+                "issue_id": "BCL-91"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Test command: ACU-REMEMBER: /Users/gurusharan/.agents/artifacts/bcl-118/r1/verify-remember.sh",
+                "evidence": "The lane command first mixed ACU-07/ACU-13 criteria with unrelated regression rechecks, so a Grok Calculator miss failed the memory lane. It now judges only the lane's criteria and reports rechecks in the same table; the miss is filed as ACU-22.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Stage: Install",
+                "evidence": "The release ran its source checks at 6-way after a 6-way presuite and passed first time; the 10-way default had flaked twice (ACU-21).",
+                "outcome": "issue",
+                "issue_id": "ACU-21"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Stage: Verify",
+                "evidence": "Dummy ledger cleanup missed 5 entries whose revision rose when a later same-rule save superseded them; cleanup8.py now retries at the next revision, and an export check showed 0 test records left.",
+                "outcome": "fixed inline"
+              }
+            ]
+          }
+        },
+        "round": 1,
+        "cycle": 10
       }
     ],
     "archive": {
@@ -13454,7 +13519,8 @@
       "plan_fix",
       "review",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 1,
@@ -13466,14 +13532,14 @@
             "ACU-07",
             "ACU-13"
           ],
-          "status": "verifying",
+          "status": "verified",
           "worktree": "samantha-next-r8",
           "label": "ACU-07, ACU-13",
           "reason": "Carried from #117: fix c21b1398/b4406c81 (reapplied 3444e1d6 + 4038b12c), fresh-eyes review pass 5 PASS on #117; verify only on #118",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r1/verify-remember.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 2,
             "failed": 0,
             "total": 2
           },
@@ -13496,7 +13562,7 @@
             "fix_status": "passed",
             "reviewer_model": "grok-4.7-medium via Cursor CLI (pass 5 on #117, carried; code identical)"
           },
-          "updated_at": "2026-11-20T14:50:07Z",
+          "updated_at": "2026-11-20T15:15:13Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13510,11 +13576,20 @@
           "stage_model": {
             "stage": "verify",
             "model": "Grok Bot subagent (scripted typed check via typed_run_sync)",
-            "at": "2026-11-20T14:50:07Z"
-          }
+            "at": "2026-11-20T15:15:13Z"
+          },
+          "verify_reruns": [
+            {
+              "round": 1,
+              "reason": "Lane failed only on the Grok Calculator+Comet recheck, which is not an ACU-07/ACU-13 criterion; filed as ACU-22 and judged separately; same typed runs",
+              "at": "2026-11-20T15:15:13Z",
+              "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+            }
+          ]
         }
       ],
-      "cycle": 10
+      "cycle": 10,
+      "status": "closed"
     },
     "verification_run": {
       "id": "r1b-5171c4e2-118",
@@ -13522,34 +13597,107 @@
       "revision": "5171c4e25b4b4a435d9a555e129255fd5fd3c666",
       "installed_at": "2026-11-20T14:39:13Z",
       "install_evidence": "ACU 0.2.160 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-118/r1/acu-release-0.2.160.json; all installed checks incl. native Calculator smoke passed; microphone step passed; notarization not attempted; run r1b replaces r1 whose shared check failed to start because the check script was not executable (BCL-91)); dev-obs 0.1.34 (unchanged); bcl 0.1.49 (unchanged, from main cd036757)",
-      "status": "active",
+      "status": "complete",
       "checks": {
         "ACU-07": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T15:15:41Z",
+          "started_at": "2026-11-20T15:15:41Z",
+          "updated_at": "2026-11-20T15:15:41Z",
+          "check_id": "1b5a07747efa4e6bad843a3b264b74c8",
+          "evidence": "Checked: Small talk with a casual favourite colour and a casual favourite season, a passing mood and a small-talk line, on both voice models in two typed runs; Expected: Lasting preferences saved and confirmed briefly only after the save; moods and small talk not saved; Observed: Saved and confirmed after the save on both models in both runs; nothing saved for the mood, small talk or rough day",
+          "details": "GPT-Live-1: 'My afternoon's going well, thanks. Noted, teal.' / 'Noted, monsoon.' (run A), 'noted, teal.' / 'Noted, monsoon.' (run B). Grok Voice 3.0: 'Noted, teal. ...' / 'Saved: monsoon for fleet.' both runs. No reply mentioned a save before the ledger_task ok result. Mood 'I'm tired today.', 'My afternoon's good, thanks.' and the rough-day turn: 0 ledger saves on both models, both runs. Reply times 1.3 to 6.6 s. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r1/check8.log, live1a, live1b. Run r1b-5171c4e2-118.",
+          "finished_at": "2026-11-20T15:15:41.794421Z"
         },
         "ACU-10": {
-          "state": "pending"
+          "state": "blocked",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T15:15:55Z",
+          "started_at": "2026-11-20T15:15:55Z",
+          "updated_at": "2026-11-20T15:15:55Z",
+          "check_id": "288177b781564c45b0dbccd4ca2e3574",
+          "evidence": "Checked: nothing new; Expected: real token counts; Observed: unchanged provider limit",
+          "details": "Unchanged since round 5. Run r1b-5171c4e2-118.",
+          "blocker": "The voice providers do not send live model token counts",
+          "finished_at": "2026-11-20T15:15:55.944777Z"
         },
         "ACU-13": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T15:15:41Z",
+          "started_at": "2026-11-20T15:15:41Z",
+          "updated_at": "2026-11-20T15:15:41Z",
+          "check_id": "d8e00ccd0fa54b7aa06e6a269bf1ece7",
+          "evidence": "Checked: Remember, three personal facts said without remember, and a dummy credential, on both voice models in two typed runs; Expected: Facts saved to memory with no secrets tool; the credential goes only to secure entry and is never echoed; Observed: All facts saved to memory with no secrets tool; the credential went to secure entry with no memory save, on both models in both runs",
+          "details": "pineapple, Guru Netflix profile, chocolate chip ice cream, dark mode across apps: ledger_task ok 1 each, no secrets tool or more_tools(secrets), 2.9 to 6.8 s. Credential: secrets_put started, 0 ledger saves, value never in a reply; the secure form timed out unanswered (nobody typed). GPT-Live-1: 0 rejected fields (ACU-14) both runs. All 20 store-by-meaning turns (5 cases x 2 models x 2 runs) passed. Test ledger entries purged and no test secrets left. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r1/check8.log, live1a, live1b. Run r1b-5171c4e2-118.",
+          "finished_at": "2026-11-20T15:15:41.794843Z"
         },
         "ACU-20": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T15:15:55Z",
+          "started_at": "2026-11-20T15:15:55Z",
+          "updated_at": "2026-11-20T15:15:55Z",
+          "check_id": "e902ed517efe4a2192500292798148c3",
+          "evidence": "Checked: nothing; Expected: a fix first; Observed: not in this verify-only round",
+          "details": "Verify-only round with no new fix code (Guru, 19:51 IST). Run r1b-5171c4e2-118.",
+          "finished_at": "2026-11-20T15:15:55.944990Z"
         },
         "BCL-91": {
-          "state": "pending"
+          "state": "not_fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T15:15:55Z",
+          "started_at": "2026-11-20T15:15:55Z",
+          "updated_at": "2026-11-20T15:15:55Z",
+          "check_id": "0fe4faddd25943eea1f5c6497c5c0c4e",
+          "evidence": "Checked: rerunning a shared check that could not start; Expected: one rerun with a reason; Observed: refused as already recorded, so a new run had to be started",
+          "details": "20 Nov 2026 20:14 IST: the shared check could not start (script not executable, exit 127) and the rerun was refused; run r1b replaced r1 on the same install. Run r1b-5171c4e2-118.",
+          "finished_at": "2026-11-20T15:15:55.944962Z"
         },
         "ACU-21": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T15:15:55Z",
+          "started_at": "2026-11-20T15:15:55Z",
+          "updated_at": "2026-11-20T15:15:55Z",
+          "check_id": "8552212b1ad748b7a6591bad723fa9de",
+          "evidence": "Checked: nothing; Expected: a fix first; Observed: not in this verify-only round",
+          "details": "Verify-only round with no new fix code (Guru, 19:51 IST). Run r1b-5171c4e2-118.",
+          "finished_at": "2026-11-20T15:15:55.945010Z"
         },
         "BCL-92": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T15:15:55Z",
+          "started_at": "2026-11-20T15:15:55Z",
+          "updated_at": "2026-11-20T15:15:55Z",
+          "check_id": "d98b6d3f845b4201ba50983773f9cde1",
+          "evidence": "Checked: nothing; Expected: a fix first; Observed: not in this verify-only round",
+          "details": "Verify-only round with no new fix code (Guru, 19:51 IST). Run r1b-5171c4e2-118.",
+          "finished_at": "2026-11-20T15:15:55.945029Z"
         },
         "BCL-93": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T15:15:55Z",
+          "started_at": "2026-11-20T15:15:55Z",
+          "updated_at": "2026-11-20T15:15:55Z",
+          "check_id": "e37ec6f58f6c4beca5fc0ea79a9fa816",
+          "evidence": "Checked: nothing; Expected: a fix first; Observed: not in this verify-only round",
+          "details": "Verify-only round with no new fix code (Guru, 19:51 IST). Run r1b-5171c4e2-118.",
+          "finished_at": "2026-11-20T15:15:55.945045Z"
         },
         "BCL-94": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T15:15:55Z",
+          "started_at": "2026-11-20T15:15:55Z",
+          "updated_at": "2026-11-20T15:15:55Z",
+          "check_id": "947a5c7113ea4013b255f310c39e9f2d",
+          "evidence": "Checked: nothing; Expected: a fix first; Observed: not in this verify-only round",
+          "details": "Verify-only round with no new fix code (Guru, 19:51 IST). Run r1b-5171c4e2-118.",
+          "finished_at": "2026-11-20T15:15:55.945061Z"
         }
       },
       "shared_check": {
@@ -13558,6 +13706,71 @@
         "exit_code": 0,
         "finished_at": "2026-11-20T14:50:04Z"
       }
+    },
+    "introspect": {
+      "result": "Introspect recorded",
+      "at": "2026-11-20T15:16:19Z",
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 1",
+        "Codex write: ACU-REMEMBER",
+        "Codex review: ACU-REMEMBER",
+        "Polling and rework review: ACU-REMEMBER",
+        "Test command: ACU-REMEMBER: /Users/gurusharan/.agents/artifacts/bcl-118/r1/verify-remember.sh"
+      ],
+      "none": [
+        "Parallel group count: 1",
+        "Codex write: ACU-REMEMBER",
+        "Codex review: ACU-REMEMBER",
+        "Polling and rework review: ACU-REMEMBER",
+        "Stage: Plan & fix",
+        "Stage: Review"
+      ],
+      "sections": {
+        "delete": {
+          "items": [
+            {
+              "item": "Stage: Verify",
+              "evidence": "Run r1 was thrown away because the shared check script was not executable; bcl then refused a rerun (BCL-91). A start check that the stored commands are executable would have avoided the replacement run.",
+              "outcome": "issue",
+              "issue_id": "BCL-91"
+            }
+          ]
+        },
+        "simplify": {
+          "items": [
+            {
+              "item": "Test command: ACU-REMEMBER: /Users/gurusharan/.agents/artifacts/bcl-118/r1/verify-remember.sh",
+              "evidence": "The lane command first mixed ACU-07/ACU-13 criteria with unrelated regression rechecks, so a Grok Calculator miss failed the memory lane. It now judges only the lane's criteria and reports rechecks in the same table; the miss is filed as ACU-22.",
+              "outcome": "fixed inline"
+            }
+          ]
+        },
+        "optimize": {
+          "items": [
+            {
+              "item": "Stage: Install",
+              "evidence": "The release ran its source checks at 6-way after a 6-way presuite and passed first time; the 10-way default had flaked twice (ACU-21).",
+              "outcome": "issue",
+              "issue_id": "ACU-21"
+            }
+          ]
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "Stage: Verify",
+              "evidence": "Dummy ledger cleanup missed 5 entries whose revision rose when a later same-rule save superseded them; cleanup8.py now retries at the next revision, and an export check showed 0 test records left.",
+              "outcome": "fixed inline"
+            }
+          ]
+        }
+      },
+      "round": 1,
+      "cycle": 10
     }
   },
   "findings": [
@@ -13571,7 +13784,7 @@
       "done_when": "Lasting facts and preferences about Guru are saved even when mentioned casually in small talk (for example 'teal's my favourite colour'); passing moods and small talk ('my afternoon's good', 'I'm tired today') are not saved; when saving mid-chat Samantha briefly says so (for example 'Noted, teal') so Guru can say 'forget that', and still replies warmly. A typed run on GPT-Live-1 and Grok Voice 3.0 proves it: the favourite-colour small talk saves teal and the reply mentions the save, and the mood turn saves nothing.",
       "observed": "19 Nov 2026 17:03:58 IST typed: one save-preference tool call, reply in 5.6 s. GPT-Live-1 replied conversationally with no tool call.",
       "recommendation": "Tighten the instructions so memory saves happen only when Guru asks Samantha to remember something.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "Technical wording": "ledger_task operation=preference scope=fleet rule=favourite_colour; reply text 'Saved: teal for fleet.'",
         "Dev-obs evidence": "Grok session missing in dev-obs (DEVOBS-06); taken from the activity log.",
@@ -13601,11 +13814,23 @@
           "timestamp": "2026-11-20T08:56:54Z",
           "reference": "28c42b78e7a104809d986cf4db2a5895b7cb9c0d:ACU-07:installed-check",
           "details": "reg6-g8m.sh on live6. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-reg-*.log, verify-r6-reg.log, verify-r6-g5reg.log, verify-r6-g6reg.log, verify-r6b-shared.log. Run r6b-28c42b78-117."
+        },
+        {
+          "checked": "Small talk with a casual favourite colour and a casual favourite season, a passing mood and a small-talk line, on both voice models in two typed runs",
+          "expected": "Lasting preferences saved and confirmed briefly only after the save; moods and small talk not saved",
+          "observed": "Saved and confirmed after the save on both models in both runs; nothing saved for the mood, small talk or rough day",
+          "verdict": "Saved and confirmed after the save on both models in both runs; nothing saved for the mood, small talk or rough day",
+          "check_id": "acu-07-0.2.160-5171c4e2",
+          "build": "agent-computer-use 0.2.160",
+          "session": "r1b-5171c4e2-118",
+          "timestamp": "2026-11-20T15:15:41Z",
+          "reference": "5171c4e25b4b4a435d9a555e129255fd5fd3c666:ACU-07:installed-check",
+          "details": "GPT-Live-1: 'My afternoon's going well, thanks. Noted, teal.' / 'Noted, monsoon.' (run A), 'noted, teal.' / 'Noted, monsoon.' (run B). Grok Voice 3.0: 'Noted, teal. ...' / 'Saved: monsoon for fleet.' both runs. No reply mentioned a save before the ledger_task ok result. Mood 'I'm tired today.', 'My afternoon's good, thanks.' and the rough-day turn: 0 ledger saves on both models, both runs. Reply times 1.3 to 6.6 s. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r1/check8.log, live1a, live1b. Run r1b-5171c4e2-118."
         }
       ],
-      "verification": "No save on either model reg6-g8m.sh on live6. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-reg-*.log, verify-r6-reg.log, verify-r6-g5reg.log, verify-r6-g6reg.log, verify-r6b-shared.log. Run r6b-28c42b78-117.",
+      "verification": "Saved and confirmed after the save on both models in both runs; nothing saved for the mood, small talk or rough day GPT-Live-1: 'My afternoon's going well, thanks. Noted, teal.' / 'Noted, monsoon.' (run A), 'noted, teal.' / 'Noted, monsoon.' (run B). Grok Voice 3.0: 'Noted, teal. ...' / 'Saved: monsoon for fleet.' both runs. No reply mentioned a save before the ledger_task ok result. Mood 'I'm tired today.', 'My afternoon's good, thanks.' and the rough-day turn: 0 ledger saves on both models, both runs. Reply times 1.3 to 6.6 s. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r1/check8.log, live1a, live1b. Run r1b-5171c4e2-118.",
       "verification_refs": [
-        "28c42b78e7a104809d986cf4db2a5895b7cb9c0d:ACU-07:installed-check"
+        "5171c4e25b4b4a435d9a555e129255fd5fd3c666:ACU-07:installed-check"
       ]
     },
     {
@@ -13634,7 +13859,7 @@
       "done_when": "Memory versus secrets is chosen by intent, by what is being stored, never by keywords such as remember or password, and only through tool descriptions and instructions (no regex or word list). A real secret value (a password, API key or token) goes to secure entry; personal facts and preferences go to ledger memory with or without the word remember. Typed Verify on GPT-Live-1 (2 runs) and Grok Voice 3.0 proves it for: 'I have a Guru profile on Netflix', 'I love chocolate chip ice cream', 'I like dark mode across apps' (no remember), the pineapple remember turn, and one credential case with a dummy value deleted afterwards. A memory save Grok Voice sends is accepted.",
       "observed": "19 Nov 2026 20:35 IST, ACU 0.2.153, Grok Voice 3.0 typed small-talk turn: the memory save tool was called with operation capture, scope fleet, rule favourite_colour, value teal and a capture_gate; it came back ok false, error invalid request, type ledger_invalid_argument, not retryable. The reply was: I could not save it, the ledger rejected that request as invalid. Same reply in the 19:14 IST run on 0.2.152. The tool call was also delivered twice (duplicate function call delivery).",
       "recommendation": "Compare the request Grok sends with what the memory tool accepts (scope and capture_gate fields), and make the tool description, the conversion layer or the error message line up so a valid save goes through.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "verification_evidence": [
         {
           "checked": "An explicit remember request on both models",
@@ -13647,11 +13872,23 @@
           "timestamp": "2026-11-20T05:45:02Z",
           "reference": "b80ba41cfdc086e4b1776f6e6c43ec5306105e34:ACU-13:installed-check",
           "details": "live5 runs: ledger_task preference ok 1, errors none, GPT 8.7 s, Grok 2.8 s (test word pineapple). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8m.log. Run r5-b80ba41c-117."
+        },
+        {
+          "checked": "Remember, three personal facts said without remember, and a dummy credential, on both voice models in two typed runs",
+          "expected": "Facts saved to memory with no secrets tool; the credential goes only to secure entry and is never echoed",
+          "observed": "All facts saved to memory with no secrets tool; the credential went to secure entry with no memory save, on both models in both runs",
+          "verdict": "All facts saved to memory with no secrets tool; the credential went to secure entry with no memory save, on both models in both runs",
+          "check_id": "acu-13-0.2.160-5171c4e2",
+          "build": "agent-computer-use 0.2.160",
+          "session": "r1b-5171c4e2-118",
+          "timestamp": "2026-11-20T15:15:41Z",
+          "reference": "5171c4e25b4b4a435d9a555e129255fd5fd3c666:ACU-13:installed-check",
+          "details": "pineapple, Guru Netflix profile, chocolate chip ice cream, dark mode across apps: ledger_task ok 1 each, no secrets tool or more_tools(secrets), 2.9 to 6.8 s. Credential: secrets_put started, 0 ledger saves, value never in a reply; the secure form timed out unanswered (nobody typed). GPT-Live-1: 0 rejected fields (ACU-14) both runs. All 20 store-by-meaning turns (5 cases x 2 models x 2 runs) passed. Test ledger entries purged and no test secrets left. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r1/check8.log, live1a, live1b. Run r1b-5171c4e2-118."
         }
       ],
-      "verification": "Saved once on each model with no error live5 runs: ledger_task preference ok 1, errors none, GPT 8.7 s, Grok 2.8 s (test word pineapple). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8m.log. Run r5-b80ba41c-117.",
+      "verification": "All facts saved to memory with no secrets tool; the credential went to secure entry with no memory save, on both models in both runs pineapple, Guru Netflix profile, chocolate chip ice cream, dark mode across apps: ledger_task ok 1 each, no secrets tool or more_tools(secrets), 2.9 to 6.8 s. Credential: secrets_put started, 0 ledger saves, value never in a reply; the secure form timed out unanswered (nobody typed). GPT-Live-1: 0 rejected fields (ACU-14) both runs. All 20 store-by-meaning turns (5 cases x 2 models x 2 runs) passed. Test ledger entries purged and no test secrets left. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r1/check8.log, live1a, live1b. Run r1b-5171c4e2-118.",
       "verification_refs": [
-        "b80ba41cfdc086e4b1776f6e6c43ec5306105e34:ACU-13:installed-check"
+        "5171c4e25b4b4a435d9a555e129255fd5fd3c666:ACU-13:installed-check"
       ],
       "details": {
         "Requirement (Guru 14:41 IST, 20 Nov 2026)": "Routing must be intent-based, never keyword-based. Don't key on 'remember' or 'password'; the model interprets what is being stored. Credential or secret value -> secrets; personal facts and preferences -> ledger memory, with or without 'remember'. Do it through tool descriptions and instructions, not a regex or word list.",
@@ -13683,7 +13920,7 @@
       "done_when": "bcl can run the shared check again once per install with a stated reason, the first failure and the reason are kept, and a named test proves it.",
       "observed": "20 Nov 2026 13:59 IST, PR 117 round 6: the shared check failed because the checker still expected bcl 0.1.48; every lane check then stopped with shared check already recorded until run r6b was started.",
       "recommendation": "Give bcl verify --shared the same once-per-round rerun with a reason that failed lanes have (BCL-90).",
-      "status": "untested"
+      "status": "failing"
     },
     {
       "id": "ACU-21",
@@ -13744,6 +13981,22 @@
         "ports": "PR 117 :52432, PR 118 :59151",
         "stopped_by_owner": "pid 73523",
         "test_projects": "example--project--123, repo--1"
+      }
+    },
+    {
+      "id": "ACU-22",
+      "title": "Grok Voice reports closing the test window but not the page heading it was asked for",
+      "source": "Agent reported",
+      "priority": "medium",
+      "summary": "In the typed task that opens Calculator, opens the example page in Comet, asks for its heading and then closes the window, Grok Voice 3.0 ran every step but its reply only said the window was closed and never gave the heading.",
+      "impact": "Samantha drops the one fact the user asked for, which breaks the task even though every step ran.",
+      "done_when": "On Grok Voice 3.0 the reply to that task names the page heading before the cleanup result in at least two separate typed runs, and GPT-Live-1 still does.",
+      "observed": "20 Nov 2026 20:28 and 20:39 IST on the installed build: Grok replied 'Closing it now. That test window is closed.' and 'Closing that test window. It's closed.'; GPT-Live-1 named the heading both times. Earlier builds named it in 5 of 6 Grok runs; the same miss was seen once on 19 Nov.",
+      "recommendation": "Find why the Grok reply after the Comet close drops the earlier read result (the cleanup confirmation may be replacing the final answer), and make the task result carry the requested fact into the closing reply.",
+      "status": "untested",
+      "details": {
+        "evidence": "bcl-118/r1/live1a and live1b run-grok-after.json, check8.log, activity log turn windows",
+        "tools": "cua_act open, comet_begin, comet_act text, comet_end, all ok"
       }
     }
   ]
