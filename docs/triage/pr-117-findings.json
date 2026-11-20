@@ -9625,8 +9625,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-20T11:29:45Z",
-      "now": "2026-11-20T11:29:45Z — Lane ACU-REMEMBER updated"
+      "updated_at": "2026-11-20T11:36:52Z",
+      "now": "2026-11-20T11:36:52Z — Lane ACU-REMEMBER updated"
     },
     "rollover": {
       "source_pr": 116,
@@ -12481,15 +12481,14 @@
             "implementer_session": "grokbot-r7-own-fix-remember",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-remember-3",
             "job": {
-              "pid": 88279,
-              "phase": "review",
-              "started_at": "2026-11-20T11:24:46Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-20T11:29:45Z",
-              "model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 5)",
+              "pid": 7509,
+              "phase": "presuite",
+              "started_at": "2026-11-20T11:32:14Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-20T11:36:52Z",
               "exit_code": 0,
-              "duration_s": 299,
-              "finished_at": "2026-11-20T11:29:45Z",
+              "duration_s": 278,
+              "finished_at": "2026-11-20T11:36:52Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -12504,11 +12503,11 @@
             "total": 2,
             "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-20T11:29:45Z",
+          "updated_at": "2026-11-20T11:36:52Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
-            "finished_at": "2026-11-20T10:45:28Z"
+            "finished_at": "2026-11-20T11:36:52Z"
           },
           "install": {
             "status": "running",
