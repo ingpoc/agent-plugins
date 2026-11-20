@@ -10537,9 +10537,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T16:10:54Z",
-      "now": "2026-11-20T16:10:54Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-20T16:12:51Z",
+      "now": "2026-11-20T16:12:51Z — Review started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13533,7 +13533,7 @@
           "finding_ids": [
             "BCL-94"
           ],
-          "status": "failed",
+          "status": "review",
           "worktree": "bcl118-r2-viewer",
           "label": "BCL-94",
           "verify": {
@@ -13549,21 +13549,21 @@
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-bcl-viewer",
             "review_status": "failed",
             "job": {
-              "pid": 34699,
-              "phase": "review",
-              "started_at": "2026-11-20T15:55:35Z",
-              "command": "review-r6.sh",
-              "heartbeat_at": "2026-11-20T16:05:44Z",
-              "model": "grok-4.7-medium (Cursor CLI ask)",
+              "pid": 65591,
+              "phase": "fix",
+              "started_at": "2026-11-20T16:10:54Z",
+              "command": "fixjob.sh",
+              "heartbeat_at": "2026-11-20T16:12:50Z",
+              "model": "Grok Bot (own fix, deep pass)",
               "exit_code": 0,
-              "duration_s": 609,
-              "finished_at": "2026-11-20T16:05:44Z",
-              "finished_phase_status": "failed"
+              "duration_s": 116,
+              "finished_at": "2026-11-20T16:12:50Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
-          "updated_at": "2026-11-20T16:05:44Z",
+          "updated_at": "2026-11-20T16:12:51Z",
           "phase": "review"
         },
         {
