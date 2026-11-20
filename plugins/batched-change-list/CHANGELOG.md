@@ -1,3 +1,8 @@
+## 0.1.50
+
+- bcl merged --force --reason "why" records an already merged PR when the merge gate reads short (for example a stopped run zeroed it); the one-line reason is kept with the forced gate overrides (BCL-92).
+- bcl report --force now reaches the gate and overrides an unmet report gate, recording the override (BCL-93).
+
 ## 0.1.49
 
 - bcl correct-round --round N --reason "why" moves a wrong round counter forward and keeps the correction in the list history; no hand edits (BCL-88).
