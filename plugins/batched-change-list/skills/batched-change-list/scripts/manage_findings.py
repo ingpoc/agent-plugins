@@ -541,12 +541,24 @@ def verification_action(document, findings, operation):
     if action == "reserve-shared-check":
         if run.get("status") != "active" or operation.get("run_id") != run.get("id"):
             raise ValueError("active verification run id is required")
-        if run.get("shared_check") is not None:
-            raise ValueError("shared check already recorded for this verification run")
+        previous = run.get("shared_check")
+        reason = operation.get("reason")
+        if previous is not None:
+            if not isinstance(previous, dict) or previous.get("state") != "failed":
+                raise ValueError("shared check already recorded for this verification run")
+            if not isinstance(reason, str) or not reason.strip() or "\n" in reason:
+                raise ValueError("shared check failed for this verification run; rerun it with --reason \"why\"")
         command = operation.get("command")
         if not isinstance(command, str) or not command.strip():
             raise ValueError("shared check command must be nonempty text")
+        if previous is not None:
+            attempts = run.setdefault("shared_check_attempts", [])
+            if not isinstance(attempts, list):
+                raise ValueError("tracking.verification_run.shared_check_attempts must be an array")
+            attempts.append(previous)
         run["shared_check"] = {"command": command, "state": "checking"}
+        if previous is not None:
+            run["shared_check"]["rerun_reason"] = reason.strip()
         return
     reopens = action == "start-check" and operation.get("recheck") is True and isinstance(run, dict) and run.get("status") == "complete"
     if not isinstance(run, dict) or (run.get("status") != "active" and not reopens) or operation.get("run_id") != run.get("id"):

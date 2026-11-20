@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Stage-oriented entrypoint for batched-change-list."""
-import argparse, hashlib, json, re, shlex, shutil, subprocess, sys, time
+import argparse, hashlib, json, os, re, shlex, shutil, subprocess, sys, time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -229,6 +229,13 @@ def install_local():
             raise SystemExit(f"bcl install-local: sha256 mismatch at {destination}")
         print(f"  {destination} ({count} files, sha256 {installed_sha})")
 
+def _not_executable(word):
+    """A path-like command word (it names a directory) that is missing or lacks execute permission."""
+    if "/" not in word:
+        return False
+    path = Path(word).expanduser()
+    return not (path.is_file() and os.access(path, os.X_OK))
+
 def _merged_details(args, tracking, repo):
     pr = tracking.get("pull_request", {})
     url = pr.get("url") if isinstance(pr, dict) else None
@@ -380,7 +387,7 @@ def main():
     parser.add_argument("--phase", choices=("fix", "review", "presuite"))
     parser.add_argument("--model", help="job, install or verify: who runs this step, shown in the lane model column")
     parser.add_argument("--round", type=int, help="correct-round: the real round number")
-    parser.add_argument("--reason", help="correct-round, or verify of a failed lane: why, in one line")
+    parser.add_argument("--reason", help="correct-round, verify of a failed lane or failed shared check: why, in one line")
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
     parser.add_argument("--shared", action="store_true")
     parser.add_argument("--new-pr", type=int); parser.add_argument("--new-url"); parser.add_argument("--worktree")
@@ -630,7 +637,10 @@ def main():
             parser.error("shared verify cannot run a shell or env wrapper")
         if Path(words[0]).name in {"echo", "printf", "true", ":"}:
             parser.error("shared verify requires an actual check, not a command that only prints or succeeds")
+        if _not_executable(words[0]):
+            parser.error(f"shared verify command is not executable: {words[0]} (chmod +x it, then rerun)")
         operations = [{"action":"reserve-shared-check", "run_id":run["id"], "command":args.then_command}]
+        if args.reason: operations[0]["reason"] = args.reason
     elif stage in ("fix", "install", "verify"):
         ids = args.ids or [x["id"] for x in data.get("findings", []) if x.get("status") == "in_progress"]
         if stage == "verify":
@@ -678,6 +688,14 @@ def main():
                 parser.error("stored verify command only prints or succeeds; record an actual check")
             if args.then_command != expected or command_args:
                 parser.error("verify requires --then with the exact stored command; review it before running")
+        if stage in ("install", "verify"):
+            plan_groups = [g for g in tracking.get("plan", {}).get("groups", []) if set(ids).intersection(g.get("finding_ids", []))]
+            for group in plan_groups:
+                stored = group.get("verify", {}).get("command") if isinstance(group.get("verify"), dict) else None
+                try: first = shlex.split(stored)[0] if isinstance(stored, str) and stored.strip() else None
+                except ValueError: first = None
+                if first and _not_executable(first):
+                    parser.error(f"{group.get('id')} verify command is not executable: {first} (chmod +x it before {stage})")
         operations = [{"action":"set-activity","stage":{"fix":"plan_fix","install":"install","verify":"verify"}[stage],"ids":ids,"now":f"{stage.title()} in progress"}]
         if stage in ("install", "verify") and args.model:
             operations[0]["model"] = args.model

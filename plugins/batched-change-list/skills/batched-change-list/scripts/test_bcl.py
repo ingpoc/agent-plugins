@@ -434,6 +434,50 @@ elif args[:2] != ['pr', 'edit']:
         self.assertIn("requires the shared check to pass first", lane.stderr)
         self.assertEqual(json.loads(live.read_text())["tracking"]["verification_run"]["shared_check"]["state"], "failed")
 
+    def test_failed_shared_check_reruns_with_reason_and_keeps_the_attempt(self):
+        live, command = self._lane_ready()
+        flag = self.root / "shared-ok"
+        check = self.root / "shared-flaky.py"
+        check.write_text(f"from pathlib import Path\nraise SystemExit(0 if Path({str(flag)!r}).exists() else 7)\n")
+        shared_command = f'"{sys.executable}" "{check}"'
+        self.assertNotEqual(self.call("verify", "--shared", "--then", shared_command).returncode, 0)
+        bare = self.call("verify", "--shared", "--then", shared_command)
+        self.assertNotEqual(bare.returncode, 0)
+        self.assertIn("--reason", bare.stderr)
+        flag.touch()
+        rerun = self.call("verify", "--shared", "--reason", "script lacked execute permission", "--then", shared_command)
+        self.assertEqual(rerun.returncode, 0, rerun.stderr)
+        run = json.loads(live.read_text())["tracking"]["verification_run"]
+        self.assertEqual(run["shared_check"]["state"], "passed")
+        self.assertEqual(run["shared_check"]["rerun_reason"], "script lacked execute permission")
+        self.assertEqual([a["state"] for a in run["shared_check_attempts"]], ["failed"])
+        again = self.call("verify", "--shared", "--reason", "again", "--then", shared_command)
+        self.assertNotEqual(again.returncode, 0)
+        self.assertIn("already recorded", again.stderr)
+        self.assertEqual(self.call("verify", "--ids", "ISSUE-01", "--then", command).returncode, 0)
+
+    def test_shared_check_refuses_a_script_without_execute_permission(self):
+        live = self._active_verification()
+        script = self.root / "shared.sh"; script.write_text("#!/bin/sh\nexit 0\n"); script.chmod(0o644)
+        refused = self.call("verify", "--shared", "--then", str(script))
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("not executable", refused.stderr)
+        self.assertIsNone(json.loads(live.read_text())["tracking"]["verification_run"].get("shared_check"))
+        script.chmod(0o755)
+        self.assertEqual(self.call("verify", "--shared", "--then", str(script)).returncode, 0)
+
+    def test_install_refuses_a_lane_verify_script_without_execute_permission(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        script = self.root / "lane.sh"; script.write_text("#!/bin/sh\nexit 0\n"); script.chmod(0o644)
+        plan = self.root / "verify-plan.json"
+        plan.write_text(json.dumps({"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"status":"pending","verify":{"command":str(script)}}]}))
+        self.assertEqual(self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        self.prepare_review(["ISSUE-01"])
+        refused = self.call_without_viewer("install", "--ids", "ISSUE-01")
+        self.assertNotEqual(refused.returncode, 0)
+        script.chmod(0o755)
+        self.assertEqual(self.call_without_viewer("install", "--ids", "ISSUE-01").returncode, 0)
+
     def test_lane_verify_without_shared_check_is_unchanged(self):
         _, command = self._lane_ready()
         lane = self.call("verify", "--ids", "ISSUE-01", "--then", command)
