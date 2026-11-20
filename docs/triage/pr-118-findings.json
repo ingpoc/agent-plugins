@@ -10654,8 +10654,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-20T17:44:36Z",
-      "now": "2026-11-20T17:44:36Z — Plan recorded"
+      "updated_at": "2026-11-20T19:07:31Z",
+      "now": "2026-11-20T19:07:31Z — Lane R3-ROUNDS updated"
     },
     "rollover": {
       "source_pr": 117,
@@ -13746,7 +13746,7 @@
             "BCL-95",
             "BCL-98"
           ],
-          "status": "pending",
+          "status": "failed",
           "worktree": "bcl118-r3-plan",
           "label": "BCL-95, BCL-98",
           "verify": {
@@ -13760,9 +13760,30 @@
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-118r3-plan",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-plan",
-            "review_status": "pending"
+            "review_status": "passed",
+            "job": {
+              "pid": 63797,
+              "phase": "presuite",
+              "started_at": "2026-11-20T19:04:51Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-20T19:07:31Z",
+              "model": "No model (scripted check)",
+              "exit_code": 1,
+              "duration_s": 160,
+              "finished_at": "2026-11-20T19:07:31Z",
+              "finished_phase_status": "failed"
+            },
+            "fix_status": "passed",
+            "reviewer_model": "grok-4.7-medium"
           },
-          "updated_at": "2026-11-20T17:44:36Z"
+          "updated_at": "2026-11-20T19:07:31Z",
+          "phase": "review",
+          "verify_summary": "Review passed; integrating in int3 with ROUNDS (0.1.51)",
+          "presuite": {
+            "status": "failed",
+            "exit_code": 1,
+            "finished_at": "2026-11-20T19:07:31Z"
+          }
         },
         {
           "id": "R3-VERIFY",
@@ -13771,7 +13792,7 @@
             "BCL-96",
             "BCL-97"
           ],
-          "status": "pending",
+          "status": "parked",
           "worktree": "bcl118-r3-verify",
           "label": "BCL-96, BCL-97",
           "verify": {
@@ -13782,12 +13803,30 @@
             "total": 2
           },
           "codex": {
-            "model": "Grok Bot subagent (own fix)",
-            "implementer_session": "grokbot-118r3-verify",
+            "model": "gpt-6-luna fast (Codex CLI)",
+            "implementer_session": "codex-luna-118r3-verify",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-verify",
-            "review_status": "pending"
+            "review_status": "failed",
+            "job": {
+              "pid": 49447,
+              "phase": "review",
+              "started_at": "2026-11-20T18:58:34Z",
+              "command": "review-terra.sh",
+              "heartbeat_at": "2026-11-20T18:59:56Z",
+              "model": "gpt-6.1-terra medium (Codex CLI)",
+              "exit_code": 0,
+              "duration_s": 82,
+              "finished_at": "2026-11-20T18:59:56Z",
+              "finished_phase_status": "failed"
+            },
+            "fix_status": "passed",
+            "reviewer_model": "gpt-6.1-terra medium (Codex CLI)"
           },
-          "updated_at": "2026-11-20T17:44:36Z"
+          "updated_at": "2026-11-20T19:04:41Z",
+          "phase": "review",
+          "verify_summary": "Parked (Guru 00:33): held after review 4; branch kept",
+          "blocked_reason": "Ladder exhausted; bare shared command",
+          "parked_to": 4
         },
         {
           "id": "R3-ROUNDS",
@@ -13795,7 +13834,7 @@
           "finding_ids": [
             "BCL-99"
           ],
-          "status": "pending",
+          "status": "failed",
           "worktree": "bcl118-r3-rounds",
           "label": "BCL-99",
           "verify": {
@@ -13809,9 +13848,30 @@
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-118r3-rounds",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-rounds",
-            "review_status": "pending"
+            "review_status": "passed",
+            "job": {
+              "pid": 63797,
+              "phase": "presuite",
+              "started_at": "2026-11-20T19:04:51Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-20T19:07:31Z",
+              "model": "No model (scripted check)",
+              "exit_code": 1,
+              "duration_s": 160,
+              "finished_at": "2026-11-20T19:07:31Z",
+              "finished_phase_status": "failed"
+            },
+            "fix_status": "passed",
+            "reviewer_model": "grok-4.7-medium"
           },
-          "updated_at": "2026-11-20T17:44:36Z"
+          "updated_at": "2026-11-20T19:07:31Z",
+          "phase": "review",
+          "verify_summary": "Review passed; integrating in int3 with PLAN (0.1.51)",
+          "presuite": {
+            "status": "failed",
+            "exit_code": 1,
+            "finished_at": "2026-11-20T19:07:31Z"
+          }
         },
         {
           "id": "R3-INTROSPECT",
@@ -13819,7 +13879,7 @@
           "finding_ids": [
             "BCL-100"
           ],
-          "status": "pending",
+          "status": "parked",
           "worktree": "bcl118-r3-introspect",
           "label": "BCL-100",
           "verify": {
@@ -13830,12 +13890,30 @@
             "total": 1
           },
           "codex": {
-            "model": "Grok Bot subagent (own fix)",
-            "implementer_session": "grokbot-118r3-introspect",
+            "model": "gpt-6-luna fast (Codex CLI)",
+            "implementer_session": "codex-luna-118r3-introspect",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-introspect",
-            "review_status": "pending"
+            "review_status": "failed",
+            "job": {
+              "pid": 49446,
+              "phase": "review",
+              "started_at": "2026-11-20T18:58:34Z",
+              "command": "review-terra.sh",
+              "heartbeat_at": "2026-11-20T18:59:43Z",
+              "model": "gpt-6.1-terra medium (Codex CLI)",
+              "exit_code": 0,
+              "duration_s": 69,
+              "finished_at": "2026-11-20T18:59:43Z",
+              "finished_phase_status": "failed"
+            },
+            "fix_status": "passed",
+            "reviewer_model": "gpt-6.1-terra medium (Codex CLI)"
           },
-          "updated_at": "2026-11-20T17:44:36Z"
+          "updated_at": "2026-11-20T19:04:41Z",
+          "phase": "review",
+          "verify_summary": "Parked (Guru 00:33): held after review 4; branch kept",
+          "blocked_reason": "Ladder exhausted; untagged rounds uncounted",
+          "parked_to": 4
         }
       ],
       "cycle": 10
@@ -14482,7 +14560,7 @@
       "done_when": "When a check shows a regression against main, the workflow makes the first lane restore main's behaviour, and any redesign is filed as its own separate item.",
       "observed": "20 Nov 2026 21:24 IST, Guru asked for this rule after round reviews on PR 117 and PR 118.",
       "recommendation": "Add the rule to the plan step and have the plan check refuse a redesign lane for an item marked as a regression until a restore lane is recorded.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "approved": "Guru 21:24 IST t1579u"
       }
@@ -14497,7 +14575,7 @@
       "done_when": "Before Verify, a quick self-test of the check scripts confirms the git repository is present, the recorded plugin version matches the install, the scripts are executable, the observability session limit is fine, and a rerun is allowed; Verify refuses to start when it fails.",
       "observed": "20 Nov 2026 21:24 IST, Guru, after PR 118 round 1 lost a shared check to a script without execute permission and earlier rounds lost runs to a missing repository and a version mismatch.",
       "recommendation": "Run one self-test step inside the verify start and replace the separate manual preflight steps it covers.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "approved": "Guru 21:24 IST t1579u"
       }
@@ -14512,7 +14590,7 @@
       "done_when": "Each issue has one check that decides its verdict; rechecks are recorded separately and never change another issue's verdict.",
       "observed": "20 Nov 2026 21:24 IST, Guru; on PR 118 round 1 the memory lane first failed on an unrelated multi step recheck.",
       "recommendation": "Record rechecks under their own issue entries and keep the lane verdict to its named issues.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "approved": "Guru 21:24 IST t1579u"
       }
@@ -14527,7 +14605,7 @@
       "done_when": "A second fix attempt for the same issue is refused until a failing test built from the real observability evidence of the failure is recorded with it.",
       "observed": "20 Nov 2026 21:24 IST, Guru asked for this rule after repeated retries in earlier rounds.",
       "recommendation": "Have the fix job require a named failing test and its evidence path when the issue already has a failed attempt, replacing the free text retry note.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "approved": "Guru 21:24 IST t1579u"
       }
@@ -14542,7 +14620,7 @@
       "done_when": "The command line refuses a plan with more than four lanes, checks the Mini's load before runs, and keeps already verified results when a run is stopped so the gate is not zeroed.",
       "observed": "20 Nov 2026 21:24 IST, Guru; on PR 117 a stopped run zeroed the gate and the merge needed an override.",
       "recommendation": "Enforce the cap in the plan check, add a load check to job and verify starts, and carry verified results into the stopped run's history.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "approved": "Guru 21:24 IST t1579u"
       }
@@ -14557,9 +14635,151 @@
       "done_when": "Introspect also scans the last few rounds' introspect and progress records for repeated waste of the same kind, and on two or more repeats it must propose a workflow change rather than a one off fix.",
       "observed": "20 Nov 2026 21:24 IST, Guru asked for this after repeated checker and retry waste across PR 115 to PR 118.",
       "recommendation": "Add a cross round scan to the introspect draft and require a workflow change section when a kind repeats; keep it lean by replacing the current free form repeat notes.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "approved": "Guru 21:24 IST t1579u"
+      }
+    },
+    {
+      "id": "BCL-101",
+      "title": "A plan review comes only after two failed fixes",
+      "source": "User requested",
+      "priority": "high",
+      "summary": "After a lane fails its first review, the next fix starts coding straight away; a reviewed plan is required only after a second failure.",
+      "impact": "A wrong second attempt costs a full fix and review round before anyone checks the approach.",
+      "done_when": "After a lane's first failed review, its next fix waits for a Sol 6.2 medium plan review run read-only in the lane's worktree. The reviewer gets the finding and its acceptance criteria, the lane plan and the tried change, every review verdict with its must-fix list, any test or verify failure logs, and the observability commands for the run. It returns the root cause, a revised plan, a failing test that proves the cause, and whether the original approach stays or is replaced. Only then does the fix run. The skill and the tool both require this.",
+      "observed": "20 Nov 2026 23:40 IST, Guru set this rule during round 3 of PR 118, where all four lanes failed their first review.",
+      "recommendation": "Replace the plan review that waits for two failures with a Sol 6.2 medium plan review after the first failed review, and have the fix step refuse a lane that failed review until a passed plan review is recorded.",
+      "status": "untested",
+      "details": {
+        "approved": "Guru 23:40 IST (rule), 23:43 IST (Sol 6.2 medium), 23:45 IST (brief shape)"
+      }
+    },
+    {
+      "id": "BCL-102",
+      "title": "Lane badges cannot show plan review or a passed review",
+      "source": "User requested",
+      "priority": "high",
+      "summary": "A lane in plan review cannot be recorded with its model, and a lane whose review passed still shows In review, while a lane with a new fix after a failed review keeps showing Failed until another job runs.",
+      "impact": "The owner sees a stale lane and cannot tell that a plan review is under way or which model runs it.",
+      "done_when": "A lane can be recorded in a plan review step with its model and the page shows Plan review with that model; a passed review shows as Review passed, ready for Install; a lane with a new fix after a failed review shows Fixing or In review, never Failed.",
+      "observed": "21 Nov 2026 00:02 and 00:09 IST, Guru found PR 118 lane badges stale: two lanes in plan review and fix showed Failed, two passed lanes showed In review.",
+      "recommendation": "Add a plan review phase to the lane record and the page, set by the tool when the plan review job starts and cleared when the fix job starts.",
+      "status": "untested",
+      "details": {
+        "approved": "Guru 00:02 IST and 00:09 IST (parent steering)"
+      }
+    },
+    {
+      "id": "BCL-103",
+      "title": "Lane reviews ask for a version bump only integration makes",
+      "source": "Agent reported",
+      "priority": "high",
+      "summary": "Reviewers list the plugin version and changelog as a lane must-fix, although only the integration step bumps them.",
+      "impact": "A lane can fail review, and reach the hold step, for something outside its scope.",
+      "done_when": "No lane review lists the version or changelog as a must-fix, and the integrated head still refuses a missing bump.",
+      "observed": "21 Nov 2026 00:19 IST, every PR 118 round 3 lane still showed the old version while two lanes failed review partly for it.",
+      "recommendation": "Say once in the review guide and handoff that version and changelog belong to integration; let the pre-push check enforce it on the integrated head.",
+      "status": "untested",
+      "details": {
+        "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 1",
+        "filed_by": "Guru 00:33 IST t1597u"
+      }
+    },
+    {
+      "id": "BCL-104",
+      "title": "A cut-off review can be recorded as passed",
+      "source": "Agent reported",
+      "priority": "high",
+      "summary": "The review step takes the first line that starts with the verdict word, so a reply cut off mid-way that quotes the guide's example can be recorded as a pass.",
+      "impact": "A review that never gave a verdict can let a lane through.",
+      "done_when": "Only a full verdict line given by the reviewer counts; a cut-off or quoted verdict is recorded as no verdict, which fails the review.",
+      "observed": "20 Nov 2026 09:58 IST on PR 117, a reviewer reply cut off by a usage limit began with a quoted pass sentence; fed to the review step it records a pass.",
+      "recommendation": "Parse the reviewer's raw final message, accept only a full verdict line, and drop the slicing in the wrapper scripts.",
+      "status": "untested",
+      "details": {
+        "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 2",
+        "filed_by": "Guru 00:33 IST t1597u"
+      }
+    },
+    {
+      "id": "BCL-105",
+      "title": "The repeat-failure ladder is not counted or enforced",
+      "source": "Agent reported",
+      "priority": "high",
+      "summary": "Failed reviews and failed checks are not counted per issue, nothing refuses a further attempt, and a held issue still shows as in progress.",
+      "impact": "The ladder depends on the orchestrator's memory, and a held issue looks active on the page.",
+      "done_when": "Each failed review or check is counted on the issue; the fix step refuses a further attempt until the escalation step is recorded, and the final failure blocks the issue with its reason.",
+      "observed": "20 Nov 2026 21:54 IST, a PR 118 issue was held by the ladder but still showed as in progress; a probe ran a fourth fix after three failed reviews.",
+      "recommendation": "Record each failure on the issue and let the fix step enforce the count and the final block, replacing the hand bookkeeping.",
+      "status": "untested",
+      "details": {
+        "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 4",
+        "filed_by": "Guru 00:33 IST t1597u"
+      }
+    },
+    {
+      "id": "BCL-106",
+      "title": "Verify scripts are rewritten every round and cleanup can fail a passing lane",
+      "source": "Agent reported",
+      "priority": "medium",
+      "summary": "Each round hand-writes its own check scripts, and a cleanup error in one turns a passing lane into a failure.",
+      "impact": "Checker faults recur every round and cost reruns that prove nothing about the fix.",
+      "done_when": "One tested check driver replaces the per-round copies, and a cleanup failure is reported separately without changing a lane's result.",
+      "observed": "20 Nov 2026 23:10 IST, a PR 118 lane had all four cases passing but failed because its cleanup step misread results; similar checker faults hit PR 117 six times.",
+      "recommendation": "Promote one tested driver for shared checks, lane checks, cleanup and judging, delete the per-round copies, and keep cleanup out of the verdict.",
+      "status": "untested",
+      "details": {
+        "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 7",
+        "filed_by": "Guru 00:33 IST t1597u"
+      }
+    },
+    {
+      "id": "BCL-107",
+      "title": "Low-level gate overrides need no reason",
+      "source": "Agent reported",
+      "priority": "medium",
+      "summary": "The low-level batch override for stage changes and rollovers records an override without any reason, unlike the merged override.",
+      "impact": "Gate overrides can be recorded with no explanation or approver.",
+      "done_when": "Every gate override, through any path, needs a one-line reason, recorded with it.",
+      "observed": "20 Nov 2026 17:35 and 17:45 IST, two PR 117 overrides were recorded without a reason.",
+      "recommendation": "Use one override helper that requires a reason for stage changes, rollover and merged, and remove the duplicated merged-only code.",
+      "status": "untested",
+      "details": {
+        "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 8",
+        "filed_by": "Guru 00:33 IST t1597u"
+      }
+    },
+    {
+      "id": "BCL-108",
+      "title": "The live tracker is far over its own size limit",
+      "source": "Agent reported",
+      "priority": "medium",
+      "summary": "The live list carries every earlier cycle's run and Introspect history, so it is about 2.6 times its own size limit and compacting cannot bring it under.",
+      "impact": "Every read and page render is slower and costs more, and the audit always fails.",
+      "done_when": "After rollover the live list keeps only the current cycle's runs and Introspect records, earlier ones move to the archive, and the audit passes.",
+      "observed": "21 Nov 2026 00:20 IST, the PR 118 list was 841 KB against a 328 KB limit; most of it was run history from earlier pull requests.",
+      "recommendation": "Move earlier-cycle run and Introspect history to the existing archive at rollover.",
+      "status": "untested",
+      "details": {
+        "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 9",
+        "filed_by": "Guru 00:33 IST t1597u"
+      }
+    },
+    {
+      "id": "BCL-109",
+      "title": "Verify for workflow lanes reruns unit tests instead of real use",
+      "source": "Agent reported",
+      "priority": "low",
+      "summary": "Workflow lane checks rerun the same unit tests as the pre-push suite and search the docs for wording.",
+      "impact": "A lane can be marked fixed without the installed tool being used once.",
+      "done_when": "Each workflow lane's check runs the installed tool against a copy of the live list and shows the changed behaviour.",
+      "observed": "21 Nov 2026 00:20 IST, a PR 118 round 3 check ran unit tests and a wording search only.",
+      "recommendation": "Replace the test rerun and wording search with one real-use run of the installed tool on a copy of the live list.",
+      "status": "untested",
+      "details": {
+        "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 12",
+        "filed_by": "Guru 00:33 IST t1597u"
       }
     }
   ]
