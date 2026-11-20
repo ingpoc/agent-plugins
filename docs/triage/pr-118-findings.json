@@ -10654,8 +10654,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-20T19:07:31Z",
-      "now": "2026-11-20T19:07:31Z — Lane R3-ROUNDS updated"
+      "updated_at": "2026-11-20T19:20:19Z",
+      "now": "2026-11-20T19:20:19Z — Lane R3-ROUNDS updated"
     },
     "rollover": {
       "source_pr": 117,
@@ -13762,27 +13762,27 @@
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-plan",
             "review_status": "passed",
             "job": {
-              "pid": 63797,
+              "pid": 89553,
               "phase": "presuite",
-              "started_at": "2026-11-20T19:04:51Z",
+              "started_at": "2026-11-20T19:15:07Z",
               "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T19:07:31Z",
+              "heartbeat_at": "2026-11-20T19:20:19Z",
               "model": "No model (scripted check)",
               "exit_code": 1,
-              "duration_s": 160,
-              "finished_at": "2026-11-20T19:07:31Z",
+              "duration_s": 312,
+              "finished_at": "2026-11-20T19:20:19Z",
               "finished_phase_status": "failed"
             },
             "fix_status": "passed",
             "reviewer_model": "grok-4.7-medium"
           },
-          "updated_at": "2026-11-20T19:07:31Z",
+          "updated_at": "2026-11-20T19:20:19Z",
           "phase": "review",
           "verify_summary": "Review passed; integrating in int3 with ROUNDS (0.1.51)",
           "presuite": {
             "status": "failed",
             "exit_code": 1,
-            "finished_at": "2026-11-20T19:07:31Z"
+            "finished_at": "2026-11-20T19:20:19Z"
           }
         },
         {
@@ -13850,27 +13850,27 @@
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-rounds",
             "review_status": "passed",
             "job": {
-              "pid": 63797,
+              "pid": 89553,
               "phase": "presuite",
-              "started_at": "2026-11-20T19:04:51Z",
+              "started_at": "2026-11-20T19:15:07Z",
               "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T19:07:31Z",
+              "heartbeat_at": "2026-11-20T19:20:19Z",
               "model": "No model (scripted check)",
               "exit_code": 1,
-              "duration_s": 160,
-              "finished_at": "2026-11-20T19:07:31Z",
+              "duration_s": 312,
+              "finished_at": "2026-11-20T19:20:19Z",
               "finished_phase_status": "failed"
             },
             "fix_status": "passed",
             "reviewer_model": "grok-4.7-medium"
           },
-          "updated_at": "2026-11-20T19:07:31Z",
+          "updated_at": "2026-11-20T19:20:19Z",
           "phase": "review",
           "verify_summary": "Review passed; integrating in int3 with PLAN (0.1.51)",
           "presuite": {
             "status": "failed",
             "exit_code": 1,
-            "finished_at": "2026-11-20T19:07:31Z"
+            "finished_at": "2026-11-20T19:20:19Z"
           }
         },
         {
