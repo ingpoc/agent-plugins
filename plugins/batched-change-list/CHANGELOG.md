@@ -1,3 +1,7 @@
+## 0.1.53
+
+- Review replies with the Must-fix value on the heading line (`Must-fix: none`, `**Must-fix:**`) are read correctly; a section ends at the next heading or `Label:` line. 0.1.52 recorded such a PASS as incomplete.
+
 ## 0.1.52
 
 - `bcl job` owns every lane step: `--phase plan_review|fix|review|presuite` runs the real command as its child, and the tracker refuses out-of-order steps (fix needs a plan; review needs a finished fix; presuite needs a passed or skipped review; a new fix voids earlier passes) (BCL-101, BCL-102).

@@ -354,13 +354,14 @@ def parse_review_reply(reply):
 
 def _section_body(reply, title):
     lines = reply.splitlines()
-    start = next((index for index, line in enumerate(lines)
-                  if re.fullmatch(rf"\s*(?:#{{1,6}}\s*)?{re.escape(title)}\s*:?\s*", line, re.I)), None)
+    heading = rf"\s*(?:#{{1,6}}\s*)?\**{re.escape(title)}\**\s*(?::\**\s*(.*)|\s*)"
+    start = next((index for index, line in enumerate(lines) if re.fullmatch(heading, line, re.I)), None)
     if start is None:
         return ""
     end = next((index for index in range(start + 1, len(lines))
-                if re.match(r"^\s*#{1,6}\s+", lines[index])), len(lines))
-    return "\n".join(lines[start + 1:end]).strip()
+                if re.match(r"^\s*(?:#{1,6}\s+|\**[A-Z][\w -]*\**:)", lines[index])), len(lines))
+    inline = re.fullmatch(heading, lines[start], re.I).group(1) or ""
+    return "\n".join([inline, *lines[start + 1:end]]).strip()
 
 
 def _lane_groups(document, ids):

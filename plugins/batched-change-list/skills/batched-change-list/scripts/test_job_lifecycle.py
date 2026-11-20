@@ -60,6 +60,9 @@ class JobLifecycleTests(unittest.TestCase):
             self.assertEqual(manager.parse_review_reply(reply), (None, None))
         self.assertEqual(manager.parse_review_reply("VERDICT: PASS\n## Must-fix\nnone"), ("PASS", "none"))
         self.assertEqual(manager.parse_review_reply("VERDICT: CHANGES\n## Must-fix\n- fix it"), ("CHANGES", "- fix it"))
+        self.assertEqual(manager.parse_review_reply("VERDICT: PASS\nMust-fix: none\nNits: wording only"), ("PASS", "none"))
+        self.assertEqual(manager.parse_review_reply("VERDICT: CHANGES\n**Must-fix:**\n1. fix it\nNits: none"), ("CHANGES", "1. fix it"))
+        self.assertEqual(manager.parse_review_reply("VERDICT: PASS\nMust-fix: see below\n"), (None, None))
 
     def test_first_failure_requires_plan_review_and_second_blocks_lane(self):
         doc = document()
