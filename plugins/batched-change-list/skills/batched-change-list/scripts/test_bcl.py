@@ -1562,6 +1562,43 @@ elif args[:2] != ['pr', 'edit']:
         self.assertTrue(any(row[:3] == ["pr", "view", "https://github.com/example/project/pull/123"] for row in calls))
         self.assertTrue(any(row[:3] == ["pr", "list", "--repo"] and "--limit" in row and "1000" in row for row in calls))
 
+    def test_merged_force_records_reason_when_gate_is_short(self):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        doc = json.loads(self.data.read_text())
+        doc["tracking"]["workflow"] = {"stage": "report_rollover", "updated_at": "2026-11-14T11:00:00Z"}
+        doc["tracking"]["stages_reached"] = ["report_rollover"]
+        contents = json.dumps(doc)
+        self.data.write_text(contents); live.write_text(contents)
+        refused = self.call("merged")
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("pass --force with --reason", refused.stderr)
+        no_reason = self.call("merged", "--force")
+        self.assertNotEqual(no_reason.returncode, 0)
+        self.assertIn("requires --reason", no_reason.stderr)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["workflow"]["stage"], "report_rollover")
+        result = self.call("merged", "--force", "--reason", "gate zeroed by a stopped run")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        doc = json.loads(live.read_text())
+        self.assertEqual(doc["tracking"]["workflow"]["stage"], "merged")
+        override = doc["tracking"]["rollover"]["forced_gate_overrides"][-1]
+        self.assertEqual((override["action"], override["reason"]), ("merged", "gate zeroed by a stopped run"))
+
+    def test_report_force_passes_through_to_the_gate(self):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        doc = json.loads(self.data.read_text())
+        doc["tracking"]["workflow"] = {"stage": "gate", "updated_at": "2026-11-14T11:00:00Z"}
+        doc["tracking"]["stages_reached"] = ["introspect"]
+        contents = json.dumps(doc)
+        self.data.write_text(contents); live.write_text(contents)
+        refused = self.call("report")
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("pass --force", refused.stderr + refused.stdout)
+        result = self.call("report", "--force")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        doc = json.loads(live.read_text())
+        self.assertEqual(doc["tracking"]["workflow"]["stage"], "report_rollover")
+        self.assertEqual(doc["tracking"]["rollover"]["forced_gate_overrides"][-1]["action"], "set-stage")
+
     def test_merged_stops_its_viewer_by_recorded_pid(self):
         live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
         doc = self.merge_ready(json.loads(live.read_text()))

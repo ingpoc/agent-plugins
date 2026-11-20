@@ -1762,7 +1762,21 @@ def run(args, parser):
                         fixed, threshold, met = workflow_definition.run_stage_check(
                             "merged", {"findings": findings, "tracking": tracking})
                         if not met:
-                            raise ValueError(f"merge requires {threshold} verified_fixed findings; count is {fixed}")
+                            reason = operation.get("override_reason")
+                            if not args.force:
+                                raise ValueError(f"merge requires {threshold} verified_fixed findings; count is {fixed}; "
+                                                 "pass --force with --reason to record an already merged pull request")
+                            if not isinstance(reason, str) or not reason.strip() or "\n" in reason:
+                                raise ValueError("merged override requires a one-line reason")
+                            rollover = tracking.setdefault("rollover", {})
+                            if not isinstance(rollover, dict):
+                                raise ValueError("tracking.rollover must be an object")
+                            forced = rollover.setdefault("forced_gate_overrides", [])
+                            if not isinstance(forced, list):
+                                raise ValueError("tracking.rollover.forced_gate_overrides must be an array")
+                            forced.append({"cycle": RENDERER.rollover_cycle(tracking), "action": "merged",
+                                           "forced_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+                                           "verified_fixed": fixed, "threshold": threshold, "reason": reason.strip()})
                 if action == "introspect":
                     tracking = store["document"].setdefault("tracking", {})
                     workflow_definition.require_transition("introspect", tracking.get("stages_reached", []))
