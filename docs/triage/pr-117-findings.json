@@ -8291,9 +8291,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T07:06:43Z",
-      "now": "2026-11-20T07:06:43Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-20T07:07:06Z",
+      "now": "2026-11-20T07:07:06Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10917,7 +10917,7 @@
             "ACU-18"
           ],
           "depends_on": [],
-          "status": "failed",
+          "status": "review",
           "phase": "review",
           "worktree": "bcl117-r6-acu",
           "reason": "Round 5 root cause: the app sends a cancel GPT-Live-1 rejects, so a voice error shows and the old story keeps running; ACU-05 is rechecked against the 3.0 s limit.",
@@ -10936,23 +10936,23 @@
             "fix_status": "passed",
             "fallback_note": "Codex on the Mini out until 22 Nov 12:28 IST; own fix per Guru 11:24, fresh-eyes review by Codex gpt-6.1-terra medium on the box",
             "job": {
-              "pid": 27583,
-              "phase": "review",
-              "started_at": "2026-11-20T06:56:45Z",
+              "pid": 60160,
+              "phase": "fix",
+              "started_at": "2026-11-20T07:06:43Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-20T07:04:22Z",
-              "model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 3)",
+              "heartbeat_at": "2026-11-20T07:07:05Z",
+              "model": "Grok Bot subagent (own fix, deep pass)",
               "exit_code": 0,
-              "duration_s": 457,
-              "finished_at": "2026-11-20T07:04:22Z",
-              "finished_phase_status": "failed"
+              "duration_s": 22,
+              "finished_at": "2026-11-20T07:07:05Z",
+              "finished_phase_status": "passed"
             },
             "implementer_session": "grokbot-r6-own-fix-acu",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-acu",
             "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 3)",
             "review_status": "failed"
           },
-          "updated_at": "2026-11-20T07:04:22Z"
+          "updated_at": "2026-11-20T07:07:06Z"
         },
         {
           "id": "BCL-FLOW",
