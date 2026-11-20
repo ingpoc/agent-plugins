@@ -272,6 +272,23 @@ def test_paraphrased_value_gets_one_correction_then_saves(tmp_path):
     transport.call.assert_not_called()
     again = helper.run(operation='preference', scope='fleet', rule='dark_mode', value='on everywhere', owner_quote=quote)
     assert (again['error_type'], again['retryable']) == ('ledger_invalid_argument', False)
+    # A shorter or longer quote of the same statement does not buy another retry (review pass 2).
+    for other in ('dark mode across apps', 'I like dark mode across apps'):
+        more = helper.run(operation='preference', scope='fleet', rule='dark_mode', value='enabled', owner_quote=other)
+        assert (more['error_type'], more['retryable']) == ('ledger_invalid_argument', False)
+    transport.call.assert_not_called()
     saved = helper.run(operation='preference', scope='fleet', rule='dark_mode', value='dark mode across apps', owner_quote=quote)
     assert saved['status'] == 'saved'
     assert transport.call.call_args.args[1]['decision'] == 'dark mode across apps'
+
+
+def test_value_retry_is_spent_per_user_turn_not_per_quote(tmp_path):
+    transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'decision_id': 'next'}}
+    helper = LedgerHelper(transport, Mock(side_effect=AssertionError('helper model called')), tmp_path / 'pending')
+    helper.note_user('I like dark mode across apps.')
+    first = helper.run(operation='preference', scope='fleet', rule='dark_mode', value='enabled', owner_quote='dark mode across apps')
+    assert first['error_type'] == 'ledger_value_not_in_quote'
+    helper.note_user('I love chocolate chip ice cream.')
+    fresh = helper.run(operation='preference', scope='fleet', rule='ice_cream', value='choc chip', owner_quote='I love chocolate chip ice cream.')
+    assert (fresh['error_type'], fresh['retryable']) == ('ledger_value_not_in_quote', True)

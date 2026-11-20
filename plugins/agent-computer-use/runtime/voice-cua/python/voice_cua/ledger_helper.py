@@ -94,11 +94,13 @@ class LedgerHelper:
         self._pending_dir = pending_dir or Path.home() / '.cache/macos-cua/ledger-pending'
         self._history: dict[tuple[str, str], dict[str, Any]] = {}
         self._rejected_recall = ""
-        self._value_retries: set[str] = set()  # owner quotes already given one value-wording retry
+        self._user_turn = 0  # counts user statements; the value-wording retry is spent once per user turn
+        self._value_retry_turn = -1
 
     def note_user(self, text: str) -> None:
         if isinstance(text, str) and text.strip():
             self._utterances.append(' '.join(text.split())[:2000])
+            self._user_turn += 1
             self._rejected_recall = ""
 
     def _reject_recall(self, reason: str) -> dict[str, Any]:
@@ -189,16 +191,18 @@ class LedgerHelper:
                             return _outcome_semantics({'ok': True, 'status': 'needs_disambiguation', 'has_more': candidates['data'].get('has_more') is True, 'data': candidates['data']})
                     return _outcome_semantics({'ok': True, **result})
                 source = self._quote_source(owner_quote)
-                if source is not None and _norm_text(value) and _norm_text(owner_quote) not in self._value_retries \
+                if source is not None and _norm_text(value) and self._value_retry_turn != self._user_turn \
                         and (' ' + _norm_text(value) + ' ') not in (' ' + _norm_text(owner_quote) + ' '):
                     # ACU-13: a paraphrased value ("enabled across apps" for "I like dark mode across apps") gets one
-                    # plain correction instead of a dead end; a second miss is a normal invalid argument.
-                    self._value_retries.add(_norm_text(owner_quote))
+                    # plain correction per user turn, whatever quote is sent; a second miss is a normal invalid argument.
+                    self._value_retry_turn = self._user_turn
                     return {'ok': False, 'error_type': 'ledger_value_not_in_quote', 'retryable': True,
                             'error': 'value must be words copied exactly from owner_quote, not a paraphrase; '
                                      'resend once with value set to those exact words'}
-                if not _norm_text(value) or source is None or (' ' + _norm_text(value) + ' ') not in (' ' + _norm_text(owner_quote) + ' '):
+                if not _norm_text(value) or source is None:
                     return _invalid('Value and owner quote must occur in a recent user statement')
+                if (' ' + _norm_text(value) + ' ') not in (' ' + _norm_text(owner_quote) + ' '):
+                    return _invalid('value must be words copied exactly from owner_quote; it is still a paraphrase')
                 recent = self._recent()[source:]
                 if any(_REJECTS.search(u) or re.search(r"\b(?:do not|dont|don.t|never|not)\b", u, re.I) or re.search(r"\b(?:just this once|only once|one[ -]off|only this time|just for (?:today|now)|temporar(?:y|ily)|password|passcode|secret|api[ -]?key|token|otp)\b", u, re.I) for u in recent) or re.search(r'(?:sk-[A-Za-z0-9]{12,}|[A-Za-z0-9+/=_-]{32,})', value):
                     return _invalid('Temporary or sensitive choice cannot be saved')
