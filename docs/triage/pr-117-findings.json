@@ -8291,9 +8291,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-20T05:50:16Z",
-      "now": "2026-11-20T05:50:16Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T05:56:47Z",
+      "now": "2026-11-20T05:56:47Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 116,
@@ -8339,7 +8339,7 @@
       }
     },
     "cycle": 9,
-    "round": 3,
+    "round": 4,
     "round_history": [
       {
         "round": 2,
@@ -8470,6 +8470,11 @@
         "round": 2,
         "fixed": 7,
         "ended_at": "2026-11-19T11:48:40Z"
+      },
+      {
+        "round": 3,
+        "fixed": 28,
+        "ended_at": "2026-11-20T05:56:47Z"
       }
     ],
     "introspect_history": [
@@ -10897,370 +10902,72 @@
       "collect",
       "present",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "round": 3,
+      "round": 4,
       "cycle": 9,
       "groups": [
         {
-          "id": "ACU-GPT",
-          "name": "Samantha answers on GPT-Live again, with chat and task routing that GPT-Live accepts",
+          "id": "ACU-INTERRUPT",
+          "name": "Interrupting a GPT-Live-1 reply stops it quietly and answers the new request",
           "finding_ids": [
-            "ACU-14",
-            "ACU-05",
-            "ACU-08",
-            "ACU-09"
+            "ACU-17",
+            "ACU-05"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "verify",
-          "worktree": "bcl117-r4-g8",
-          "reason": "0.2.154 sends a per-reply field GPT-Live rejects, so every GPT turn failed; the round 4 items must pass on GPT-Live too.",
-          "codex": {
-            "model": "opencode/deepseek-v4.1-flash-free",
-            "effort": "default",
-            "one_file": false,
-            "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428",
-            "fix_status": "passed",
-            "review_status": "passed",
-            "reviewer": "Grok Bot own review (Guru approved 10:12 IST)",
-            "review_note": "Own review PASS: route turn-scoped in the typed user item, strict stand-in rejects unknown events and nested fields, replay is a fixed script; 3 mutations each caught; voice 628 pass + 2 pre-existing. Details: r3/review-own-g8.md",
-            "previous_review": "r5 review 2 CHANGES (persistent route, unchecked event types, keyword replay); fixed on OpenCode",
-            "fallback_note": "Codex quota out until 22 Nov 12:28 IST; OpenCode free limit hit 09:58; own review per Guru 10:12",
-            "reviewer_model": "Grok Bot subagent (own review)",
-            "job": {
-              "pid": 81302,
-              "phase": "presuite",
-              "started_at": "2026-11-20T05:08:13Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T05:12:46Z",
-              "exit_code": 0,
-              "duration_s": 273,
-              "finished_at": "2026-11-20T05:12:46Z",
-              "finished_phase_status": "passed"
-            },
-            "reviewer_session": "grokbot-executor-cdd26c82 (own review, Guru approved 10:12 IST)"
-          },
+          "status": "running",
+          "phase": "fix",
+          "worktree": "bcl117-r6-acu",
+          "reason": "Round 5 root cause: the app sends a cancel GPT-Live-1 rejects, so a voice error shows and the old story keeps running; ACU-05 is rechecked against the 3.0 s limit.",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8.sh",
-            "method": "Checked on the installed copy.",
-            "status": "partial",
-            "total": 4,
-            "fixed": 2,
-            "failed": 0,
-            "failure": "Turns and facts fixed; story stop blocked, routing parked",
-            "summary": "Turns and facts fixed; story stop blocked, routing parked"
-          },
-          "updated_at": "2026-11-20T05:45:16Z",
-          "blocked_reason": null,
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-20T05:12:46Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T05:15:57Z"
-          },
-          "verify_summary": "Turns and facts fixed; story stop blocked, routing parked"
-        },
-        {
-          "id": "ACU-MENU",
-          "name": "A failed Samantha start says why, and the release waits for the app to be ready",
-          "finding_ids": [
-            "ACU-01",
-            "ACU-15"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl117-r4-g7",
-          "reason": "Both are about reading the app's real state: a real unknown-model start comes up healthy with no reason, and the release checks the app one second after restarting it.",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "max",
-            "one_file": false,
-            "implementer_session": "01a1f460-32c2-7d62-a7d7-2bae1a069868",
-            "job": {
-              "pid": 81302,
-              "phase": "presuite",
-              "started_at": "2026-11-20T05:08:13Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T05:12:46Z",
-              "exit_code": 0,
-              "duration_s": 273,
-              "finished_at": "2026-11-20T05:12:46Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "previous_review": "r5 review 1 CHANGES: reject unsupported gpt-realtime names; release must poll a real request. Both fixed in the same session",
-            "review_status": "passed",
-            "reviewer_session": "01a1f70a-c837-7482-b2f2-3160304e2c42",
-            "review_note": "r5 re-review: both must-fixes accepted; only remaining item is the version bump, done by the orchestrator at integration",
-            "reviewer_model": "gpt-6.1-terra medium"
-          },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g7.sh",
-            "method": "Checked on the installed copy.",
-            "status": "verified",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-acu.sh",
+            "method": "Named tests, then typed redirect runs on GPT-Live-1 and Grok Voice 3.0 on the installed app.",
+            "status": "pending",
             "total": 2,
-            "fixed": 2,
-            "failed": 0,
-            "failure": null,
-            "summary": "Unknown model start shows its reason; release runs once"
-          },
-          "updated_at": "2026-11-20T05:45:02Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-20T05:12:46Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T05:15:57Z"
-          },
-          "verify_summary": "Unknown model start shows its reason; release runs once"
-        },
-        {
-          "id": "BCL-PAGE",
-          "name": "The list page shows fresh, the right round and each lane's real step",
-          "finding_ids": [
-            "BCL-83",
-            "BCL-84",
-            "BCL-85",
-            "BCL-86"
-          ],
-          "depends_on": [],
-          "status": "failed",
-          "phase": "verify",
-          "worktree": "bcl117-r5-g10",
-          "reason": "Both are how the page reads the tracker and how bcl moves lanes and rounds. BCL-85 added 09:27 (Guru): escalation ladder for repeat failures, skill text only. BCL-86 added 09:33 (Guru): quota-out fallback note plus waiting-for-quota lane state on the page.",
-          "codex": {
-            "model": "opencode/deepseek-v4.1-flash-free",
-            "effort": "default",
-            "one_file": false,
-            "implementer_session": "01a1f6e1-1ad8-7c02-9ffc-c6d1fb8e7bb5",
-            "fix_status": "passed",
-            "review_status": "passed",
-            "reviewer": "Grok Bot own review (Guru approved 10:12 IST)",
-            "review_note": "Own review: CHANGES once (BCL-86 text did not say how to show a lane waiting for quota); one-sentence doc fix by me, chart regenerated; fresh re-review PASS. 396 bcl tests, 2 mutations caught. Details: r3/review-own-g10.md",
-            "previous_review": "r5 review passed for BCL-83/84; BCL-85/86 finished on OpenCode",
-            "fallback_note": "Codex quota out until 22 Nov 12:28 IST; OpenCode free limit hit 09:58; own review per Guru 10:12",
-            "reviewer_model": "Grok Bot subagent (own review)",
-            "job": {
-              "pid": 81302,
-              "phase": "presuite",
-              "started_at": "2026-11-20T05:08:13Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T05:12:46Z",
-              "exit_code": 0,
-              "duration_s": 273,
-              "finished_at": "2026-11-20T05:12:46Z",
-              "finished_phase_status": "passed"
-            },
-            "reviewer_session": "grokbot-executor-cdd26c82 (own review, Guru approved 10:12 IST)"
-          },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10b.sh",
-            "method": "Named tests on the installed copy, lane shows Verifying during bcl verify, Stale hidden right after an update, installed skill text for the ladder and quota fallback.",
-            "status": "partial",
-            "total": 4,
-            "fixed": 3,
-            "failed": 1,
-            "summary": "Stale, ladder, quota verified; round number still wrong",
-            "failure": "Stale, ladder, quota verified; round number still wrong"
-          },
-          "updated_at": "2026-11-20T05:45:16Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-20T05:12:46Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T05:15:37Z"
-          },
-          "verify_summary": "Stale, ladder, quota verified; round number still wrong"
-        },
-        {
-          "id": "ACU-MEMORY",
-          "name": "Memory saves on GPT-Live: none from small talk, an explicit remember sticks",
-          "finding_ids": [
-            "ACU-07",
-            "ACU-13"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl117-r4-g8",
-          "reason": "ACU-07/13 failed on GPT-Live only because every GPT turn was rejected (ACU-14). This job only adds strict GPT-Live tests on top of the ACU-GPT change in the same worktree, so it ships in the same release; dependency on ACU-GPT verification removed (it would force a second release).",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "medium",
-            "one_file": false,
-            "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428",
-            "fix_status": "passed",
-            "review_status": "passed",
-            "reviewer": "Grok Bot own review (Guru approved 10:12 IST)",
-            "review_note": "Own review PASS with ACU-GPT: casual colour no save, explicit pineapple saves once. Details: r3/review-own-g8.md",
-            "reviewer_model": "Grok Bot subagent (own review)",
-            "job": {
-              "pid": 81302,
-              "phase": "presuite",
-              "started_at": "2026-11-20T05:08:13Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T05:12:46Z",
-              "exit_code": 0,
-              "duration_s": 273,
-              "finished_at": "2026-11-20T05:12:46Z",
-              "finished_phase_status": "passed"
-            },
-            "reviewer_session": "grokbot-executor-cdd26c82 (own review, Guru approved 10:12 IST)"
-          },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8m.sh",
-            "method": "Checked on the installed copy.",
-            "status": "verified",
-            "total": 2,
-            "fixed": 2,
-            "failed": 0,
-            "summary": "Small talk saves nothing; remember saves once",
-            "failure": null
-          },
-          "updated_at": "2026-11-20T05:45:02Z",
-          "blocked_reason": null,
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-20T05:12:46Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T05:15:57Z"
-          },
-          "verify_summary": "Small talk saves nothing; remember saves once"
-        },
-        {
-          "id": "ACU-ISLAND",
-          "name": "The island shows a cut-off run as Stopped with its reason, not done",
-          "finding_ids": [
-            "ACU-16"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl117-r5-g12",
-          "reason": "Guru 09:41: a run cut off at the usage limit showed a green done tick. Small lane on OpenCode free models (Codex quota out).",
-          "codex": {
-            "model": "opencode/deepseek-v4.1-flash-free",
-            "effort": "default",
-            "one_file": false,
-            "fix_status": "passed",
-            "review_status": "passed",
-            "reviewer": "Grok Bot own review (Guru approved 10:12 IST)",
-            "reviewer_model": "Grok Bot subagent (own review)",
-            "review_note": "Own review CHANGES (3): the real 20 Nov cutoff lost its reset time because Codex logs a null premium limits map just before task_complete; a cutoff row vanished after 3 min instead of staying like an error; a null final message was labelled Aborted. Fixed by me with tests; re-review PASS. Named 22/22, full swift 625 pass (17 skipped), mutations caught; real cutoff replays as Stopped, Quota exhausted, resets 22 Nov 12:28 IST. Details: r3/review-own-g12.md",
-            "previous_review": "OpenCode fix run cut off by its free limit after its own tests passed",
-            "fallback_note": "Codex quota out until 22 Nov 12:28 IST; OpenCode free limit hit 09:58; own review per Guru 10:12",
-            "job": {
-              "pid": 81302,
-              "phase": "presuite",
-              "started_at": "2026-11-20T05:08:13Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T05:12:46Z",
-              "exit_code": 0,
-              "duration_s": 273,
-              "finished_at": "2026-11-20T05:12:46Z",
-              "finished_phase_status": "passed"
-            },
-            "reviewer_session": "grokbot-executor-cdd26c82 (own review, Guru approved 10:12 IST)",
-            "implementer_session": "OpenCode deepseek-v4.1-flash-free run job-oc-g12, then grokbot-executor-cdd26c82 review fixes"
-          },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g12.sh",
-            "method": "Named tests on the installed build plus the recorded cutoff replayed through the installed parser.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "summary": "Quota cutoff shows Stopped with its reset time",
-            "failure": null
-          },
-          "updated_at": "2026-11-20T05:45:02Z",
-          "blocked_reason": null,
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-20T05:12:46Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T05:15:57Z"
-          },
-          "verify_summary": "Quota cutoff shows Stopped with its reset time"
-        },
-        {
-          "id": "BCL-COLUMN",
-          "name": "The page shows who is working on each lane right now",
-          "finding_ids": [
-            "BCL-87"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl117-r5-g10",
-          "reason": "Guru 10:22: the model column kept the fix model while lanes were in review. Own lane because bcl caps BCL-PAGE at 4 issues; same worktree and bcl 0.1.48 release as BCL-PAGE.",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-col.sh",
-            "method": "Named tests on the installed copy plus the live list rendered with reviewed lanes In review shows the reviewer, not the fix model.",
-            "status": "verified",
-            "total": 1,
-            "fixed": 1,
-            "failed": 0,
-            "summary": "Model column shows the reviewer during review",
-            "failure": null
+            "fixed": 0,
+            "failed": 0
           },
           "codex": {
             "model": "Grok Bot subagent (own fix)",
             "effort": "default",
             "one_file": false,
-            "fix_status": "passed",
-            "review_status": "passed",
-            "reviewer": "Grok Bot own review, fresh pass (Guru approved 10:12 IST)",
-            "reviewer_model": "Grok Bot subagent (own review)",
-            "review_note": "bcl job --model records the job model; review jobs also set reviewer_model; the column shows the current stage's job model, then the reviewer while in review, then the fix model. 4 new tests pass.",
-            "job": {
-              "pid": 81302,
-              "phase": "presuite",
-              "started_at": "2026-11-20T05:08:13Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T05:12:46Z",
-              "exit_code": 0,
-              "duration_s": 273,
-              "finished_at": "2026-11-20T05:12:46Z",
-              "finished_phase_status": "passed"
-            },
-            "reviewer_session": "grokbot-executor-cdd26c82 (own review, Guru approved 10:12 IST), fresh pass",
-            "implementer_session": "grokbot-executor-cdd26c82 (own fix)"
+            "fix_status": "pending",
+            "fallback_note": "Codex on the Mini out until 22 Nov 12:28 IST; own fix per Guru 11:24, fresh-eyes review by Codex gpt-6.1-terra medium on the box"
           },
-          "updated_at": "2026-11-20T05:45:02Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-20T05:12:46Z"
+          "updated_at": "2026-11-20T05:56:47Z"
+        },
+        {
+          "id": "BCL-FLOW",
+          "name": "The page keeps the right round and model, and a broken check can be rerun",
+          "finding_ids": [
+            "BCL-88",
+            "BCL-89",
+            "BCL-90"
+          ],
+          "depends_on": [],
+          "status": "running",
+          "phase": "fix",
+          "worktree": "bcl117-r6-bcl",
+          "reason": "Round 5 introspect: the page still says Round 3, the model column shows the fix model during install and verify, and a failed lane could not be rechecked after its check was fixed.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-bcl.sh",
+            "method": "Named tests on installed bcl 0.1.49 and the live PR 117 page.",
+            "status": "pending",
+            "total": 3,
+            "fixed": 0,
+            "failed": 0
           },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T05:15:37Z"
+          "codex": {
+            "model": "Grok Bot subagent (own fix)",
+            "effort": "default",
+            "one_file": false,
+            "fix_status": "pending",
+            "fallback_note": "Codex on the Mini out until 22 Nov 12:28 IST; own fix per Guru 11:24, fresh-eyes review by Codex gpt-6.1-terra medium on the box"
           },
-          "verify_summary": "Model column shows the reviewer during review"
+          "updated_at": "2026-11-20T05:56:47Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "verification_run": {
       "id": "r5-b80ba41c-117",
@@ -12525,7 +12232,7 @@
       "done_when": "A new request during a reply stops the current reply within about a second and the redirect is answered next; a test proves it for typed and spoken turns.",
       "observed": "19 Nov 2026 typed test: long story then a redirect 3 seconds later. Grok Voice 3.0: story ran 22.9 s to the end, redirect answered after 19.9 s. GPT-Live-1: story ran 11.5 s, redirect answered after 8.5 s.",
       "recommendation": "Cancel the active response when a new typed or spoken request arrives, as the spoken stop-word path already does.",
-      "status": "blocked",
+      "status": "in_progress",
       "details": {
         "Technical wording": "send_text() sends conversation.item.create + response.create without response.cancel when _active_response_ids is non-empty.",
         "Dev-obs evidence": "GPT session sref_8a6f2dba34a1bb4ef2de2b5299e0cf93: model_response_end p95 13.1 s (col-6be7b29503e9ce22). Dev-obs has no interruption signal, so this came from the test runner timings."
@@ -13088,7 +12795,7 @@
       "done_when": "When a new round's plan is recorded the page shows the new round number, and each lane shows its current step (for example Verifying once verification starts); a named test proves both, and the live #117 page shows Round 4 with the right lane step.",
       "observed": "20 Nov 2026 07:44 IST screenshot from Guru: Round 3, four lanes, all Installing. The round 4 plan (ACU-SESSION, ACU-MENU, ACU-PROMPT, ACU-TESTS) was recorded on 19 Nov while round 3 still had lanes that were not verified, blocked or parked, so the round number did not advance.",
       "recommendation": "Cause (diagnosed 20 Nov 07:48 IST, read-only): set-plan advances the round only when every group of the current round is verified, blocked or parked and that round's Introspect is recorded (manage_findings.py about line 1059). So the round 4 lanes were recorded inside round 3 and the page kept saying Round 3. start-verification and bcl verify do not move lanes off Installing (manage_findings.py about line 520, bcl about line 655). Queued for the next round: bcl plan should either refuse to replace an open round's lanes or advance and label the round honestly, and bcl verify should move its lanes to Verifying. No sanctioned command relabels the open round today.",
-      "status": "failing"
+      "status": "in_progress"
     },
     {
       "id": "ACU-14",
@@ -13280,7 +12987,7 @@
       "done_when": "There is a recorded, reviewable way to correct a list's round number with a reason, the page then shows the corrected round, and the correction is kept in the list history.",
       "observed": "20 Nov 2026 10:50 IST: after installing the round fix, the PR 117 page still shows Round 3 during round 5. Rounds 4 and 5 were planned while the stored round was 3, before the fix.",
       "recommendation": "Add a manage_findings correct-round action (new round, reason, appended to round_history) exposed through bcl, refusing to move backwards.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "ACU-17",
@@ -13292,7 +12999,7 @@
       "done_when": "Interrupting a GPT-Live-1 reply never shows a voice error, the old reply stops within about a second, and the redirect is answered next; the test fake accepts only the commands GPT-Live accepts, and a live typed run on GPT-Live-1 proves it.",
       "observed": "20 Nov 2026 10:58 IST, 0.2.155 typed redirect test: the cancel was rejected by GPT-Live, the island showed Voice hiccup, still here, and the story ended on its own 3.8 s after the redirect. Developer-observability also grouped this error.",
       "recommendation": "Drop the cancel for GPT-Live as main does, end the interrupted turn locally and keep ignoring its late output and tool calls; remove the cancel from the strict fake.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "BCL-89",
@@ -13304,7 +13011,7 @@
       "done_when": "Each lane's model column names who runs the current step in every stage, or says none when no model runs it; a named test covers install and verify, and the live page shows it.",
       "observed": "20 Nov 2026 11:00 IST, PR 117 round 5: lanes in Verifying showed opencode/deepseek-v4.1-flash-free and gpt-6-luna while Grok Bot ran the checks.",
       "recommendation": "Record the runner on install and verify jobs the same way as review jobs, and show None for script-only steps.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "BCL-90",
@@ -13316,7 +13023,7 @@
       "done_when": "bcl can re-run the check for a failed lane once with a stated reason, the reason is kept in the lane history, and a named test proves it.",
       "observed": "20 Nov 2026 11:07 IST: ACU-MENU verify exited 2 because a release test needs a git checkout; after fixing the check, bcl verify said it cannot start a failed lane.",
       "recommendation": "Add a verify rerun option with a required reason that is recorded with the lane.",
-      "status": "untested"
+      "status": "in_progress"
     }
   ]
 }
