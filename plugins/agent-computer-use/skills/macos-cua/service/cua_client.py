@@ -102,10 +102,13 @@ class CUAClient:
             f"Recover with: {RECOVERY_COMMAND}"
         )
 
-    def _probe(self, timeout: float = 15.0) -> socket.socket:
+    def _probe(self, timeout: float | None = None) -> socket.socket:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
-            sock.settimeout(timeout)
+            if timeout is None:
+                sock.settimeout(15.0)
+            else:  # a caller with its own deadline (release readiness) passes what is left of it
+                sock.settimeout(max(0.1, min(15.0, timeout)))
             sock.connect(self.socket_path)
         except OSError:
             sock.close()
