@@ -7988,9 +7988,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T03:48:26Z",
-      "now": "2026-11-20T03:48:26Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-20T04:02:49Z",
+      "now": "2026-11-20T04:02:49Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10431,7 +10431,7 @@
             "ACU-09"
           ],
           "depends_on": [],
-          "status": "failed",
+          "status": "review",
           "phase": "review",
           "worktree": "bcl117-r4-g8",
           "reason": "0.2.154 sends a per-reply field GPT-Live rejects, so every GPT turn failed; the round 4 items must pass on GPT-Live too.",
@@ -10441,18 +10441,18 @@
             "one_file": false,
             "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428",
             "job": {
-              "pid": 7986,
-              "phase": "review",
-              "started_at": "2026-11-20T03:42:46Z",
-              "command": "launch-review-g8.sh",
-              "heartbeat_at": "2026-11-20T03:43:53Z",
+              "pid": 22983,
+              "phase": "fix",
+              "started_at": "2026-11-20T03:48:26Z",
+              "command": "run-r5gmf-g8.sh",
+              "heartbeat_at": "2026-11-20T03:57:41Z",
               "exit_code": 0,
-              "duration_s": 67,
-              "finished_at": "2026-11-20T03:43:53Z",
-              "finished_phase_status": "failed"
+              "duration_s": 555,
+              "finished_at": "2026-11-20T03:57:41Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
-            "review_status": "failed"
+            "previous_review": "r5 review 1 CHANGES: strict replay injected outcomes; reworked so emitted route events drive replies, delegation, ledger and cancel"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8.sh",
@@ -10462,7 +10462,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T03:43:53Z"
+          "updated_at": "2026-11-20T04:02:49Z"
         },
         {
           "id": "ACU-MENU",
@@ -10513,37 +10513,41 @@
           "name": "The list page shows fresh, the right round and each lane's real step",
           "finding_ids": [
             "BCL-83",
-            "BCL-84"
+            "BCL-84",
+            "BCL-85",
+            "BCL-86"
           ],
           "depends_on": [],
           "status": "running",
           "phase": "fix",
           "worktree": "bcl117-r5-g10",
-          "reason": "Both are how the page reads the tracker and how bcl moves lanes and rounds.",
+          "reason": "Both are how the page reads the tracker and how bcl moves lanes and rounds. BCL-85 added 09:27 (Guru): escalation ladder for repeat failures, skill text only. BCL-86 added 09:33 (Guru): quota-out fallback note plus waiting-for-quota lane state on the page.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 2664,
+              "pid": 35929,
               "phase": "fix",
-              "started_at": "2026-11-20T03:40:32Z",
-              "command": "run-r5mf-g10.sh",
-              "heartbeat_at": "2026-11-20T03:47:33Z"
+              "started_at": "2026-11-20T03:57:19Z",
+              "command": "run-r5x85-g10.sh",
+              "heartbeat_at": "2026-11-20T04:02:20Z"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f6e1-1ad8-7c02-9ffc-c6d1fb8e7bb5",
-            "review_status": "failed"
+            "review_status": "passed",
+            "reviewer_session": "01a1f703-63d2-70c0-8af2-04bc04c11226",
+            "review_note": "r5 review CHANGES (stale deadline must be the earliest running heartbeat) fixed in the same session; one-file fix, re-review skipped per routing rule"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10.sh",
             "method": "Checked on the installed copy.",
             "status": "pending",
-            "total": 2,
+            "total": 4,
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T03:47:33Z"
+          "updated_at": "2026-11-20T04:02:27Z"
         },
         {
           "id": "ACU-MEMORY",
@@ -12037,6 +12041,30 @@
       "observed": "20 Nov 2026 07:38 IST, release_agent_computer_use.py --sign-only from 2ff666e0: build, sync and signature passed, then the runtime-contract step failed with Errno 2 No such file or directory; runtime_contract.py run by hand at 07:39 IST passed on the same install (service pid 44161).",
       "recommendation": "Replace the fixed one-second sleep after restart_app with a short wait for the service socket to answer.",
       "status": "in_progress"
+    },
+    {
+      "id": "BCL-85",
+      "title": "No escalation rule when the same issue fails repeatedly",
+      "source": "User reported",
+      "priority": "medium",
+      "summary": "The skill sends every retry back through the same Luna fix and Terra review, even when an issue has already failed review or Verify several times (ACU-05 failed three rounds, ACU-01 two).",
+      "impact": "Repeat failures get patched the same way round after round, spending tokens on retries that do not work. The ladder exists for token efficiency: fewer wasted retries.",
+      "done_when": "The skill states a short ladder that applies only to an issue that has failed repeatedly. On its second failure in review or Verify, patching stops: Terra 6.1 at high writes a fresh diagnosis from developer-observability evidence plus a test that fails against the real behaviour, then Terra 6.1 at medium fixes it. On its third failure, one Sol 6.2 medium root-cause pass; if that fails too, the issue is blocked or parked, the user is told why, and the merge is not held up. An Astra 6.2 low plan review happens only once an issue has failed twice, from the diagnosis step onward, never on normal lanes; if Astra does not run, it is skipped and noted. The normal flow (Luna 6 fast at max fixes, Terra 6.1 at medium reviews, a first review with changes goes back to the same Luna session) is unchanged with no added steps. The strict skill shape check passes and the state chart page is regenerated.",
+      "observed": "20 Nov 2026 09:25-09:26 IST, Guru approved the ladder after ACU-05 failed rounds 3, 4 and the ACU-GPT review in round 5.",
+      "recommendation": "Add the conditional to references/plan-fix.md and references/review.md (and references/verify.md for Verify failures), stating its purpose as token efficiency (fewer wasted retries), counting failures from the finding history; confirm gpt-6.2-astra runs before using it; regenerate statechart.html. Introspect compares tokens spent on repeat-failing issues per round from Codex session usage.",
+      "status": "in_progress"
+    },
+    {
+      "id": "BCL-86",
+      "title": "No fallback when the coding model quota runs out mid-round",
+      "source": "User reported",
+      "priority": "medium",
+      "summary": "The skill says nothing about what to do when the Codex quota runs out during a round, so lanes stall, the page shows them as Stale, and work may be handed to a weaker model or retried wastefully.",
+      "impact": "Rounds stall or waste tokens when quota runs out; the page misleads by showing Stale instead of the real wait. The fallback exists for token efficiency.",
+      "done_when": "The skill has a short conditional note, with no steps added to the normal flow: if the coding model quota runs out during a fix, small well-defined lanes go to the free OpenCode models and hard or retry lanes wait for the reset; review is never skipped or handed to a weaker model, it waits for the reset; while waiting, the work that needs no model (Verify, Install, the pre-push suite, the tracker) continues; before a big round the remaining quota is checked and fewer or cheaper lanes are picked if it is low; a check blocked by another subscription's quota, such as a voice provider, is marked blocked with the reason, not failed. The page shows a lane waiting for quota with its reset time, not Stale. The strict skill shape check passes and the state chart page is regenerated.",
+      "observed": "20 Nov 2026 09:31 IST, Guru approved the quota-out fallback.",
+      "recommendation": "Add the note next to the BCL-85 ladder in references/plan-fix.md (review.md for the review rule, verify.md for blocked-by-other-quota); route small lanes via the opencode-free-implementer skill; give a lane activity a waiting-for-quota state with reset_at that render.py shows instead of Stale; regenerate statechart.html.",
+      "status": "untested"
     }
   ]
 }
