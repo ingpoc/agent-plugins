@@ -8776,9 +8776,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T09:10:41Z",
-      "now": "2026-11-20T09:10:41Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-20T09:11:18Z",
+      "now": "2026-11-20T09:11:18Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -11493,14 +11493,27 @@
             "ACU-13",
             "ACU-14"
           ],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r7-remember",
           "label": "ACU-13, ACU-14",
           "codex": {
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-r7-own-fix-remember",
-            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-remember"
+            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-remember",
+            "job": {
+              "pid": 58601,
+              "phase": "fix",
+              "started_at": "2026-11-20T09:10:48Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-20T09:11:10Z",
+              "model": "Grok Bot subagent (own fix)",
+              "exit_code": 0,
+              "duration_s": 22,
+              "finished_at": "2026-11-20T09:11:10Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r7-remember.sh",
@@ -11509,7 +11522,7 @@
             "failed": 0,
             "total": 2
           },
-          "updated_at": "2026-11-20T09:10:17Z"
+          "updated_at": "2026-11-20T09:11:18Z"
         }
       ],
       "status": "closed"
