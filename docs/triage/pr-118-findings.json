@@ -10537,9 +10537,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T15:48:39Z",
-      "now": "2026-11-20T15:48:39Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T15:53:36Z",
+      "now": "2026-11-20T15:53:36Z — Fix job started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13533,7 +13533,7 @@
           "finding_ids": [
             "BCL-94"
           ],
-          "status": "review",
+          "status": "failed",
           "worktree": "bcl118-r2-viewer",
           "label": "BCL-94",
           "verify": {
@@ -13547,19 +13547,23 @@
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-118r2-bcl-viewer",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-bcl-viewer",
-            "review_status": "pending",
+            "review_status": "failed",
             "job": {
               "pid": 80498,
               "phase": "review",
               "started_at": "2026-11-20T15:40:47Z",
               "command": "review-r6.sh",
-              "heartbeat_at": "2026-11-20T15:47:48Z",
-              "model": "grok-4.7-medium (Cursor CLI ask)"
+              "heartbeat_at": "2026-11-20T15:49:43Z",
+              "model": "grok-4.7-medium (Cursor CLI ask)",
+              "exit_code": 0,
+              "duration_s": 536,
+              "finished_at": "2026-11-20T15:49:43Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
             "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
-          "updated_at": "2026-11-20T15:47:48Z",
+          "updated_at": "2026-11-20T15:49:43Z",
           "phase": "review"
         },
         {
@@ -13622,23 +13626,23 @@
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-118r2-bcl-merged",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-bcl-merged",
-            "review_status": "failed",
+            "review_status": "passed",
             "job": {
-              "pid": 8634,
-              "phase": "fix",
-              "started_at": "2026-11-20T15:48:33Z",
-              "command": "fixjob.sh",
-              "heartbeat_at": "2026-11-20T15:48:38Z",
-              "model": "Grok Bot (own fix)",
+              "pid": 9082,
+              "phase": "review",
+              "started_at": "2026-11-20T15:48:39Z",
+              "command": "review-r6.sh",
+              "heartbeat_at": "2026-11-20T15:52:31Z",
+              "model": "grok-4.7-medium (Cursor CLI ask)",
               "exit_code": 0,
-              "duration_s": 5,
-              "finished_at": "2026-11-20T15:48:38Z",
+              "duration_s": 232,
+              "finished_at": "2026-11-20T15:52:31Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
-          "updated_at": "2026-11-20T15:48:39Z",
+          "updated_at": "2026-11-20T15:52:31Z",
           "phase": "review"
         },
         {
