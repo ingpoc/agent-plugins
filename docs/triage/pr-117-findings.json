@@ -7988,9 +7988,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T02:54:52Z",
-      "now": "2026-11-20T02:54:52Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-20T03:16:21Z",
+      "now": "2026-11-20T03:16:21Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10431,7 +10431,7 @@
             "ACU-09"
           ],
           "depends_on": [],
-          "status": "planned",
+          "status": "running",
           "phase": "fix",
           "worktree": "bcl117-r4-g8",
           "reason": "0.2.154 sends a per-reply field GPT-Live rejects, so every GPT turn failed; the round 4 items must pass on GPT-Live too.",
@@ -10439,17 +10439,24 @@
             "model": "gpt-6-luna",
             "effort": "max",
             "one_file": false,
-            "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428"
+            "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428",
+            "job": {
+              "pid": 28464,
+              "phase": "fix",
+              "started_at": "2026-11-20T02:55:05Z",
+              "command": "run-r5-g8.sh",
+              "heartbeat_at": "2026-11-20T03:16:08Z"
+            }
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8.sh",
             "method": "Checked on the installed copy.",
-            "status": "partial",
+            "status": "pending",
             "total": 4,
             "fixed": 0,
-            "failed": 3
+            "failed": 0
           },
-          "updated_at": "2026-11-20T02:54:52Z"
+          "updated_at": "2026-11-20T03:16:08Z"
         },
         {
           "id": "ACU-MENU",
@@ -10459,25 +10466,37 @@
             "ACU-15"
           ],
           "depends_on": [],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r4-g7",
           "reason": "Both are about reading the app's real state: a real unknown-model start comes up healthy with no reason, and the release checks the app one second after restarting it.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
             "one_file": false,
-            "implementer_session": "01a1f460-32c2-7d62-a7d7-2bae1a069868"
+            "implementer_session": "01a1f460-32c2-7d62-a7d7-2bae1a069868",
+            "job": {
+              "pid": 29246,
+              "phase": "fix",
+              "started_at": "2026-11-20T02:55:07Z",
+              "command": "run-r5-g7.sh",
+              "heartbeat_at": "2026-11-20T03:13:37Z",
+              "exit_code": 0,
+              "duration_s": 1110,
+              "finished_at": "2026-11-20T03:13:37Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g7.sh",
             "method": "Checked on the installed copy.",
-            "status": "partial",
+            "status": "pending",
             "total": 2,
             "fixed": 0,
-            "failed": 1
+            "failed": 0
           },
-          "updated_at": "2026-11-20T02:54:52Z"
+          "updated_at": "2026-11-20T03:16:21Z"
         },
         {
           "id": "BCL-PAGE",
@@ -10487,14 +10506,21 @@
             "BCL-84"
           ],
           "depends_on": [],
-          "status": "planned",
+          "status": "running",
           "phase": "fix",
           "worktree": "bcl117-r5-g10",
           "reason": "Both are how the page reads the tracker and how bcl moves lanes and rounds.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
-            "one_file": false
+            "one_file": false,
+            "job": {
+              "pid": 30126,
+              "phase": "fix",
+              "started_at": "2026-11-20T02:55:09Z",
+              "command": "launch-g10.sh",
+              "heartbeat_at": "2026-11-20T03:16:12Z"
+            }
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10.sh",
@@ -10504,7 +10530,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T02:54:52Z"
+          "updated_at": "2026-11-20T03:16:12Z"
         },
         {
           "id": "ACU-MEMORY",
@@ -11350,7 +11376,7 @@
       "done_when": "A failed start leaves the toggle in a visible failed state with a plain reason taken from the supervisor (helper missing, mic denied, key missing), and a named test that fails on the old code proves it.",
       "observed": "19 Nov 2026 16:34 IST: ACU 0.2.146 on the Mini; every start logged resolve_launch status=fail detail=no voice helper in ~/.cache/macos-cua/voice.log, and the toggle went back off with nothing shown.",
       "recommendation": "Carry the supervisor's failure reason to the menu and island and show it until the next attempt.",
-      "status": "failing",
+      "status": "in_progress",
       "details": {
         "Technical wording": "VoiceSupervisor resolve_launch fail detail=no voice helper; toggle flips off ~0.5 s with no reason surfaced to menu or island.",
         "Dev-obs evidence": "col-6e73c74984279674 (startup/resolve_launch failed 15x, recovered on 0.2.151) and col-a6864f7a1ca81b62 (resolve_launch repeated 9x burst, 11:04:21-11:04:26Z)."
@@ -11540,7 +11566,7 @@
       "done_when": "A new request during a reply stops the current reply within about a second and the redirect is answered next; a test proves it for typed and spoken turns.",
       "observed": "19 Nov 2026 typed test: long story then a redirect 3 seconds later. Grok Voice 3.0: story ran 22.9 s to the end, redirect answered after 19.9 s. GPT-Live-1: story ran 11.5 s, redirect answered after 8.5 s.",
       "recommendation": "Cancel the active response when a new typed or spoken request arrives, as the spoken stop-word path already does.",
-      "status": "failing",
+      "status": "in_progress",
       "details": {
         "Technical wording": "send_text() sends conversation.item.create + response.create without response.cancel when _active_response_ids is non-empty.",
         "Dev-obs evidence": "GPT session sref_8a6f2dba34a1bb4ef2de2b5299e0cf93: model_response_end p95 13.1 s (col-6be7b29503e9ce22). Dev-obs has no interruption signal, so this came from the test runner timings."
@@ -11630,7 +11656,7 @@
       "done_when": "The reply includes the facts the request asked for; a scenario test checks the heading on both voice models.",
       "observed": "19 Nov 2026 17:04:34 IST typed: four tool calls, all succeeded, 12.0 s; page read returned 'Example Domain' but the reply omitted it. GPT-Live-1 included it.",
       "recommendation": "Make the closing reply restate the requested facts from the page read before confirming cleanup.",
-      "status": "failing",
+      "status": "in_progress",
       "details": {
         "Technical wording": "comet_act text result final_title 'Example Domain'; reply 'Done. Calculator stays open, and the Comet test window is closed.'",
         "Dev-obs evidence": "Grok session missing in dev-obs (DEVOBS-06); taken from the activity log."
@@ -11646,7 +11672,7 @@
       "done_when": "Small talk, recall and empathy turns are answered by the live model with no backend call; the backend is used only for tasks; a test proves the routing.",
       "observed": "19 Nov 2026 17:10 IST typed: small talk sent to the backend took 5.0 s with 5,864 input, 384 output and 363 reasoning tokens; recall took 1.6 s with 7,248 input tokens; empathy took 2.4 s with 10,367 input tokens.",
       "recommendation": "Answer conversational turns in the live model and delegate only when a tool or task is needed.",
-      "status": "failing",
+      "status": "in_progress",
       "details": {
         "Technical wording": "usage rows provider=openai-live model=gpt-6-luna tier=bulk for every typed turn in session 8f02ce25.",
         "Dev-obs evidence": "sref_8a6f2dba34a1bb4ef2de2b5299e0cf93 summary: usage 10, response_done 6; col-ffa528ff4fa3470c usage latency p95 9.1 s (p50 2.3 s, n=1009)."
@@ -11951,7 +11977,7 @@
       "done_when": "After any tracker update the Stale badge is hidden until no update has landed for the stale window; a named test with lanes whose last update is old but a fresh workflow update proves it, and the live #117 page shows no Stale badge right after an update.",
       "observed": "20 Nov 2026 07:44 IST screenshot from Guru: header Updated 7:40 AM IST, 3 min ago, and the Stale badge shown. The 07:40 write was a workflow activity update (install stage, release job running); the four round lanes still carried their last update from 19 Nov 23:45 IST.",
       "recommendation": "Cause (diagnosed 20 Nov 07:48 IST, read-only): the Stale badge uses the oldest of the workflow update time and each active lane's last update or job heartbeat (render.py stale_times, about lines 923-935 and 1087). An activity update refreshes only the workflow time, so lanes left in Installing with an old stamp and no running job keep the page Stale. Queued for the next round: when a verify step starts, bcl verify should move its lanes to Verifying (which refreshes their stamp), and a lane with no running job should not hold the badge once a newer recorded update exists. Interim: lanes are now marked Verifying through the CLI as each verify step starts.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "BCL-84",
@@ -11963,7 +11989,7 @@
       "done_when": "When a new round's plan is recorded the page shows the new round number, and each lane shows its current step (for example Verifying once verification starts); a named test proves both, and the live #117 page shows Round 4 with the right lane step.",
       "observed": "20 Nov 2026 07:44 IST screenshot from Guru: Round 3, four lanes, all Installing. The round 4 plan (ACU-SESSION, ACU-MENU, ACU-PROMPT, ACU-TESTS) was recorded on 19 Nov while round 3 still had lanes that were not verified, blocked or parked, so the round number did not advance.",
       "recommendation": "Cause (diagnosed 20 Nov 07:48 IST, read-only): set-plan advances the round only when every group of the current round is verified, blocked or parked and that round's Introspect is recorded (manage_findings.py about line 1059). So the round 4 lanes were recorded inside round 3 and the page kept saying Round 3. start-verification and bcl verify do not move lanes off Installing (manage_findings.py about line 520, bcl about line 655). Queued for the next round: bcl plan should either refuse to replace an open round's lanes or advance and label the round honestly, and bcl verify should move its lanes to Verifying. No sanctioned command relabels the open round today.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "ACU-14",
@@ -11975,7 +12001,7 @@
       "done_when": "A typed turn on GPT-Live-1 is accepted and answered on the installed app; the offline test fake rejects fields GPT-Live does not accept, so a test fails on the 0.2.154 request; and the typed run on both models answers every turn.",
       "observed": "20 Nov 2026 07:55-08:12 IST, installed ACU 0.2.154 (commit 2ff666e0), typed run on GPT-Live-1: 13 realtime_error rows, code unknown_parameter, param response, all from build 0.2.154 and none from any earlier build. Small talk, recall, task, empathy and remember turns all still running at 170 s; the redirect took 131 s. Grok Voice 3.0 in the same run answered every turn.",
       "recommendation": "Round 4 (commit 71e33672, chat versus task routing) added response.instructions to the GPT-Live response.create. Steer GPT-Live another way, for example a conversation item or a session update, and make the offline fake reject unknown response.create fields.",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "id": "ACU-15",
@@ -11987,7 +12013,7 @@
       "done_when": "After restarting the app, the release waits until the service answers (with a time limit and a clear message) before it checks the version; a named test proves the wait, and one release on the Mini passes without a rerun.",
       "observed": "20 Nov 2026 07:38 IST, release_agent_computer_use.py --sign-only from 2ff666e0: build, sync and signature passed, then the runtime-contract step failed with Errno 2 No such file or directory; runtime_contract.py run by hand at 07:39 IST passed on the same install (service pid 44161).",
       "recommendation": "Replace the fixed one-second sleep after restart_app with a short wait for the service socket to answer.",
-      "status": "untested"
+      "status": "in_progress"
     }
   ]
 }
