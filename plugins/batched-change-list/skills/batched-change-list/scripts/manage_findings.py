@@ -574,7 +574,11 @@ def verification_action(document, findings, operation):
             if check.get("state") in ("pending", "checking"):
                 check.setdefault("started_at", stamp)
                 check.update(state="inconclusive", stopped=True, evidence=f"Run stopped: {reason.strip()}",
+                             observation=f"Run stopped: {reason.strip()}", observed_at=stamp,
                              updated_at=stamp, finished_at=stamp)
+        shared = run.get("shared_check")
+        if isinstance(shared, dict) and shared.get("state") == "checking":
+            shared.update(state="failed", stopped=True, finished_at=stamp)
         run["status"] = "complete"
         run["stopped"] = {"reason": reason.strip(), "at": stamp}
         return
@@ -913,8 +917,9 @@ def validate_plan_groups(plan: dict) -> None:
     groups = plan.get("groups") if isinstance(plan, dict) else None
     if not isinstance(groups, list):
         return
+    # count lanes as the page does; finished, deferred, parked, blocked and failed lanes do not take a slot
     active = [g for g in groups if isinstance(g, dict)
-              and (g["status"] if "status" in g else g.get("phase")) not in {"deferred", "done", "verified", "parked"}]
+              and RENDERER.plan_status(g) not in {"verified", "deferred", "parked", "blocked", "failed"}]
     if len(active) > MAX_ROUND_LANES:
         raise ValueError(f"a round runs at most {MAX_ROUND_LANES} lanes (plan has {len(active)}); defer the rest to the next round")
     for group in groups:

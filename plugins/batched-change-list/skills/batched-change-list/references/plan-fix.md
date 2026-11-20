@@ -33,7 +33,7 @@ Do not fix and test one issue at a time.
 
 ## Plan check
 
-A round runs only independent groups. At Plan, if a group would do better after another group's fix, move it to the next round and mark it `deferred` (not planned or failed). A small independent docs-only or chart-only item with no code dependency and no shared file with another group joins the round's nearest group or rides as an extra lane in the same round instead of waiting for its own round; it does not count toward the 3–4 group cap and still gets its own named test and verify. Cap parallel groups in a round at 3–4 by default. Hard groups may use max Codex effort; cap each parallel fix group at about 4 issues, including max-effort groups.
+A round runs only independent groups. At Plan, if a group would do better after another group's fix, move it to the next round and mark it `deferred` (not planned or failed). A small independent docs-only or chart-only item with no code dependency and no shared file with another group joins the round's nearest group instead of waiting for its own round, and still gets its own named test and verify. A round runs at most 4 open lanes (`bcl plan` refuses more). Hard groups may use max Codex effort; cap each parallel fix group at about 4 issues, including max-effort groups.
 
 ## Round rules
 

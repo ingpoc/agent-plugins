@@ -1040,8 +1040,21 @@ elif args[:2] != ['pr', 'edit']:
         run = after["tracking"]["verification_run"]
         self.assertEqual((run["id"], run["status"], run["stopped"]["reason"]), (run_id, "complete", "owner asked to roll over"))
         self.assertTrue(all(c["state"] == "inconclusive" and c["stopped"] for c in run["checks"].values()))
+        import manage_findings
+        self.assertTrue(all(manage_findings.has_observation_for_run(c, run) for c in run["checks"].values()))  # audit keeps them
         self.assertEqual(check_gate_count.verified_gate_count(after)[0], counted)
         self.assertGreaterEqual(counted, before)
+
+    def test_stop_verify_leaves_finished_verdicts_alone(self):
+        live, command = self._lane_ready()
+        document = json.loads(live.read_text())
+        run = document["tracking"]["verification_run"]
+        run["checks"]["ISSUE-01"] = {"state": "fixed", "observation": "o", "observed_at": run["installed_at"], "evidence": "kept", "started_at": run["installed_at"], "updated_at": run["installed_at"], "finished_at": run["installed_at"]}
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+        stop = self.call_without_viewer("stop-verify", "--reason", "rollover"); self.assertEqual(stop.returncode, 0, stop.stderr[-300:])
+        kept = json.loads(live.read_text())["tracking"]["verification_run"]["checks"]["ISSUE-01"]
+        self.assertEqual((kept["state"], kept["evidence"]), ("fixed", "kept"))
+        self.assertNotIn("stopped", kept)
 
     def test_fix_job_restarts_failed_lane(self):
         self.assertEqual(self.call('start').returncode, 0)
