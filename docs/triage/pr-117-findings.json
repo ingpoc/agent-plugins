@@ -8291,9 +8291,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T07:47:23Z",
-      "now": "2026-11-20T07:47:23Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-20T08:27:38Z",
+      "now": "2026-11-20T08:27:38Z — Install in progress"
     },
     "rollover": {
       "source_pr": 116,
@@ -8342,7 +8342,7 @@
       }
     },
     "cycle": 9,
-    "round": 4,
+    "round": 6,
     "round_history": [
       {
         "round": 2,
@@ -10906,10 +10906,11 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
-      "round": 4,
+      "round": 6,
       "cycle": 9,
       "groups": [
         {
@@ -10921,8 +10922,8 @@
             "BCL-90"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r6-bcl",
           "reason": "Round 5 introspect: the page still says Round 3, the model column shows the fix model during install and verify, and a failed lane could not be rechecked after its check was fixed.",
           "verify": {
@@ -10942,21 +10943,34 @@
             "implementer_session": "grokbot-r6-own-fix-bcl",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-bcl",
             "job": {
-              "pid": 75795,
-              "phase": "review",
-              "started_at": "2026-11-20T06:36:55Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-20T06:43:40Z",
-              "model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 2)",
+              "pid": 51697,
+              "phase": "presuite",
+              "started_at": "2026-11-20T08:11:32Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-20T08:16:11Z",
               "exit_code": 0,
-              "duration_s": 405,
-              "finished_at": "2026-11-20T06:43:40Z",
+              "duration_s": 279,
+              "finished_at": "2026-11-20T08:16:11Z",
               "finished_phase_status": "passed"
             },
             "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 2)",
             "review_status": "passed"
           },
-          "updated_at": "2026-11-20T07:46:26Z"
+          "updated_at": "2026-11-20T08:16:12Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-20T08:16:11Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-20T08:27:38Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot subagent (scripted release: ACU 0.2.156 sign-only, bcl 0.1.49 install-local)",
+            "at": "2026-11-20T08:27:38Z"
+          }
         },
         {
           "id": "ACU-ISLAND",
@@ -10964,8 +10978,8 @@
           "finding_ids": [
             "ACU-18"
           ],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r6-island",
           "label": "ACU-18",
           "codex": {
@@ -10973,15 +10987,14 @@
             "implementer_session": "grokbot-r6-own-fix-island",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-island",
             "job": {
-              "pid": 31892,
-              "phase": "review",
-              "started_at": "2026-11-20T07:29:37Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-20T07:42:27Z",
-              "model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 2)",
+              "pid": 51697,
+              "phase": "presuite",
+              "started_at": "2026-11-20T08:11:32Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-20T08:16:11Z",
               "exit_code": 0,
-              "duration_s": 770,
-              "finished_at": "2026-11-20T07:42:27Z",
+              "duration_s": 279,
+              "finished_at": "2026-11-20T08:16:11Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -10995,7 +11008,21 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-20T07:46:26Z"
+          "updated_at": "2026-11-20T08:16:12Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-20T08:16:11Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-20T08:27:38Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot subagent (scripted release: ACU 0.2.156 sign-only, bcl 0.1.49 install-local)",
+            "at": "2026-11-20T08:27:38Z"
+          }
         },
         {
           "id": "ACU-CANCEL",
@@ -11003,8 +11030,8 @@
           "finding_ids": [
             "ACU-17"
           ],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r6-cancel",
           "label": "ACU-17",
           "codex": {
@@ -11012,18 +11039,19 @@
             "implementer_session": "grokbot-r6-own-fix-cancel",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-cancel",
             "job": {
-              "pid": 76677,
-              "phase": "fix",
-              "started_at": "2026-11-20T07:47:00Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-20T07:47:22Z",
-              "model": "Grok Bot subagent (own fix)",
+              "pid": 51697,
+              "phase": "presuite",
+              "started_at": "2026-11-20T08:11:32Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-20T08:16:11Z",
               "exit_code": 0,
-              "duration_s": 22,
-              "finished_at": "2026-11-20T07:47:22Z",
+              "duration_s": 279,
+              "finished_at": "2026-11-20T08:16:11Z",
               "finished_phase_status": "passed"
             },
-            "fix_status": "passed"
+            "fix_status": "passed",
+            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 1)",
+            "review_status": "passed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-cancel.sh",
@@ -11032,7 +11060,21 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-20T07:47:23Z"
+          "updated_at": "2026-11-20T08:16:12Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-20T08:16:11Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-20T08:27:38Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot subagent (scripted release: ACU 0.2.156 sign-only, bcl 0.1.49 install-local)",
+            "at": "2026-11-20T08:27:38Z"
+          }
         }
       ]
     },
@@ -11572,7 +11614,15 @@
       },
       "round": 3,
       "cycle": 9
-    }
+    },
+    "round_corrections": [
+      {
+        "from": 4,
+        "to": 6,
+        "reason": "rounds 5 and 6 ran while the stored counter stayed at 4 because plan replaced lanes mid-round (BCL-84)",
+        "corrected_at": "2026-11-20T08:19:11Z"
+      }
+    ]
   },
   "findings": [
     {
