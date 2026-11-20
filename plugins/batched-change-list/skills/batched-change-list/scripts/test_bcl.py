@@ -107,7 +107,7 @@ elif args[:2] != ['pr', 'edit']:
         record = next(iter(json.loads((self.state / "registry.json").read_text()).values()))
         key = "example/project/123"
         self.viewer_port = 40000 + os.getpid() % 19000
-        while self.viewer_port == 53366 or not live_state._port_is_free(self.viewer_port):
+        while self.viewer_port in {53366, 8765, 8766, 52432, 57666} or not live_state._port_is_free(self.viewer_port):
             self.viewer_port = 40000 + (self.viewer_port - 39999) % 19000
         viewer = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
         viewer.write_text(json.dumps({"port": self.viewer_port, "pid": None, "data": record["live"]}))
@@ -117,7 +117,7 @@ elif args[:2] != ['pr', 'edit']:
         viewer_test_guard.stop_viewers(self.root, owned)
 
     def test_suite_leaves_no_viewer_processes(self):
-        proc = subprocess.Popen([sys.executable, str(live_state.SCRIPTS / "serve.py"), str(self.page), "--port", "0"],
+        proc = subprocess.Popen([sys.executable, str(live_state.SCRIPTS / "serve.py"), str(self.page), "--port", str(self.viewer_port)],
                                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             deadline = time.monotonic() + 10
@@ -397,8 +397,9 @@ elif args[:2] != ['pr', 'edit']:
         command = f'"{sys.executable}" "{check}"'
         plan = self.root / "verify-plan.json"
         plan.write_text(json.dumps({"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"status":"pending","verify":{"command":command}}]}))
-        self.assertEqual(self.call("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
-        self.assertEqual(self.install_after_review("--ids", "ISSUE-01").returncode, 0)
+        self.assertEqual(self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        self.prepare_review(["ISSUE-01"])
+        self.assertEqual(self.call_without_viewer("install", "--ids", "ISSUE-01").returncode, 0)
         live = self._active_verification()
         return live, command
 
@@ -437,6 +438,46 @@ elif args[:2] != ['pr', 'edit']:
         _, command = self._lane_ready()
         lane = self.call("verify", "--ids", "ISSUE-01", "--then", command)
         self.assertEqual(lane.returncode, 0, lane.stderr)
+
+    def test_verify_records_fixed_result_from_a_verifying_lane(self):
+        live, command = self._lane_ready()
+        check = Path(command.split('"')[3])
+        manager = PLUGIN / "skills/batched-change-list/scripts/manage_findings.py"
+        check.write_text(
+            "import json, subprocess, sys\n"
+            "from pathlib import Path\n"
+            f"live = Path({str(live)!r})\n"
+            "document = json.loads(live.read_text())\n"
+            "assert document['tracking']['plan']['groups'][0]['status'] == 'verifying'\n"
+            f"manager = {str(manager)!r}\n"
+            f"page = {str(self.page)!r}\n"
+            "operations = [{'action':'update','id':'ISSUE-01','patch':{'status':'verified_fixed',"
+            "'verification':'The behavior was fixed.','verification_refs':['Verification receipt']}}]\n"
+            "result = subprocess.run([sys.executable, manager, 'batch', str(live), '-', '--render', page], "
+            "input=json.dumps(operations), text=True, capture_output=True)\n"
+            "if result.returncode:\n print(result.stderr or result.stdout, file=sys.stderr)\n"
+            "raise SystemExit(result.returncode)\n")
+        result = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "verified")
+        self.assertEqual(group["phase"], "verify")
+
+    def test_verify_records_failure_after_its_lane_enters_verifying(self):
+        live, command = self._lane_ready()
+        check = Path(command.split('"')[3])
+        check.write_text(
+            "import json\n"
+            "from pathlib import Path\n"
+            f"document = json.loads(Path({str(live)!r}).read_text())\n"
+            "assert document['tracking']['plan']['groups'][0]['status'] == 'verifying'\n"
+            "raise SystemExit(7)\n")
+        result = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertEqual(result.returncode, 7, result.stderr)
+        group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "failed")
+        self.assertEqual(group["phase"], "verify")
+        self.assertIn("exited 7", group["verify"]["failure"])
 
     def call_without_viewer(self, stage, *args):
         output, error = io.StringIO(), io.StringIO()
@@ -588,6 +629,30 @@ elif args[:2] != ['pr', 'edit']:
         if writes and not isinstance(verdict, bytes):
             self.assertIn("review note", result.read_text())
 
+    def test_review_job_model_is_recorded_for_the_lane_model_column(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        plan = self.root / "review-model-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned",
+            "codex": {"model": "gpt-6-luna", "implementer_session": "writer", "reviewer_session": "reviewer"}}]}))
+        self.assertEqual(self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        def run(phase, *extra):
+            return subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01", *extra,
+                "--phase", phase, "job", "--", sys.executable, "-c", "pass"], env=self.env, capture_output=True, text=True)
+        self.assertEqual(run("fix", "--model", "gpt-6-luna max").returncode, 0)
+        codex = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["codex"]
+        self.assertEqual((codex["job"]["model"], codex.get("reviewer_model")), ("gpt-6-luna max", None))
+        self.assertEqual(self.call_without_viewer("review", "--ids", "ISSUE-01").returncode, 0)
+        result = self.root / "review-model.txt"
+        job = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01", "--result", str(result),
+            "--model", "Grok Bot subagent (own review)", "--phase", "review", "job", "--", sys.executable, "-c",
+            f"from pathlib import Path; Path({str(result)!r}).write_text('VERDICT: PASS\\n')"], env=self.env, capture_output=True, text=True)
+        self.assertEqual(job.returncode, 0, job.stderr)
+        codex = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["codex"]
+        self.assertEqual(codex["job"]["model"], "Grok Bot subagent (own review)")
+        self.assertEqual(codex["reviewer_model"], "Grok Bot subagent (own review)")
+        self.assertEqual(codex["model"], "gpt-6-luna")
+        self.assertEqual(codex["review_status"], "passed")
+
     def test_review_job_with_changes_verdict_records_failed(self):
         self._review_job_verdict("VERDICT: CHANGES")
 
@@ -661,7 +726,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(data["tracking"]["stages_reached"], ["collect", "plan_fix", "review", "install", "verify", "introspect"])
         self.assertEqual(data["tracking"]["plan"]["groups"][0]["id"], "A")
         self.assertEqual(data["tracking"]["plan"]["status"], "closed")
-        self.assertEqual(json.loads(status.stdout)["plan"][0]["status"], "installing")
+        self.assertEqual(json.loads(status.stdout)["plan"][0]["status"], "verifying")
 
     def test_introspect_draft_rejects_input_tracker_and_live_hard_link(self):
         input_before = self.data.read_bytes()
@@ -1421,7 +1486,7 @@ elif args[:2] != ['pr', 'edit']:
             other = reports / "other page.html"
             report.write_text("<html></html>")
             other.write_text("<html></html>")
-            proc = subprocess.Popen([sys.executable, str(live_state.SCRIPTS / "serve.py"), str(report), "--port", "0"],
+            proc = subprocess.Popen([sys.executable, str(live_state.SCRIPTS / "serve.py"), str(report), "--port", str(self.viewer_port)],
                                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             try:
                 deadline = time.monotonic() + 10
@@ -1430,8 +1495,7 @@ elif args[:2] != ['pr', 'edit']:
                 self.assertTrue(live_state._viewer_process(proc.pid, report))
                 self.assertFalse(live_state._viewer_process(proc.pid, other))
             finally:
-                proc.terminate()
-                proc.wait(timeout=5)
+                viewer_test_guard.stop_viewers(directory, (proc.pid,))
                 proc.wait(timeout=5)
 
     def test_merged_keeps_terminal_data_and_emits_todo_when_retarget_api_fails(self):

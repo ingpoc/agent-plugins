@@ -501,7 +501,7 @@ enum IslandAgentRows {
         if a.status == "running", let detail = a.local_detail { return detail }
         switch a.status {
         case "error": return a.local_detail ?? "failed"
-        case "stopped": return "Stopped"
+        case "stopped": return a.local_detail ?? "Stopped"
         case "needs_you":
             // "Grok Bot · 2m": who is asking and for how long (the shape already says "needs you").
             let n = max(0, Int(a.elapsed_s + max(0, elapsedExtra)))

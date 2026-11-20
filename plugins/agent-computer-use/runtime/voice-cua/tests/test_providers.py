@@ -13,7 +13,7 @@ import threading
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 _TMP = tempfile.TemporaryDirectory(prefix="voice-cua-test-")
 os.environ.setdefault("VOICE_CUA_ACTIVITY_LOG", str(Path(_TMP.name) / "activity.jsonl"))
@@ -28,7 +28,7 @@ from voice_cua.providers import (  # noqa: E402
     ESCALATE_TOOL, LiveProvider, XAIProvider, make_provider, provider_for,
 )
 from voice_cua.live_session import LiveSession, build_session_update  # noqa: E402
-from test_phase1_reliability import FakeWS, feed  # noqa: E402
+from test_phase1_reliability import StrictGPTLiveWS, feed  # noqa: E402
 
 TOOLS = [{"type": "function", "name": "cua_act", "description": "d", "parameters": {"type": "object"}}]
 UPDATE = {"type": "session.update", "session": {
@@ -63,6 +63,10 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(provider_for("grok-voice-latest"), "xai")
         self.assertIsInstance(make_provider("gpt-realtime-2.1"), LiveProvider)
         self.assertEqual(make_provider("gpt-realtime-2.1").model, "gpt-live-1")
+
+    def test_unsupported_live_model_fails_before_provider_or_key_resolution(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Voice model unavailable: acu01-unknown-model"):
+            make_provider("acu01-unknown-model")
 
     def test_live_tier_defaults_and_bad_ids_fall_back(self) -> None:
         p = make_provider("gpt-live-1", {"live_bulk_model": "nope", "live_intelligence_model": "gpt-6-astra"})
@@ -170,6 +174,71 @@ def _fc(delegation: str, call_id: str, name: str = "cua_act", args: str = "{}") 
 
 
 class LiveTests(_Rows):
+    def test_strict_stand_in_rejects_unknown_event_type_and_nested_field(self) -> None:
+        ws = StrictGPTLiveWS()
+        for event, param in (
+            ({"type": "session.teleport"}, "type"),
+            ({"type": "response.create", "event_id": "turn-1",
+              "response": {"instructions": "For this response only, answer directly."}}, "response"),
+            ({"type": "response.item.create", "item": {"type": "message", "role": "user",
+             "content": [{"type": "input_text", "text": "hi"}], "unexpected": True}}, "item.unexpected"),
+        ):
+            with self.assertRaisesRegex(ValueError, f"^{event['type']}: {param}$"):
+                ws.send(json.dumps(event))
+        self.assertEqual([error["error"]["param"] for error in ws.errors],
+                         ["type", "response", "item.unexpected"])
+        self.assertEqual([error["event_type"] for error in ws.errors],
+                         ["session.teleport", "response.create", "response.item.create"])
+        self.assertEqual(ws.events, [])
+
+    def test_gpt_live_strict_fake_rejects_unsupported_response_parameter(self) -> None:
+        ws = StrictGPTLiveWS()
+        with self.assertRaisesRegex(ValueError, "response.create: response"):
+            ws.send(json.dumps({"type": "response.create", "event_id": "turn-1",
+                                "response": {"instructions": "For this response only, answer directly."}}))
+        self.assertEqual(ws.errors, [{"type": "error", "event_type": "response.create", "error": {
+            "type": "invalid_request_error", "code": "unknown_parameter", "param": "response",
+            "message": "response.create: unknown or invalid parameter 'response'.",
+        }}])
+        self.assertEqual(ws.events, [])
+
+    def test_gpt_live_strict_fake_rejects_unknown_fields_on_all_prompt_events(self) -> None:
+        ws = StrictGPTLiveWS()
+        for event in (
+            {"type": "response.item.create", "item": {"type": "message", "role": "user",
+             "content": [], "unexpected": True}},
+            {"type": "session.update", "session": {"delegation": {"type": "responses"}},
+             "unexpected": True},
+            {"type": "session.update", "session": {"delegation": {"type": "responses",
+             "responses": {"model": "gpt-6-luna", "unexpected": True}}}},
+        ):
+            with self.assertRaises(ValueError):
+                ws.send(json.dumps(event))
+        self.assertEqual([error["error"]["param"] for error in ws.errors], [
+            "item.unexpected", "unexpected", "session.delegation.responses.unexpected",
+        ])
+
+    def test_gpt_live_per_turn_route_is_a_part_of_the_typed_item(self) -> None:
+        p, _ = _live()
+        ws = StrictGPTLiveWS()
+        for request, route in (
+            ("Hi, how are you?", "direct"),
+            ("What did I just say?", "direct"),
+            ("I had a rough day.", "direct"),
+            ("Open example.com and read the heading.", "delegate"),
+        ):
+            (user_item,) = p.outbound({"type": "conversation.item.create", "item": {
+                "type": "message", "role": "user", "content": [{"type": "input_text", "text": request}]}})
+            output = p.outbound({"type": "response.create", "event_id": "turn"})
+            for event in [user_item, *output]:
+                ws.send(json.dumps(event))
+            self.assertEqual(ws.errors, [])
+            self.assertEqual(user_item["item"]["content"], [
+                {"type": "input_text", "text": request},
+                {"type": "input_text", "text": providers.ROUTE_TEXT[route]},
+            ])
+            self.assertEqual(output, [{"type": "response.create", "event_id": "turn"}])
+
     def test_first_update_starts_session_with_bulk_delegation(self) -> None:
         p, _ = _live()
         self.assertEqual(p.url(), "wss://api.openai.com/v1/live/sessions")
@@ -210,23 +279,20 @@ class LiveTests(_Rows):
             with self.subTest(text=text):
                 self.assertEqual(providers.typed_turn_route(text), expected)
 
-    def test_typed_turn_route_is_response_scoped_and_keeps_turn_correlation(self) -> None:
+    def test_typed_turn_route_is_turn_scoped_and_keeps_turn_correlation(self) -> None:
         for text, expected in (
             ("Hey, how are you?", "direct"),
             ("Open Calculator", "delegate"),
         ):
             p, _ = _live()
-            p.outbound({"type": "conversation.item.create", "item": {
+            (user_item,) = p.outbound({"type": "conversation.item.create", "item": {
                 "type": "message", "role": "user", "content": [{"type": "input_text", "text": text}]}})
             (created,) = p.outbound({"type": "response.create", "event_id": "response-event", "response": {
                 "metadata": {"voice_cua_request_id": "req-1", "voice_cua_request_step_ref": "step-1"}}})
-            self.assertEqual(created["event_id"], "response-event")
+            self.assertEqual(user_item["item"]["content"][-1],
+                             {"type": "input_text", "text": providers.ROUTE_TEXT[expected]})
+            self.assertEqual(created, {"type": "response.create", "event_id": "response-event"})
             self.assertEqual((p._turn_seq, p._turn_request), (1, "req-1"))
-            instructions = created["response"]["instructions"]
-            if expected == "direct":
-                self.assertIn("without creating a Responses delegation", instructions)
-            else:
-                self.assertIn("use Responses delegation", instructions)
 
     def test_silent_output_does_not_merge_audible_replies(self) -> None:
         p, _ = _live()
@@ -526,7 +592,7 @@ def live_session() -> LiveSession:
     with patch("voice_cua.voice_settings.load_settings", return_value=settings), \
             patch("voice_cua.live_session.load_settings", return_value=settings):
         session = LiveSession(api_key="test", enable_audio=False)
-    session.ws = FakeWS()
+    session.ws = StrictGPTLiveWS()
     return session
 
 
@@ -955,6 +1021,359 @@ class LiveTurnIdTests(_Rows):
         self.assertEqual(_meta(out[2]), "b", "the continuation carries the queued message")
 
 
+LEDGER_ARGS = {
+    "operation": "preference", "scope": "fleet", "rule": "test_word_for_samantha_checks",
+    "value": "pineapple",
+    "owner_quote": "Please remember this for later: my test word for Samantha checks is pineapple.",
+}
+
+
+def _direct_turn(name: str, reply: str) -> dict:
+    response_id = f"live-{name}"
+    return {
+        "name": name,
+        "response_id": response_id,
+        "events": [
+            {"type": "response.created", "response": {"id": response_id}},
+            {"type": "response.done", "response": {
+                "id": response_id, "status": "completed",
+                "output": [{"type": "message", "content": [
+                    {"type": "output_text", "text": reply}]}],
+            }},
+        ],
+    }
+
+
+def _tool_turn(name: str, delegation: str, response_id: str, call_id: str,
+               tool: str, arguments: dict, reply: str) -> dict:
+    raw = json.dumps(arguments, sort_keys=True)
+    call = {"type": "function_call", "call_id": call_id, "name": tool, "arguments": raw}
+    return {
+        "name": name,
+        "response_id": response_id,
+        "events": [
+            _dlg(delegation),
+            _ev(delegation, {"type": "response.created", "response": {"id": response_id}}),
+            _fc(delegation, call_id, name=tool, args=raw),
+            _ev(delegation, {"type": "response.completed", "response": {
+                "id": response_id, "status": "completed", "output": [call]}}),
+        ],
+        "continuation": _answer(delegation, f"{response_id}-followup", reply),
+    }
+
+
+def _answer_turn(name: str, delegation: str, response_id: str, reply: str) -> dict:
+    return {"name": name, "response_id": response_id,
+            "events": [_dlg(delegation), *_answer(delegation, response_id, reply)]}
+
+
+SMALL_TALK_TURN = _direct_turn("small-talk", "Hi! I am doing well, thanks for asking.")
+TASK_TURN = _tool_turn(
+    "task", "replay-task", "backend-task", "call-task", "cua_act",
+    {"app": "Comet", "op": "read", "label": "Heading"}, "The heading is Example Domain.")
+REMEMBER_TURN = _tool_turn(
+    "remember", "replay-remember", "backend-remember", "call-ledger", "ledger_task",
+    LEDGER_ARGS, "I saved pineapple for later.")
+CASUAL_TURN = _direct_turn("casual", "Teal is a lovely colour. I am doing well, thanks.")
+STORY_TURN = {
+    "name": "story",
+    "response_id": "backend-story",
+    "events": [
+        _dlg("replay-story"),
+        _ev("replay-story", {"type": "response.created", "response": {"id": "backend-story"}}),
+    ],
+    "cancel": [_ev("replay-story", {"type": "response.done", "response": {
+        "id": "backend-story", "status": "cancelled"}})],
+}
+REDIRECT_TURN = _answer_turn("redirect", "replay-redirect", "backend-redirect", "Calendar is open.")
+REPLAY_SCRIPT = [SMALL_TALK_TURN, TASK_TURN, REMEMBER_TURN, CASUAL_TURN, STORY_TURN, REDIRECT_TURN]
+
+
+class ScriptedGPTLiveReplayServer:
+    """Offline GPT-Live stand-in: each typed turn replays its recorded server events, in order.
+
+    Outcomes never depend on the turn's text. The script is fixed data, so a client that
+    ignores the per-turn route cannot make the stand-in produce the expected delegation,
+    ledger call, or spoken result.
+    """
+
+    ROUTE_MARKER = "Routing for this turn only"
+
+    def __init__(self, session: LiveSession, script: list[dict] | None = None) -> None:
+        self.session = session
+        self.script = list(REPLAY_SCRIPT if script is None else script)
+        self.pending: list[dict] = []
+        self.turn = 0  # typed response.create index
+        self.active_turn: dict | None = None
+        self.continuation: list[dict] | None = None
+        self.response_ids: dict[str, str] = {}
+        self.tool_results: list[dict] = []
+        self.cancel_requested: list[str] = []
+        self.cancelled_responses: list[str] = []
+        self.user_text = ""
+        session.ws.on_client_event = self.on_client_event
+
+    def _queue(self, *events: dict) -> None:
+        self.pending.extend(events)
+
+    def pump(self) -> int:
+        events, self.pending = self.pending, []
+        for event in events:
+            feed(self.session, event)
+        return len(events)
+
+    def _replay(self, entry: dict) -> None:
+        self.active_turn = entry
+        if entry.get("response_id"):
+            self.response_ids[str(entry["name"])] = entry["response_id"]
+        self._queue(*entry["events"])
+
+    def on_client_event(self, event: dict) -> None:
+        event_type = event.get("type")
+        if event_type == "response.item.create":
+            item = event.get("item") or {}
+            if item.get("type") == "function_call_output":
+                try:
+                    result = json.loads(str(item.get("output") or "{}"))
+                except json.JSONDecodeError:
+                    result = {"ok": False, "error": "invalid tool output"}
+                self.tool_results.append(result)
+                if self.active_turn and self.active_turn.get("continuation"):
+                    self.continuation = self.active_turn["continuation"]
+            elif item.get("type") == "message":
+                parts = [str(part.get("text") or "") for part in item.get("content") or []]
+                self.user_text = " ".join(part for part in parts if self.ROUTE_MARKER not in part)
+        elif event_type == "response.cancel":
+            response_id = str(event.get("response_id") or "")
+            entry = next((item for item in self.script if item.get("response_id") == response_id), None)
+            if entry and entry.get("cancel"):
+                self.cancel_requested.append(response_id)
+                self.cancelled_responses.append(response_id)
+                self._queue(*entry["cancel"])
+        elif event_type == "response.create":
+            if self.continuation is not None:
+                events, self.continuation = self.continuation, None
+                self._queue(*events)
+                return
+            entry = self.script[self.turn] if self.turn < len(self.script) else {
+                "name": "unscripted", "events": []}
+            self.turn += 1
+            self._replay(entry)
+
+
+class StrictGPTLiveReplayTests(_Rows):
+    """A deterministic replay against the GPT-Live wire contract; no socket or model calls."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        tools.reset_session_state()
+        for target in ("voice_cua.workflow_store.begin_engagement",
+                       "voice_cua.live_session.island_publish",
+                       "voice_cua.tools.island_publish",
+                       "voice_cua.live_session.hide_agent_cursor"):
+            p = patch(target)
+            p.start()
+            self.addCleanup(p.stop)
+        backend = MagicMock()
+        backend.act.return_value = {"ok": True, "app": "Comet", "verified": True,
+                                    "text": "Example Domain"}
+        patched_backend = patch("voice_cua.tools.get_backend", return_value=backend)
+        patched_backend.start()
+        self.addCleanup(patched_backend.stop)
+        self.s = live_session()
+        self.s.ws = StrictGPTLiveWS()
+        self.s._send(build_session_update(text_only=True))
+        self.s.provider._ready = True
+        self.server = ScriptedGPTLiveReplayServer(self.s)
+        from voice_cua.ledger_helper import LedgerHelper
+        self.transport = MagicMock()
+        self.transport.call.return_value = {"ok": True, "data": {"decision_id": "pineapple-saved"}}
+        self.helper = LedgerHelper(self.transport, Mock(side_effect=AssertionError("helper model called")),
+                                   self.path.parent / "pending")
+        ledger = patch.object(tools, "_LEDGER_HELPER", self.helper)
+        ledger.start()
+        self.addCleanup(ledger.stop)
+        self.addCleanup(self.helper.close)
+
+    def _prepare_turn(self) -> tuple[str, dict]:
+        import uuid
+        rid = uuid.uuid4().hex
+        waiter = {"event": threading.Event(), "reply": "", "error": ""}
+        with self.s._response_lock:
+            self.s._text_waiters[rid] = waiter
+        return rid, waiter
+
+    def _ask(self, text: str) -> tuple[str, dict]:
+        rid, waiter = self._prepare_turn()
+        self.s.send_text(text, request_id=rid)
+        return rid, waiter
+
+    def _reply(self, rid: str, waiter: dict, timeout: float = 2.0) -> str:
+        deadline = time.monotonic() + timeout
+        while not waiter["event"].is_set() and time.monotonic() < deadline:
+            self.server.pump()
+            time.sleep(0.005)
+        self.server.pump()
+        self.assertTrue(waiter["event"].is_set(), "stand-in answered the typed turn")
+        self.assertEqual(waiter["error"], "")
+        with self.s._response_lock:
+            self.s._text_waiters.pop(rid, None)
+        return str(waiter["reply"])
+
+    def _assert_typed_route(self, since: int, text: str, route: str) -> None:
+        items = [event for event in self.s.ws.events[since:]
+                 if event.get("type") == "response.item.create"
+                 and (event.get("item") or {}).get("type") == "message"
+                 and (event.get("item") or {}).get("role") == "user"]
+        self.assertEqual(len(items), 1, "one typed user item on the wire")
+        self.assertEqual(items[0]["item"]["content"], [
+            {"type": "input_text", "text": text},
+            {"type": "input_text", "text": providers.ROUTE_TEXT[route]},
+        ])
+
+    def _typed_turn(self, text: str, route: str) -> tuple[str, int]:
+        since = len(self.s.ws.events)
+        rid, waiter = self._ask(text)
+        reply = self._reply(rid, waiter)
+        self._assert_typed_route(since, text, route)
+        return reply, since
+
+    def _spoken_turn(self, delegation: str, response_id: str, reply: str,
+                     start_ms: int) -> list[dict]:
+        since = len(self.s.ws.events)
+        feed(self.s, {"type": "session.input_transcript.delta", "delta": f"spoken {delegation}",
+                      "start_ms": start_ms, "end_ms": start_ms + 800})
+        feed(self.s, {"type": "session.delegation.created", "offset_ms": start_ms + 300,
+                      "delegation": {"id": delegation}})
+        for event in _answer(delegation, response_id, reply):
+            feed(self.s, event)
+        events = self.s.ws.events[since:]
+        self.assertFalse([event for event in events
+                          if ScriptedGPTLiveReplayServer.ROUTE_MARKER in json.dumps(event)],
+                         "a spoken turn carries no route text")
+        self.assertFalse([event for event in events
+                          if event.get("type") == "session.instructions.append"],
+                         "a spoken turn sends no persistent instruction")
+        return events
+
+    def _assert_route_only_in_typed_items(self, expected: int) -> None:
+        routing = [event for event in self.s.ws.events
+                   if ScriptedGPTLiveReplayServer.ROUTE_MARKER in json.dumps(event)]
+        self.assertEqual(len(routing), expected, "one route part per typed turn")
+        for event in routing:
+            self.assertEqual(event.get("type"), "response.item.create")
+            self.assertEqual((event.get("item") or {}).get("role"), "user")
+            self.assertEqual(len((event.get("item") or {}).get("content") or []), 2)
+        self.assertFalse([event for event in self.s.ws.events
+                          if event.get("type") == "session.instructions.append"
+                          and ScriptedGPTLiveReplayServer.ROUTE_MARKER in str(event.get("content") or "")],
+                         "routing is never a persistent session instruction")
+
+    def test_gpt_live_strict_replay_covers_chat_task_memory_and_redirect(self) -> None:
+        # Turn 1: small talk is a direct reply and cannot save a ledger row.
+        reply, _ = self._typed_turn("Hi there, how are you?", "direct")
+        self.assertIn("doing well", reply)
+        self.transport.call.assert_not_called()
+
+        # Turn 2: a browser task is delegated; its function result is spoken back.
+        reply, _ = self._typed_turn("Open example.com and read the heading.", "delegate")
+        self.assertIn("Example Domain", reply)
+        self.assertEqual(len(self.server.tool_results), 1)
+        self.assertIs(self.server.tool_results[0]["ok"], True)
+        self.transport.call.assert_not_called()
+
+        # Turn 3: the explicit remember turn runs the real ledger save path exactly once.
+        reply, _ = self._typed_turn(
+            "Please remember this for later: my test word for Samantha checks is pineapple.",
+            "delegate")
+        self.assertIn("saved pineapple", reply)
+        self.assertEqual(len(self.server.tool_results), 2)
+        self.assertIs(self.server.tool_results[-1]["ok"], True)
+        self.assertEqual(self.transport.call.call_count, 1)
+        self.assertEqual(self.transport.call.call_args.args[0], "save")
+        payload = self.transport.call.call_args.args[1]
+        self.assertEqual((payload["scope"], payload["rule"], payload["decision"]),
+                         ("fleet", "test_word_for_samantha_checks", "pineapple"))
+
+        # Turn 4: a casual favourite-colour mention is chat and saves nothing.
+        reply, _ = self._typed_turn("Hey, my favourite colour is teal. How are you?", "direct")
+        self.assertIn("doing well", reply)
+        self.assertEqual(self.transport.call.call_count, 1)
+
+        # Turn 5: the story is delegated; the redirect cancels it, then answers its own task.
+        story_since = len(self.s.ws.events)
+        story_text = "Open example.com and read the long story."
+        _story_rid, story_waiter = self._ask(story_text)
+        self.server.pump()
+        self.assertFalse(story_waiter["event"].is_set())
+        self._assert_typed_route(story_since, story_text, "delegate")
+        story_response = self.server.response_ids["story"]
+        before_creates = sum(event["type"] == "response.create" for event in self.s.ws.events)
+        redirect_since = len(self.s.ws.events)
+        rid, waiter = self._prepare_turn()
+        sender = threading.Thread(target=self.s.send_text,
+                                  kwargs={"text": "Actually, open Calendar instead.", "request_id": rid})
+        sender.start()
+        deadline = time.monotonic() + 1.0
+        while story_response not in self.server.cancel_requested and time.monotonic() < deadline:
+            time.sleep(0.005)
+        self.assertIn(story_response, self.server.cancel_requested)
+        self.assertEqual(sum(event["type"] == "response.create" for event in self.s.ws.events),
+                         before_creates)
+        self.server.pump()
+        sender.join(timeout=1.0)
+        self.assertFalse(sender.is_alive())
+        self.assertEqual(sum(event["type"] == "response.create" for event in self.s.ws.events),
+                         before_creates + 1)
+        self.assertEqual(self.server.cancelled_responses, [story_response])
+        self.assertIn("Calendar is open", self._reply(rid, waiter))
+        self.assertTrue(story_waiter["event"].is_set())
+        self._assert_typed_route(redirect_since, "Actually, open Calendar instead.", "delegate")
+
+        self._assert_route_only_in_typed_items(6)
+        self.assertEqual(self.s.ws.errors, [])
+
+    def test_gpt_live_casual_favourite_colour_turn_replies_without_saving(self) -> None:
+        self.server = ScriptedGPTLiveReplayServer(self.s, script=[CASUAL_TURN])
+        text = "Hey, my favourite colour is teal. How are you?"
+        reply, _ = self._typed_turn(text, "direct")
+        self.assertIn("doing well", reply)
+        self.transport.call.assert_not_called()
+        self._assert_route_only_in_typed_items(1)
+        self.assertEqual(self.s.ws.errors, [])
+
+    def test_gpt_live_explicit_pineapple_remember_turn_saves_once(self) -> None:
+        self.server = ScriptedGPTLiveReplayServer(self.s, script=[REMEMBER_TURN])
+        quote = "Please remember this for later: my test word for Samantha checks is pineapple."
+        reply, _ = self._typed_turn(quote, "delegate")
+        self.assertIn("saved pineapple", reply)
+        self.assertEqual(len(self.server.tool_results), 1)
+        result = self.server.tool_results[0]
+        self.assertIs(result["ok"], True)
+        self.assertNotIn("error", result)
+        self.assertEqual(self.transport.call.call_count, 1)
+        self.assertEqual(self.transport.call.call_args.args[0], "save")
+        payload = self.transport.call.call_args.args[1]
+        self.assertEqual((payload["scope"], payload["rule"], payload["decision"]),
+                         ("fleet", "test_word_for_samantha_checks", "pineapple"))
+        self._assert_route_only_in_typed_items(1)
+        self.assertEqual(self.s.ws.errors, [])
+
+    def test_gpt_live_alternating_typed_and_spoken_turns_do_not_inherit_route(self) -> None:
+        self.server = ScriptedGPTLiveReplayServer(
+            self.s, script=[SMALL_TALK_TURN,
+                            _answer_turn("calendar", "replay-calendar", "backend-calendar",
+                                         "Calendar is open.")])
+        reply, _ = self._typed_turn("Hi there, how are you?", "direct")
+        self.assertIn("doing well", reply)
+        self._spoken_turn("spoken-one", "spoken-response-one", "It is sunny.", start_ms=1000)
+        reply, _ = self._typed_turn("Open Calendar and read it.", "delegate")
+        self.assertIn("Calendar is open", reply)
+        self._spoken_turn("spoken-two", "spoken-response-two", "It is cold.", start_ms=2000)
+        self._assert_route_only_in_typed_items(2)
+        self.assertEqual(self.s.ws.errors, [])
+
+
 class LiveDropThenThreeRequestsTests(_Rows):
     """A drop mid-request, then three sequential requests: every waiter gets its own answer."""
 
@@ -1011,7 +1430,7 @@ class LiveDropThenThreeRequestsTests(_Rows):
             s._on_close(None, None, None)  # TCP lost, no close frame
         s._prepare_reconnect()
         s._conn_epoch += 1
-        s.ws = FakeWS()
+        s.ws = StrictGPTLiveWS()
         s.provider._ready = True  # forked session started
 
     def test_drop_then_three_sequential_requests_each_get_their_own_answer(self) -> None:

@@ -48,6 +48,158 @@ class FakeWS:
         self.events.append({"type": "__closed__"})
 
 
+class StrictGPTLiveWS(FakeWS):
+    """GPT-Live wire stand-in: rejects every event, key, and nested shape ACU must not send."""
+
+    _EVENT_FIELDS = {
+        "session.start": {"type", "event_id", "session"},
+        "session.update": {"type", "event_id", "session"},
+        "session.input_audio.append": {"type", "audio"},
+        "session.input_audio.mute": {"type", "event_id"},
+        "session.input_audio.unmute": {"type", "event_id"},
+        "response.create": {"type", "event_id"},
+        "response.item.create": {"type", "event_id", "previous_item_id", "item"},
+        "response.cancel": {"type", "event_id", "response_id"},
+        "session.instructions.append": {"type", "event_id", "content", "delegation_id"},
+        "session.thinking.append": {"type", "event_id", "content", "delegation_id"},
+        "session.close": {"type"},
+    }
+    _SESSION_FIELDS = {
+        "type", "model", "instructions", "output_modalities", "tools", "tool_choice",
+        "parallel_tool_calls", "reasoning", "audio", "delegation", "truncation",
+        "max_response_output_tokens", "input_audio_transcription", "include", "store", "input",
+    }
+    _DELEGATION_RESPONSE_FIELDS = {
+        "model", "instructions", "tools", "tool_choice", "parallel_tool_calls",
+    }
+    _ITEM_FIELDS = {"id", "type", "status", "role", "content", "call_id", "output"}
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.errors: list[dict] = []
+        self.on_client_event = None
+
+    @staticmethod
+    def _error(event_type: str, field: str) -> dict:
+        return {"type": "error", "event_type": event_type, "error": {
+            "type": "invalid_request_error", "code": "unknown_parameter", "param": field,
+            "message": f"{event_type}: unknown or invalid parameter '{field}'.",
+        }}
+
+    def _reject(self, event_type: str, field: str) -> None:
+        self.errors.append(self._error(event_type, field))
+        raise ValueError(f"{event_type}: {field}")
+
+    def _session_field(self, session: dict) -> str:
+        if not isinstance(session, dict):
+            return "session"
+        field = next((key for key in session if key not in self._SESSION_FIELDS), "")
+        if field:
+            return f"session.{field}"
+        audio = session.get("audio")
+        if audio is not None:
+            if not isinstance(audio, dict):
+                return "session.audio"
+            field = next((key for key in audio if key not in {"format", "output"}), "")
+            if field:
+                return f"session.audio.{field}"
+            output = audio.get("output")
+            if output is not None and not isinstance(output, dict):
+                return "session.audio.output"
+        input_items = session.get("input")
+        if input_items is not None:
+            if not isinstance(input_items, list):
+                return "session.input"
+            for index, item in enumerate(input_items):
+                if not isinstance(item, dict) or item.get("type") != "message":
+                    return f"session.input[{index}]"
+                if item.get("role") not in {"user", "assistant"}:
+                    return f"session.input[{index}].role"
+                content = item.get("content")
+                if not isinstance(content, list) or not content:
+                    return f"session.input[{index}].content"
+                for part in content:
+                    if not isinstance(part, dict) or part.get("type") not in {"input_text", "output_text"}:
+                        return f"session.input[{index}].content.type"
+                    if not isinstance(part.get("text"), str):
+                        return f"session.input[{index}].content.text"
+        delegation = session.get("delegation")
+        if delegation is None:
+            return ""
+        if not isinstance(delegation, dict):
+            return "session.delegation"
+        field = next((key for key in delegation if key not in {"type", "responses"}), "")
+        if field:
+            return f"session.delegation.{field}"
+        responses = delegation.get("responses")
+        if responses is None:
+            return ""
+        if not isinstance(responses, dict):
+            return "session.delegation.responses"
+        field = next((key for key in responses if key not in self._DELEGATION_RESPONSE_FIELDS), "")
+        return f"session.delegation.responses.{field}" if field else ""
+
+    def _item_field(self, item: dict) -> str:
+        if not isinstance(item, dict):
+            return "item"
+        field = next((key for key in item if key not in self._ITEM_FIELDS), "")
+        if field:
+            return f"item.{field}"
+        itype = item.get("type")
+        if itype == "function_call_output":
+            if not isinstance(item.get("call_id"), str) or not item.get("call_id"):
+                return "item.call_id"
+            if not isinstance(item.get("output"), str):
+                return "item.output"
+            return ""
+        if itype != "message":
+            return "item.type"
+        if item.get("role") not in {"user", "system"}:
+            return "item.role"
+        content = item.get("content")
+        if not isinstance(content, list) or not content:
+            return "item.content"
+        for part in content:
+            if not isinstance(part, dict) or set(part) != {"type", "text"}:
+                return "item.content.part"
+            if part.get("type") != "input_text" or not isinstance(part.get("text"), str):
+                return "item.content.type"
+        return ""
+
+    def _invalid_field(self, event_type: str, event: dict) -> str:
+        allowed = self._EVENT_FIELDS.get(event_type)
+        if allowed is None:
+            return "type"
+        field = next((key for key in event if key not in allowed), "")
+        if field:
+            return field
+        if event_type in {"session.start", "session.update"}:
+            return self._session_field(event.get("session") or {})
+        if event_type == "response.item.create":
+            return self._item_field(event.get("item") or {})
+        if event_type == "response.cancel":
+            response_id = event.get("response_id")
+            return "" if isinstance(response_id, str) and response_id else "response_id"
+        if event_type in {"session.instructions.append", "session.thinking.append"}:
+            if not isinstance(event.get("content"), str):
+                return "content"
+            if event.get("delegation_id") is not None and not isinstance(event.get("delegation_id"), str):
+                return "delegation_id"
+        if event_type == "session.input_audio.append" and not isinstance(event.get("audio"), str):
+            return "audio"
+        return ""
+
+    def send(self, raw: str) -> None:
+        event = json.loads(raw)
+        event_type = str(event.get("type") or "")
+        field = self._invalid_field(event_type, event)
+        if field:
+            self._reject(event_type, field)
+        super().send(raw)
+        if self.on_client_event:
+            self.on_client_event(event)
+
+
 class FakeAudio:
     """LiveAudio substitute: has playback, returns canned interrupt stats."""
 
@@ -86,7 +238,7 @@ def make_session(eagerness: str = "balanced") -> LiveSession:
     with patch("voice_cua.voice_settings.load_settings", return_value=settings), \
             patch("voice_cua.live_session.make_provider", passthrough):
         session = LiveSession(api_key="test", enable_audio=False)
-    session.ws = FakeWS()
+    session.ws = FakeWS()  # passthrough provider: this harness sends client-shaped events
     return session
 
 

@@ -27,9 +27,13 @@ enum VoiceSettingsStore {
 
     static let liveModel = "gpt-live-1"
     static let grokModel = "grok-voice-latest"
+    private static let legacyModelMigrations = [
+        "gpt-realtime-2": liveModel,
+        "gpt-realtime-2.1": liveModel,
+        "gpt-realtime-2.1-mini": liveModel,
+    ]
 
     /// Same ids as `voice_settings.MODELS`. Choosing one switches the backend (providers.py).
-    /// gpt-realtime-* was removed (being retired); a saved value loads as GPT-Live-1.
     static var models: [(value: String, label: String)] {
         [
             (liveModel, "GPT-Live-1"),
@@ -37,9 +41,21 @@ enum VoiceSettingsStore {
         ]
     }
 
-    /// Retired Realtime ids and unknown values map to GPT-Live-1 (same rule as voice_settings.load_settings).
+    /// Unsupported values remain visible for start validation.
     static func normalizedModel(_ v: String) -> String {
-        models.contains { $0.value == v } ? v : liveModel
+        legacyModelMigrations[v] ?? v
+    }
+
+    static func supportsLiveModel(_ value: String) -> Bool {
+        value == liveModel || value == grokModel
+    }
+
+    static func unavailableModelReason(_ value: String) -> String {
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
+        guard !value.isEmpty, value.unicodeScalars.allSatisfy({ allowed.contains($0) }) else {
+            return "Voice model unavailable"
+        }
+        return "Voice model unavailable: \(value.prefix(23))"
     }
 
     /// GPT-Live-1 delegation backends (Responses model ids, developers.openai.com).
@@ -128,7 +144,10 @@ enum VoiceSettingsStore {
             return .default
         }
         var s = Settings.default
-        if let v = (obj["live_model"] ?? obj["realtime_model"]) as? String, !v.isEmpty { s.liveModel = normalizedModel(v) }
+        if let v = (obj["live_model"] ?? obj["realtime_model"]) as? String {
+            let value = v.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !value.isEmpty { s.liveModel = normalizedModel(value) }
+        }
         if let v = (obj["live_voice"] ?? obj["realtime_voice"]) as? String, !v.isEmpty { s.liveVoice = v }
         if let v = obj["eagerness"] as? String, !v.isEmpty { s.eagerness = v }
         if let v = obj["mic_profile"] as? String, !v.isEmpty { s.micProfile = v }

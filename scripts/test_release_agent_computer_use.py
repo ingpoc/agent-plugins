@@ -8,6 +8,7 @@ from pathlib import Path
 import plistlib
 import subprocess
 import tempfile
+from types import ModuleType
 import unittest
 from unittest.mock import Mock, patch
 
@@ -199,6 +200,61 @@ class ReleaseTests(unittest.TestCase):
         self.assertIsNone(receipt['microphone_preflight']['ok'])
         self.assertTrue(all(s['ok'] for s in receipt['steps']))
         self.assertTrue(any(c[:3] == ['xcrun','stapler','validate'] for c in calls))
+
+
+class RestartTests(unittest.TestCase):
+    def run_restart(self, probe, **kwargs):
+        calls = []
+        def run(command, **_kwargs):
+            calls.append(command)
+            return Mock(returncode=0, stdout='')
+        with patch.object(release.subprocess, 'run', side_effect=run), \
+                patch.object(release, 'output', return_value=''):
+            release.restart_app(Path('/fake/Agent Computer Use.app'), probe=probe,
+                                socket_path='/tmp/cua-service-test.sock', **kwargs)
+        return calls
+
+    def test_restart_waits_until_service_probe_succeeds(self):
+        attempts = []
+        def probe(_timeout):
+            attempts.append(None)
+            if len(attempts) < 4:
+                raise FileNotFoundError('not ready')
+
+        calls = self.run_restart(probe, timeout=0.1, poll_interval=0.001)
+
+        self.assertEqual(len(attempts), 4)
+        self.assertEqual(calls[-1], ['open', '/fake/Agent Computer Use.app'])
+
+    def test_restart_timeout_names_service_socket(self):
+        def probe(_timeout):
+            raise FileNotFoundError('not ready')
+
+        with self.assertRaisesRegex(RuntimeError, r'CUAService.*\/tmp\/cua-service-test\.sock'):
+            self.run_restart(probe, timeout=0.005, poll_interval=0.001)
+
+    def test_connected_but_unresponsive_service_times_out_on_runtime_contract(self):
+        client = Mock()
+        client.socket_path = '/tmp/cua-service-test.sock'
+        client._probe.return_value = Mock()
+        client.call.side_effect = TimeoutError('runtime_contract timed out')
+        cua_client = ModuleType('cua_client')
+        cua_client.CUAClient = Mock(return_value=client)
+
+        with patch.dict('sys.modules', {'cua_client': cua_client}), \
+                patch.object(release.sys, 'path', list(release.sys.path)):
+            socket_path, probe = release.service_probe(Path('/fake/repo'))
+            with self.assertRaisesRegex(
+                    RuntimeError,
+                    r'CUAService did not answer probe at /tmp/cua-service-test\.sock.*runtime_contract timed out'):
+                release.wait_for_service_probe(probe, socket_path, timeout=0.01, poll_interval=0.001)
+
+        client.call.assert_called()
+        self.assertGreater(client.call.call_count, 1)
+        client.call.assert_called_with('runtime_contract', retry=False)
+        for call in client._probe.call_args_list:
+            self.assertGreater(call.kwargs['timeout'], 0)
+            self.assertLessEqual(call.kwargs['timeout'], 0.01)
 
 
 class HygieneGateTests(unittest.TestCase):

@@ -586,7 +586,7 @@ struct IslandAgentListBody: View {
                         ForEach(Array(IslandAgentRows.metaCandidates(meta, initiator: a.initiator, redacted: redacted).enumerated()), id: \.offset) { _, candidate in
                             Text(candidate).fixedSize(horizontal: true, vertical: false)
                                 .foregroundStyle(model.rowFailures[a.id] != nil || a.status == "error" ? IslandPalette.red.opacity(0.95)
-                                    : a.status == "stale" ? IslandPalette.amber.opacity(0.9) : IslandInk.metaColor)
+                                    : a.status == "stale" || a.status == "stopped" ? IslandPalette.amber.opacity(0.9) : IslandInk.metaColor)
                         }
                     }
                     .font(IslandType.meta)
@@ -678,7 +678,8 @@ struct IslandAgentListBody: View {
 
     @ViewBuilder
     private func statusGlyph(_ a: IslandAgent) -> some View {
-        if a.status == "expired" {
+        if a.status == "expired" || a.status == "stopped" {
+            // A timed-out request, or a run cut off mid-turn: ended marker, never the green done tick.
             IslandHollowRing(size: 12)
         } else if IslandAgentRows.isProcessObservation(a) {
             SamanthaSymbol(name: "cpu", color: IslandInk.metaColor)

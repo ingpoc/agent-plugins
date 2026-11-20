@@ -28,6 +28,7 @@ final class VoiceSupervisor {
     private let logURL: URL
     private let microphoneAccessOverride: (() async -> Bool)?
     private let launchResolverOverride: (() -> LaunchSpec?)?
+    private let settingsLoader: (() -> VoiceSettingsStore.Settings)?
     private var startupSessionId = ""
     private var startupStartedAt: Date?
     private var controlToken = ""
@@ -41,7 +42,8 @@ final class VoiceSupervisor {
         gatewayPort: Int = 8765,
         logURL: URL? = nil,
         microphoneAccess: (() async -> Bool)? = nil,
-        launchResolver: (() -> LaunchSpec?)? = nil
+        launchResolver: (() -> LaunchSpec?)? = nil,
+        settingsLoader: (() -> VoiceSettingsStore.Settings)? = nil
     ) {
         self.gatewayPort = gatewayPort
         preferredPort = gatewayPort
@@ -55,6 +57,7 @@ final class VoiceSupervisor {
         }
         microphoneAccessOverride = microphoneAccess
         launchResolverOverride = launchResolver
+        self.settingsLoader = settingsLoader
     }
 
     var gatewayURL: URL {
@@ -73,6 +76,12 @@ final class VoiceSupervisor {
         SamanthaActivityLog.currentSessionId = startupSessionId
         startupStartedAt = Date()
         logStartup(phase: "supervisor_begin", detail: "port=\(gatewayPort)")
+        let voiceSettings = settingsLoader?() ?? VoiceSettingsStore.load()
+        guard VoiceSettingsStore.supportsLiveModel(voiceSettings.liveModel) else {
+            reportStartFailure(category: "setup_error", detail: VoiceSettingsStore.unavailableModelReason(voiceSettings.liveModel))
+            logStartup(phase: "model_validation", status: "fail", detail: "unsupported live model")
+            return false
+        }
         let microphoneAllowed: Bool
         if let microphoneAccessOverride {
             microphoneAllowed = await microphoneAccessOverride()
@@ -142,7 +151,7 @@ final class VoiceSupervisor {
             logStartup(phase: "island_hub", status: "fail", detail: "island socket not bound; Samantha island updates off")
         }
         env.removeValue(forKey: "VOICE_CUA_REMOTE_ISLAND")
-        for (key, value) in VoiceSettingsStore.applyToEnvironment(VoiceSettingsStore.load()) {
+        for (key, value) in VoiceSettingsStore.applyToEnvironment(voiceSettings) {
             env[key] = value
         }
         proc.environment = env

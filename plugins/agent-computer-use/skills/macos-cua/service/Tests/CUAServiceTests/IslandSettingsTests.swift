@@ -57,7 +57,10 @@ final class IslandSettingsTests: XCTestCase {
         XCTAssertEqual(VoiceSettingsStore.models.map(\.value),
                        ["gpt-live-1", "grok-voice-latest"])
         XCTAssertEqual(VoiceSettingsStore.Settings.default.liveModel, "gpt-live-1")
+        XCTAssertEqual(VoiceSettingsStore.normalizedModel("gpt-realtime-2"), "gpt-live-1")
         XCTAssertEqual(VoiceSettingsStore.normalizedModel("gpt-realtime-2.1"), "gpt-live-1")
+        XCTAssertEqual(VoiceSettingsStore.normalizedModel("gpt-realtime-2.1-mini"), "gpt-live-1")
+        XCTAssertEqual(VoiceSettingsStore.normalizedModel("gpt-realtime-unknown"), "gpt-realtime-unknown")
         XCTAssertEqual(VoiceSettingsStore.backendModels.map(\.value), ["gpt-6-luna", "gpt-6-sol", "gpt-6.1-sol", "gpt-6-astra"])
         let saved = VoiceSettingsStore.xaiKeyAvailable
         defer { VoiceSettingsStore.xaiKeyAvailable = saved }

@@ -23,11 +23,43 @@ final class IslandCodexThreadsTests: XCTestCase {
         XCTAssertEqual(result.serviceTier, "priority")
         XCTAssertEqual(IslandCodexThreads.rolloutState(data, age: 601).state, "working", "liveState decides idle vs stopped")
         XCTAssertEqual(IslandCodexThreads.rolloutState(data, age: 1801).state, "idle")
-        let done = Data("{\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\"}}".utf8)
+        let done = Data("{\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\",\"last_agent_message\":\"Done.\"}}".utf8)
         XCTAssertEqual(IslandCodexThreads.rolloutState(done, age: 180).state, "done")
         XCTAssertEqual(IslandCodexThreads.rolloutState(done, age: 181).state, "idle")
+        // task_complete also fires on a cutoff: no final answer is Stopped, never done.
+        let silent = Data("{\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\",\"last_agent_message\":null,\"error\":null}}".utf8)
+        XCTAssertEqual(IslandCodexThreads.rolloutState(silent, age: 0).state, "stopped")
+        XCTAssertEqual(IslandCodexThreads.rolloutState(silent, age: 0).error, "No final answer")
+        XCTAssertEqual(IslandCodexThreads.rolloutState(silent, age: 1801).state, "idle", "stopped ages out like an error")
         let aborted = Data("{\"type\":\"event_msg\",\"payload\":{\"type\":\"turn_aborted\",\"reason\":\"interrupted\"}}".utf8)
         XCTAssertEqual(IslandCodexThreads.rolloutState(aborted, age: 0).state, "idle")
+    }
+    /// ACU-16: a rollout whose last turn hit the usage limit ends as a Stopped row with the reason.
+    func testUsageLimitRolloutBecomesStoppedRowWithReason() throws {
+        let now = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-11-20T04:06:15Z"))
+        let tail = Data("""
+        {"timestamp":"2026-11-20T04:03:05.989Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":42000},"last_token_usage":{"total_tokens":900},"model_context_window":100000},"rate_limits":{"primary":{"used_percent":47.0,"window_minutes":300,"resets_at":1795159029},"secondary":{"used_percent":100.0,"window_minutes":10080,"resets_at":1795330707},"rate_limit_reached_type":null}}}
+        {"timestamp":"2026-11-20T04:06:15.919Z","type":"event_msg","payload":{"type":"token_count","info":null,"rate_limits":{"limit_id":"premium","primary":null,"secondary":null,"rate_limit_reached_type":null}}}
+        {"timestamp":"2026-11-20T04:06:15.922Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"fixture","last_agent_message":null,"error":{"message":"You’ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/settings/usage to purchase more credits or try again at Nov 22nd, 2026 12:28 PM."}}}
+        """.utf8)
+        let rollout = IslandCodexThreads.rolloutState(tail, age: 0)
+        XCTAssertEqual(rollout.state, "stopped")
+        XCTAssertTrue(rollout.error?.hasPrefix("Quota exhausted") == true, "short reason; the reset date only when not today")
+        XCTAssertTrue(rollout.error?.contains("resets ") == true && rollout.error?.hasSuffix("12:28 IST") == true,
+                      "the null premium map logged just before the cutoff must not hide the exhausted weekly window: \(rollout.error ?? "")")
+        var thread = IslandCodexThreads.ThreadRecord(id: "usage-limit", rolloutPath: "/usage-limit", title: "Ship the notes",
+                                                     firstUserMessage: nil, model: nil, effort: nil,
+                                                     updatedAt: now.addingTimeInterval(-30))
+        thread.rollout = rollout
+        let row = try XCTUnwrap(IslandCodexThreads.rows(records: [thread], hosts: [], now: now).first)
+        XCTAssertEqual(row.status, "stopped")
+        XCTAssertTrue(row.local_detail?.hasPrefix("Stopped · Quota exhausted") == true, row.local_detail ?? "")
+        XCTAssertEqual(IslandAgentRows.statusText(row), row.local_detail, "the reason rides the row detail")
+        XCTAssertFalse(IslandAgentAccessibility.label([row]).contains("done"), "stopped is never counted done")
+        // The cutoff stays visible like an error (30 min), not only the 3 min of a process exit.
+        thread.updatedAt = now.addingTimeInterval(-600)
+        let later = try XCTUnwrap(IslandCodexThreads.rows(records: [thread], hosts: [], now: now).first, "still shown at 10 min")
+        XCTAssertEqual(later.status, "stopped")
     }
     func testInitiatorAndStoppedContracts() throws {
         XCTAssertNil(IslandInitiator.parse(originator: "codex_exec"))
@@ -47,7 +79,7 @@ final class IslandCodexThreadsTests: XCTestCase {
         XCTAssertEqual(post.bot, "Grok Bot")
         XCTAssertEqual(IslandInitiator.fromPost("ACU/Grok Bot"), post)
         let hook = Data("""
-        {"type":"event_msg","payload":{"type":"task_complete"}}
+        {"type":"event_msg","payload":{"type":"task_complete","last_agent_message":"Finished."}}
         {"type":"event_msg","payload":{"type":"hook_completed","status":"failed"}}
         {"type":"event_msg","payload":{"type":"error","message":"hook: Stop Failed"}}
         """.utf8)

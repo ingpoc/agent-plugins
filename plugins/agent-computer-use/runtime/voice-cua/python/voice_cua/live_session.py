@@ -35,7 +35,13 @@ from voice_cua.island_facade import (describe_tool, errors_published, island_pub
 from voice_cua.startup_trace import mark
 from voice_cua.tools import dispatch, reset_session_state, tool_definitions
 from voice_cua.providers import VoiceProvider, make_provider
-from voice_cua.voice_settings import apply_env, load_settings, noise_reduction_config, turn_detection_config
+from voice_cua.voice_settings import (
+    UnsupportedVoiceModel,
+    apply_env,
+    load_settings,
+    noise_reduction_config,
+    turn_detection_config,
+)
 
 if TYPE_CHECKING:
     from voice_cua.audio_io import LiveAudio
@@ -2867,6 +2873,12 @@ def main(argv: list[str] | None = None) -> int:
         log_event("provider_missing_key", provider="xai")
         print(str(exc), file=sys.stderr, flush=True)
         return EXIT_NEEDS_API_KEY
+    except UnsupportedVoiceModel as exc:
+        reason = report_startup_failure("setup_error", str(exc))
+        island_publish("error", title="Voice model unavailable", detail=reason)
+        log_event("voice_model_unavailable")
+        print(reason, file=sys.stderr, flush=True)
+        return 1
     except Exception as exc:  # noqa: BLE001 — surface constructor failures before the helper exits
         detail = f"{type(exc).__name__}; voice session setup did not complete."
         reason = report_startup_failure("setup_error", detail)

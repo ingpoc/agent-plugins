@@ -37,6 +37,7 @@ import uuid
 from typing import Any, Callable
 
 from voice_cua.activity_log import log_event, log_usage, new_step_ref
+from voice_cua.voice_settings import validate_live_model
 
 LIVE_MODEL = "gpt-live-1"  # the only OpenAI voice path (Realtime removed)
 XAI_MODEL = "grok-voice-latest"
@@ -222,6 +223,12 @@ def typed_turn_route(text: str) -> str | None:
         return "direct"
     return None
 
+ROUTE_TEXT = {
+    "direct": "(Routing for this turn only: answer directly in GPT-Live without a Responses delegation.)",
+    "delegate": "(Routing for this turn only: use a Responses delegation; the user asked for a "
+                "computer, browser, or preference task.)",
+}
+
 ROUTING_INSTRUCTIONS = (
     "\n\nRouting: you are the Bulk tier, for simple, high-volume tool work (open an app, click, "
     f"type, a single Comet step). If the task needs multi-step planning or the request is "
@@ -230,10 +237,10 @@ ROUTING_INSTRUCTIONS = (
 
 
 def provider_for(model: str) -> str:
-    m = (model or "").strip().lower()
-    if m.startswith("grok-voice"):
+    m = validate_live_model(model)
+    if m == XAI_MODEL:
         return "xai"
-    return "openai-live"  # gpt-live-1, and any retired gpt-realtime-* value
+    return "openai-live"
 
 
 class VoiceProvider:
@@ -754,7 +761,6 @@ class LiveProvider(VoiceProvider):
             self._cancelled_backend_delegations: dict[str, str] = {}
             self._cancelled_backend_responses: dict[str, tuple[str, str, bool]] = {}
             self._pending_spoken_update = ""
-            self._pending_turn_route: str | None = None
             self.voice_seconds = 0
             self._out_seq = getattr(self, "_out_seq", 0)
             self._last_out = 0.0
@@ -935,12 +941,15 @@ class LiveProvider(VoiceProvider):
                              "content": text[:LIVE_APPEND_MAX_CHARS], "delegation_id": None}]
                 self._remember("user", text)  # typed turns seed restarts like spoken ones
                 with self._lock:
-                    self._pending_turn_route = typed_turn_route(text)
                     self._pending_spoken_update = ""  # this newer explicit request supersedes queued speech
                     self._pending_spoken_request = None
                     self._user_item_queued = True  # the next response.create opens a turn
+                content = [{"type": "input_text", "text": text}]
+                route = typed_turn_route(text)
+                if route:
+                    content.append({"type": "input_text", "text": ROUTE_TEXT[route]})
                 return [{"type": "response.item.create", "item": {
-                    "type": "message", "role": "user", "content": [{"type": "input_text", "text": text}]}}]
+                    "type": "message", "role": "user", "content": content}}]
             return []
         if et == "response.create":
             with self._lock:
@@ -1005,16 +1014,6 @@ class LiveProvider(VoiceProvider):
             create: dict[str, Any] = {"type": "response.create"}
             if event_id:
                 create["event_id"] = event_id
-            with self._lock:
-                route, self._pending_turn_route = self._pending_turn_route, None
-            if route:
-                # response.instructions overrides the session prompt for this response only.
-                instruction = (
-                    "For this response only, answer directly in Live without creating a Responses delegation."
-                    if route == "direct" else
-                    "For this response, use Responses delegation because the user requested a computer, browser, or preference task."
-                )
-                create["response"] = {"instructions": LIVE_INSTRUCTIONS + "\n" + instruction}
             return out + [create]
         return [event]
 

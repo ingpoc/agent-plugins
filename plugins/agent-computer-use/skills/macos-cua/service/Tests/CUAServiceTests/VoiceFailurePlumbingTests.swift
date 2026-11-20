@@ -67,6 +67,67 @@ final class VoiceFailurePlumbingTests: XCTestCase {
         XCTAssertMenuShowsNoFailure(menu)
     }
 
+    func testUnsupportedRetiredPrefixModelFailsStartAndStatusBeforeHelperLaunch() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let settingsPath = directory.appendingPathComponent("settings.json")
+        try JSONSerialization.data(withJSONObject: ["live_model": "gpt-realtime-unknown"]).write(to: settingsPath)
+        let oldPath = VoiceSettingsStore.path
+        let oldKeyCheck = VoiceSettingsStore.xaiKeyAvailable
+        VoiceSettingsStore.path = settingsPath
+        VoiceSettingsStore.xaiKeyAvailable = { false }
+        defer {
+            VoiceSettingsStore.path = oldPath
+            VoiceSettingsStore.xaiKeyAvailable = oldKeyCheck
+        }
+
+        var resolvedHelper = false
+        let voice = supervisor(microphoneAccess: { true }, launchResolver: {
+            resolvedHelper = true
+            return nil
+        }, settingsLoader: { VoiceSettingsStore.load() })
+        let (island, menuBar) = controllers()
+        menuBar.wire(voice: voice, island: island)
+        let menu = menuBar.makeMenu()
+        let handler = ServiceDelegate.voiceControlHandler(voice: voice, island: island, ensureSamanthaToken: {})
+
+        let start = await handler("start")
+        let status = await handler("status")
+        let reason = "Voice model unavailable: gpt-realtime-unknown"
+
+        XCTAssertFalse(start["ok"] as? Bool ?? true)
+        XCTAssertEqual(start["failure_reason"] as? String, reason)
+        XCTAssertEqual(status["failure_reason"] as? String, reason)
+        XCTAssertEqual(island.failureReason, reason)
+        XCTAssertFalse(resolvedHelper)
+        XCTAssertMenuShowsFailure(menu, reason)
+    }
+
+    func testSupportedSettingsModelPassesModelPreflight() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let settingsPath = directory.appendingPathComponent("settings.json")
+        try JSONSerialization.data(withJSONObject: ["live_model": VoiceSettingsStore.liveModel]).write(to: settingsPath)
+        let oldPath = VoiceSettingsStore.path
+        let oldKeyCheck = VoiceSettingsStore.xaiKeyAvailable
+        VoiceSettingsStore.path = settingsPath
+        VoiceSettingsStore.xaiKeyAvailable = { false }
+        defer {
+            VoiceSettingsStore.path = oldPath
+            VoiceSettingsStore.xaiKeyAvailable = oldKeyCheck
+        }
+
+        let voice = supervisor(microphoneAccess: { false }, launchResolver: { nil }, settingsLoader: { VoiceSettingsStore.load() })
+        let (island, menuBar) = controllers()
+        menuBar.wire(voice: voice, island: island)
+        let result = await ServiceDelegate.voiceControlHandler(voice: voice, island: island, ensureSamanthaToken: {})("start")
+
+        XCTAssertEqual(result["failure_reason"] as? String, "Microphone access denied")
+        XCTAssertNotEqual(island.failureReason, "Voice model unavailable")
+    }
+
     func testRetryClearsOldErrorAndShowsTheNewSupervisorFailure() async {
         let voice = supervisor(microphoneAccess: { false }, launchResolver: { nil })
         let (island, menuBar) = controllers()
@@ -82,13 +143,15 @@ final class VoiceFailurePlumbingTests: XCTestCase {
 
     private func supervisor(
         microphoneAccess: @escaping () async -> Bool,
-        launchResolver: @escaping () -> VoiceSupervisor.LaunchSpec?
+        launchResolver: @escaping () -> VoiceSupervisor.LaunchSpec?,
+        settingsLoader: (() -> VoiceSettingsStore.Settings)? = nil
     ) -> VoiceSupervisor {
         VoiceSupervisor(
             gatewayPort: 1,
             logURL: FileManager.default.temporaryDirectory.appendingPathComponent("voice-failure-\(UUID().uuidString).log"),
             microphoneAccess: microphoneAccess,
-            launchResolver: launchResolver
+            launchResolver: launchResolver,
+            settingsLoader: settingsLoader ?? { .default }
         )
     }
 

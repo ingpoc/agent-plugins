@@ -55,6 +55,14 @@ class TestCUAClientUnit(unittest.TestCase):
         client = CUAClient("/tmp/test.sock")
         self.assertEqual(client.socket_path, "/tmp/test.sock")
 
+    def test_probe_uses_requested_timeout(self):
+        client = CUAClient("/tmp/test.sock")
+        sock = MagicMock()
+        with patch.object(cua_client.socket, "socket", return_value=sock):
+            client._probe(timeout=0.25)
+        sock.settimeout.assert_called_once_with(0.25)
+        sock.connect.assert_called_once_with("/tmp/test.sock")
+
     def test_rpc_error(self):
         err = RPCError(-32601, "Method not found")
         self.assertEqual(err.code, -32601)

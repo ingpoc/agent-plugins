@@ -314,11 +314,13 @@ def validate_plan_group_fields(group, round_number):
         raise ValueError(f"plan group {group.get('id')} parked_to must be a positive round number")
     if status == "parked" and parked_to is None:
         raise ValueError(f"plan group {group.get('id')} requires parked_to")
-    for field in ("build", "updated_at"):
+    for field in ("build", "updated_at", "quota_wait_until"):
         if field in group and not isinstance(group[field], str):
             raise ValueError(f"plan group {group.get('id')} {field} must be a string")
     if group.get("updated_at") and RENDERER.parse_instant(group["updated_at"]) is None:
         raise ValueError(f"plan group {group.get('id')} updated_at must be an ISO 8601 timestamp")
+    if group.get("quota_wait_until") and RENDERER.parse_instant(group["quota_wait_until"]) is None:
+        raise ValueError(f"plan group {group.get('id')} quota_wait_until must be an ISO 8601 timestamp")
 
 
 def normalized_text(value):
@@ -965,6 +967,17 @@ def invalidate_dependents(document, previous_document):
         tracking['workflow']['now'] = f'{timestamp} — Prerequisite verification changed'
 
 
+def start_verification_lanes(document, ids, timestamp):
+    tracking = document.get("tracking", {})
+    groups = RENDERER.plan_groups_for_round(
+        tracking.get("plan"), RENDERER.rollover_round(tracking))
+    selected = set(ids)
+    for group in groups:
+        if RENDERER.plan_status(group) != "parked" and selected.intersection(group.get("finding_ids", [])):
+            group.update(status="verifying", phase="verify")
+            stamp_plan_group(group, timestamp)
+
+
 def sync_plan_verify(document):
     findings = {item.get("id"): item for item in document.get("findings", []) if isinstance(item, dict)}
     plan = document.get("tracking", {}).get("plan")
@@ -997,6 +1010,13 @@ def sync_plan_verify(document):
         elif group.get("status") == "blocked" and checks_pending and install_reached:
             group["status"] = "verifying"
             group["phase"] = "verify"
+        if RENDERER.plan_status(group) == "verifying":
+            if total and fixed == total:
+                group.update(status="verified", phase="verify")
+                group.pop("blocked_reason", None)
+            elif failed and not open_count:
+                group.update(status="failed", phase="verify")
+                group.pop("blocked_reason", None)
         verify = group.get("verify") if isinstance(group.get("verify"), dict) else {}
         verify.update({"status": status, "fixed": fixed, "failed": failed, "total": total})
         group["verify"] = verify
@@ -1061,7 +1081,7 @@ def should_advance_plan_round(tracking, previous_stage):
         return False
     groups = RENDERER.plan_groups_for_round(
         tracking.get("plan"), RENDERER.rollover_round(tracking))
-    return bool(groups) and all(RENDERER.plan_status(group) in ("verified", "blocked", "parked")
+    return bool(groups) and all(RENDERER.plan_status(group) in ("verified", "blocked", "failed", "parked")
                                 for group in groups)
 
 
@@ -1514,25 +1534,34 @@ def run(args, parser):
                         current_round = RENDERER.rollover_round(tracking)
                         current_plan = tracking.get("plan")
                         requested_plan = operation.get("plan")
+                        if (not isinstance(requested_plan, dict) or type(requested_plan.get("round")) is not int
+                                or not isinstance(requested_plan.get("groups"), list)):
+                            raise ValueError("set-plan requires plan {round, groups}")
+                        validate_plan_groups(requested_plan)
                         same_current_plan = (
                             isinstance(current_plan, dict)
                             and current_plan.get("cycle", cycle) == cycle
                             and type(current_plan.get("round", current_round)) is int
                             and current_plan.get("round", current_round) == current_round
-                            and isinstance(requested_plan, dict)
-                            and type(requested_plan.get("round")) is int
                             and requested_plan["round"] == current_round
                         )
                         starting_new_round = should_advance_plan_round(tracking, previous_stage)
                         if previous_stage in ("verify", "introspect", "gate") and not same_current_plan:
                             require_current_round_introspect(tracking, "returning to plan_fix")
+                        expected_round = current_round + 1 if starting_new_round else current_round
+                        if requested_plan["round"] != expected_round:
+                            if requested_plan["round"] == current_round + 1:
+                                require_current_round_introspect(tracking, f"starting round {requested_plan['round']}")
+                                groups = RENDERER.plan_groups_for_round(current_plan, current_round)
+                                open_lanes = [f"{group['id']} ({RENDERER.plan_status(group)})" for group in groups
+                                              if RENDERER.plan_status(group) not in ("verified", "blocked", "failed", "parked")]
+                                if open_lanes:
+                                    raise ValueError(f"cannot start round {requested_plan['round']}: round {current_round} has open lanes: {', '.join(open_lanes)}")
+                            raise ValueError(f"set-plan plan.round must be {expected_round}; got {requested_plan['round']}")
                         if starting_new_round:
                             advance_plan_round(tracking, findings,
                                                datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
-                        plan = copy.deepcopy(operation.get("plan"))
-                        if not isinstance(plan, dict) or type(plan.get("round")) is not int or not isinstance(plan.get("groups"), list):
-                            raise ValueError("set-plan requires plan {round, groups}")
-                        validate_plan_groups(plan)
+                        plan = copy.deepcopy(requested_plan)
                         groups = plan["groups"]
                         ids = [group.get("id") for group in groups if isinstance(group, dict)]
                         if len(ids) != len(groups) or any(not isinstance(i, str) or not i.strip() for i in ids) or len(ids) != len(set(ids)):
@@ -1592,7 +1621,7 @@ def run(args, parser):
                                 raise ValueError('plan group changed; refusing group update')
                         group = next((g for g in plan.get("groups", []) if g.get("id") == operation.get("id")), None)
                         patch = operation.get("patch")
-                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at", "presuite"}:
+                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at", "presuite", "quota_wait_until"}:
                             raise ValueError("update-plan-group requires id and a valid group patch")
                         if any(key in patch and not isinstance(patch[key], str) for key in ("label", "verify_summary", "name", "worktree", "reason")):
                             raise ValueError("label, name, verify_summary, worktree and reason must be strings")
@@ -1770,13 +1799,21 @@ def run(args, parser):
                         require_rollover_gate(findings, store["document"].setdefault("tracking", {}), args.force, action)
                     if stage in ("plan_fix", "install", "verify") and (not ids or not any(item.get("status") == "in_progress" for item in findings)):
                         raise ValueError(f"set-activity for {stage} requires a nonempty ID list and an in_progress finding; log a finding and set it in progress first")
-                    timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                    timestamp = operation.get("timestamp")
+                    if timestamp is None:
+                        timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                    elif (not isinstance(timestamp, str)
+                          or not re.search(r"(?:Z|[+-]\d\d:\d\d)$", timestamp)
+                          or RENDERER.parse_instant(timestamp) is None):
+                        raise ValueError("set-activity timestamp must be an ISO 8601 instant with timezone")
                     if stage == 'install':
                         for group in matched:
                             if set(ids).intersection(group.get('finding_ids', [])):
                                 install = group.get('install') if isinstance(group.get('install'), dict) else {}
                                 group.update(status='installing', phase='install',
                                              install={**install, 'status': 'running', 'started_at': timestamp})
+                    elif stage == 'verify':
+                        start_verification_lanes(store["document"], ids, timestamp)
                     tracking["workflow"] = {"stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
                     if stale_after is not None:
                         tracking["workflow"]["stale_after_min"] = stale_after

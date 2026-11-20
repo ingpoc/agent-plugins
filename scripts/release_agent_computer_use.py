@@ -116,7 +116,51 @@ def mcp(plugin, *, compute=False):
     return version, state
 
 
-def restart_app(app):
+def service_probe(root=ROOT):
+    service = root / PACKAGE / 'skills/macos-cua/service'
+    service_path = str(service)
+    if service_path not in sys.path:
+        sys.path.insert(0, service_path)
+    from cua_client import CUAClient
+
+    client = CUAClient()
+    def probe(timeout):
+        started = time.monotonic()
+        try:
+            client._sock = client._probe(timeout=timeout)
+            remaining = timeout - (time.monotonic() - started)
+            if remaining <= 0:
+                raise TimeoutError('runtime_contract probe deadline expired')
+            client._sock.settimeout(remaining)
+            client.call('runtime_contract', retry=False)
+        finally:
+            client.close()
+    return client.socket_path, probe
+
+
+def wait_for_service_probe(probe, socket_path, *, timeout=30.0, poll_interval=0.2):
+    deadline = time.monotonic() + timeout
+    last_error = None
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        try:
+            probe(remaining)
+            if time.monotonic() <= deadline:
+                return
+            last_error = TimeoutError('service probe exceeded its deadline')
+            break
+        except OSError as exc:
+            last_error = exc
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        time.sleep(min(poll_interval, remaining))
+    raise RuntimeError(f'CUAService did not answer probe at {socket_path} within {timeout:g}s: {last_error}')
+
+
+def restart_app(app, *, probe, socket_path, timeout=30.0, poll_interval=0.2):
     candidates = subprocess.run(['pgrep','-x','CUAService'], text=True, capture_output=True).stdout.split()
     for candidate in candidates:
         command = output(['ps','-o','comm=','-p',candidate])
@@ -133,7 +177,7 @@ def restart_app(app):
         else:
             raise RuntimeError('previous service failed to stop')
     subprocess.run(['open',str(app)], check=True)
-    time.sleep(1)
+    wait_for_service_probe(probe, socket_path, timeout=timeout, poll_interval=poll_interval)
 
 
 def voice_events(rows):
@@ -324,7 +368,8 @@ def release(args, root=ROOT):
             destination.mkdir(parents=True,exist_ok=True)
             run('sync-installed',['rsync','-a','--delete','--exclude=.DS_Store','--exclude=.build',
                 '--exclude=__pycache__','--exclude=run/',str(root/PACKAGE)+'/',str(destination)+'/'])
-            restart_app(APP)
+            socket_path, probe = service_probe(root)
+            restart_app(APP, probe=probe, socket_path=socket_path)
         refreshed = json.loads(output(['codex','plugin','add','agent-computer-use@personal','--json'],root=root))
         plugin = Path(refreshed['installedPath'])
         if module.package_identity(plugin) != identity:

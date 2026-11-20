@@ -239,6 +239,7 @@ final class IslandTests: XCTestCase {
             ("comet_not_frontmost", "Couldn't bring Comet to front"),
             ("confirmation required", "Needs your OK"),
             ("setup_error: Unknown voice model 'invalid-model'", "Voice model unavailable"),
+            ("setup_error: Voice model unavailable: acu01-unknown-model", "Voice model unavailable: acu01-unknown-model"),
             ("helper_missing: Voice helper is missing", "Voice helper is missing"),
             ("mic_denied: Microphone access denied", "Microphone access denied"),
             ("key_missing: Grok Voice: add xai-api to Keychain", "Voice API key needs access"),

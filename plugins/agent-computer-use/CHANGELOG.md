@@ -1,3 +1,11 @@
+## 0.2.155
+
+- GPT-Live typed turns work again: the chat-or-task hint now rides inside that one typed message instead of a reply field GPT-Live rejects, so it cannot build up across turns; Grok Voice routing is unchanged. The GPT-Live test stand-in now rejects any event or field GPT-Live does not accept, and the replay follows a fixed script (ACU-14, ACU-05, ACU-08, ACU-09).
+- Small talk and explicit remember requests are covered on the GPT-Live path too (ACU-07, ACU-13).
+- Choosing a voice model the app does not support now fails the start with a visible reason in the menu and island instead of being silently changed (ACU-01).
+- The release waits until the app answers a real request after restart, up to 30 seconds, instead of a fixed one-second pause (ACU-15).
+- The Dynamic Island shows a Codex run that ended on an error or a usage limit as Stopped with the reason (for example "Quota exhausted, resets 22 Nov 12:28 IST") instead of a green done tick, and keeps it visible like an error (ACU-16).
+
 ## 0.2.154
 
 - On GPT-Live, a redirect now stops the answer that was handed to the backend and starts the new request at once; late output from the stopped answer is dropped (ACU-05).

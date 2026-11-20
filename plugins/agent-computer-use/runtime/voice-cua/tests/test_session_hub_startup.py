@@ -123,6 +123,33 @@ class StartupFailureStatusTest(unittest.TestCase):
             "setup_error: RuntimeError; voice session setup did not complete.",
         )
 
+    def test_unsupported_gpt_realtime_setting_fails_start_and_reaches_status(self):
+        import json
+        import os
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as directory:
+            settings = Path(directory) / "settings.json"
+            settings.write_text(json.dumps({"live_model": "gpt-realtime-unknown"}))
+            with patch.dict(os.environ, {"VOICE_CUA_SETTINGS": str(settings), "VOICE_CUA_LIVE_MODEL": ""}), \
+                    patch.object(live_session.LiveSession, "run"), \
+                    patch("voice_cua.providers.LiveProvider.resolve_key", return_value="offline-test-key"), \
+                    patch.object(live_session, "island_publish") as publish, \
+                    patch.object(live_session, "log_event"):
+                result = live_session.main([])
+
+        self.assertEqual(result, 1)
+        self.assertEqual(
+            session_hub.status()["reason"],
+            "setup_error: Voice model unavailable: gpt-realtime-unknown",
+        )
+        publish.assert_called_once_with(
+            "error",
+            title="Voice model unavailable",
+            detail="setup_error: Voice model unavailable: gpt-realtime-unknown",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

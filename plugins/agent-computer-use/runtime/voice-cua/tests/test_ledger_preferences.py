@@ -101,6 +101,48 @@ def test_followup_save_without_reference_does_not_save_preference(tmp_path):
     transport.call.assert_not_called()
 
 
+def test_grok_2035_capture_fixture_saves_the_followup_preference_through_both_provider_tools(tmp_path):
+    from voice_cua.providers import LiveProvider, XAIProvider
+
+    transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'decision_id': 'grok-2035-saved'}}
+    request = {
+        'operation': 'capture', 'scope': 'fleet', 'rule': 'favourite_colour', 'value': 'teal',
+        'owner_quote': 'my favourite colour is teal',
+        'capture_gate': {
+            'owner_decision': 'User stated their favourite colour is teal',
+            'future_task': 'Any future preference involving colour choices',
+            'changed_choice': 'No prior colour preference on record', 'unique_value': 'teal',
+            'lifetime': 'durable', 'sensitivity': 'model_safe',
+        },
+    }
+    ledger_tool = next(tool for tool in tools.tool_definitions(groups={'ledger'})
+                       if tool['name'] == 'ledger_task')
+    for index, provider in enumerate((XAIProvider('grok-voice-latest'), LiveProvider())):
+        wire = provider.outbound({'type': 'session.update', 'session': {'tools': [ledger_tool]}})
+        assert 'ledger_task' in str(wire)
+        helper = LedgerHelper(transport, Mock(side_effect=AssertionError('helper model called')),
+                              tmp_path / f'pending-{index}')
+        with patch.object(tools, '_LEDGER_HELPER', helper):
+            tools.note_user_turn('My favourite colour is teal.')
+            tools.note_user_turn('Please remember that.')
+            result = tools._ledger_task(request)
+        assert result['status'] == 'saved'
+        assert result['decision_id'] == 'grok-2035-saved'
+    assert transport.call.call_count == 2
+    assert all(call.args[0] == 'save' for call in transport.call.call_args_list)
+
+
+def test_oversized_context_fields_return_the_offending_field(tmp_path):
+    helper = LedgerHelper(Mock(), Mock(), tmp_path / 'pending')
+    for field, limit in (('situation', 1000), ('need', 500), ('project', 80)):
+        request = {'operation': 'lookup', 'situation': 's', 'need': 'n'}
+        request[field] = 'x' * (limit + 1)
+        result = helper.run(**request)
+        assert result['error_type'] == 'ledger_invalid_argument'
+        assert field in result['error']
+
+
 def test_ledger_schema_separates_preference_and_capture_fields():
     tool = next(tool for tool in tool_definitions(groups={'ledger'}) if tool['name'] == 'ledger_task')
     fields = tool['parameters']['properties']

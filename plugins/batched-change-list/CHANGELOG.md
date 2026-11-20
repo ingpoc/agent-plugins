@@ -1,3 +1,10 @@
+## 0.1.48
+
+- The Stale badge follows the latest recorded activity and the earliest running job heartbeat, so a fresh update clears it and an expired heartbeat still shows it; a lane waiting for quota shows Waiting for quota until the reset time instead of Stale (BCL-83, BCL-86).
+- A new round plan after Introspect advances the round once every lane is closed, including failed lanes, and bcl verify marks its lanes as Verifying while it runs (BCL-84).
+- The skill adds a repeat-failure ladder and a quota-out fallback for fixes and reviews (BCL-85, BCL-86).
+- bcl job --model records who runs a job; the lane model column shows the current job's model, then the reviewer while in review, then the fix model (BCL-87).
+
 ## 0.1.47
 
 - Tests that failed at random on a busy machine no longer start real viewers they do not need, wait for the viewer to answer before checking it, and prove each rejection with a real answer (BCL-82).

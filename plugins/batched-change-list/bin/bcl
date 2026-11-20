@@ -117,12 +117,14 @@ def _job_operations(groups, phase, job, status=None, review_status=None):
             codex["fix_status"] = job["finished_phase_status"]
         if review_status is not None:
             codex["review_status"] = review_status
+        if phase == "review" and job.get("model"):
+            codex["reviewer_model"] = job["model"]
         lane_phase = "review" if phase != "fix" or job.get("finished_phase_status") == "passed" else "fix"
         operations.append({"action": "update-plan-group", "id": group["id"],
                            "merge_codex": True, "patch": {**({"status": status, "phase": lane_phase} if status else {}), "codex": codex, **({"presuite": {"status": job["finished_phase_status"], "exit_code": job["exit_code"], "finished_at": job["finished_at"]}} if phase == "presuite" and "exit_code" in job else {})}})
     return operations
 
-def _run_job(record, live, report, base, groups, phase, ids, command_args, result_file=None):
+def _run_job(record, live, report, base, groups, phase, ids, command_args, result_file=None, model=None):
     if not command_args:
         raise ValueError("job requires a command after --")
     first = ([{"action": "set-activity", "stage": "plan_fix", "ids": ids, "now": "Fix job started"}]
@@ -139,6 +141,8 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
     process = subprocess.Popen(command_args)
     job = {"pid": process.pid, "phase": phase, "started_at": started_at,
            "command": Path(command_args[0]).name, "heartbeat_at": started_at}
+    if model:
+        job["model"] = model
     try:
         _job_write_retry(record, live, report, base, _job_operations(groups, phase, job, status))
     except Exception:
@@ -374,6 +378,7 @@ def main():
     parser.add_argument("--ids", action="append", default=[]); parser.add_argument("--plan", type=Path)
     parser.add_argument("--result"); parser.add_argument("--issues", type=Path); parser.add_argument("--sections", type=Path); parser.add_argument("--draft", type=Path)
     parser.add_argument("--phase", choices=("fix", "review", "presuite"))
+    parser.add_argument("--model", help="job: the model or reviewer running this job, shown in the lane model column")
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
     parser.add_argument("--shared", action="store_true")
     parser.add_argument("--new-pr", type=int); parser.add_argument("--new-url"); parser.add_argument("--worktree")
@@ -485,7 +490,8 @@ def main():
                 parser.error(str(error))
         report, base = live_state.report_paths(record, live)
         try:
-            code = _run_job(record, live, report, base, groups, args.phase, args.ids, command_args, args.result)
+            code = _run_job(record, live, report, base, groups, args.phase, args.ids, command_args, args.result,
+                            (args.model or "").strip() or None)
         except (OSError, RuntimeError, ValueError) as error:
             parser.error(str(error))
         raise SystemExit(code)
@@ -654,11 +660,14 @@ def main():
                 parser.error("verify requires --then with the exact stored command; review it before running")
         operations = [{"action":"set-activity","stage":{"fix":"plan_fix","install":"install","verify":"verify"}[stage],"ids":ids,"now":f"{stage.title()} in progress"}]
         if stage == 'verify':
+            verification_started_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+            operations[0]['timestamp'] = verification_started_at
             operations[0]['expected_plan_sha256'] = hashlib.sha256(json.dumps(tracking['plan'], sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
             expected_document = json.loads(json.dumps(data))
             for finding in expected_document['findings']:
                 if finding['id'] in ids:
                     finding['status'] = 'in_progress'
+            manage_findings.start_verification_lanes(expected_document, ids, verification_started_at)
             manage_findings.sync_plan_verify(expected_document)
             expected_verify_plan = expected_document['tracking']['plan']
     elif stage == "introspect":

@@ -29,6 +29,8 @@ enum IslandCodexThreads {
     /// explicitly identifies a failure; user cancellation is not an error.
     static func rolloutState(_ tail: Data, age: TimeInterval) -> RolloutState {
         var result = RolloutState()
+        // The latest `token_count` windows describe a cutoff that `task_complete` then reports.
+        var rateLimits: [String: Any]?
         for line in tail.split(separator: 10) {
             guard line.range(of: Data("\"event_msg\"".utf8)) != nil ||
                     line.range(of: Data("\"turn_context\"".utf8)) != nil,
@@ -44,7 +46,14 @@ enum IslandCodexThreads {
                 if event.hasPrefix("hook_") || [payload["message"] as? String, payload["reason"] as? String].compactMap({ $0 }).contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("hook:") }) { continue }
                 switch event {
                 case "task_started": result.state = "working"; result.error = nil; result.since = stamp(object)
-                case "task_complete": result.state = "done"; result.error = nil; result.since = stamp(object)
+                case "task_complete":
+                    // A turn can also end mid-task: the classifier reads `error` (quota, sign-in,
+                    // stream) and a missing final message as Stopped, never as a done tick.
+                    result.since = stamp(object)
+                    switch IslandRunOutcome.codex(taskComplete: payload, rateLimits: rateLimits) {
+                    case .done: result.state = "done"; result.error = nil
+                    case .stopped(let reason): result.state = "stopped"; result.error = reason
+                    }
                 case "error":
                     result.since = stamp(object)
                     result.state = "error"
@@ -54,6 +63,7 @@ enum IslandCodexThreads {
                     result.state = reason.contains("fail") || reason.contains("error") ? "error" : "idle"
                     result.error = result.state == "error" ? String(reason.prefix(60)) : nil
                 case "token_count":
+                    if let limits = payload["rate_limits"] as? [String: Any] { rateLimits = IslandRunOutcome.mergeRateLimits(rateLimits, limits) }
                     if let info = payload["info"] as? [String: Any] {
                         result.tokens = (info["total_token_usage"] as? [String: Any])?["total_tokens"] as? Int
                         if let used = (info["last_token_usage"] as? [String: Any])?["total_tokens"] as? Int,
@@ -66,7 +76,7 @@ enum IslandCodexThreads {
             }
         }
         if (result.state == "working" && age > 1800) || (result.state == "done" && age > 180) ||
-            (result.state == "error" && age > 1800) { result.state = "idle" }
+            (["error", "stopped"].contains(result.state) && age > 1800) { result.state = "idle" }
         return result
     }
 
@@ -221,7 +231,9 @@ enum IslandCodexThreads {
         return records.filter { $0.parentID == nil && $0.role == nil && !isProbe($0) }.compactMap { record in
             let state = liveState(record, hosts: hosts, now: now)
             if state == "idle" { return nil }
-            if state == "stopped" {
+            // A process that exited mid-turn shows for 3 min; a turn the rollout itself reports as
+            // cut off (quota, API error, no final answer) stays like an error, until the 30 min age rule.
+            if state == "stopped" && record.rollout.state != "stopped" {
                 if now.timeIntervalSince(record.updatedAt) > 180 { return nil }
             }
             let stopped = state == "stopped"
@@ -238,13 +250,14 @@ enum IslandCodexThreads {
             if let count = helpers[record.id]?.count, count > 0 { parts.append("+\(count) helpers") }
             switch state {
             case "error": row.local_detail = humanError(record.rollout.error)
-            case "stopped": row.local_detail = "Stopped"
+            case "stopped": row.local_detail = record.rollout.error.map { "Stopped · \($0)" } ?? "Stopped"
             case "done": row.local_detail = (parts + [age < 60 ? "done now" : "done \(duration(age))"]).joined(separator: " · ")
             default: row.local_detail = (parts + [duration(age)]).joined(separator: " · ")
             }
             // https://developers.openai.com/codex/app/commands#deep-links: codex://threads/<id> opens a local thread.
             row.link = "codex://threads/\(record.id)"
-            let technical = stopped ? "Stopped: the Codex process exited mid-turn" : state == "error" ? record.rollout.error : nil
+            let technical = stopped ? (record.rollout.error ?? "Stopped: the Codex process exited mid-turn")
+                : state == "error" ? record.rollout.error : nil
             row.tooltip = [technical, tooltip(record)].compactMap { $0 }.joined(separator: "\n")
             if row.tooltip?.isEmpty == true { row.tooltip = nil }
             return row

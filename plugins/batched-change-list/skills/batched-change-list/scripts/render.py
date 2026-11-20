@@ -221,6 +221,11 @@ def ist_time(value):
     return instant.astimezone(ZoneInfo("Asia/Kolkata")).strftime("%-I:%M %p IST") if instant else ""
 
 
+def quota_wait_time(group, now):
+    wait = parse_instant(group.get("quota_wait_until"))
+    return wait if wait and now and wait > now else None
+
+
 def plan_duration(group, now):
     codex = group.get("codex", {}) if isinstance(group.get("codex"), dict) else {}
     verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
@@ -305,6 +310,24 @@ def lane_job_running(group):
     job = codex.get("job") if isinstance(codex.get("job"), dict) else group.get("job")
     pid = job.get("pid") if isinstance(job, dict) else None
     return isinstance(job, dict) and "exit_code" not in job and type(pid) is int and pid > 0 and live_state._pid_is_running(pid)
+
+
+def lane_model(group, codex):
+    """Who works on the lane now: the job model for the lane's current stage, then the
+    reviewer while the lane is in review, then the model that wrote the fix."""
+    job = codex.get("job") if isinstance(codex.get("job"), dict) else {}
+    in_review = group.get("phase") == "review" or plan_status(group) == "review"
+    job_stage = "fix" if job.get("phase") == "fix" else "review" if job.get("phase") in ("review", "presuite") else None
+    if isinstance(job.get("model"), str) and job["model"].strip() and job_stage == ("review" if in_review else "fix"):
+        return job["model"].strip()
+    if in_review and isinstance(codex.get("reviewer_model"), str) and codex["reviewer_model"].strip():
+        return codex["reviewer_model"].strip()
+    model = str(codex.get("model", "")).replace("gpt-6-luna", "Luna").replace("gpt-6-astra", "Astra").replace("gpt-6-sol", "Sol")
+    if codex.get("effort"):
+        model += " " + str(codex["effort"])
+    if codex.get("service_tier") == "priority" or codex.get("fast"):
+        model += " Fast"
+    return model
 
 
 def short_words(value, limit=10):
@@ -455,19 +478,20 @@ def render_plan(data, tracking, plan, round_number, now):
         name = html.escape(str(group.get("name") or group.get("label") or f"Group {group.get('id', '?')}"))
         dependencies = group.get("depends_on", [])
         dependency = f'<small>after {html.escape(", ".join(map(str, dependencies)))}</small>' if dependencies else ""
-        model = str(codex.get("model", "")).replace("gpt-6-luna", "Luna").replace("gpt-6-astra", "Astra").replace("gpt-6-sol", "Sol")
-        if codex.get("effort"):
-            model += " " + str(codex["effort"])
-        if codex.get("service_tier") == "priority" or codex.get("fast"):
-            model += " Fast"
+        model = lane_model(group, codex)
         times = " – ".join(filter(None, (ist_time(codex.get("started_at")), ist_time(codex.get("ended_at")))))
         build = group.get("build")
-        note = group.get("blocked_reason") if state == "blocked" else verify.get("failure") if state == "failed" else None
-        if not note:
-            note = verify.get("summary") or group.get("verify_summary") or group.get("note") or group.get("reason")
-        if not note and build:
-            note = f'{"Installing" if state == "installing" else "Installed"} build {build}'
+        waiting_until = quota_wait_time(group, now)
+        if waiting_until:
+            note = f"Waiting for quota until {ist_time(group.get('quota_wait_until'))}"
+        else:
+            note = group.get("blocked_reason") if state == "blocked" else verify.get("failure") if state == "failed" else None
+            if not note:
+                note = verify.get("summary") or group.get("verify_summary") or group.get("note") or group.get("reason")
+            if not note and build:
+                note = f'{"Installing" if state == "installing" else "Installed"} build {build}'
         note = short_words(note)
+        pill_label = "Waiting for quota" if waiting_until else labels[state]
         verify_info = " · ".join(filter(None, (verify.get("method"), verify.get("status"), verify.get("failure"), verify.get("result"), verify.get("summary"))))
         files = group.get("files", group.get("file_notes", []))
         if not isinstance(files, list):
@@ -490,7 +514,7 @@ def render_plan(data, tracking, plan, round_number, now):
                     f'<span class="g-chips">{"".join(chips)}</span>{row_phase_track(group, state)}'
                     f'<span class="g-min">{html.escape(plan_duration(group, now))}</span>'
                     f'<span class="g-model">{html.escape(model or "—")}</span><span class="g-note">{html.escape(note)}</span>'
-                    f'<span class="pill {state}">{spinner}{icon}{labels[state]}</span>'
+                    f'<span class="pill {state}">{spinner}{icon}{pill_label}</span>'
                     '<svg class="chev" viewBox="0 0 14 14" aria-hidden="true"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
                     f'</summary><div class="g-detail"><ul>{"".join(detail_rows)}</ul>{f"<dl>{dl}</dl>" if dl else ""}</div></details>')
     parked_groups = [group for group in groups if states[group.get("id")] == "parked"]
@@ -918,22 +942,32 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     reference = now or (parse_instant(match.group()) if match else None)
     if reference is not None and reference.tzinfo is None:
         raise ValueError("now must include a timezone")
+    render_now = reference or reported
     active_stage = active in ("install", "verify", "install_verify")
     stale_active = active_stage
-    stale_times = [reported] if active_stage and reported else []
+    activity_times = [reported] if reported else []
+    running_heartbeats = []
     for group in groups:
-        if plan_status(group) not in STALE_LANE_STATUSES and not lane_job_running(group):
+        if quota_wait_time(group, render_now):
+            continue
+        status = plan_status(group)
+        running = lane_job_running(group)
+        if status not in STALE_LANE_STATUSES and not running:
             continue
         stale_active = True
         codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
         job = codex.get("job") if isinstance(codex.get("job"), dict) else group.get("job", {})
         if not isinstance(job, dict):
             job = {}
-        stamps = [parse_instant(value) for value in (job.get("heartbeat_at"), group.get("updated_at"))]
-        latest_lane_update = max((stamp for stamp in stamps if stamp), default=reported)
-        if latest_lane_update:
-            stale_times.append(latest_lane_update)
-    stale_since = min(stale_times) if stale_times else reported
+        lane_update = parse_instant(group.get("updated_at"))
+        if lane_update:
+            activity_times.append(lane_update)
+        heartbeat = parse_instant(job.get("heartbeat_at"))
+        if heartbeat:
+            activity_times.append(heartbeat)
+        if running and (heartbeat or lane_update):
+            running_heartbeats.append(heartbeat or lane_update)
+    stale_since = min(running_heartbeats) if running_heartbeats else max(activity_times, default=reported)
     relative = ""
     if reported and reference:
         seconds = max(0, int((reference - reported).total_seconds()))
@@ -1081,11 +1115,11 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     excluded = rollover.get("excluded_ids", [])
     if not isinstance(excluded, list) or any(not isinstance(item, str) for item in excluded) or not set(excluded) <= seen:
         raise ValueError("rollover excluded_ids must identify tracked findings")
-    render_now = reference or reported
+    render_now = render_now or reported
     lanes = lane_status_by_finding(data, groups, round_number)
     in_progress = sum(item.get("status") == "in_progress" for item in findings)
-    stale = bool(stale_active and reference and any(
-        reference - stamp > timedelta(minutes=stale_after) for stamp in stale_times))
+    stale = bool(stale_active and reference and stale_since and
+                 reference - stale_since > timedelta(minutes=stale_after))
     stale_tag = f'<span class="tag-stale" title="No update for over {stale_after} minutes"{"" if stale else " hidden"}>Stale</span>'
     relative_html = f'<span data-relative-time>{html.escape(relative)}</span>'
     merge_html = f'<span class="merge-meta" title="Merge commit"><span>Merge</span> <code>{html.escape(merge_commit)}</code></span>' if merge_commit else ""

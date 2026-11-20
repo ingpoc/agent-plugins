@@ -8,7 +8,7 @@ import Foundation
 /// ellipsis. Errors map to short human copy; raw text is logged, not shown.
 enum IslandCopy {
     static let maxTitle = 28
-    static let maxError = 32
+    static let maxError = 48
 
     static let fallbackError = "Something went wrong"
 
@@ -96,6 +96,14 @@ enum IslandCopy {
         if isBenign(raw) { return nil }
         if humanCopy.contains(raw) { return raw }
         if (raw.hasPrefix("Couldn't ") || raw.hasPrefix("No ")), raw.count <= maxError { return raw }
+        if let range = raw.range(of: "voice model unavailable:", options: .caseInsensitive) {
+            let model = String(raw[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
+            if !model.isEmpty, model.unicodeScalars.allSatisfy({ allowed.contains($0) }) {
+                return String("Voice model unavailable: \(model.prefix(23))".prefix(maxError))
+            }
+            return "Voice model unavailable"
+        }
         let low = raw.lowercased()
         let name = String(squash(target).prefix(16))
         for (needles, copy) in errorTable where needles.contains(where: { low.contains($0) }) {

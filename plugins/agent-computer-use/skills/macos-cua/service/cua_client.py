@@ -102,10 +102,10 @@ class CUAClient:
             f"Recover with: {RECOVERY_COMMAND}"
         )
 
-    def _probe(self) -> socket.socket:
+    def _probe(self, timeout: float = 15.0) -> socket.socket:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
-            sock.settimeout(15.0)
+            sock.settimeout(timeout)
             sock.connect(self.socket_path)
         except OSError:
             sock.close()
