@@ -8291,9 +8291,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T06:31:59Z",
-      "now": "2026-11-20T06:31:59Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-20T06:36:53Z",
+      "now": "2026-11-20T06:36:53Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10916,7 +10916,7 @@
             "ACU-05"
           ],
           "depends_on": [],
-          "status": "failed",
+          "status": "review",
           "phase": "review",
           "worktree": "bcl117-r6-acu",
           "reason": "Round 5 root cause: the app sends a cancel GPT-Live-1 rejects, so a voice error shows and the old story keeps running; ACU-05 is rechecked against the 3.0 s limit.",
@@ -10935,23 +10935,23 @@
             "fix_status": "passed",
             "fallback_note": "Codex on the Mini out until 22 Nov 12:28 IST; own fix per Guru 11:24, fresh-eyes review by Codex gpt-6.1-terra medium on the box",
             "job": {
-              "pid": 6427,
-              "phase": "review",
-              "started_at": "2026-11-20T06:17:46Z",
+              "pid": 65568,
+              "phase": "fix",
+              "started_at": "2026-11-20T06:31:59Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-20T06:23:59Z",
-              "model": "grok-4.7-medium via Cursor CLI (fresh-eyes review)",
+              "heartbeat_at": "2026-11-20T06:32:22Z",
+              "model": "Grok Bot subagent (own fix)",
               "exit_code": 0,
-              "duration_s": 373,
-              "finished_at": "2026-11-20T06:23:59Z",
-              "finished_phase_status": "failed"
+              "duration_s": 23,
+              "finished_at": "2026-11-20T06:32:22Z",
+              "finished_phase_status": "passed"
             },
             "implementer_session": "grokbot-r6-own-fix-acu",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-acu",
             "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review)",
             "review_status": "failed"
           },
-          "updated_at": "2026-11-20T06:23:59Z"
+          "updated_at": "2026-11-20T06:36:53Z"
         },
         {
           "id": "BCL-FLOW",
@@ -10962,7 +10962,7 @@
             "BCL-90"
           ],
           "depends_on": [],
-          "status": "failed",
+          "status": "review",
           "phase": "review",
           "worktree": "bcl117-r6-bcl",
           "reason": "Round 5 introspect: the page still says Round 3, the model column shows the fix model during install and verify, and a failed lane could not be rechecked after its check was fixed.",
@@ -10983,21 +10983,21 @@
             "implementer_session": "grokbot-r6-own-fix-bcl",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-bcl",
             "job": {
-              "pid": 43707,
-              "phase": "review",
-              "started_at": "2026-11-20T06:26:23Z",
+              "pid": 68484,
+              "phase": "fix",
+              "started_at": "2026-11-20T06:34:24Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-20T06:30:31Z",
-              "model": "grok-4.7-medium via Cursor CLI (fresh-eyes review)",
+              "heartbeat_at": "2026-11-20T06:36:52Z",
+              "model": "Grok Bot subagent (own fix)",
               "exit_code": 0,
-              "duration_s": 248,
-              "finished_at": "2026-11-20T06:30:31Z",
-              "finished_phase_status": "failed"
+              "duration_s": 148,
+              "finished_at": "2026-11-20T06:36:52Z",
+              "finished_phase_status": "passed"
             },
             "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review)",
             "review_status": "failed"
           },
-          "updated_at": "2026-11-20T06:30:31Z"
+          "updated_at": "2026-11-20T06:36:52Z"
         }
       ]
     },
