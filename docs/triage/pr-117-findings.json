@@ -7988,9 +7988,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T03:40:40Z",
-      "now": "2026-11-20T03:40:40Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T03:48:26Z",
+      "now": "2026-11-20T03:48:26Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10431,7 +10431,7 @@
             "ACU-09"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl117-r4-g8",
           "reason": "0.2.154 sends a per-reply field GPT-Live rejects, so every GPT turn failed; the round 4 items must pass on GPT-Live too.",
@@ -10441,17 +10441,18 @@
             "one_file": false,
             "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428",
             "job": {
-              "pid": 28464,
-              "phase": "fix",
-              "started_at": "2026-11-20T02:55:05Z",
-              "command": "run-r5-g8.sh",
-              "heartbeat_at": "2026-11-20T03:25:40Z",
+              "pid": 7986,
+              "phase": "review",
+              "started_at": "2026-11-20T03:42:46Z",
+              "command": "launch-review-g8.sh",
+              "heartbeat_at": "2026-11-20T03:43:53Z",
               "exit_code": 0,
-              "duration_s": 1835,
-              "finished_at": "2026-11-20T03:25:40Z",
-              "finished_phase_status": "passed"
+              "duration_s": 67,
+              "finished_at": "2026-11-20T03:43:53Z",
+              "finished_phase_status": "failed"
             },
-            "fix_status": "passed"
+            "fix_status": "passed",
+            "review_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8.sh",
@@ -10461,7 +10462,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T03:25:40Z"
+          "updated_at": "2026-11-20T03:43:53Z"
         },
         {
           "id": "ACU-MENU",
@@ -10471,7 +10472,7 @@
             "ACU-15"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl117-r4-g7",
           "reason": "Both are about reading the app's real state: a real unknown-model start comes up healthy with no reason, and the release checks the app one second after restarting it.",
@@ -10481,18 +10482,21 @@
             "one_file": false,
             "implementer_session": "01a1f460-32c2-7d62-a7d7-2bae1a069868",
             "job": {
-              "pid": 73479,
-              "phase": "fix",
-              "started_at": "2026-11-20T03:23:50Z",
-              "command": "run-r5mf-g7.sh",
-              "heartbeat_at": "2026-11-20T03:35:34Z",
+              "pid": 3909,
+              "phase": "review",
+              "started_at": "2026-11-20T03:40:41Z",
+              "command": "launch-review-g7.sh",
+              "heartbeat_at": "2026-11-20T03:41:44Z",
               "exit_code": 0,
-              "duration_s": 704,
-              "finished_at": "2026-11-20T03:35:34Z",
-              "finished_phase_status": "passed"
+              "duration_s": 63,
+              "finished_at": "2026-11-20T03:41:44Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
-            "previous_review": "r5 review 1 CHANGES: reject unsupported gpt-realtime names; release must poll a real request. Both fixed in the same session"
+            "previous_review": "r5 review 1 CHANGES: reject unsupported gpt-realtime names; release must poll a real request. Both fixed in the same session",
+            "review_status": "passed",
+            "reviewer_session": "01a1f70a-c837-7482-b2f2-3160304e2c42",
+            "review_note": "r5 re-review: both must-fixes accepted; only remaining item is the version bump, done by the orchestrator at integration"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g7.sh",
@@ -10502,7 +10506,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T03:40:40Z"
+          "updated_at": "2026-11-20T03:42:42Z"
         },
         {
           "id": "BCL-PAGE",
@@ -10525,7 +10529,7 @@
               "phase": "fix",
               "started_at": "2026-11-20T03:40:32Z",
               "command": "run-r5mf-g10.sh",
-              "heartbeat_at": "2026-11-20T03:40:32Z"
+              "heartbeat_at": "2026-11-20T03:47:33Z"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f6e1-1ad8-7c02-9ffc-c6d1fb8e7bb5",
@@ -10539,7 +10543,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T03:40:32Z"
+          "updated_at": "2026-11-20T03:47:33Z"
         },
         {
           "id": "ACU-MEMORY",
@@ -10549,8 +10553,8 @@
             "ACU-13"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r4-g8",
           "reason": "ACU-07/13 failed on GPT-Live only because every GPT turn was rejected (ACU-14). This job only adds strict GPT-Live tests on top of the ACU-GPT change in the same worktree, so it ships in the same release; dependency on ACU-GPT verification removed (it would force a second release).",
           "codex": {
@@ -10563,8 +10567,13 @@
               "phase": "fix",
               "started_at": "2026-11-20T03:40:24Z",
               "command": "run-r5m-g8.sh",
-              "heartbeat_at": "2026-11-20T03:40:24Z"
-            }
+              "heartbeat_at": "2026-11-20T03:42:10Z",
+              "exit_code": 0,
+              "duration_s": 106,
+              "finished_at": "2026-11-20T03:42:10Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8m.sh",
@@ -10574,7 +10583,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T03:40:24Z"
+          "updated_at": "2026-11-20T03:42:10Z"
         }
       ]
     },
