@@ -8291,17 +8291,20 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T07:29:37Z",
-      "now": "2026-11-20T07:29:37Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T07:47:00Z",
+      "now": "2026-11-20T07:47:00Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
       "unresolved_ids": [
-        "ACU-05",
         "ACU-10",
         "BCL-84",
         "BCL-88",
+        "BCL-89",
+        "BCL-90",
+        "ACU-18",
+        "ACU-20",
         "ACU-17"
       ],
       "excluded_ids": [],
@@ -10892,10 +10895,11 @@
     },
     "parked": {
       "path": "/Users/gurusharan/.agents/state/batched-change-list/ingpoc--agent-plugins/parked.json",
-      "count": 5,
+      "count": 7,
       "needs": [
         "real microphone and spoken playback",
-        "live Windows runtime"
+        "live Windows runtime",
+        "an interrupt and thinking-level redesign under one session lock"
       ]
     },
     "stages_reached": [
@@ -10908,51 +10912,6 @@
       "round": 4,
       "cycle": 9,
       "groups": [
-        {
-          "id": "ACU-INTERRUPT",
-          "name": "GPT-Live interrupt",
-          "finding_ids": [
-            "ACU-17",
-            "ACU-05"
-          ],
-          "depends_on": [],
-          "status": "failed",
-          "phase": "review",
-          "worktree": "bcl117-r6-acu",
-          "reason": "Round 5 root cause: the app sends a cancel GPT-Live-1 rejects, so a voice error shows and the old story keeps running; ACU-05 is rechecked against the 3.0 s limit.",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-acu.sh",
-            "method": "Named tests, then typed redirect runs on GPT-Live-1 and Grok Voice 3.0 on the installed app.",
-            "status": "pending",
-            "total": 2,
-            "fixed": 0,
-            "failed": 0
-          },
-          "codex": {
-            "model": "Grok Bot subagent (own fix)",
-            "effort": "default",
-            "one_file": false,
-            "fix_status": "passed",
-            "fallback_note": "Codex on the Mini out until 22 Nov 12:28 IST; own fix per Guru 11:24, fresh-eyes review by Codex gpt-6.1-terra medium on the box",
-            "job": {
-              "pid": 60992,
-              "phase": "review",
-              "started_at": "2026-11-20T07:07:07Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-20T07:14:00Z",
-              "model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 4)",
-              "exit_code": 0,
-              "duration_s": 413,
-              "finished_at": "2026-11-20T07:14:00Z",
-              "finished_phase_status": "failed"
-            },
-            "implementer_session": "grokbot-r6-own-fix-acu",
-            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-acu",
-            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 4)",
-            "review_status": "failed"
-          },
-          "updated_at": "2026-11-20T07:18:03Z"
-        },
         {
           "id": "BCL-FLOW",
           "name": "The page keeps the right round and model, and a broken check can be rerun",
@@ -10997,7 +10956,7 @@
             "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 2)",
             "review_status": "passed"
           },
-          "updated_at": "2026-11-20T07:18:03Z"
+          "updated_at": "2026-11-20T07:46:26Z"
         },
         {
           "id": "ACU-ISLAND",
@@ -11014,20 +10973,20 @@
             "implementer_session": "grokbot-r6-own-fix-island",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-island",
             "job": {
-              "pid": 30831,
-              "phase": "fix",
-              "started_at": "2026-11-20T07:29:10Z",
+              "pid": 31892,
+              "phase": "review",
+              "started_at": "2026-11-20T07:29:37Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-20T07:29:36Z",
-              "model": "Grok Bot subagent (own fix)",
+              "heartbeat_at": "2026-11-20T07:42:27Z",
+              "model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 2)",
               "exit_code": 0,
-              "duration_s": 26,
-              "finished_at": "2026-11-20T07:29:36Z",
+              "duration_s": 770,
+              "finished_at": "2026-11-20T07:42:27Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
-            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 1)",
-            "review_status": "failed"
+            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 2)",
+            "review_status": "passed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-island.sh",
@@ -11036,7 +10995,31 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-20T07:29:37Z"
+          "updated_at": "2026-11-20T07:46:26Z"
+        },
+        {
+          "id": "ACU-CANCEL",
+          "name": "GPT-Live interrupt sends no cancel",
+          "finding_ids": [
+            "ACU-17"
+          ],
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl117-r6-cancel",
+          "label": "ACU-17",
+          "codex": {
+            "model": "Grok Bot subagent (own fix)",
+            "implementer_session": "grokbot-r6-own-fix-cancel",
+            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-cancel"
+          },
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-cancel.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-20T07:46:26Z"
         }
       ]
     },
@@ -11046,7 +11029,7 @@
       "revision": "b80ba41cfdc086e4b1776f6e6c43ec5306105e34",
       "installed_at": "2026-11-20T05:21:29Z",
       "install_evidence": "ACU 0.2.155 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-117/r3/acu-release-0.2.155.json; all installed checks incl. native Calculator smoke and microphone passed; notarization not attempted); dev-obs 0.1.34 receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-devobs-0.1.34.txt; bcl 0.1.48 install-local from bcl117-release at b80ba41c",
-      "status": "complete",
+      "status": "active",
       "checks": {
         "BCL-75": {
           "state": "fixed",
@@ -11168,17 +11151,6 @@
           "evidence": "Checked: Samantha start and status (recheck); Expected: Ready with a reason field; Observed: Both ready; reason empty when ready",
           "details": "live5/live-summary.json ready_out. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
           "finished_at": "2026-11-20T05:45:10.080032Z"
-        },
-        "ACU-05": {
-          "state": "not_fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:10Z",
-          "started_at": "2026-11-20T05:45:10Z",
-          "updated_at": "2026-11-20T05:45:10Z",
-          "check_id": "e9327e6c4dca46418690f0b568111f6e",
-          "evidence": "Checked: A redirect three seconds into a long story, both models; Expected: The story stops within about a second and the redirect is answered next; Observed: Fixed on Grok Voice; on GPT-Live-1 the story ran 3.8 s past the redirect and a voice error was shown",
-          "details": "Grok: stopped 0.5 s after the redirect, answered in 1.9 s. GPT: stopped 3.8 s after (before 10.8), redirect 6.5 s (before 13.5), recall teal. Root cause: on an interruption 0.2.155 sends a cancel command that GPT-Live does not support; the server rejects it (its list of accepted client events has no cancel), so the backend story ran to its own end and Guru saw Voice hiccup, still here. The strict test fake allows that command, so tests passed. The command was added in round 4 (commit 71e33672); main 0.2.151 drops it. Tracked as ACU-17. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.482123Z"
         },
         "ACU-06": {
           "state": "fixed",
@@ -11400,6 +11372,9 @@
           "evidence": "Checked: nothing yet; Expected: a fix in this install; Observed: filed during this run and queued for the next round",
           "details": "Root cause in the finding; no fix in ACU 0.2.155 or bcl 0.1.48. Run r5-b80ba41c-117.",
           "finished_at": "2026-11-20T05:49:05.981508Z"
+        },
+        "ACU-17": {
+          "state": "pending"
         }
       },
       "shared_check": {
@@ -12294,22 +12269,6 @@
       ]
     },
     {
-      "id": "ACU-05",
-      "title": "A redirect does not cut off a long answer",
-      "source": "Agent reported",
-      "priority": "medium",
-      "summary": "When Guru asks for something new while Samantha is mid-answer, she finishes the whole first answer before starting the new one. Both voice models did this.",
-      "impact": "Interrupting Samantha, a basic part of feeling natural, does not work for typed redirects; Guru waits for an answer he no longer wants.",
-      "done_when": "A new request during a reply stops the current reply within about a second and the redirect is answered next; a test proves it for typed and spoken turns.",
-      "observed": "19 Nov 2026 typed test: long story then a redirect 3 seconds later. Grok Voice 3.0: story ran 22.9 s to the end, redirect answered after 19.9 s. GPT-Live-1: story ran 11.5 s, redirect answered after 8.5 s.",
-      "recommendation": "Cancel the active response when a new typed or spoken request arrives, as the spoken stop-word path already does.",
-      "status": "in_progress",
-      "details": {
-        "Technical wording": "send_text() sends conversation.item.create + response.create without response.cancel when _active_response_ids is non-empty.",
-        "Dev-obs evidence": "GPT session sref_8a6f2dba34a1bb4ef2de2b5299e0cf93: model_response_end p95 13.1 s (col-6be7b29503e9ce22). Dev-obs has no interruption signal, so this came from the test runner timings."
-      }
-    },
-    {
       "id": "ACU-06",
       "title": "Grok Voice stops answering after a browser task",
       "source": "Agent reported",
@@ -13061,18 +13020,6 @@
       "status": "in_progress"
     },
     {
-      "id": "ACU-17",
-      "title": "Interrupting a GPT-Live-1 reply shows a voice error",
-      "source": "Agent reported",
-      "priority": "high",
-      "summary": "When a new request interrupts a GPT-Live-1 reply, the app sends a cancel that GPT-Live does not accept. The reply is not stopped and Samantha shows Voice hiccup, still here.",
-      "impact": "Every interruption on GPT-Live-1 shows an error, and the old reply keeps running. This is new since round 4; main does not show it.",
-      "done_when": "Interrupting a GPT-Live-1 reply never shows a voice error, the old reply stops within about a second, and the redirect is answered next; the test fake accepts only the commands GPT-Live accepts, and a live typed run on GPT-Live-1 proves it.",
-      "observed": "20 Nov 2026 10:58 IST, 0.2.155 typed redirect test: the cancel was rejected by GPT-Live, the island showed Voice hiccup, still here, and the story ended on its own 3.8 s after the redirect. Developer-observability also grouped this error.",
-      "recommendation": "Drop the cancel for GPT-Live as main does, end the interrupted turn locally and keep ignoring its late output and tool calls; remove the cancel from the strict fake.",
-      "status": "in_progress"
-    },
-    {
       "id": "BCL-89",
       "title": "The model column shows the fix model during install and verify",
       "source": "User reported",
@@ -13112,6 +13059,36 @@
         "logging": "Remote island_publish posts skip island_error_raw (island_state logs only for the local island), so samantha-activity.jsonl and dev-obs had no record",
         "clearing": "IslandController.failureReason clears only on prepareVoiceStart (new start) or a Listening state; voice_control stop does nothing when Samantha is not running",
         "retry": "Retry posts /api/island/action to the stopped voice gateway, so it beeps and hides the card"
+      }
+    },
+    {
+      "id": "ACU-20",
+      "title": "The island has no view for Grok Bot's own subagents",
+      "source": "User reported",
+      "priority": "medium",
+      "summary": "The Dynamic Island only shows Grok Bot's delegations to Codex through the Codex CLI. Work done by Grok Bot's own subagents, like rounds 5 and 6 today after the Codex quota ran out, never appears on the island.",
+      "impact": "Guru cannot see from the island what Grok Bot's own subagents are doing, whether they finished, or why they stopped.",
+      "done_when": "The island shows Grok Bot subagent runs as running, done, or stopped with a reason, the same way it shows Codex runs, read from a supported source with no credentials.",
+      "observed": "20 Nov 2026 13:11 IST: Guru noticed rounds 5 and 6 ran on Grok Bot's own subagents and nothing showed on the island.",
+      "recommendation": "Find a supported, credential-free record of Grok Bot subagent runs and feed it to the island the way Codex runs are fed.",
+      "status": "untested",
+      "details": {
+        "Planned round": "Round 7; recorded only in round 6, not part of the round 6 plan or gate."
+      }
+    },
+    {
+      "id": "ACU-17",
+      "title": "Interrupting a GPT-Live-1 reply shows a voice error",
+      "source": "Agent reported",
+      "priority": "high",
+      "summary": "When a new request interrupts a GPT-Live-1 reply, the app sends a cancel that GPT-Live does not accept. The reply is not stopped and Samantha shows Voice hiccup, still here.",
+      "impact": "Every interruption on GPT-Live-1 shows an error, and the old reply keeps running. This is new since round 4; main does not show it.",
+      "done_when": "Interrupting a GPT-Live-1 reply never shows a voice error, the old reply stops within about a second, and the redirect is answered next; the test fake accepts only the commands GPT-Live accepts, and a live typed run on GPT-Live-1 proves it.",
+      "observed": "20 Nov 2026 10:58 IST, 0.2.155 typed redirect test: the cancel was rejected by GPT-Live, the island showed Voice hiccup, still here, and the story ended on its own 3.8 s after the redirect. Developer-observability also grouped this error.",
+      "recommendation": "Drop the cancel for GPT-Live as main does, end the interrupted turn locally and keep ignoring its late output and tool calls; remove the cancel from the strict fake.",
+      "status": "in_progress",
+      "details": {
+        "round 6 restore": "Round 6 (Guru, 13:09 IST): the smallest fix restores main 0.2.151: GPT-Live gets no response.cancel; the local-settle and escalation redesign stay parked with ACU-05 and ACU-19 for round 7."
       }
     }
   ]
