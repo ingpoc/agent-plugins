@@ -10653,9 +10653,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-20T17:18:56Z",
-      "now": "2026-11-20T17:18:56Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-20T17:44:06Z",
+      "now": "2026-11-20T17:44:06Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 117,
@@ -13611,6 +13611,97 @@
         },
         "round": 1,
         "cycle": 10
+      },
+      {
+        "result": "Round 2: 3 lanes verified, viewer lane held; cleanup verifier fault fixed",
+        "at": "2026-11-20T17:44:06Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: BCL-VIEWER",
+          "Codex review: BCL-VIEWER",
+          "Polling and rework review: BCL-VIEWER",
+          "Test command: BCL-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-viewer.sh",
+          "Codex write: ACU-HEADING",
+          "Codex review: ACU-HEADING",
+          "Polling and rework review: ACU-HEADING",
+          "Test command: ACU-HEADING: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-acu-heading.sh",
+          "Codex write: BCL-MERGED",
+          "Codex review: BCL-MERGED",
+          "Polling and rework review: BCL-MERGED",
+          "Test command: BCL-MERGED: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-merged.sh",
+          "Codex write: BCL-SHARED",
+          "Codex review: BCL-SHARED",
+          "Polling and rework review: BCL-SHARED",
+          "Test command: BCL-SHARED: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-shared.sh",
+          "Pre-push suite",
+          "Typed test data cleanup"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: BCL-VIEWER",
+          "Polling and rework review: BCL-VIEWER",
+          "Test command: BCL-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-viewer.sh",
+          "Codex write: ACU-HEADING",
+          "Codex review: ACU-HEADING",
+          "Polling and rework review: ACU-HEADING",
+          "Codex write: BCL-MERGED",
+          "Codex review: BCL-MERGED",
+          "Polling and rework review: BCL-MERGED",
+          "Test command: BCL-MERGED: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-merged.sh",
+          "Codex write: BCL-SHARED",
+          "Codex review: BCL-SHARED",
+          "Polling and rework review: BCL-SHARED",
+          "Test command: BCL-SHARED: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-shared.sh"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Codex review: BCL-VIEWER",
+                "evidence": "review-viewer.md, review-viewer-2.md, review-viewer-3.md: three CHANGES verdicts; deep pass did not close the stop-all-or-none gap",
+                "outcome": "issue",
+                "issue_id": "BCL-94"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Pre-push suite",
+                "evidence": "presuite.log and presuite-2.log failed on my own install check and a stale statechart; presuite-3.log passed",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Test command: ACU-HEADING: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-acu-heading.sh",
+                "evidence": "v-acu22.log exit 1 while check22.log shows 4 of 4 PASS; the cleanup read purge results from the wrong stream",
+                "outcome": "issue",
+                "issue_id": "BCL-96"
+              },
+              {
+                "item": "Typed test data cleanup",
+                "evidence": "cleanup8.py now reads both output streams and walks revisions; rerun purged all 24 test decisions, no test secrets left",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "automate": {
+            "none": "No new automation; the verifier self-test (BCL-96) and cross-round check (BCL-100) are this round's follow-ups."
+          }
+        },
+        "round": 2,
+        "cycle": 10
       }
     ],
     "archive": {
@@ -13640,7 +13731,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 2,
@@ -13690,13 +13782,13 @@
           "finding_ids": [
             "ACU-22"
           ],
-          "status": "installing",
+          "status": "verified",
           "worktree": "bcl118-r2-acu22",
           "label": "ACU-22",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-acu-heading.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -13720,8 +13812,8 @@
             "fix_status": "passed",
             "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
-          "updated_at": "2026-11-20T16:57:01Z",
-          "phase": "install",
+          "updated_at": "2026-11-20T17:41:16Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -13732,10 +13824,18 @@
             "started_at": "2026-11-20T17:13:30Z"
           },
           "stage_model": {
-            "stage": "install",
-            "model": "No model (scripted release)",
-            "at": "2026-11-20T17:13:30Z"
-          }
+            "stage": "verify",
+            "model": "No model (typed runs, scripted judge)",
+            "at": "2026-11-20T17:41:16Z"
+          },
+          "verify_reruns": [
+            {
+              "round": 2,
+              "reason": "Cleanup step misread purge errors; all four typed cases passed; cleanup fixed",
+              "at": "2026-11-20T17:41:16Z",
+              "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+            }
+          ]
         },
         {
           "id": "BCL-MERGED",
@@ -13744,13 +13844,13 @@
             "BCL-92",
             "BCL-93"
           ],
-          "status": "verifying",
+          "status": "verified",
           "worktree": "bcl118-r2-merged",
           "label": "BCL-92, BCL-93",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-merged.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 2,
             "failed": 0,
             "total": 2
           },
@@ -13797,13 +13897,13 @@
           "finding_ids": [
             "BCL-91"
           ],
-          "status": "installing",
+          "status": "verified",
           "worktree": "bcl118-r2-shared",
           "label": "BCL-91",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-shared.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -13827,8 +13927,8 @@
             "fix_status": "passed",
             "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
-          "updated_at": "2026-11-20T16:57:01Z",
-          "phase": "install",
+          "updated_at": "2026-11-20T17:18:59Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -13839,13 +13939,14 @@
             "started_at": "2026-11-20T17:13:30Z"
           },
           "stage_model": {
-            "stage": "install",
-            "model": "No model (scripted release)",
-            "at": "2026-11-20T17:13:30Z"
+            "stage": "verify",
+            "model": "No model (scripted check)",
+            "at": "2026-11-20T17:18:59Z"
           }
         }
       ],
-      "cycle": 10
+      "cycle": 10,
+      "status": "closed"
     },
     "verification_run": {
       "id": "r2-6e3feedc-118",
@@ -13853,55 +13954,197 @@
       "revision": "6e3feedc8576688d4646175f735c94e5d59832d6",
       "installed_at": "2026-11-20T17:07:20Z",
       "install_evidence": "ACU 0.2.161 local signed release (sign-only; report /Users/gurusharan/.agents/artifacts/bcl-118/r2/acu-release-0.2.161.json; source checks, build-install, sync, signature, live client/cursor/fd and native Calculator smoke passed; microphone step FAILED: no input device at 22:45 IST (AirPods not connected), typed verify does not use the microphone; notarization not attempted); bcl 0.1.50 install-local from 6e3feedc; dev-obs 0.1.34 unchanged",
-      "status": "active",
+      "status": "complete",
       "checks": {
         "ACU-07": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T17:42:15Z",
+          "started_at": "2026-11-20T17:42:15Z",
+          "updated_at": "2026-11-20T17:42:15Z",
+          "check_id": "8ce47d0a199f4b81ae115a25957b92e5",
+          "evidence": "Checked: Two typed runs of the saving cases on both voice models with the new installed app; Expected: Lasting facts are saved once and casual chat is not saved; Observed: Every saving case passed on both models in both runs, with no save for casual chat",
+          "details": "live2a+live2b on 0.2.161 via typed_run_sync; check8-r2.log lane cases failed 0 on GPT-Live-1 and Grok Voice 3.0; own check on the new build, not part of the heading lane. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/check8-r2.log. Run r2-6e3feedc-118.",
+          "finished_at": "2026-11-20T17:42:15.491198Z"
         },
         "ACU-10": {
-          "state": "pending"
+          "state": "blocked",
+          "observation": "Closing the round two run",
+          "observed_at": "2026-11-20T17:43:34Z",
+          "started_at": "2026-11-20T17:43:34Z",
+          "updated_at": "2026-11-20T17:43:34Z",
+          "check_id": "1554d0a07b8a4a5b80cfb4c84099295d",
+          "evidence": "Checked: nothing new; Expected: real token counts; Observed: unchanged provider limit",
+          "details": "Parked (Guru). Run r2-6e3feedc-118.",
+          "blocker": "The voice providers do not send live model token counts",
+          "finished_at": "2026-11-20T17:43:34.152513Z"
         },
         "ACU-13": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking with the saving cases only",
+          "observed_at": "2026-11-20T17:42:56Z",
+          "started_at": "2026-11-20T17:43:03Z",
+          "updated_at": "2026-11-20T17:43:03Z",
+          "previous_checks": [
+            {
+              "state": "fixed",
+              "observation": "Checking the installed version now",
+              "observed_at": "2026-11-20T17:42:15Z",
+              "started_at": "2026-11-20T17:42:15Z",
+              "updated_at": "2026-11-20T17:42:15Z",
+              "check_id": "4fd0158c06914ab9b86a94ab2bce79d2",
+              "evidence": "Checked: Two typed runs of the conversational cases on both voice models with the new installed app; Expected: Replies stay natural and the secure entry case never asks for the value in chat; Observed: Every conversational and secure entry case passed on both models in both runs",
+              "details": "live2a+live2b on 0.2.161 via typed_run_sync; check8-r2.log her: ok on all cases; own check on the new build, not part of the heading lane. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/check8-r2.log. Run r2-6e3feedc-118.",
+              "finished_at": "2026-11-20T17:42:15.491634Z"
+            }
+          ],
+          "check_id": "754af2783b5c4e22900f76dc434abc61",
+          "evidence": "Checked: Two typed runs of the saving cases on Grok Voice 3.0 with the new installed app; Expected: Each memory save on Grok Voice is accepted; Observed: Every saving case on Grok Voice saved once in both runs, with no rejected request",
+          "details": "live2a+live2b on 0.2.161 via typed_run_sync; check8-r2.log Grok Voice 3.0 saving cases saves 1 each; replaces the first wording of this check. Log: check8-r2.log. Run r2-6e3feedc-118.",
+          "finished_at": "2026-11-20T17:43:03.235783Z"
         },
         "ACU-20": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Closing the round two run",
+          "observed_at": "2026-11-20T17:43:34Z",
+          "started_at": "2026-11-20T17:43:34Z",
+          "updated_at": "2026-11-20T17:43:34Z",
+          "check_id": "8583a08f77b54073bc6e2860692b8fca",
+          "evidence": "Checked: nothing; Expected: a fix first; Observed: parked and left alone this round",
+          "details": "Parked (Guru). Run r2-6e3feedc-118.",
+          "finished_at": "2026-11-20T17:43:34.152689Z"
         },
         "BCL-91": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T17:23:20Z",
+          "started_at": "2026-11-20T17:23:20Z",
+          "updated_at": "2026-11-20T17:23:20Z",
+          "check_id": "2b4768f815b1476ea6036c14fad599dd",
+          "evidence": "Checked: Installed tool's shared check rerun and executable script tests, and this run's own check scripts; Expected: A failed shared check can be rerun with a reason; scripts that cannot run are refused before anything is recorded; Observed: Tests pass on the installed copy; this run's shared check passed first time and every stored lane script can run",
+          "details": "verify-bcl-shared.sh: -k shared -k install_refuses on installed 0.1.50; verify-shared.sh rc 0. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/v-merged.log, v-bclshared.log, v-shared.log. Run r2-6e3feedc-118.",
+          "finished_at": "2026-11-20T17:23:29.734448Z"
         },
         "ACU-21": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Closing the round two run",
+          "observed_at": "2026-11-20T17:43:34Z",
+          "started_at": "2026-11-20T17:43:34Z",
+          "updated_at": "2026-11-20T17:43:34Z",
+          "check_id": "eb562bd88324459a81c3fdc350f65074",
+          "evidence": "Checked: nothing; Expected: a fix first; Observed: parked and left alone this round",
+          "details": "Parked (Guru). Run r2-6e3feedc-118.",
+          "finished_at": "2026-11-20T17:43:34.152715Z"
         },
         "BCL-92": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T17:23:20Z",
+          "started_at": "2026-11-20T17:23:20Z",
+          "updated_at": "2026-11-20T17:23:20Z",
+          "check_id": "5fbfd17798004f55a817460819e83cae",
+          "evidence": "Checked: Installed tool's merge override tests, then the real record of PR 117's merge; Expected: Merge recorded with an override that keeps its reason; Observed: Tests pass, and the earlier pull request now shows as merged at its merge commit with the override reason kept",
+          "details": "bcl merged --force --reason on 117.json; commit cd03675758e8, merged 2026-11-20T12:14:48Z; verify-bcl-merged.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/v-merged.log, v-bclshared.log, v-shared.log. Run r2-6e3feedc-118.",
+          "finished_at": "2026-11-20T17:23:29.733941Z"
         },
         "BCL-93": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T17:23:20Z",
+          "started_at": "2026-11-20T17:23:20Z",
+          "updated_at": "2026-11-20T17:23:20Z",
+          "check_id": "74ec31d7af49456eb554f8bca42e99dc",
+          "evidence": "Checked: Installed tool's report override test; Expected: The report override reaches the gate and is recorded; Observed: Tests pass: an unmet report gate is overridden and recorded only when the override is asked for",
+          "details": "test_report_force_passes_through_to_the_gate on installed 0.1.50; verify-bcl-merged.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/v-merged.log, v-bclshared.log, v-shared.log. Run r2-6e3feedc-118.",
+          "finished_at": "2026-11-20T17:23:29.734262Z"
         },
         "BCL-94": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Closing the round two run",
+          "observed_at": "2026-11-20T17:43:34Z",
+          "started_at": "2026-11-20T17:43:34Z",
+          "updated_at": "2026-11-20T17:43:34Z",
+          "check_id": "dd859ba2a4874817b8e843c9fa633c22",
+          "evidence": "Checked: nothing installed; Expected: one fixed viewer address per project; Observed: the fix was held after three reviews found a remaining safety gap, so it was not built",
+          "details": "Lane BCL-VIEWER held per the repeat-failure ladder after review 3 (stop-all-or-none retire still missing). Commits 3499f750, 92cba9dd, 48ab21a1 on W/bcl118-r2-viewer, not integrated. Run r2-6e3feedc-118.",
+          "finished_at": "2026-11-20T17:43:34.152742Z"
         },
         "ACU-22": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T17:41:36Z",
+          "started_at": "2026-11-20T17:41:36Z",
+          "updated_at": "2026-11-20T17:41:36Z",
+          "check_id": "1073d971e5d942348525a01d86be7549",
+          "evidence": "Checked: Two typed runs of the multi-step page check on both voice models with the installed app; Expected: Both models report the page heading as well as the closed window; Observed: All four replies name the Example Domain heading and say the window is closed",
+          "details": "live2a+live2b on 0.2.161 via typed_run_sync; GPT-Live-1 and Grok Voice 3.0 multi_step PASS 4/4 (check22.log); tool_surface -k comet 9 passed; first lane run exit 1 came only from cleanup8.py misreading purge results (verifier fault), rerun with reason passed. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/check22.log, v-acu22-rerun.log. Run r2-6e3feedc-118.",
+          "finished_at": "2026-11-20T17:41:36.153282Z"
         },
         "BCL-95": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Closing the round two run",
+          "observed_at": "2026-11-20T17:43:34Z",
+          "started_at": "2026-11-20T17:43:34Z",
+          "updated_at": "2026-11-20T17:43:34Z",
+          "check_id": "2a33fa50a7fa492eb8734e1ed84c15b1",
+          "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
+          "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
+          "finished_at": "2026-11-20T17:43:34.152761Z"
         },
         "BCL-96": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Closing the round two run",
+          "observed_at": "2026-11-20T17:43:34Z",
+          "started_at": "2026-11-20T17:43:34Z",
+          "updated_at": "2026-11-20T17:43:34Z",
+          "check_id": "3c1fd061c8a7476987e45b77cb3d292e",
+          "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
+          "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
+          "finished_at": "2026-11-20T17:43:34.152778Z"
         },
         "BCL-97": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Closing the round two run",
+          "observed_at": "2026-11-20T17:43:34Z",
+          "started_at": "2026-11-20T17:43:34Z",
+          "updated_at": "2026-11-20T17:43:34Z",
+          "check_id": "0ebdfc85ee0d49f88702a049ca63d512",
+          "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
+          "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
+          "finished_at": "2026-11-20T17:43:34.152795Z"
         },
         "BCL-98": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Closing the round two run",
+          "observed_at": "2026-11-20T17:43:34Z",
+          "started_at": "2026-11-20T17:43:34Z",
+          "updated_at": "2026-11-20T17:43:34Z",
+          "check_id": "218b7548718b421eafe90faf796c562f",
+          "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
+          "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
+          "finished_at": "2026-11-20T17:43:34.152811Z"
         },
         "BCL-99": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Closing the round two run",
+          "observed_at": "2026-11-20T17:43:34Z",
+          "started_at": "2026-11-20T17:43:34Z",
+          "updated_at": "2026-11-20T17:43:34Z",
+          "check_id": "aed17c6a274549b594085055ed3036ca",
+          "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
+          "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
+          "finished_at": "2026-11-20T17:43:34.152828Z"
         },
         "BCL-100": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Closing the round two run",
+          "observed_at": "2026-11-20T17:43:34Z",
+          "started_at": "2026-11-20T17:43:34Z",
+          "updated_at": "2026-11-20T17:43:34Z",
+          "check_id": "aa34506b40684eae983eec61da1dd170",
+          "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
+          "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
+          "finished_at": "2026-11-20T17:43:34.152845Z"
         }
       },
       "shared_check": {
@@ -13912,43 +14155,70 @@
       }
     },
     "introspect": {
-      "result": "Introspect recorded",
-      "at": "2026-11-20T15:16:19Z",
+      "result": "Round 2: 3 lanes verified, viewer lane held; cleanup verifier fault fixed",
+      "at": "2026-11-20T17:44:06Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 1",
-        "Codex write: ACU-REMEMBER",
-        "Codex review: ACU-REMEMBER",
-        "Polling and rework review: ACU-REMEMBER",
-        "Test command: ACU-REMEMBER: /Users/gurusharan/.agents/artifacts/bcl-118/r1/verify-remember.sh"
+        "Parallel group count: 4",
+        "Codex write: BCL-VIEWER",
+        "Codex review: BCL-VIEWER",
+        "Polling and rework review: BCL-VIEWER",
+        "Test command: BCL-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-viewer.sh",
+        "Codex write: ACU-HEADING",
+        "Codex review: ACU-HEADING",
+        "Polling and rework review: ACU-HEADING",
+        "Test command: ACU-HEADING: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-acu-heading.sh",
+        "Codex write: BCL-MERGED",
+        "Codex review: BCL-MERGED",
+        "Polling and rework review: BCL-MERGED",
+        "Test command: BCL-MERGED: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-merged.sh",
+        "Codex write: BCL-SHARED",
+        "Codex review: BCL-SHARED",
+        "Polling and rework review: BCL-SHARED",
+        "Test command: BCL-SHARED: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-shared.sh",
+        "Pre-push suite",
+        "Typed test data cleanup"
       ],
       "none": [
-        "Parallel group count: 1",
-        "Codex write: ACU-REMEMBER",
-        "Codex review: ACU-REMEMBER",
-        "Polling and rework review: ACU-REMEMBER",
         "Stage: Plan & fix",
-        "Stage: Review"
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: BCL-VIEWER",
+        "Polling and rework review: BCL-VIEWER",
+        "Test command: BCL-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-viewer.sh",
+        "Codex write: ACU-HEADING",
+        "Codex review: ACU-HEADING",
+        "Polling and rework review: ACU-HEADING",
+        "Codex write: BCL-MERGED",
+        "Codex review: BCL-MERGED",
+        "Polling and rework review: BCL-MERGED",
+        "Test command: BCL-MERGED: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-merged.sh",
+        "Codex write: BCL-SHARED",
+        "Codex review: BCL-SHARED",
+        "Polling and rework review: BCL-SHARED",
+        "Test command: BCL-SHARED: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-shared.sh"
       ],
       "sections": {
         "delete": {
           "items": [
             {
-              "item": "Stage: Verify",
-              "evidence": "Run r1 was thrown away because the shared check script was not executable; bcl then refused a rerun (BCL-91). A start check that the stored commands are executable would have avoided the replacement run.",
+              "item": "Codex review: BCL-VIEWER",
+              "evidence": "review-viewer.md, review-viewer-2.md, review-viewer-3.md: three CHANGES verdicts; deep pass did not close the stop-all-or-none gap",
               "outcome": "issue",
-              "issue_id": "BCL-91"
+              "issue_id": "BCL-94"
             }
           ]
         },
         "simplify": {
           "items": [
             {
-              "item": "Test command: ACU-REMEMBER: /Users/gurusharan/.agents/artifacts/bcl-118/r1/verify-remember.sh",
-              "evidence": "The lane command first mixed ACU-07/ACU-13 criteria with unrelated regression rechecks, so a Grok Calculator miss failed the memory lane. It now judges only the lane's criteria and reports rechecks in the same table; the miss is filed as ACU-22.",
+              "item": "Pre-push suite",
+              "evidence": "presuite.log and presuite-2.log failed on my own install check and a stale statechart; presuite-3.log passed",
               "outcome": "fixed inline"
             }
           ]
@@ -13956,24 +14226,23 @@
         "optimize": {
           "items": [
             {
-              "item": "Stage: Install",
-              "evidence": "The release ran its source checks at 6-way after a 6-way presuite and passed first time; the 10-way default had flaked twice (ACU-21).",
+              "item": "Test command: ACU-HEADING: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-acu-heading.sh",
+              "evidence": "v-acu22.log exit 1 while check22.log shows 4 of 4 PASS; the cleanup read purge results from the wrong stream",
               "outcome": "issue",
-              "issue_id": "ACU-21"
+              "issue_id": "BCL-96"
+            },
+            {
+              "item": "Typed test data cleanup",
+              "evidence": "cleanup8.py now reads both output streams and walks revisions; rerun purged all 24 test decisions, no test secrets left",
+              "outcome": "fixed inline"
             }
           ]
         },
         "automate": {
-          "items": [
-            {
-              "item": "Stage: Verify",
-              "evidence": "Dummy ledger cleanup missed 5 entries whose revision rose when a later same-rule save superseded them; cleanup8.py now retries at the next revision, and an export check showed 0 test records left.",
-              "outcome": "fixed inline"
-            }
-          ]
+          "none": "No new automation; the verifier self-test (BCL-96) and cross-round check (BCL-100) are this round's follow-ups."
         }
       },
-      "round": 1,
+      "round": 2,
       "cycle": 10
     }
   },
@@ -14030,11 +14299,23 @@
           "timestamp": "2026-11-20T15:15:41Z",
           "reference": "5171c4e25b4b4a435d9a555e129255fd5fd3c666:ACU-07:installed-check",
           "details": "GPT-Live-1: 'My afternoon's going well, thanks. Noted, teal.' / 'Noted, monsoon.' (run A), 'noted, teal.' / 'Noted, monsoon.' (run B). Grok Voice 3.0: 'Noted, teal. ...' / 'Saved: monsoon for fleet.' both runs. No reply mentioned a save before the ledger_task ok result. Mood 'I'm tired today.', 'My afternoon's good, thanks.' and the rough-day turn: 0 ledger saves on both models, both runs. Reply times 1.3 to 6.6 s. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r1/check8.log, live1a, live1b. Run r1b-5171c4e2-118."
+        },
+        {
+          "checked": "Two typed runs of the saving cases on both voice models with the new installed app",
+          "expected": "Lasting facts are saved once and casual chat is not saved",
+          "observed": "Every saving case passed on both models in both runs, with no save for casual chat",
+          "verdict": "Every saving case passed on both models in both runs, with no save for casual chat",
+          "check_id": "acu-07-0.2.161-6e3feedc",
+          "build": "Agent Computer Use 0.2.161",
+          "session": "r2-6e3feedc-118",
+          "timestamp": "2026-11-20T17:42:15Z",
+          "reference": "6e3feedc:ACU-07:installed-check",
+          "details": "live2a+live2b on 0.2.161 via typed_run_sync; check8-r2.log lane cases failed 0 on GPT-Live-1 and Grok Voice 3.0; own check on the new build, not part of the heading lane. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/check8-r2.log. Run r2-6e3feedc-118."
         }
       ],
-      "verification": "Saved and confirmed after the save on both models in both runs; nothing saved for the mood, small talk or rough day GPT-Live-1: 'My afternoon's going well, thanks. Noted, teal.' / 'Noted, monsoon.' (run A), 'noted, teal.' / 'Noted, monsoon.' (run B). Grok Voice 3.0: 'Noted, teal. ...' / 'Saved: monsoon for fleet.' both runs. No reply mentioned a save before the ledger_task ok result. Mood 'I'm tired today.', 'My afternoon's good, thanks.' and the rough-day turn: 0 ledger saves on both models, both runs. Reply times 1.3 to 6.6 s. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r1/check8.log, live1a, live1b. Run r1b-5171c4e2-118.",
+      "verification": "Every saving case passed on both models in both runs, with no save for casual chat live2a+live2b on 0.2.161 via typed_run_sync; check8-r2.log lane cases failed 0 on GPT-Live-1 and Grok Voice 3.0; own check on the new build, not part of the heading lane. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/check8-r2.log. Run r2-6e3feedc-118.",
       "verification_refs": [
-        "5171c4e25b4b4a435d9a555e129255fd5fd3c666:ACU-07:installed-check"
+        "6e3feedc:ACU-07:installed-check"
       ]
     },
     {
@@ -14088,11 +14369,35 @@
           "timestamp": "2026-11-20T15:15:41Z",
           "reference": "5171c4e25b4b4a435d9a555e129255fd5fd3c666:ACU-13:installed-check",
           "details": "pineapple, Guru Netflix profile, chocolate chip ice cream, dark mode across apps: ledger_task ok 1 each, no secrets tool or more_tools(secrets), 2.9 to 6.8 s. Credential: secrets_put started, 0 ledger saves, value never in a reply; the secure form timed out unanswered (nobody typed). GPT-Live-1: 0 rejected fields (ACU-14) both runs. All 20 store-by-meaning turns (5 cases x 2 models x 2 runs) passed. Test ledger entries purged and no test secrets left. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r1/check8.log, live1a, live1b. Run r1b-5171c4e2-118."
+        },
+        {
+          "checked": "Two typed runs of the conversational cases on both voice models with the new installed app",
+          "expected": "Replies stay natural and the secure entry case never asks for the value in chat",
+          "observed": "Every conversational and secure entry case passed on both models in both runs",
+          "verdict": "Every conversational and secure entry case passed on both models in both runs",
+          "check_id": "acu-13-0.2.161-6e3feedc",
+          "build": "Agent Computer Use 0.2.161",
+          "session": "r2-6e3feedc-118",
+          "timestamp": "2026-11-20T17:42:15Z",
+          "reference": "6e3feedc:ACU-13:installed-check",
+          "details": "live2a+live2b on 0.2.161 via typed_run_sync; check8-r2.log her: ok on all cases; own check on the new build, not part of the heading lane. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/check8-r2.log. Run r2-6e3feedc-118."
+        },
+        {
+          "checked": "Two typed runs of the saving cases on Grok Voice 3.0 with the new installed app",
+          "expected": "Each memory save on Grok Voice is accepted",
+          "observed": "Every saving case on Grok Voice saved once in both runs, with no rejected request",
+          "verdict": "Every saving case on Grok Voice saved once in both runs, with no rejected request",
+          "check_id": "acu-13-0.2.161-6e3feedc-2",
+          "build": "Agent Computer Use 0.2.161",
+          "session": "r2-6e3feedc-118",
+          "timestamp": "2026-11-20T17:42:56Z",
+          "reference": "6e3feedc:ACU-13:installed-check-2",
+          "details": "live2a+live2b on 0.2.161 via typed_run_sync; check8-r2.log Grok Voice 3.0 saving cases saves 1 each; replaces the first wording of this check. Log: check8-r2.log. Run r2-6e3feedc-118."
         }
       ],
-      "verification": "All facts saved to memory with no secrets tool; the credential went to secure entry with no memory save, on both models in both runs pineapple, Guru Netflix profile, chocolate chip ice cream, dark mode across apps: ledger_task ok 1 each, no secrets tool or more_tools(secrets), 2.9 to 6.8 s. Credential: secrets_put started, 0 ledger saves, value never in a reply; the secure form timed out unanswered (nobody typed). GPT-Live-1: 0 rejected fields (ACU-14) both runs. All 20 store-by-meaning turns (5 cases x 2 models x 2 runs) passed. Test ledger entries purged and no test secrets left. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r1/check8.log, live1a, live1b. Run r1b-5171c4e2-118.",
+      "verification": "Every saving case on Grok Voice saved once in both runs, with no rejected request live2a+live2b on 0.2.161 via typed_run_sync; check8-r2.log Grok Voice 3.0 saving cases saves 1 each; replaces the first wording of this check. Log: check8-r2.log. Run r2-6e3feedc-118.",
       "verification_refs": [
-        "5171c4e25b4b4a435d9a555e129255fd5fd3c666:ACU-13:installed-check"
+        "6e3feedc:ACU-13:installed-check-2"
       ],
       "details": {
         "Requirement (Guru 14:41 IST, 20 Nov 2026)": "Routing must be intent-based, never keyword-based. Don't key on 'remember' or 'password'; the model interprets what is being stored. Credential or secret value -> secrets; personal facts and preferences -> ledger memory, with or without 'remember'. Do it through tool descriptions and instructions, not a regex or word list.",
@@ -14124,7 +14429,25 @@
       "done_when": "bcl can run the shared check again once per install with a stated reason, the first failure and the reason are kept, and a named test proves it.",
       "observed": "20 Nov 2026 13:59 IST, PR 117 round 6: the shared check failed because the checker still expected bcl 0.1.48; every lane check then stopped with shared check already recorded until run r6b was started.",
       "recommendation": "Give bcl verify --shared the same once-per-round rerun with a reason that failed lanes have (BCL-90).",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "Installed tool's shared check rerun and executable script tests, and this run's own check scripts",
+          "expected": "A failed shared check can be rerun with a reason; scripts that cannot run are refused before anything is recorded",
+          "observed": "Tests pass on the installed copy; this run's shared check passed first time and every stored lane script can run",
+          "verdict": "Tests pass on the installed copy; this run's shared check passed first time and every stored lane script can run",
+          "check_id": "bcl-91-0.1.50-6e3feedc",
+          "build": "batched-change-list 0.1.50",
+          "session": "r2-6e3feedc-118",
+          "timestamp": "2026-11-20T17:23:29Z",
+          "reference": "6e3feedc:BCL-91:installed-check",
+          "details": "verify-bcl-shared.sh: -k shared -k install_refuses on installed 0.1.50; verify-shared.sh rc 0. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/v-merged.log, v-bclshared.log, v-shared.log. Run r2-6e3feedc-118."
+        }
+      ],
+      "verification": "Tests pass on the installed copy; this run's shared check passed first time and every stored lane script can run verify-bcl-shared.sh: -k shared -k install_refuses on installed 0.1.50; verify-shared.sh rc 0. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/v-merged.log, v-bclshared.log, v-shared.log. Run r2-6e3feedc-118.",
+      "verification_refs": [
+        "6e3feedc:BCL-91:installed-check"
+      ]
     },
     {
       "id": "ACU-21",
@@ -14148,11 +14471,29 @@
       "done_when": "The merged step can record a merge that already happened, with a stated reason, when the fix count is below the threshold; the reason is kept in the list and a named test proves it.",
       "observed": "20 Nov 2026 17:45 IST, PR 117: after the normal merge the merged step refused with a count of 0 of 16. The count was 0 only because a run stopped for rollover marked every check inconclusive.",
       "recommendation": "Give the merged step the same override with a reason that rollover has, record it with the other gate overrides, and still retarget stacked PRs.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "command": "bcl merged",
         "error": "merge requires 16 verified_fixed findings; count is 0"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "Installed tool's merge override tests, then the real record of PR 117's merge",
+          "expected": "Merge recorded with an override that keeps its reason",
+          "observed": "Tests pass, and the earlier pull request now shows as merged at its merge commit with the override reason kept",
+          "verdict": "Tests pass, and the earlier pull request now shows as merged at its merge commit with the override reason kept",
+          "check_id": "bcl-92-0.1.50-6e3feedc",
+          "build": "batched-change-list 0.1.50",
+          "session": "r2-6e3feedc-118",
+          "timestamp": "2026-11-20T17:23:29Z",
+          "reference": "6e3feedc:BCL-92:installed-check",
+          "details": "bcl merged --force --reason on 117.json; commit cd03675758e8, merged 2026-11-20T12:14:48Z; verify-bcl-merged.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/v-merged.log, v-bclshared.log, v-shared.log. Run r2-6e3feedc-118."
+        }
+      ],
+      "verification": "Tests pass, and the earlier pull request now shows as merged at its merge commit with the override reason kept bcl merged --force --reason on 117.json; commit cd03675758e8, merged 2026-11-20T12:14:48Z; verify-bcl-merged.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/v-merged.log, v-bclshared.log, v-shared.log. Run r2-6e3feedc-118.",
+      "verification_refs": [
+        "6e3feedc:BCL-92:installed-check"
+      ]
     },
     {
       "id": "BCL-93",
@@ -14164,11 +14505,29 @@
       "done_when": "The report step with its override records the report stage, keeps the override in the list, and a named test proves the option reaches the writer.",
       "observed": "20 Nov 2026 17:37 IST, PR 117: the report step with its override still refused; the same stage change sent straight to the tracker writer with the override worked.",
       "recommendation": "Pass the override through to the tracker writer for the report step, as rollover already does.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "command": "bcl report --force",
         "error": "report gate not met ... pass --force to override"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "Installed tool's report override test",
+          "expected": "The report override reaches the gate and is recorded",
+          "observed": "Tests pass: an unmet report gate is overridden and recorded only when the override is asked for",
+          "verdict": "Tests pass: an unmet report gate is overridden and recorded only when the override is asked for",
+          "check_id": "bcl-93-0.1.50-6e3feedc",
+          "build": "batched-change-list 0.1.50",
+          "session": "r2-6e3feedc-118",
+          "timestamp": "2026-11-20T17:23:29Z",
+          "reference": "6e3feedc:BCL-93:installed-check",
+          "details": "test_report_force_passes_through_to_the_gate on installed 0.1.50; verify-bcl-merged.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/v-merged.log, v-bclshared.log, v-shared.log. Run r2-6e3feedc-118."
+        }
+      ],
+      "verification": "Tests pass: an unmet report gate is overridden and recorded only when the override is asked for test_report_force_passes_through_to_the_gate on installed 0.1.50; verify-bcl-merged.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/v-merged.log, v-bclshared.log, v-shared.log. Run r2-6e3feedc-118.",
+      "verification_refs": [
+        "6e3feedc:BCL-93:installed-check"
+      ]
     },
     {
       "id": "BCL-94",
@@ -14197,11 +14556,29 @@
       "done_when": "On Grok Voice 3.0 the reply to that task names the page heading before the cleanup result in at least two separate typed runs, and GPT-Live-1 still does.",
       "observed": "20 Nov 2026 20:28 and 20:39 IST on the installed build: Grok replied 'Closing it now. That test window is closed.' and 'Closing that test window. It's closed.'; GPT-Live-1 named the heading both times. Earlier builds named it in 5 of 6 Grok runs; the same miss was seen once on 19 Nov.",
       "recommendation": "Find why the Grok reply after the Comet close drops the earlier read result (the cleanup confirmation may be replacing the final answer), and make the task result carry the requested fact into the closing reply.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "evidence": "bcl-118/r1/live1a and live1b run-grok-after.json, check8.log, activity log turn windows",
         "tools": "cua_act open, comet_begin, comet_act text, comet_end, all ok"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "Two typed runs of the multi-step page check on both voice models with the installed app",
+          "expected": "Both models report the page heading as well as the closed window",
+          "observed": "All four replies name the Example Domain heading and say the window is closed",
+          "verdict": "All four replies name the Example Domain heading and say the window is closed",
+          "check_id": "acu-22-0.2.161-6e3feedc",
+          "build": "Agent Computer Use 0.2.161",
+          "session": "r2-6e3feedc-118",
+          "timestamp": "2026-11-20T17:41:36Z",
+          "reference": "6e3feedc:ACU-22:installed-check",
+          "details": "live2a+live2b on 0.2.161 via typed_run_sync; GPT-Live-1 and Grok Voice 3.0 multi_step PASS 4/4 (check22.log); tool_surface -k comet 9 passed; first lane run exit 1 came only from cleanup8.py misreading purge results (verifier fault), rerun with reason passed. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/check22.log, v-acu22-rerun.log. Run r2-6e3feedc-118."
+        }
+      ],
+      "verification": "All four replies name the Example Domain heading and say the window is closed live2a+live2b on 0.2.161 via typed_run_sync; GPT-Live-1 and Grok Voice 3.0 multi_step PASS 4/4 (check22.log); tool_surface -k comet 9 passed; first lane run exit 1 came only from cleanup8.py misreading purge results (verifier fault), rerun with reason passed. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/check22.log, v-acu22-rerun.log. Run r2-6e3feedc-118.",
+      "verification_refs": [
+        "6e3feedc:ACU-22:installed-check"
+      ]
     },
     {
       "id": "BCL-95",
