@@ -8291,9 +8291,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T06:36:53Z",
-      "now": "2026-11-20T06:36:53Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T06:55:54Z",
+      "now": "2026-11-20T06:55:54Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10910,13 +10910,14 @@
       "groups": [
         {
           "id": "ACU-INTERRUPT",
-          "name": "Interrupting a GPT-Live-1 reply stops it quietly and answers the new request",
+          "name": "GPT-Live interrupt and island errors",
           "finding_ids": [
             "ACU-17",
-            "ACU-05"
+            "ACU-05",
+            "ACU-18"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl117-r6-acu",
           "reason": "Round 5 root cause: the app sends a cancel GPT-Live-1 rejects, so a voice error shows and the old story keeps running; ACU-05 is rechecked against the 3.0 s limit.",
@@ -10924,7 +10925,7 @@
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-acu.sh",
             "method": "Named tests, then typed redirect runs on GPT-Live-1 and Grok Voice 3.0 on the installed app.",
             "status": "pending",
-            "total": 2,
+            "total": 3,
             "fixed": 0,
             "failed": 0
           },
@@ -10935,23 +10936,23 @@
             "fix_status": "passed",
             "fallback_note": "Codex on the Mini out until 22 Nov 12:28 IST; own fix per Guru 11:24, fresh-eyes review by Codex gpt-6.1-terra medium on the box",
             "job": {
-              "pid": 65568,
-              "phase": "fix",
-              "started_at": "2026-11-20T06:31:59Z",
+              "pid": 75791,
+              "phase": "review",
+              "started_at": "2026-11-20T06:36:55Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-20T06:32:22Z",
-              "model": "Grok Bot subagent (own fix)",
+              "heartbeat_at": "2026-11-20T06:42:47Z",
+              "model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 2)",
               "exit_code": 0,
-              "duration_s": 23,
-              "finished_at": "2026-11-20T06:32:22Z",
-              "finished_phase_status": "passed"
+              "duration_s": 352,
+              "finished_at": "2026-11-20T06:42:47Z",
+              "finished_phase_status": "failed"
             },
             "implementer_session": "grokbot-r6-own-fix-acu",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-acu",
-            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review)",
+            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 2)",
             "review_status": "failed"
           },
-          "updated_at": "2026-11-20T06:36:53Z"
+          "updated_at": "2026-11-20T06:50:39Z"
         },
         {
           "id": "BCL-FLOW",
@@ -10983,21 +10984,21 @@
             "implementer_session": "grokbot-r6-own-fix-bcl",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-bcl",
             "job": {
-              "pid": 68484,
-              "phase": "fix",
-              "started_at": "2026-11-20T06:34:24Z",
+              "pid": 75795,
+              "phase": "review",
+              "started_at": "2026-11-20T06:36:55Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-20T06:36:52Z",
-              "model": "Grok Bot subagent (own fix)",
+              "heartbeat_at": "2026-11-20T06:43:40Z",
+              "model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 2)",
               "exit_code": 0,
-              "duration_s": 148,
-              "finished_at": "2026-11-20T06:36:52Z",
+              "duration_s": 405,
+              "finished_at": "2026-11-20T06:43:40Z",
               "finished_phase_status": "passed"
             },
-            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review)",
-            "review_status": "failed"
+            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 2)",
+            "review_status": "passed"
           },
-          "updated_at": "2026-11-20T06:36:52Z"
+          "updated_at": "2026-11-20T06:43:40Z"
         }
       ]
     },
@@ -13056,6 +13057,24 @@
       "observed": "20 Nov 2026 11:07 IST: ACU-MENU verify exited 2 because a release test needs a git checkout; after fixing the check, bcl verify said it cannot start a failed lane.",
       "recommendation": "Add a verify rerun option with a required reason that is recorded with the lane.",
       "status": "in_progress"
+    },
+    {
+      "id": "ACU-18",
+      "title": "Island error card persists and its reason is not logged",
+      "source": "User reported",
+      "priority": "medium",
+      "summary": "The island kept showing a Voice model unavailable card for about an hour. Our own verify check started Samantha with an unknown model on purpose. Its cleanup put Grok Voice 3.0 back and turned Samantha off, but the card stayed, Retry only beeped, and the reason was never logged.",
+      "impact": "A stale red error stays on the island after the problem is gone, Retry does not restart Samantha, and the error cannot be traced afterwards.",
+      "done_when": "Every error the island shows is logged with its full reason and reaches developer-observability; a failed-start card clears when Samantha is turned off, the voice model changes, or a new session starts; Retry on that card starts Samantha again; the verify cleanup checks the card is gone.",
+      "observed": "20 Nov 2026 12:15 IST: the island showed Voice model unavailable with Tap Retry or ask me again; Samantha status still carried that reason while the chosen model was Grok Voice 3.0. Cleared at 12:19 IST by starting Samantha on Grok Voice 3.0 and turning her off.",
+      "recommendation": "Log the raw reason for every island error, clear the failed-start state on stop and on a model change, make Retry on a failed-start card run a fresh start, and check the card is gone in the verify cleanup.",
+      "status": "in_progress",
+      "details": {
+        "card": "Voice model unavailable: acu01-unknown-model, left by r3/menu_fail.py (ACU-01 verify, 11:07 IST)",
+        "logging": "Remote island_publish posts skip island_error_raw (island_state logs only for the local island), so samantha-activity.jsonl and dev-obs had no record",
+        "clearing": "IslandController.failureReason clears only on prepareVoiceStart (new start) or a Listening state; voice_control stop does nothing when Samantha is not running",
+        "retry": "Retry posts /api/island/action to the stopped voice gateway, so it beeps and hides the card"
+      }
     }
   ]
 }
