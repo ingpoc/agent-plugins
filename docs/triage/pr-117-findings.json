@@ -8291,9 +8291,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T07:47:00Z",
-      "now": "2026-11-20T07:47:00Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-20T07:47:23Z",
+      "now": "2026-11-20T07:47:23Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -11003,14 +11003,27 @@
           "finding_ids": [
             "ACU-17"
           ],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r6-cancel",
           "label": "ACU-17",
           "codex": {
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-r6-own-fix-cancel",
-            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-cancel"
+            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-cancel",
+            "job": {
+              "pid": 76677,
+              "phase": "fix",
+              "started_at": "2026-11-20T07:47:00Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-20T07:47:22Z",
+              "model": "Grok Bot subagent (own fix)",
+              "exit_code": 0,
+              "duration_s": 22,
+              "finished_at": "2026-11-20T07:47:22Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-cancel.sh",
@@ -11019,7 +11032,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-20T07:46:26Z"
+          "updated_at": "2026-11-20T07:47:23Z"
         }
       ]
     },
