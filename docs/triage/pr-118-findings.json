@@ -10480,6 +10480,49 @@
           "exit_code": 0,
           "finished_at": "2026-11-20T11:58:30Z"
         }
+      },
+      {
+        "id": "r1-5171c4e2-118",
+        "build": "agent-computer-use 0.2.160, developer-observability 0.1.34, batched-change-list 0.1.49",
+        "revision": "5171c4e25b4b4a435d9a555e129255fd5fd3c666",
+        "installed_at": "2026-11-20T14:39:13Z",
+        "install_evidence": "ACU 0.2.160 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-118/r1/acu-release-0.2.160.json; all installed checks incl. native Calculator smoke passed; microphone step passed; notarization not attempted); dev-obs 0.1.34 (unchanged); bcl 0.1.49 (unchanged, from main cd036757)",
+        "status": "interrupted",
+        "checks": {
+          "ACU-07": {
+            "state": "pending"
+          },
+          "ACU-10": {
+            "state": "pending"
+          },
+          "ACU-13": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "BCL-91": {
+            "state": "pending"
+          },
+          "ACU-21": {
+            "state": "pending"
+          },
+          "BCL-92": {
+            "state": "pending"
+          },
+          "BCL-93": {
+            "state": "pending"
+          },
+          "BCL-94": {
+            "state": "pending"
+          }
+        },
+        "shared_check": {
+          "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r1/verify-shared.sh",
+          "state": "failed",
+          "exit_code": 127,
+          "finished_at": "2026-11-20T14:43:47Z"
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -10494,9 +10537,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-20T14:43:28Z",
-      "now": "2026-11-20T14:43:28Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-20T14:50:07Z",
+      "now": "2026-11-20T14:50:07Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 117,
@@ -13410,7 +13453,8 @@
       "present",
       "plan_fix",
       "review",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 1,
@@ -13422,7 +13466,7 @@
             "ACU-07",
             "ACU-13"
           ],
-          "status": "installing",
+          "status": "verifying",
           "worktree": "samantha-next-r8",
           "label": "ACU-07, ACU-13",
           "reason": "Carried from #117: fix c21b1398/b4406c81 (reapplied 3444e1d6 + 4038b12c), fresh-eyes review pass 5 PASS on #117; verify only on #118",
@@ -13452,8 +13496,8 @@
             "fix_status": "passed",
             "reviewer_model": "grok-4.7-medium via Cursor CLI (pass 5 on #117, carried; code identical)"
           },
-          "updated_at": "2026-11-20T14:33:14Z",
-          "phase": "install",
+          "updated_at": "2026-11-20T14:50:07Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -13464,13 +13508,56 @@
             "started_at": "2026-11-20T14:43:28Z"
           },
           "stage_model": {
-            "stage": "install",
-            "model": "Grok Bot subagent (sign-only release 0.2.160)",
-            "at": "2026-11-20T14:43:28Z"
+            "stage": "verify",
+            "model": "Grok Bot subagent (scripted typed check via typed_run_sync)",
+            "at": "2026-11-20T14:50:07Z"
           }
         }
       ],
       "cycle": 10
+    },
+    "verification_run": {
+      "id": "r1b-5171c4e2-118",
+      "build": "agent-computer-use 0.2.160, developer-observability 0.1.34, batched-change-list 0.1.49",
+      "revision": "5171c4e25b4b4a435d9a555e129255fd5fd3c666",
+      "installed_at": "2026-11-20T14:39:13Z",
+      "install_evidence": "ACU 0.2.160 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-118/r1/acu-release-0.2.160.json; all installed checks incl. native Calculator smoke passed; microphone step passed; notarization not attempted; run r1b replaces r1 whose shared check failed to start because the check script was not executable (BCL-91)); dev-obs 0.1.34 (unchanged); bcl 0.1.49 (unchanged, from main cd036757)",
+      "status": "active",
+      "checks": {
+        "ACU-07": {
+          "state": "pending"
+        },
+        "ACU-10": {
+          "state": "pending"
+        },
+        "ACU-13": {
+          "state": "pending"
+        },
+        "ACU-20": {
+          "state": "pending"
+        },
+        "BCL-91": {
+          "state": "pending"
+        },
+        "ACU-21": {
+          "state": "pending"
+        },
+        "BCL-92": {
+          "state": "pending"
+        },
+        "BCL-93": {
+          "state": "pending"
+        },
+        "BCL-94": {
+          "state": "pending"
+        }
+      },
+      "shared_check": {
+        "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r1/verify-shared.sh",
+        "state": "passed",
+        "exit_code": 0,
+        "finished_at": "2026-11-20T14:50:04Z"
+      }
     }
   },
   "findings": [
