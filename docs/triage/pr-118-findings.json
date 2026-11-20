@@ -10537,9 +10537,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T15:22:28Z",
-      "now": "2026-11-20T15:22:28Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-20T15:35:47Z",
+      "now": "2026-11-20T15:35:47Z — Review started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13557,7 +13557,7 @@
           "finding_ids": [
             "ACU-22"
           ],
-          "status": "pending",
+          "status": "review",
           "worktree": "bcl118-r2-acu22",
           "label": "ACU-22",
           "verify": {
@@ -13571,9 +13571,23 @@
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-118r2-acu-heading",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-acu-heading",
-            "review_status": "pending"
+            "review_status": "pending",
+            "job": {
+              "pid": 25807,
+              "phase": "fix",
+              "started_at": "2026-11-20T15:35:11Z",
+              "command": "fixjob.sh",
+              "heartbeat_at": "2026-11-20T15:35:12Z",
+              "model": "Grok Bot (own fix)",
+              "exit_code": 0,
+              "duration_s": 1,
+              "finished_at": "2026-11-20T15:35:12Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed"
           },
-          "updated_at": "2026-11-20T15:22:28Z"
+          "updated_at": "2026-11-20T15:35:47Z",
+          "phase": "review"
         },
         {
           "id": "BCL-MERGED",
@@ -13582,7 +13596,7 @@
             "BCL-92",
             "BCL-93"
           ],
-          "status": "pending",
+          "status": "review",
           "worktree": "bcl118-r2-merged",
           "label": "BCL-92, BCL-93",
           "verify": {
@@ -13596,9 +13610,23 @@
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-118r2-bcl-merged",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-bcl-merged",
-            "review_status": "pending"
+            "review_status": "pending",
+            "job": {
+              "pid": 23791,
+              "phase": "fix",
+              "started_at": "2026-11-20T15:34:49Z",
+              "command": "fixjob.sh",
+              "heartbeat_at": "2026-11-20T15:34:54Z",
+              "model": "Grok Bot (own fix)",
+              "exit_code": 0,
+              "duration_s": 5,
+              "finished_at": "2026-11-20T15:34:54Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed"
           },
-          "updated_at": "2026-11-20T15:22:28Z"
+          "updated_at": "2026-11-20T15:35:47Z",
+          "phase": "review"
         },
         {
           "id": "BCL-SHARED",
@@ -13606,7 +13634,7 @@
           "finding_ids": [
             "BCL-91"
           ],
-          "status": "pending",
+          "status": "review",
           "worktree": "bcl118-r2-shared",
           "label": "BCL-91",
           "verify": {
@@ -13620,9 +13648,23 @@
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-118r2-bcl-shared",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-bcl-shared",
-            "review_status": "pending"
+            "review_status": "pending",
+            "job": {
+              "pid": 24445,
+              "phase": "fix",
+              "started_at": "2026-11-20T15:34:55Z",
+              "command": "fixjob.sh",
+              "heartbeat_at": "2026-11-20T15:35:10Z",
+              "model": "Grok Bot (own fix)",
+              "exit_code": 0,
+              "duration_s": 15,
+              "finished_at": "2026-11-20T15:35:10Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed"
           },
-          "updated_at": "2026-11-20T15:22:28Z"
+          "updated_at": "2026-11-20T15:35:47Z",
+          "phase": "review"
         }
       ],
       "cycle": 10
