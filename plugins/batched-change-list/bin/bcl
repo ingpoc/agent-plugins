@@ -229,11 +229,14 @@ def install_local():
             raise SystemExit(f"bcl install-local: sha256 mismatch at {destination}")
         print(f"  {destination} ({count} files, sha256 {installed_sha})")
 
-def _not_executable(word):
-    """A command word containing "/" is a path; true when that path is missing or not an executable file."""
+def _not_executable(word, missing_ok=False):
+    """A command word containing "/" is a path; true when that path is not an executable file.
+    With missing_ok, a path that does not exist yet passes (a lane script may be written after install)."""
     if "/" not in word:
         return False
     path = Path(word).expanduser()
+    if missing_ok and not path.exists():
+        return False
     return not (path.is_file() and os.access(path, os.X_OK))
 
 def _merged_details(args, tracking, repo):
@@ -705,7 +708,7 @@ def main():
                         first = next(iter(lexer), None)
                     except ValueError:
                         first = None
-                if first and _not_executable(first):
+                if first and _not_executable(first, missing_ok=True):
                     parser.error(f"{group.get('id')} verify command is not executable: {first} (chmod +x it before {stage})")
         operations = [{"action":"set-activity","stage":{"fix":"plan_fix","install":"install","verify":"verify"}[stage],"ids":ids,"now":f"{stage.title()} in progress"}]
         if stage in ("install", "verify") and args.model:
