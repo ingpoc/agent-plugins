@@ -13746,7 +13746,7 @@
             "BCL-95",
             "BCL-98"
           ],
-          "status": "review",
+          "status": "running",
           "worktree": "bcl118-r3-plan",
           "label": "BCL-95, BCL-98",
           "verify": {
@@ -13765,19 +13765,47 @@
               "phase": "review",
               "started_at": "2026-11-20T23:39:50Z",
               "command": "review-terra.sh",
-              "heartbeat_at": "2026-11-20T23:39:50Z",
+              "heartbeat_at": "2026-11-20T23:40:43Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
               "model": "gpt-6.1-terra medium (Codex CLI)",
               "cycle": 10,
-              "round": 3
+              "round": 3,
+              "pid": 79722,
+              "exit_code": 0,
+              "finished_at": "2026-11-20T23:40:43Z",
+              "finished_phase_status": "incomplete",
+              "must_fix": "Review incomplete: strict verdict or Must-fix section missing"
             },
             "fix_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "review_status": "running"
+            "review_status": "failed",
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "review",
-          "verify_summary": "Review passed; integrating in int3 with ROUNDS (0.1.51)"
+          "phase": "fix",
+          "verify_summary": "Review passed; integrating in int3 with ROUNDS (0.1.51)",
+          "failure_history": {
+            "BCL-95": [
+              {
+                "attempt_id": "9e7827c21ec246dc831cd11538ee9a1a",
+                "source": "review",
+                "reason": "Review incomplete: strict verdict or Must-fix section missing",
+                "cycle": 10,
+                "round": 3,
+                "at": "2026-11-20T23:40:44Z"
+              }
+            ],
+            "BCL-98": [
+              {
+                "attempt_id": "9e7827c21ec246dc831cd11538ee9a1a",
+                "source": "review",
+                "reason": "Review incomplete: strict verdict or Must-fix section missing",
+                "cycle": 10,
+                "round": 3,
+                "at": "2026-11-20T23:40:44Z"
+              }
+            ]
+          }
         },
         {
           "id": "R3-VERIFY",
@@ -13828,7 +13856,7 @@
           "finding_ids": [
             "BCL-99"
           ],
-          "status": "review",
+          "status": "running",
           "worktree": "bcl118-r3-rounds",
           "label": "BCL-99",
           "verify": {
@@ -13847,19 +13875,37 @@
               "phase": "review",
               "started_at": "2026-11-20T23:39:50Z",
               "command": "review-terra.sh",
-              "heartbeat_at": "2026-11-20T23:39:50Z",
+              "heartbeat_at": "2026-11-20T23:40:43Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
               "model": "gpt-6.1-terra medium (Codex CLI)",
               "cycle": 10,
-              "round": 3
+              "round": 3,
+              "pid": 79722,
+              "exit_code": 0,
+              "finished_at": "2026-11-20T23:40:43Z",
+              "finished_phase_status": "incomplete",
+              "must_fix": "Review incomplete: strict verdict or Must-fix section missing"
             },
             "fix_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "review_status": "running"
+            "review_status": "failed",
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "review",
-          "verify_summary": "Review passed; integrating in int3 with PLAN (0.1.51)"
+          "phase": "fix",
+          "verify_summary": "Review passed; integrating in int3 with PLAN (0.1.51)",
+          "failure_history": {
+            "BCL-99": [
+              {
+                "attempt_id": "9e7827c21ec246dc831cd11538ee9a1a",
+                "source": "review",
+                "reason": "Review incomplete: strict verdict or Must-fix section missing",
+                "cycle": 10,
+                "round": 3,
+                "at": "2026-11-20T23:40:44Z"
+              }
+            ]
+          }
         },
         {
           "id": "R3-INTROSPECT",
