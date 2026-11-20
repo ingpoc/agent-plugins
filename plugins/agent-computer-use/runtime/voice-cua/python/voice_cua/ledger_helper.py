@@ -94,6 +94,7 @@ class LedgerHelper:
         self._pending_dir = pending_dir or Path.home() / '.cache/macos-cua/ledger-pending'
         self._history: dict[tuple[str, str], dict[str, Any]] = {}
         self._rejected_recall = ""
+        self._value_retries: set[str] = set()  # owner quotes already given one value-wording retry
 
     def note_user(self, text: str) -> None:
         if isinstance(text, str) and text.strip():
@@ -188,6 +189,14 @@ class LedgerHelper:
                             return _outcome_semantics({'ok': True, 'status': 'needs_disambiguation', 'has_more': candidates['data'].get('has_more') is True, 'data': candidates['data']})
                     return _outcome_semantics({'ok': True, **result})
                 source = self._quote_source(owner_quote)
+                if source is not None and _norm_text(value) and _norm_text(owner_quote) not in self._value_retries \
+                        and (' ' + _norm_text(value) + ' ') not in (' ' + _norm_text(owner_quote) + ' '):
+                    # ACU-13: a paraphrased value ("enabled across apps" for "I like dark mode across apps") gets one
+                    # plain correction instead of a dead end; a second miss is a normal invalid argument.
+                    self._value_retries.add(_norm_text(owner_quote))
+                    return {'ok': False, 'error_type': 'ledger_value_not_in_quote', 'retryable': True,
+                            'error': 'value must be words copied exactly from owner_quote, not a paraphrase; '
+                                     'resend once with value set to those exact words'}
                 if not _norm_text(value) or source is None or (' ' + _norm_text(value) + ' ') not in (' ' + _norm_text(owner_quote) + ' '):
                     return _invalid('Value and owner quote must occur in a recent user statement')
                 recent = self._recent()[source:]

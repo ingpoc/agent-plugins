@@ -258,3 +258,20 @@ def test_snake_case_value_matches_spoken_words(tmp_path):
     helper.note_user('Remember that ' + quote)
     result = helper.run(operation='preference', scope='fleet', rule='app_appearance_mode', value='dark_mode', owner_quote=quote)
     assert result['status'] == 'saved', result
+
+
+def test_paraphrased_value_gets_one_correction_then_saves(tmp_path):
+    """ACU-13: Grok Voice sent value 'enabled across apps' for 'I like dark mode across apps'."""
+    transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'decision_id': 'darkmode'}}
+    helper = LedgerHelper(transport, Mock(side_effect=AssertionError('helper model called')), tmp_path / 'pending')
+    quote = 'I like dark mode across apps.'
+    helper.note_user(quote)
+    first = helper.run(operation='preference', scope='fleet', rule='dark_mode', value='enabled across apps', owner_quote=quote)
+    assert (first['error_type'], first['retryable']) == ('ledger_value_not_in_quote', True)
+    transport.call.assert_not_called()
+    again = helper.run(operation='preference', scope='fleet', rule='dark_mode', value='on everywhere', owner_quote=quote)
+    assert (again['error_type'], again['retryable']) == ('ledger_invalid_argument', False)
+    saved = helper.run(operation='preference', scope='fleet', rule='dark_mode', value='dark mode across apps', owner_quote=quote)
+    assert saved['status'] == 'saved'
+    assert transport.call.call_args.args[1]['decision'] == 'dark mode across apps'
