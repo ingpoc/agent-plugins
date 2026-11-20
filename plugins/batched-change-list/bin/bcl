@@ -247,8 +247,7 @@ def _require_retry_cause(parser, record, data, tracking, groups, args):
     verify_failed = {i for group in groups if group.get("status") == "failed" and group.get("phase") == "verify"
                      for i in group.get("finding_ids", [])}
     failed = [item["id"] for item in data.get("findings", []) if item["id"] in args.ids and
-              (item["id"] in verify_failed or item.get("status") == "failing"
-               or (checks.get(item["id"]) or {}).get("state") == "not_fixed")]
+              (item["id"] in verify_failed or (checks.get(item["id"]) or {}).get("state") == "not_fixed")]
     if not failed:
         return None
     if not (args.failing_test or "").strip() or not (args.evidence or "").strip():
@@ -257,12 +256,15 @@ def _require_retry_cause(parser, record, data, tracking, groups, args):
     evidence = Path(args.evidence).expanduser()
     if not evidence.is_file():
         parser.error(f"evidence file not found: {evidence}")
+    home = Path(record.get("home", ""))
     for group in groups:
-        worktree = Path(record.get("home", "")).parent / str(group.get("worktree") or "")
-        if group.get("worktree") and worktree.is_dir():
-            found = subprocess.run(["git", "-C", str(worktree), "grep", "-q", "-F", args.failing_test.strip()], capture_output=True)
-            if found.returncode:
-                parser.error(f"failing test {args.failing_test!r} is not in lane worktree {worktree}; write it first")
+        worktree = home.parent / str(group["worktree"]) if group.get("worktree") else home
+        if not worktree.is_dir():
+            parser.error(f"lane worktree {worktree} not found; the failing test must be written in the lane first")
+        found = subprocess.run(["git", "-C", str(worktree), "grep", "--untracked", "-q", "-F", "-e", args.failing_test.strip(), "--"],
+                               capture_output=True)
+        if found.returncode:
+            parser.error(f"failing test {args.failing_test!r} is not in lane worktree {worktree}; write it first")
     return {"ids": failed, "test": args.failing_test.strip(), "evidence": str(evidence.resolve())}
 
 def _merged_details(args, tracking, repo):

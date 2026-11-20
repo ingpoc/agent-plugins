@@ -1019,6 +1019,7 @@ elif args[:2] != ['pr', 'edit']:
         }
         live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
         evidence = self.root / 'observed.jsonl'; evidence.write_text('{}\n')
+        (Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['home']) / 'test_x.py').write_text('def test_x(): pass\n')
         result = self.call_job_without_viewer(live,'--ids','ISSUE-01','--failing-test','test_x','--evidence',evidence,
                                               '--phase','fix','job','--',sys.executable,'-c','pass')
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -1047,13 +1048,24 @@ elif args[:2] != ['pr', 'edit']:
             live, "--ids", "ISSUE-01", "--phase", "fix", "job", "--", sys.executable, "-c", "pass")
         self.assertNotEqual(refused.returncode, 0)
         self.assertIn("second fix attempt needs --failing-test", refused.stderr)
-        evidence = self.root / "observed.jsonl"; evidence.write_text('{"kind": "tool_result"}\n')
+        evidence = self.root / "observed.jsonl"
+        home = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['home'])
+        missing = self.call_job_without_viewer(
+            live, "--ids", "ISSUE-01", "--failing-test", "test_reproduces_the_failure", "--evidence", evidence,
+            "--phase", "fix", "job", "--", sys.executable, "-c", "pass")
+        self.assertIn("evidence file not found", missing.stderr)
+        evidence.write_text('{"kind": "tool_result"}\n')
+        unwritten = self.call_job_without_viewer(
+            live, "--ids", "ISSUE-01", "--failing-test", "test_reproduces_the_failure", "--evidence", evidence,
+            "--phase", "fix", "job", "--", sys.executable, "-c", "pass")
+        self.assertIn("write it first", unwritten.stderr)
+        (home / "test_retry_cause.py").write_text("def test_reproduces_the_failure():\n    assert False\n")  # untracked is enough
         restarted = self.call_job_without_viewer(
             live, "--ids", "ISSUE-01", "--failing-test", "test_reproduces_the_failure", "--evidence", evidence,
             "--phase", "fix", "job", "--", sys.executable, "-c", "pass")
         self.assertEqual(restarted.returncode, 0, restarted.stderr)
         cause = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["retry_cause"]
-        self.assertEqual((cause["ids"], cause["test"]), (["ISSUE-01"], "test_reproduces_the_failure"))
+        self.assertEqual((cause["ids"], cause["test"], cause["evidence"]), (["ISSUE-01"], "test_reproduces_the_failure", str(evidence.resolve())))
         check.write_text("pass\n")
         self.assertEqual(self.install_after_review("--ids", "ISSUE-01").returncode, 0)
         verified = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
@@ -1082,6 +1094,7 @@ elif args[:2] != ['pr', 'edit']:
         marker = self.root / 'command-ran'
         command = f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')"
         evidence = self.root / 'observed.jsonl'; evidence.write_text('{}\n')
+        (Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['home']) / 'test_x.py').write_text('def test_x(): pass\n')
         result = self.call_job_without_viewer(live,'--ids','ISSUE-01','--failing-test','test_x','--evidence',evidence,
                                               '--phase','fix','job','--',sys.executable,'-c',command)
         self.assertNotEqual(result.returncode, 0)
