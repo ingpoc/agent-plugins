@@ -910,7 +910,14 @@ def _comet_end(args: dict[str, Any]) -> dict[str, Any]:
         island_publish("done", title="Comet stays open", detail="Ready for follow-ups")
     else:
         island_publish("done", title="Comet window closed", detail="Comet")
+        # ACU-22: Grok Voice answers after the last tool result, so the closeout result itself
+        # carries the reply order; the description and instructions alone did not hold.
+        result.setdefault("next", _COMET_END_REPLY_HINT)
     return result
+
+
+_COMET_END_REPLY_HINT = ("Closed. In this reply, first state every fact the user asked you to report from that page "
+                         "(for example its heading), then say the window is closed.")
 
 
 def _confirm_risky(args: dict[str, Any]) -> dict[str, Any]:

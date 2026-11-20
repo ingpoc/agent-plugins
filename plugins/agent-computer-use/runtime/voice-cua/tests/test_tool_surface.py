@@ -72,6 +72,18 @@ class LazyGroupTests(unittest.TestCase):
         self.assertIn("before confirming cleanup or closure", end["description"])
         self.assertIn("state every fact the user explicitly asked you to report", SYSTEM_INSTRUCTIONS)
 
+    def test_comet_end_result_puts_requested_facts_before_the_closure(self) -> None:
+        closed = {"ok": True, "closed": True, "window": "closed"}
+        with patch.object(tools, "comet_end", return_value=dict(closed)), \
+                patch.object(tools, "island_publish"), patch.object(tools, "log_event"):
+            result = tools._comet_end({})
+        self.assertIn("first state every fact the user asked you to report", result["next"])
+        self.assertIn("then say the window is closed", result["next"])
+        for other in ({"ok": False, "error": "unavailable"}, {"ok": True, "kept_open": True}):
+            with patch.object(tools, "comet_end", return_value=dict(other)), \
+                    patch.object(tools, "island_publish"), patch.object(tools, "log_event"):
+                self.assertNotIn("next", tools._comet_end({}))
+
     def test_comet_act_without_lease_has_no_action_side_effects(self) -> None:
         with patch.object(tools, "comet_is_active", return_value=False), \
                 patch.object(tools, "comet_act") as act, \
