@@ -20,8 +20,8 @@ class ReferenceTests(unittest.TestCase):
 
     def test_plan_fix_lets_small_docs_items_share_round(self):
         text = (SKILL / "references/plan-fix.md").read_text(encoding="utf-8").lower()
-        for phrase in ("docs-only", "chart-only", "no code dependency", "no shared file", "extra lane",
-                       "group cap", "named test", "verify"):
+        for phrase in ("docs-only", "chart-only", "no code dependency", "no shared file", "nearest group",
+                       "4 open lanes", "named test", "verify"):
             self.assertIn(phrase, text)
 
 
