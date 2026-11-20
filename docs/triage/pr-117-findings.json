@@ -8291,9 +8291,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T05:56:47Z",
-      "now": "2026-11-20T05:56:47Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-20T06:17:37Z",
+      "now": "2026-11-20T06:17:37Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10916,8 +10916,8 @@
             "ACU-05"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r6-acu",
           "reason": "Round 5 root cause: the app sends a cancel GPT-Live-1 rejects, so a voice error shows and the old story keeps running; ACU-05 is rechecked against the 3.0 s limit.",
           "verify": {
@@ -10932,10 +10932,24 @@
             "model": "Grok Bot subagent (own fix)",
             "effort": "default",
             "one_file": false,
-            "fix_status": "pending",
-            "fallback_note": "Codex on the Mini out until 22 Nov 12:28 IST; own fix per Guru 11:24, fresh-eyes review by Codex gpt-6.1-terra medium on the box"
+            "fix_status": "passed",
+            "fallback_note": "Codex on the Mini out until 22 Nov 12:28 IST; own fix per Guru 11:24, fresh-eyes review by Codex gpt-6.1-terra medium on the box",
+            "job": {
+              "pid": 85939,
+              "phase": "fix",
+              "started_at": "2026-11-20T06:06:16Z",
+              "command": "r6-tests.sh",
+              "heartbeat_at": "2026-11-20T06:06:39Z",
+              "model": "Grok Bot subagent (own fix)",
+              "exit_code": 0,
+              "duration_s": 23,
+              "finished_at": "2026-11-20T06:06:39Z",
+              "finished_phase_status": "passed"
+            },
+            "implementer_session": "grokbot-r6-own-fix-acu",
+            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-acu"
           },
-          "updated_at": "2026-11-20T05:56:47Z"
+          "updated_at": "2026-11-20T06:17:37Z"
         },
         {
           "id": "BCL-FLOW",
@@ -10963,9 +10977,11 @@
             "effort": "default",
             "one_file": false,
             "fix_status": "pending",
-            "fallback_note": "Codex on the Mini out until 22 Nov 12:28 IST; own fix per Guru 11:24, fresh-eyes review by Codex gpt-6.1-terra medium on the box"
+            "fallback_note": "Codex on the Mini out until 22 Nov 12:28 IST; own fix per Guru 11:24, fresh-eyes review by Codex gpt-6.1-terra medium on the box",
+            "implementer_session": "grokbot-r6-own-fix-bcl",
+            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-bcl"
           },
-          "updated_at": "2026-11-20T05:56:47Z"
+          "updated_at": "2026-11-20T06:17:27Z"
         }
       ]
     },
