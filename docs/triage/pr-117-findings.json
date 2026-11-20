@@ -9624,9 +9624,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T11:36:52Z",
-      "now": "2026-11-20T11:36:52Z — Lane ACU-REMEMBER updated"
+      "stage": "install",
+      "updated_at": "2026-11-20T11:52:40Z",
+      "now": "2026-11-20T11:52:40Z — Install in progress"
     },
     "rollover": {
       "source_pr": 116,
@@ -12472,8 +12472,8 @@
             "ACU-13",
             "ACU-07"
           ],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r7-remember",
           "label": "ACU-13, ACU-07",
           "codex": {
@@ -12511,12 +12511,12 @@
           },
           "install": {
             "status": "running",
-            "started_at": "2026-11-20T10:53:30Z"
+            "started_at": "2026-11-20T11:52:40Z"
           },
           "stage_model": {
             "stage": "install",
-            "model": "Grok Bot subagent (sign-only release 0.2.158)",
-            "at": "2026-11-20T10:53:30Z"
+            "model": "Grok Bot subagent (sign-only release 0.2.159)",
+            "at": "2026-11-20T11:52:40Z"
           },
           "reason": "ACU-07 decision 16:31 IST: lasting preferences save even in passing, moods do not, brief acknowledgement (3444e1d6)"
         }
