@@ -10495,8 +10495,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-20T14:27:53Z",
-      "now": "2026-11-20T14:27:53Z — Review started"
+      "updated_at": "2026-11-20T14:33:14Z",
+      "now": "2026-11-20T14:33:14Z — Lane ACU-REMEMBER updated"
     },
     "rollover": {
       "source_pr": 117,
@@ -13436,23 +13436,28 @@
             "model": "Grok Bot subagent (own fix, carried from #117)",
             "implementer_session": "grokbot-r7-own-fix-remember",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-remember-5",
-            "review_status": "pending",
+            "review_status": "passed",
             "job": {
-              "pid": 10147,
-              "phase": "fix",
-              "started_at": "2026-11-20T14:27:21Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-20T14:27:44Z",
-              "model": "Grok Bot subagent (carried fix from #117, tests only; no new code)",
+              "pid": 11737,
+              "phase": "presuite",
+              "started_at": "2026-11-20T14:28:11Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-20T14:33:14Z",
               "exit_code": 0,
-              "duration_s": 23,
-              "finished_at": "2026-11-20T14:27:44Z",
+              "duration_s": 303,
+              "finished_at": "2026-11-20T14:33:14Z",
               "finished_phase_status": "passed"
             },
-            "fix_status": "passed"
+            "fix_status": "passed",
+            "reviewer_model": "grok-4.7-medium via Cursor CLI (pass 5 on #117, carried; code identical)"
           },
-          "updated_at": "2026-11-20T14:27:53Z",
-          "phase": "review"
+          "updated_at": "2026-11-20T14:33:14Z",
+          "phase": "review",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-20T14:33:14Z"
+          }
         }
       ],
       "cycle": 10
