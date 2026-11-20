@@ -2,6 +2,7 @@
 
 - bcl merged --force --reason "why" records an already merged PR when the merge gate reads short (for example a stopped run zeroed it); the one-line reason is kept with the forced gate overrides (BCL-92).
 - bcl report --force now reaches the gate and overrides an unmet report gate, recording the override (BCL-93).
+- After a failed shared check, bcl verify --shared --reason "why" reruns it once per failure and keeps the failed attempt; a shared or lane verify command that is a missing or non-executable script is refused before anything is recorded, and bcl install refuses such a lane script (BCL-91).
 
 ## 0.1.49
 
