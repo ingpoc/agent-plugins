@@ -1,3 +1,7 @@
+## 0.2.161
+
+- After Samantha closes a Comet page she opened for you, she now tells you what you asked for from that page (for example its heading) before saying the window is closed. On Grok Voice the heading was being dropped from that final reply (ACU-22).
+
 ## 0.2.160
 
 - Same Samantha behaviour as 0.2.159 (lasting facts saved even in passing, moods not saved, brief confirmation after the save), rebuilt on its own pull request so it can be verified there (ACU-07, ACU-13).
