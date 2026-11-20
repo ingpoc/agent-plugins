@@ -1,3 +1,9 @@
+## 0.1.51
+
+- A finding marked as a regression against main must sit in a lane that restores main first (`restores_main`); a redesign is its own finding (BCL-95).
+- After a failed Verify, `bcl job --phase fix` needs `--failing-test` (already written in the lane) and `--evidence` (an existing record) before a retry (BCL-98).
+- Protected rounds: at most 4 open lanes per round; `bcl job` and `bcl verify` check the machine load (`BCL_MAX_LOAD`, `--force` overrides); `bcl stop-verify --reason` stops a run and keeps verified fixes counted (BCL-99).
+
 ## 0.1.50
 
 - bcl merged --force --reason "why" records an already merged PR when the merge gate reads short (for example a stopped run zeroed it); the one-line reason is kept with the forced gate overrides (BCL-92).
