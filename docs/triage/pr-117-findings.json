@@ -9624,9 +9624,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T11:14:53Z",
-      "now": "2026-11-20T11:14:53Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T11:24:15Z",
+      "now": "2026-11-20T11:24:15Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -12472,7 +12472,7 @@
             "ACU-13",
             "ACU-07"
           ],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl117-r7-remember",
           "label": "ACU-13, ACU-07",
@@ -12481,20 +12481,20 @@
             "implementer_session": "grokbot-r7-own-fix-remember",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-remember-3",
             "job": {
-              "pid": 70160,
-              "phase": "fix",
-              "started_at": "2026-11-20T11:14:13Z",
+              "pid": 71162,
+              "phase": "review",
+              "started_at": "2026-11-20T11:14:54Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-20T11:14:37Z",
-              "model": "Grok Bot subagent (own fix)",
+              "heartbeat_at": "2026-11-20T11:18:21Z",
+              "model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 4)",
               "exit_code": 0,
-              "duration_s": 24,
-              "finished_at": "2026-11-20T11:14:37Z",
-              "finished_phase_status": "passed"
+              "duration_s": 207,
+              "finished_at": "2026-11-20T11:18:21Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
-            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 3)",
-            "review_status": "pending"
+            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 4)",
+            "review_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r7-remember.sh",
@@ -12504,7 +12504,7 @@
             "total": 2,
             "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-20T11:14:53Z",
+          "updated_at": "2026-11-20T11:18:21Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
