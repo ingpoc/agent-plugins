@@ -656,6 +656,16 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
             f'<p class="gate-note">{html.escape(gate_note)} Fix count excludes completed introspection workflow records and excluded issues.</p>')
 
 
+def check_keeps_verified(check):
+    """A verified issue stays counted unless its latest check reopened it; a check left unfinished by a stopped run does not (BCL-99)."""
+    if not isinstance(check, dict):
+        return False
+    state = check.get("state")
+    if state == "inconclusive" and check.get("stopped") is True:
+        return True
+    return state not in {"checking", "blocked", "inconclusive", "not_fixed"}
+
+
 def rollover_gate(findings, tracking):
     threshold = tracking.get("rollover_threshold", DEFAULT_ROLLOVER_THRESHOLD)
     if type(threshold) is not int or threshold < 1:
@@ -674,7 +684,7 @@ def rollover_gate(findings, tracking):
     checks = run.get("checks", {}) if isinstance(run, dict) else {}
     def currently_fixed(item):
         check = checks.get(item["id"], {}) if isinstance(checks, dict) else {}
-        return item.get("status") == "verified_fixed" and isinstance(check, dict) and check.get("state") not in {"checking", "blocked", "inconclusive", "not_fixed"}
+        return item.get("status") == "verified_fixed" and check_keeps_verified(check)
     fixed = sum(currently_fixed(item) for item in counted)
     has_open = any(item.get("status") != "closed" and not currently_fixed(item) for item in counted)
     # A count at or above the threshold is always met; never render N of 15 as not met when N >= 15.

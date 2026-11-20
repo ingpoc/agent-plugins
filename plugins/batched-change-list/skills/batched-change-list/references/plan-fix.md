@@ -25,7 +25,7 @@ Quota-out fallback only: for token efficiency, use Codex first. If the Codex quo
 Do not fix and test one issue at a time.
 
 1. **Triage once.** Label every open issue `test-now` (the installed build can already show pass or fail), `code-fix`, `needs-user`, or `blocked`. Run all `test-now` checks in one live run before writing any code.
-2. **Fix in parallel.** Run each independent group through the coding CLI set by `codex-cli`; put coupled issues in one job. The brief names files, behavior, focused checks, and a report under 12 lines. Run only independent groups together; cap parallel groups at about 3–4.
+2. **Fix in parallel.** Run each independent group through the coding CLI set by `codex-cli`; put coupled issues in one job. The brief names files, behavior, focused checks, and a report under 12 lines. Run only independent groups together; a round runs at most 4 lanes (`bcl plan` refuses more), and `bcl job`/`bcl verify` refuse while the machine's load is above `BCL_MAX_LOAD` (default: CPU count).
 3. **Review once, then install that lane.** See [Review](review.md) for the per-group review and suite gates.
 4. **Serialize builds and live verify.** Installs and builds share one queue; groups that finish close together share one build. Live verify is serialized too (one Mini, island, and Comet) and runs each group's stored `verify.command`. Mark `verified_fixed` as evidence lands. The gate counts those fixes immediately. The round ends when all lanes finish or block.
 5. **Automate last.** Script a repeated step only when automation removes or replaces at least as much work; log the removed step.

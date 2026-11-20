@@ -267,6 +267,16 @@ def _require_retry_cause(parser, record, data, tracking, groups, args):
             parser.error(f"failing test {args.failing_test!r} is not in lane worktree {worktree}; write it first")
     return {"ids": failed, "test": args.failing_test.strip(), "evidence": str(evidence.resolve())}
 
+def _require_machine_load(parser, args):
+    """BCL-99: check the machine's load before a job or verify; a loaded machine fails checks for reasons outside the change."""
+    try:
+        limit = float(os.environ.get("BCL_MAX_LOAD") or (os.cpu_count() or 4))
+        load = os.getloadavg()[0]
+    except (OSError, ValueError, AttributeError):
+        return
+    if load > limit and not args.force:
+        parser.error(f"machine load {load:.2f} is above {limit:g}; wait for it to settle (or pass --force to run anyway)")
+
 def _merged_details(args, tracking, repo):
     pr = tracking.get("pull_request", {})
     url = pr.get("url") if isinstance(pr, dict) else None
@@ -510,6 +520,8 @@ def main():
         print(json.dumps({"adopted": True, "live": str(live), "stage": current_stage, "recorded_stage": recorded_stage, "cycle": tracking.get("cycle", 1), "report_gate": {"fixed": fixed, "threshold": threshold, "met": report_met}, "verified_gate": {"fixed": verified_fixed, "threshold": verified_threshold, "met": verified_met}, "rollover_gate": {"fixed": fixed, "threshold": rollover_threshold, "met": rollover_met}, "plan": [{"id": g.get("id"), "status": g.get("status"), "message": lane_render.lane_issue_status(g, tracking.get("cycle", 1)).get("copy")} for g in tracking.get("plan", {}).get("groups", [])]}, indent=2)); return
     if record.get("rollover_pending") and (args.stage != "start" or not begins_collect):
         parser.error("run bcl start to begin Collect before using the new list")
+    if args.stage in ("job", "verify"):
+        _require_machine_load(parser, args)
     if args.stage == "job":
         if args.phase not in ("fix", "review", "presuite") or not args.ids or not command_args:
             parser.error("job requires --ids ID, --phase fix|review|presuite, and -- <command>")
@@ -656,6 +668,13 @@ def main():
         late_stage = tracking.get("workflow", {}).get("stage") in ("verify", "introspect", "gate")
         if args.ids and not (late_stage and same_current_plan):
             operations.append({"action":"set-activity","stage":"plan_fix","ids":args.ids,"now":"Plan recorded"})
+    elif stage == "stop-verify":
+        run = tracking.get("verification_run")
+        if not isinstance(run, dict) or run.get("status") != "active":
+            parser.error("stop-verify requires an active verification run")
+        if not (args.reason or "").strip():
+            parser.error('stop-verify requires --reason "why the run stops"; finished verdicts are kept')
+        operations = [{"action": "stop-verification", "run_id": run["id"], "reason": args.reason}]
     elif stage == "correct-round":
         if args.round is None or not args.reason:
             parser.error("correct-round requires --round N and --reason \"why the counter is wrong\"")

@@ -563,6 +563,21 @@ def verification_action(document, findings, operation):
     reopens = action == "start-check" and operation.get("recheck") is True and isinstance(run, dict) and run.get("status") == "complete"
     if not isinstance(run, dict) or (run.get("status") != "active" and not reopens) or operation.get("run_id") != run.get("id"):
         raise ValueError("active verification run id is required")
+    if action == "stop-verification":
+        # BCL-99: stopping a run keeps every finished verdict; only unfinished checks become stopped-inconclusive,
+        # and those do not uncount an issue that was already verified fixed.
+        reason = operation.get("reason")
+        if not isinstance(reason, str) or not reason.strip() or "\n" in reason:
+            raise ValueError("stop-verification requires a one-line reason")
+        stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+        for check in run.get("checks", {}).values():
+            if check.get("state") in ("pending", "checking"):
+                check.setdefault("started_at", stamp)
+                check.update(state="inconclusive", stopped=True, evidence=f"Run stopped: {reason.strip()}",
+                             updated_at=stamp, finished_at=stamp)
+        run["status"] = "complete"
+        run["stopped"] = {"reason": reason.strip(), "at": stamp}
+        return
     if action == "complete-verification":
         if any(check.get("state") not in ("fixed", "not_fixed", "blocked", "inconclusive")
                for check in run.get("checks", {}).values()):
@@ -890,12 +905,18 @@ def require_restore_lane(group, findings):
         raise ValueError(f"plan group {group.get('id')}: {', '.join(regressed)} regress against main; this lane must restore "
                          "main's behaviour first (set restores_main true) and any redesign must be filed as its own finding")
 
+MAX_ROUND_LANES = 4
+
 
 def validate_plan_groups(plan: dict) -> None:
-    """Check the group size before a fix round starts."""
+    """Check the group size and the round's lane cap before a fix round starts."""
     groups = plan.get("groups") if isinstance(plan, dict) else None
     if not isinstance(groups, list):
         return
+    active = [g for g in groups if isinstance(g, dict)
+              and (g["status"] if "status" in g else g.get("phase")) not in {"deferred", "done", "verified", "parked"}]
+    if len(active) > MAX_ROUND_LANES:
+        raise ValueError(f"a round runs at most {MAX_ROUND_LANES} lanes (plan has {len(active)}); defer the rest to the next round")
     for group in groups:
         if not isinstance(group, dict):
             continue
@@ -915,7 +936,7 @@ def finding_verified(item, tracking):
     if not isinstance(check, dict):
         return False
     return (item.get('status') == 'verified_fixed' and bool(item.get('verification_refs'))
-            and check.get('state') not in {'checking', 'blocked', 'inconclusive', 'not_fixed'})
+            and RENDERER.check_keeps_verified(check))
 
 
 def validate_dependencies(groups, findings, tracking):
@@ -1511,7 +1532,7 @@ def run(args, parser):
                 return 0
             existing_run = store["document"].get("tracking", {}).get("verification_run")
             original_plan = copy.deepcopy(store['document'].get('tracking', {}).get('plan'))
-            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify"}
+            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "stop-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify"}
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()

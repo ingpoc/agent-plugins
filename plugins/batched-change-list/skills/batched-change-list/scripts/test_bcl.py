@@ -91,6 +91,7 @@ elif args[:2] != ['pr', 'edit']:
         for name in ("gh", "origin"):
             executable = self.bin / name; executable.write_text(fake_cli); executable.chmod(0o755)
         self.env = {**os.environ, "BCL_STATE_DIR": str(self.state), "BCL_COMMAND_LOG": str(self.command_log),
+                    "BCL_MAX_LOAD": "100000",
                     "PATH": str(self.bin) + os.pathsep + os.environ.get("PATH", "")}
         self.home = self.root / "home"; self.home.mkdir()
         self.git(self.home, "init", "-q"); self.git(self.home, "config", "user.email", "test@example.com"); self.git(self.home, "config", "user.name", "Test")
@@ -1003,6 +1004,44 @@ elif args[:2] != ['pr', 'edit']:
         plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned", "restores_main": True}]}))
         accepted = self.call_without_viewer("plan", "--plan", plan, "--ids", "ISSUE-01")
         self.assertEqual(accepted.returncode, 0, accepted.stderr)
+
+    def test_plan_refuses_more_than_four_lanes(self):
+        import manage_findings
+        groups = [{"id": f"G{n}", "finding_ids": [f"X-{n}"], "status": "planned"} for n in range(5)]
+        with self.assertRaisesRegex(ValueError, "at most 4 lanes"):
+            manage_findings.validate_plan_groups({"groups": groups})
+        groups[4]["status"] = "deferred"
+        manage_findings.validate_plan_groups({"groups": groups})
+
+    def test_job_and_verify_check_the_machine_load(self):
+        live, command = self._lane_ready()
+        with patch.dict(self.env, {"BCL_MAX_LOAD": "-1"}):
+            verify = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
+            job = self.call_job_without_viewer(live, "--ids", "ISSUE-01", "--phase", "fix", "job", "--", sys.executable, "-c", "pass")
+        for result in (verify, job):
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("machine load", result.stderr)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["verification_run"]["checks"]["ISSUE-01"]["state"], "pending")
+
+    def test_stopped_run_keeps_verified_issues_counted(self):
+        live, command = self._lane_ready()
+        document = json.loads(live.read_text())
+        run_id = document["tracking"]["verification_run"]["id"]
+        import check_gate_count
+        before = check_gate_count.verified_gate_count(document)[0]
+        document["findings"][1]["status"] = "verified_fixed"; document["findings"][1]["verification_refs"] = ["ref"]
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+        counted = check_gate_count.verified_gate_count(json.loads(live.read_text()))[0]
+        refused = self.call_without_viewer("stop-verify")
+        self.assertNotEqual(refused.returncode, 0)
+        stopped = self.call_without_viewer("stop-verify", "--reason", "owner asked to roll over")
+        self.assertEqual(stopped.returncode, 0, stopped.stderr)
+        after = json.loads(live.read_text())
+        run = after["tracking"]["verification_run"]
+        self.assertEqual((run["id"], run["status"], run["stopped"]["reason"]), (run_id, "complete", "owner asked to roll over"))
+        self.assertTrue(all(c["state"] == "inconclusive" and c["stopped"] for c in run["checks"].values()))
+        self.assertEqual(check_gate_count.verified_gate_count(after)[0], counted)
+        self.assertGreaterEqual(counted, before)
 
     def test_fix_job_restarts_failed_lane(self):
         self.assertEqual(self.call('start').returncode, 0)
