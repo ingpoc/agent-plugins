@@ -1,3 +1,7 @@
+## 0.2.158
+
+- When Samantha saves a memory in her own words instead of yours (for example "enabled across apps" for "I like dark mode across apps"), the memory store now tells her plainly to use your exact words and lets her try once more in that turn, instead of giving up (ACU-13). The secure entry tool also says never to repeat a secret value back.
+
 ## 0.2.157
 
 - Samantha chooses where to keep something by what it is, not by the words used. A secret value that grants access (a password, API key or token) goes only to the secure entry form; anything else you say about yourself (facts, profiles you have, things you like, settings you want, a word to keep) is saved to memory, with or without "remember". This stops GPT-Live opening the password form for "my test word is pineapple" (ACU-13, ACU-14). The keyword checks added in 0.2.154 for remember requests are removed; the memory store still refuses secret-looking values.
