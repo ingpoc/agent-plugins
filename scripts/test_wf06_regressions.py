@@ -18,17 +18,13 @@ class WF06RegressionTests(unittest.TestCase):
             r"(?im)^\s*if\s*:.*github\.event\.pull_request\.draft",
         )
 
-    def test_review_policy_allows_one_round_and_logs_leftover_nits(self) -> None:
+    def test_review_policy_logs_leftover_nits_as_new_issues(self) -> None:
         policy = (
             ROOT
             / "plugins/batched-change-list/skills/batched-change-list/references/review.md"
         ).read_text()
 
-        self.assertIn("Use one review round per group", policy)
-        self.assertIn(
-            "log leftover nits as new issues and do not start a second review",
-            policy,
-        )
+        self.assertIn("Log leftover nits as new issues, not must-fix items", policy)
 
 
 if __name__ == "__main__":
