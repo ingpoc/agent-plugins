@@ -8776,9 +8776,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T09:34:42Z",
-      "now": "2026-11-20T09:34:42Z — Lane ACU-REMEMBER updated"
+      "stage": "install",
+      "updated_at": "2026-11-20T09:51:14Z",
+      "now": "2026-11-20T09:51:14Z — Install in progress"
     },
     "rollover": {
       "source_pr": 116,
@@ -11480,7 +11480,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "round": 7,
@@ -11493,8 +11494,8 @@
             "ACU-13",
             "ACU-14"
           ],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r7-remember",
           "label": "ACU-13, ACU-14",
           "codex": {
@@ -11502,15 +11503,14 @@
             "implementer_session": "grokbot-r7-own-fix-remember",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-remember",
             "job": {
-              "pid": 17041,
-              "phase": "review",
-              "started_at": "2026-11-20T09:28:04Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-20T09:34:42Z",
-              "model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 1)",
+              "pid": 39261,
+              "phase": "presuite",
+              "started_at": "2026-11-20T09:37:16Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-20T09:41:54Z",
               "exit_code": 0,
-              "duration_s": 398,
-              "finished_at": "2026-11-20T09:34:42Z",
+              "duration_s": 278,
+              "finished_at": "2026-11-20T09:41:54Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -11524,7 +11524,21 @@
             "failed": 0,
             "total": 2
           },
-          "updated_at": "2026-11-20T09:34:42Z"
+          "updated_at": "2026-11-20T09:41:54Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-20T09:41:54Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-20T09:51:14Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot subagent (sign-only release 0.2.157)",
+            "at": "2026-11-20T09:51:14Z"
+          }
         }
       ],
       "status": "closed"
