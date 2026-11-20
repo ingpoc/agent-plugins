@@ -10537,9 +10537,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T15:40:46Z",
-      "now": "2026-11-20T15:40:46Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T15:48:33Z",
+      "now": "2026-11-20T15:48:33Z — Fix job started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13549,20 +13549,17 @@
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-bcl-viewer",
             "review_status": "pending",
             "job": {
-              "pid": 64519,
-              "phase": "fix",
-              "started_at": "2026-11-20T15:38:48Z",
-              "command": "fixjob.sh",
-              "heartbeat_at": "2026-11-20T15:40:45Z",
-              "model": "Grok Bot (own fix)",
-              "exit_code": 0,
-              "duration_s": 117,
-              "finished_at": "2026-11-20T15:40:45Z",
-              "finished_phase_status": "passed"
+              "pid": 80498,
+              "phase": "review",
+              "started_at": "2026-11-20T15:40:47Z",
+              "command": "review-r6.sh",
+              "heartbeat_at": "2026-11-20T15:47:48Z",
+              "model": "grok-4.7-medium (Cursor CLI ask)"
             },
-            "fix_status": "passed"
+            "fix_status": "passed",
+            "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
-          "updated_at": "2026-11-20T15:40:46Z",
+          "updated_at": "2026-11-20T15:47:48Z",
           "phase": "review"
         },
         {
@@ -13611,7 +13608,7 @@
             "BCL-92",
             "BCL-93"
           ],
-          "status": "review",
+          "status": "failed",
           "worktree": "bcl118-r2-merged",
           "label": "BCL-92, BCL-93",
           "verify": {
@@ -13625,19 +13622,23 @@
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-118r2-bcl-merged",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-bcl-merged",
-            "review_status": "pending",
+            "review_status": "failed",
             "job": {
               "pid": 28019,
               "phase": "review",
               "started_at": "2026-11-20T15:35:48Z",
               "command": "review-r6.sh",
-              "heartbeat_at": "2026-11-20T15:39:48Z",
-              "model": "grok-4.7-medium (Cursor CLI ask)"
+              "heartbeat_at": "2026-11-20T15:42:43Z",
+              "model": "grok-4.7-medium (Cursor CLI ask)",
+              "exit_code": 0,
+              "duration_s": 415,
+              "finished_at": "2026-11-20T15:42:43Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
             "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
-          "updated_at": "2026-11-20T15:39:48Z",
+          "updated_at": "2026-11-20T15:42:43Z",
           "phase": "review"
         },
         {
@@ -13660,19 +13661,23 @@
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-118r2-bcl-shared",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-bcl-shared",
-            "review_status": "pending",
+            "review_status": "passed",
             "job": {
               "pid": 28017,
               "phase": "review",
               "started_at": "2026-11-20T15:35:48Z",
               "command": "review-r6.sh",
-              "heartbeat_at": "2026-11-20T15:39:48Z",
-              "model": "grok-4.7-medium (Cursor CLI ask)"
+              "heartbeat_at": "2026-11-20T15:43:20Z",
+              "model": "grok-4.7-medium (Cursor CLI ask)",
+              "exit_code": 0,
+              "duration_s": 452,
+              "finished_at": "2026-11-20T15:43:20Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
-          "updated_at": "2026-11-20T15:39:48Z",
+          "updated_at": "2026-11-20T15:43:20Z",
           "phase": "review"
         }
       ],
