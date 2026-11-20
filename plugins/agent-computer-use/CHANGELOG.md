@@ -1,3 +1,7 @@
+## 0.2.160
+
+- Same Samantha behaviour as 0.2.159 (lasting facts saved even in passing, moods not saved, brief confirmation after the save), rebuilt on its own pull request so it can be verified there (ACU-07, ACU-13).
+
 ## 0.2.159
 
 - A lasting fact or preference you mention in passing during small talk (for example "my favourite colour is teal") is now saved to memory on GPT-Live too, and Samantha confirms it briefly once it is saved ("Noted, teal.") so you can say "forget that". Passing moods and small talk ("I'm tired today", "my afternoon's good") are not saved (ACU-07, ACU-13).
