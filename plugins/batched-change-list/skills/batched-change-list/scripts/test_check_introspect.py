@@ -21,7 +21,7 @@ class IntrospectCheckTests(unittest.TestCase):
     def payload(self, tracking=None):
         steps = [*check.performed_round_steps(tracking or self.tracking()), "polling", "rework", "tests"]
         sections = {
-            "delete": {"items": [{"item": steps[0], "evidence": "The one-line replacement is enough.", "outcome": "fixed inline"}]},
+            "delete": {"items": [{"item": steps[0], "evidence": "The one-line replacement is enough.", "outcome": "fixed inline", "proof": "python3 test_hooks.py"}]},
             "simplify": {"none": "No separate simplification."},
             "optimize": {"none": "No optimization warranted."},
             "automate": {"none": "No automation beyond the existing check."},

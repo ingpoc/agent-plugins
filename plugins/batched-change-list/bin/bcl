@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Stage-oriented entrypoint for batched-change-list."""
-import argparse, hashlib, json, os, re, shlex, shutil, subprocess, sys, time
+import argparse, hashlib, json, os, re, shlex, shutil, subprocess, sys, time, uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -109,44 +109,52 @@ def _job_write_retry(record, live, report, base, operations):
                 raise
             time.sleep(0.05 * (attempt + 1))
 
-def _job_operations(groups, phase, job, status=None, review_status=None):
-    operations = []
-    for group in groups:
-        codex = {"job": dict(job)}
-        if phase == "fix" and "exit_code" in job:
-            codex["fix_status"] = job["finished_phase_status"]
-        if review_status is not None:
-            codex["review_status"] = review_status
-        if phase == "review" and job.get("model"):
-            codex["reviewer_model"] = job["model"]
-        lane_phase = "review" if phase != "fix" or job.get("finished_phase_status") == "passed" else "fix"
-        operations.append({"action": "update-plan-group", "id": group["id"],
-                           "merge_codex": True, "patch": {**({"status": status, "phase": lane_phase} if status else {}), "codex": codex, **({"presuite": {"status": job["finished_phase_status"], "exit_code": job["exit_code"], "finished_at": job["finished_at"]}} if phase == "presuite" and "exit_code" in job else {})}})
-    return operations
+def _job_operations(phase, ids, cycle, round_number, job, action, timestamp, exit_code=None, reply=None, load_override=None):
+    operation = {"action": action, "phase": phase, "ids": ids, "cycle": cycle, "round": round_number,
+                 "job_id": job["id"], "timestamp": timestamp, "plan_sha256": job["plan_sha256"]}
+    if action == "start-job":
+        operation["job"] = job
+        if load_override:
+            operation["load_override"] = load_override
+    elif action == "attach-job":
+        operation["pid"] = job["pid"]
+    elif action == "finish-job":
+        operation["exit_code"] = exit_code
+        operation["reply"] = reply
+    return [operation]
 
-def _run_job(record, live, report, base, groups, phase, ids, command_args, result_file=None, model=None, retry=None):
+def _run_job(record, live, report, base, groups, phase, ids, command_args, result_file=None, model=None, load_override=None):
     if not command_args:
         raise ValueError("job requires a command after --")
-    first = ([{"action": "set-activity", "stage": "plan_fix", "ids": ids, "now": "Fix job started"}]
-             if phase == "fix" else [])
-    if retry:
-        first += [{"action": "update-plan-group", "id": group["id"], "patch": {"retry_cause": retry}} for group in groups]
-    status = "running" if phase == "fix" else "review"
+    current = json.loads(live.read_text())
+    tracking = current.get("tracking", {})
+    plan = tracking.get("plan", {})
+    cycle, round_number = plan.get("cycle", 1), plan.get("round", 1)
     started_at = _utc_now()
-    result_path = Path(result_file) if phase == "review" and result_file else None
+    result_path = Path(result_file) if phase in ("review", "plan_review") and result_file else None
     try:
         previous_result = result_path.stat() if result_path else None
     except OSError:
         previous_result = None
-    if first:
-        _job_write_retry(record, live, report, base, first)
-    process = subprocess.Popen(command_args)
-    job = {"pid": process.pid, "phase": phase, "started_at": started_at,
-           "command": Path(command_args[0]).name, "heartbeat_at": started_at}
+    job = {"id": uuid.uuid4().hex, "phase": phase, "started_at": started_at,
+           "command": Path(command_args[0]).name, "heartbeat_at": started_at,
+           "plan_sha256": manage_findings.plan_candidate_sha256(plan)}
     if model:
         job["model"] = model
+    _job_write_retry(record, live, report, base,
+                     _job_operations(phase, ids, cycle, round_number, job, "start-job", started_at,
+                                     load_override=load_override))
     try:
-        _job_write_retry(record, live, report, base, _job_operations(groups, phase, job, status))
+        process = subprocess.Popen(command_args)
+    except OSError as error:
+        _job_write_retry(record, live, report, base,
+                         _job_operations(phase, ids, cycle, round_number, job, "finish-job", _utc_now(), exit_code=127))
+        print(f"bcl: job command could not start: {error}", file=sys.stderr)
+        return 127
+    job["pid"] = process.pid
+    try:
+        _job_write_retry(record, live, report, base,
+                         _job_operations(phase, ids, cycle, round_number, job, "attach-job", _utc_now()))
     except Exception:
         process.terminate()
         process.wait()
@@ -158,33 +166,29 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
         except subprocess.TimeoutExpired:
             job["heartbeat_at"] = _utc_now()
             try:
-                _job_write(record, live, report, base, _job_operations(groups, phase, job))
+                _job_write(record, live, report, base,
+                           _job_operations(phase, ids, cycle, round_number, job, "heartbeat-job", job["heartbeat_at"]))
             except Exception as error:
                 print(f"bcl: job heartbeat write failed; will retry: {error}", file=sys.stderr)
     finished_at = _utc_now()
-    duration = max(0, int((datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
-                           - datetime.fromisoformat(started_at.replace("Z", "+00:00"))).total_seconds()))
-    verdict = None
-    if phase == "review" and code == 0 and result_path:
+    reply = None
+    if phase in ("review", "plan_review") and code == 0 and result_path:
         try:
             current_result = result_path.stat()
             if previous_result is None or (current_result.st_ino, current_result.st_size, current_result.st_mtime_ns) != (previous_result.st_ino, previous_result.st_size, previous_result.st_mtime_ns):
-                first_verdict = next((line.partition(":")[2].strip() for line in result_path.read_text().splitlines()
-                                      if line.startswith("VERDICT:")), "")
-                verdict = re.match(r"^(PASS|CHANGES)\b", first_verdict)
-                verdict = verdict.group(1) if verdict else None
+                reply = result_path.read_text(encoding="utf-8")
         except (OSError, UnicodeError):
             pass
-    passed = code == 0 and (phase != "review" or verdict == "PASS")
-    job.update(exit_code=code, duration_s=duration, finished_at=finished_at,
-               finished_phase_status="passed" if passed else "failed", heartbeat_at=finished_at)
-    final_status = "review" if passed else "failed"
-    review_status = ("passed" if passed else "failed") if phase == "review" else None
     try:
-        _job_write_retry(record, live, report, base, _job_operations(groups, phase, job, final_status, review_status))
+        _job_write_retry(record, live, report, base,
+                         _job_operations(phase, ids, cycle, round_number, job, "finish-job", finished_at,
+                                         exit_code=code, reply=reply))
     except Exception as error:
         raise RuntimeError(f"child exited with code {code}; final tracker write failed: {error}") from error
-    return code if code >= 0 else 128 - code
+    finished = json.loads(live.read_text())
+    final = next(group for group in finished["tracking"]["plan"]["groups"] if group["id"] == groups[0]["id"])
+    result_status = final.get("codex", {}).get("job", {}).get("finished_phase_status")
+    return (code if code else 0 if result_status == "passed" else 1) if code >= 0 else 128 - code
 
 def _install_tree_digest(root):
     digest = hashlib.sha256()
@@ -231,41 +235,21 @@ def install_local():
             raise SystemExit(f"bcl install-local: sha256 mismatch at {destination}")
         print(f"  {destination} ({count} files, sha256 {installed_sha})")
 
-def _not_executable(word, missing_ok=False):
-    """A command word containing "/" is a path; true when that path is not an executable file.
-    With missing_ok, a path that does not exist yet passes (a lane script may be written after install)."""
-    if "/" not in word:
-        return False
-    path = Path(word).expanduser()
-    if missing_ok and not path.exists():
-        return False
-    return not (path.is_file() and os.access(path, os.X_OK))
-
-def _require_retry_cause(parser, record, data, tracking, groups, args):
-    """BCL-98: no second fix attempt without a cause: after a failed verify, name the failing test and its real evidence."""
-    checks = (tracking.get("verification_run") or {}).get("checks", {})
-    verify_failed = {i for group in groups if group.get("status") == "failed" and group.get("phase") == "verify"
-                     for i in group.get("finding_ids", [])}
-    failed = [item["id"] for item in data.get("findings", []) if item["id"] in args.ids and
-              (item["id"] in verify_failed or (checks.get(item["id"]) or {}).get("state") == "not_fixed")]
-    if not failed:
-        return None
-    if not (args.failing_test or "").strip() or not (args.evidence or "").strip():
-        parser.error(f"{', '.join(failed)} failed verification; a second fix attempt needs --failing-test NAME (a test that "
-                     "fails now, built from the real evidence) and --evidence PATH (the observability record it reproduces)")
-    evidence = Path(args.evidence).expanduser()
-    if not evidence.is_file():
-        parser.error(f"evidence file not found: {evidence}")
-    home = Path(record.get("home", ""))
-    for group in groups:
-        worktree = home.parent / str(group["worktree"]) if group.get("worktree") else home
-        if not worktree.is_dir():
-            parser.error(f"lane worktree {worktree} not found; the failing test must be written in the lane first")
-        found = subprocess.run(["git", "-C", str(worktree), "grep", "--untracked", "-q", "-F", "-e", args.failing_test.strip(), "--"],
-                               capture_output=True)
-        if found.returncode:
-            parser.error(f"failing test {args.failing_test!r} is not in lane worktree {worktree}; write it first")
-    return {"ids": failed, "test": args.failing_test.strip(), "evidence": str(evidence.resolve())}
+def _plain_command(command):
+    lexer = shlex.shlex(command, posix=True, punctuation_chars="|&;<>")
+    lexer.whitespace_split = True
+    lexer.commenters = ""
+    words = list(lexer)
+    if (not words or "\n" in command or "\r" in command
+            or any(word and set(word) <= set("|&;<>") for word in words)
+            or Path(words[0]).name in {"sh", "bash", "zsh", "ksh", "dash", "fish", "env"}
+            or Path(words[0]).name in {"echo", "printf", "true", ":"}):
+        raise ValueError("command must name one executable check without shell operators or wrappers")
+    executable = (str(Path(words[0]).expanduser()) if "/" in words[0] else shutil.which(words[0]))
+    if not executable or not os.access(executable, os.X_OK):
+        raise ValueError(f"command is not executable: {words[0]}")
+    words[0] = executable
+    return words
 
 def _require_machine_load(parser, args):
     """BCL-99: check the machine's load before a job or verify; a loaded machine fails checks for reasons outside the change."""
@@ -273,9 +257,16 @@ def _require_machine_load(parser, args):
         limit = float(os.environ.get("BCL_MAX_LOAD") or (os.cpu_count() or 4))
         load = os.getloadavg()[0]
     except (OSError, ValueError, AttributeError):
-        return
-    if load > limit and not args.force:
-        parser.error(f"machine load {load:.2f} is above {limit:g}; wait for it to settle (or pass --force to run anyway)")
+        return None
+    if load > limit:
+        if not args.force:
+            parser.error(f"machine load {load:.2f} is above {limit:g}; wait for it to settle (or pass --force with --reason)")
+        try:
+            args.reason = manage_findings.require_override_reason(args.reason, "machine-load")
+        except ValueError as error:
+            parser.error(str(error))
+        return args.reason
+    return None
 
 def _merged_details(args, tracking, repo):
     pr = tracking.get("pull_request", {})
@@ -425,17 +416,17 @@ def main():
     parser.add_argument("--progress", type=Path); parser.add_argument("--now")
     parser.add_argument("--ids", action="append", default=[]); parser.add_argument("--plan", type=Path)
     parser.add_argument("--result"); parser.add_argument("--issues", type=Path); parser.add_argument("--sections", type=Path); parser.add_argument("--draft", type=Path)
-    parser.add_argument("--phase", choices=("fix", "review", "presuite"))
+    parser.add_argument("--phase", choices=("plan_review", "fix", "review", "presuite"))
     parser.add_argument("--model", help="job, install or verify: who runs this step, shown in the lane model column")
     parser.add_argument("--round", type=int, help="correct-round: the real round number")
-    parser.add_argument("--reason", help="correct-round, verify of a failed lane or failed shared check, stop-verify, or merged --force: why, in one line")
+    parser.add_argument("--reason", help="why an override, verify rerun, cleanup failure, or stopped run is recorded")
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
     parser.add_argument("--shared", action="store_true")
     parser.add_argument("--new-pr", type=int); parser.add_argument("--new-url"); parser.add_argument("--worktree")
     parser.add_argument("--merge-commit"); parser.add_argument("--merged-at"); parser.add_argument("--base-branch")
     parser.add_argument("--force", action="store_true")
-    parser.add_argument("--failing-test", help="job --phase fix after a failed verify: the failing test built from the real evidence")
-    parser.add_argument("--evidence", help="job --phase fix after a failed verify: the observability record the test reproduces")
+    parser.add_argument("--run-id"); parser.add_argument("--outcome", choices=("passed", "failed", "not_run"))
+    parser.add_argument("--through-cycle", type=int)
     parser.add_argument("stage")
     argv = sys.argv[1:]
     job_command = []
@@ -509,6 +500,24 @@ def main():
         return
     begins_collect = args.stage == "start" and ("collect" not in stages or record.get("rollover_pending"))
     stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    if args.stage in ("cleanup", "archive-history"):
+        if args.stage == "cleanup":
+            if not args.run_id or not args.outcome:
+                parser.error("cleanup requires --run-id ID and --outcome passed|failed|not_run")
+            if args.outcome == "failed" and not args.reason:
+                parser.error("failed cleanup requires --reason")
+            operation = {"action": "record-cleanup", "run_id": args.run_id, "outcome": args.outcome,
+                         "reason": args.reason or "", "timestamp": stamp}
+        else:
+            operation = {"action": "archive-history", "through_cycle": lane_render.rollover_cycle(tracking) - 1 if args.through_cycle is None else args.through_cycle}
+        report, base = live_state.report_paths(record, live)
+        command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
+        result = subprocess.run(command, input=json.dumps([operation]), text=True, capture_output=True)
+        if result.returncode:
+            sys.stderr.write(result.stderr or result.stdout)
+            raise SystemExit(result.returncode)
+        live_state.snapshot(record, live)
+        return
     if args.stage == "status":
         recorded_stage = tracking.get("workflow", {}).get("stage")
         plan = tracking.get("plan")
@@ -520,11 +529,12 @@ def main():
         print(json.dumps({"adopted": True, "live": str(live), "stage": current_stage, "recorded_stage": recorded_stage, "cycle": tracking.get("cycle", 1), "report_gate": {"fixed": fixed, "threshold": threshold, "met": report_met}, "verified_gate": {"fixed": verified_fixed, "threshold": verified_threshold, "met": verified_met}, "rollover_gate": {"fixed": fixed, "threshold": rollover_threshold, "met": rollover_met}, "plan": [{"id": g.get("id"), "status": g.get("status"), "message": lane_render.lane_issue_status(g, tracking.get("cycle", 1)).get("copy")} for g in tracking.get("plan", {}).get("groups", [])]}, indent=2)); return
     if record.get("rollover_pending") and (args.stage != "start" or not begins_collect):
         parser.error("run bcl start to begin Collect before using the new list")
-    if args.stage in ("job", "verify"):
-        _require_machine_load(parser, args)
+    load_override = _require_machine_load(parser, args) if args.stage in ("job", "verify") else None
     if args.stage == "job":
-        if args.phase not in ("fix", "review", "presuite") or not args.ids or not command_args:
-            parser.error("job requires --ids ID, --phase fix|review|presuite, and -- <command>")
+        if args.phase not in ("plan_review", "fix", "review", "presuite") or not args.ids or not command_args:
+            parser.error("job requires --ids ID, --phase plan_review|fix|review|presuite, and -- <command>")
+        if args.phase in ("review", "plan_review") and not args.result:
+            parser.error(f"{args.phase} job requires --result FILE for its reply")
         if len(args.ids) != len(set(args.ids)):
             parser.error("job IDs must be unique")
         groups = [group for group in tracking.get("plan", {}).get("groups", [])
@@ -535,10 +545,7 @@ def main():
         if args.phase == "fix":
             if any(group.get("status") in ("blocked", "parked", "deferred") for group in groups):
                 parser.error("fix job cannot start a blocked, parked, or deferred lane")
-            retry = _require_retry_cause(parser, record, data, tracking, groups, args)
-        else:
-            retry = None
-        if args.phase != "fix" and any(group.get("phase") != "review" or (group.get("codex") or {}).get("fix_status") != "passed" for group in groups):
+        if args.phase in ("review", "presuite") and any(group.get("phase") != "review" or (group.get("codex") or {}).get("fix_status") != "passed" for group in groups):
             parser.error("review and presuite jobs require each lane to finish fix and enter review")
         elif args.phase == "review":
             try:
@@ -548,7 +555,7 @@ def main():
         report, base = live_state.report_paths(record, live)
         try:
             code = _run_job(record, live, report, base, groups, args.phase, args.ids, command_args, args.result,
-                            (args.model or "").strip() or None, retry)
+                            (args.model or "").strip() or None, load_override)
         except (OSError, RuntimeError, ValueError) as error:
             parser.error(str(error))
         raise SystemExit(code)
@@ -570,11 +577,8 @@ def main():
             parser.error(str(error))
         operations = [{"action": "set-activity", "stage": "review", "ids": args.ids, "now": "Review started"}]
         for group in groups:
-            codex = dict(group.get("codex") or {})
-            if codex.get("one_file"):
-                codex["review_status"] = "skipped_one_file"
-            operations.append({"action": "update-plan-group", "id": group["id"],
-                               "patch": {"status": "review", "phase": "review", "codex": codex}})
+            if (group.get("codex") or {}).get("one_file"):
+                operations.append({"action": "skip-review", "ids": sorted(set(args.ids).intersection(group.get("finding_ids", [])))})
         report, base = live_state.report_paths(record, live)
         command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
         result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
@@ -603,6 +607,8 @@ def main():
             parser.error(str(error))
         operation = {"action":"rollover", "pull_request":{"label":f"PR #{args.new_pr}", "url":new_url},
                      "worktree":args.worktree}
+        if args.force:
+            operation["override_reason"] = args.reason
         if args.now: operation["now"] = args.now
         command = [sys.executable, str(MANAGE), "batch", str(live), "-"]
         if args.force: command.append("--force")
@@ -611,8 +617,11 @@ def main():
         sys.stdout.write(result.stdout)
         return
     if args.stage == "merged":
-        if args.force and (not (args.reason or "").strip() or "\n" in args.reason or "\r" in args.reason):
-            parser.error("merged --force requires a one-line --reason saying why the merge gate is overridden")
+        if args.force:
+            try:
+                args.reason = manage_findings.require_override_reason(args.reason, "merged")
+            except ValueError as error:
+                parser.error(str(error))
         url = tracking.get("pull_request", {}).get("url", "")
         repo = live_state.repo_id(record.get("home", ""), _provider(url)) if url else record.get("repo", "")
         try:
@@ -686,19 +695,9 @@ def main():
         if not args.then_command or command_args:
             parser.error("shared verify requires --then with one executable command")
         try:
-            lexer = shlex.shlex(args.then_command, posix=True, punctuation_chars='|&;<>')
-            lexer.whitespace_split = True; lexer.commenters = ''
-            words = list(lexer)
-        except ValueError:
-            parser.error("shared verify command has invalid quoting")
-        if not words or '\n' in args.then_command or '\r' in args.then_command or any(word and set(word) <= set('|&;<>') for word in words):
-            parser.error("shared verify requires one executable command without shell operators")
-        if Path(words[0]).name in {"sh", "bash", "zsh", "ksh", "dash", "fish", "env"}:
-            parser.error("shared verify cannot run a shell or env wrapper")
-        if Path(words[0]).name in {"echo", "printf", "true", ":"}:
-            parser.error("shared verify requires an actual check, not a command that only prints or succeeds")
-        if _not_executable(words[0]):
-            parser.error(f"shared verify command is not executable: {words[0]} (chmod +x it, then rerun)")
+            words = _plain_command(args.then_command)
+        except ValueError as error:
+            parser.error(str(error))
         operations = [{"action":"reserve-shared-check", "run_id":run["id"], "command":args.then_command}]
         if args.reason: operations[0]["reason"] = args.reason
     elif stage in ("fix", "install", "verify"):
@@ -734,35 +733,22 @@ def main():
                 parser.error("verify requires one stored command; verify groups with different commands separately")
             expected = next(iter(commands))
             try:
-                lexer = shlex.shlex(expected, posix=True, punctuation_chars='|&;<>')
-                lexer.whitespace_split = True
-                lexer.commenters = ''
-                words = list(lexer)
-            except ValueError:
-                parser.error("stored verify command has invalid quoting")
-            if '\n' in expected or '\r' in expected or any(word and set(word) <= set('|&;<>') for word in words):
-                parser.error("verify does not support shell operators; record one executable command")
-            if words and Path(words[0]).name in {"sh", "bash", "zsh", "ksh", "dash", "fish", "env"}:
-                parser.error("verify cannot run a shell or env wrapper; record one executable command")
-            if not words or Path(words[0]).name in {"echo", "printf", "true", ":"}:
-                parser.error("stored verify command only prints or succeeds; record an actual check")
+                words = _plain_command(expected)
+            except ValueError as error:
+                parser.error(f"stored verify command is invalid: {error}")
             if args.then_command != expected or command_args:
                 parser.error("verify requires --then with the exact stored command; review it before running")
         if stage in ("install", "verify"):
             plan_groups = [g for g in tracking.get("plan", {}).get("groups", []) if set(ids).intersection(g.get("finding_ids", []))]
             for group in plan_groups:
                 stored = group.get("verify", {}).get("command") if isinstance(group.get("verify"), dict) else None
-                first = None
-                if isinstance(stored, str) and stored.strip():
-                    try:
-                        lexer = shlex.shlex(stored, posix=True, punctuation_chars='|&;<>')
-                        lexer.whitespace_split = True; lexer.commenters = ''
-                        first = next(iter(lexer), None)
-                    except ValueError:
-                        first = None
-                if first and _not_executable(first, missing_ok=True):
-                    parser.error(f"{group.get('id')} verify command is not executable: {first} (chmod +x it before {stage})")
+                try:
+                    _plain_command(stored if isinstance(stored, str) else "")
+                except ValueError as error:
+                    parser.error(f"{group.get('id')} verify command is not executable: {error}")
         operations = [{"action":"set-activity","stage":{"fix":"plan_fix","install":"install","verify":"verify"}[stage],"ids":ids,"now":f"{stage.title()} in progress"}]
+        if load_override:
+            operations[0]["load_override"] = load_override
         if stage in ("install", "verify") and args.model:
             operations[0]["model"] = args.model
         if stage == 'verify':
@@ -795,7 +781,11 @@ def main():
         if args.result: op["result"] = args.result
         ids = args.ids or [x["id"] for x in data.get("findings", []) if x.get("status") == "in_progress"]
         operations = [op,{"action":"set-activity","stage":"introspect","ids":ids,"now":"Introspection recorded"}]
-    elif stage == "report": operations = [{"action":"set-stage","stage":"report_rollover"}]
+    elif stage == "report":
+        operation = {"action":"set-stage","stage":"report_rollover"}
+        if args.force:
+            operation["override_reason"] = args.reason
+        operations = [operation]
     else: parser.error("unknown stage")
     report, base = live_state.report_paths(record, live)
     command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
@@ -820,7 +810,6 @@ def main():
         if rerun_op:
             print(f"Rerunning the check for {', '.join(rerun_op['ids'])}: {args.reason.strip()}")
         if stage == "verify" and args.shared:
-            words = shlex.split(args.then_command)
             try:
                 result = subprocess.run(words, check=False)
                 code = result.returncode
