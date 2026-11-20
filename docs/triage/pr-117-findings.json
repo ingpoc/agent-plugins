@@ -7988,9 +7988,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-20T02:18:01Z",
-      "now": "2026-11-20T02:18:01Z — Round 4 verification run r4-2ff666e0-117 on installed ACU 0.2.154: shared checks running; then lanes ACU-TESTS, ACU-MENU, ACU-SESSION, ACU-PROMPT"
+      "stage": "introspect",
+      "updated_at": "2026-11-20T02:51:20Z",
+      "now": "2026-11-20T02:51:20Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 116,
@@ -10275,6 +10275,125 @@
         },
         "round": 3,
         "cycle": 9
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-20T02:51:20Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: ACU-SESSION",
+          "Codex review: ACU-SESSION",
+          "Polling and rework review: ACU-SESSION",
+          "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g2.sh",
+          "Codex write: ACU-MENU",
+          "Codex review: ACU-MENU",
+          "Polling and rework review: ACU-MENU",
+          "Test command: ACU-MENU: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g7.sh",
+          "Codex write: ACU-PROMPT",
+          "Codex review: ACU-PROMPT",
+          "Polling and rework review: ACU-PROMPT",
+          "Test command: ACU-PROMPT: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g8.sh",
+          "Codex write: ACU-TESTS",
+          "Codex review: ACU-TESTS",
+          "Polling and rework review: ACU-TESTS",
+          "Test command: ACU-TESTS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g9.sh",
+          "Codex write: ACU-HELPER",
+          "Codex review: ACU-HELPER",
+          "Polling and rework review: ACU-HELPER",
+          "Test command: ACU-HELPER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
+          "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
+          "Codex write: DEVOBS",
+          "Codex review: DEVOBS",
+          "Polling and rework review: DEVOBS",
+          "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
+          "Codex write: BCL-TESTS",
+          "Codex review: BCL-TESTS",
+          "Polling and rework review: BCL-TESTS",
+          "Test command: BCL-TESTS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.sh"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: ACU-SESSION",
+          "Codex review: ACU-SESSION",
+          "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g2.sh",
+          "Codex write: ACU-MENU",
+          "Codex review: ACU-MENU",
+          "Polling and rework review: ACU-MENU",
+          "Test command: ACU-MENU: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g7.sh",
+          "Codex review: ACU-PROMPT",
+          "Polling and rework review: ACU-PROMPT",
+          "Codex write: ACU-TESTS",
+          "Codex review: ACU-TESTS",
+          "Polling and rework review: ACU-TESTS",
+          "Test command: ACU-TESTS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g9.sh",
+          "Codex write: ACU-HELPER",
+          "Codex review: ACU-HELPER",
+          "Polling and rework review: ACU-HELPER",
+          "Test command: ACU-HELPER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
+          "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
+          "Codex write: DEVOBS",
+          "Codex review: DEVOBS",
+          "Polling and rework review: DEVOBS",
+          "Test command: DEVOBS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.sh",
+          "Codex write: BCL-TESTS",
+          "Codex review: BCL-TESTS",
+          "Polling and rework review: BCL-TESTS",
+          "Test command: BCL-TESTS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.sh"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Polling and rework review: ACU-SESSION",
+                "evidence": "The repo check kept failing one GPT replay test, and the first answer was to make its waits 15 seconds long, which did not help. The longer waits were taken out again. Two real causes were fixed instead: a repeated tool call put an answered call back on the waiting list, and the test's fake server left queued requests stuck. The test passed 400 of 400 under parallel stress with the original short waits.",
+                "outcome": "fixed inline"
+              },
+              {
+                "item": "Test command: ACU-PROMPT: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g8.sh",
+                "evidence": "A side script that marked each lane as Verifying wrote to the list at the same moment bcl verify did, so bcl refused to record three lane results and one lane never started. The side script was dropped and the results were recorded through the normal recording commands. Moving lanes to Verifying belongs inside bcl verify itself (BCL-83).",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Stage: Install",
+                "evidence": "The signed release refuses to go on if the pull request folder changes, but every list update saves a snapshot commit in that same folder, so the list could not be updated during a release. The release now runs from its own clean copy at the same commit, so the page keeps updating while it runs.",
+                "outcome": "fixed inline"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Stage: Install",
+                "evidence": "One release rerun failed because the release asked the app's service for its version one second after restarting it, before the service was listening; the same check passed seconds later. Filed so the release waits for the service instead of a fixed second.",
+                "outcome": "issue",
+                "issue_id": "ACU-15"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Codex write: ACU-PROMPT",
+                "evidence": "Every offline test and both reviews passed, yet on the real app GPT-Live-1 turned down every typed turn because the chat versus task routing added a field GPT-Live does not accept. The offline fake accepts any field, so nothing could catch it before the live check. Filed so the fake rejects fields GPT-Live does not accept and the routing is steered another way.",
+                "outcome": "issue",
+                "issue_id": "ACU-14"
+              }
+            ]
+          }
+        },
+        "round": 3,
+        "cycle": 9
       }
     ],
     "archive": {
@@ -10309,8 +10428,8 @@
             "ACU-05"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "failed",
+          "phase": "verify",
           "worktree": "bcl117-r3-g2",
           "reason": "Grok is fixed; on GPT-Live the backend task behind the story keeps running after a redirect.",
           "codex": {
@@ -10338,12 +10457,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g2.sh",
             "method": "Checked on the installed copy.",
-            "status": "pending",
+            "status": "failed",
             "total": 1,
             "fixed": 0,
-            "failed": 0
+            "failed": 1,
+            "summary": "Grok redirect fixed; GPT turns rejected (response field)",
+            "failure": "Grok redirect fixed; GPT turns rejected (response field)"
           },
-          "updated_at": "2026-11-19T18:15:43Z",
+          "updated_at": "2026-11-20T02:50:06Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -10352,7 +10473,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-20T02:10:14Z"
-          }
+          },
+          "verify_summary": "Grok redirect fixed; GPT turns rejected (response field)"
         },
         {
           "id": "ACU-MENU",
@@ -10361,8 +10483,8 @@
             "ACU-01"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "failed",
+          "phase": "verify",
           "worktree": "bcl117-r4-g7",
           "reason": "Deferred from round 3 by the four-lane cap.",
           "codex": {
@@ -10389,12 +10511,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g7.sh",
             "method": "Checked on the installed copy.",
-            "status": "pending",
+            "status": "failed",
             "total": 1,
             "fixed": 0,
-            "failed": 0
+            "failed": 1,
+            "summary": "Unknown-model start shows no reason on the real app",
+            "failure": "Unknown-model start shows no reason on the real app"
           },
-          "updated_at": "2026-11-19T18:15:43Z",
+          "updated_at": "2026-11-20T02:50:06Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -10403,7 +10527,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-20T02:10:14Z"
-          }
+          },
+          "verify_summary": "Unknown-model start shows no reason on the real app"
         },
         {
           "id": "ACU-PROMPT",
@@ -10415,8 +10540,8 @@
             "ACU-13"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "failed",
+          "phase": "verify",
           "worktree": "bcl117-r4-g8",
           "reason": "All four come from what the voice models are told and how memory saves are passed on.",
           "codex": {
@@ -10443,12 +10568,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g8.sh",
             "method": "Checked on the installed copy.",
-            "status": "pending",
+            "status": "failed",
             "total": 4,
             "fixed": 0,
-            "failed": 0
+            "failed": 4,
+            "summary": "Grok side works; every GPT typed turn rejected (response field)",
+            "failure": "Grok side works; every GPT typed turn rejected (response field)"
           },
-          "updated_at": "2026-11-19T18:15:43Z",
+          "updated_at": "2026-11-20T02:50:06Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -10457,7 +10584,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-20T02:10:14Z"
-          }
+          },
+          "verify_summary": "Grok side works; every GPT typed turn rejected (response field)"
         },
         {
           "id": "ACU-TESTS",
@@ -10467,8 +10595,8 @@
             "ACU-12"
           ],
           "depends_on": [],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "worktree": "bcl117-r4-g9",
           "reason": "Both are test and check fixes in the Mac control skill.",
           "codex": {
@@ -10495,12 +10623,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g9.sh",
             "method": "Checked on the installed copy.",
-            "status": "pending",
+            "status": "verified",
             "total": 2,
-            "fixed": 0,
-            "failed": 0
+            "fixed": 2,
+            "failed": 0,
+            "summary": "Island test steady under load; strict shape gate on",
+            "failure": null
           },
-          "updated_at": "2026-11-19T18:15:43Z",
+          "updated_at": "2026-11-20T02:50:05Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -10509,9 +10639,11 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-20T02:10:14Z"
-          }
+          },
+          "verify_summary": "Island test steady under load; strict shape gate on"
         }
-      ]
+      ],
+      "status": "closed"
     },
     "verification_run": {
       "id": "r4-2ff666e0-117",
@@ -10519,85 +10651,294 @@
       "revision": "2ff666e0299836729ac1901751aed87eb59fec1e",
       "installed_at": "2026-11-20T02:15:29Z",
       "install_evidence": "ACU 0.2.154 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-117/r3/acu-release-0.2.154.json; all installed checks incl. native Calculator smoke and microphone passed; notarization not attempted); dev-obs 0.1.34 receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-devobs-0.1.34.txt; bcl 0.1.47 receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-0.1.47.txt",
-      "status": "active",
+      "status": "complete",
       "checks": {
         "BCL-75": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "d0dc587bec614ef49e3a49287c99c7a4",
+          "evidence": "Checked: Named rollover and gate tests on installed bcl (recheck); Expected: Pass; Observed: 11 named tests pass",
+          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.094995Z"
         },
         "BCL-76": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "795f1348df6f4013a318a59def4bcc01",
+          "evidence": "Checked: Named gate tests on installed bcl (recheck); Expected: Pass; Observed: Pass in the same 11-test run",
+          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.095139Z"
         },
         "BCL-77": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "2704899e28be45e2b3ae52a511824aca",
+          "evidence": "Checked: Real dev-obs case (recheck); Expected: Findings collected; Observed: 3 findings collected from the real case",
+          "details": "verify-reg.sh r1/verify-g2.py. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.095294Z"
         },
         "BCL-78": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "e788d6be144b40aba0dce3c045555202",
+          "evidence": "Checked: Dev-obs junit findings (recheck); Expected: One finding per failing test; Observed: One per failing test, no duplicates",
+          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.095438Z"
         },
         "BCL-79": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "f35988f5484c47118368505e96def853",
+          "evidence": "Checked: Dev-obs suggested fix text (recheck); Expected: Names the failed assertion; Observed: Names the failed assertion",
+          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.095586Z"
         },
         "BCL-80": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "9beac4c1dc514da89db24a9dc079c646",
+          "evidence": "Checked: Named lane-stage tests on installed bcl (recheck); Expected: Pass; Observed: Pass",
+          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.095721Z"
         },
         "BCL-81": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "70a2702dbe7c4b3e9c5681b637b83e04",
+          "evidence": "Checked: Named round-advance tests on installed bcl (recheck); Expected: Pass; Observed: 2 named tests pass",
+          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.095869Z"
         },
         "ACU-01": {
-          "state": "pending"
+          "state": "not_fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:06Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "f1540077f89247c1879ae0bf7d00aced",
+          "evidence": "Checked: A real start with an unknown voice model on the installed app; Expected: Samantha shows a plain failure reason that stays visible; Observed: She started as running and healthy and showed no reason; the named tests pass but the real app does not show it",
+          "details": "menu_fail.py on installed 0.2.154: voice_control start with live_model acu01-unknown-model returned running true, healthy true, failure_reason null; still null 3 s later (live4/menu-fail.json). Swift VoiceFailurePlumbingTests and 9 named python tests pass, so the gap is between the tests and the real start. Restored Grok Voice 3.0, Samantha off. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.306388Z"
         },
         "ACU-02": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "f2aa1dc70f734ef6952669cd2ff953fb",
+          "evidence": "Checked: Installed app version, signature and voice helper (recheck); Expected: 0.2.154, signed, helper present; Observed: 0.2.154, signature ok, voice helper present",
+          "details": "verify-g1-r4.sh: codesign --verify --deep --strict ok; 4 named tests passed on the installed copy. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.094031Z"
         },
         "ACU-03": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "99df17203aa043a2bcfe5bc474712a35",
+          "evidence": "Checked: Samantha reaches ready on both models (recheck); Expected: Ready on both; Observed: Ready on GPT-Live-1 in 4.1 s and Grok Voice 3.0 in 2.0 s",
+          "details": "live4/live-summary.json. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.094388Z"
         },
         "ACU-04": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "18aaaf465d08497daf3608c84936ca85",
+          "evidence": "Checked: Samantha start and status (recheck); Expected: Ready with a reason field; Observed: Both models ready; reason empty when ready",
+          "details": "live4/live-summary.json ready_out lines. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.094580Z"
         },
         "ACU-05": {
-          "state": "pending"
+          "state": "not_fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:06Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "eaec324094994d5e9520c71ce1f1d5da",
+          "evidence": "Checked: A redirect three seconds into a long story, both models; Expected: The story stops within about a second and the redirect is answered next; Observed: Fixed on Grok Voice; on GPT-Live-1 the redirect took 131 s and later turns never finished",
+          "details": "Grok Voice 3.0: story stopped 0.5 s after the redirect (before 0.4 s), redirect answered in 1.6 s, recall Teal. GPT-Live-1: story stopped 128.5 s after the redirect (before 10.8 s), redirect 131.3 s (before 13.5 s), recall still running at 170 s. On GPT-Live-1 every typed turn was turned down by the provider with Unknown parameter: response (13 realtime_error rows, all from build 0.2.154 and none from any earlier build). Cause: round 4 added per-response instructions (response.instructions on response.create) to steer chat versus task, and GPT-Live does not accept that field (commit 71e33672, ACU-PROMPT lane). Turns then sat until the 170 s typed-test limit. Evidence: live4/run-gpt-after.log, samantha-activity.jsonl rows 07:55-08:12 IST, DEVOBS-05 run in verify-r4-g5.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.306608Z"
         },
         "ACU-06": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "532fcd5c4cc7433380c8432735ebc15a",
+          "evidence": "Checked: The typed scenarios on Grok Voice 3.0 (recheck); Expected: Every turn answered; Observed: Every Grok turn answered; empathy in 1.7 s after the browser task",
+          "details": "live4/run-grok-after.json; ACU-06 PASS in evaluate_live4.py. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.094748Z"
         },
         "ACU-07": {
-          "state": "pending"
+          "state": "not_fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:06Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "4ce6d4a8a29741e4909a6f424c017196",
+          "evidence": "Checked: Small talk that mentions a favourite colour, both models; Expected: No memory save from small talk, and a normal reply; Observed: Grok Voice: no save and a normal reply. GPT-Live-1: no reply at all (turn rejected)",
+          "details": "Grok before: tried to save and was rejected; after: reply in 1.7 s, no save. GPT before: saved the preference; after: still running at 170 s. On GPT-Live-1 every typed turn was turned down by the provider with Unknown parameter: response (13 realtime_error rows, all from build 0.2.154 and none from any earlier build). Cause: round 4 added per-response instructions (response.instructions on response.create) to steer chat versus task, and GPT-Live does not accept that field (commit 71e33672, ACU-PROMPT lane). Turns then sat until the 170 s typed-test limit. Evidence: live4/run-gpt-after.log, samantha-activity.jsonl rows 07:55-08:12 IST, DEVOBS-05 run in verify-r4-g5.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.306656Z"
         },
         "ACU-08": {
-          "state": "pending"
+          "state": "not_fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:06Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "cbc951633c1143449f5d4d8e9e0777e0",
+          "evidence": "Checked: The Calculator plus Example Domain task, both models; Expected: Reports Example Domain and closes the window; Observed: Grok Voice: Example Domain reported, window closed. GPT-Live-1: no reply (turn rejected)",
+          "details": "Grok after: done in 9.2 s with cua_act, comet_begin, comet_act, comet_end. GPT after: still running at 170 s, no tools. On GPT-Live-1 every typed turn was turned down by the provider with Unknown parameter: response (13 realtime_error rows, all from build 0.2.154 and none from any earlier build). Cause: round 4 added per-response instructions (response.instructions on response.create) to steer chat versus task, and GPT-Live does not accept that field (commit 71e33672, ACU-PROMPT lane). Turns then sat until the 170 s typed-test limit. Evidence: live4/run-gpt-after.log, samantha-activity.jsonl rows 07:55-08:12 IST, DEVOBS-05 run in verify-r4-g5.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.306692Z"
         },
         "ACU-09": {
-          "state": "pending"
+          "state": "not_fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:06Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "0b3f4bbc540b4462b7cf7475725c225d",
+          "evidence": "Checked: Whether GPT-Live-1 answers chat directly and hands tasks to the backend; Expected: Chat turns with no hand-off; the task turn with one; Observed: No GPT turn produced anything, so the routing could not work",
+          "details": "GPT after: delegations small talk, recall, empathy 0, 0, 0 (before 1, 1, 1) but all turns still running at 170 s; multi-step 0. On GPT-Live-1 every typed turn was turned down by the provider with Unknown parameter: response (13 realtime_error rows, all from build 0.2.154 and none from any earlier build). Cause: round 4 added per-response instructions (response.instructions on response.create) to steer chat versus task, and GPT-Live does not accept that field (commit 71e33672, ACU-PROMPT lane). Turns then sat until the 170 s typed-test limit. Evidence: live4/run-gpt-after.log, samantha-activity.jsonl rows 07:55-08:12 IST, DEVOBS-05 run in verify-r4-g5.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.306724Z"
         },
         "ACU-10": {
-          "state": "pending"
+          "state": "blocked",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:06Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "22eb98658f4842b6a38b619deb62dbdb",
+          "evidence": "Checked: usage records from both models; Expected: real input and output token counts; Observed: still none from the providers; unknown is recorded instead of zero",
+          "details": "Unchanged provider limit; DEVOBS-07 still reports zero usage rows. Run r4-2ff666e0-117.",
+          "blocker": "The voice providers do not send live model token counts",
+          "finished_at": "2026-11-20T02:50:06.306774Z"
         },
         "DEVOBS-05": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "d08d462454a444a0a6a146fac6b10325",
+          "evidence": "Checked: Dev-obs reads the real Samantha errors (recheck); Expected: Error rows grouped with their message; Observed: Grouped, and it surfaced today's Unknown parameter: response errors",
+          "details": "verify-g5.sh; installed dev-obs unit tests OK. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.096151Z"
         },
         "DEVOBS-06": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "b8f4fed85fe54f5a95640db4bb2a5038",
+          "evidence": "Checked: Dev-obs lists the Grok Voice session (recheck); Expected: Listed; Observed: Listed",
+          "details": "verify-g5.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.096283Z"
         },
         "DEVOBS-07": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "6c0ce4c3d4524d329c305e5fdf43c1e4",
+          "evidence": "Checked: Dev-obs plain-language summaries (recheck); Expected: Plain summaries; Observed: Plain summaries for no reply, overlap and zero usage",
+          "details": "verify-g5.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.096425Z"
         },
         "BCL-82": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "1218d44756584fdb9c722c73c7b8d7a4",
+          "evidence": "Checked: The four load-sensitive tests, 5 rounds under four busy CPU loops (recheck); Expected: Pass every round; Observed: Passed all 5 rounds",
+          "details": "verify-g6.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.096006Z"
         },
         "ACU-11": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:05Z",
+          "updated_at": "2026-11-20T02:50:05Z",
+          "check_id": "8b9b249f316c4cfdabe5efeac8246b6a",
+          "evidence": "Checked: The island cold-start test on the installed revision, 20 times with four busy CPU loops; Expected: Passes every time; Observed: Passed 20 of 20 under load",
+          "details": "Installed 0.2.154 built from 2ff666e0; IslandGateColdStartTests 20/20 with four python busy loops; ManualWakeScheduler replaces the timing wait. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g9.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:05.907363Z"
         },
         "ACU-12": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:05Z",
+          "started_at": "2026-11-20T02:50:05Z",
+          "updated_at": "2026-11-20T02:50:05Z",
+          "check_id": "8ae6b60ef1ab40daabb8436bff57e72d",
+          "evidence": "Checked: The strict shape check on the installed skill and the shape-gate tests; Expected: Shape passes, and the repo check fails on shape errors outside CI; Observed: Strict shape passes; the release test (12) and the shape-gate tests (3) pass",
+          "details": "skill_shape.py --strict PASS on installed macos-cua; tests/test_install_release.py 12 passed on the installed copy; scripts/test_check_skill_shape.py 3 passed from the installed revision. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g9.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:05.907680Z"
         },
         "ACU-13": {
-          "state": "pending"
+          "state": "not_fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:06Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "d6b080bd58ae4daa9a3a3d80033aa022",
+          "evidence": "Checked: An explicit remember request, both models; Expected: The memory save goes through; Observed: Grok Voice: saved (Saved: pineapple for fleet). GPT-Live-1: no reply (turn rejected)",
+          "details": "Grok after: ledger_task preference ok 1, no errors, 2.8 s (this writes one test memory: test word pineapple). GPT after: still running at 170 s. On GPT-Live-1 every typed turn was turned down by the provider with Unknown parameter: response (13 realtime_error rows, all from build 0.2.154 and none from any earlier build). Cause: round 4 added per-response instructions (response.instructions on response.create) to steer chat versus task, and GPT-Live does not accept that field (commit 71e33672, ACU-PROMPT lane). Turns then sat until the 170 s typed-test limit. Evidence: live4/run-gpt-after.log, samantha-activity.jsonl rows 07:55-08:12 IST, DEVOBS-05 run in verify-r4-g5.log. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.306752Z"
         },
         "BCL-83": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:06Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "50af3e87007948b19f46e35b5aa90fe6",
+          "evidence": "Checked: nothing yet; Expected: a fix in this install; Observed: filed during this run and queued for the next round",
+          "details": "Root cause diagnosed (see the finding); no fix is in 0.2.154 or bcl 0.1.47. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.306793Z"
         },
         "BCL-84": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T02:50:06Z",
+          "started_at": "2026-11-20T02:50:06Z",
+          "updated_at": "2026-11-20T02:50:06Z",
+          "check_id": "8e42c49bbeee432ca6f8ef938bd580b8",
+          "evidence": "Checked: nothing yet; Expected: a fix in this install; Observed: filed during this run and queued for the next round",
+          "details": "Root cause diagnosed (see the finding); no fix is in 0.2.154 or bcl 0.1.47. Run r4-2ff666e0-117.",
+          "finished_at": "2026-11-20T02:50:06.306812Z"
         }
       },
       "shared_check": {
@@ -10609,20 +10950,33 @@
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-19T15:09:52Z",
+      "at": "2026-11-20T02:51:20Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
         "Parallel group count: 4",
+        "Codex write: ACU-SESSION",
+        "Codex review: ACU-SESSION",
+        "Polling and rework review: ACU-SESSION",
+        "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g2.sh",
+        "Codex write: ACU-MENU",
+        "Codex review: ACU-MENU",
+        "Polling and rework review: ACU-MENU",
+        "Test command: ACU-MENU: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g7.sh",
+        "Codex write: ACU-PROMPT",
+        "Codex review: ACU-PROMPT",
+        "Polling and rework review: ACU-PROMPT",
+        "Test command: ACU-PROMPT: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g8.sh",
+        "Codex write: ACU-TESTS",
+        "Codex review: ACU-TESTS",
+        "Polling and rework review: ACU-TESTS",
+        "Test command: ACU-TESTS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g9.sh",
         "Codex write: ACU-HELPER",
         "Codex review: ACU-HELPER",
         "Polling and rework review: ACU-HELPER",
         "Test command: ACU-HELPER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
-        "Codex write: ACU-SESSION",
-        "Codex review: ACU-SESSION",
-        "Polling and rework review: ACU-SESSION",
         "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
         "Codex write: DEVOBS",
         "Codex review: DEVOBS",
@@ -10636,13 +10990,26 @@
       "none": [
         "Stage: Plan & fix",
         "Stage: Review",
-        "Stage: Install",
         "Stage: Verify",
         "Parallel group count: 4",
+        "Codex write: ACU-SESSION",
+        "Codex review: ACU-SESSION",
+        "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g2.sh",
+        "Codex write: ACU-MENU",
+        "Codex review: ACU-MENU",
+        "Polling and rework review: ACU-MENU",
+        "Test command: ACU-MENU: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g7.sh",
+        "Codex review: ACU-PROMPT",
+        "Polling and rework review: ACU-PROMPT",
+        "Codex write: ACU-TESTS",
+        "Codex review: ACU-TESTS",
+        "Polling and rework review: ACU-TESTS",
+        "Test command: ACU-TESTS: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g9.sh",
         "Codex write: ACU-HELPER",
         "Codex review: ACU-HELPER",
         "Polling and rework review: ACU-HELPER",
-        "Polling and rework review: ACU-SESSION",
+        "Test command: ACU-HELPER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
+        "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
         "Codex write: DEVOBS",
         "Codex review: DEVOBS",
         "Polling and rework review: DEVOBS",
@@ -10656,8 +11023,13 @@
         "delete": {
           "items": [
             {
-              "item": "Codex write: ACU-SESSION",
-              "evidence": "The first job sent to fix the review finding got an empty request because the request file was given as a short path and the job runs from another folder. The job did nothing and was started again. The lane restart script now turns the path into a full one and refuses to start when the request file is missing or empty.",
+              "item": "Polling and rework review: ACU-SESSION",
+              "evidence": "The repo check kept failing one GPT replay test, and the first answer was to make its waits 15 seconds long, which did not help. The longer waits were taken out again. Two real causes were fixed instead: a repeated tool call put an answered call back on the waiting list, and the test's fake server left queued requests stuck. The test passed 400 of 400 under parallel stress with the original short waits.",
+              "outcome": "fixed inline"
+            },
+            {
+              "item": "Test command: ACU-PROMPT: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g8.sh",
+              "evidence": "A side script that marked each lane as Verifying wrote to the list at the same moment bcl verify did, so bcl refused to record three lane results and one lane never started. The side script was dropped and the results were recorded through the normal recording commands. Moving lanes to Verifying belongs inside bcl verify itself (BCL-83).",
               "outcome": "fixed inline"
             }
           ]
@@ -10665,8 +11037,8 @@
         "simplify": {
           "items": [
             {
-              "item": "Test command: ACU-SESSION: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.sh",
-              "evidence": "The Grok Voice recheck failed only because the check expected the interrupted story to finish, while the fix now stops it on purpose. The check now leaves that one turn out and still requires every other turn, including empathy, to be answered.",
+              "item": "Stage: Install",
+              "evidence": "The signed release refuses to go on if the pull request folder changes, but every list update saves a snapshot commit in that same folder, so the list could not be updated during a release. The release now runs from its own clean copy at the same commit, so the page keeps updating while it runs.",
               "outcome": "fixed inline"
             }
           ]
@@ -10674,25 +11046,20 @@
         "optimize": {
           "items": [
             {
-              "item": "Codex write: ACU-SESSION",
-              "evidence": "Grok Voice now stops the story within half a second and the stale replies on GPT-Live are gone, but on GPT-Live the story is handed to the backend task, which keeps running for about eleven seconds and holds back the redirect. The next restart brief carries the 20:34 timeline: audio stopped at 3.1 s, cancel confirmed and redirect started only at 13.8 s.",
+              "item": "Stage: Install",
+              "evidence": "One release rerun failed because the release asked the app's service for its version one second after restarting it, before the service was listening; the same check passed seconds later. Filed so the release waits for the service instead of a fixed second.",
               "outcome": "issue",
-              "issue_id": "ACU-05"
+              "issue_id": "ACU-15"
             }
           ]
         },
         "automate": {
           "items": [
             {
-              "item": "Codex review: ACU-SESSION",
-              "evidence": "The first restart fix dropped GPT-Live replies that carry no request tag, which the offline tests missed and the reviewer caught. The live check now also requires the recall and tool turns after the redirect to give their own answers on both models, so that kind of break fails automatically; it fails on the earlier run and passes on this one.",
-              "outcome": "fixed inline"
-            },
-            {
-              "item": "Test command: ACU-HELPER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g1.sh",
-              "evidence": "The pre-push suite prints a strict skill shape failure for the Mac control skill but still passes, so the break has been there since round 3 without stopping anything. Filed so the test is fixed and the suite stops on any shape failure.",
+              "item": "Codex write: ACU-PROMPT",
+              "evidence": "Every offline test and both reviews passed, yet on the real app GPT-Live-1 turned down every typed turn because the chat versus task routing added a field GPT-Live does not accept. The offline fake accepts any field, so nothing could catch it before the live check. Filed so the fake rejects fields GPT-Live does not accept and the routing is steered another way.",
               "outcome": "issue",
-              "issue_id": "ACU-12"
+              "issue_id": "ACU-14"
             }
           ]
         }
@@ -10737,11 +11104,23 @@
           "timestamp": "2026-11-19T15:07:54Z",
           "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-75:installed-check",
           "details": "verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
+        },
+        {
+          "checked": "Named rollover and gate tests on installed bcl (recheck)",
+          "expected": "Pass",
+          "observed": "11 named tests pass",
+          "verdict": "11 named tests pass",
+          "check_id": "bcl-75-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:06Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-75:installed-check",
+          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117."
         }
       ],
-      "verification": "Pass verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+      "verification": "11 named tests pass verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
       "verification_refs": [
-        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-75:installed-check"
+        "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-75:installed-check"
       ]
     },
     {
@@ -10779,11 +11158,23 @@
           "timestamp": "2026-11-19T15:07:54Z",
           "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-76:installed-check",
           "details": "verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
+        },
+        {
+          "checked": "Named gate tests on installed bcl (recheck)",
+          "expected": "Pass",
+          "observed": "Pass in the same 11-test run",
+          "verdict": "Pass in the same 11-test run",
+          "check_id": "bcl-76-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:06Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-76:installed-check",
+          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117."
         }
       ],
-      "verification": "Pass verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+      "verification": "Pass in the same 11-test run verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
       "verification_refs": [
-        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-76:installed-check"
+        "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-76:installed-check"
       ]
     },
     {
@@ -10821,11 +11212,23 @@
           "timestamp": "2026-11-19T15:07:54Z",
           "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-77:installed-check",
           "details": "verify-reg-devobs.log: BCL-77 2 project issues, diagnose expanded; BCL-78 2 junit findings for 2 failing tests; BCL-79 suggested fix names the failed assertion. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
+        },
+        {
+          "checked": "Real dev-obs case (recheck)",
+          "expected": "Findings collected",
+          "observed": "3 findings collected from the real case",
+          "verdict": "3 findings collected from the real case",
+          "check_id": "bcl-77-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:06Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-77:installed-check",
+          "details": "verify-reg.sh r1/verify-g2.py. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117."
         }
       ],
-      "verification": "Pass verify-reg-devobs.log: BCL-77 2 project issues, diagnose expanded; BCL-78 2 junit findings for 2 failing tests; BCL-79 suggested fix names the failed assertion. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+      "verification": "3 findings collected from the real case verify-reg.sh r1/verify-g2.py. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
       "verification_refs": [
-        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-77:installed-check"
+        "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-77:installed-check"
       ]
     },
     {
@@ -10863,11 +11266,23 @@
           "timestamp": "2026-11-19T15:07:54Z",
           "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-78:installed-check",
           "details": "verify-reg-devobs.log: BCL-77 2 project issues, diagnose expanded; BCL-78 2 junit findings for 2 failing tests; BCL-79 suggested fix names the failed assertion. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
+        },
+        {
+          "checked": "Dev-obs junit findings (recheck)",
+          "expected": "One finding per failing test",
+          "observed": "One per failing test, no duplicates",
+          "verdict": "One per failing test, no duplicates",
+          "check_id": "bcl-78-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:06Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-78:installed-check",
+          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117."
         }
       ],
-      "verification": "Pass verify-reg-devobs.log: BCL-77 2 project issues, diagnose expanded; BCL-78 2 junit findings for 2 failing tests; BCL-79 suggested fix names the failed assertion. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+      "verification": "One per failing test, no duplicates verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
       "verification_refs": [
-        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-78:installed-check"
+        "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-78:installed-check"
       ]
     },
     {
@@ -10905,11 +11320,23 @@
           "timestamp": "2026-11-19T15:07:54Z",
           "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-79:installed-check",
           "details": "verify-reg-devobs.log: BCL-77 2 project issues, diagnose expanded; BCL-78 2 junit findings for 2 failing tests; BCL-79 suggested fix names the failed assertion. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
+        },
+        {
+          "checked": "Dev-obs suggested fix text (recheck)",
+          "expected": "Names the failed assertion",
+          "observed": "Names the failed assertion",
+          "verdict": "Names the failed assertion",
+          "check_id": "bcl-79-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:06Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-79:installed-check",
+          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117."
         }
       ],
-      "verification": "Pass verify-reg-devobs.log: BCL-77 2 project issues, diagnose expanded; BCL-78 2 junit findings for 2 failing tests; BCL-79 suggested fix names the failed assertion. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+      "verification": "Names the failed assertion verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
       "verification_refs": [
-        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-79:installed-check"
+        "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-79:installed-check"
       ]
     },
     {
@@ -10947,11 +11374,23 @@
           "timestamp": "2026-11-19T15:07:54Z",
           "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-80:installed-check",
           "details": "verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
+        },
+        {
+          "checked": "Named lane-stage tests on installed bcl (recheck)",
+          "expected": "Pass",
+          "observed": "Pass",
+          "verdict": "Pass",
+          "check_id": "bcl-80-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:06Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-80:installed-check",
+          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117."
         }
       ],
-      "verification": "Pass verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+      "verification": "Pass verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
       "verification_refs": [
-        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-80:installed-check"
+        "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-80:installed-check"
       ]
     },
     {
@@ -10989,11 +11428,23 @@
           "timestamp": "2026-11-19T15:07:54Z",
           "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-81:installed-check",
           "details": "verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
+        },
+        {
+          "checked": "Named round-advance tests on installed bcl (recheck)",
+          "expected": "Pass",
+          "observed": "2 named tests pass",
+          "verdict": "2 named tests pass",
+          "check_id": "bcl-81-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:06Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-81:installed-check",
+          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117."
         }
       ],
-      "verification": "Pass verify-reg.log: 11 round-1 and 2 round-2 named tests pass on installed 0.1.47; no leaked viewers. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+      "verification": "2 named tests pass verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
       "verification_refs": [
-        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-81:installed-check"
+        "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-81:installed-check"
       ]
     },
     {
@@ -11006,7 +11457,7 @@
       "done_when": "A failed start leaves the toggle in a visible failed state with a plain reason taken from the supervisor (helper missing, mic denied, key missing), and a named test that fails on the old code proves it.",
       "observed": "19 Nov 2026 16:34 IST: ACU 0.2.146 on the Mini; every start logged resolve_launch status=fail detail=no voice helper in ~/.cache/macos-cua/voice.log, and the toggle went back off with nothing shown.",
       "recommendation": "Carry the supervisor's failure reason to the menu and island and show it until the next attempt.",
-      "status": "in_progress",
+      "status": "failing",
       "details": {
         "Technical wording": "VoiceSupervisor resolve_launch fail detail=no voice helper; toggle flips off ~0.5 s with no reason surfaced to menu or island.",
         "Dev-obs evidence": "col-6e73c74984279674 (startup/resolve_launch failed 15x, recovered on 0.2.151) and col-a6864f7a1ca81b62 (resolve_launch repeated 9x burst, 11:04:21-11:04:26Z)."
@@ -11051,11 +11502,23 @@
           "timestamp": "2026-11-19T15:07:54Z",
           "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-02:installed-check",
           "details": "Installed 0.2.153: codesign deep strict ok, 5 named tests passed (verify-g1.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
+        },
+        {
+          "checked": "Installed app version, signature and voice helper (recheck)",
+          "expected": "0.2.154, signed, helper present",
+          "observed": "0.2.154, signature ok, voice helper present",
+          "verdict": "0.2.154, signature ok, voice helper present",
+          "check_id": "acu-02-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:06Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:ACU-02:installed-check",
+          "details": "verify-g1-r4.sh: codesign --verify --deep --strict ok; 4 named tests passed on the installed copy. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117."
         }
       ],
-      "verification": "Present and signed; tests pass Installed 0.2.153: codesign deep strict ok, 5 named tests passed (verify-g1.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+      "verification": "0.2.154, signature ok, voice helper present verify-g1-r4.sh: codesign --verify --deep --strict ok; 4 named tests passed on the installed copy. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
       "verification_refs": [
-        "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-02:installed-check"
+        "2ff666e0299836729ac1901751aed87eb59fec1e:ACU-02:installed-check"
       ]
     },
     {
@@ -11097,11 +11560,23 @@
           "timestamp": "2026-11-19T15:07:54Z",
           "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-03:installed-check",
           "details": "live3: GPT-Live-1 4.1 s, Grok Voice 3.0 2.0 s (verify-g1.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117."
+        },
+        {
+          "checked": "Samantha reaches ready on both models (recheck)",
+          "expected": "Ready on both",
+          "observed": "Ready on GPT-Live-1 in 4.1 s and Grok Voice 3.0 in 2.0 s",
+          "verdict": "Ready on GPT-Live-1 in 4.1 s and Grok Voice 3.0 in 2.0 s",
+          "check_id": "acu-03-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:06Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:ACU-03:installed-check",
+          "details": "live4/live-summary.json. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117."
         }
       ],
-      "verification": "Ready on both live3: GPT-Live-1 4.1 s, Grok Voice 3.0 2.0 s (verify-g1.log). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-reg.log. Run r3b-880d8f52-117.",
+      "verification": "Ready on GPT-Live-1 in 4.1 s and Grok Voice 3.0 in 2.0 s live4/live-summary.json. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
       "verification_refs": [
-        "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-03:installed-check"
+        "2ff666e0299836729ac1901751aed87eb59fec1e:ACU-03:installed-check"
       ]
     },
     {
@@ -11143,11 +11618,23 @@
           "timestamp": "2026-11-19T15:07:54Z",
           "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-04:installed-check",
           "details": "Installed 0.2.153 live3 run 20:34 IST; status reason null when ready; named tests pass on the installed copy (22 passed). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3b-880d8f52-117."
+        },
+        {
+          "checked": "Samantha start and status (recheck)",
+          "expected": "Ready with a reason field",
+          "observed": "Both models ready; reason empty when ready",
+          "verdict": "Both models ready; reason empty when ready",
+          "check_id": "acu-04-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:06Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:ACU-04:installed-check",
+          "details": "live4/live-summary.json ready_out lines. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117."
         }
       ],
-      "verification": "Both ready; GPT-Live-1 in 4.1 s, Grok Voice 3.0 in 2.0 s Installed 0.2.153 live3 run 20:34 IST; status reason null when ready; named tests pass on the installed copy (22 passed). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3b-880d8f52-117.",
+      "verification": "Both models ready; reason empty when ready live4/live-summary.json ready_out lines. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
       "verification_refs": [
-        "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-04:installed-check"
+        "2ff666e0299836729ac1901751aed87eb59fec1e:ACU-04:installed-check"
       ]
     },
     {
@@ -11160,7 +11647,7 @@
       "done_when": "A new request during a reply stops the current reply within about a second and the redirect is answered next; a test proves it for typed and spoken turns.",
       "observed": "19 Nov 2026 typed test: long story then a redirect 3 seconds later. Grok Voice 3.0: story ran 22.9 s to the end, redirect answered after 19.9 s. GPT-Live-1: story ran 11.5 s, redirect answered after 8.5 s.",
       "recommendation": "Cancel the active response when a new typed or spoken request arrives, as the spoken stop-word path already does.",
-      "status": "in_progress",
+      "status": "failing",
       "details": {
         "Technical wording": "send_text() sends conversation.item.create + response.create without response.cancel when _active_response_ids is non-empty.",
         "Dev-obs evidence": "GPT session sref_8a6f2dba34a1bb4ef2de2b5299e0cf93: model_response_end p95 13.1 s (col-6be7b29503e9ce22). Dev-obs has no interruption signal, so this came from the test runner timings."
@@ -11205,11 +11692,23 @@
           "timestamp": "2026-11-19T15:07:54Z",
           "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-06:installed-check",
           "details": "Installed 0.2.153 live3/run-grok-after.json: multi_step gave Example Domain and closed the window in 9.9 s; empathy 1.68 s. The check script first counted the deliberately stopped story turn as a failure; fixed to skip that turn (evaluate_live.py). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3b-880d8f52-117."
+        },
+        {
+          "checked": "The typed scenarios on Grok Voice 3.0 (recheck)",
+          "expected": "Every turn answered",
+          "observed": "Every Grok turn answered; empathy in 1.7 s after the browser task",
+          "verdict": "Every Grok turn answered; empathy in 1.7 s after the browser task",
+          "check_id": "acu-06-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:06Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:ACU-06:installed-check",
+          "details": "live4/run-grok-after.json; ACU-06 PASS in evaluate_live4.py. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117."
         }
       ],
-      "verification": "Every turn answered; empathy in 1.7 s; the interrupted story is now stopped on purpose Installed 0.2.153 live3/run-grok-after.json: multi_step gave Example Domain and closed the window in 9.9 s; empathy 1.68 s. The check script first counted the deliberately stopped story turn as a failure; fixed to skip that turn (evaluate_live.py). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g2.log. Run r3b-880d8f52-117.",
+      "verification": "Every Grok turn answered; empathy in 1.7 s after the browser task live4/run-grok-after.json; ACU-06 PASS in evaluate_live4.py. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
       "verification_refs": [
-        "880d8f52bea54ed3f82701108df53dc7adc22972:ACU-06:installed-check"
+        "2ff666e0299836729ac1901751aed87eb59fec1e:ACU-06:installed-check"
       ]
     },
     {
@@ -11222,7 +11721,7 @@
       "done_when": "Small talk with a passing personal fact gets a warm conversational reply and no save; a scenario test proves it on both voice models.",
       "observed": "19 Nov 2026 17:03:58 IST typed: one save-preference tool call, reply in 5.6 s. GPT-Live-1 replied conversationally with no tool call.",
       "recommendation": "Tighten the instructions so memory saves happen only when Guru asks Samantha to remember something.",
-      "status": "in_progress",
+      "status": "failing",
       "details": {
         "Technical wording": "ledger_task operation=preference scope=fleet rule=favourite_colour; reply text 'Saved: teal for fleet.'",
         "Dev-obs evidence": "Grok session missing in dev-obs (DEVOBS-06); taken from the activity log."
@@ -11238,7 +11737,7 @@
       "done_when": "The reply includes the facts the request asked for; a scenario test checks the heading on both voice models.",
       "observed": "19 Nov 2026 17:04:34 IST typed: four tool calls, all succeeded, 12.0 s; page read returned 'Example Domain' but the reply omitted it. GPT-Live-1 included it.",
       "recommendation": "Make the closing reply restate the requested facts from the page read before confirming cleanup.",
-      "status": "in_progress",
+      "status": "failing",
       "details": {
         "Technical wording": "comet_act text result final_title 'Example Domain'; reply 'Done. Calculator stays open, and the Comet test window is closed.'",
         "Dev-obs evidence": "Grok session missing in dev-obs (DEVOBS-06); taken from the activity log."
@@ -11254,7 +11753,7 @@
       "done_when": "Small talk, recall and empathy turns are answered by the live model with no backend call; the backend is used only for tasks; a test proves the routing.",
       "observed": "19 Nov 2026 17:10 IST typed: small talk sent to the backend took 5.0 s with 5,864 input, 384 output and 363 reasoning tokens; recall took 1.6 s with 7,248 input tokens; empathy took 2.4 s with 10,367 input tokens.",
       "recommendation": "Answer conversational turns in the live model and delegate only when a tool or task is needed.",
-      "status": "in_progress",
+      "status": "failing",
       "details": {
         "Technical wording": "usage rows provider=openai-live model=gpt-6-luna tier=bulk for every typed turn in session 8f02ce25.",
         "Dev-obs evidence": "sref_8a6f2dba34a1bb4ef2de2b5299e0cf93 summary: usage 10, response_done 6; col-ffa528ff4fa3470c usage latency p95 9.1 s (p50 2.3 s, n=1009)."
@@ -11302,11 +11801,23 @@
           "timestamp": "2026-11-19T15:07:53Z",
           "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:DEVOBS-05:installed-check",
           "details": "Installed 0.1.34 on the real activity log: realtime_error -> type websocket, message StopIteration with an empty message (transport); startup/realtime_ws_error -> type startup, same message; session_phase failures keep their own text. Before (0.1.33, 19:13 IST): message unknown. New tests fail on the old code (fixture from the real 16:57 IST row). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3b-880d8f52-117."
+        },
+        {
+          "checked": "Dev-obs reads the real Samantha errors (recheck)",
+          "expected": "Error rows grouped with their message",
+          "observed": "Grouped, and it surfaced today's Unknown parameter: response errors",
+          "verdict": "Grouped, and it surfaced today's Unknown parameter: response errors",
+          "check_id": "devobs-05-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:06Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:DEVOBS-05:installed-check",
+          "details": "verify-g5.sh; installed dev-obs unit tests OK. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117."
         }
       ],
-      "verification": "Every failure shows a type and a message; the empty one says StopIteration with an empty message Installed 0.1.34 on the real activity log: realtime_error -> type websocket, message StopIteration with an empty message (transport); startup/realtime_ws_error -> type startup, same message; session_phase failures keep their own text. Before (0.1.33, 19:13 IST): message unknown. New tests fail on the old code (fixture from the real 16:57 IST row). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3b-880d8f52-117.",
+      "verification": "Grouped, and it surfaced today's Unknown parameter: response errors verify-g5.sh; installed dev-obs unit tests OK. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
       "verification_refs": [
-        "880d8f52bea54ed3f82701108df53dc7adc22972:DEVOBS-05:installed-check"
+        "2ff666e0299836729ac1901751aed87eb59fec1e:DEVOBS-05:installed-check"
       ]
     },
     {
@@ -11347,11 +11858,23 @@
           "timestamp": "2026-11-19T15:07:53Z",
           "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:DEVOBS-06:installed-check",
           "details": "Installed 0.1.34: session sref_6f5b63fc3fa55f933d770e10a3bb60de listed. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3b-880d8f52-117."
+        },
+        {
+          "checked": "Dev-obs lists the Grok Voice session (recheck)",
+          "expected": "Listed",
+          "observed": "Listed",
+          "verdict": "Listed",
+          "check_id": "devobs-06-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:06Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:DEVOBS-06:installed-check",
+          "details": "verify-g5.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117."
         }
       ],
-      "verification": "Still listed Installed 0.1.34: session sref_6f5b63fc3fa55f933d770e10a3bb60de listed. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3b-880d8f52-117.",
+      "verification": "Listed verify-g5.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
       "verification_refs": [
-        "880d8f52bea54ed3f82701108df53dc7adc22972:DEVOBS-06:installed-check"
+        "2ff666e0299836729ac1901751aed87eb59fec1e:DEVOBS-06:installed-check"
       ]
     },
     {
@@ -11392,11 +11915,23 @@
           "timestamp": "2026-11-19T15:07:53Z",
           "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:DEVOBS-07:installed-check",
           "details": "Installed 0.1.34: no reply (5), response still active after a new request (17), zero token usage (88). Installed dev-obs unit tests 147 OK. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3b-880d8f52-117."
+        },
+        {
+          "checked": "Dev-obs plain-language summaries (recheck)",
+          "expected": "Plain summaries",
+          "observed": "Plain summaries for no reply, overlap and zero usage",
+          "verdict": "Plain summaries for no reply, overlap and zero usage",
+          "check_id": "devobs-07-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:06Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:DEVOBS-07:installed-check",
+          "details": "verify-g5.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117."
         }
       ],
-      "verification": "All three still raised Installed 0.1.34: no reply (5), response still active after a new request (17), zero token usage (88). Installed dev-obs unit tests 147 OK. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g5.log. Run r3b-880d8f52-117.",
+      "verification": "Plain summaries for no reply, overlap and zero usage verify-g5.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
       "verification_refs": [
-        "880d8f52bea54ed3f82701108df53dc7adc22972:DEVOBS-07:installed-check"
+        "2ff666e0299836729ac1901751aed87eb59fec1e:DEVOBS-07:installed-check"
       ]
     },
     {
@@ -11422,11 +11957,23 @@
           "timestamp": "2026-11-19T15:07:54Z",
           "reference": "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-82:installed-check",
           "details": "Installed bcl 0.1.47 and dev-obs 0.1.34: 3 named bcl tests and the dev-obs 4 MB parse test, 5 rounds under 4 CPU burners. Before (r2): these failed under load. The r3a verify failure was a fault in the check script (argument order), fixed and re-run through a no-code restart job. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.log. Run r3b-880d8f52-117."
+        },
+        {
+          "checked": "The four load-sensitive tests, 5 rounds under four busy CPU loops (recheck)",
+          "expected": "Pass every round",
+          "observed": "Passed all 5 rounds",
+          "verdict": "Passed all 5 rounds",
+          "check_id": "bcl-82-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:06Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-82:installed-check",
+          "details": "verify-g6.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117."
         }
       ],
-      "verification": "All four passed in each of five rounds Installed bcl 0.1.47 and dev-obs 0.1.34: 3 named bcl tests and the dev-obs 4 MB parse test, 5 rounds under 4 CPU burners. Before (r2): these failed under load. The r3a verify failure was a fault in the check script (argument order), fixed and re-run through a no-code restart job. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-g6.log. Run r3b-880d8f52-117.",
+      "verification": "Passed all 5 rounds verify-g6.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g1reg.log, verify-r4-reg.log, verify-r4-g5.log, verify-r4-g6.log, verify-r4-shared.log. Run r4-2ff666e0-117.",
       "verification_refs": [
-        "880d8f52bea54ed3f82701108df53dc7adc22972:BCL-82:installed-check"
+        "2ff666e0299836729ac1901751aed87eb59fec1e:BCL-82:installed-check"
       ]
     },
     {
@@ -11439,7 +11986,25 @@
       "done_when": "The test passes reliably while the machine is busy without checking less than before, shown by repeated runs under load.",
       "observed": "19 Nov 2026 18:57 IST: ACU 0.2.152 local release, source checks: IslandGateColdStartTests testSubmitColdStartShowsWakingThenSucceeds said a quick first response must not show the waking state; load about 5 to 9; passed on the 19:01 rerun.",
       "recommendation": "Give the test control of time instead of relying on real delays, or use generous condition waits.",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "The island cold-start test on the installed revision, 20 times with four busy CPU loops",
+          "expected": "Passes every time",
+          "observed": "Passed 20 of 20 under load",
+          "verdict": "Passed 20 of 20 under load",
+          "check_id": "acu-11-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:05Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:ACU-11:installed-check",
+          "details": "Installed 0.2.154 built from 2ff666e0; IslandGateColdStartTests 20/20 with four python busy loops; ManualWakeScheduler replaces the timing wait. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g9.log. Run r4-2ff666e0-117."
+        }
+      ],
+      "verification": "Passed 20 of 20 under load Installed 0.2.154 built from 2ff666e0; IslandGateColdStartTests 20/20 with four python busy loops; ManualWakeScheduler replaces the timing wait. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g9.log. Run r4-2ff666e0-117.",
+      "verification_refs": [
+        "2ff666e0299836729ac1901751aed87eb59fec1e:ACU-11:installed-check"
+      ]
     },
     {
       "id": "ACU-12",
@@ -11451,7 +12016,25 @@
       "done_when": "The strict shape check passes for the Mac control skill and the pre-push suite fails when any strict shape check fails.",
       "observed": "19 Nov 2026 20:16 IST pre-push suite on 624e4afe: strict agent-computer-use/skills/macos-cua FAIL, test_install_release.py line 18 uses parents[3], which escapes the skill folder. Same failure at the round 3 pre-push suite (8f4d2407); it passed in round 2.",
       "recommendation": "Find the skill root from the installed layout in that test, and make the pre-push suite exit non-zero on a strict shape failure.",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "The strict shape check on the installed skill and the shape-gate tests",
+          "expected": "Shape passes, and the repo check fails on shape errors outside CI",
+          "observed": "Strict shape passes; the release test (12) and the shape-gate tests (3) pass",
+          "verdict": "Strict shape passes; the release test (12) and the shape-gate tests (3) pass",
+          "check_id": "acu-12-0.2.154-2ff666e0",
+          "build": "agent-computer-use 0.2.154",
+          "session": "r4-2ff666e0-117",
+          "timestamp": "2026-11-20T02:50:05Z",
+          "reference": "2ff666e0299836729ac1901751aed87eb59fec1e:ACU-12:installed-check",
+          "details": "skill_shape.py --strict PASS on installed macos-cua; tests/test_install_release.py 12 passed on the installed copy; scripts/test_check_skill_shape.py 3 passed from the installed revision. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g9.log. Run r4-2ff666e0-117."
+        }
+      ],
+      "verification": "Strict shape passes; the release test (12) and the shape-gate tests (3) pass skill_shape.py --strict PASS on installed macos-cua; tests/test_install_release.py 12 passed on the installed copy; scripts/test_check_skill_shape.py 3 passed from the installed revision. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g9.log. Run r4-2ff666e0-117.",
+      "verification_refs": [
+        "2ff666e0299836729ac1901751aed87eb59fec1e:ACU-12:installed-check"
+      ]
     },
     {
       "id": "ACU-13",
@@ -11463,7 +12046,7 @@
       "done_when": "A memory save that Grok Voice sends is accepted, or Samantha is told plainly which part is wrong and fixes it once; a named test with the exact request Grok sent proves it, and a typed run on Grok Voice shows no invalid request.",
       "observed": "19 Nov 2026 20:35 IST, ACU 0.2.153, Grok Voice 3.0 typed small-talk turn: the memory save tool was called with operation capture, scope fleet, rule favourite_colour, value teal and a capture_gate; it came back ok false, error invalid request, type ledger_invalid_argument, not retryable. The reply was: I could not save it, the ledger rejected that request as invalid. Same reply in the 19:14 IST run on 0.2.152. The tool call was also delivered twice (duplicate function call delivery).",
       "recommendation": "Compare the request Grok sends with what the memory tool accepts (scope and capture_gate fields), and make the tool description, the conversion layer or the error message line up so a valid save goes through.",
-      "status": "in_progress"
+      "status": "failing"
     },
     {
       "id": "BCL-83",
@@ -11487,6 +12070,30 @@
       "done_when": "When a new round's plan is recorded the page shows the new round number, and each lane shows its current step (for example Verifying once verification starts); a named test proves both, and the live #117 page shows Round 4 with the right lane step.",
       "observed": "20 Nov 2026 07:44 IST screenshot from Guru: Round 3, four lanes, all Installing. The round 4 plan (ACU-SESSION, ACU-MENU, ACU-PROMPT, ACU-TESTS) was recorded on 19 Nov while round 3 still had lanes that were not verified, blocked or parked, so the round number did not advance.",
       "recommendation": "Cause (diagnosed 20 Nov 07:48 IST, read-only): set-plan advances the round only when every group of the current round is verified, blocked or parked and that round's Introspect is recorded (manage_findings.py about line 1059). So the round 4 lanes were recorded inside round 3 and the page kept saying Round 3. start-verification and bcl verify do not move lanes off Installing (manage_findings.py about line 520, bcl about line 655). Queued for the next round: bcl plan should either refuse to replace an open round's lanes or advance and label the round honestly, and bcl verify should move its lanes to Verifying. No sanctioned command relabels the open round today.",
+      "status": "untested"
+    },
+    {
+      "id": "ACU-14",
+      "title": "On GPT-Live, every typed turn is turned down since 0.2.154",
+      "source": "Agent reported",
+      "priority": "high",
+      "summary": "In the 0.2.154 typed checks every GPT-Live-1 turn came back with Unknown parameter: response from the provider, so Samantha never answered and the turns sat until the test limit.",
+      "impact": "Samantha on GPT-Live-1 answers nothing typed (and likely nothing steered by chat versus task routing), so GPT-Live is unusable on 0.2.154.",
+      "done_when": "A typed turn on GPT-Live-1 is accepted and answered on the installed app; the offline test fake rejects fields GPT-Live does not accept, so a test fails on the 0.2.154 request; and the typed run on both models answers every turn.",
+      "observed": "20 Nov 2026 07:55-08:12 IST, installed ACU 0.2.154 (commit 2ff666e0), typed run on GPT-Live-1: 13 realtime_error rows, code unknown_parameter, param response, all from build 0.2.154 and none from any earlier build. Small talk, recall, task, empathy and remember turns all still running at 170 s; the redirect took 131 s. Grok Voice 3.0 in the same run answered every turn.",
+      "recommendation": "Round 4 (commit 71e33672, chat versus task routing) added response.instructions to the GPT-Live response.create. Steer GPT-Live another way, for example a conversation item or a session update, and make the offline fake reject unknown response.create fields.",
+      "status": "untested"
+    },
+    {
+      "id": "ACU-15",
+      "title": "The release check can fail right after it restarts the app",
+      "source": "Agent reported",
+      "priority": "low",
+      "summary": "The signed local release restarts the app, waits one second, and then asks the running service for its version. On 20 Nov the service was not listening yet, so the release stopped with No such file or directory even though the same check passed seconds later.",
+      "impact": "A good release can fail for no real reason and has to be run again, which costs several minutes each time.",
+      "done_when": "After restarting the app, the release waits until the service answers (with a time limit and a clear message) before it checks the version; a named test proves the wait, and one release on the Mini passes without a rerun.",
+      "observed": "20 Nov 2026 07:38 IST, release_agent_computer_use.py --sign-only from 2ff666e0: build, sync and signature passed, then the runtime-contract step failed with Errno 2 No such file or directory; runtime_contract.py run by hand at 07:39 IST passed on the same install (service pid 44161).",
+      "recommendation": "Replace the fixed one-second sleep after restart_app with a short wait for the service socket to answer.",
       "status": "untested"
     }
   ]
