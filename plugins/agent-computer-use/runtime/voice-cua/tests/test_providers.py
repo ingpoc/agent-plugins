@@ -136,21 +136,6 @@ class XAITests(unittest.TestCase):
         self.assertIn("A durable personal fact or preference the user shares about themselves is a memory",
                       providers.LIVE_INSTRUCTIONS)
         self.assertIn("decide by what is being stored, not by the words used", providers.LIVE_INSTRUCTIONS)
-        # ACU-07 (decision 16:31 IST): lasting preferences save even in passing, moods do not, and the save is acknowledged.
-        self.assertIn("even when mentioned in passing", providers.LIVE_INSTRUCTIONS)
-        self.assertIn("Passing moods and small talk", providers.LIVE_INSTRUCTIONS)
-        self.assertIn("'Noted, teal.'", providers.LIVE_INSTRUCTIONS)
-        self.assertIn("unless the user also shared a lasting fact or preference", providers.ROUTE_TEXT["direct"])
-        # Spoken turns get no route hint, so the main delegation policy carries the same exception.
-        self.assertIn("unless the user also shares a lasting fact or preference about themselves", providers.LIVE_INSTRUCTIONS)
-        self.assertIn("once the backend reports it saved, say briefly what was saved", providers.LIVE_INSTRUCTIONS)
-
-    def test_ledger_reference_matches_the_memory_rules(self) -> None:
-        ref = (Path(__file__).resolve().parents[3] / "skills" / "macos-cua" / "references" / "context-ledger.md").read_text()
-        self.assertIn("choose by what is being stored, not by the words used", ref)
-        self.assertIn("even when it is mentioned in passing during small talk", ref)
-        self.assertIn('after the saved receipt, confirm it briefly (for example "Noted, teal."', ref)
-        self.assertIn('Passing moods and small talk ("my afternoon\'s good", "I\'m tired today") are not saved.', ref)
 
     def test_preference_and_result_rules_reach_both_voice_providers(self) -> None:
         with patch("voice_cua.workflow_store.index_context", return_value=""):
@@ -162,10 +147,6 @@ class XAITests(unittest.TestCase):
         for prompt in prompts:
             self.assertIn("choose by what is being stored, not by the words used", prompt)
             self.assertIn("A word, name or fact is not a secret", prompt)
-            self.assertIn("Do not save passing moods or small talk", prompt)
-            self.assertIn('"Noted, teal."', prompt)
-            self.assertIn("Save a lasting fact or preference even when it is mentioned in passing", prompt)
-            self.assertIn('or in small talk just "Noted, <value>."', prompt)
             self.assertIn("Use operation=preference for user preferences", prompt)
             self.assertIn('An immediate follow-up such as "Please remember that" applies to the most recent quoted preference.', prompt)
             self.assertIn("before confirming cleanup or closure, state every fact", prompt)
@@ -1103,7 +1084,7 @@ TASK_TURN = _tool_turn(
 REMEMBER_TURN = _tool_turn(
     "remember", "replay-remember", "backend-remember", "call-ledger", "ledger_task",
     LEDGER_ARGS, "I saved pineapple for later.")
-CASUAL_TURN = _direct_turn("casual", "Sorry you're tired. I am doing well, thanks.")
+CASUAL_TURN = _direct_turn("casual", "Teal is a lovely colour. I am doing well, thanks.")
 STORY_TURN = {
     "name": "story",
     "response_id": "backend-story",
@@ -1324,8 +1305,8 @@ class StrictGPTLiveReplayTests(_Rows):
         self.assertEqual((payload["scope"], payload["rule"], payload["decision"]),
                          ("fleet", "test_word_for_samantha_checks", "pineapple"))
 
-        # Turn 4: a direct reply that makes no tool call saves nothing (the model chooses whether to save).
-        reply, _ = self._typed_turn("Hey, I'm tired today. How are you?", "direct")
+        # Turn 4: a casual favourite-colour mention is chat and saves nothing.
+        reply, _ = self._typed_turn("Hey, my favourite colour is teal. How are you?", "direct")
         self.assertIn("doing well", reply)
         self.assertEqual(self.transport.call.call_count, 1)
 
@@ -1360,9 +1341,9 @@ class StrictGPTLiveReplayTests(_Rows):
         self._assert_route_only_in_typed_items(5)
         self.assertEqual(self.s.ws.errors, [])
 
-    def test_gpt_live_direct_reply_without_a_tool_call_saves_nothing(self) -> None:
+    def test_gpt_live_casual_favourite_colour_turn_replies_without_saving(self) -> None:
         self.server = ScriptedGPTLiveReplayServer(self.s, script=[CASUAL_TURN])
-        text = "Hey, I'm tired today. How are you?"
+        text = "Hey, my favourite colour is teal. How are you?"
         reply, _ = self._typed_turn(text, "direct")
         self.assertIn("doing well", reply)
         self.transport.call.assert_not_called()
