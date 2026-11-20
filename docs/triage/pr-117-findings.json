@@ -9624,9 +9624,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T11:14:14Z",
-      "now": "2026-11-20T11:14:14Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-20T11:14:53Z",
+      "now": "2026-11-20T11:14:53Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -12472,8 +12472,8 @@
             "ACU-13",
             "ACU-07"
           ],
-          "status": "installing",
-          "phase": "install",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r7-remember",
           "label": "ACU-13, ACU-07",
           "codex": {
@@ -12481,14 +12481,15 @@
             "implementer_session": "grokbot-r7-own-fix-remember",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-remember-3",
             "job": {
-              "pid": 88654,
-              "phase": "presuite",
-              "started_at": "2026-11-20T10:40:49Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T10:45:28Z",
+              "pid": 70160,
+              "phase": "fix",
+              "started_at": "2026-11-20T11:14:13Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-20T11:14:37Z",
+              "model": "Grok Bot subagent (own fix)",
               "exit_code": 0,
-              "duration_s": 279,
-              "finished_at": "2026-11-20T10:45:28Z",
+              "duration_s": 24,
+              "finished_at": "2026-11-20T11:14:37Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -12503,7 +12504,7 @@
             "total": 2,
             "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-20T11:14:13Z",
+          "updated_at": "2026-11-20T11:14:53Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
