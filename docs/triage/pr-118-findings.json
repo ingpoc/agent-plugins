@@ -10494,9 +10494,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T14:33:14Z",
-      "now": "2026-11-20T14:33:14Z — Lane ACU-REMEMBER updated"
+      "stage": "install",
+      "updated_at": "2026-11-20T14:43:28Z",
+      "now": "2026-11-20T14:43:28Z — Install in progress"
     },
     "rollover": {
       "source_pr": 117,
@@ -13409,7 +13409,8 @@
       "collect",
       "present",
       "plan_fix",
-      "review"
+      "review",
+      "install"
     ],
     "plan": {
       "round": 1,
@@ -13421,7 +13422,7 @@
             "ACU-07",
             "ACU-13"
           ],
-          "status": "review",
+          "status": "installing",
           "worktree": "samantha-next-r8",
           "label": "ACU-07, ACU-13",
           "reason": "Carried from #117: fix c21b1398/b4406c81 (reapplied 3444e1d6 + 4038b12c), fresh-eyes review pass 5 PASS on #117; verify only on #118",
@@ -13452,11 +13453,20 @@
             "reviewer_model": "grok-4.7-medium via Cursor CLI (pass 5 on #117, carried; code identical)"
           },
           "updated_at": "2026-11-20T14:33:14Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-20T14:33:14Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-20T14:43:28Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot subagent (sign-only release 0.2.160)",
+            "at": "2026-11-20T14:43:28Z"
           }
         }
       ],
@@ -13630,6 +13640,23 @@
       "details": {
         "command": "bcl report --force",
         "error": "report gate not met ... pass --force to override"
+      }
+    },
+    {
+      "id": "BCL-94",
+      "title": "Each change list viewer moves to a new port instead of keeping one per project",
+      "source": "User reported",
+      "priority": "medium",
+      "summary": "Change list viewers start on a new port for every PR, so the PR 117 page was on one port and the PR 118 page on another, and old viewers stay up. Test runs also leave their own temporary viewers running.",
+      "impact": "The owner's bookmark stops working after every rollover, stale pages keep showing an old PR, and leftover test viewers use memory and ports.",
+      "done_when": "Each project keeps one fixed viewer port saved in the change list state; a rollover or a new PR's viewer reuses it and replaces that project's old viewer, a different project gets its own fixed port, and every viewer a test starts stops when that test ends. After a rollover the same address shows the new PR and no stale viewer is left.",
+      "observed": "20 Nov 2026 20:04 IST, Guru: PR 117 viewer on port 52432 and PR 118 viewer on port 59151; Guru stopped the stale PR 117 viewer by hand. Test viewers for temporary projects were also seen still running.",
+      "recommendation": "Save the port per repository in the change list state, reuse it on start and rollover after stopping the old viewer for that repository, and stop test viewers in each test's cleanup.",
+      "status": "untested",
+      "details": {
+        "ports": "PR 117 :52432, PR 118 :59151",
+        "stopped_by_owner": "pid 73523",
+        "test_projects": "example--project--123, repo--1"
       }
     }
   ]
