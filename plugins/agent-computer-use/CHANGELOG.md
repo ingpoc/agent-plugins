@@ -1,3 +1,7 @@
+## 0.2.159
+
+- A lasting fact or preference you mention in passing during small talk (for example "my favourite colour is teal") is now saved to memory on GPT-Live too, and Samantha confirms it briefly once it is saved ("Noted, teal.") so you can say "forget that". Passing moods and small talk ("I'm tired today", "my afternoon's good") are not saved (ACU-07, ACU-13).
+
 ## 0.2.158
 
 - When Samantha saves a memory in her own words instead of yours (for example "enabled across apps" for "I like dark mode across apps"), the memory store now tells her plainly to use your exact words and lets her try once more in that turn, instead of giving up (ACU-13). The secure entry tool also says never to repeat a secret value back.
