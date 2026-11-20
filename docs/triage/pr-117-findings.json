@@ -7988,9 +7988,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T04:02:49Z",
-      "now": "2026-11-20T04:02:49Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T04:10:39Z",
+      "now": "2026-11-20T04:10:39Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10431,28 +10431,30 @@
             "ACU-09"
           ],
           "depends_on": [],
-          "status": "review",
-          "phase": "review",
+          "status": "running",
+          "phase": "fix",
           "worktree": "bcl117-r4-g8",
           "reason": "0.2.154 sends a per-reply field GPT-Live rejects, so every GPT turn failed; the round 4 items must pass on GPT-Live too.",
           "codex": {
-            "model": "gpt-6-luna",
-            "effort": "max",
+            "model": "opencode/deepseek-v4.1-flash-free",
+            "effort": "default",
             "one_file": false,
             "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428",
             "job": {
-              "pid": 22983,
-              "phase": "fix",
-              "started_at": "2026-11-20T03:48:26Z",
-              "command": "run-r5gmf-g8.sh",
-              "heartbeat_at": "2026-11-20T03:57:41Z",
+              "pid": 43567,
+              "phase": "review",
+              "started_at": "2026-11-20T04:02:49Z",
+              "command": "launch-review-g8.sh",
+              "heartbeat_at": "2026-11-20T04:03:45Z",
               "exit_code": 0,
-              "duration_s": 555,
-              "finished_at": "2026-11-20T03:57:41Z",
-              "finished_phase_status": "passed"
+              "duration_s": 56,
+              "finished_at": "2026-11-20T04:03:45Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
-            "previous_review": "r5 review 1 CHANGES: strict replay injected outcomes; reworked so emitted route events drive replies, delegation, ledger and cancel"
+            "previous_review": "r5 review 1 CHANGES: strict replay injected outcomes; reworked so emitted route events drive replies, delegation, ledger and cancel",
+            "review_status": "failed",
+            "fallback_note": "Codex quota out until 22 Nov 12:28 IST; OpenCode free model per Guru 09:36"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8.sh",
@@ -10462,7 +10464,8 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T04:02:49Z"
+          "updated_at": "2026-11-20T04:10:38Z",
+          "blocked_reason": null
         },
         {
           "id": "ACU-MENU",
@@ -10472,7 +10475,7 @@
             "ACU-15"
           ],
           "depends_on": [],
-          "status": "failed",
+          "status": "review",
           "phase": "review",
           "worktree": "bcl117-r4-g7",
           "reason": "Both are about reading the app's real state: a real unknown-model start comes up healthy with no reason, and the release checks the app one second after restarting it.",
@@ -10506,7 +10509,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T03:42:42Z"
+          "updated_at": "2026-11-20T04:04:35Z"
         },
         {
           "id": "BCL-PAGE",
@@ -10518,26 +10521,31 @@
             "BCL-86"
           ],
           "depends_on": [],
-          "status": "running",
+          "status": "failed",
           "phase": "fix",
           "worktree": "bcl117-r5-g10",
           "reason": "Both are how the page reads the tracker and how bcl moves lanes and rounds. BCL-85 added 09:27 (Guru): escalation ladder for repeat failures, skill text only. BCL-86 added 09:33 (Guru): quota-out fallback note plus waiting-for-quota lane state on the page.",
           "codex": {
-            "model": "gpt-6-luna",
-            "effort": "max",
+            "model": "opencode/deepseek-v4.1-flash-free",
+            "effort": "default",
             "one_file": false,
             "job": {
               "pid": 35929,
               "phase": "fix",
               "started_at": "2026-11-20T03:57:19Z",
               "command": "run-r5x85-g10.sh",
-              "heartbeat_at": "2026-11-20T04:02:20Z"
+              "heartbeat_at": "2026-11-20T04:06:18Z",
+              "exit_code": 1,
+              "duration_s": 539,
+              "finished_at": "2026-11-20T04:06:18Z",
+              "finished_phase_status": "failed"
             },
-            "fix_status": "passed",
+            "fix_status": "failed",
             "implementer_session": "01a1f6e1-1ad8-7c02-9ffc-c6d1fb8e7bb5",
             "review_status": "passed",
             "reviewer_session": "01a1f703-63d2-70c0-8af2-04bc04c11226",
-            "review_note": "r5 review CHANGES (stale deadline must be the earliest running heartbeat) fixed in the same session; one-file fix, re-review skipped per routing rule"
+            "review_note": "r5 review CHANGES (stale deadline must be the earliest running heartbeat) fixed in the same session; one-file fix, re-review skipped per routing rule",
+            "fallback_note": "Codex quota out until 22 Nov 12:28 IST; OpenCode free model per Guru 09:36"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10.sh",
@@ -10547,7 +10555,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T04:02:27Z"
+          "updated_at": "2026-11-20T04:09:37Z"
         },
         {
           "id": "ACU-MEMORY",
@@ -10557,7 +10565,7 @@
             "ACU-13"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "blocked",
           "phase": "review",
           "worktree": "bcl117-r4-g8",
           "reason": "ACU-07/13 failed on GPT-Live only because every GPT turn was rejected (ACU-14). This job only adds strict GPT-Live tests on top of the ACU-GPT change in the same worktree, so it ships in the same release; dependency on ACU-GPT verification removed (it would force a second release).",
@@ -10587,7 +10595,8 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T03:42:10Z"
+          "updated_at": "2026-11-20T04:05:46Z",
+          "blocked_reason": "Waiting for Codex quota"
         }
       ]
     },
