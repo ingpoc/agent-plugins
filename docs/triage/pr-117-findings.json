@@ -8291,9 +8291,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T07:29:10Z",
-      "now": "2026-11-20T07:29:10Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-20T07:29:37Z",
+      "now": "2026-11-20T07:29:37Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -11005,7 +11005,7 @@
           "finding_ids": [
             "ACU-18"
           ],
-          "status": "failed",
+          "status": "review",
           "phase": "review",
           "worktree": "bcl117-r6-island",
           "label": "ACU-18",
@@ -11014,16 +11014,16 @@
             "implementer_session": "grokbot-r6-own-fix-island",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-island",
             "job": {
-              "pid": 1151,
-              "phase": "review",
-              "started_at": "2026-11-20T07:19:34Z",
+              "pid": 30831,
+              "phase": "fix",
+              "started_at": "2026-11-20T07:29:10Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-20T07:27:34Z",
-              "model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 1)",
+              "heartbeat_at": "2026-11-20T07:29:36Z",
+              "model": "Grok Bot subagent (own fix)",
               "exit_code": 0,
-              "duration_s": 480,
-              "finished_at": "2026-11-20T07:27:34Z",
-              "finished_phase_status": "failed"
+              "duration_s": 26,
+              "finished_at": "2026-11-20T07:29:36Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 1)",
@@ -11036,7 +11036,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-20T07:27:34Z"
+          "updated_at": "2026-11-20T07:29:37Z"
         }
       ]
     },
