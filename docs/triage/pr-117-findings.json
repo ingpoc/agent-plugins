@@ -8776,9 +8776,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-20T08:57:49Z",
-      "now": "2026-11-20T08:57:49Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T09:10:41Z",
+      "now": "2026-11-20T09:10:41Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -8827,7 +8827,7 @@
       }
     },
     "cycle": 9,
-    "round": 6,
+    "round": 7,
     "round_history": [
       {
         "round": 2,
@@ -8963,6 +8963,11 @@
         "round": 3,
         "fixed": 28,
         "ended_at": "2026-11-20T05:56:47Z"
+      },
+      {
+        "round": 6,
+        "fixed": 32,
+        "ended_at": "2026-11-20T09:10:17Z"
       }
     ],
     "introspect_history": [
@@ -11475,186 +11480,36 @@
       "collect",
       "present",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "round": 6,
+      "round": 7,
       "cycle": 9,
       "groups": [
         {
-          "id": "BCL-FLOW",
-          "name": "The page keeps the right round and model, and a broken check can be rerun",
+          "id": "ACU-REMEMBER",
+          "name": "Remember goes to memory, not secrets",
           "finding_ids": [
-            "BCL-88",
-            "BCL-89",
-            "BCL-90"
+            "ACU-13",
+            "ACU-14"
           ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl117-r6-bcl",
-          "reason": "Round 5 introspect: the page still says Round 3, the model column shows the fix model during install and verify, and a failed lane could not be rechecked after its check was fixed.",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-bcl.sh",
-            "method": "Named tests on installed bcl 0.1.49 and the live PR 117 page.",
-            "status": "verified",
-            "total": 3,
-            "fixed": 3,
-            "failed": 0,
-            "summary": "Round corrected, model column, rerun with reason",
-            "failure": null
-          },
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl117-r7-remember",
+          "label": "ACU-13, ACU-14",
           "codex": {
             "model": "Grok Bot subagent (own fix)",
-            "effort": "default",
-            "one_file": false,
-            "fix_status": "passed",
-            "fallback_note": "Codex on the Mini out until 22 Nov 12:28 IST; own fix per Guru 11:24, fresh-eyes review by Codex gpt-6.1-terra medium on the box",
-            "implementer_session": "grokbot-r6-own-fix-bcl",
-            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-bcl",
-            "job": {
-              "pid": 51697,
-              "phase": "presuite",
-              "started_at": "2026-11-20T08:11:32Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T08:16:11Z",
-              "exit_code": 0,
-              "duration_s": 279,
-              "finished_at": "2026-11-20T08:16:11Z",
-              "finished_phase_status": "passed"
-            },
-            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 2)",
-            "review_status": "passed"
-          },
-          "updated_at": "2026-11-20T08:56:48Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-20T08:16:11Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T08:27:38Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "Grok Bot subagent (scripted bcl check)",
-            "at": "2026-11-20T08:51:26Z"
-          },
-          "verify_summary": "Round corrected, model column, rerun with reason"
-        },
-        {
-          "id": "ACU-ISLAND",
-          "name": "Island errors logged and cleared",
-          "finding_ids": [
-            "ACU-18"
-          ],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl117-r6-island",
-          "label": "ACU-18",
-          "codex": {
-            "model": "Grok Bot subagent (own fix)",
-            "implementer_session": "grokbot-r6-own-fix-island",
-            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-island",
-            "job": {
-              "pid": 51697,
-              "phase": "presuite",
-              "started_at": "2026-11-20T08:11:32Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T08:16:11Z",
-              "exit_code": 0,
-              "duration_s": 279,
-              "finished_at": "2026-11-20T08:16:11Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 2)",
-            "review_status": "passed"
+            "implementer_session": "grokbot-r7-own-fix-remember",
+            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-remember"
           },
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-island.sh",
-            "status": "verified",
-            "fixed": 1,
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r7-remember.sh",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
-            "total": 1,
-            "summary": "Island errors logged; failed-start card clears",
-            "failure": null
+            "total": 2
           },
-          "updated_at": "2026-11-20T08:56:47Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-20T08:16:11Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T08:27:38Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "Grok Bot subagent (scripted typed check via typed_run_sync)",
-            "at": "2026-11-20T08:51:14Z"
-          },
-          "verify_summary": "Island errors logged; failed-start card clears"
-        },
-        {
-          "id": "ACU-CANCEL",
-          "name": "GPT-Live interrupt sends no cancel",
-          "finding_ids": [
-            "ACU-17"
-          ],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl117-r6-cancel",
-          "label": "ACU-17",
-          "codex": {
-            "model": "Grok Bot subagent (own fix)",
-            "implementer_session": "grokbot-r6-own-fix-cancel",
-            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-cancel",
-            "job": {
-              "pid": 51697,
-              "phase": "presuite",
-              "started_at": "2026-11-20T08:11:32Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-20T08:16:11Z",
-              "exit_code": 0,
-              "duration_s": 279,
-              "finished_at": "2026-11-20T08:16:11Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 1)",
-            "review_status": "passed"
-          },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-cancel.sh",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "summary": "GPT-Live interrupt shows no error; no cancel sent",
-            "failure": null
-          },
-          "updated_at": "2026-11-20T08:56:47Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-20T08:16:11Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T08:27:38Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "Grok Bot subagent (scripted typed check via typed_run_sync)",
-            "at": "2026-11-20T08:46:19Z"
-          },
-          "verify_summary": "GPT-Live interrupt shows no error; no cancel sent"
+          "updated_at": "2026-11-20T09:10:17Z"
         }
       ],
       "status": "closed"
@@ -13609,7 +13464,7 @@
       "done_when": "A memory save that Grok Voice sends is accepted, or Samantha is told plainly which part is wrong and fixes it once; a named test with the exact request Grok sent proves it, and a typed run on Grok Voice shows no invalid request.",
       "observed": "19 Nov 2026 20:35 IST, ACU 0.2.153, Grok Voice 3.0 typed small-talk turn: the memory save tool was called with operation capture, scope fleet, rule favourite_colour, value teal and a capture_gate; it came back ok false, error invalid request, type ledger_invalid_argument, not retryable. The reply was: I could not save it, the ledger rejected that request as invalid. Same reply in the 19:14 IST run on 0.2.152. The tool call was also delivered twice (duplicate function call delivery).",
       "recommendation": "Compare the request Grok sends with what the memory tool accepts (scope and capture_gate fields), and make the tool description, the conversion layer or the error message line up so a valid save goes through.",
-      "status": "failing",
+      "status": "in_progress",
       "verification_evidence": [
         {
           "checked": "An explicit remember request on both models",
@@ -13711,7 +13566,7 @@
       "done_when": "A typed turn on GPT-Live-1 is accepted and answered on the installed app; the offline test fake rejects fields GPT-Live does not accept, so a test fails on the 0.2.154 request; and the typed run on both models answers every turn.",
       "observed": "20 Nov 2026 07:55-08:12 IST, installed ACU 0.2.154 (commit 2ff666e0), typed run on GPT-Live-1: 13 realtime_error rows, code unknown_parameter, param response, all from build 0.2.154 and none from any earlier build. Small talk, recall, task, empathy and remember turns all still running at 170 s; the redirect took 131 s. Grok Voice 3.0 in the same run answered every turn.",
       "recommendation": "Round 4 (commit 71e33672, chat versus task routing) added response.instructions to the GPT-Live response.create. Steer GPT-Live another way, for example a conversation item or a session update, and make the offline fake reject unknown response.create fields.",
-      "status": "failing",
+      "status": "in_progress",
       "verification_evidence": [
         {
           "checked": "Every typed turn on GPT-Live-1 on the installed app",
