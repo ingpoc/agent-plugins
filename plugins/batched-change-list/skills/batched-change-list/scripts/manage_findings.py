@@ -875,6 +875,22 @@ def validate_introspect_sections(sections):
 MAX_GROUP_ISSUES = 4
 
 
+def regresses_against_main(item):
+    details = item.get("details") if isinstance(item.get("details"), dict) else {}
+    return str(details.get("regression_against_main", "")).strip().lower() in ("yes", "true")
+
+
+def require_restore_lane(group, findings):
+    """BCL-95: a lane holding a regression against main restores main's behaviour first; a redesign is its own finding."""
+    if RENDERER.plan_status(group) in ("parked", "deferred"):
+        return
+    by_id = {item["id"]: item for item in findings}
+    regressed = [i for i in group.get("finding_ids", []) if i in by_id and regresses_against_main(by_id[i])]
+    if regressed and group.get("restores_main") is not True:
+        raise ValueError(f"plan group {group.get('id')}: {', '.join(regressed)} regress against main; this lane must restore "
+                         "main's behaviour first (set restores_main true) and any redesign must be filed as its own finding")
+
+
 def validate_plan_groups(plan: dict) -> None:
     """Check the group size before a fix round starts."""
     groups = plan.get("groups") if isinstance(plan, dict) else None
@@ -1682,6 +1698,7 @@ def run(args, parser):
                             if not isinstance(group.get("depends_on", []), list) or any(not isinstance(i, str) or i not in ids for i in group.get("depends_on", [])):
                                 raise ValueError(f"plan group {group['id']} has invalid dependencies")
                             validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
+                            require_restore_lane(group, findings)
                         validate_dependencies(groups, findings, tracking)
                         plan["cycle"] = cycle
                         plan["round"] = RENDERER.rollover_round(tracking)
@@ -1714,7 +1731,7 @@ def run(args, parser):
                                 raise ValueError('plan group changed; refusing group update')
                         group = next((g for g in plan.get("groups", []) if g.get("id") == operation.get("id")), None)
                         patch = operation.get("patch")
-                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at", "presuite", "quota_wait_until"}:
+                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at", "presuite", "quota_wait_until", "retry_cause"}:
                             raise ValueError("update-plan-group requires id and a valid group patch")
                         if any(key in patch and not isinstance(patch[key], str) for key in ("label", "verify_summary", "name", "worktree", "reason")):
                             raise ValueError("label, name, verify_summary, worktree and reason must be strings")

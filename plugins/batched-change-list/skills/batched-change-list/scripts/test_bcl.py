@@ -989,6 +989,21 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(group['status'], 'failed')
         self.assertIn('could not start', group['verify']['failure'])
 
+    def test_plan_requires_a_restore_lane_for_a_regression_against_main(self):
+        self.assertEqual(self.call("start").returncode, 0)
+        live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
+        document = json.loads(live.read_text())
+        document["findings"][0]["details"] = {"regression_against_main": "yes"}
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+        plan = self.root / "restore-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned"}]}))
+        refused = self.call_without_viewer("plan", "--plan", plan, "--ids", "ISSUE-01")
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("must restore main's behaviour first", refused.stderr)
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned", "restores_main": True}]}))
+        accepted = self.call_without_viewer("plan", "--plan", plan, "--ids", "ISSUE-01")
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+
     def test_fix_job_restarts_failed_lane(self):
         self.assertEqual(self.call('start').returncode, 0)
         live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
@@ -1003,7 +1018,9 @@ elif args[:2] != ['pr', 'edit']:
             'sections':{name:{'items':[]} for name in ('delete','simplify','optimize','automate')},
         }
         live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
-        result = self.call_job_without_viewer(live,'--ids','ISSUE-01','--phase','fix','job','--',sys.executable,'-c','pass')
+        evidence = self.root / 'observed.jsonl'; evidence.write_text('{}\n')
+        result = self.call_job_without_viewer(live,'--ids','ISSUE-01','--failing-test','test_x','--evidence',evidence,
+                                              '--phase','fix','job','--',sys.executable,'-c','pass')
         self.assertEqual(result.returncode, 0, result.stderr)
         tracking = json.loads(live.read_text())['tracking']
         self.assertEqual(tracking.get('round', tracking['plan']['round']), 1)
@@ -1026,9 +1043,17 @@ elif args[:2] != ['pr', 'edit']:
         introspect = self.call_without_viewer("introspect", "--sections", sections)
         self.assertEqual(introspect.returncode, 0, introspect.stderr)
 
-        restarted = self.call_job_without_viewer(
+        refused = self.call_job_without_viewer(
             live, "--ids", "ISSUE-01", "--phase", "fix", "job", "--", sys.executable, "-c", "pass")
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("second fix attempt needs --failing-test", refused.stderr)
+        evidence = self.root / "observed.jsonl"; evidence.write_text('{"kind": "tool_result"}\n')
+        restarted = self.call_job_without_viewer(
+            live, "--ids", "ISSUE-01", "--failing-test", "test_reproduces_the_failure", "--evidence", evidence,
+            "--phase", "fix", "job", "--", sys.executable, "-c", "pass")
         self.assertEqual(restarted.returncode, 0, restarted.stderr)
+        cause = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["retry_cause"]
+        self.assertEqual((cause["ids"], cause["test"]), (["ISSUE-01"], "test_reproduces_the_failure"))
         check.write_text("pass\n")
         self.assertEqual(self.install_after_review("--ids", "ISSUE-01").returncode, 0)
         verified = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
@@ -1056,7 +1081,9 @@ elif args[:2] != ['pr', 'edit']:
         live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
         marker = self.root / 'command-ran'
         command = f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')"
-        result = self.call_job_without_viewer(live,'--ids','ISSUE-01','--phase','fix','job','--',sys.executable,'-c',command)
+        evidence = self.root / 'observed.jsonl'; evidence.write_text('{}\n')
+        result = self.call_job_without_viewer(live,'--ids','ISSUE-01','--failing-test','test_x','--evidence',evidence,
+                                              '--phase','fix','job','--',sys.executable,'-c',command)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("record this round's introspect", result.stderr)
         self.assertFalse(marker.exists())

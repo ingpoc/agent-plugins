@@ -124,11 +124,13 @@ def _job_operations(groups, phase, job, status=None, review_status=None):
                            "merge_codex": True, "patch": {**({"status": status, "phase": lane_phase} if status else {}), "codex": codex, **({"presuite": {"status": job["finished_phase_status"], "exit_code": job["exit_code"], "finished_at": job["finished_at"]}} if phase == "presuite" and "exit_code" in job else {})}})
     return operations
 
-def _run_job(record, live, report, base, groups, phase, ids, command_args, result_file=None, model=None):
+def _run_job(record, live, report, base, groups, phase, ids, command_args, result_file=None, model=None, retry=None):
     if not command_args:
         raise ValueError("job requires a command after --")
     first = ([{"action": "set-activity", "stage": "plan_fix", "ids": ids, "now": "Fix job started"}]
              if phase == "fix" else [])
+    if retry:
+        first += [{"action": "update-plan-group", "id": group["id"], "patch": {"retry_cause": retry}} for group in groups]
     status = "running" if phase == "fix" else "review"
     started_at = _utc_now()
     result_path = Path(result_file) if phase == "review" and result_file else None
@@ -238,6 +240,30 @@ def _not_executable(word, missing_ok=False):
     if missing_ok and not path.exists():
         return False
     return not (path.is_file() and os.access(path, os.X_OK))
+
+def _require_retry_cause(parser, record, data, tracking, groups, args):
+    """BCL-98: no second fix attempt without a cause: after a failed verify, name the failing test and its real evidence."""
+    checks = (tracking.get("verification_run") or {}).get("checks", {})
+    verify_failed = {i for group in groups if group.get("status") == "failed" and group.get("phase") == "verify"
+                     for i in group.get("finding_ids", [])}
+    failed = [item["id"] for item in data.get("findings", []) if item["id"] in args.ids and
+              (item["id"] in verify_failed or item.get("status") == "failing"
+               or (checks.get(item["id"]) or {}).get("state") == "not_fixed")]
+    if not failed:
+        return None
+    if not (args.failing_test or "").strip() or not (args.evidence or "").strip():
+        parser.error(f"{', '.join(failed)} failed verification; a second fix attempt needs --failing-test NAME (a test that "
+                     "fails now, built from the real evidence) and --evidence PATH (the observability record it reproduces)")
+    evidence = Path(args.evidence).expanduser()
+    if not evidence.is_file():
+        parser.error(f"evidence file not found: {evidence}")
+    for group in groups:
+        worktree = Path(record.get("home", "")).parent / str(group.get("worktree") or "")
+        if group.get("worktree") and worktree.is_dir():
+            found = subprocess.run(["git", "-C", str(worktree), "grep", "-q", "-F", args.failing_test.strip()], capture_output=True)
+            if found.returncode:
+                parser.error(f"failing test {args.failing_test!r} is not in lane worktree {worktree}; write it first")
+    return {"ids": failed, "test": args.failing_test.strip(), "evidence": str(evidence.resolve())}
 
 def _merged_details(args, tracking, repo):
     pr = tracking.get("pull_request", {})
@@ -396,6 +422,8 @@ def main():
     parser.add_argument("--new-pr", type=int); parser.add_argument("--new-url"); parser.add_argument("--worktree")
     parser.add_argument("--merge-commit"); parser.add_argument("--merged-at"); parser.add_argument("--base-branch")
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--failing-test", help="job --phase fix after a failed verify: the failing test built from the real evidence")
+    parser.add_argument("--evidence", help="job --phase fix after a failed verify: the observability record the test reproduces")
     parser.add_argument("stage")
     argv = sys.argv[1:]
     job_command = []
@@ -493,7 +521,10 @@ def main():
         if args.phase == "fix":
             if any(group.get("status") in ("blocked", "parked", "deferred") for group in groups):
                 parser.error("fix job cannot start a blocked, parked, or deferred lane")
-        elif any(group.get("phase") != "review" or (group.get("codex") or {}).get("fix_status") != "passed" for group in groups):
+            retry = _require_retry_cause(parser, record, data, tracking, groups, args)
+        else:
+            retry = None
+        if args.phase != "fix" and any(group.get("phase") != "review" or (group.get("codex") or {}).get("fix_status") != "passed" for group in groups):
             parser.error("review and presuite jobs require each lane to finish fix and enter review")
         elif args.phase == "review":
             try:
@@ -503,7 +534,7 @@ def main():
         report, base = live_state.report_paths(record, live)
         try:
             code = _run_job(record, live, report, base, groups, args.phase, args.ids, command_args, args.result,
-                            (args.model or "").strip() or None)
+                            (args.model or "").strip() or None, retry)
         except (OSError, RuntimeError, ValueError) as error:
             parser.error(str(error))
         raise SystemExit(code)
