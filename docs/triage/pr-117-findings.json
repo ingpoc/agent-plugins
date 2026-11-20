@@ -8277,6 +8277,491 @@
           "exit_code": 0,
           "finished_at": "2026-11-20T02:22:37Z"
         }
+      },
+      {
+        "id": "r5-b80ba41c-117",
+        "build": "agent-computer-use 0.2.155, developer-observability 0.1.34, batched-change-list 0.1.48",
+        "revision": "b80ba41cfdc086e4b1776f6e6c43ec5306105e34",
+        "installed_at": "2026-11-20T05:21:29Z",
+        "install_evidence": "ACU 0.2.155 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-117/r3/acu-release-0.2.155.json; all installed checks incl. native Calculator smoke and microphone passed; notarization not attempted); dev-obs 0.1.34 receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-devobs-0.1.34.txt; bcl 0.1.48 install-local from bcl117-release at b80ba41c",
+        "status": "interrupted",
+        "checks": {
+          "BCL-75": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:09Z",
+            "started_at": "2026-11-20T05:45:09Z",
+            "updated_at": "2026-11-20T05:45:09Z",
+            "check_id": "cb85ccace67a4c77bcdcc140bf65c5db",
+            "evidence": "Checked: Named rollover and gate tests on installed bcl (recheck); Expected: Pass; Observed: 11 named tests pass",
+            "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.080462Z"
+          },
+          "BCL-76": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:09Z",
+            "started_at": "2026-11-20T05:45:09Z",
+            "updated_at": "2026-11-20T05:45:09Z",
+            "check_id": "f8c727cc399b4ff39155c598dca411a3",
+            "evidence": "Checked: Named gate tests on installed bcl (recheck); Expected: Pass; Observed: Pass in the same run",
+            "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.080604Z"
+          },
+          "BCL-77": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:09Z",
+            "started_at": "2026-11-20T05:45:09Z",
+            "updated_at": "2026-11-20T05:45:09Z",
+            "check_id": "2ab7e5b9071948b9993dc1709b9e3491",
+            "evidence": "Checked: Real dev-obs case (recheck); Expected: Findings collected; Observed: Findings collected from the real case",
+            "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.080751Z"
+          },
+          "BCL-78": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:09Z",
+            "started_at": "2026-11-20T05:45:09Z",
+            "updated_at": "2026-11-20T05:45:09Z",
+            "check_id": "35c09d0ab58d46fd8e6cf20b1e514714",
+            "evidence": "Checked: Dev-obs junit findings (recheck); Expected: One finding per failing test; Observed: One per failing test, no duplicates",
+            "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.080895Z"
+          },
+          "BCL-79": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:09Z",
+            "started_at": "2026-11-20T05:45:09Z",
+            "updated_at": "2026-11-20T05:45:09Z",
+            "check_id": "7d9ef266cf314bb1a148095e97e56419",
+            "evidence": "Checked: Dev-obs suggested fix text (recheck); Expected: Names the failed assertion; Observed: Names the failed assertion",
+            "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.081043Z"
+          },
+          "BCL-80": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:09Z",
+            "started_at": "2026-11-20T05:45:09Z",
+            "updated_at": "2026-11-20T05:45:09Z",
+            "check_id": "8e7d71060c8c44048044eeb273e96145",
+            "evidence": "Checked: Named lane-stage tests on installed bcl (recheck); Expected: Pass; Observed: Pass",
+            "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.081187Z"
+          },
+          "BCL-81": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:09Z",
+            "started_at": "2026-11-20T05:45:09Z",
+            "updated_at": "2026-11-20T05:45:09Z",
+            "check_id": "f9c0f5b314e64934b0c281ba88f720c6",
+            "evidence": "Checked: Named round-advance tests on installed bcl (recheck); Expected: Pass; Observed: 2 named tests pass",
+            "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.081335Z"
+          },
+          "ACU-01": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:44:42Z",
+            "started_at": "2026-11-20T05:44:42Z",
+            "updated_at": "2026-11-20T05:44:42Z",
+            "check_id": "69be199be17446449386b6e725ac764e",
+            "evidence": "Checked: A real start with an unknown voice model on the installed app; Expected: Samantha shows a plain failure reason that stays visible; Observed: She showed Voice model unavailable and it was still shown 3 seconds later",
+            "details": "menu_fail.py on installed 0.2.155: failure reason 'Voice model unavailable: acu01-unknown-model', still shown after 3 s; 9 named python tests pass; restored Grok Voice 3.0, Samantha off. First rerun exit 2 was a verifier fault (release tests run from a git archive need a git repo), fixed by a detached worktree at the release commit. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g7b.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:02.096799Z"
+          },
+          "ACU-02": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:09Z",
+            "started_at": "2026-11-20T05:45:09Z",
+            "updated_at": "2026-11-20T05:45:09Z",
+            "check_id": "c4d1b16d2b524de48553ca142cf65faf",
+            "evidence": "Checked: Installed app version, signature and voice helper (recheck); Expected: 0.2.155, signed, helper present; Observed: 0.2.155, signature ok, voice helper present",
+            "details": "verify-g1-r5.sh; 4 named tests pass. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.079472Z"
+          },
+          "ACU-03": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:09Z",
+            "started_at": "2026-11-20T05:45:09Z",
+            "updated_at": "2026-11-20T05:45:09Z",
+            "check_id": "e5b094d72abe4eaa936c732265ab91a2",
+            "evidence": "Checked: Samantha reaches ready on both models (recheck); Expected: Ready on both; Observed: Ready on GPT-Live-1 in 7.1 s and Grok Voice 3.0 in 4.1 s",
+            "details": "live5/live-summary.json. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.079830Z"
+          },
+          "ACU-04": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:09Z",
+            "started_at": "2026-11-20T05:45:09Z",
+            "updated_at": "2026-11-20T05:45:09Z",
+            "check_id": "e5a77647a5984a7ca6e8d25de4228a57",
+            "evidence": "Checked: Samantha start and status (recheck); Expected: Ready with a reason field; Observed: Both ready; reason empty when ready",
+            "details": "live5/live-summary.json ready_out. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.080032Z"
+          },
+          "ACU-06": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:09Z",
+            "started_at": "2026-11-20T05:45:09Z",
+            "updated_at": "2026-11-20T05:45:09Z",
+            "check_id": "75ee1b6d36f745c4a4ce1ce9ec3ca4f5",
+            "evidence": "Checked: The typed scenarios on Grok Voice 3.0 (recheck); Expected: Every turn answered; Observed: Every Grok turn answered; empathy in 1.8 s after the browser task",
+            "details": "live5/run-grok-after.json. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.080207Z"
+          },
+          "ACU-07": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:02Z",
+            "started_at": "2026-11-20T05:45:02Z",
+            "updated_at": "2026-11-20T05:45:02Z",
+            "check_id": "55b340f772084992a0ca5306147f2f63",
+            "evidence": "Checked: Small talk that mentions a favourite colour, typed on GPT-Live-1 and Grok Voice 3.0; Expected: No memory save and a normal reply; Observed: No save on either model and a normal reply on both",
+            "details": "live5 runs: GPT small talk saves none (before: preference), reply in 2.8 s; Grok saves none (before: capture), reply in 1.9 s. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8m.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:02.284210Z"
+          },
+          "ACU-08": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:10Z",
+            "started_at": "2026-11-20T05:45:10Z",
+            "updated_at": "2026-11-20T05:45:10Z",
+            "check_id": "af6725433308458b8b82d5142165b44f",
+            "evidence": "Checked: The Calculator plus Example Domain task on both models; Expected: Reports Example Domain, then closes the window; Observed: Both models reported Example Domain and closed the window",
+            "details": "GPT 16.5 s, Grok 8.9 s, tools cua_act, comet_begin, comet_act, comet_end on both. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.482084Z"
+          },
+          "ACU-10": {
+            "state": "blocked",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:49:05Z",
+            "started_at": "2026-11-20T05:49:05Z",
+            "updated_at": "2026-11-20T05:49:05Z",
+            "check_id": "244470c756bc47d4a841d7d804f2eb4b",
+            "evidence": "Checked: usage records from both models; Expected: real input and output token counts; Observed: Grok Voice still sends none; unknown is recorded instead of zero",
+            "details": "Unchanged provider limit (Grok usage rows 0 tokens in live5). Run r5-b80ba41c-117.",
+            "blocker": "The voice providers do not send live model token counts",
+            "finished_at": "2026-11-20T05:49:05.981319Z"
+          },
+          "DEVOBS-05": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:09Z",
+            "started_at": "2026-11-20T05:45:09Z",
+            "updated_at": "2026-11-20T05:45:09Z",
+            "check_id": "0616f51b8bcb4258b982c19aaa1049fe",
+            "evidence": "Checked: Dev-obs reads the real Samantha errors (recheck); Expected: Error rows grouped with their message; Observed: Grouped, and it surfaced today's rejected cancel on GPT-Live-1",
+            "details": "verify-g5.sh; installed dev-obs unit tests OK. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.081625Z"
+          },
+          "DEVOBS-06": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:09Z",
+            "started_at": "2026-11-20T05:45:09Z",
+            "updated_at": "2026-11-20T05:45:09Z",
+            "check_id": "ff4b54bc443f4987a1e7ff99ffae018d",
+            "evidence": "Checked: Dev-obs lists the Grok Voice session (recheck); Expected: Listed; Observed: Listed",
+            "details": "verify-g5.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.081761Z"
+          },
+          "DEVOBS-07": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:09Z",
+            "started_at": "2026-11-20T05:45:09Z",
+            "updated_at": "2026-11-20T05:45:09Z",
+            "check_id": "afb4bc964e5f42998363368d232b8311",
+            "evidence": "Checked: Dev-obs plain-language summaries (recheck); Expected: Plain summaries; Observed: Plain summaries for no reply, overlap and zero usage",
+            "details": "verify-g5.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.081908Z"
+          },
+          "BCL-82": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:09Z",
+            "started_at": "2026-11-20T05:45:09Z",
+            "updated_at": "2026-11-20T05:45:09Z",
+            "check_id": "3a0843a7c6044e1d8ff0db04c9b198aa",
+            "evidence": "Checked: The four load-sensitive tests, 5 rounds under four busy CPU loops (recheck); Expected: Pass every round; Observed: Passed all 5 rounds",
+            "details": "verify-g6.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.081474Z"
+          },
+          "ACU-11": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:48:30Z",
+            "started_at": "2026-11-20T05:48:30Z",
+            "updated_at": "2026-11-20T05:48:30Z",
+            "check_id": "421befeb5f694cdcaa53fb551889b27b",
+            "evidence": "Checked: The island cold-start test on the installed revision, 20 times with four busy CPU loops (recheck); Expected: Passes every time; Observed: Passed 20 of 20 under load",
+            "details": "verify-r5-g9.sh at b80ba41c; IslandGateColdStartTests 20/20; menu swift tests pass. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g9.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:48:30.902157Z"
+          },
+          "ACU-12": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:48:30Z",
+            "started_at": "2026-11-20T05:48:30Z",
+            "updated_at": "2026-11-20T05:48:30Z",
+            "check_id": "0871a4589d3546328c490d2a45acca6a",
+            "evidence": "Checked: The strict shape check on the installed skill and the shape-gate tests (recheck); Expected: Shape passes and the gate tests pass; Observed: Strict shape passes; release test 12 and shape-gate tests 3 pass",
+            "details": "verify-r5-g9.sh on installed 0.2.155. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g9.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:48:30.902454Z"
+          },
+          "ACU-13": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:02Z",
+            "started_at": "2026-11-20T05:45:02Z",
+            "updated_at": "2026-11-20T05:45:02Z",
+            "check_id": "e9f6926b967a45a4a5fc6e924d1717d4",
+            "evidence": "Checked: An explicit remember request on both models; Expected: The save goes through once with no error; Observed: Saved once on each model with no error",
+            "details": "live5 runs: ledger_task preference ok 1, errors none, GPT 8.7 s, Grok 2.8 s (test word pineapple). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8m.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:02.284529Z"
+          },
+          "BCL-83": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:10Z",
+            "started_at": "2026-11-20T05:45:10Z",
+            "updated_at": "2026-11-20T05:45:10Z",
+            "check_id": "4eeca31fad4b4b31a69389f1e027defd",
+            "evidence": "Checked: The live PR 117 page right after a tracker update, and the named tests on installed bcl 0.1.48; Expected: No Stale badge right after an update; Observed: Stale badge hidden right after the update; named tests pass",
+            "details": "verify-r5-g10.sh: 10 named tests on installed 0.1.48; live page Stale hidden: True. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10.log, /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10b.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.878723Z"
+          },
+          "BCL-84": {
+            "state": "not_fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:10Z",
+            "started_at": "2026-11-20T05:45:10Z",
+            "updated_at": "2026-11-20T05:45:10Z",
+            "check_id": "91b149889ecb47d1aa4bfd5fd6a699bd",
+            "evidence": "Checked: The live PR 117 page during round 5 verification; Expected: Shows the current round and each lane's current step; Observed: Lane steps are right (Verifying), but the page still says Round 3",
+            "details": "Named tests pass; the fix stops new drift but the stored round was already wrong before 0.1.48 and nothing corrects it. Follow-up BCL-88. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10.log, /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10b.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.879314Z"
+          },
+          "ACU-14": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:10Z",
+            "started_at": "2026-11-20T05:45:10Z",
+            "updated_at": "2026-11-20T05:45:10Z",
+            "check_id": "44c4744fe2b146bc9b9f48c720ab56df",
+            "evidence": "Checked: Every typed turn on GPT-Live-1 on the installed app; Expected: No turn rejected and every turn finishes; Observed: 7 of 7 turns finished with no rejected field",
+            "details": "live5/run-gpt-after.json; 0 unknown_parameter errors from 0.2.155 (0.2.154 had 13). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.481778Z"
+          },
+          "ACU-15": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:44:42Z",
+            "started_at": "2026-11-20T05:44:42Z",
+            "updated_at": "2026-11-20T05:44:42Z",
+            "check_id": "11bcda9e4813465a8cab8d51ee5f406a",
+            "evidence": "Checked: The 0.2.155 release run from app restart to microphone check; Expected: One run with no manual step; Observed: Restart, service check, native smoke and microphone all passed in one run",
+            "details": "acu-release-0.2.155.json: all steps true, error None; 3 release restart tests pass at b80ba41c. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g7b.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:02.097119Z"
+          },
+          "BCL-85": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:10Z",
+            "started_at": "2026-11-20T05:45:10Z",
+            "updated_at": "2026-11-20T05:45:10Z",
+            "check_id": "228e4ca4d88346f485d90871c89d5038",
+            "evidence": "Checked: The installed skill text and named tests for repeated failures; Expected: The ladder is in the skill and the normal path is unchanged; Observed: All four ladder checks pass",
+            "details": "verify-r5-g10b.sh: failure 2 Terra 6.1 high diagnosis plus failing test; Astra 6.2 low only after two failures; failure 3 one Sol 6.2 medium pass then block or park without holding the merge; normal path unchanged. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10.log, /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10b.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.879088Z"
+          },
+          "BCL-86": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:10Z",
+            "started_at": "2026-11-20T05:45:10Z",
+            "updated_at": "2026-11-20T05:45:10Z",
+            "check_id": "643948b85ad641b9a2d4f81cddfda6d4",
+            "evidence": "Checked: The installed skill text and named tests for running out of quota; Expected: Codex, then OpenCode free, then ask the user; a waiting lane is not shown as Stale; Observed: All three quota checks pass",
+            "details": "verify-r5-g10b.sh: order Codex > OpenCode free > ask; review never skipped; waiting lane shows Waiting for quota; a block by another subscription is blocked, not failed. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10.log, /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10b.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:10.879282Z"
+          },
+          "ACU-16": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:02Z",
+            "started_at": "2026-11-20T05:45:02Z",
+            "updated_at": "2026-11-20T05:45:02Z",
+            "check_id": "1ebc0fc39fd34a6bbf6920c4b979968a",
+            "evidence": "Checked: The island on the installed app with the real 20 Nov Codex usage-limit cutoff replayed; Expected: Shows Stopped with the reason and reset time, not done; Observed: Shows Stopped, Quota exhausted, resets 22 Nov 12:28 IST",
+            "details": "verify-r5-g12.sh: 22 named island tests pass at b80ba41c; replay of rollout-2026-11-20T08-25-10 gives 'Stopped · Quota exhausted, resets 22 Nov 12:28 IST'. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g12.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:02.477228Z"
+          },
+          "BCL-87": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:45:02Z",
+            "started_at": "2026-11-20T05:45:02Z",
+            "updated_at": "2026-11-20T05:45:02Z",
+            "check_id": "cf5784c5e79f445d9ba29365b472304f",
+            "evidence": "Checked: The live PR 117 page and the named tests on installed bcl 0.1.48; Expected: While a lane is in review the model column shows the reviewer, not the fix model; Observed: All six lanes in review showed the reviewer; 4 named tests pass",
+            "details": "verify-r5-col.sh: e.g. ACU-GPT fix model opencode/deepseek-v4.1-flash-free, In review shows Grok Bot subagent (own review); ACU-MENU shows gpt-6.1-terra medium. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-col.log. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:45:02.682291Z"
+          },
+          "BCL-88": {
+            "state": "inconclusive",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T05:49:05Z",
+            "started_at": "2026-11-20T05:49:05Z",
+            "updated_at": "2026-11-20T05:49:05Z",
+            "check_id": "33168c21d372417983f00d95017138ef",
+            "evidence": "Checked: nothing yet; Expected: a fix in this install; Observed: filed during this run and queued for the next round",
+            "details": "Root cause in the finding; no fix in ACU 0.2.155 or bcl 0.1.48. Run r5-b80ba41c-117.",
+            "finished_at": "2026-11-20T05:49:05.981508Z"
+          },
+          "ACU-17": {
+            "state": "pending"
+          }
+        },
+        "shared_check": {
+          "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-shared.sh",
+          "state": "passed",
+          "exit_code": 0,
+          "finished_at": "2026-11-20T05:28:03Z"
+        }
+      },
+      {
+        "id": "r6-28c42b78-117",
+        "build": "agent-computer-use 0.2.156, developer-observability 0.1.34, batched-change-list 0.1.49",
+        "revision": "28c42b78e7a104809d986cf4db2a5895b7cb9c0d",
+        "installed_at": "2026-11-20T08:23:38Z",
+        "install_evidence": "ACU 0.2.156 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-117/r3/acu-release-0.2.156.json; all installed checks incl. native Calculator smoke and microphone passed; notarization not attempted); dev-obs 0.1.34 receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-devobs-0.1.34.txt; bcl 0.1.49 install-local from bcl117-release at 28c42b78",
+        "status": "interrupted",
+        "checks": {
+          "BCL-75": {
+            "state": "pending"
+          },
+          "BCL-76": {
+            "state": "pending"
+          },
+          "BCL-77": {
+            "state": "pending"
+          },
+          "BCL-78": {
+            "state": "pending"
+          },
+          "BCL-79": {
+            "state": "pending"
+          },
+          "BCL-80": {
+            "state": "pending"
+          },
+          "BCL-81": {
+            "state": "pending"
+          },
+          "ACU-01": {
+            "state": "pending"
+          },
+          "ACU-02": {
+            "state": "pending"
+          },
+          "ACU-03": {
+            "state": "pending"
+          },
+          "ACU-04": {
+            "state": "pending"
+          },
+          "ACU-06": {
+            "state": "pending"
+          },
+          "ACU-07": {
+            "state": "pending"
+          },
+          "ACU-08": {
+            "state": "pending"
+          },
+          "ACU-10": {
+            "state": "pending"
+          },
+          "DEVOBS-05": {
+            "state": "pending"
+          },
+          "DEVOBS-06": {
+            "state": "pending"
+          },
+          "DEVOBS-07": {
+            "state": "pending"
+          },
+          "BCL-82": {
+            "state": "pending"
+          },
+          "ACU-11": {
+            "state": "pending"
+          },
+          "ACU-12": {
+            "state": "pending"
+          },
+          "ACU-13": {
+            "state": "pending"
+          },
+          "BCL-83": {
+            "state": "pending"
+          },
+          "BCL-84": {
+            "state": "pending"
+          },
+          "ACU-14": {
+            "state": "pending"
+          },
+          "ACU-15": {
+            "state": "pending"
+          },
+          "BCL-85": {
+            "state": "pending"
+          },
+          "BCL-86": {
+            "state": "pending"
+          },
+          "ACU-16": {
+            "state": "pending"
+          },
+          "BCL-87": {
+            "state": "pending"
+          },
+          "BCL-88": {
+            "state": "pending"
+          },
+          "BCL-89": {
+            "state": "pending"
+          },
+          "BCL-90": {
+            "state": "pending"
+          },
+          "ACU-18": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "ACU-17": {
+            "state": "pending"
+          }
+        },
+        "shared_check": {
+          "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-shared.sh",
+          "state": "failed",
+          "exit_code": 1,
+          "finished_at": "2026-11-20T08:28:48Z"
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -8291,9 +8776,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-20T08:27:38Z",
-      "now": "2026-11-20T08:27:38Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-20T08:46:19Z",
+      "now": "2026-11-20T08:46:19Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 116,
@@ -10907,7 +11392,8 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 6,
@@ -11030,8 +11516,8 @@
           "finding_ids": [
             "ACU-17"
           ],
-          "status": "installing",
-          "phase": "install",
+          "status": "verifying",
+          "phase": "verify",
           "worktree": "bcl117-r6-cancel",
           "label": "ACU-17",
           "codex": {
@@ -11060,7 +11546,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-20T08:16:12Z",
+          "updated_at": "2026-11-20T08:46:19Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -11071,362 +11557,125 @@
             "started_at": "2026-11-20T08:27:38Z"
           },
           "stage_model": {
-            "stage": "install",
-            "model": "Grok Bot subagent (scripted release: ACU 0.2.156 sign-only, bcl 0.1.49 install-local)",
-            "at": "2026-11-20T08:27:38Z"
+            "stage": "verify",
+            "model": "Grok Bot subagent (scripted typed check via typed_run_sync)",
+            "at": "2026-11-20T08:46:19Z"
           }
         }
       ]
     },
     "verification_run": {
-      "id": "r5-b80ba41c-117",
-      "build": "agent-computer-use 0.2.155, developer-observability 0.1.34, batched-change-list 0.1.48",
-      "revision": "b80ba41cfdc086e4b1776f6e6c43ec5306105e34",
-      "installed_at": "2026-11-20T05:21:29Z",
-      "install_evidence": "ACU 0.2.155 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-117/r3/acu-release-0.2.155.json; all installed checks incl. native Calculator smoke and microphone passed; notarization not attempted); dev-obs 0.1.34 receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-devobs-0.1.34.txt; bcl 0.1.48 install-local from bcl117-release at b80ba41c",
+      "id": "r6b-28c42b78-117",
+      "build": "agent-computer-use 0.2.156, developer-observability 0.1.34, batched-change-list 0.1.49",
+      "revision": "28c42b78e7a104809d986cf4db2a5895b7cb9c0d",
+      "installed_at": "2026-11-20T08:23:38Z",
+      "install_evidence": "ACU 0.2.156 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-117/r3/acu-release-0.2.156.json; all installed checks incl. native Calculator smoke and microphone passed; notarization not attempted); dev-obs 0.1.34 receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-devobs-0.1.34.txt; bcl 0.1.49 install-local from bcl117-release at 28c42b78; same install as run r6, restarted because its shared check failed on a verifier fault (BCL_VERSION left at 0.1.48)",
       "status": "active",
       "checks": {
         "BCL-75": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:09Z",
-          "started_at": "2026-11-20T05:45:09Z",
-          "updated_at": "2026-11-20T05:45:09Z",
-          "check_id": "cb85ccace67a4c77bcdcc140bf65c5db",
-          "evidence": "Checked: Named rollover and gate tests on installed bcl (recheck); Expected: Pass; Observed: 11 named tests pass",
-          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.080462Z"
+          "state": "pending"
         },
         "BCL-76": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:09Z",
-          "started_at": "2026-11-20T05:45:09Z",
-          "updated_at": "2026-11-20T05:45:09Z",
-          "check_id": "f8c727cc399b4ff39155c598dca411a3",
-          "evidence": "Checked: Named gate tests on installed bcl (recheck); Expected: Pass; Observed: Pass in the same run",
-          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.080604Z"
+          "state": "pending"
         },
         "BCL-77": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:09Z",
-          "started_at": "2026-11-20T05:45:09Z",
-          "updated_at": "2026-11-20T05:45:09Z",
-          "check_id": "2ab7e5b9071948b9993dc1709b9e3491",
-          "evidence": "Checked: Real dev-obs case (recheck); Expected: Findings collected; Observed: Findings collected from the real case",
-          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.080751Z"
+          "state": "pending"
         },
         "BCL-78": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:09Z",
-          "started_at": "2026-11-20T05:45:09Z",
-          "updated_at": "2026-11-20T05:45:09Z",
-          "check_id": "35c09d0ab58d46fd8e6cf20b1e514714",
-          "evidence": "Checked: Dev-obs junit findings (recheck); Expected: One finding per failing test; Observed: One per failing test, no duplicates",
-          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.080895Z"
+          "state": "pending"
         },
         "BCL-79": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:09Z",
-          "started_at": "2026-11-20T05:45:09Z",
-          "updated_at": "2026-11-20T05:45:09Z",
-          "check_id": "7d9ef266cf314bb1a148095e97e56419",
-          "evidence": "Checked: Dev-obs suggested fix text (recheck); Expected: Names the failed assertion; Observed: Names the failed assertion",
-          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.081043Z"
+          "state": "pending"
         },
         "BCL-80": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:09Z",
-          "started_at": "2026-11-20T05:45:09Z",
-          "updated_at": "2026-11-20T05:45:09Z",
-          "check_id": "8e7d71060c8c44048044eeb273e96145",
-          "evidence": "Checked: Named lane-stage tests on installed bcl (recheck); Expected: Pass; Observed: Pass",
-          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.081187Z"
+          "state": "pending"
         },
         "BCL-81": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:09Z",
-          "started_at": "2026-11-20T05:45:09Z",
-          "updated_at": "2026-11-20T05:45:09Z",
-          "check_id": "f9c0f5b314e64934b0c281ba88f720c6",
-          "evidence": "Checked: Named round-advance tests on installed bcl (recheck); Expected: Pass; Observed: 2 named tests pass",
-          "details": "verify-reg.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.081335Z"
+          "state": "pending"
         },
         "ACU-01": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:44:42Z",
-          "started_at": "2026-11-20T05:44:42Z",
-          "updated_at": "2026-11-20T05:44:42Z",
-          "check_id": "69be199be17446449386b6e725ac764e",
-          "evidence": "Checked: A real start with an unknown voice model on the installed app; Expected: Samantha shows a plain failure reason that stays visible; Observed: She showed Voice model unavailable and it was still shown 3 seconds later",
-          "details": "menu_fail.py on installed 0.2.155: failure reason 'Voice model unavailable: acu01-unknown-model', still shown after 3 s; 9 named python tests pass; restored Grok Voice 3.0, Samantha off. First rerun exit 2 was a verifier fault (release tests run from a git archive need a git repo), fixed by a detached worktree at the release commit. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g7b.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:02.096799Z"
+          "state": "pending"
         },
         "ACU-02": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:09Z",
-          "started_at": "2026-11-20T05:45:09Z",
-          "updated_at": "2026-11-20T05:45:09Z",
-          "check_id": "c4d1b16d2b524de48553ca142cf65faf",
-          "evidence": "Checked: Installed app version, signature and voice helper (recheck); Expected: 0.2.155, signed, helper present; Observed: 0.2.155, signature ok, voice helper present",
-          "details": "verify-g1-r5.sh; 4 named tests pass. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.079472Z"
+          "state": "pending"
         },
         "ACU-03": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:09Z",
-          "started_at": "2026-11-20T05:45:09Z",
-          "updated_at": "2026-11-20T05:45:09Z",
-          "check_id": "e5b094d72abe4eaa936c732265ab91a2",
-          "evidence": "Checked: Samantha reaches ready on both models (recheck); Expected: Ready on both; Observed: Ready on GPT-Live-1 in 7.1 s and Grok Voice 3.0 in 4.1 s",
-          "details": "live5/live-summary.json. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.079830Z"
+          "state": "pending"
         },
         "ACU-04": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:09Z",
-          "started_at": "2026-11-20T05:45:09Z",
-          "updated_at": "2026-11-20T05:45:09Z",
-          "check_id": "e5a77647a5984a7ca6e8d25de4228a57",
-          "evidence": "Checked: Samantha start and status (recheck); Expected: Ready with a reason field; Observed: Both ready; reason empty when ready",
-          "details": "live5/live-summary.json ready_out. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.080032Z"
+          "state": "pending"
         },
         "ACU-06": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:09Z",
-          "started_at": "2026-11-20T05:45:09Z",
-          "updated_at": "2026-11-20T05:45:09Z",
-          "check_id": "75ee1b6d36f745c4a4ce1ce9ec3ca4f5",
-          "evidence": "Checked: The typed scenarios on Grok Voice 3.0 (recheck); Expected: Every turn answered; Observed: Every Grok turn answered; empathy in 1.8 s after the browser task",
-          "details": "live5/run-grok-after.json. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.080207Z"
+          "state": "pending"
         },
         "ACU-07": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:02Z",
-          "started_at": "2026-11-20T05:45:02Z",
-          "updated_at": "2026-11-20T05:45:02Z",
-          "check_id": "55b340f772084992a0ca5306147f2f63",
-          "evidence": "Checked: Small talk that mentions a favourite colour, typed on GPT-Live-1 and Grok Voice 3.0; Expected: No memory save and a normal reply; Observed: No save on either model and a normal reply on both",
-          "details": "live5 runs: GPT small talk saves none (before: preference), reply in 2.8 s; Grok saves none (before: capture), reply in 1.9 s. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8m.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:02.284210Z"
+          "state": "pending"
         },
         "ACU-08": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:10Z",
-          "started_at": "2026-11-20T05:45:10Z",
-          "updated_at": "2026-11-20T05:45:10Z",
-          "check_id": "af6725433308458b8b82d5142165b44f",
-          "evidence": "Checked: The Calculator plus Example Domain task on both models; Expected: Reports Example Domain, then closes the window; Observed: Both models reported Example Domain and closed the window",
-          "details": "GPT 16.5 s, Grok 8.9 s, tools cua_act, comet_begin, comet_act, comet_end on both. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.482084Z"
+          "state": "pending"
         },
         "ACU-10": {
-          "state": "blocked",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:49:05Z",
-          "started_at": "2026-11-20T05:49:05Z",
-          "updated_at": "2026-11-20T05:49:05Z",
-          "check_id": "244470c756bc47d4a841d7d804f2eb4b",
-          "evidence": "Checked: usage records from both models; Expected: real input and output token counts; Observed: Grok Voice still sends none; unknown is recorded instead of zero",
-          "details": "Unchanged provider limit (Grok usage rows 0 tokens in live5). Run r5-b80ba41c-117.",
-          "blocker": "The voice providers do not send live model token counts",
-          "finished_at": "2026-11-20T05:49:05.981319Z"
+          "state": "pending"
         },
         "DEVOBS-05": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:09Z",
-          "started_at": "2026-11-20T05:45:09Z",
-          "updated_at": "2026-11-20T05:45:09Z",
-          "check_id": "0616f51b8bcb4258b982c19aaa1049fe",
-          "evidence": "Checked: Dev-obs reads the real Samantha errors (recheck); Expected: Error rows grouped with their message; Observed: Grouped, and it surfaced today's rejected cancel on GPT-Live-1",
-          "details": "verify-g5.sh; installed dev-obs unit tests OK. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.081625Z"
+          "state": "pending"
         },
         "DEVOBS-06": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:09Z",
-          "started_at": "2026-11-20T05:45:09Z",
-          "updated_at": "2026-11-20T05:45:09Z",
-          "check_id": "ff4b54bc443f4987a1e7ff99ffae018d",
-          "evidence": "Checked: Dev-obs lists the Grok Voice session (recheck); Expected: Listed; Observed: Listed",
-          "details": "verify-g5.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.081761Z"
+          "state": "pending"
         },
         "DEVOBS-07": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:09Z",
-          "started_at": "2026-11-20T05:45:09Z",
-          "updated_at": "2026-11-20T05:45:09Z",
-          "check_id": "afb4bc964e5f42998363368d232b8311",
-          "evidence": "Checked: Dev-obs plain-language summaries (recheck); Expected: Plain summaries; Observed: Plain summaries for no reply, overlap and zero usage",
-          "details": "verify-g5.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.081908Z"
+          "state": "pending"
         },
         "BCL-82": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:09Z",
-          "started_at": "2026-11-20T05:45:09Z",
-          "updated_at": "2026-11-20T05:45:09Z",
-          "check_id": "3a0843a7c6044e1d8ff0db04c9b198aa",
-          "evidence": "Checked: The four load-sensitive tests, 5 rounds under four busy CPU loops (recheck); Expected: Pass every round; Observed: Passed all 5 rounds",
-          "details": "verify-g6.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g1reg.log, verify-r5-reg.log, verify-r5-g5reg.log, verify-r5-g6reg.log, verify-r5-shared.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.081474Z"
+          "state": "pending"
         },
         "ACU-11": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:48:30Z",
-          "started_at": "2026-11-20T05:48:30Z",
-          "updated_at": "2026-11-20T05:48:30Z",
-          "check_id": "421befeb5f694cdcaa53fb551889b27b",
-          "evidence": "Checked: The island cold-start test on the installed revision, 20 times with four busy CPU loops (recheck); Expected: Passes every time; Observed: Passed 20 of 20 under load",
-          "details": "verify-r5-g9.sh at b80ba41c; IslandGateColdStartTests 20/20; menu swift tests pass. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g9.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:48:30.902157Z"
+          "state": "pending"
         },
         "ACU-12": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:48:30Z",
-          "started_at": "2026-11-20T05:48:30Z",
-          "updated_at": "2026-11-20T05:48:30Z",
-          "check_id": "0871a4589d3546328c490d2a45acca6a",
-          "evidence": "Checked: The strict shape check on the installed skill and the shape-gate tests (recheck); Expected: Shape passes and the gate tests pass; Observed: Strict shape passes; release test 12 and shape-gate tests 3 pass",
-          "details": "verify-r5-g9.sh on installed 0.2.155. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g9.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:48:30.902454Z"
+          "state": "pending"
         },
         "ACU-13": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:02Z",
-          "started_at": "2026-11-20T05:45:02Z",
-          "updated_at": "2026-11-20T05:45:02Z",
-          "check_id": "e9f6926b967a45a4a5fc6e924d1717d4",
-          "evidence": "Checked: An explicit remember request on both models; Expected: The save goes through once with no error; Observed: Saved once on each model with no error",
-          "details": "live5 runs: ledger_task preference ok 1, errors none, GPT 8.7 s, Grok 2.8 s (test word pineapple). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8m.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:02.284529Z"
+          "state": "pending"
         },
         "BCL-83": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:10Z",
-          "started_at": "2026-11-20T05:45:10Z",
-          "updated_at": "2026-11-20T05:45:10Z",
-          "check_id": "4eeca31fad4b4b31a69389f1e027defd",
-          "evidence": "Checked: The live PR 117 page right after a tracker update, and the named tests on installed bcl 0.1.48; Expected: No Stale badge right after an update; Observed: Stale badge hidden right after the update; named tests pass",
-          "details": "verify-r5-g10.sh: 10 named tests on installed 0.1.48; live page Stale hidden: True. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10.log, /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10b.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.878723Z"
+          "state": "pending"
         },
         "BCL-84": {
-          "state": "not_fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:10Z",
-          "started_at": "2026-11-20T05:45:10Z",
-          "updated_at": "2026-11-20T05:45:10Z",
-          "check_id": "91b149889ecb47d1aa4bfd5fd6a699bd",
-          "evidence": "Checked: The live PR 117 page during round 5 verification; Expected: Shows the current round and each lane's current step; Observed: Lane steps are right (Verifying), but the page still says Round 3",
-          "details": "Named tests pass; the fix stops new drift but the stored round was already wrong before 0.1.48 and nothing corrects it. Follow-up BCL-88. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10.log, /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10b.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.879314Z"
+          "state": "pending"
         },
         "ACU-14": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:10Z",
-          "started_at": "2026-11-20T05:45:10Z",
-          "updated_at": "2026-11-20T05:45:10Z",
-          "check_id": "44c4744fe2b146bc9b9f48c720ab56df",
-          "evidence": "Checked: Every typed turn on GPT-Live-1 on the installed app; Expected: No turn rejected and every turn finishes; Observed: 7 of 7 turns finished with no rejected field",
-          "details": "live5/run-gpt-after.json; 0 unknown_parameter errors from 0.2.155 (0.2.154 had 13). Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.481778Z"
+          "state": "pending"
         },
         "ACU-15": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:44:42Z",
-          "started_at": "2026-11-20T05:44:42Z",
-          "updated_at": "2026-11-20T05:44:42Z",
-          "check_id": "11bcda9e4813465a8cab8d51ee5f406a",
-          "evidence": "Checked: The 0.2.155 release run from app restart to microphone check; Expected: One run with no manual step; Observed: Restart, service check, native smoke and microphone all passed in one run",
-          "details": "acu-release-0.2.155.json: all steps true, error None; 3 release restart tests pass at b80ba41c. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g7b.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:02.097119Z"
+          "state": "pending"
         },
         "BCL-85": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:10Z",
-          "started_at": "2026-11-20T05:45:10Z",
-          "updated_at": "2026-11-20T05:45:10Z",
-          "check_id": "228e4ca4d88346f485d90871c89d5038",
-          "evidence": "Checked: The installed skill text and named tests for repeated failures; Expected: The ladder is in the skill and the normal path is unchanged; Observed: All four ladder checks pass",
-          "details": "verify-r5-g10b.sh: failure 2 Terra 6.1 high diagnosis plus failing test; Astra 6.2 low only after two failures; failure 3 one Sol 6.2 medium pass then block or park without holding the merge; normal path unchanged. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10.log, /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10b.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.879088Z"
+          "state": "pending"
         },
         "BCL-86": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:10Z",
-          "started_at": "2026-11-20T05:45:10Z",
-          "updated_at": "2026-11-20T05:45:10Z",
-          "check_id": "643948b85ad641b9a2d4f81cddfda6d4",
-          "evidence": "Checked: The installed skill text and named tests for running out of quota; Expected: Codex, then OpenCode free, then ask the user; a waiting lane is not shown as Stale; Observed: All three quota checks pass",
-          "details": "verify-r5-g10b.sh: order Codex > OpenCode free > ask; review never skipped; waiting lane shows Waiting for quota; a block by another subscription is blocked, not failed. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10.log, /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10b.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:10.879282Z"
+          "state": "pending"
         },
         "ACU-16": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:02Z",
-          "started_at": "2026-11-20T05:45:02Z",
-          "updated_at": "2026-11-20T05:45:02Z",
-          "check_id": "1ebc0fc39fd34a6bbf6920c4b979968a",
-          "evidence": "Checked: The island on the installed app with the real 20 Nov Codex usage-limit cutoff replayed; Expected: Shows Stopped with the reason and reset time, not done; Observed: Shows Stopped, Quota exhausted, resets 22 Nov 12:28 IST",
-          "details": "verify-r5-g12.sh: 22 named island tests pass at b80ba41c; replay of rollout-2026-11-20T08-25-10 gives 'Stopped · Quota exhausted, resets 22 Nov 12:28 IST'. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g12.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:02.477228Z"
+          "state": "pending"
         },
         "BCL-87": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:45:02Z",
-          "started_at": "2026-11-20T05:45:02Z",
-          "updated_at": "2026-11-20T05:45:02Z",
-          "check_id": "cf5784c5e79f445d9ba29365b472304f",
-          "evidence": "Checked: The live PR 117 page and the named tests on installed bcl 0.1.48; Expected: While a lane is in review the model column shows the reviewer, not the fix model; Observed: All six lanes in review showed the reviewer; 4 named tests pass",
-          "details": "verify-r5-col.sh: e.g. ACU-GPT fix model opencode/deepseek-v4.1-flash-free, In review shows Grok Bot subagent (own review); ACU-MENU shows gpt-6.1-terra medium. Log: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-col.log. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:45:02.682291Z"
+          "state": "pending"
         },
         "BCL-88": {
-          "state": "inconclusive",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T05:49:05Z",
-          "started_at": "2026-11-20T05:49:05Z",
-          "updated_at": "2026-11-20T05:49:05Z",
-          "check_id": "33168c21d372417983f00d95017138ef",
-          "evidence": "Checked: nothing yet; Expected: a fix in this install; Observed: filed during this run and queued for the next round",
-          "details": "Root cause in the finding; no fix in ACU 0.2.155 or bcl 0.1.48. Run r5-b80ba41c-117.",
-          "finished_at": "2026-11-20T05:49:05.981508Z"
+          "state": "pending"
+        },
+        "BCL-89": {
+          "state": "pending"
+        },
+        "BCL-90": {
+          "state": "pending"
+        },
+        "ACU-18": {
+          "state": "pending"
+        },
+        "ACU-20": {
+          "state": "pending"
         },
         "ACU-17": {
           "state": "pending"
@@ -11436,7 +11685,7 @@
         "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-shared.sh",
         "state": "passed",
         "exit_code": 0,
-        "finished_at": "2026-11-20T05:28:03Z"
+        "finished_at": "2026-11-20T08:46:16Z"
       }
     },
     "introspect": {
