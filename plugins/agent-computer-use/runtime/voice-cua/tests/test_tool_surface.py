@@ -77,9 +77,14 @@ class LazyGroupTests(unittest.TestCase):
         with patch.object(tools, "comet_end", return_value=dict(closed)), \
                 patch.object(tools, "island_publish"), patch.object(tools, "log_event"):
             result = tools._comet_end({})
-        self.assertIn("first state every fact the user asked you to report", result["next"])
+        self.assertTrue(result["next"].startswith("In this reply, first state every fact the user asked you to report"))
         self.assertIn("then say the window is closed", result["next"])
-        for other in ({"ok": False, "error": "unavailable"}, {"ok": True, "kept_open": True}):
+        self.assertEqual({k: result[k] for k in ("ok", "closed", "window")}, closed)
+        with patch.object(tools, "comet_end", return_value={**closed, "next": "kept"}), \
+                patch.object(tools, "island_publish"), patch.object(tools, "log_event"):
+            self.assertEqual(tools._comet_end({})["next"], "kept")
+        for other in ({"ok": False, "error": "unavailable"}, {"ok": True, "kept_open": True},
+                      {"ok": True, "closed": False, "already_closed": True, "window": "closed"}):
             with patch.object(tools, "comet_end", return_value=dict(other)), \
                     patch.object(tools, "island_publish"), patch.object(tools, "log_event"):
                 self.assertNotIn("next", tools._comet_end({}))
