@@ -8291,9 +8291,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T07:18:03Z",
-      "now": "2026-11-20T07:18:03Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-20T07:19:33Z",
+      "now": "2026-11-20T07:19:33Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -11005,14 +11005,27 @@
           "finding_ids": [
             "ACU-18"
           ],
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r6-island",
           "label": "ACU-18",
           "codex": {
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-r6-own-fix-island",
-            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-island"
+            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-island",
+            "job": {
+              "pid": 95535,
+              "phase": "fix",
+              "started_at": "2026-11-20T07:18:16Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-20T07:19:20Z",
+              "model": "Grok Bot subagent (own fix)",
+              "exit_code": 0,
+              "duration_s": 64,
+              "finished_at": "2026-11-20T07:19:20Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-island.sh",
@@ -11021,7 +11034,7 @@
             "failed": 0,
             "total": 1
           },
-          "updated_at": "2026-11-20T07:18:03Z"
+          "updated_at": "2026-11-20T07:19:33Z"
         }
       ]
     },
