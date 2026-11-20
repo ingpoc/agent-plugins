@@ -7988,9 +7988,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T03:32:35Z",
-      "now": "2026-11-20T03:32:35Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T03:40:24Z",
+      "now": "2026-11-20T03:40:24Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10471,8 +10471,8 @@
             "ACU-15"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r4-g7",
           "reason": "Both are about reading the app's real state: a real unknown-model start comes up healthy with no reason, and the release checks the app one second after restarting it.",
           "codex": {
@@ -10485,7 +10485,11 @@
               "phase": "fix",
               "started_at": "2026-11-20T03:23:50Z",
               "command": "run-r5mf-g7.sh",
-              "heartbeat_at": "2026-11-20T03:31:51Z"
+              "heartbeat_at": "2026-11-20T03:35:34Z",
+              "exit_code": 0,
+              "duration_s": 704,
+              "finished_at": "2026-11-20T03:35:34Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "review_status": "failed"
@@ -10498,7 +10502,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T03:31:52Z"
+          "updated_at": "2026-11-20T03:35:34Z"
         },
         {
           "id": "BCL-PAGE",
@@ -10508,7 +10512,7 @@
             "BCL-84"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl117-r5-g10",
           "reason": "Both are how the page reads the tracker and how bcl moves lanes and rounds.",
@@ -10517,18 +10521,19 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 30126,
-              "phase": "fix",
-              "started_at": "2026-11-20T02:55:09Z",
-              "command": "launch-g10.sh",
-              "heartbeat_at": "2026-11-20T03:31:01Z",
+              "pid": 91942,
+              "phase": "review",
+              "started_at": "2026-11-20T03:32:36Z",
+              "command": "launch-review-g10.sh",
+              "heartbeat_at": "2026-11-20T03:34:08Z",
               "exit_code": 0,
-              "duration_s": 2152,
-              "finished_at": "2026-11-20T03:31:01Z",
-              "finished_phase_status": "passed"
+              "duration_s": 92,
+              "finished_at": "2026-11-20T03:34:08Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
-            "implementer_session": "01a1f6e1-1ad8-7c02-9ffc-c6d1fb8e7bb5"
+            "implementer_session": "01a1f6e1-1ad8-7c02-9ffc-c6d1fb8e7bb5",
+            "review_status": "failed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10.sh",
@@ -10538,7 +10543,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T03:32:35Z"
+          "updated_at": "2026-11-20T03:34:08Z"
         },
         {
           "id": "ACU-MEMORY",
@@ -10547,13 +10552,11 @@
             "ACU-07",
             "ACU-13"
           ],
-          "depends_on": [
-            "ACU-GPT"
-          ],
+          "depends_on": [],
           "status": "planned",
           "phase": "fix",
           "worktree": "bcl117-r4-g8",
-          "reason": "Both failed on GPT-Live only because every GPT turn was rejected; they run in the ACU-GPT session after its fix, to confirm or finish the memory behaviour.",
+          "reason": "ACU-07/13 failed on GPT-Live only because every GPT turn was rejected (ACU-14). This job only adds strict GPT-Live tests on top of the ACU-GPT change in the same worktree, so it ships in the same release; dependency on ACU-GPT verification removed (it would force a second release).",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "medium",
@@ -10563,12 +10566,12 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8m.sh",
             "method": "Checked on the installed copy.",
-            "status": "failed",
+            "status": "pending",
             "total": 2,
             "fixed": 0,
-            "failed": 2
+            "failed": 0
           },
-          "updated_at": "2026-11-20T02:54:52Z"
+          "updated_at": "2026-11-20T03:40:14Z"
         }
       ]
     },
@@ -11648,7 +11651,7 @@
       "done_when": "Small talk with a passing personal fact gets a warm conversational reply and no save; a scenario test proves it on both voice models.",
       "observed": "19 Nov 2026 17:03:58 IST typed: one save-preference tool call, reply in 5.6 s. GPT-Live-1 replied conversationally with no tool call.",
       "recommendation": "Tighten the instructions so memory saves happen only when Guru asks Samantha to remember something.",
-      "status": "failing",
+      "status": "in_progress",
       "details": {
         "Technical wording": "ledger_task operation=preference scope=fleet rule=favourite_colour; reply text 'Saved: teal for fleet.'",
         "Dev-obs evidence": "Grok session missing in dev-obs (DEVOBS-06); taken from the activity log."
@@ -11973,7 +11976,7 @@
       "done_when": "A memory save that Grok Voice sends is accepted, or Samantha is told plainly which part is wrong and fixes it once; a named test with the exact request Grok sent proves it, and a typed run on Grok Voice shows no invalid request.",
       "observed": "19 Nov 2026 20:35 IST, ACU 0.2.153, Grok Voice 3.0 typed small-talk turn: the memory save tool was called with operation capture, scope fleet, rule favourite_colour, value teal and a capture_gate; it came back ok false, error invalid request, type ledger_invalid_argument, not retryable. The reply was: I could not save it, the ledger rejected that request as invalid. Same reply in the 19:14 IST run on 0.2.152. The tool call was also delivered twice (duplicate function call delivery).",
       "recommendation": "Compare the request Grok sends with what the memory tool accepts (scope and capture_gate fields), and make the tool description, the conversion layer or the error message line up so a valid save goes through.",
-      "status": "failing"
+      "status": "in_progress"
     },
     {
       "id": "BCL-83",
