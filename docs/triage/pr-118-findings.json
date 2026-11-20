@@ -10494,9 +10494,9 @@
       }
     },
     "workflow": {
-      "stage": "present",
-      "updated_at": "2026-11-20T14:24:37Z",
-      "now": "2026-11-20T14:24:37Z — Started collection"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T14:27:01Z",
+      "now": "2026-11-20T14:27:01Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 117,
@@ -13407,8 +13407,41 @@
     ],
     "stages_reached": [
       "collect",
-      "present"
-    ]
+      "present",
+      "plan_fix"
+    ],
+    "plan": {
+      "round": 1,
+      "groups": [
+        {
+          "id": "ACU-REMEMBER",
+          "name": "Lasting facts save, moods do not, credentials go to secrets",
+          "finding_ids": [
+            "ACU-07",
+            "ACU-13"
+          ],
+          "status": "pending",
+          "worktree": "samantha-next-r8",
+          "label": "ACU-07, ACU-13",
+          "reason": "Carried from #117: fix c21b1398/b4406c81 (reapplied 3444e1d6 + 4038b12c), fresh-eyes review pass 5 PASS on #117; verify only on #118",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r1/verify-remember.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "codex": {
+            "model": "Grok Bot subagent (own fix, carried from #117)",
+            "implementer_session": "grokbot-r7-own-fix-remember",
+            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-remember-5",
+            "review_status": "pending"
+          },
+          "updated_at": "2026-11-20T14:27:01Z"
+        }
+      ],
+      "cycle": 10
+    }
   },
   "findings": [
     {
@@ -13421,7 +13454,7 @@
       "done_when": "Lasting facts and preferences about Guru are saved even when mentioned casually in small talk (for example 'teal's my favourite colour'); passing moods and small talk ('my afternoon's good', 'I'm tired today') are not saved; when saving mid-chat Samantha briefly says so (for example 'Noted, teal') so Guru can say 'forget that', and still replies warmly. A typed run on GPT-Live-1 and Grok Voice 3.0 proves it: the favourite-colour small talk saves teal and the reply mentions the save, and the mood turn saves nothing.",
       "observed": "19 Nov 2026 17:03:58 IST typed: one save-preference tool call, reply in 5.6 s. GPT-Live-1 replied conversationally with no tool call.",
       "recommendation": "Tighten the instructions so memory saves happen only when Guru asks Samantha to remember something.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "Technical wording": "ledger_task operation=preference scope=fleet rule=favourite_colour; reply text 'Saved: teal for fleet.'",
         "Dev-obs evidence": "Grok session missing in dev-obs (DEVOBS-06); taken from the activity log.",
@@ -13484,7 +13517,7 @@
       "done_when": "Memory versus secrets is chosen by intent, by what is being stored, never by keywords such as remember or password, and only through tool descriptions and instructions (no regex or word list). A real secret value (a password, API key or token) goes to secure entry; personal facts and preferences go to ledger memory with or without the word remember. Typed Verify on GPT-Live-1 (2 runs) and Grok Voice 3.0 proves it for: 'I have a Guru profile on Netflix', 'I love chocolate chip ice cream', 'I like dark mode across apps' (no remember), the pineapple remember turn, and one credential case with a dummy value deleted afterwards. A memory save Grok Voice sends is accepted.",
       "observed": "19 Nov 2026 20:35 IST, ACU 0.2.153, Grok Voice 3.0 typed small-talk turn: the memory save tool was called with operation capture, scope fleet, rule favourite_colour, value teal and a capture_gate; it came back ok false, error invalid request, type ledger_invalid_argument, not retryable. The reply was: I could not save it, the ledger rejected that request as invalid. Same reply in the 19:14 IST run on 0.2.152. The tool call was also delivered twice (duplicate function call delivery).",
       "recommendation": "Compare the request Grok sends with what the memory tool accepts (scope and capture_gate fields), and make the tool description, the conversion layer or the error message line up so a valid save goes through.",
-      "status": "untested",
+      "status": "in_progress",
       "verification_evidence": [
         {
           "checked": "An explicit remember request on both models",
