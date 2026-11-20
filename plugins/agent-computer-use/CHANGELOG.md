@@ -1,3 +1,7 @@
+## 0.2.157
+
+- Samantha chooses where to keep something by what it is, not by the words used. A secret value that grants access (a password, API key or token) goes only to the secure entry form; anything else you say about yourself (facts, profiles you have, things you like, settings you want, a word to keep) is saved to memory, with or without "remember". This stops GPT-Live opening the password form for "my test word is pineapple" (ACU-13, ACU-14). The keyword checks added in 0.2.154 for remember requests are removed; the memory store still refuses secret-looking values.
+
 ## 0.2.156
 
 - Interrupting a GPT-Live reply no longer shows a voice error. GPT-Live has no cancel command, so the app no longer sends one, as before 0.2.154; the interrupted reply ends when its backend finishes, and its late text is dropped (ACU-17).
