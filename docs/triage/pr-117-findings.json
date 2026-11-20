@@ -10059,9 +10059,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-20T11:58:33Z",
-      "now": "2026-11-20T11:58:33Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-20T12:04:51Z",
+      "now": "2026-11-20T12:04:51Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 116,
@@ -12872,6 +12872,71 @@
         },
         "round": 7,
         "cycle": 9
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-20T12:04:51Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 1",
+          "Codex write: ACU-REMEMBER",
+          "Codex review: ACU-REMEMBER",
+          "Polling and rework review: ACU-REMEMBER",
+          "Test command: ACU-REMEMBER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r7-remember.sh"
+        ],
+        "none": [
+          "Stage: Review",
+          "Parallel group count: 1",
+          "Codex write: ACU-REMEMBER",
+          "Codex review: ACU-REMEMBER",
+          "Polling and rework review: ACU-REMEMBER"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Stage: Verify",
+                "evidence": "The 0.2.159 verify was stopped for rollover after a full release; a round limit check before releasing would have carried the ACU-07 change straight to the next PR without a release.",
+                "outcome": "issue",
+                "issue_id": "ACU-07"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Stage: Plan & fix",
+                "evidence": "Two review CHANGES on one lane came from prompt rules stated in several places (live prompt, route hint, backend, reference). Keeping one statement per rule and asserting each copy in a test would shorten review loops.",
+                "outcome": "issue",
+                "issue_id": "ACU-13"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Stage: Install",
+                "evidence": "Release try 1 failed on a dev_tools background job test under 10-way check load (ACU-21 load flake) though it passed presuite at 6-way and 5 of 5 alone; running source checks at 6-way would avoid a 9-minute retry.",
+                "outcome": "issue",
+                "issue_id": "ACU-21"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Test command: ACU-REMEMBER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r7-remember.sh",
+                "evidence": "Stopping the driver mid-run skipped its dummy credential cleanup; I ran the same cleanup by hand and none remained. verify-r7-remember.sh now runs the cleanup from an EXIT trap too.",
+                "outcome": "fixed inline"
+              }
+            ]
+          }
+        },
+        "round": 7,
+        "cycle": 9
       }
     ],
     "archive": {
@@ -12964,121 +13029,426 @@
       "revision": "2fb139db3f06a617057f4117fd84f07bb74fcbd0",
       "installed_at": "2026-11-20T11:51:29Z",
       "install_evidence": "ACU 0.2.159 local signed release (release_agent_computer_use.py --sign-only --skip-voice-smoke --hygiene-override; report /Users/gurusharan/.agents/artifacts/bcl-117/r3/acu-release-0.2.159.json; all installed checks incl. native Calculator smoke passed; the microphone step failed only because the Mac had no input device connected (mic preflight: no input device; only the virtual LoomAudioDevice), so checks are typed text only; notarization not attempted); dev-obs 0.1.34 receipt /Users/gurusharan/.agents/artifacts/bcl-117/r3/install-devobs-0.1.34.txt; bcl 0.1.49 install-local from bcl117-release at 2fb139db",
-      "status": "active",
+      "status": "complete",
       "checks": {
         "BCL-75": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "f5eb589d1f7d46faa52f9a7881259d4a",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215143Z"
         },
         "BCL-76": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "606af35478334200906f32dc1c9ca7e7",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215333Z"
         },
         "BCL-77": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "4777319b53724b55afcdaf17e6e09bdd",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215364Z"
         },
         "BCL-78": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "3be44c7c2de44af9a17e5d987e8d8868",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215394Z"
         },
         "BCL-79": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "017caae973774e96b974e389c478224a",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215428Z"
         },
         "BCL-80": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "42050c4871a14605976c745263c3fe80",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215456Z"
         },
         "BCL-81": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "de62cd7840144d2591db41f9fbf5ae16",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215481Z"
         },
         "ACU-01": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "1c05afb3497f4b26b05ce9a493dcc456",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215506Z"
         },
         "ACU-02": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "735b678efe7b4befbb6aa06a4016023b",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215530Z"
         },
         "ACU-03": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "82e513d5dcd74ecba47ceafc7e1418a0",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215555Z"
         },
         "ACU-04": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "038bd2d0eb084cc082119b52a80515e2",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215580Z"
         },
         "ACU-06": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "17f87751df42490690f9469610981c84",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215604Z"
         },
         "ACU-07": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "2f5a694b186b45539b6abd31299d747b",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215628Z"
         },
         "ACU-08": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "7ab0cabf10e54e7fbdbf007d801c728b",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215652Z"
         },
         "ACU-10": {
-          "state": "pending"
+          "state": "blocked",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "7b38cbe10a994d28940f2b49df4478b1",
+          "evidence": "Checked: nothing new; Expected: real token counts; Observed: unchanged provider limit",
+          "details": "Unchanged since round 5. Run r7c-2fb139db-117.",
+          "blocker": "The voice providers do not send live model token counts",
+          "finished_at": "2026-11-20T12:03:35.215670Z"
         },
         "DEVOBS-05": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "94a65f133ad54170804bedc66ea2ce53",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215695Z"
         },
         "DEVOBS-06": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "7655ab6aa1784344aeb2f3143477c822",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215719Z"
         },
         "DEVOBS-07": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "375d40226a424a238f23bd3d77b676b6",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215743Z"
         },
         "BCL-82": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "6f0c305ea73c4efdafdd8d743c67967a",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215767Z"
         },
         "ACU-11": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "b91d10553aab4da5b577f60ff0d1dd68",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215791Z"
         },
         "ACU-12": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "8d7ce97916a0406bb1032d88c0b092e0",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215815Z"
         },
         "ACU-13": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "0f3f345132a948949b87282f3c7c827f",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215839Z"
         },
         "BCL-83": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "989f82d689494368a65d055c00540aa4",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215863Z"
         },
         "BCL-84": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "a4487307e4a945b0aa451fbe4302ec80",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215887Z"
         },
         "ACU-14": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "bf60e23f59f24472bbf976091ede8501",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215912Z"
         },
         "ACU-15": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "7dd846fbe5b64534b8202e77c16f338c",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215936Z"
         },
         "BCL-85": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "d13ebe53b2f940eab6b94db429390dd8",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215960Z"
         },
         "BCL-86": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "c9d3166f37db4c2ea654ed84f95d8c31",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.215985Z"
         },
         "ACU-16": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "1b2d3ad43f7c420a9b95d6c55d802552",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.216009Z"
         },
         "BCL-87": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "c7fd87648874413f99b45f7013789767",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.216034Z"
         },
         "BCL-88": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "0fc4d20088464b35aba63c206c5051ad",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.216059Z"
         },
         "BCL-89": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "d57777a58ff14689bf91a06525033d14",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.216084Z"
         },
         "BCL-90": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "fe46bdc2505d4dc3b2b15ee3b7bef662",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.216108Z"
         },
         "ACU-18": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "9949705b7ca3414e87fb7b9cd7fb1e12",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.216132Z"
         },
         "ACU-20": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "192eb677f41e44738d1628824e54c6f7",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.216156Z"
         },
         "ACU-17": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "a71c9fa2b4ec4712914a5fbd23f8ce68",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.216181Z"
         },
         "BCL-91": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "3ee074d523a24672a28bdcde6d8842b4",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.216205Z"
         },
         "ACU-21": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-20T12:03:21Z",
+          "started_at": "2026-11-20T12:03:21Z",
+          "updated_at": "2026-11-20T12:03:21Z",
+          "check_id": "f084d82859ee4a7584596456bf453709",
+          "evidence": "Checked: agent-computer-use 0.2.159 install; Expected: a recheck; Observed: not run, because the list rolled over to the next PR at the owner's request",
+          "details": "Run stopped before this check: Guru (17:31 IST) asked to roll over now so pending items carry to the next PR. The 0.2.159 ACU-07 change was reverted from #117 (branch code equals 0.2.158, fully rechecked in r7b-288acd35-117) and moves to the next PR. Run r7c-2fb139db-117.",
+          "finished_at": "2026-11-20T12:03:35.216230Z"
         }
       },
       "shared_check": {
@@ -13090,7 +13460,7 @@
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-20T11:14:02Z",
+      "at": "2026-11-20T12:04:51Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
@@ -13113,35 +13483,38 @@
         "delete": {
           "items": [
             {
-              "item": "Stage: Plan & fix",
-              "evidence": "Run r7b on 0.2.158 was superseded by the 16:31 IST ACU-07 decision while it ran; its lane check never ran and most rechecks will be repeated on 0.2.159. Settling an open product decision before releasing would have saved a release-and-verify cycle.",
-              "outcome": "fixed inline"
+              "item": "Stage: Verify",
+              "evidence": "The 0.2.159 verify was stopped for rollover after a full release; a round limit check before releasing would have carried the ACU-07 change straight to the next PR without a release.",
+              "outcome": "issue",
+              "issue_id": "ACU-07"
             }
           ]
         },
         "simplify": {
           "items": [
             {
-              "item": "Test command: ACU-REMEMBER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r7-remember.sh",
-              "evidence": "bcl refused the lane check because my new driver passed a per-version copy instead of the plan's stored command. The stored verify-r7-remember.sh now reads the installed version and takes the run folders from the environment, so the same stored command serves every release.",
-              "outcome": "fixed inline"
+              "item": "Stage: Plan & fix",
+              "evidence": "Two review CHANGES on one lane came from prompt rules stated in several places (live prompt, route hint, backend, reference). Keeping one statement per rule and asserting each copy in a test would shorten review loops.",
+              "outcome": "issue",
+              "issue_id": "ACU-13"
             }
           ]
         },
         "optimize": {
           "items": [
             {
-              "item": "Stage: Verify",
-              "evidence": "The BCL-83 Stale check rendered the page long after the last tracker write, so it measured idle time, not 'right after an update'. The next driver runs it straight after the lane's bcl verify write.",
-              "outcome": "fixed inline"
+              "item": "Stage: Install",
+              "evidence": "Release try 1 failed on a dev_tools background job test under 10-way check load (ACU-21 load flake) though it passed presuite at 6-way and 5 of 5 alone; running source checks at 6-way would avoid a 9-minute retry.",
+              "outcome": "issue",
+              "issue_id": "ACU-21"
             }
           ]
         },
         "automate": {
           "items": [
             {
-              "item": "Stage: Install",
-              "evidence": "The dev-obs DEVOBS-06 check had a hard-coded run folder and crashed when that run did not happen. It now picks the newest typed run that has a Grok Voice session.",
+              "item": "Test command: ACU-REMEMBER: /Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r7-remember.sh",
+              "evidence": "Stopping the driver mid-run skipped its dummy credential cleanup; I ran the same cleanup by hand and none remained. verify-r7-remember.sh now runs the cleanup from an EXIT trap too.",
               "outcome": "fixed inline"
             }
           ]
