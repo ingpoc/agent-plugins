@@ -9624,9 +9624,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-20T11:14:02Z",
-      "now": "2026-11-20T11:14:02Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T11:14:14Z",
+      "now": "2026-11-20T11:14:14Z — Fix job started"
     },
     "rollover": {
       "source_pr": 116,
@@ -12469,16 +12469,17 @@
           "id": "ACU-REMEMBER",
           "name": "Remember goes to memory, not secrets",
           "finding_ids": [
-            "ACU-13"
+            "ACU-13",
+            "ACU-07"
           ],
           "status": "installing",
           "phase": "install",
           "worktree": "bcl117-r7-remember",
-          "label": "ACU-13",
+          "label": "ACU-13, ACU-07",
           "codex": {
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-r7-own-fix-remember",
-            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-remember-2",
+            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-remember-3",
             "job": {
               "pid": 88654,
               "phase": "presuite",
@@ -12492,17 +12493,17 @@
             },
             "fix_status": "passed",
             "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 3)",
-            "review_status": "passed"
+            "review_status": "pending"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r7-remember.sh",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1,
+            "total": 2,
             "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
-          "updated_at": "2026-11-20T10:45:29Z",
+          "updated_at": "2026-11-20T11:14:13Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12517,7 +12518,7 @@
             "model": "Grok Bot subagent (sign-only release 0.2.158)",
             "at": "2026-11-20T10:53:30Z"
           },
-          "reason": "Verify on 0.2.157 failed for Grok Voice dark mode; follow-up fix b1c86116 needs its own review"
+          "reason": "ACU-07 decision 16:31 IST: lasting preferences save even in passing, moods do not, brief acknowledgement (3444e1d6)"
         }
       ],
       "status": "closed"
@@ -14211,7 +14212,7 @@
       "done_when": "Lasting facts and preferences about Guru are saved even when mentioned casually in small talk (for example 'teal's my favourite colour'); passing moods and small talk ('my afternoon's good', 'I'm tired today') are not saved; when saving mid-chat Samantha briefly says so (for example 'Noted, teal') so Guru can say 'forget that', and still replies warmly. A typed run on GPT-Live-1 and Grok Voice 3.0 proves it: the favourite-colour small talk saves teal and the reply mentions the save, and the mood turn saves nothing.",
       "observed": "19 Nov 2026 17:03:58 IST typed: one save-preference tool call, reply in 5.6 s. GPT-Live-1 replied conversationally with no tool call.",
       "recommendation": "Tighten the instructions so memory saves happen only when Guru asks Samantha to remember something.",
-      "status": "failing",
+      "status": "in_progress",
       "details": {
         "Technical wording": "ledger_task operation=preference scope=fleet rule=favourite_colour; reply text 'Saved: teal for fleet.'",
         "Dev-obs evidence": "Grok session missing in dev-obs (DEVOBS-06); taken from the activity log.",
