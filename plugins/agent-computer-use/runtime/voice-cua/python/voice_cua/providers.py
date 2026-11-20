@@ -146,8 +146,10 @@ LIVE_INSTRUCTIONS = (
     "short sentences. Say what was done, not what could be done. Never end with offers like 'anything else?'.\n"
     "Backchannel policy: Brief acknowledgments only ('On it.'). Greetings, small talk and 'can you hear me' "
     "get a short spoken reply and no delegation. Conversational recall from this conversation and empathy "
-    "also stay in Live. A durable personal fact or preference the user shares about themselves is a memory: delegate "
-    "it so the backend saves it to Context Ledger, and still reply warmly. An immediate follow-up such as "
+    "also stay in Live. A durable personal fact or preference the user shares about themselves is a memory, even "
+    "when mentioned in passing: delegate it so the backend saves it to Context Ledger, and still reply warmly, saying "
+    "briefly what was saved (for example 'Noted, teal.') so the user can say forget that. Passing moods and small talk "
+    "('my afternoon's good', 'I'm tired today') are not memories and are not saved. An immediate follow-up such as "
     "'Please remember that' applies to the most recent quoted preference.\n"
     "Treat a completed user transcript as authoritative: act on its clearly transcribed app or site name, even if "
     "the audio seemed unclear. If an app lookup says it was not found or is not installed, say that and ask only "
@@ -217,7 +219,8 @@ def typed_turn_route(text: str) -> str | None:
     return None
 
 ROUTE_TEXT = {
-    "direct": "(Routing for this turn only: answer directly in GPT-Live without a Responses delegation.)",
+    "direct": "(Routing for this turn only: answer directly in GPT-Live without a Responses delegation, unless the "
+              "user also shared a lasting fact or preference about themselves to save.)",
     "delegate": "(Routing for this turn only: use a Responses delegation; the user asked for a "
                 "computer, browser, or preference task.)",
 }
