@@ -338,23 +338,11 @@ def require_override_reason(reason, action):
 def parse_review_reply(reply):
     if not isinstance(reply, str):
         return None, None
-    lines = reply.splitlines()
-    first = next((line for line in lines if line.strip()), None)
+    first = next((line for line in reply.splitlines() if line.strip()), None)
     if first not in ("VERDICT: PASS", "VERDICT: CHANGES"):
         return None, None
     verdict = first.partition(":")[2].strip()
-    sections = {}
-    current = None
-    for line in lines:
-        heading = re.fullmatch(r"\s*(?:#{1,6}\s*)?Must-fix\s*:?\s*", line, re.I)
-        if heading:
-            current = "must_fix"
-            sections[current] = []
-        elif current and re.match(r"^\s*#{1,6}\s+", line):
-            current = None
-        elif current:
-            sections[current].append(line)
-    body = "\n".join(sections.get("must_fix", [])).strip()
+    body = _section_body(reply, "Must-fix")
     if not body:
         return None, None
     if verdict == "PASS" and body.casefold().rstrip(".") != "none":
@@ -587,7 +575,6 @@ def job_transition(document, operation):
                     job["finished_phase_status"] = state
                     reason = ("Review incomplete: strict verdict or Must-fix section missing" if incomplete
                               else must_fix)
-                    job["finished_phase_status"] = state
                     job["must_fix"] = reason
                     if phase == "review":
                         codex["review_status"] = "failed" if incomplete else state
