@@ -913,16 +913,7 @@ class LiveProvider(VoiceProvider):
                     del self._pending_audio[:-PENDING_AUDIO_MAX]
                     return []
             return [wire]
-        if et == "response.cancel":
-            response_id = str(event.get("response_id") or "")
-            with self._lock:
-                cancelled = self._cancelled_backend_responses.get(response_id)
-                cancellable = bool(cancelled and not cancelled[2])
-            if not cancellable:
-                return []
-            return [{"type": "response.cancel", "event_id": str(event.get("event_id") or self.event_id("cancel")),
-                     "response_id": response_id}]
-        if et in {"input_audio_buffer.clear", "input_audio_buffer.commit",
+        if et in {"input_audio_buffer.clear", "input_audio_buffer.commit", "response.cancel",
                   "conversation.item.truncate", "conversation.item.delete"}:
             return []  # GPT-Live manages turns, barge-in and truncation itself
         if et == "conversation.item.create":

@@ -313,8 +313,14 @@ def lane_job_running(group):
 
 
 def lane_model(group, codex):
-    """Who works on the lane now: the job model for the lane's current stage, then the
-    reviewer while the lane is in review, then the model that wrote the fix."""
+    """Who works on the lane now: the model recorded for install or verify (else a scripted
+    check), the job model for the lane's current stage, then the reviewer while the lane is
+    in review, then the model that wrote the fix."""
+    stage = {"installing": "install", "verifying": "verify"}.get(plan_status(group))
+    if stage:
+        recorded = group.get("stage_model") if isinstance(group.get("stage_model"), dict) else {}
+        model = recorded.get("model") if recorded.get("stage") == stage else None
+        return model.strip() if isinstance(model, str) and model.strip() else "No model (scripted check)"
     job = codex.get("job") if isinstance(codex.get("job"), dict) else {}
     in_review = group.get("phase") == "review" or plan_status(group) == "review"
     job_stage = "fix" if job.get("phase") == "fix" else "review" if job.get("phase") in ("review", "presuite") else None

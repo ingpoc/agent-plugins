@@ -10,6 +10,7 @@ struct SamanthaMenuStatus {
 
     mutating func beginAttempt() { reason = nil }
     mutating func startSucceeded() { reason = nil }
+    mutating func clear() { reason = nil }
     mutating func fail(category: String, detail: String) { setFailure("\(category): \(detail)") }
     mutating func fail(reason: String) { setFailure(reason) }
 
@@ -104,6 +105,11 @@ final class StatusBarController: NSObject {
             self.samanthaStatus.fail(category: failure.category, detail: failure.detail)
             self.updateSamanthaMenuStatus()
             island?.showVoiceStartFailure(category: failure.category, detail: failure.detail)
+        }
+        island.onRetryVoiceStart = { [weak voice] in
+            guard let voice, !voice.running else { return false }
+            Task { @MainActor in _ = await voice.start() }
+            return true
         }
         voice.onGatewayPortChanged = { [weak island] port in
             island?.updateGateway(port: port)
@@ -260,8 +266,17 @@ final class StatusBarController: NSObject {
                 }
             }
         } else {
-            voiceSupervisor?.stop()
+            turnSamanthaOff()
         }
+    }
+
+    /// Turning Samantha off from the menu ends a failed start too: its island card, supervisor reason and menu reason must not linger.
+    func turnSamanthaOff() {
+        if voiceSupervisor?.running == true { voiceSupervisor?.stop() }
+        voiceSupervisor?.clearStartFailure()
+        islandController?.clearVoiceStartFailure(reason: "stopped")
+        samanthaStatus.clear()
+        updateSamanthaMenuStatus()
     }
 
     @objc private func openGate() { gate.show() }

@@ -126,8 +126,11 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
                     let reason = island.failureReason ?? voice.startFailure?.reason ?? "Samantha failed to start"
                     return ["ok": false, "running": voice.running, "error": "Samantha failed to start", "failure_reason": reason]
                 }
-            } else if operation == "stop", voice.running {
-                voice.stop()
+            } else if operation == "stop" {
+                if voice.running { voice.stop() }
+                // Turning Samantha off ends a failed start too; its card must not linger.
+                voice.clearStartFailure()
+                island.clearVoiceStartFailure(reason: "stopped")
             }
             let failureReason: Any
             if let reason = island.failureReason ?? voice.startFailure?.reason {

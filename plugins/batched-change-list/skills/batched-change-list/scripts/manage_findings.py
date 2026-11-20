@@ -967,7 +967,76 @@ def invalidate_dependents(document, previous_document):
         tracking['workflow']['now'] = f'{timestamp} — Prerequisite verification changed'
 
 
-def start_verification_lanes(document, ids, timestamp):
+def stamp_stage_model(group, stage, model, timestamp):
+    """Record who works the lane in install or verify; no model means a scripted check."""
+    if model is None:
+        group.pop("stage_model", None)
+    else:
+        group["stage_model"] = {"stage": stage, "model": model, "at": timestamp}
+
+
+def validate_stage_model(model):
+    if model is not None and (not isinstance(model, str) or not model.strip() or "\n" in model
+                              or "\r" in model or len(model) > 120):
+        raise ValueError("set-activity model must be one line of at most 120 characters")
+    return model.strip() if isinstance(model, str) else None
+
+
+def correct_round(tracking, operation, timestamp):
+    """BCL-88: move a wrong round counter forward with a stated reason, kept in history."""
+    current = RENDERER.rollover_round(tracking)
+    target, reason = operation.get("round"), operation.get("reason")
+    if type(target) is not int or target <= current:
+        raise ValueError(f"correct-round round must be an integer above the current round {current}")
+    if (not isinstance(reason, str) or "\n" in reason or "\r" in reason
+            or len(reason.split()) < 3):
+        raise ValueError("correct-round requires a one-line reason of at least three words")
+    plan = tracking.get("plan")
+    if isinstance(plan, dict) and plan.get("round", current) == current:
+        plan["round"] = target
+    tracking["round"] = target
+    history = tracking.setdefault("round_corrections", [])
+    if not isinstance(history, list):
+        raise ValueError("tracking.round_corrections must be an array")
+    history.append({"from": current, "to": target, "reason": reason.strip(), "corrected_at": timestamp})
+    workflow = tracking.get("workflow")
+    if isinstance(workflow, dict):
+        workflow["updated_at"] = timestamp
+        workflow["now"] = f"{timestamp} — Round corrected {current} → {target}"
+
+
+def rerun_verify(document, operation, timestamp):
+    """BCL-90: put a failed lane back to verify-ready once per round, keeping why and what failed."""
+    tracking = document.setdefault("tracking", {})
+    round_number = RENDERER.rollover_round(tracking)
+    reason, ids = operation.get("reason"), operation.get("ids")
+    if (not isinstance(reason, str) or "\n" in reason or "\r" in reason
+            or len(reason.split()) < 3):
+        raise ValueError("rerun-verify requires a one-line reason of at least three words")
+    if not isinstance(ids, list) or not ids or any(not isinstance(i, str) for i in ids):
+        raise ValueError("rerun-verify requires lane ids")
+    groups = {group.get("id"): group for group in RENDERER.plan_groups_for_round(tracking.get("plan"), round_number)}
+    for identifier in ids:
+        group = groups.get(identifier)
+        if group is None:
+            raise ValueError(f"rerun-verify lane {identifier} is not in the current round")
+        if group.get("status") != "failed":
+            raise ValueError(f"rerun-verify lane {identifier} has not failed; only a failed lane's check can be rerun")
+        history = group.get("verify_reruns", [])
+        if not isinstance(history, list):
+            raise ValueError(f"plan group {identifier} verify_reruns must be an array")
+        if any(isinstance(entry, dict) and entry.get("round") == round_number for entry in history):
+            raise ValueError(f"lane {identifier} was already rerun this round; fix it in a new round instead")
+        verify = group.get("verify") if isinstance(group.get("verify"), dict) else {}
+        history.append({"round": round_number, "reason": reason.strip(), "at": timestamp,
+                        "previous_failure": verify.get("failure")})
+        group["verify_reruns"] = history
+        group["verify"] = {key: value for key, value in verify.items() if key != "failure"}
+        group.update(status="installing", phase="install")
+        stamp_plan_group(group, timestamp)
+
+
+def start_verification_lanes(document, ids, timestamp, model=None):
     tracking = document.get("tracking", {})
     groups = RENDERER.plan_groups_for_round(
         tracking.get("plan"), RENDERER.rollover_round(tracking))
@@ -975,6 +1044,7 @@ def start_verification_lanes(document, ids, timestamp):
     for group in groups:
         if RENDERER.plan_status(group) != "parked" and selected.intersection(group.get("finding_ids", [])):
             group.update(status="verifying", phase="verify")
+            stamp_stage_model(group, "verify", model, timestamp)
             stamp_plan_group(group, timestamp)
 
 
@@ -1413,7 +1483,7 @@ def run(args, parser):
                 return 0
             existing_run = store["document"].get("tracking", {}).get("verification_run")
             original_plan = copy.deepcopy(store['document'].get('tracking', {}).get('plan'))
-            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark"}
+            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify"}
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()
@@ -1525,6 +1595,17 @@ def run(args, parser):
                                           if identifier in current_ids}
                     update_sidecar_summary(tracking, archive_state["path"], archive_state["rows"],
                                            parked_state["path"], parked_state["rows"])
+                    continue
+                if action in ("correct-round", "rerun-verify"):
+                    stamp = operation.get("timestamp")
+                    if stamp is None:
+                        stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                    elif not isinstance(stamp, str) or RENDERER.parse_instant(stamp) is None:
+                        raise ValueError(f"{action} timestamp must be an ISO 8601 instant with timezone")
+                    if action == "correct-round":
+                        correct_round(store["document"].setdefault("tracking", {}), operation, stamp)
+                    else:
+                        rerun_verify(store["document"], operation, stamp)
                     continue
                 if action in ("set-plan", "update-plan-group"):
                     tracking = store["document"].setdefault("tracking", {})
@@ -1806,14 +1887,16 @@ def run(args, parser):
                           or not re.search(r"(?:Z|[+-]\d\d:\d\d)$", timestamp)
                           or RENDERER.parse_instant(timestamp) is None):
                         raise ValueError("set-activity timestamp must be an ISO 8601 instant with timezone")
+                    stage_model = validate_stage_model(operation.get("model"))
                     if stage == 'install':
                         for group in matched:
                             if set(ids).intersection(group.get('finding_ids', [])):
                                 install = group.get('install') if isinstance(group.get('install'), dict) else {}
                                 group.update(status='installing', phase='install',
                                              install={**install, 'status': 'running', 'started_at': timestamp})
+                                stamp_stage_model(group, 'install', stage_model, timestamp)
                     elif stage == 'verify':
-                        start_verification_lanes(store["document"], ids, timestamp)
+                        start_verification_lanes(store["document"], ids, timestamp, stage_model)
                     tracking["workflow"] = {"stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
                     if stale_after is not None:
                         tracking["workflow"]["stale_after_min"] = stale_after

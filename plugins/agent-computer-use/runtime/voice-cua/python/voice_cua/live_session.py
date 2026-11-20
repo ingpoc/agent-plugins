@@ -2583,16 +2583,14 @@ class LiveSession:
                     self._response_condition.notify_all()
                 cancel_send_ok = self._send({"type": "response.cancel"})
             if provider_manages:
-                cancel_send_ok = True
-                for response_id in cancel_response_ids:
-                    cancel_send_ok = self._send({"type": "response.cancel", "response_id": response_id}) and cancel_send_ok
+                # GPT-Live rejects response.cancel (ACU-17); as on main, only the instruction below interrupts it.
                 note = ("The user pressed Stop. Stop speaking now and wait quietly for them."
                         if action == "stopSpeaking" else
                         "The user pressed Stop on the current task. Stop speaking, start no further "
                         "steps for it, and wait quietly for the next request.")
                 instruction_sent = self._send({"type": "conversation.item.create", "item": {
                     "type": "message", "role": "system", "content": [{"type": "input_text", "text": note}]}})
-                cancel_send_ok = instruction_sent and cancel_send_ok
+                cancel_send_ok = instruction_sent
             log_event("cancel" if task_cancel else "island_control", action=action,
                       cancel=True if task_cancel else None,
                       cancel_ack="unknown" if task_cancel else None,
@@ -2605,8 +2603,7 @@ class LiveSession:
                       target_response_id=active or None, target_step_ref=response_step_ref or None,
                       cancel_scope="task" if task_cancel else "response",
                       cancellation_state="requested" if task_cancel else "response_stop_requested",
-                      cancellation_delivery=(("response_cancel+steer_instruction" if cancel_response_ids else "steer_instruction")
-                                            if provider_manages else "response_cancel")
+                      cancellation_delivery=("steer_instruction" if provider_manages else "response_cancel")
                       if response_active else "no_active_response",
                       cancel_source=cancel_source,
                       cancel_send_ok=cancel_send_ok, cancelled=bool(response_active),
@@ -2876,7 +2873,7 @@ def main(argv: list[str] | None = None) -> int:
     except UnsupportedVoiceModel as exc:
         reason = report_startup_failure("setup_error", str(exc))
         island_publish("error", title="Voice model unavailable", detail=reason)
-        log_event("voice_model_unavailable")
+        log_event("voice_model_unavailable", reason=reason[:300])
         print(reason, file=sys.stderr, flush=True)
         return 1
     except Exception as exc:  # noqa: BLE001 — surface constructor failures before the helper exits

@@ -391,7 +391,7 @@ elif args[:2] != ['pr', 'edit']:
         self.data.write_bytes(live.read_bytes())
         return live
 
-    def _lane_ready(self):
+    def _lane_ready(self, *install_args):
         self.assertEqual(self.call_without_viewer("start").returncode, 0)
         check = self.root / "lane.py"; check.write_text("pass\n")
         command = f'"{sys.executable}" "{check}"'
@@ -399,7 +399,7 @@ elif args[:2] != ['pr', 'edit']:
         plan.write_text(json.dumps({"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"status":"pending","verify":{"command":command}}]}))
         self.assertEqual(self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
         self.prepare_review(["ISSUE-01"])
-        self.assertEqual(self.call_without_viewer("install", "--ids", "ISSUE-01").returncode, 0)
+        self.assertEqual(self.call_without_viewer("install", "--ids", "ISSUE-01", *install_args).returncode, 0)
         live = self._active_verification()
         return live, command
 
@@ -462,6 +462,90 @@ elif args[:2] != ['pr', 'edit']:
         group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
         self.assertEqual(group["status"], "verified")
         self.assertEqual(group["phase"], "verify")
+
+    def test_install_and_verify_record_the_model_shown_for_the_lane(self):
+        live, command = self._lane_ready("--model", "release script")
+        group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual((group["stage_model"]["stage"], group["stage_model"]["model"]), ("install", "release script"))
+        check = Path(command.split('"')[3])
+        seen = self.root / "seen-model.json"
+        check.write_text(
+            "import json\n"
+            "from pathlib import Path\n"
+            f"group = json.loads(Path({str(live)!r}).read_text())['tracking']['plan']['groups'][0]\n"
+            f"Path({str(seen)!r}).write_text(json.dumps(group.get('stage_model')))\n")
+        result = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--model", "Grok Bot subagent (typed verify)", "--then", command)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        stage_model = json.loads(seen.read_text())
+        self.assertEqual((stage_model["stage"], stage_model["model"]), ("verify", "Grok Bot subagent (typed verify)"))
+
+    def test_verify_without_model_records_a_scripted_check(self):
+        live, command = self._lane_ready("--model", "release script")
+        result = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("stage_model", json.loads(live.read_text())["tracking"]["plan"]["groups"][0])
+
+    def test_failed_lane_check_reruns_once_per_round_with_a_reason(self):
+        live, command = self._lane_ready()
+        check = Path(command.split('"')[3])
+        check.write_text("raise SystemExit(7)\n")
+        self.assertEqual(self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command).returncode, 7)
+        refused = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("--reason", refused.stderr)
+        check.write_text("pass\n")
+        rerun = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--reason", "verifier needed a git repo", "--then", command)
+        self.assertEqual(rerun.returncode, 0, rerun.stderr)
+        group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(len(group["verify_reruns"]), 1)
+        self.assertEqual(group["verify_reruns"][0]["reason"], "verifier needed a git repo")
+        self.assertIn("exited 7", group["verify_reruns"][0]["previous_failure"])
+        self.assertNotIn("failure", group["verify"])
+        check.write_text("raise SystemExit(7)\n")
+        self.assertEqual(self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command).returncode, 7)
+        again = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--reason", "second try at the same check", "--then", command)
+        self.assertNotEqual(again.returncode, 0)
+        self.assertIn("already rerun this round", again.stderr)
+
+    def test_refused_rerun_spends_nothing(self):
+        live, command = self._lane_ready()
+        check = Path(command.split('"')[3])
+        check.write_text("raise SystemExit(7)\n")
+        self.assertEqual(self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command).returncode, 7)
+        wrong = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--reason", "verifier needed a git repo", "--then", command + " extra")
+        self.assertNotEqual(wrong.returncode, 0)
+        self.assertIn("exact stored command", wrong.stderr)
+        group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "failed", "a refused rerun leaves the lane failed")
+        self.assertNotIn("verify_reruns", group, "a refused rerun does not spend the once-per-round slot")
+        check.write_text("pass\n")
+        rerun = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--reason", "verifier needed a git repo", "--then", command)
+        self.assertEqual(rerun.returncode, 0, rerun.stderr)
+        self.assertEqual(len(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["verify_reruns"]), 1)
+
+    def test_reason_is_refused_for_a_lane_that_did_not_fail(self):
+        _, command = self._lane_ready()
+        result = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--reason", "no failure to rerun here", "--then", command)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("none of these lanes failed", result.stderr)
+
+    def test_correct_round_moves_the_counter_forward_and_keeps_history(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        plan = self.root / "round-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned"}]}))
+        self.assertEqual(self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        self.assertNotEqual(self.call_without_viewer("correct-round", "--round", "3").returncode, 0)
+        result = self.call_without_viewer("correct-round", "--round", "3", "--reason", "two rounds ran without rollover")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        tracking = json.loads(live.read_text())["tracking"]
+        self.assertEqual((tracking["round"], tracking["plan"]["round"]), (3, 3))
+        self.assertEqual(tracking["round_corrections"][0]["from"], 1)
+        self.assertEqual(tracking["round_corrections"][0]["reason"], "two rounds ran without rollover")
+        self.assertIn("Round 3", self.page.read_text())
+        backwards = self.call_without_viewer("correct-round", "--round", "2", "--reason", "trying to go back down")
+        self.assertNotEqual(backwards.returncode, 0)
+        self.assertIn("above the current round 3", backwards.stderr)
 
     def test_verify_records_failure_after_its_lane_enters_verifying(self):
         live, command = self._lane_ready()

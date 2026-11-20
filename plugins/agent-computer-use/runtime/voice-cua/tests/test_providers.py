@@ -366,6 +366,8 @@ class LiveTests(_Rows):
         self.assertEqual(p.outbound({"type": "input_audio_buffer.append", "audio": "AAA="}),
                          [{"type": "session.input_audio.append", "audio": "AAA="}])
         self.assertEqual(p.outbound({"type": "response.cancel"}), [])
+        # GPT-Live rejects response.cancel, even for a delegated backend response (ACU-17).
+        self.assertEqual(p.outbound({"type": "response.cancel", "response_id": "backend-response"}), [])
         self.assertEqual(p.inbound({"type": "session.started", "session": {"id": "s"}})[0]["type"], "session.updated")
         (audio,) = p.inbound({"type": "session.output_audio.delta", "delta": "QQ=="})
         self.assertEqual(audio["type"], "response.output_audio.delta")
@@ -1082,8 +1084,9 @@ STORY_TURN = {
         _dlg("replay-story"),
         _ev("replay-story", {"type": "response.created", "response": {"id": "backend-story"}}),
     ],
-    "cancel": [_ev("replay-story", {"type": "response.done", "response": {
-        "id": "backend-story", "status": "cancelled"}})],
+    # GPT-Live has no cancel: the story backend runs on and ends by itself.
+    "finish": [_ev("replay-story", {"type": "response.done", "response": {
+        "id": "backend-story", "status": "completed"}})],
 }
 REDIRECT_TURN = _answer_turn("redirect", "replay-redirect", "backend-redirect", "Calendar is open.")
 REPLAY_SCRIPT = [SMALL_TALK_TURN, TASK_TURN, REMEMBER_TURN, CASUAL_TURN, STORY_TURN, REDIRECT_TURN]
@@ -1108,8 +1111,7 @@ class ScriptedGPTLiveReplayServer:
         self.continuation: list[dict] | None = None
         self.response_ids: dict[str, str] = {}
         self.tool_results: list[dict] = []
-        self.cancel_requested: list[str] = []
-        self.cancelled_responses: list[str] = []
+        self.rejected: list[dict] = []  # client events GPT-Live does not accept
         self.user_text = ""
         session.ws.on_client_event = self.on_client_event
 
@@ -1121,6 +1123,10 @@ class ScriptedGPTLiveReplayServer:
         for event in events:
             feed(self.session, event)
         return len(events)
+
+    def finish(self, name: str) -> None:
+        entry = next(item for item in self.script if item.get("name") == name)
+        self._queue(*entry["finish"])
 
     def _replay(self, entry: dict) -> None:
         self.active_turn = entry
@@ -1144,12 +1150,10 @@ class ScriptedGPTLiveReplayServer:
                 parts = [str(part.get("text") or "") for part in item.get("content") or []]
                 self.user_text = " ".join(part for part in parts if self.ROUTE_MARKER not in part)
         elif event_type == "response.cancel":
-            response_id = str(event.get("response_id") or "")
-            entry = next((item for item in self.script if item.get("response_id") == response_id), None)
-            if entry and entry.get("cancel"):
-                self.cancel_requested.append(response_id)
-                self.cancelled_responses.append(response_id)
-                self._queue(*entry["cancel"])
+            # Strict: GPT-Live rejects response.cancel, and the client shows that error (ACU-17).
+            self.rejected.append(event)
+            self._queue({"type": "error", "error": {"type": "invalid_request_error", "code": "unknown_event",
+                                                    "message": "Unsupported client event: response.cancel"}})
         elif event_type == "response.create":
             if self.continuation is not None:
                 events, self.continuation = self.continuation, None
@@ -1300,32 +1304,30 @@ class StrictGPTLiveReplayTests(_Rows):
         self.assertIn("doing well", reply)
         self.assertEqual(self.transport.call.call_count, 1)
 
-        # Turn 5: the story is delegated; the redirect cancels it, then answers its own task.
+        # Turn 5: the story is delegated; the redirect sends no cancel (GPT-Live has none), and is
+        # answered once the story backend ends by itself, as on main.
         story_since = len(self.s.ws.events)
         story_text = "Open example.com and read the long story."
         _story_rid, story_waiter = self._ask(story_text)
         self.server.pump()
         self.assertFalse(story_waiter["event"].is_set())
         self._assert_typed_route(story_since, story_text, "delegate")
-        story_response = self.server.response_ids["story"]
         before_creates = sum(event["type"] == "response.create" for event in self.s.ws.events)
         redirect_since = len(self.s.ws.events)
         rid, waiter = self._prepare_turn()
         sender = threading.Thread(target=self.s.send_text,
                                   kwargs={"text": "Actually, open Calendar instead.", "request_id": rid})
         sender.start()
-        deadline = time.monotonic() + 1.0
-        while story_response not in self.server.cancel_requested and time.monotonic() < deadline:
-            time.sleep(0.005)
-        self.assertIn(story_response, self.server.cancel_requested)
-        self.assertEqual(sum(event["type"] == "response.create" for event in self.s.ws.events),
-                         before_creates)
+        time.sleep(0.2)
+        self.server.pump()
+        self.assertEqual(self.server.rejected, [], "no response.cancel reaches GPT-Live")
+        self.assertFalse(any(event.get("type") == "response.cancel" for event in self.s.ws.events))
+        self.server.finish("story")
         self.server.pump()
         sender.join(timeout=1.0)
         self.assertFalse(sender.is_alive())
         self.assertEqual(sum(event["type"] == "response.create" for event in self.s.ws.events),
                          before_creates + 1)
-        self.assertEqual(self.server.cancelled_responses, [story_response])
         self.assertIn("Calendar is open", self._reply(rid, waiter))
         self.assertTrue(story_waiter["event"].is_set())
         self._assert_typed_route(redirect_since, "Actually, open Calendar instead.", "delegate")

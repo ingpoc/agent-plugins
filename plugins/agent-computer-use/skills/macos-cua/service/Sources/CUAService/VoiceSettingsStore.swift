@@ -122,8 +122,12 @@ enum VoiceSettingsStore {
         }
     }
 
+    /// Posted on the main thread's queue after any saved voice setting changes (model, voice, eagerness, mic profile, tier models).
+    static let configChanged = Notification.Name("VoiceSettingsStore.configChanged")
+
     static func set(_ value: String, for key: String) {
         var s = load()
+        let previous = s
         switch key {
         case "voice.live_model": s.liveModel = value
         case "voice.live_voice": s.liveVoice = value
@@ -134,6 +138,9 @@ enum VoiceSettingsStore {
         default: return
         }
         try? save(s)
+        if s != previous {
+            NotificationCenter.default.post(name: configChanged, object: nil)
+        }
     }
 
     static func load() -> Settings {

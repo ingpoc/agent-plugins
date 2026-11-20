@@ -141,6 +141,125 @@ final class VoiceFailurePlumbingTests: XCTestCase {
         XCTAssertMenuShowsFailure(menu, "Microphone access denied")
     }
 
+    // ACU-18: a failed-start card clears when Samantha is turned off, the model changes, or Retry starts again.
+    func testStopClearsAFailedStartCard() async {
+        let voice = supervisor(microphoneAccess: { false }, launchResolver: { nil })
+        let (island, menuBar) = controllers()
+        menuBar.wire(voice: voice, island: island)
+        let menu = menuBar.makeMenu()
+        let handler = ServiceDelegate.voiceControlHandler(voice: voice, island: island, ensureSamanthaToken: {})
+        _ = await handler("start")
+        XCTAssertEqual(island.failureReason, "Microphone access denied")
+
+        let stopped = await handler("stop")
+
+        XCTAssertNil(island.failureReason)
+        XCTAssertTrue(stopped["failure_reason"] is NSNull)
+        let status = await handler("status")
+        XCTAssertTrue(status["failure_reason"] is NSNull)
+        XCTAssertMenuShowsNoFailure(menu)
+    }
+
+    func testVoiceModelChangeClearsAFailedStartCard() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let oldPath = VoiceSettingsStore.path
+        VoiceSettingsStore.path = directory.appendingPathComponent("settings.json")
+        defer { VoiceSettingsStore.path = oldPath }
+        let (island, _) = controllers()
+        island.hub.ingestSamantha(IslandSnapshot(kind: "error", title: "Setup failed",
+                                                 detail: "setup_error: Voice model unavailable: acu01-unknown-model"))
+        XCTAssertEqual(island.failureReason, "Voice model unavailable: acu01-unknown-model")
+
+        VoiceSettingsStore.set(VoiceSettingsStore.grokModel, for: "voice.live_model")
+
+        XCTAssertNil(island.failureReason, "cleared before set returns, so a start queued after the change keeps its own failure")
+        XCTAssertNotEqual(island.hub.samantha?.kind, "error")
+    }
+
+    func testVoiceConfigChangeOtherThanModelClearsAModelFailure() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let oldPath = VoiceSettingsStore.path
+        VoiceSettingsStore.path = directory.appendingPathComponent("settings.json")
+        defer { VoiceSettingsStore.path = oldPath }
+        let (island, _) = controllers()
+        island.hub.ingestSamantha(IslandSnapshot(kind: "error", title: "Setup failed",
+                                                 detail: "setup_error: Voice model unavailable: acu01-unknown-model"))
+
+        VoiceSettingsStore.set("ara", for: "voice.live_voice")
+
+        XCTAssertNil(island.failureReason)
+    }
+
+    func testMenuSwitchOffClearsAFailedStartWhileTheHelperIsUp() async {
+        let voice = supervisor(microphoneAccess: { true }, launchResolver: { nil })
+        let (island, menuBar) = controllers()
+        menuBar.wire(voice: voice, island: island)
+        let menu = menuBar.makeMenu()
+        let handler = ServiceDelegate.voiceControlHandler(
+            voice: voice, island: island, ensureSamanthaToken: {},
+            startVoice: { voice in
+                island.hub.ingestSamantha(IslandSnapshot(kind: "error", title: "Setup failed",
+                                                         detail: "setup_error: Voice model unavailable: acu01-unknown-model"))
+                voice.onRunningChanged?(true)
+                return true
+            }
+        )
+        _ = await handler("start")
+        XCTAssertNotNil(island.failureReason)
+
+        menuBar.turnSamanthaOff()
+
+        XCTAssertNil(island.failureReason)
+        XCTAssertNil(voice.startFailure)
+        XCTAssertNotEqual(island.hub.samantha?.kind, "error")
+        XCTAssertMenuShowsNoFailure(menu)
+    }
+
+    func testRetryOnAFailedStartCardStartsSamanthaAgain() async {
+        let (island, _) = controllers()
+        var retried = 0
+        island.onRetryVoiceStart = { retried += 1; return true }
+        island.hub.ingestSamantha(IslandSnapshot(kind: "error", title: "Setup failed",
+                                                 detail: "setup_error: Voice model unavailable: acu01-unknown-model"))
+
+        await island.debugHandle(.retry)
+
+        XCTAssertEqual(retried, 1, "Retry on a failed start runs a fresh start instead of posting to a stopped gateway")
+        XCTAssertNil(island.failureReason, "the old reason is gone as soon as Retry starts again")
+    }
+
+    func testVoiceModelChangeKeepsAMicrophoneDenial() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let oldPath = VoiceSettingsStore.path
+        VoiceSettingsStore.path = directory.appendingPathComponent("settings.json")
+        defer { VoiceSettingsStore.path = oldPath }
+        let voice = supervisor(microphoneAccess: { false }, launchResolver: { nil })
+        let (island, menuBar) = controllers()
+        menuBar.wire(voice: voice, island: island)
+        _ = await ServiceDelegate.voiceControlHandler(voice: voice, island: island, ensureSamanthaToken: {})("start")
+
+        VoiceSettingsStore.set(VoiceSettingsStore.grokModel, for: "voice.live_model")
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(island.failureReason, "Microphone access denied")
+    }
+
+    func testDismissClearsAFailedStartCard() async {
+        let (island, _) = controllers()
+        island.hub.ingestSamantha(IslandSnapshot(kind: "error", title: "Setup failed", detail: "Old setup error"))
+        XCTAssertNotNil(island.failureReason)
+
+        await island.debugHandle(.dismiss)
+
+        XCTAssertNil(island.failureReason)
+    }
+
     private func supervisor(
         microphoneAccess: @escaping () async -> Bool,
         launchResolver: @escaping () -> VoiceSupervisor.LaunchSpec?,

@@ -29,14 +29,14 @@ class FakeWS:
 
 
 class BackendQueueWS(FakeWS):
-    """Fake Live server that accepts a new turn only after the delegated response is cancelled."""
+    """Strict fake Live server: a new turn waits until the delegated response ends; response.cancel is rejected."""
 
     def __init__(self) -> None:
         super().__init__()
         self._lock = threading.Lock()
         self.backend_response_id = ""
         self.cancel_callback = None
-        self.cancelled_response_ids: list[str] = []
+        self.rejected: list[dict] = []  # GPT-Live accepts no response.cancel (ACU-17)
         self.queued_creates: list[dict] = []
 
     def hold_backend(self, response_id: str, cancel_callback) -> None:
@@ -60,13 +60,10 @@ class BackendQueueWS(FakeWS):
             if event.get("type") == "response.create" and self.backend_response_id:
                 self.queued_creates.append(event)
                 return
+            if event.get("type") == "response.cancel":
+                self.rejected.append(event)
+                return
             self.events.append(event)
-            if event.get("type") == "response.cancel" and response_id == self.backend_response_id:
-                self.cancelled_response_ids.append(response_id)
-                self.backend_response_id = ""
-                callback, self.cancel_callback = self.cancel_callback, None
-                self.events.extend(self.queued_creates)
-                self.queued_creates.clear()
         if callback:
             callback(response_id)
 
@@ -237,20 +234,16 @@ class TypedTurnReplayTests(unittest.TestCase):
 
             redirect_started = time.monotonic()
             redirect_thread, redirect_result, redirect_create_count = self._launch_turn(session, self.REDIRECT)
-            cancel_type = "response.cancel"
-            self._wait_for(lambda: any(e.get("type") == cancel_type for e in session.ws.events),
-                           "redirect did not interrupt the active story")
             if isinstance(provider, LiveProvider):
-                self._wait_for(lambda: self._create_count(session) > redirect_create_count,
-                               "GPT-Live redirect did not start after backend cancellation", timeout=1.0)
-                self.assertLess(time.monotonic() - redirect_started, 1.0)
-                self.assertFalse(story_result.get("ok"), "the cancelled story should settle as interrupted")
-                self.assertEqual(story_result.get("reply"), "Pune began as a town on the Mutha River.")
-                self.assertTrue(any(row.get("kind") == "cancel_ack" and row.get("cancel_ack") is True
-                                    for row in rows), "cancel acknowledgement should be prompt")
-                self.assertEqual(session.ws.cancelled_response_ids, ["story-response"])
-                self.assertFalse(session.ws.queued_creates, "cancel must release the backend turn queue")
+                # GPT-Live has no cancel (ACU-17): as on main, the redirect waits until the story backend
+                # ends by itself, and no response.cancel is sent.
+                self._wait_for(lambda: provider._previous_live_request == story_request,
+                               "the redirect did not interrupt the story")
+                self.assertEqual(self._create_count(session), redirect_create_count)
+                self.assertEqual(session.ws.rejected, [], "no response.cancel is sent to GPT-Live")
             else:
+                self._wait_for(lambda: any(e.get("type") == "response.cancel" for e in session.ws.events),
+                               "redirect did not interrupt the active story")
                 self.assertEqual(self._create_count(session), 1, "redirect must wait for cancel settlement")
             self._feed_late_output(session, provider, "story-response", story_event_id)
             self.assertEqual(len(session._audio.received), story_audio_chunks,
@@ -267,6 +260,10 @@ class TypedTurnReplayTests(unittest.TestCase):
                         {"type": "output_text", "text": "The full story arrived after cancellation."}]}})
                 self._live_event(session, "story-delegation", {"type": "response.completed",
                     "response": {"id": "story-response", "status": "completed"}})
+                session.ws.finish_backend("story-response")
+                self._wait_for(lambda: self._create_count(session) > redirect_create_count,
+                               "the held redirect runs once the story backend ends", timeout=1.0)
+                self.assertEqual(session.ws.rejected, [])
                 self.assertFalse(any("full story arrived after cancellation" in row.get("text", "").lower()
                                      for row in rows), "late backend output must be discarded")
                 previous_replies = [row for row in rows if row.get("kind") == "assistant_reply"
@@ -396,15 +393,11 @@ class TypedTurnReplayTests(unittest.TestCase):
                 handle.assert_called_once()
             self.assertEqual(provider._pending_calls["pending-story-delegation"], {"pending-call"})
 
-            redirect_started = time.monotonic()
             redirect_thread, redirect_result, create_count = self._launch_turn(session, self.REDIRECT)
-            self._wait_for(lambda: "pending-story-response" in session.ws.cancelled_response_ids,
-                           "backend did not receive response.cancel")
-            self._wait_for(lambda: self._create_count(session) > create_count,
-                           "redirect remained queued behind the pending tool call", timeout=1.0)
-            self.assertLess(time.monotonic() - redirect_started, 1.0)
-            self.assertFalse(story_result.get("ok"))
-            self.assertEqual(story_result.get("reply"), "Pune began as a town on the Mutha River.")
+            self._wait_for(lambda: provider._previous_live_request == _story_request,
+                           "the redirect did not interrupt the story")
+            self.assertEqual(self._create_count(session), create_count, "the redirect waits for the story backend")
+            self.assertEqual(session.ws.rejected, [], "no response.cancel is sent to GPT-Live")
             self.assertFalse(provider._pending_calls.get("pending-story-delegation"))
 
             sent = session._send({"type": "conversation.item.create", "item": {
@@ -414,6 +407,10 @@ class TypedTurnReplayTests(unittest.TestCase):
                                  for event in session.ws.events), "cancelled tool output must not resume the old task")
             self._live_event(session, "pending-story-delegation", {"type": "response.completed",
                 "response": {"id": "pending-story-response", "status": "completed"}})
+            session.ws.finish_backend("pending-story-response")
+            self._wait_for(lambda: self._create_count(session) > create_count,
+                           "the held redirect runs once the story backend ends", timeout=1.0)
+            self.assertFalse(story_result.get("ok") if story_result else False)
             self.assertFalse(any("late result" in row.get("text", "") for row in rows))
 
             redirect_request = session._active_task_run_id
@@ -531,7 +528,7 @@ class TypedTurnReplayTests(unittest.TestCase):
         self.assertEqual(provider.inbound(event), [])
         self.assertEqual(provider._pending_calls[delegation], set())
 
-    def test_gpt_live_spoken_redirect_cancels_delegation_and_discards_late_story(self) -> None:
+    def test_gpt_live_spoken_redirect_sends_no_cancel_and_story_ends_with_its_backend(self) -> None:
         provider = LiveProvider()
         session = self._make(provider)
         session.ws = BackendQueueWS()
@@ -551,34 +548,19 @@ class TypedTurnReplayTests(unittest.TestCase):
                 session._dispatch_event(event)
             session._dispatch_event({"type": "conversation.item.input_audio_transcription.completed",
                 "transcript": self.REDIRECT, "item_id": "spoken-redirect"})
-            story_thread.join(timeout=1)
-            self.assertFalse(story_thread.is_alive(), "spoken redirect must settle the story immediately")
-            self.assertFalse(story_result.get("ok"))
-            self.assertEqual(story_result.get("reply"), "Pune began as a town on the Mutha River.")
-            spoken_request = provider.spoken_request_id()
-            self.assertTrue(spoken_request)
-            self.assertNotEqual(spoken_request, _story_request)
-            self.assertEqual(session._active_task_run_id, spoken_request)
-
-            session._on_message(None, json.dumps({"type": "session.delegation.created",
-                "delegation": {"id": "spoken-redirect-delegation", "target": "responses"},
-                "offset_ms": 3500}))
-            self._live_event(session, "spoken-redirect-delegation", {"type": "response.created",
-                "response": {"id": "spoken-redirect-response"}})
-            self._live_event(session, "spoken-redirect-delegation", {"type": "response.output_text.done",
-                "response_id": "spoken-redirect-response", "text": "Pune is famous for its Maratha heritage."})
-            self._live_event(session, "spoken-redirect-delegation", {"type": "response.completed",
-                "response": {"id": "spoken-redirect-response", "status": "completed"}})
-            self.assertEqual(session._conversation_context[spoken_request]["result"],
-                             "Pune is famous for its Maratha heritage.")
-            self.assertNotIn(spoken_request, session._task_runs)
-
+            # GPT-Live has no cancel (ACU-17): as on main, nothing is sent to cancel the story; it ends
+            # when its backend finishes by itself, and text it streams after the interruption is dropped.
+            self.assertEqual(session.ws.rejected, [], "no response.cancel is sent to GPT-Live")
             self._live_event(session, "spoken-story-delegation", {"type": "response.output_text.delta",
                 "response_id": "spoken-story-response", "delta": " The full late story."})
             self._live_event(session, "spoken-story-delegation", {"type": "response.completed",
                 "response": {"id": "spoken-story-response", "status": "completed"}})
+            session.ws.finish_backend("spoken-story-response")
+            story_thread.join(timeout=1)
+            self.assertFalse(story_thread.is_alive(), "the story settles once its backend ends")
+            self.assertEqual(story_result.get("reply"), "Pune began as a town on the Mutha River.")
             self.assertFalse(any("full late story" in row.get("text", "").lower() for row in rows))
-            self.assertEqual(provider._active_live_request, "")
+            self.assertEqual(session.ws.rejected, [])
         provider.heard.clear()
 
     def test_gpt_live_transcript_event_id_keeps_its_request_and_drops_retired_output(self) -> None:

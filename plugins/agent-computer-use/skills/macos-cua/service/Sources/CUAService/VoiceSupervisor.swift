@@ -494,6 +494,11 @@ final class VoiceSupervisor {
         }
     }
 
+    /// Samantha was turned off after a failed start: that failure is no longer current.
+    func clearStartFailure() {
+        startFailure = nil
+    }
+
     private func setRunning(_ on: Bool) {
         guard running != on else { return }
         running = on

@@ -198,6 +198,19 @@ def island_voice_meter(
 VOICE_KINDS = frozenset({"listening", "thinking", "speaking", "reconnecting"})
 
 
+def _log_remote_error(title: str, detail: str, app: str) -> None:
+    """The service draws remote errors itself; log the raw reason here so every shown error is traceable
+    (the local island logs in island_state)."""
+    try:
+        from voice_cua.activity_log import log_event
+        from voice_cua.island_copy import human_error
+
+        raw = " · ".join(x for x in (title, detail) if x)
+        log_event("island_error_raw", raw=raw[:300], shown=human_error(raw, target=app) or "", remote=True)
+    except Exception:  # noqa: BLE001 — logging never blocks the island
+        pass
+
+
 def island_publish(
     kind: IslandKind,
     *,
@@ -235,6 +248,8 @@ def island_publish(
         "expanded": bool(expanded),
     }
     if use_remote():
+        if kind == "error":
+            _log_remote_error(title, detail, app)
         _post("/api/island/publish", body, timeout=3)
         return
     ISLAND.publish(

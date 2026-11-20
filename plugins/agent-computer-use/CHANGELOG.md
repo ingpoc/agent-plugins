@@ -1,3 +1,8 @@
+## 0.2.156
+
+- Interrupting a GPT-Live reply no longer shows a voice error. GPT-Live has no cancel command, so the app no longer sends one, as before 0.2.154; the interrupted reply ends when its backend finishes, and its late text is dropped (ACU-17).
+- A failed Samantha start no longer leaves its island card up for good. The card clears when Samantha is turned off (from the menu or a command), when a voice setting changes (model-unavailable cards only; a microphone denial stays), on Dismiss, and on a new start. Retry now really starts Samantha again. Every island error shown, including ones posted by the voice helper, is written to the activity log with its full raw reason, so developer observability sees it (ACU-18).
+
 ## 0.2.155
 
 - GPT-Live typed turns work again: the chat-or-task hint now rides inside that one typed message instead of a reply field GPT-Live rejects, so it cannot build up across turns; Grok Voice routing is unchanged. The GPT-Live test stand-in now rejects any event or field GPT-Live does not accept, and the replay follows a fixed script (ACU-14, ACU-05, ACU-08, ACU-09).

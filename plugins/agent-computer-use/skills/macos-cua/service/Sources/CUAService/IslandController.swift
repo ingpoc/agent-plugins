@@ -10,6 +10,9 @@ final class IslandController {
     private let gate: IslandGate?
     var onVoiceStateChanged: ((String) -> Void)?
     var onVoiceFailureChanged: ((String?) -> Void)?
+    /// Retry on a failed-start card: start Samantha again. Returns false when there is nothing to start.
+    var onRetryVoiceStart: (() -> Bool)?
+    private var voiceModelObserver: NSObjectProtocol?
     private(set) var failureReason: String?
     // ServiceDelegate supplies the production gate; standalone panel tests own their visibility policy.
     var panelAllowed: Bool { (gate?.isUnlocked ?? true) && store.bool(IslandSettingsSchema.showIsland) }
@@ -93,6 +96,16 @@ final class IslandController {
         model.onAction = { [weak self] action in
             Task { await self?.handle(action) }
         }
+        voiceModelObserver = NotificationCenter.default.addObserver(
+            forName: VoiceSettingsStore.configChanged, object: nil, queue: .main
+        ) { [weak self] _ in
+            // Synchronous on the main queue: a start queued behind this change cannot have its new failure wiped by a late clear.
+            MainActor.assumeIsolated {
+                // Only a model failure is resolved by a voice config change; a microphone denial stays.
+                guard let self, self.failureReason?.hasPrefix("Voice model unavailable") == true else { return }
+                self.clearVoiceStartFailure(reason: "voice_config_changed")
+            }
+        }
         menuBarPanel.attach(model: model)
         SystemVolume.onChange = { [weak self] state in self?.model.showHUD(state) }
         CredentialEntryController.shared.onChange = { [weak self] request in
@@ -170,6 +183,7 @@ final class IslandController {
         if let o = reduceMotionObserver { NSWorkspace.shared.notificationCenter.removeObserver(o); reduceMotionObserver = nil }
         if let o = activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(o); activationObserver = nil }
         if let o = promptGateObserver { NSWorkspace.shared.notificationCenter.removeObserver(o); promptGateObserver = nil }
+        if let o = voiceModelObserver { NotificationCenter.default.removeObserver(o); voiceModelObserver = nil }
         stopClock()
         menuBarPanel.hide(reason: "service_stopped")
     }
@@ -188,7 +202,7 @@ final class IslandController {
         if let samantha = hub.samantha {
             if samantha.kind == "error", !sawReady {
                 let raw = [samantha.title, samantha.detail].filter { !$0.isEmpty }.joined(separator: " · ")
-                setFailureReason(IslandCopy.humanError(raw) ?? "Samantha failed to start")
+                setFailureReason(IslandCopy.humanError(raw) ?? "Samantha failed to start", raw: raw)
             } else if samantha.kind == "listening", samantha.title == "Listening" {
                 sawReady = true
                 setFailureReason(nil)
@@ -288,6 +302,7 @@ final class IslandController {
             NSPasteboard.general.setString(text, forType: .string)
         case .dismiss:
             model.dismissCard()
+            clearVoiceStartFailure(reason: "dismissed")
         case .agentApprove(let id), .agentDeny(let id):
             let approved: Bool = { if case .agentApprove = action { return true } else { return false } }()
             hub.resolveApproval(id: id, approved: approved)  // the posting agent long-polls GET /api/agent/approval
@@ -297,6 +312,11 @@ final class IslandController {
             hub.dismissChoice(id: id)
         case .stopListening:
             onStopListening?()
+        case .retry where failureReason != nil && (onRetryVoiceStart?() ?? false):
+            // A failed start has no live session to retry on: start Samantha again (that clears the old card).
+            SamanthaActivityLog.startup(phase: "island_retry_start", status: "ok", detail: failureReason ?? "")
+            model.dismissCard()
+            clearVoiceStartFailure(reason: "retry")  // a new failure from this start is shown and logged afresh
         case .cancel, .stopSpeaking, .replay, .stopTask, .retry:
             // Samantha's own card controls: the voice gateway runs them on her live session.
             let ok = await postAction(String(describing: action))
@@ -584,6 +604,16 @@ final class IslandController {
         hub.clearSamanthaFailure()
     }
 
+    /// A failed start is over (Samantha turned off, model changed, card dismissed): clear the card and the reason.
+    func clearVoiceStartFailure(reason: String) {
+        guard failureReason != nil || hub.samantha?.kind == "error" else { return }
+        SamanthaActivityLog.startup(phase: "island_failure_cleared", status: "ok", detail: reason)
+        setFailureReason(nil)
+        hub.clearSamanthaFailure()
+    }
+
+    func debugHandle(_ action: IslandCardAction) async { await handle(action) }
+
     func showVoiceStartFailure(category: String, detail: String) {
         hub.samanthaActive = false
         hub.ingestSamantha(IslandSnapshot(
@@ -644,9 +674,13 @@ final class IslandController {
         render(effective)
     }
 
-    private func setFailureReason(_ reason: String?) {
+    private func setFailureReason(_ reason: String?, raw: String = "") {
         guard failureReason != reason else { return }
         failureReason = reason
+        if let reason {
+            // Every shown failure is logged with its raw reason (developer-observability reads this log).
+            SamanthaActivityLog.islandErrorRaw(raw: raw.isEmpty ? reason : raw, shown: reason)
+        }
         onVoiceFailureChanged?(reason)
     }
 

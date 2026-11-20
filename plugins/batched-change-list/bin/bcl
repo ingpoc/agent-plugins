@@ -378,7 +378,9 @@ def main():
     parser.add_argument("--ids", action="append", default=[]); parser.add_argument("--plan", type=Path)
     parser.add_argument("--result"); parser.add_argument("--issues", type=Path); parser.add_argument("--sections", type=Path); parser.add_argument("--draft", type=Path)
     parser.add_argument("--phase", choices=("fix", "review", "presuite"))
-    parser.add_argument("--model", help="job: the model or reviewer running this job, shown in the lane model column")
+    parser.add_argument("--model", help="job, install or verify: who runs this step, shown in the lane model column")
+    parser.add_argument("--round", type=int, help="correct-round: the real round number")
+    parser.add_argument("--reason", help="correct-round, or verify of a failed lane: why, in one line")
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
     parser.add_argument("--shared", action="store_true")
     parser.add_argument("--new-pr", type=int); parser.add_argument("--new-url"); parser.add_argument("--worktree")
@@ -583,6 +585,7 @@ def main():
     stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     stage = args.stage
     expected_verify_plan = None
+    rerun_op = None
     if stage == "start": operations = [{"action":"set-activity","stage":"collect" if record.get("rollover_pending") else "present" if "collect" in stages else "collect","ids":args.ids,"now":"Started collection"}]
     elif stage == "plan":
         plan = json.loads(args.plan.read_text()) if args.plan else tracking.get("plan")
@@ -605,6 +608,10 @@ def main():
         late_stage = tracking.get("workflow", {}).get("stage") in ("verify", "introspect", "gate")
         if args.ids and not (late_stage and same_current_plan):
             operations.append({"action":"set-activity","stage":"plan_fix","ids":args.ids,"now":"Plan recorded"})
+    elif stage == "correct-round":
+        if args.round is None or not args.reason:
+            parser.error("correct-round requires --round N and --reason \"why the counter is wrong\"")
+        operations = [{"action":"correct-round", "round":args.round, "reason":args.reason}]
     elif stage == "verify" and args.shared:
         run = tracking.get("verification_run")
         if not isinstance(run, dict) or run.get("status") != "active":
@@ -634,8 +641,21 @@ def main():
             covered = {identifier for group in groups for identifier in group.get("finding_ids", [])}
             if not groups or not set(ids).issubset(covered):
                 parser.error("verify requires IDs covered by the current plan")
+            failed_lanes = [g['id'] for g in groups if g.get('status') == 'failed']
+            if args.reason and not failed_lanes:
+                parser.error("--reason reruns a failed lane's check; none of these lanes failed")
+            if failed_lanes and args.reason and not any(g.get('status') in ('blocked', 'parked', 'deferred') for g in groups):
+                # Preview only: the rerun is written in the same batch that starts verify, after
+                # every check below and under the verification lock, so a refusal spends nothing.
+                rerun_op = {"action":"rerun-verify", "ids":failed_lanes, "reason":args.reason}
+                preview = json.loads(json.dumps(data))
+                try:
+                    manage_findings.rerun_verify(preview, rerun_op, stamp)
+                except ValueError as error:
+                    parser.error(str(error))
+                groups = [g for g in preview.get("tracking", {}).get("plan", {}).get("groups", []) if set(ids).intersection(g.get("finding_ids", []))]
             if any(g.get('status') in ('blocked', 'failed', 'parked', 'deferred') for g in groups):
-                parser.error("verify cannot start a blocked, failed, or parked lane")
+                parser.error("verify cannot start a blocked, failed, or parked lane; rerun a failed lane's check once with --reason \"why\"")
             values = [g.get("verify", {}).get("command", "") for g in groups]
             if any(not isinstance(value, str) for value in values):
                 parser.error("stored verify command must be text")
@@ -659,15 +679,22 @@ def main():
             if args.then_command != expected or command_args:
                 parser.error("verify requires --then with the exact stored command; review it before running")
         operations = [{"action":"set-activity","stage":{"fix":"plan_fix","install":"install","verify":"verify"}[stage],"ids":ids,"now":f"{stage.title()} in progress"}]
+        if stage in ("install", "verify") and args.model:
+            operations[0]["model"] = args.model
         if stage == 'verify':
             verification_started_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
             operations[0]['timestamp'] = verification_started_at
             operations[0]['expected_plan_sha256'] = hashlib.sha256(json.dumps(tracking['plan'], sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
             expected_document = json.loads(json.dumps(data))
+            if rerun_op:
+                rerun_op['timestamp'] = verification_started_at
+                manage_findings.rerun_verify(expected_document, rerun_op, verification_started_at)
+                operations.insert(0, rerun_op)
             for finding in expected_document['findings']:
                 if finding['id'] in ids:
                     finding['status'] = 'in_progress'
-            manage_findings.start_verification_lanes(expected_document, ids, verification_started_at)
+            manage_findings.start_verification_lanes(expected_document, ids, verification_started_at,
+                                                     manage_findings.validate_stage_model(args.model))
             manage_findings.sync_plan_verify(expected_document)
             expected_verify_plan = expected_document['tracking']['plan']
     elif stage == "introspect":
@@ -705,6 +732,8 @@ def main():
         result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
         if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
         live_state.snapshot(record, live)
+        if rerun_op:
+            print(f"Rerunning the check for {', '.join(rerun_op['ids'])}: {args.reason.strip()}")
         if stage == "verify" and args.shared:
             words = shlex.split(args.then_command)
             try:

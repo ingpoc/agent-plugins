@@ -69,6 +69,19 @@ class RenderTests(unittest.TestCase):
             'reviewer_model':'gpt-6.1-terra medium','job':{'pid':99999,'phase':'fix','model':'gpt-6-luna max','exit_code':0,
             'finished_at':'2026-11-14T11:00:00Z'}}}), 'gpt-6.1-terra medium')
 
+    def test_model_column_shows_install_model_while_installing(self):
+        self.assertEqual(self._model_column({'status':'installing','phase':'install','install':{'status':'running','started_at':'2026-11-14T11:00:00Z'},'codex':{'model':'gpt-6-luna'},
+            'stage_model':{'stage':'install','model':'release script','at':'2026-11-14T11:00:00Z'}}), 'release script')
+
+    def test_model_column_shows_scripted_check_when_verify_has_no_model(self):
+        self.assertEqual(self._model_column({'status':'verifying','phase':'verify','codex':{'model':'gpt-6-luna','effort':'max'},
+            'stage_model':{'stage':'install','model':'release script','at':'2026-11-14T11:00:00Z'}}), 'No model (scripted check)')
+
+    def test_model_column_shows_verify_model_while_verifying(self):
+        self.assertEqual(self._model_column({'status':'verifying','phase':'verify','codex':{'model':'gpt-6-luna'},
+            'stage_model':{'stage':'verify','model':'Grok Bot subagent (typed verify)','at':'2026-11-14T11:00:00Z'}}),
+            'Grok Bot subagent (typed verify)')
+
     def test_model_column_keeps_fix_model_while_fixing(self):
         self.assertEqual(self._model_column({'status':'running','phase':'fix','codex':{'model':'gpt-6-luna','effort':'max',
             'reviewer_model':'gpt-6.1-terra medium','job':{'pid':99999,'phase':'review','model':'gpt-6.1-terra medium','exit_code':1,
@@ -414,7 +427,7 @@ if(badge.hidden||clock>=Date.parse({json.dumps(updated)})+{stale_after}*60000)pr
             {'id':'D','finding_ids':['ISSUE-02'],'status':'blocked','verify':{'status':'pending','failure':'Codex job failed tests did not pass','method':'Blocked'}}]}}
         page = renderer.render(data, self.base)
         row = page.split('<details class="grp installing">', 1)[1].split('</details>', 1)[0]
-        self.assertIn('5 min', row); self.assertIn('Luna medium Fast', row)
+        self.assertIn('5 min', row); self.assertIn('No model (scripted check)', row); self.assertIn('gpt-6-luna · medium · priority', row)
         self.assertIn('Render label', row); self.assertIn('Install', row)
         self.assertIn('Run the focused test and inspect the live page carefully', page)
         self.assertIn('Blocked', page); self.assertIn('Codex job failed tests did not pass', page)

@@ -1,3 +1,9 @@
+## 0.1.49
+
+- bcl correct-round --round N --reason "why" moves a wrong round counter forward and keeps the correction in the list history; no hand edits (BCL-88).
+- bcl install and bcl verify take --model; while a lane installs or verifies, the model column shows that model, or No model (scripted check) (BCL-89).
+- bcl verify --reason "why" reruns the check of a failed lane once per round. The earlier failure and the reason are kept, and a refused rerun spends nothing (BCL-90).
+
 ## 0.1.48
 
 - The Stale badge follows the latest recorded activity and the earliest running job heartbeat, so a fresh update clears it and an expired heartbeat still shows it; a lane waiting for quota shows Waiting for quota until the reset time instead of Stale (BCL-83, BCL-86).
