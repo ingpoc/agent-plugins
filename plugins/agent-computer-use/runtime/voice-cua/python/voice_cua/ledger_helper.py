@@ -51,18 +51,6 @@ def _norm_text(text: str) -> str:
 
 _REJECTS = re.compile(r"\b(?:do not|don't|dont|never)\s+(?:save|remember|store|record)\b|\b(?:reject(?:ed)?|not approved)\b"
                       r"|\b(?:cancel|scratch|forget|undo|revoke)\s+(?:that|it|this)\b", re.IGNORECASE)
-_PERSISTENCE_INTENT = re.compile(
-    r"^\s*(?:please\s+)?(?:remember|save|keep|store|record)\b|"
-    r"\b(?:could|can|would|will) you (?:please\s+)?(?:remember|save|keep|store|record)\b|"
-    r"\b(?:i want|i'd like) you to (?:please\s+)?(?:remember|save|keep|store|record)\b|"
-    r"\b(?:going forward|from now on|in the future|for (?:all )?future|always|whenever|every time|in general|generally|as my default)\b",
-    re.IGNORECASE,
-)
-_FOLLOWUP_SAVE_REQUEST = re.compile(
-    r"^\s*(?:(?:please|could you|can you|would you|will you)\s+)?(?:please\s+)?"
-    r"(?:remember|save|keep|store|record)\s+(?:that|it|this)[.!?]*\s*$",
-    re.IGNORECASE,
-)
 _CAPTURE_GATE_FIELDS = frozenset({
     'owner_decision', 'future_task', 'changed_choice', 'unique_value', 'lifetime', 'sensitivity',
 })
@@ -203,14 +191,6 @@ class LedgerHelper:
                 if not _norm_text(value) or source is None or (' ' + _norm_text(value) + ' ') not in (' ' + _norm_text(owner_quote) + ' '):
                     return _invalid('Value and owner quote must occur in a recent user statement')
                 recent = self._recent()[source:]
-                explicit_followup = (
-                    len(recent) == 2
-                    and _PERSISTENCE_INTENT.search(recent[1])
-                    and (_FOLLOWUP_SAVE_REQUEST.fullmatch(recent[1])
-                         or (' ' + _norm_text(value) + ' ') in (' ' + _norm_text(recent[1]) + ' '))
-                )
-                if not _PERSISTENCE_INTENT.search(recent[0]) and not explicit_followup:
-                    return _invalid('owner_quote must quote a recent value; explicit save or future-use intent must be in that statement or an immediate follow-up referring to it')
                 if any(_REJECTS.search(u) or re.search(r"\b(?:do not|dont|don.t|never|not)\b", u, re.I) or re.search(r"\b(?:just this once|only once|one[ -]off|only this time|just for (?:today|now)|temporar(?:y|ily)|password|passcode|secret|api[ -]?key|token|otp)\b", u, re.I) for u in recent) or re.search(r'(?:sk-[A-Za-z0-9]{12,}|[A-Za-z0-9+/=_-]{32,})', value):
                     return _invalid('Temporary or sensitive choice cannot be saved')
                 result = self.transport.call('save', {'request_id': str(uuid.uuid4()), 'type': 'user_decision',

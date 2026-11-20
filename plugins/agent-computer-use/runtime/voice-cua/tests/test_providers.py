@@ -133,7 +133,9 @@ class XAITests(unittest.TestCase):
         self.assertIn("Treat a completed user transcript as authoritative", providers.LIVE_INSTRUCTIONS)
         self.assertIn("ask only to confirm its path or installation", providers.LIVE_INSTRUCTIONS)
         self.assertIn("Conversational recall from this conversation and empathy also stay in Live", providers.LIVE_INSTRUCTIONS)
-        self.assertIn("a casual preference mention is not a request to save it", providers.LIVE_INSTRUCTIONS)
+        self.assertIn("A durable personal fact or preference the user shares about themselves is a memory",
+                      providers.LIVE_INSTRUCTIONS)
+        self.assertIn("decide by what is being stored, not by the words used", providers.LIVE_INSTRUCTIONS)
 
     def test_preference_and_result_rules_reach_both_voice_providers(self) -> None:
         with patch("voice_cua.workflow_store.index_context", return_value=""):
@@ -143,7 +145,8 @@ class XAITests(unittest.TestCase):
         live_start = LiveProvider()._start({"instructions": instructions, "tools": []})
         prompts = (xai_update["session"]["instructions"], live_start["session"]["delegation"]["responses"]["instructions"])
         for prompt in prompts:
-            self.assertIn("A passing mention such as \"my favourite colour is teal\" is conversation", prompt)
+            self.assertIn("choose by what is being stored, not by the words used", prompt)
+            self.assertIn("A word, name or fact is not a secret", prompt)
             self.assertIn("Use operation=preference for user preferences", prompt)
             self.assertIn('An immediate follow-up such as "Please remember that" applies to the most recent quoted preference.', prompt)
             self.assertIn("before confirming cleanup or closure, state every fact", prompt)
@@ -270,7 +273,12 @@ class LiveTests(_Rows):
             "Hi, check my calendar.": "delegate",
             "I had a rough day, but please check my calendar.": "delegate",
             "My favourite colour is teal. Also, check my calendar.": "delegate",
-            "Please remember that.": "delegate",
+            # Storing is decided by the model from what is stored (ACU-13), so no keyword route.
+            "Please remember that.": None,
+            "Please remember this for later: my test word for Samantha checks is pineapple.": None,
+            "I love chocolate chip ice cream.": None,
+            "I have a Guru profile on Netflix.": None,
+            "I like dark mode across apps.": None,
             "Open Calculator": "delegate",
             "Please open example.com and say the heading.": "delegate",
             "Hey, could you open Calculator?": "delegate",
@@ -1224,18 +1232,16 @@ class StrictGPTLiveReplayTests(_Rows):
             self.s._text_waiters.pop(rid, None)
         return str(waiter["reply"])
 
-    def _assert_typed_route(self, since: int, text: str, route: str) -> None:
+    def _assert_typed_route(self, since: int, text: str, route: str | None) -> None:
         items = [event for event in self.s.ws.events[since:]
                  if event.get("type") == "response.item.create"
                  and (event.get("item") or {}).get("type") == "message"
                  and (event.get("item") or {}).get("role") == "user"]
         self.assertEqual(len(items), 1, "one typed user item on the wire")
-        self.assertEqual(items[0]["item"]["content"], [
-            {"type": "input_text", "text": text},
-            {"type": "input_text", "text": providers.ROUTE_TEXT[route]},
-        ])
+        self.assertEqual(items[0]["item"]["content"], [{"type": "input_text", "text": text}] + (
+            [{"type": "input_text", "text": providers.ROUTE_TEXT[route]}] if route else []))
 
-    def _typed_turn(self, text: str, route: str) -> tuple[str, int]:
+    def _typed_turn(self, text: str, route: str | None) -> tuple[str, int]:
         since = len(self.s.ws.events)
         rid, waiter = self._ask(text)
         reply = self._reply(rid, waiter)
@@ -1289,7 +1295,7 @@ class StrictGPTLiveReplayTests(_Rows):
         # Turn 3: the explicit remember turn runs the real ledger save path exactly once.
         reply, _ = self._typed_turn(
             "Please remember this for later: my test word for Samantha checks is pineapple.",
-            "delegate")
+            None)
         self.assertIn("saved pineapple", reply)
         self.assertEqual(len(self.server.tool_results), 2)
         self.assertIs(self.server.tool_results[-1]["ok"], True)
@@ -1332,7 +1338,7 @@ class StrictGPTLiveReplayTests(_Rows):
         self.assertTrue(story_waiter["event"].is_set())
         self._assert_typed_route(redirect_since, "Actually, open Calendar instead.", "delegate")
 
-        self._assert_route_only_in_typed_items(6)
+        self._assert_route_only_in_typed_items(5)
         self.assertEqual(self.s.ws.errors, [])
 
     def test_gpt_live_casual_favourite_colour_turn_replies_without_saving(self) -> None:
@@ -1347,7 +1353,7 @@ class StrictGPTLiveReplayTests(_Rows):
     def test_gpt_live_explicit_pineapple_remember_turn_saves_once(self) -> None:
         self.server = ScriptedGPTLiveReplayServer(self.s, script=[REMEMBER_TURN])
         quote = "Please remember this for later: my test word for Samantha checks is pineapple."
-        reply, _ = self._typed_turn(quote, "delegate")
+        reply, _ = self._typed_turn(quote, None)
         self.assertIn("saved pineapple", reply)
         self.assertEqual(len(self.server.tool_results), 1)
         result = self.server.tool_results[0]
@@ -1358,7 +1364,7 @@ class StrictGPTLiveReplayTests(_Rows):
         payload = self.transport.call.call_args.args[1]
         self.assertEqual((payload["scope"], payload["rule"], payload["decision"]),
                          ("fleet", "test_word_for_samantha_checks", "pineapple"))
-        self._assert_route_only_in_typed_items(1)
+        self._assert_route_only_in_typed_items(0)  # no keyword route: the model picks the store
         self.assertEqual(self.s.ws.errors, [])
 
     def test_gpt_live_alternating_typed_and_spoken_turns_do_not_inherit_route(self) -> None:
