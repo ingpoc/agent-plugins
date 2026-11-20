@@ -230,7 +230,7 @@ def install_local():
         print(f"  {destination} ({count} files, sha256 {installed_sha})")
 
 def _not_executable(word):
-    """A path-like command word (it names a directory) that is missing or lacks execute permission."""
+    """A command word containing "/" is a path; true when that path is missing or not an executable file."""
     if "/" not in word:
         return False
     path = Path(word).expanduser()
@@ -692,8 +692,14 @@ def main():
             plan_groups = [g for g in tracking.get("plan", {}).get("groups", []) if set(ids).intersection(g.get("finding_ids", []))]
             for group in plan_groups:
                 stored = group.get("verify", {}).get("command") if isinstance(group.get("verify"), dict) else None
-                try: first = shlex.split(stored)[0] if isinstance(stored, str) and stored.strip() else None
-                except ValueError: first = None
+                first = None
+                if isinstance(stored, str) and stored.strip():
+                    try:
+                        lexer = shlex.shlex(stored, posix=True, punctuation_chars='|&;<>')
+                        lexer.whitespace_split = True; lexer.commenters = ''
+                        first = next(iter(lexer), None)
+                    except ValueError:
+                        first = None
                 if first and _not_executable(first):
                     parser.error(f"{group.get('id')} verify command is not executable: {first} (chmod +x it before {stage})")
         operations = [{"action":"set-activity","stage":{"fix":"plan_fix","install":"install","verify":"verify"}[stage],"ids":ids,"now":f"{stage.title()} in progress"}]

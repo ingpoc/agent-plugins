@@ -463,6 +463,8 @@ elif args[:2] != ['pr', 'edit']:
         self.assertNotEqual(refused.returncode, 0)
         self.assertIn("not executable", refused.stderr)
         self.assertIsNone(json.loads(live.read_text())["tracking"]["verification_run"].get("shared_check"))
+        missing = self.call("verify", "--shared", "--then", str(self.root / "missing.sh"))
+        self.assertIn("not executable", missing.stderr)
         script.chmod(0o755)
         self.assertEqual(self.call("verify", "--shared", "--then", str(script)).returncode, 0)
 
