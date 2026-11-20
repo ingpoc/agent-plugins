@@ -7988,9 +7988,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T04:10:39Z",
-      "now": "2026-11-20T04:10:39Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-20T04:27:56Z",
+      "now": "2026-11-20T04:27:56Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10431,8 +10431,8 @@
             "ACU-09"
           ],
           "depends_on": [],
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r4-g8",
           "reason": "0.2.154 sends a per-reply field GPT-Live rejects, so every GPT turn failed; the round 4 items must pass on GPT-Live too.",
           "codex": {
@@ -10441,19 +10441,18 @@
             "one_file": false,
             "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428",
             "job": {
-              "pid": 43567,
-              "phase": "review",
-              "started_at": "2026-11-20T04:02:49Z",
-              "command": "launch-review-g8.sh",
-              "heartbeat_at": "2026-11-20T04:03:45Z",
+              "pid": 64570,
+              "phase": "fix",
+              "started_at": "2026-11-20T04:10:39Z",
+              "command": "run-oc.sh",
+              "heartbeat_at": "2026-11-20T04:23:50Z",
               "exit_code": 0,
-              "duration_s": 56,
-              "finished_at": "2026-11-20T04:03:45Z",
-              "finished_phase_status": "failed"
+              "duration_s": 791,
+              "finished_at": "2026-11-20T04:23:50Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
-            "previous_review": "r5 review 1 CHANGES: strict replay injected outcomes; reworked so emitted route events drive replies, delegation, ledger and cancel",
-            "review_status": "failed",
+            "previous_review": "r5 review 2 CHANGES (persistent route, unchecked event types, keyword replay); fixed on OpenCode (Codex quota out)",
             "fallback_note": "Codex quota out until 22 Nov 12:28 IST; OpenCode free model per Guru 09:36"
           },
           "verify": {
@@ -10464,7 +10463,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T04:10:38Z",
+          "updated_at": "2026-11-20T04:27:56Z",
           "blocked_reason": null
         },
         {
@@ -10509,7 +10508,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T04:04:35Z"
+          "updated_at": "2026-11-20T04:13:29Z"
         },
         {
           "id": "BCL-PAGE",
@@ -10521,8 +10520,8 @@
             "BCL-86"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "worktree": "bcl117-r5-g10",
           "reason": "Both are how the page reads the tracker and how bcl moves lanes and rounds. BCL-85 added 09:27 (Guru): escalation ladder for repeat failures, skill text only. BCL-86 added 09:33 (Guru): quota-out fallback note plus waiting-for-quota lane state on the page.",
           "codex": {
@@ -10530,17 +10529,17 @@
             "effort": "default",
             "one_file": false,
             "job": {
-              "pid": 35929,
+              "pid": 68717,
               "phase": "fix",
-              "started_at": "2026-11-20T03:57:19Z",
-              "command": "run-r5x85-g10.sh",
-              "heartbeat_at": "2026-11-20T04:06:18Z",
-              "exit_code": 1,
-              "duration_s": 539,
-              "finished_at": "2026-11-20T04:06:18Z",
-              "finished_phase_status": "failed"
+              "started_at": "2026-11-20T04:12:25Z",
+              "command": "run-oc.sh",
+              "heartbeat_at": "2026-11-20T04:23:15Z",
+              "exit_code": 0,
+              "duration_s": 650,
+              "finished_at": "2026-11-20T04:23:15Z",
+              "finished_phase_status": "passed"
             },
-            "fix_status": "failed",
+            "fix_status": "passed",
             "implementer_session": "01a1f6e1-1ad8-7c02-9ffc-c6d1fb8e7bb5",
             "review_status": "passed",
             "reviewer_session": "01a1f703-63d2-70c0-8af2-04bc04c11226",
@@ -10555,7 +10554,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T04:09:37Z"
+          "updated_at": "2026-11-20T04:23:15Z"
         },
         {
           "id": "ACU-MEMORY",
@@ -10595,8 +10594,43 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T04:05:46Z",
+          "updated_at": "2026-11-20T04:13:29Z",
           "blocked_reason": "Waiting for Codex quota"
+        },
+        {
+          "id": "ACU-ISLAND",
+          "name": "The island shows a cut-off run as Stopped with its reason, not done",
+          "finding_ids": [
+            "ACU-16"
+          ],
+          "depends_on": [],
+          "status": "running",
+          "phase": "fix",
+          "worktree": "bcl117-r5-g12",
+          "reason": "Guru 09:41: a run cut off at the usage limit showed a green done tick. Small lane on OpenCode free models (Codex quota out).",
+          "codex": {
+            "model": "opencode/deepseek-v4.1-flash-free",
+            "effort": "default",
+            "one_file": false,
+            "fallback_note": "Codex quota out until 22 Nov 12:28 IST; OpenCode free model per Guru 09:36",
+            "job": {
+              "pid": 82902,
+              "phase": "fix",
+              "started_at": "2026-11-20T04:16:38Z",
+              "command": "run-oc.sh",
+              "heartbeat_at": "2026-11-20T04:27:40Z"
+            },
+            "fix_status": "failed"
+          },
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g12.sh",
+            "method": "Named tests on the installed build plus the recorded cutoff replayed through the installed parser.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-20T04:27:40Z"
         }
       ]
     },
@@ -12073,7 +12107,19 @@
       "done_when": "The skill has a short conditional note, with no steps added to the normal flow: if the coding model quota runs out during a fix, small well-defined lanes go to the free OpenCode models and hard or retry lanes wait for the reset; review is never skipped or handed to a weaker model, it waits for the reset; while waiting, the work that needs no model (Verify, Install, the pre-push suite, the tracker) continues; before a big round the remaining quota is checked and fewer or cheaper lanes are picked if it is low; a check blocked by another subscription's quota, such as a voice provider, is marked blocked with the reason, not failed. The page shows a lane waiting for quota with its reset time, not Stale. The strict skill shape check passes and the state chart page is regenerated.",
       "observed": "20 Nov 2026 09:31 IST, Guru approved the quota-out fallback.",
       "recommendation": "Add the note next to the BCL-85 ladder in references/plan-fix.md (review.md for the review rule, verify.md for blocked-by-other-quota); route small lanes via the opencode-free-implementer skill; give a lane activity a waiting-for-quota state with reset_at that render.py shows instead of Stale; regenerate statechart.html.",
-      "status": "untested"
+      "status": "in_progress"
+    },
+    {
+      "id": "ACU-16",
+      "title": "The island shows a run as done when the agent stopped mid-run",
+      "source": "User reported",
+      "priority": "medium",
+      "summary": "The Dynamic Island shows a green done tick for a coding run that actually stopped without finishing, for example when the usage limit cut it off.",
+      "impact": "Guru cannot tell from the island that a run was cut off and its work is unfinished, so cut-off work is trusted as done.",
+      "done_when": "Whenever a Codex, Claude Code or OpenCode run ends with a failure, the island shows it as Stopped with a short reason: Quota exhausted with the reset time in India time, Aborted, API error, Context overflow, or Not logged in. Green done appears only when the run ended normally with no error. Named tests use fixtures copied from real log shapes with no secrets, and the installed app shows Stopped for the recorded quota cutoff.",
+      "observed": "20 Nov 2026 09:36 IST: a Codex run ended at the usage limit with no final message; its last record was a completion marker carrying the limit error and an empty final message, and the island showed it as done. Reported by Guru 09:41 IST.",
+      "recommendation": "Codex rollout jsonl: task_complete fires even on failure; failure is a non-null payload.error (with last_agent_message null); token_count.rate_limits secondary.used_percent 100 and resets_at give the quota reason and reset time; green only when error is null. Claude Code projects jsonl: assistant lines with isApiErrorMessage true plus a top-level error (rate_limit, authentication_failed), and system lines with subtype api_error (error.status 429, error.message); normal ends have message.stop_reason end_turn. OpenCode opencode.db message.data: $.error.name MessageAbortedError, APIError or ContextOverflowError with $.error.data.message; $.finish stop, tool-calls, error, length, other or unknown; green only for finish stop with no error. Never read auth.json or credential tables. Fixture shapes saved in the run artifacts (acu16-fixtures/shapes.json).",
+      "status": "in_progress"
     }
   ]
 }
