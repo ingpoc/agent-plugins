@@ -10537,9 +10537,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T16:57:01Z",
-      "now": "2026-11-20T16:57:01Z — Lane BCL-SHARED updated"
+      "stage": "install",
+      "updated_at": "2026-11-20T17:13:30Z",
+      "now": "2026-11-20T17:13:30Z — Install in progress"
     },
     "rollover": {
       "source_pr": 117,
@@ -13522,7 +13522,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "round": 2,
@@ -13572,7 +13573,7 @@
           "finding_ids": [
             "ACU-22"
           ],
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl118-r2-acu22",
           "label": "ACU-22",
           "verify": {
@@ -13603,11 +13604,20 @@
             "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
           "updated_at": "2026-11-20T16:57:01Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-20T16:57:01Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-20T17:13:30Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "No model (scripted release)",
+            "at": "2026-11-20T17:13:30Z"
           }
         },
         {
@@ -13617,7 +13627,7 @@
             "BCL-92",
             "BCL-93"
           ],
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl118-r2-merged",
           "label": "BCL-92, BCL-93",
           "verify": {
@@ -13648,11 +13658,20 @@
             "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
           "updated_at": "2026-11-20T16:57:01Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-20T16:57:01Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-20T17:13:30Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "No model (scripted release)",
+            "at": "2026-11-20T17:13:30Z"
           }
         },
         {
@@ -13661,7 +13680,7 @@
           "finding_ids": [
             "BCL-91"
           ],
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl118-r2-shared",
           "label": "BCL-91",
           "verify": {
@@ -13692,11 +13711,20 @@
             "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
           "updated_at": "2026-11-20T16:57:01Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-20T16:57:01Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-20T17:13:30Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "No model (scripted release)",
+            "at": "2026-11-20T17:13:30Z"
           }
         }
       ],
