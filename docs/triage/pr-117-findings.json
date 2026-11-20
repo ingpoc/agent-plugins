@@ -7988,9 +7988,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-20T03:40:24Z",
-      "now": "2026-11-20T03:40:24Z — Fix job started"
+      "stage": "review",
+      "updated_at": "2026-11-20T03:40:40Z",
+      "now": "2026-11-20T03:40:40Z — Review started"
     },
     "rollover": {
       "source_pr": 116,
@@ -10492,7 +10492,7 @@
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
-            "review_status": "failed"
+            "previous_review": "r5 review 1 CHANGES: reject unsupported gpt-realtime names; release must poll a real request. Both fixed in the same session"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g7.sh",
@@ -10502,7 +10502,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T03:35:34Z"
+          "updated_at": "2026-11-20T03:40:40Z"
         },
         {
           "id": "BCL-PAGE",
@@ -10512,8 +10512,8 @@
             "BCL-84"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "review",
+          "status": "running",
+          "phase": "fix",
           "worktree": "bcl117-r5-g10",
           "reason": "Both are how the page reads the tracker and how bcl moves lanes and rounds.",
           "codex": {
@@ -10521,15 +10521,11 @@
             "effort": "max",
             "one_file": false,
             "job": {
-              "pid": 91942,
-              "phase": "review",
-              "started_at": "2026-11-20T03:32:36Z",
-              "command": "launch-review-g10.sh",
-              "heartbeat_at": "2026-11-20T03:34:08Z",
-              "exit_code": 0,
-              "duration_s": 92,
-              "finished_at": "2026-11-20T03:34:08Z",
-              "finished_phase_status": "failed"
+              "pid": 2664,
+              "phase": "fix",
+              "started_at": "2026-11-20T03:40:32Z",
+              "command": "run-r5mf-g10.sh",
+              "heartbeat_at": "2026-11-20T03:40:32Z"
             },
             "fix_status": "passed",
             "implementer_session": "01a1f6e1-1ad8-7c02-9ffc-c6d1fb8e7bb5",
@@ -10543,7 +10539,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T03:34:08Z"
+          "updated_at": "2026-11-20T03:40:32Z"
         },
         {
           "id": "ACU-MEMORY",
@@ -10553,7 +10549,7 @@
             "ACU-13"
           ],
           "depends_on": [],
-          "status": "planned",
+          "status": "running",
           "phase": "fix",
           "worktree": "bcl117-r4-g8",
           "reason": "ACU-07/13 failed on GPT-Live only because every GPT turn was rejected (ACU-14). This job only adds strict GPT-Live tests on top of the ACU-GPT change in the same worktree, so it ships in the same release; dependency on ACU-GPT verification removed (it would force a second release).",
@@ -10561,7 +10557,14 @@
             "model": "gpt-6-luna",
             "effort": "medium",
             "one_file": false,
-            "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428"
+            "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428",
+            "job": {
+              "pid": 1652,
+              "phase": "fix",
+              "started_at": "2026-11-20T03:40:24Z",
+              "command": "run-r5m-g8.sh",
+              "heartbeat_at": "2026-11-20T03:40:24Z"
+            }
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8m.sh",
@@ -10571,7 +10574,7 @@
             "fixed": 0,
             "failed": 0
           },
-          "updated_at": "2026-11-20T03:40:14Z"
+          "updated_at": "2026-11-20T03:40:24Z"
         }
       ]
     },
