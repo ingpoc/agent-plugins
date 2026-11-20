@@ -9189,9 +9189,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T10:45:29Z",
-      "now": "2026-11-20T10:45:29Z — Lane ACU-REMEMBER updated"
+      "stage": "install",
+      "updated_at": "2026-11-20T10:53:30Z",
+      "now": "2026-11-20T10:53:30Z — Install in progress"
     },
     "rollover": {
       "source_pr": 116,
@@ -11974,8 +11974,8 @@
           "finding_ids": [
             "ACU-13"
           ],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "worktree": "bcl117-r7-remember",
           "label": "ACU-13",
           "codex": {
@@ -12013,12 +12013,12 @@
           },
           "install": {
             "status": "running",
-            "started_at": "2026-11-20T09:51:14Z"
+            "started_at": "2026-11-20T10:53:30Z"
           },
           "stage_model": {
-            "stage": "verify",
-            "model": "Grok Bot subagent (scripted typed check via typed_run_sync)",
-            "at": "2026-11-20T09:56:59Z"
+            "stage": "install",
+            "model": "Grok Bot subagent (sign-only release 0.2.158)",
+            "at": "2026-11-20T10:53:30Z"
           },
           "reason": "Verify on 0.2.157 failed for Grok Voice dark mode; follow-up fix b1c86116 needs its own review"
         }
