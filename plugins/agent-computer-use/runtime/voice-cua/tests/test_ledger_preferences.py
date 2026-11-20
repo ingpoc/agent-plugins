@@ -46,19 +46,20 @@ def test_preferences_and_recall_without_helper(tmp_path):
     assert 'If `has_more` is true, ask rather than select from an incomplete set' in skill
 
 
-def test_casual_preference_mention_is_not_saved(tmp_path):
+def test_personal_preference_without_remember_is_saved(tmp_path):
+    """ACU-13 (Guru 14:41): the store is chosen by what is stored, not by the word remember."""
     transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'decision_id': 'icecream'}}
     helper = LedgerHelper(transport, Mock(), tmp_path / 'pending')
-    quote = 'My favourite colour is teal.'
+    quote = 'I love chocolate chip ice cream.'
     helper.note_user(quote)
     with patch('voice_cua.tools._LEDGER_HELPER', helper):
         result = tools._ledger_task({
-            'operation': 'preference', 'scope': 'fleet', 'rule': 'favourite_colour',
-            'value': 'teal', 'owner_quote': quote,
+            'operation': 'preference', 'scope': 'fleet', 'rule': 'favourite_ice_cream',
+            'value': 'chocolate chip ice cream', 'owner_quote': quote,
         })
-    assert result['error_type'] == 'ledger_invalid_argument'
-    assert 'owner_quote' in result['error']
-    transport.call.assert_not_called()
+    assert result['status'] == 'saved'
+    assert transport.call.call_args.args[0] == 'save'
 
 
 def test_acu13_corrected_explicit_preference_request_is_accepted(tmp_path):
@@ -89,15 +90,14 @@ def test_followup_remember_that_saves_the_preceding_quoted_preference(tmp_path):
     assert transport.call.call_args.args[0] == 'save'
 
 
-def test_followup_save_without_reference_does_not_save_preference(tmp_path):
+def test_secret_value_is_never_saved_as_a_memory(tmp_path):
     transport = Mock()
     helper = LedgerHelper(transport, Mock(side_effect=AssertionError('helper model called')), tmp_path / 'pending')
-    helper.note_user('My favourite colour is teal.')
-    helper.note_user('Please remember to call Mom.')
-    result = helper.run(operation='preference', scope='fleet', rule='favourite_colour', value='teal',
-                        owner_quote='my favourite colour is teal')
+    quote = 'Save this password for my Samantha test account: dummy-pass-0000'
+    helper.note_user(quote)
+    result = helper.run(operation='preference', scope='fleet', rule='samantha_test_account_password',
+                        value='dummy-pass-0000', owner_quote=quote)
     assert result['error_type'] == 'ledger_invalid_argument'
-    assert 'explicit save or future-use intent' in result['error']
     transport.call.assert_not_called()
 
 

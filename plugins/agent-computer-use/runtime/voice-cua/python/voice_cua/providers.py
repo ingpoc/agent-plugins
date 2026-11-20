@@ -146,7 +146,8 @@ LIVE_INSTRUCTIONS = (
     "short sentences. Say what was done, not what could be done. Never end with offers like 'anything else?'.\n"
     "Backchannel policy: Brief acknowledgments only ('On it.'). Greetings, small talk and 'can you hear me' "
     "get a short spoken reply and no delegation. Conversational recall from this conversation and empathy "
-    "also stay in Live; a casual preference mention is not a request to save it. An immediate follow-up such as "
+    "also stay in Live. A durable personal fact or preference the user shares about themselves is a memory: delegate "
+    "it so the backend saves it to Context Ledger, and still reply warmly. An immediate follow-up such as "
     "'Please remember that' applies to the most recent quoted preference.\n"
     "Treat a completed user transcript as authoritative: act on its clearly transcribed app or site name, even if "
     "the audio seemed unclear. If an app lookup says it was not found or is not installed, say that and ask only "
@@ -165,8 +166,10 @@ LIVE_INSTRUCTIONS = (
     "recall, repeated results, simple arithmetic (for example, 12 + 12 = 24), or answers from the conversation "
     "or a still-current result. "
     "Answer these directly in Live, in the requested format; never generate <|SpawnThinking|> or create a Responses delegation.\n"
-    "Delegate to the backend when the user asks for computer, app, website, or credential work, or to remember/save/keep "
-    "a preference or clearly set it for future use; a passing preference mention is conversation, not a save request. "
+    "Delegate to the backend when the user asks for computer, app, website, or credential work, or shares something to "
+    "keep. The backend stores a secret value that grants access (a password, API key or token) in secure entry, and "
+    "anything else the user says about themselves (facts, profiles, likes, settings, words to keep) in Context Ledger "
+    "memory; decide by what is being stored, not by the words used. "
     "Also delegate when a correction changes work already requested, or the answer depends on backend work or needs careful reasoning "
     "beyond a simple reply. Generate <|SpawnThinking|> before answering when the answer depends on backend work. Do not guess "
     "the result while waiting. Never claim an "
@@ -190,20 +193,12 @@ _CURRENT_RECALL = re.compile(
     r"what was my|remind me what i (?:said|told you))\b",
     re.IGNORECASE,
 )
-_PREFERENCE_SAVE_REQUEST = re.compile(
-    r"^\s*(?:please\s+)?(?:remember|save|keep|store|record)\b|"
-    r"\b(?:please|could you|can you|would you|will you)\s+(?:please\s+)?(?:remember|save|keep|store|record)\b|"
-    r"\b(?:i want|i'd like) you to (?:please\s+)?(?:remember|save|keep|store|record)\b|"
-    r"\b(?:going forward|from now on|in the future|for (?:all )?future|always|whenever|every time|in general|generally|as my default)\b",
-    re.IGNORECASE,
-)
 _CONVERSATIONAL_TURN = re.compile(
     r"^\s*(?:hi|hello|hey|good (?:morning|afternoon|evening))\b|"
     r"\bhow (?:are you|is your (?:day|morning|afternoon|evening))\b|"
     r"\b(?:i(?:'m| am) (?:having|feeling|sad|upset|tired|overwhelmed|stressed|worried|anxious|frustrated|lonely|angry|excited|happy|nervous)|"
     r"i feel (?:sad|upset|tired|overwhelmed|stressed|worried|anxious|frustrated|lonely|angry|nervous)|"
-    r"i had a (?:rough|hard|bad|long|awful) day)\b|"
-    r"\bmy (?:favo[u]?rite|preferred) [\w -]+ (?:is|are)\b|\bi (?:like|love|prefer)\b",
+    r"i had a (?:rough|hard|bad|long|awful) day)\b",
     re.IGNORECASE,
 )
 
@@ -217,8 +212,6 @@ def typed_turn_route(text: str) -> str | None:
         return "delegate"
     if _CURRENT_RECALL.search(text):
         return "direct"
-    if _PREFERENCE_SAVE_REQUEST.search(text):
-        return "delegate"
     if _CONVERSATIONAL_TURN.search(text):
         return "direct"
     return None
