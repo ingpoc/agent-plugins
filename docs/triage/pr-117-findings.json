@@ -7988,9 +7988,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-20T02:51:20Z",
-      "now": "2026-11-20T02:51:20Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T02:54:52Z",
+      "now": "2026-11-20T02:54:52Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 116,
@@ -10422,228 +10422,121 @@
       "cycle": 9,
       "groups": [
         {
-          "id": "ACU-SESSION",
-          "name": "A redirect stops the long answer on GPT-Live too",
+          "id": "ACU-GPT",
+          "name": "Samantha answers on GPT-Live again, with chat and task routing that GPT-Live accepts",
           "finding_ids": [
-            "ACU-05"
+            "ACU-14",
+            "ACU-05",
+            "ACU-08",
+            "ACU-09"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "verify",
-          "worktree": "bcl117-r3-g2",
-          "reason": "Grok is fixed; on GPT-Live the backend task behind the story keeps running after a redirect.",
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl117-r4-g8",
+          "reason": "0.2.154 sends a per-reply field GPT-Live rejects, so every GPT turn failed; the round 4 items must pass on GPT-Live too.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
             "one_file": false,
-            "implementer_session": "01a1f3a3-6347-7f42-b395-61f27206dbe7",
-            "job": {
-              "pid": 90252,
-              "phase": "presuite",
-              "started_at": "2026-11-19T18:11:31Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-19T18:15:43Z",
-              "exit_code": 0,
-              "duration_s": 252,
-              "finished_at": "2026-11-19T18:15:43Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "previous_review": "race fix review 1: CHANGES only because the read-only reviewer could not run the stress; second cause (fake backend queue) found and fixed",
-            "review_status": "passed",
-            "reviewer_session": "01a1f500-9f6c-7921-a076-871e16a98801",
-            "review_note": "race fix PASS (duplicate call ids ignored; test fake releases deferred creates; stress 400/400 orchestrator)"
+            "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428"
           },
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g2.sh",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8.sh",
             "method": "Checked on the installed copy.",
-            "status": "failed",
-            "total": 1,
+            "status": "partial",
+            "total": 4,
             "fixed": 0,
-            "failed": 1,
-            "summary": "Grok redirect fixed; GPT turns rejected (response field)",
-            "failure": "Grok redirect fixed; GPT turns rejected (response field)"
+            "failed": 3
           },
-          "updated_at": "2026-11-20T02:50:06Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-19T18:15:43Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T02:10:14Z"
-          },
-          "verify_summary": "Grok redirect fixed; GPT turns rejected (response field)"
+          "updated_at": "2026-11-20T02:54:52Z"
         },
         {
           "id": "ACU-MENU",
-          "name": "A failed Samantha start says why in the menu",
+          "name": "A failed Samantha start says why, and the release waits for the app to be ready",
           "finding_ids": [
-            "ACU-01"
+            "ACU-01",
+            "ACU-15"
           ],
           "depends_on": [],
-          "status": "failed",
-          "phase": "verify",
+          "status": "planned",
+          "phase": "fix",
           "worktree": "bcl117-r4-g7",
-          "reason": "Deferred from round 3 by the four-lane cap.",
+          "reason": "Both are about reading the app's real state: a real unknown-model start comes up healthy with no reason, and the release checks the app one second after restarting it.",
           "codex": {
             "model": "gpt-6-luna",
             "effort": "max",
             "one_file": false,
-            "job": {
-              "pid": 90252,
-              "phase": "presuite",
-              "started_at": "2026-11-19T18:11:31Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-19T18:15:43Z",
-              "exit_code": 0,
-              "duration_s": 252,
-              "finished_at": "2026-11-19T18:15:43Z",
-              "finished_phase_status": "passed"
-            },
-            "implementer_session": "01a1f460-32c2-7d62-a7d7-2bae1a069868",
-            "fix_status": "passed",
-            "review_status": "passed",
-            "reviewer_session": "01a1f47f-7aed-7780-b2e1-530a0b791713",
-            "review_note": "Terra CHANGES (voice_control lacked failure reason, gateway health cleared island error, tests skipped supervisor path) plus unknown-model start fixed in same session"
+            "implementer_session": "01a1f460-32c2-7d62-a7d7-2bae1a069868"
           },
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g7.sh",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g7.sh",
             "method": "Checked on the installed copy.",
-            "status": "failed",
-            "total": 1,
+            "status": "partial",
+            "total": 2,
             "fixed": 0,
-            "failed": 1,
-            "summary": "Unknown-model start shows no reason on the real app",
-            "failure": "Unknown-model start shows no reason on the real app"
+            "failed": 1
           },
-          "updated_at": "2026-11-20T02:50:06Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-19T18:15:43Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T02:10:14Z"
-          },
-          "verify_summary": "Unknown-model start shows no reason on the real app"
+          "updated_at": "2026-11-20T02:54:52Z"
         },
         {
-          "id": "ACU-PROMPT",
-          "name": "Samantha chats when chatting, answers what was asked and saves memories that stick",
+          "id": "BCL-PAGE",
+          "name": "The list page shows fresh, the right round and each lane's real step",
+          "finding_ids": [
+            "BCL-83",
+            "BCL-84"
+          ],
+          "depends_on": [],
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl117-r5-g10",
+          "reason": "Both are how the page reads the tracker and how bcl moves lanes and rounds.",
+          "codex": {
+            "model": "gpt-6-luna",
+            "effort": "max",
+            "one_file": false
+          },
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g10.sh",
+            "method": "Checked on the installed copy.",
+            "status": "pending",
+            "total": 2,
+            "fixed": 0,
+            "failed": 0
+          },
+          "updated_at": "2026-11-20T02:54:52Z"
+        },
+        {
+          "id": "ACU-MEMORY",
+          "name": "Memory saves on GPT-Live: none from small talk, an explicit remember sticks",
           "finding_ids": [
             "ACU-07",
-            "ACU-08",
-            "ACU-09",
             "ACU-13"
           ],
-          "depends_on": [],
-          "status": "failed",
-          "phase": "verify",
+          "depends_on": [
+            "ACU-GPT"
+          ],
+          "status": "planned",
+          "phase": "fix",
           "worktree": "bcl117-r4-g8",
-          "reason": "All four come from what the voice models are told and how memory saves are passed on.",
+          "reason": "Both failed on GPT-Live only because every GPT turn was rejected; they run in the ACU-GPT session after its fix, to confirm or finish the memory behaviour.",
           "codex": {
             "model": "gpt-6-luna",
-            "effort": "max",
+            "effort": "medium",
             "one_file": false,
-            "job": {
-              "pid": 90252,
-              "phase": "presuite",
-              "started_at": "2026-11-19T18:11:31Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-19T18:15:43Z",
-              "exit_code": 0,
-              "duration_s": 252,
-              "finished_at": "2026-11-19T18:15:43Z",
-              "finished_phase_status": "passed"
-            },
-            "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428",
-            "fix_status": "passed",
-            "review_status": "passed",
-            "reviewer_session": "01a1f47a-8848-71d3-a982-d41e02a02332",
-            "review_note": "Terra CHANGES (mixed greeting+task routing, follow-up remember, unnamed oversized fields) plus Grok same-turn save fixed in same session; 603 runtime tests pass"
+            "implementer_session": "01a1f460-3ad7-7090-93d6-eb3bc1888428"
           },
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g8.sh",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r5-g8m.sh",
             "method": "Checked on the installed copy.",
             "status": "failed",
-            "total": 4,
-            "fixed": 0,
-            "failed": 4,
-            "summary": "Grok side works; every GPT typed turn rejected (response field)",
-            "failure": "Grok side works; every GPT typed turn rejected (response field)"
-          },
-          "updated_at": "2026-11-20T02:50:06Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-19T18:15:43Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T02:10:14Z"
-          },
-          "verify_summary": "Grok side works; every GPT typed turn rejected (response field)"
-        },
-        {
-          "id": "ACU-TESTS",
-          "name": "Mac app tests and shape checks hold up on a busy machine",
-          "finding_ids": [
-            "ACU-11",
-            "ACU-12"
-          ],
-          "depends_on": [],
-          "status": "verified",
-          "phase": "verify",
-          "worktree": "bcl117-r4-g9",
-          "reason": "Both are test and check fixes in the Mac control skill.",
-          "codex": {
-            "model": "gpt-6-luna",
-            "effort": "max",
-            "one_file": false,
-            "job": {
-              "pid": 90252,
-              "phase": "presuite",
-              "started_at": "2026-11-19T18:11:31Z",
-              "command": "presuite.sh",
-              "heartbeat_at": "2026-11-19T18:15:43Z",
-              "exit_code": 0,
-              "duration_s": 252,
-              "finished_at": "2026-11-19T18:15:43Z",
-              "finished_phase_status": "passed"
-            },
-            "fix_status": "passed",
-            "implementer_session": "01a1f460-41d6-74a2-ad1a-cdf8bfb6366a",
-            "review_status": "passed",
-            "reviewer_session": "01a1f478-9d9d-7553-86fb-787299d4a385",
-            "review_note": "Terra CHANGES (real wake timer, CI shape skip, mocked checker test) fixed in same session: manual wake scheduler, 20/20 under load, missing checker fails outside CI with visible CI skip, subprocess failure test"
-          },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r4-g9.sh",
-            "method": "Checked on the installed copy.",
-            "status": "verified",
             "total": 2,
-            "fixed": 2,
-            "failed": 0,
-            "summary": "Island test steady under load; strict shape gate on",
-            "failure": null
+            "fixed": 0,
+            "failed": 2
           },
-          "updated_at": "2026-11-20T02:50:05Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-19T18:15:43Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-20T02:10:14Z"
-          },
-          "verify_summary": "Island test steady under load; strict shape gate on"
+          "updated_at": "2026-11-20T02:54:52Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "verification_run": {
       "id": "r4-2ff666e0-117",
