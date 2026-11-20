@@ -10537,9 +10537,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T15:35:47Z",
-      "now": "2026-11-20T15:35:47Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T15:38:49Z",
+      "now": "2026-11-20T15:38:49Z — Fix job started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13571,22 +13571,23 @@
             "model": "Grok Bot subagent (own fix)",
             "implementer_session": "grokbot-118r2-acu-heading",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-acu-heading",
-            "review_status": "pending",
+            "review_status": "passed",
             "job": {
-              "pid": 25807,
-              "phase": "fix",
-              "started_at": "2026-11-20T15:35:11Z",
-              "command": "fixjob.sh",
-              "heartbeat_at": "2026-11-20T15:35:12Z",
-              "model": "Grok Bot (own fix)",
+              "pid": 28021,
+              "phase": "review",
+              "started_at": "2026-11-20T15:35:48Z",
+              "command": "review-r6.sh",
+              "heartbeat_at": "2026-11-20T15:38:36Z",
+              "model": "grok-4.7-medium (Cursor CLI ask)",
               "exit_code": 0,
-              "duration_s": 1,
-              "finished_at": "2026-11-20T15:35:12Z",
+              "duration_s": 168,
+              "finished_at": "2026-11-20T15:38:36Z",
               "finished_phase_status": "passed"
             },
-            "fix_status": "passed"
+            "fix_status": "passed",
+            "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
-          "updated_at": "2026-11-20T15:35:47Z",
+          "updated_at": "2026-11-20T15:38:36Z",
           "phase": "review"
         },
         {
@@ -13612,20 +13613,17 @@
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-bcl-merged",
             "review_status": "pending",
             "job": {
-              "pid": 23791,
-              "phase": "fix",
-              "started_at": "2026-11-20T15:34:49Z",
-              "command": "fixjob.sh",
-              "heartbeat_at": "2026-11-20T15:34:54Z",
-              "model": "Grok Bot (own fix)",
-              "exit_code": 0,
-              "duration_s": 5,
-              "finished_at": "2026-11-20T15:34:54Z",
-              "finished_phase_status": "passed"
+              "pid": 28019,
+              "phase": "review",
+              "started_at": "2026-11-20T15:35:48Z",
+              "command": "review-r6.sh",
+              "heartbeat_at": "2026-11-20T15:38:48Z",
+              "model": "grok-4.7-medium (Cursor CLI ask)"
             },
-            "fix_status": "passed"
+            "fix_status": "passed",
+            "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
-          "updated_at": "2026-11-20T15:35:47Z",
+          "updated_at": "2026-11-20T15:38:48Z",
           "phase": "review"
         },
         {
@@ -13650,20 +13648,17 @@
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r2-bcl-shared",
             "review_status": "pending",
             "job": {
-              "pid": 24445,
-              "phase": "fix",
-              "started_at": "2026-11-20T15:34:55Z",
-              "command": "fixjob.sh",
-              "heartbeat_at": "2026-11-20T15:35:10Z",
-              "model": "Grok Bot (own fix)",
-              "exit_code": 0,
-              "duration_s": 15,
-              "finished_at": "2026-11-20T15:35:10Z",
-              "finished_phase_status": "passed"
+              "pid": 28017,
+              "phase": "review",
+              "started_at": "2026-11-20T15:35:48Z",
+              "command": "review-r6.sh",
+              "heartbeat_at": "2026-11-20T15:38:48Z",
+              "model": "grok-4.7-medium (Cursor CLI ask)"
             },
-            "fix_status": "passed"
+            "fix_status": "passed",
+            "reviewer_model": "grok-4.7-medium (Cursor CLI ask)"
           },
-          "updated_at": "2026-11-20T15:35:47Z",
+          "updated_at": "2026-11-20T15:38:48Z",
           "phase": "review"
         }
       ],
