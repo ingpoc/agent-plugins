@@ -372,6 +372,17 @@ class AudioIOTests(unittest.TestCase):
         self.assertEqual(live_voice(cfg["live_voice"]), "shimmer")
         self.assertEqual(live_voice("nonsense"), "marin")
 
+    def test_unknown_live_setting_is_preserved_for_startup_validation(self) -> None:
+        import tempfile
+        from voice_cua.voice_settings import load_settings
+
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "settings.json"
+            path.write_text(json.dumps({"live_model": "gpt-realtime-unknown"}))
+            with patch.dict(os.environ, {"VOICE_CUA_SETTINGS": str(path)}, clear=True):
+                cfg = load_settings()
+        self.assertEqual(cfg["live_model"], "gpt-realtime-unknown")
+
     def test_realtime_settings_and_environment_remain_read_fallbacks(self) -> None:
         from voice_cua.voice_settings import load_settings
 

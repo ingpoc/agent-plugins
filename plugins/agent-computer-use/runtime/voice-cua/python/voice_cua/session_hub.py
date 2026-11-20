@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 _lock = threading.Lock()
 _active: LiveSession | None = None
+_startup_failure: str | None = None
 _credential_lock = threading.Lock()
 _turn_lock = threading.Lock()
 _turns: OrderedDict[str, dict[str, Any]] = OrderedDict()
@@ -23,16 +24,40 @@ TURN_HISTORY = 20
 
 
 def register(session: LiveSession) -> None:
-    global _active
+    global _active, _startup_failure
     with _lock:
         _active = session
+        _startup_failure = None
+
+
+def report_startup_failure(category: str, detail: str) -> str:
+    """Retain the latest failed start in the existing session-status reason field."""
+    global _startup_failure
+    allowed = {"helper_missing", "mic_denied", "key_missing", "setup_error"}
+    category = category if category in allowed else "setup_error"
+    detail = " ".join(str(detail).split())[:200] or "No detail provided."
+    reason = f"{category}: {detail}"
+    with _lock:
+        _startup_failure = reason
+    return reason
+
+
+def clear_startup_failure() -> None:
+    global _startup_failure
+    with _lock:
+        _startup_failure = None
 
 
 def unregister(session: LiveSession) -> None:
-    global _active
+    global _active, _startup_failure
+    ready = session._session_ready.is_set() and not session._stop.is_set()
+    reason = getattr(session, "_session_error_reason", "")
     with _lock:
         if _active is session:
             _active = None
+            if not ready and reason and reason != "Waiting for realtime session setup." and not session._stop.is_set():
+                detail = " ".join(str(reason).split())[:200]
+                _startup_failure = f"setup_error: {detail}"
     _fail_turns("session closed", session=session)
 
 
@@ -40,11 +65,29 @@ def status() -> dict[str, Any]:
     with _lock:
         sess = _active
     if sess is None:
-        return {"ok": True, "active": False, "ready": False}
+        with _lock:
+            reason = _startup_failure
+        return {"ok": True, "active": False, "ready": False, "reason": reason}
+    ready = sess._session_ready.is_set() and not sess._stop.is_set()
+    reason = getattr(sess, "_session_error_reason", "")
+    if ready:
+        clear_startup_failure()
+        reason = None
+    else:
+        reason = reason or _startup_failure or "Realtime session is not ready."
+        known_category = ("helper_missing", "mic_denied", "key_missing", "setup_error")
+        normal_wait = (
+            "Waiting for realtime session setup.",
+            "Realtime session reconnecting.",
+            "Realtime connection closed; reconnecting.",
+        )
+        if not reason.startswith(tuple(f"{category}:" for category in known_category)) and reason not in normal_wait:
+            reason = f"setup_error: {reason}"
     return {
         "ok": True,
         "active": True,
-        "ready": sess._session_ready.is_set() and not sess._stop.is_set(),
+        "ready": ready,
+        "reason": reason,
         "text_only": sess._text_only,
         "audio": sess._audio_enabled,
     }

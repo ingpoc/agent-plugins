@@ -1,3 +1,30 @@
+## 0.1.49
+
+- bcl correct-round --round N --reason "why" moves a wrong round counter forward and keeps the correction in the list history; no hand edits (BCL-88).
+- bcl install and bcl verify take --model; while a lane installs or verifies, the model column shows that model, or No model (scripted check) (BCL-89).
+- bcl verify --reason "why" reruns the check of a failed lane once per round. The earlier failure and the reason are kept, and a refused rerun spends nothing (BCL-90).
+
+## 0.1.48
+
+- The Stale badge follows the latest recorded activity and the earliest running job heartbeat, so a fresh update clears it and an expired heartbeat still shows it; a lane waiting for quota shows Waiting for quota until the reset time instead of Stale (BCL-83, BCL-86).
+- A new round plan after Introspect advances the round once every lane is closed, including failed lanes, and bcl verify marks its lanes as Verifying while it runs (BCL-84).
+- The skill adds a repeat-failure ladder and a quota-out fallback for fixes and reviews (BCL-85, BCL-86).
+- bcl job --model records who runs a job; the lane model column shows the current job's model, then the reviewer while in review, then the fix model (BCL-87).
+
+## 0.1.47
+
+- Tests that failed at random on a busy machine no longer start real viewers they do not need, wait for the viewer to answer before checking it, and prove each rejection with a real answer (BCL-82).
+
+## 0.1.46
+
+- Restarting a lane inside a round, for example after an early Introspect, keeps the same round number and adds no round history; the round only moves on when new work is planned after a finished round (BCL-81).
+
+## 0.1.45
+
+- The page header shows only the worktree name; the full path appears under Details. Rollover stores the name but still registers the exact path it was given, so two worktrees with the same name stay apart (BCL-75).
+- The gate step turns green only when enough fixes are verified. The report exception for a list with nothing open is now a separate note on the page and a separate field in bcl status; bcl report and the documented gate count keep that exception (BCL-76).
+- The workflow bar marks the stage the active lanes are in (the earliest one any lane is still in), so a round whose lanes are all in review shows Review; bcl status reports the same stage (BCL-80).
+
 ## 0.1.44
 
 - Verification completion checks only the findings the run started with; findings added later read Not checked this install and never reopen a finished run. Dead unfinished fix, review and presuite jobs read Interrupted, resume needed, on the page and in bcl status; plan updates keep the lane phase (BCL-67).

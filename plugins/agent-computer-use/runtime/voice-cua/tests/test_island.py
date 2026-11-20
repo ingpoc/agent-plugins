@@ -318,7 +318,7 @@ class IslandCopyContractTests(unittest.TestCase):
         self.assertEqual(compact("Opening netflix.com", "Comet"), ("Opening netflix.com", "Comet"))
 
     def test_error_mapping_and_benign(self):
-        from voice_cua.island_copy import human_error
+        from voice_cua.island_copy import MAX_ERROR, human_error
 
         self.assertIsNone(human_error("Audio content of 3200ms is already shorter than 4000ms"))
         self.assertEqual(human_error("label not found", target="Calculator"), "Couldn't click Calculator")
@@ -334,9 +334,14 @@ class IslandCopyContractTests(unittest.TestCase):
             ("Ledger save outcome unknown; do not retry without checking", "Ledger save unconfirmed"),
             ("comet_not_frontmost", "Couldn't bring Comet to front"),
             ("confirmation required", "Needs your OK"),
+            ("setup_error: Unknown voice model 'invalid-model'", "Voice model unavailable"),
+            ("setup_error: Voice model unavailable: acu01-unknown-model", "Voice model unavailable: acu01-unknown-model"),
+            ("helper_missing: Voice helper is missing", "Voice helper is missing"),
+            ("mic_denied: Microphone access denied", "Microphone access denied"),
+            ("key_missing: Grok Voice: add xai-api to Keychain", "Voice API key needs access"),
         ):
             self.assertEqual(human_error(raw), copy, raw)
-            self.assertLessEqual(len(copy), 32)
+            self.assertLessEqual(len(copy), MAX_ERROR)
 
     def test_bus_maps_errors_and_drops_benign(self):
         from voice_cua.island_state import IslandBus

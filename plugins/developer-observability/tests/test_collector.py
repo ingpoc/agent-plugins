@@ -9,16 +9,19 @@ import sys
 import tempfile
 import time
 import unittest
+from datetime import datetime, timezone
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'runtime'))
 from backend.observability_api import ObservabilityAPI  # noqa: E402
-from collector.analyze import build, percentile  # noqa: E402
+from collector.analyze import _junit_owns_pytest_failures, build, percentile  # noqa: E402
 from collector.cli import collect, parse_source  # noqa: E402
 from collector.scrub import scrub  # noqa: E402
-from collector.sources import discover_project, iter_checklog, iter_git, iter_hygiene, iter_jsonl, iter_junit  # noqa: E402
+from collector.sources import discover_project, iter_checklog, iter_git, iter_hygiene, iter_jsonl, iter_junit, iter_textlog  # noqa: E402
 
 FIXTURE = ROOT / 'tests/fixtures/sample-project'
+PYTEST_LOG = ROOT / 'tests/fixtures/pytest-run.log'
 NOW = 1793700000.0 + 1500
 SECRETS = ('sk-live-abcdefghijklmnop', 'ghp_' + 'abcdefghijklmnopqrstuv', 'secret user words', 'hello private',
            'ops@example.com', 'eyJhbGciOi.eyJzdWIiOi.c2lnbmF0dXJl')
@@ -41,6 +44,23 @@ class CollectorTests(unittest.TestCase):
     def findings(self):
         stats = {}
         return build(discover_project(self.project, stats), stats, NOW)
+
+    def pytest_project(self, with_junit=False):
+        project = self.tmp / 'context-ledger'
+        (project / 'logs').mkdir(parents=True)
+        shutil.copyfile(PYTEST_LOG, project / 'logs/pytest.log')
+        if with_junit:
+            junit = project / 'test-results/junit.xml'
+            junit.parent.mkdir()
+            started = datetime.fromtimestamp((project / 'logs/pytest.log').stat().st_mtime - 0.54,
+                                             timezone.utc).isoformat()
+            junit.write_text(f'<testsuites><testsuite tests="43" failures="2" time="0.54" timestamp="{started}">'
+                             '<testcase classname="tests.test_v2.TrustTierTests" name="test_find_tiers_from_outcomes" '
+                             'time="0.06"><failure type="AssertionError" message="AssertionError: \'hint\' != \'trusted\'" />'
+                             '</testcase><testcase classname="tests.test_v2.TrustTierTests" name="test_pure_boundaries" '
+                             'time="0.06"><failure type="AssertionError" message="AssertionError: \'hint\' != \'trusted\'" />'
+                             '</testcase></testsuite></testsuites>')
+        return project
 
     def test_scoped_findings_do_not_mix_versions(self):
         path = self.tmp / 'versions.jsonl'
@@ -214,6 +234,111 @@ class CollectorTests(unittest.TestCase):
             parse_source('jsonl')
         self.assertEqual(parse_source('jsonl:/a:b.jsonl:proj'), {'type': 'jsonl', 'path': '/a:b.jsonl', 'project': 'proj'})
 
+    def test_pytest_progress_and_summary_make_one_log_finding_per_test(self):
+        project, out = self.pytest_project(), self.tmp / 'pytest-out'
+        collect([{'type': 'project_dir', 'path': str(project)}], out, NOW)
+        findings = json.loads((out / 'findings.json').read_text())['findings']
+        log_findings = [f for f in findings if f['source'] == 'context-ledger:logs/pytest.log']
+        self.assertEqual(len(log_findings), 2)
+        self.assertEqual({name for name in ('test_find_tiers_from_outcomes', 'test_pure_boundaries')
+                          if any(name in f['headline'] for f in log_findings)},
+                         {'test_find_tiers_from_outcomes', 'test_pure_boundaries'})
+        self.assertTrue(all("'hint' != 'trusted'" in f['fix'] for f in log_findings))
+        self.assertNotIn('2 failed, 41 passed', json.dumps(log_findings))
+
+    def test_unframed_pytest_session_summary_is_not_a_finding(self):
+        log = self.tmp / 'session-summary.log'
+        log.write_text('2 failed, 41 passed in 0.54s\n')
+        stats = {}
+        self.assertEqual(list(iter_textlog(log, 'p', 'p:pytest', stats)), [])
+        self.assertEqual(stats['p:pytest']['errors'], 0)
+
+    def test_junit_owns_a_matching_pytest_log_failure(self):
+        project, out = self.pytest_project(with_junit=True), self.tmp / 'pytest-junit-out'
+        collect([{'type': 'project_dir', 'path': str(project)}], out, NOW)
+        findings = json.loads((out / 'findings.json').read_text())['findings']
+        junit = [f for f in findings if f['source'] == 'context-ledger:test-results/junit.xml']
+        self.assertEqual(len(junit), 2)
+        self.assertEqual(len(findings), 2)
+        self.assertEqual({name for name in ('test_find_tiers_from_outcomes', 'test_pure_boundaries')
+                          if any(name in f['headline'] for f in junit)},
+                         {'test_find_tiers_from_outcomes', 'test_pure_boundaries'})
+
+    def test_pytest_junit_dedup_requires_correlated_run_identity(self):
+        test_id = 'tests.test_v2.TrustTierTests.test_pure_boundaries'
+
+        def pair(log_run, junit_run, log_time, junit_time, junit_end=None):
+            return [{'project': 'p', 'step': test_id, 'pytest_test_id': test_id, 'source': 'p:logs/pytest.log',
+                     'error': True, 'run_ref': log_run, 'ts': log_time},
+                    {'project': 'p', 'step': test_id, 'junit': True, 'source': 'p:test-results/junit.xml',
+                     'error': True, 'run_ref': junit_run, 'ts': junit_time, 'run_end_at': junit_end}]
+
+        same = pair('run-a', 'run-a', 10, 100)
+        self.assertEqual(_junit_owns_pytest_failures(same), [same[1]])
+        different = pair('run-a', 'run-b', 10, 10.1)
+        self.assertEqual(_junit_owns_pytest_failures(different), different)
+        close_without_ids = pair(None, None, 10, 10.1, 10)
+        self.assertEqual(_junit_owns_pytest_failures(close_without_ids), [close_without_ids[1]])
+        uncorrelated = pair(None, None, 10, 10.1)
+        self.assertEqual(_junit_owns_pytest_failures(uncorrelated), uncorrelated)
+
+    def test_stale_junit_and_current_pytest_failures_are_both_retained(self):
+        project, out = self.pytest_project(with_junit=True), self.tmp / 'separate-runs-out'
+        os.utime(project / 'test-results/junit.xml', (NOW - 60, NOW - 60))
+        os.utime(project / 'logs/pytest.log', (NOW, NOW))
+        collect([{'type': 'project_dir', 'path': str(project)}], out, NOW)
+        findings = json.loads((out / 'findings.json').read_text())['findings']
+        self.assertEqual(sum('junit.xml' in f['source'] for f in findings), 2)
+        self.assertEqual(sum('pytest.log' in f['source'] for f in findings), 2)
+
+    def test_explicit_project_dir_findings_are_attributed_and_expand(self):
+        project, out = self.pytest_project(with_junit=True), self.tmp / 'attributed-out'
+        collect([{'type': 'project_dir', 'path': str(project)}], out, NOW)
+        runtime = self.tmp / 'runtime'
+        runtime.mkdir()
+        api = ObservabilityAPI(runtime, {'context-ledger': {'label': 'Context Ledger',
+                                                           'owners': ['owner:another-project']}}, None, collected=out)
+        projects = api.projects()
+        project_row = next(row for row in projects['projects'] if row['project_id'] == 'context-ledger')
+        self.assertEqual(project_row['issue_count'], 2)
+        self.assertEqual(projects['unassigned_issue_count'], 0)
+        issue_id = api.issues('context-ledger')['issues'][0]['issue_id']
+        brief = api.diagnose('context-ledger')
+        expanded = api.diagnose('context-ledger', [issue_id], brief['snapshot_id'])
+        self.assertEqual(expanded['count'], 1)
+        self.assertEqual(expanded['issues'][0]['issue']['issue_id'], issue_id)
+
+    def test_junit_failure_fix_names_test_and_quotes_scrubbed_assertion(self):
+        project, out = self.pytest_project(with_junit=True), self.tmp / 'junit-fix-out'
+        collect([{'type': 'project_dir', 'path': str(project)}], out, NOW)
+        findings = json.loads((out / 'findings.json').read_text())['findings']
+        junit = [f for f in findings if f['source'] == 'context-ledger:test-results/junit.xml']
+        self.assertEqual(len(junit), 2)
+        for test_name in ('test_find_tiers_from_outcomes', 'test_pure_boundaries'):
+            finding = next(f for f in junit if test_name in f['headline'])
+            self.assertIn(test_name, finding['fix'])
+            self.assertIn("AssertionError: 'hint' != 'trusted'", finding['fix'])
+            self.assertNotIn('CI', finding['fix'])
+
+    def test_unconfigured_project_discovery_and_issue_expansion(self):
+        project, out = self.pytest_project(with_junit=True), self.tmp / 'unconfigured-out'
+        collect([{'type': 'project_dir', 'path': str(project)}], out, NOW)
+        runtime = self.tmp / 'runtime'
+        config = self.tmp / 'config.json'
+        config.write_text(json.dumps({'runtime': str(runtime), 'collector': {'out': str(out)}, 'projects': {}}))
+        with patch.dict(os.environ, {'OBSERVABILITY_CONFIG': str(config)}):
+            from server import backend
+            api = backend()
+        projects = api.projects()
+        project_row = next(row for row in projects['projects'] if row['project_id'] == 'context-ledger')
+        self.assertEqual(project_row['issue_count'], 2)
+        self.assertTrue(project_row['discovered'])
+        self.assertEqual(projects['unassigned_issue_count'], 0)
+        issues = api.issues('context-ledger')['issues']
+        brief = api.diagnose('context-ledger')
+        expanded = api.diagnose('context-ledger', [row['issue_id'] for row in issues], brief['snapshot_id'])
+        self.assertEqual(expanded['count'], 2)
+
     def test_merge_with_primary_and_prefix_attribution(self):
         runtime, out = self.tmp / 'runtime', self.tmp / 'collected'
         runtime.mkdir()
@@ -268,14 +393,14 @@ class CollectorTests(unittest.TestCase):
         self.assertTrue(issues['slowest'])
         self.assertTrue(issues['top_failures'] and issues['top_failures'][0]['failed_attempts'] >= issues['top_failures'][-1]['failed_attempts'])
 
-    def test_four_megabyte_jsonl_under_ten_seconds(self):
+    def test_four_megabyte_jsonl_under_ten_cpu_seconds(self):
         big = self.tmp / 'big.jsonl'
         row = {'kind': 'startup', 'phase': 'ws', 'status': 'ok', 'step_ms': 1500, 'detail': 'x' * 60, 'ts': NOW}
         line = json.dumps(row) + '\n'
         big.write_text(line * (4_000_000 // len(line)))
-        started = time.perf_counter()
+        started = time.process_time()
         summary = collect([{'type': 'jsonl', 'path': str(big), 'project': 'big'}], self.tmp / 'big-out', NOW)
-        self.assertLess(time.perf_counter() - started, 10)
+        self.assertLess(time.process_time() - started, 10)
         self.assertGreater(summary['events'], 10_000)
 
 

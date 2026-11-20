@@ -249,10 +249,14 @@ class ObservabilityAPI:
         owners = [key for key, entry in self.project_map.items() if owner in entry.get('owners', [])]
         if owners:
             return owners == [project_id]
+        if owner == f'owner:{project_id}' and not self.project_map[project_id].get('owners'):
+            return True
         label = finding.get('latest_evidence', {}).get('project')
         labels = [key for key, entry in self.project_map.items() if label in entry.get('labels', [])]
         if labels:
             return labels == [project_id]
+        if label == project_id:
+            return True
         return self._fallback_project(label) == project_id
 
     def _envelope(self, data, revision, project_id=None, include_coverage=False):
@@ -387,8 +391,18 @@ class ObservabilityAPI:
                 'unassigned_issue_count': len(unassigned),
                 'unassigned_findings': [{**self._summary(finding),
                     'reported_label': redact(finding.get('latest_evidence', {}).get('project', 'unknown'), 80),
-                    'attribution_reason': self._attribution_reason(finding)} for finding in unassigned[:25]],
+                    'attribution_reason': self._attribution_reason(finding),
+                    'details': self._unassigned_details(finding)} for finding in unassigned[:25]],
                 'unassigned_truncated': len(unassigned) > 25}
+
+    @staticmethod
+    def _unassigned_details(finding):
+        evidence = finding.get('latest_evidence')
+        evidence = evidence if isinstance(evidence, dict) else {}
+        return {'what_happened': redact(finding.get('what_happened'), 240),
+                'first_error_line': redact(evidence.get('first_error_line'), 240),
+                'tool': redact(evidence.get('tool'), 80), 'error_type': redact(evidence.get('error_type'), 80),
+                'suggested_investigation': redact(finding.get('fix'), 240)}
 
     def _attribution_reason(self, finding):
         owner = finding.get('owner_ref')
@@ -864,6 +878,9 @@ class ObservabilityAPI:
         stages = {'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready', 'stack_begin',
                   'response_done', 'ledger_task', 'task_outcome', 'comet_begin', 'comet_act', 'comet_end',
                   'cua_act', 'cua_state', 'voice_latency', 'usage', 'island_layout',
+                  'user_request', 'model_response_start', 'model_response_end', 'assistant_reply',
+                  'live_backend_input_queued',
+                  'tool_start', 'tool_result', 'tool_error', 'tool_call_mirror',
                   'ledger_select', 'ledger_save_receipt', 'ledger_supersede'}
         metrics = {'speech_to_playback_ms', 'latency_ms', 'duration_ms', 'took_ms', 'backend_ms', 'duration_s', 'step_ms'}
         timeline = []
@@ -879,6 +896,12 @@ class ObservabilityAPI:
                                        and re.fullmatch(r'[A-Za-z0-9_.+\-]{1,40}', event['build']) else 'unknown'),
                              'version': redact(str(event['version']), 40) if event.get('version') else 'unknown',
                              'version_attribution': event.get('version_attribution') if event.get('version_attribution') in ('event', 'session_inferred', 'unknown') else 'unknown'}
+            if isinstance(event.get('error_type'), str):
+                item['error_type'] = redact(event['error_type'], 120)
+            for key in ('input_tokens', 'output_tokens', 'total_tokens'):
+                value = event.get(key)
+                if type(value) is int and 0 <= value <= 2**53 - 1:
+                    item[key] = value
             if event['stage'] in ('ledger_select', 'ledger_save_receipt', 'ledger_supersede'):
                 if isinstance(event.get('ledger_rule'), str):
                     item['ledger_rule'] = event['ledger_rule'][:64]
@@ -1292,11 +1315,13 @@ class ObservabilityAPI:
         evidence = finding.get('latest_evidence', {})
         # Re-redact already bounded stored excerpts; never open their referenced files.
         excerpts = {key: redact(str(evidence[key]), 120) for key in
-                    ('tool', 'program', 'error_type', 'exit_code', 'failing_test', 'command', 'first_error_line')
+                    ('tool', 'program', 'error_type', 'exception_type', 'classification', 'exit_code',
+                     'failing_test', 'command', 'first_error_line')
                     if evidence.get(key) is not None}
         raw_timeline = finding.get('event_timeline', [])
         timeline = []
-        safe_evidence_fields = ('tool', 'program', 'error_type', 'exit_code', 'failing_test', 'version', 'first_error_line',
+        safe_evidence_fields = ('tool', 'program', 'error_type', 'exception_type', 'classification', 'exit_code',
+                                'failing_test', 'version', 'first_error_line',
                                 'version_attribution', 'session_attribution',
                                 'latest_attempt', 'samantha_label', 'app', 'ledger_operation', 'ledger_result_status',
                                 'task_outcome', 'task_check_id', 'task_evidence_class', 'run_ref', 'response_ref')
@@ -1320,6 +1345,10 @@ class ObservabilityAPI:
                 }
                 if type(safe.get('ledger_decision_count')) is int and 0 <= safe['ledger_decision_count'] <= 3:
                     timeline_item['evidence']['ledger_decision_count'] = safe['ledger_decision_count']
+                for key in ('input_tokens', 'output_tokens', 'total_tokens'):
+                    value = safe.get(key)
+                    if type(value) is int and 0 <= value <= 2**53 - 1:
+                        timeline_item['evidence'][key] = value
                 task_tools = safe.get('task_tools')
                 if isinstance(task_tools, list):
                     timeline_item['evidence']['task_tools'] = sorted({tool for tool in task_tools if isinstance(tool, str) and tool in ('cua_act', 'comet_act', 'system_volume')})

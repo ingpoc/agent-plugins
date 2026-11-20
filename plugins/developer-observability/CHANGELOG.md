@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.34
+
+- A failure with an empty message shows its exception type and says the message was empty, and a failed connect start borrows the exception type from the error logged for the same session (DEVOBS-05).
+
+## 0.1.33
+
+- Failure issues show the logged error type and message (DEVOBS-05).
+- Samantha sessions with requests, tool calls or replies stay in the session list on every voice model; explicit test sessions stay out of normal findings (DEVOBS-06).
+- New issues for a request with no reply after three minutes, an answer that keeps going after a new request, and usage records that are all zero (DEVOBS-07).
+- The large-log speed test measures processor time, so a busy machine does not fail it (BCL-82).
+
+## 0.1.32
+
+- Findings collected for a project directory are attributed to that project even when no projects are configured, and their issue IDs expand in diagnosis; triage explains how to read and fix unassigned findings (BCL-77).
+- A pytest run gives one finding per failing test. Summary lines such as "2 failed, 41 passed" are not findings, and a log failure is merged with its JUnit result only when both belong to the same run (BCL-78).
+- The suggested fix for a failing test names the test and quotes its assertion; the CI log is mentioned only for CI check sources (BCL-79).
+
 ## 0.1.31
 
 - Route triage and task-usage guidance through explicit skill references.

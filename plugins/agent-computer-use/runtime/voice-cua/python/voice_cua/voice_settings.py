@@ -5,20 +5,46 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import re
 from typing import Any
 
 def settings_path() -> Path:
     """Resolved per call so VOICE_CUA_SETTINGS (tests, dev) applies regardless of import order."""
     return Path(os.environ.get("VOICE_CUA_SETTINGS", "~/.config/voice-cua/settings.json")).expanduser()
 
-# GPT-Live-1 is the OpenAI voice path. gpt-realtime-* was removed (being retired); a saved
-# value maps to gpt-live-1 on load.
+# GPT-Live-1 is the OpenAI voice path. Only these retired ids are migrated.
 MODELS: list[tuple[str, str]] = [
     ("gpt-live-1", "GPT-Live-1"),
     ("grok-voice-latest", "Grok Voice 3.0"),
 ]
 DEFAULT_MODEL = "gpt-live-1"
-RETIRED_MODEL_PREFIX = "gpt-realtime"
+LEGACY_MODEL_MIGRATIONS = {
+    "gpt-realtime-2": DEFAULT_MODEL,
+    "gpt-realtime-2.1": DEFAULT_MODEL,
+    "gpt-realtime-2.1-mini": DEFAULT_MODEL,
+}
+
+
+class UnsupportedVoiceModel(ValueError):
+    def __init__(self, model: str):
+        label = str(model or "").strip()
+        if not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", label):
+            label = ""
+        super().__init__(f"Voice model unavailable: {label}" if label else "Voice model unavailable")
+
+
+def migrate_live_model(model: str) -> str:
+    model = str(model or "").strip()
+    return LEGACY_MODEL_MIGRATIONS.get(model, model)
+
+
+def validate_live_model(model: str) -> str:
+    model = migrate_live_model(model)
+    if not model:
+        return DEFAULT_MODEL
+    if model not in {name for name, _ in MODELS}:
+        raise UnsupportedVoiceModel(model)
+    return model
 
 # GPT-Live-1 delegation backends (Responses models; ids per developers.openai.com).
 BACKEND_MODELS: list[tuple[str, str]] = [
@@ -84,9 +110,7 @@ def load_settings() -> dict[str, str]:
                         data[key] = val.strip()
         except (json.JSONDecodeError, OSError):
             pass
-    if data["live_model"].lower().startswith(RETIRED_MODEL_PREFIX) or \
-            data["live_model"] not in {m for m, _ in MODELS}:
-        data["live_model"] = DEFAULT_MODEL
+    data["live_model"] = migrate_live_model(data["live_model"])
     return data
 
 

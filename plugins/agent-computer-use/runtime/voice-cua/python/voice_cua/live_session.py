@@ -35,7 +35,13 @@ from voice_cua.island_facade import (describe_tool, errors_published, island_pub
 from voice_cua.startup_trace import mark
 from voice_cua.tools import dispatch, reset_session_state, tool_definitions
 from voice_cua.providers import VoiceProvider, make_provider
-from voice_cua.voice_settings import apply_env, load_settings, noise_reduction_config, turn_detection_config
+from voice_cua.voice_settings import (
+    UnsupportedVoiceModel,
+    apply_env,
+    load_settings,
+    noise_reduction_config,
+    turn_detection_config,
+)
 
 if TYPE_CHECKING:
     from voice_cua.audio_io import LiveAudio
@@ -305,6 +311,7 @@ class LiveSession:
     LIVE_KEEPALIVE_SECONDS = 20.0
     LIVE_KEEPALIVE_CHUNK_S = 0.1
     PLANNED_RECONNECT_RETRY_SECONDS = 60.0
+    RESPONSE_CANCEL_TIMEOUT_S = 5.0
     # Reconnect backoff: full jitter, delay ~ U(0, min(cap, base * factor**(n-1)))
     # for consecutive attempt n. The counter only resets once a connection has
     # stayed up RECONNECT_STABLE_SECONDS; after RECONNECT_MAX_ATTEMPTS straight
@@ -315,6 +322,7 @@ class LiveSession:
     RECONNECT_DELAY_FLOOR = 0.1  # never hot-loop, even when jitter rolls ~0
     RECONNECT_STABLE_SECONDS = 30.0
     RECONNECT_MAX_ATTEMPTS = 8
+    RESPONSE_START_TIMEOUT_S = 20.0
     # rate_limit / token-limit errors wait at least this long; a server
     # retry-after (header or "try again in Xs") wins when longer (≤ max).
     RATE_LIMIT_MIN_DELAY = 20.0
@@ -327,10 +335,13 @@ class LiveSession:
         model, _ = _model_and_voice()
         # Provider adapter (GPT-Live / Grok Voice): translates at the socket edge only.
         self.provider: VoiceProvider = make_provider(model, load_settings())
-        self.provider.bind(self._send_wire)
+        self.provider.bind(self._send_wire, on_spoken_request=lambda request_id:
+                           self._arm_response_start_watchdog(request_id, allow_implicit=True))
         self.api_key = (api_key or self.provider.resolve_key()).strip()
         self.ws: Any = None
         self._pending_calls: dict[str, dict[str, Any]] = {}
+        self._seen_tool_call_ids: dict[str, dict[str, Any]] = {}
+        self._tool_response_batches: dict[str, dict[str, Any]] = {}
         self._inflight_tools = 0
         self._send_lock = threading.Lock()
         self._text_request_lock = threading.Lock()
@@ -367,6 +378,9 @@ class LiveSession:
         self._audio: LiveAudio | None = None
         self._stop = threading.Event()
         self._session_ready = threading.Event()
+        self._session_error_reason = "Waiting for realtime session setup."
+        self._response_start_watchdogs: dict[str, threading.Timer] = {}
+        self._response_start_implicit: set[str] = set()
         self._tools_update_ack = threading.Event()
         self._tools_update_ack.set()
         self._dormant = threading.Event()
@@ -383,6 +397,7 @@ class LiveSession:
         self._comet_active = False
         self._speaking_response_ids: set[str] = set()
         self._cancelled_response_ids: set[str] = set()
+        self._stop_requested_response_ids: set[str] = set()
         self._current_response_id = ""
         self._last_user_text = ""
         self._last_assistant_reply = ""
@@ -433,8 +448,8 @@ class LiveSession:
         self.ws = websocket.WebSocketApp(
             explicit or self.provider.url(),
             header=headers,
-            on_open=self._on_open,
-            on_message=self._on_message,
+            on_open=self._on_open_callback,
+            on_message=self._on_message_callback,
             on_error=self._on_error,
             on_close=self._on_close,
         )
@@ -500,7 +515,9 @@ class LiveSession:
             try:
                 self.connect()
             except Exception as exc:  # noqa: BLE001 — keep the loop alive
-                log_event("reconnect_attempt_failed", error=str(exc)[:120])
+                self._session_ready.clear()
+                self._session_error_reason = f"Realtime connection failed ({type(exc).__name__})."
+                log_event("reconnect_attempt_failed", error_type=type(exc).__name__)
             if self._stop.is_set():
                 break
             self._restart_pending = False
@@ -590,6 +607,7 @@ class LiveSession:
 
     def _prepare_reconnect(self) -> None:
         """Reset per-connection bookkeeping while typed turns survive the retry."""
+        self._cancel_response_start_watchdogs()
         keep = (self._drop_plan or {}).get("request_id") or ""
         if self._audio is not None:
             self._audio.clear_playback()
@@ -625,8 +643,12 @@ class LiveSession:
                     self._remember_retired_id(self._retired_request_ids, request_id)
             self._response_condition.notify_all()
         self._pending_calls.clear()
+        self._seen_tool_call_ids.clear()
+        self._tool_response_batches.clear()
         self._recreated_calls.clear()
         self._session_ready.clear()
+        if not self._session_error_reason:
+            self._session_error_reason = "Realtime session reconnecting."
         # New conversation: lazy tools start unloaded and no approval or retry
         # budget survives the reconnect (fail closed).
         self._tool_groups.clear()
@@ -652,6 +674,11 @@ class LiveSession:
 
     def _request_reconnect(self, *, reason: str) -> None:
         """Trigger the reconnect loop by closing the current socket."""
+        self._cancel_response_start_watchdogs()
+        was_ready = self._session_ready.is_set()
+        self._session_ready.clear()
+        if was_ready or not self._session_error_reason:
+            self._session_error_reason = f"Realtime reconnecting ({reason})."
         log_event("reconnect_requested", reason=reason)
         self._reconnect_requested = True
         ws = self.ws
@@ -664,6 +691,72 @@ class LiveSession:
             ws.close()
         except Exception as exc:  # noqa: BLE001 — close is best effort
             log_event("reconnect_close_failed", error=str(exc)[:120])
+
+    def _arm_response_start_watchdog(self, request_id: str, *, allow_implicit: bool = False) -> None:
+        if not request_id:
+            return
+
+        def expire() -> None:
+            self._response_start_timed_out(request_id, timer)
+
+        timer = threading.Timer(self.RESPONSE_START_TIMEOUT_S, expire)
+        timer.daemon = True
+        with self._response_lock:
+            previous = self._response_start_watchdogs.get(request_id)
+            self._response_start_watchdogs[request_id] = timer
+            if allow_implicit:
+                self._response_start_implicit.add(request_id)
+            else:
+                self._response_start_implicit.discard(request_id)
+        if previous:
+            previous.cancel()
+        timer.start()
+
+    def _cancel_response_start_watchdogs(self) -> None:
+        with self._response_lock:
+            timers = list(self._response_start_watchdogs.values())
+            self._response_start_watchdogs.clear()
+            self._response_start_implicit.clear()
+        for timer in timers:
+            timer.cancel()
+
+    def _stop_response_start_watchdog(self, request_id: str) -> None:
+        with self._response_lock:
+            timer = self._response_start_watchdogs.pop(request_id, None)
+            self._response_start_implicit.discard(request_id)
+        if timer:
+            timer.cancel()
+
+    def _mark_response_started(self, event: dict[str, Any]) -> str:
+        response = event.get("response") or {}
+        request_id = self._request_id(response) if isinstance(response, dict) else ""
+        response_id = (str(response.get("id") or "") if isinstance(response, dict)
+                       else str(event.get("response_id") or ""))
+        with self._response_lock:
+            if not request_id and response_id:
+                request_id = self._response_request_ids.get(response_id, "")
+            candidates = (set(self._response_start_watchdogs)
+                          if event.get("type") in {"response.output_audio.delta", "response.output_text.delta"}
+                          else self._response_start_implicit.intersection(self._response_start_watchdogs))
+            if not request_id and len(candidates) == 1:
+                request_id = next(iter(candidates))
+            timer = self._response_start_watchdogs.pop(request_id, None) if request_id else None
+            self._response_start_implicit.discard(request_id)
+        if timer:
+            timer.cancel()
+        return request_id
+
+    def _response_start_timed_out(self, request_id: str, timer: threading.Timer) -> None:
+        with self._response_lock:
+            if self._response_start_watchdogs.get(request_id) is not timer:
+                return
+            self._response_start_watchdogs.pop(request_id, None)
+            self._response_start_implicit.discard(request_id)
+        error = "Samantha did not start a response. Reconnecting; please try again."
+        log_event("response_start_timeout", provider=self.provider.name, run_id=request_id)
+        self._request_reconnect(reason="response_start_timeout")
+        island_publish("error", title="No response", detail=error)
+        self._finish_text_waiter(request_id, error=error, error_type="response_start_timeout")
 
     def _schedule_planned_reconnect(self, *, delay: float | None = None) -> None:
         """Timer for the 55-minute planned reconnect while idle."""
@@ -833,6 +926,9 @@ class LiveSession:
         island_publish("listening", title="Listening", detail="")
 
     def _on_open(self, _ws: Any) -> None:
+        self._session_ready.clear()
+        if not self._session_error_reason:
+            self._session_error_reason = "Waiting for realtime session setup."
         # Observability still consumes the established Realtime event labels.
         mark("realtime_ws_open")
         headers = getattr(getattr(getattr(_ws, "sock", None), "handshake_response", None), "headers", {})
@@ -850,11 +946,12 @@ class LiveSession:
         self._comet_active = comet_is_active()
         # Sent on every open (also after reconnect), preserving the active
         # Comet tool set so the refreshed session keeps its capabilities.
-        self._send(build_session_update(
+        if not self._send(build_session_update(
             text_only=self._text_only,
             comet_active=self._comet_active,
             groups=frozenset(self._tool_groups),
-        ))
+        )):
+            raise RuntimeError("session update send failed")
         if reconnected:
             note = self.reconnect_note(comet_active=self._comet_active)
             context = getattr(self, "_reconnect_context", {})
@@ -981,28 +1078,56 @@ class LiveSession:
             self._restart_pending = True
             self._request_reconnect(reason=restart)
 
+    def _callback_failed(self, ws: Any, phase: str, exc: Exception) -> None:
+        self._session_ready.clear()
+        self._session_error_reason = f"Realtime {phase} failed ({type(exc).__name__})."
+        mark("realtime_setup_failed", status="fail", error_type=type(exc).__name__)
+        log_event("realtime_setup_failed", phase=phase, error_type=type(exc).__name__)
+        if not getattr(self, "_connected_at", None):
+            reason = f"setup_error: {self._session_error_reason}"
+            from voice_cua.session_hub import report_startup_failure
+
+            report_startup_failure("setup_error", self._session_error_reason)
+            island_publish("error", title="Samantha setup failed", detail=reason)
+        self._request_reconnect(reason="session_setup_failed")
+
+    def _on_open_callback(self, ws: Any) -> None:
+        try:
+            self._on_open(ws)
+        except Exception as exc:  # noqa: BLE001 — websocket-client otherwise swallows callback errors
+            self._callback_failed(ws, "open", exc)
+
+    def _on_message_callback(self, ws: Any, message: str) -> None:
+        try:
+            self._on_message(ws, message)
+        except Exception as exc:  # noqa: BLE001 — a broken event callback invalidates this connection
+            self._callback_failed(ws, "message", exc)
+
     def _dispatch_event(self, event: dict[str, Any]) -> None:
         et = event.get("type")
         if isinstance(et, str) and et.startswith("response.") and self._is_retired_response_event(event):
             return
+        response_request_id = (self._mark_response_started(event)
+                               if isinstance(et, str) and et.startswith("response.") else "")
         if et == "session.updated":
             mark("realtime_session_updated")
             self._tools_update_ack.set()
-            # Successful (re)connect — reset the planned reconnect. The backoff
-            # counter resets in run() only once this connection proved stable.
-            self._connected_at = time.monotonic()
-            self._schedule_planned_reconnect()
-            self._session_ready.set()
             from voice_cua.session_hub import register
 
             register(self)
             if self._drop_plan is not None:
                 threading.Thread(target=self._run_drop_recovery, name="drop-recovery", daemon=True).start()
             if self._text_only:
-                mark("realtime_ready", status="ok")
                 island_publish("listening", title="Listening", detail="")
             else:
                 self._start_audio()
+            # Readiness means the session update and local setup both completed.
+            self._connected_at = time.monotonic()
+            self._schedule_planned_reconnect()
+            self._session_error_reason = ""
+            self._session_ready.set()
+            if self._text_only:
+                mark("realtime_ready", status="ok")
         elif et == "response.function_call_arguments.done":
             self._handle_function_done(event)
         elif et == "response.output_item.done":
@@ -1052,6 +1177,7 @@ class LiveSession:
                     print(f"You: {heard}", flush=True)
                     return
                 self._last_user_text = heard
+                self._interrupt_answer_for_new_request("microphone_transcription")
                 self._note_user_turn(heard, defer_response=True, source="microphone_transcription",
                                      item_id=str(event.get("item_id") or ""))
                 print(f"You: {heard}", flush=True)
@@ -1077,18 +1203,10 @@ class LiveSession:
             response = event.get("response") or {}
             response_id = str(response.get("id") or "")
             explicit_run_id = self._request_id(response)
-            request_id = explicit_run_id
+            request_id = response_request_id or explicit_run_id
             run_ref_source = "response_metadata" if explicit_run_id else ""
             with self._response_lock:
                 typed_turn_id = self._typed_turn_ids_by_request.get(request_id, "") if request_id else ""
-                if (not typed_turn_id and request_id not in self._text_waiters
-                        and request_id not in self._task_runs):
-                    typed_waiters = [(key, waiter) for key, waiter in self._text_waiters.items()
-                                     if waiter.get("typed_turn_id") and not waiter["event"].is_set()]
-                    if len(typed_waiters) == 1:
-                        request_id, waiter = typed_waiters[0]
-                        typed_turn_id = waiter["typed_turn_id"]
-                        run_ref_source = "typed_waiter_fallback"
             metadata = response.get("metadata") or {}
             request_step_ref = (str(metadata.get("voice_cua_request_step_ref") or "")
                                 if isinstance(metadata, dict) else "")
@@ -1107,9 +1225,11 @@ class LiveSession:
                         self._spoken_stop_response_ids.clear()
                     response_started = time.monotonic()
                     self._response_started[response_id] = response_started
-                    for waiter in self._text_waiters.values():
+                    for waiter_id, waiter in self._text_waiters.items():
                         if (typed_turn_id and waiter.get("typed_turn_id") == typed_turn_id
                                 and not waiter["event"].is_set()):
+                            waiter["last_progress"] = response_started
+                        elif request_id and waiter_id == request_id and not waiter["event"].is_set():
                             waiter["last_progress"] = response_started
                     if request_id:
                         turn = getattr(self, "_turn_latency", None)
@@ -1157,6 +1277,9 @@ class LiveSession:
             if et == "response.done":
                 response = event.get("response") or {}
                 response_id = str(response.get("id") or "")
+                metadata = response.get("metadata") or {}
+                local_settlement = (isinstance(metadata, dict)
+                                    and metadata.get("voice_cua_local_settlement") is True)
                 with self._response_condition:
                     started = self._response_started.pop(response_id, None)
                     step_ref = self._response_step_refs.get(response_id, "")
@@ -1165,15 +1288,16 @@ class LiveSession:
                     cancellation_step_ref = self._response_cancellation_step_refs.pop(response_id, "")
                 latency_ms = int((time.monotonic() - started) * 1000) if started else None
                 status = str(response.get("status") or "unknown")
-                log_event("model_response_end", run_id=run_id or None,
-                          run_ref_status="linked" if run_id else "unknown",
-                          run_ref_gap=None if run_id else "response_run_link_missing",
-                          step_ref=step_ref or None, caused_by=[request_step_ref] if request_step_ref else None,
-                          causal_ref_gap=None if request_step_ref else "request_step_ref_missing",
-                          response_id=response_id or None, status=status,
-                          duration_ms=latency_ms,
-                          duration_gap=None if latency_ms is not None else "response_start_missing")
-                if cancellation_step_ref:
+                if not local_settlement:
+                    log_event("model_response_end", run_id=run_id or None,
+                              run_ref_status="linked" if run_id else "unknown",
+                              run_ref_gap=None if run_id else "response_run_link_missing",
+                              step_ref=step_ref or None, caused_by=[request_step_ref] if request_step_ref else None,
+                              causal_ref_gap=None if request_step_ref else "request_step_ref_missing",
+                              response_id=response_id or None, status=status,
+                              duration_ms=latency_ms,
+                              duration_gap=None if latency_ms is not None else "response_start_missing")
+                if cancellation_step_ref and not local_settlement:
                     state = "acknowledged" if status == "cancelled" else (
                         "not_cancelled" if status in {"completed", "incomplete"} else "unknown")
                     cancel_requested_at = self._cancel_requested_at_by_run.get(run_id)
@@ -1191,18 +1315,20 @@ class LiveSession:
                                            if cancel_requested_at is not None else None),
                               target_response_id=response_id or None, status=status,
                               gap=None if state != "unknown" else "response_status_does_not_confirm_cancel")
-                labels = dict(self.provider.usage_labels(response))
-                labels.setdefault("run_id", run_id)
-                try:
-                    log_usage(response, latency_ms=latency_ms, labels=labels)  # counts + ids only
-                except Exception:  # noqa: BLE001 — logging must never break a turn
-                    pass
+                if not local_settlement:
+                    labels = dict(self.provider.usage_labels(response))
+                    labels.setdefault("run_id", run_id)
+                    try:
+                        log_usage(response, latency_ms=latency_ms, labels=labels)  # counts + ids only
+                    except Exception:  # noqa: BLE001 — logging must never break a turn
+                        pass
                 self._note_response_done(response)
                 turn = getattr(self, "_turn_latency", None)
                 if (not self._turn_open and isinstance(turn, dict) and turn.get("run_id") == run_id
                         and not turn.get("emitted")):
                     self._emit_turn_latency(turn, None)
                 self._finish_response(str(response.get("id") or ""))
+                self._note_tool_response_done(response, run_id)
             self._publish_listening_when_idle()
         elif et == "error":
             self._handle_error_event(event)
@@ -1463,6 +1589,65 @@ class LiveSession:
             response_id=response_id,
         )
 
+    def _note_tool_response_done(self, response: dict[str, Any], request_id: str) -> None:
+        response_id = str(response.get("id") or "")
+        if not response_id:
+            return
+        expected = {
+            str(item.get("call_id")) for item in response.get("output") or []
+            if isinstance(item, dict) and item.get("type") == "function_call" and item.get("call_id")
+        }
+        with self._response_lock:
+            has_batch = (response_id in self._tool_response_batches
+                         or any(row.get("response_id") == response_id for row in self._pending_calls.values()))
+            if not expected and not has_batch:
+                return
+            if str(response.get("status") or "") in {"cancelled", "failed", "incomplete"}:
+                self._tool_response_batches.pop(response_id, None)
+                return
+            batch = self._tool_response_batches.setdefault(
+                response_id, {"expected": set(), "completed": set(), "request_id": "", "done": False}
+            )
+            batch["expected"].update(expected)
+            batch["request_id"] = batch["request_id"] or request_id or self._request_id(response)
+            batch["done"] = True
+        self._maybe_resume_tool_batch(response_id)
+
+    def _mark_tool_call_completed(self, call_id: str, response_id: str, request_id: str) -> None:
+        if not response_id:
+            return
+        with self._response_lock:
+            batch = self._tool_response_batches.setdefault(
+                response_id, {"expected": set(), "completed": set(), "request_id": "", "done": False}
+            )
+            batch["expected"].add(call_id)
+            batch["completed"].add(call_id)
+            batch["request_id"] = batch["request_id"] or request_id
+
+    def _maybe_resume_tool_batch(self, response_id: str) -> None:
+        with self._response_lock:
+            batch = self._tool_response_batches.get(response_id)
+            if not batch or not batch["done"]:
+                return
+            pending = any(row.get("response_id") == response_id for row in self._pending_calls.values())
+            if pending or not batch["completed"] or not batch["expected"] <= batch["completed"]:
+                return
+            request_id = batch["request_id"]
+            self._tool_response_batches.pop(response_id, None)
+            epoch = self._conn_epoch
+        threading.Thread(target=self._send_tool_followup, args=(request_id, epoch),
+                         name="tool-followup", daemon=True).start()
+
+    def _send_tool_followup(self, request_id: str, epoch: int) -> None:
+        if epoch != self._conn_epoch:
+            return
+        if not self._wait_for_responses_idle(timeout=10.0):
+            log_event("realtime_error", error="tool follow-up response timed out waiting for active response",
+                      error_type="response_busy")
+            return
+        if epoch == self._conn_epoch:
+            self._send_response_create(request_id=request_id)
+
     def _run_tool(
         self,
         call_id: str,
@@ -1476,7 +1661,7 @@ class LiveSession:
             return
         request_id = request_id or self._request_for_response(response_id)
         with self._response_lock:
-            existing = self._pending_calls.get(call_id)
+            existing = self._pending_calls.get(call_id) or self._seen_tool_call_ids.get(call_id)
             if existing:
                 log_event("tool_call_mirror", run_id=existing.get("run_id") or None,
                           run_ref_status="linked" if existing.get("run_id") else "unknown",
@@ -1502,6 +1687,11 @@ class LiveSession:
                 "name": name, "request_id": request_id, "run_id": task_run_id,
                 "step_ref": tool_step_ref, "response_id": response_id,
             }
+            self._seen_tool_call_ids[call_id] = {"run_id": task_run_id, "step_ref": tool_step_ref}
+            if len(self._seen_tool_call_ids) > 512:
+                old = next((key for key in self._seen_tool_call_ids if key not in self._pending_calls), None)
+                if old is not None:
+                    self._seen_tool_call_ids.pop(old, None)
         try:
             arguments = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
         except json.JSONDecodeError:
@@ -1637,23 +1827,23 @@ class LiveSession:
                 if stale == "recovery" or (epoch != self._conn_epoch
                                            and call_id in getattr(self, "_recovered_calls", ())):
                     return  # drop recovery continues the task with this result
-                # A stale (pre-drop) result still continues the task once.
-                request_id_local = request_id
-                if self._wait_for_responses_idle(timeout=10.0):
+                if response_id:
+                    self._mark_tool_call_completed(call_id, response_id, request_id)
+                elif self._wait_for_responses_idle(timeout=10.0):
                     if epoch != self._conn_epoch and call_id in getattr(self, "_recovered_calls", ()):
-                        return  # dropped meanwhile: the recovery turn carries this result
-                    self._send_response_create(request_id=request_id_local)
+                        return
+                    self._send_response_create(request_id=request_id)
                 else:
-                    log_event(
-                        "realtime_error",
-                        error="tool follow-up response timed out waiting for active response",
-                        error_type="response_busy",
-                    )
+                    log_event("realtime_error",
+                              error="tool follow-up response timed out waiting for active response",
+                              error_type="response_busy")
             finally:
                 with self._response_lock:
                     self._dispatching_calls.discard(call_id)
                     self._pending_calls.pop(call_id, None)
                 self._inflight_tools = max(0, self._inflight_tools - 1)
+                if response_id:
+                    self._maybe_resume_tool_batch(response_id)
 
         threading.Thread(target=work, daemon=True).start()
 
@@ -1781,6 +1971,9 @@ class LiveSession:
         return True
 
     def _on_error(self, _ws: Any, error: Any) -> None:
+        self._session_ready.clear()
+        if not self._session_error_reason or self._session_error_reason == "Waiting for realtime session setup.":
+            self._session_error_reason = f"Realtime connection error ({type(error).__name__})."
         now = time.time()
         ping_at = getattr(_ws, "last_ping_tm", None)
         pong_at = getattr(_ws, "last_pong_tm", None)
@@ -1818,6 +2011,12 @@ class LiveSession:
             self._note_retry_hint(min_delay=retry_after, reason=f"retry_after:http_{status or 'ws'}")
 
     def _on_close(self, _ws: Any, *args: Any) -> None:
+        ready = getattr(self, "_session_ready", None)
+        was_ready = bool(ready and ready.is_set())
+        if ready:
+            ready.clear()
+        if was_ready and not getattr(self, "_session_error_reason", ""):
+            self._session_error_reason = "Realtime connection closed; reconnecting."
         mark("realtime_ws_close")
         # Diagnose drops: close frame code/reason (None, None = TCP lost without a close frame).
         code = args[0] if args else None
@@ -1981,6 +2180,7 @@ class LiveSession:
         hide_agent_cursor()
         comet_end()
         self._stop.set()
+        self._cancel_response_start_watchdogs()
         with self._response_lock:
             request_ids = list(self._text_waiters)
         for request_id in request_ids:
@@ -2043,8 +2243,9 @@ class LiveSession:
                 return {"ok": False, "error": "session disconnected", "error_type": "session_disconnected"}
             if timeout is not None and time.monotonic() - started >= timeout:
                 return {"ok": False, "error": "timeout waiting for another text request"}
+            self._interrupt_answer_for_new_request("typed_request")
         request_id = uuid.uuid4().hex
-        waiter = {"event": threading.Event(), "reply": "", "error": "",
+        waiter = {"event": threading.Event(), "reply": "", "error": "", "error_type": "",
                   "typed_turn_id": typed_turn_id, "last_progress": time.monotonic(),
                   "unanswered_confirms": 0}
         try:
@@ -2053,14 +2254,17 @@ class LiveSession:
             if self._audio:
                 self._audio.pause_input()
                 self._send({"type": "input_audio_buffer.clear"})
+            self._interrupt_answer_for_new_request("typed_request")
             remaining = max(0.0, timeout - (time.monotonic() - started)) if timeout is not None else 5.0
-            if not self._wait_for_responses_idle(timeout=min(5.0, remaining)):
-                return {"ok": False, "error": "voice response still active; retry when Samantha is listening"}
+            if not self._wait_for_responses_idle(timeout=min(self.RESPONSE_CANCEL_TIMEOUT_S, remaining)):
+                error = "Samantha couldn't stop the current response. Please try again."
+                log_event("response_cancel_timeout", provider=self.provider.name)
+                return {"ok": False, "error": error, "error_type": "response_cancel_timeout"}
             with self._response_lock:
                 self._text_waiters[request_id] = waiter
                 if typed_turn_id:
                     self._typed_turn_ids_by_request[request_id] = typed_turn_id
-            self.send_text(text, request_id=request_id)
+            self.send_text(text, request_id=request_id, interrupt_active=False)
             deadline = (time.monotonic() + max(0.0, timeout - (time.monotonic() - started))
                         if timeout is not None else None)
             while not waiter["event"].wait(timeout=(min(0.1, max(0.0, deadline - time.monotonic()))
@@ -2076,7 +2280,8 @@ class LiveSession:
                 if deadline is not None and time.monotonic() >= deadline:
                     return {"ok": False, "error": "timeout", "reply": str(waiter["reply"])}
             if waiter["error"]:
-                return {"ok": False, "error": str(waiter["error"]), "reply": str(waiter["reply"])}
+                return {"ok": False, "error": str(waiter["error"]), "reply": str(waiter["reply"]),
+                        **({"error_type": waiter["error_type"]} if waiter["error_type"] else {})}
             return {"ok": True, "reply": str(waiter["reply"])}
         finally:
             self._retire_text_waiter(request_id)
@@ -2100,14 +2305,21 @@ class LiveSession:
     def _is_retired_response_event(self, event: dict[str, Any]) -> bool:
         response = event.get("response")
         response = response if isinstance(response, dict) else {}
+        metadata = response.get("metadata") or {}
+        local_interruption = (event.get("type") == "response.done" and isinstance(metadata, dict)
+                              and metadata.get("voice_cua_interrupted") is True)
+        if local_interruption:
+            return False
         response_id = str(event.get("response_id") or response.get("id") or "")
         request_id = self._request_id(response)
         with self._response_lock:
             stale = (response_id in self._retired_response_ids
                      or request_id in self._retired_request_ids)
+            cancelled_output = (response_id in self._cancelled_response_ids
+                                and event.get("type") != "response.done")
             if stale and response_id:
                 self._remember_retired_id(self._retired_response_ids, response_id)
-            return stale
+            return stale or cancelled_output
 
     def _retire_text_waiter(self, request_id: str) -> None:
         with self._response_lock:
@@ -2155,6 +2367,7 @@ class LiveSession:
             self._active_response_ids.discard(response_id)
             self._speaking_response_ids.discard(response_id)
             self._cancelled_response_ids.discard(response_id)
+            self._stop_requested_response_ids.discard(response_id)
             if self._current_response_id == response_id:
                 self._current_response_id = ""
             self._response_request_ids.pop(response_id, None)
@@ -2165,13 +2378,16 @@ class LiveSession:
             self._response_transcripts.pop(response_id, None)
             self._response_condition.notify_all()
 
-    def _finish_text_waiter(self, request_id: str, *, reply: str = "", error: str = "") -> None:
+    def _finish_text_waiter(self, request_id: str, *, reply: str = "", error: str = "",
+                            error_type: str = "") -> None:
+        self._stop_response_start_watchdog(request_id)
         with self._response_lock:
             waiter = self._text_waiters.get(request_id)
             if not waiter:
                 return
             waiter["reply"] = reply
             waiter["error"] = error
+            waiter["error_type"] = error_type
             waiter["event"].set()
 
     def _note_response_done(self, response: dict[str, Any]) -> None:
@@ -2186,15 +2402,17 @@ class LiveSession:
         response_id = str(response.get("id") or "")
         request_id = self._request_id(response) or self._request_for_response(response_id)
         with self._response_lock:
-            if request_id not in self._text_waiters and request_id not in self._task_runs:
-                typed_turn_id = self._response_typed_turn_ids.get(response_id, "")
-                matches = [key for key, waiter in self._text_waiters.items()
-                           if waiter.get("typed_turn_id") and not waiter["event"].is_set()
-                           and (not typed_turn_id or waiter.get("typed_turn_id") == typed_turn_id)]
-                if len(matches) == 1:
-                    request_id = matches[0]
             task_run_id = (self._response_task_run_ids.get(response_id)
                            or (request_id if request_id in self._task_runs else ""))
+            typed_turn_id = self._response_typed_turn_ids.get(response_id, "")
+            request_id = request_id or task_run_id
+            if not request_id and typed_turn_id:
+                matches = [key for key, waiter in self._text_waiters.items()
+                           if waiter.get("typed_turn_id") == typed_turn_id and not waiter["event"].is_set()]
+                if len(matches) == 1:
+                    request_id = matches[0]
+            if not request_id:
+                return  # An uncorrelated response cannot complete whichever typed waiter arrived last.
             task_settling = bool(task_run_id and task_run_id in self._task_runs)
             task_results = self._task_runs.pop(task_run_id, []) if task_settling else []
             task_started_at = self._task_started_at.pop(task_run_id, None) if task_settling else None
@@ -2255,7 +2473,10 @@ class LiveSession:
             print(f"Samantha: {reply}", flush=True)
         mark("response_done", status="ok" if reply else "empty")
         if request_id:
-            error = "" if status == "completed" else f"response {status or 'failed'}"
+            metadata = response.get("metadata") or {}
+            interrupted = isinstance(metadata, dict) and metadata.get("voice_cua_interrupted") is True
+            error = "response interrupted" if interrupted else (
+                "" if status == "completed" else f"response {status or 'failed'}")
             if request_id == self._settle_request and not error:
                 self._settle_request = ""
                 timer = threading.Timer(RECOVERY_SETTLE_S, self._finish_text_waiter,
@@ -2295,7 +2516,14 @@ class LiveSession:
             if step_ref:
                 metadata["voice_cua_request_step_ref"] = step_ref
             event["response"] = {"metadata": metadata}
-        self._send(event)
+        if not self._send(event):
+            self._stop_response_start_watchdog(request_id)
+            self._request_reconnect(reason="response_create_send_failed")
+            if request_id:
+                self._finish_text_waiter(
+                    request_id, error="Could not send the request; reconnecting. Please try again.",
+                    error_type="send_failed",
+                )
 
     def island_control(self, action: str, *, caused_by_step_ref: str = "", cancel_source: str = "card") -> bool:
         """Island card buttons (Stop / Cancel / Replay / Retry). True when the session acted."""
@@ -2306,6 +2534,7 @@ class LiveSession:
                 response_active = active in self._active_response_ids
                 run_id = self._response_task_run_ids.get(active, "") or self._active_task_run_id
                 response_step_ref = self._response_step_refs.get(active, "")
+                request_id = getattr(self, "_response_request_ids", {}).get(active, "") or self._active_task_run_id
                 inflight = [row for row in self._pending_calls.values() if row.get("run_id") == run_id]
                 inflight_refs = [row.get("step_ref") for row in inflight if row.get("step_ref")]
                 dispatching = {call_id for call_id in self._dispatching_calls
@@ -2340,20 +2569,28 @@ class LiveSession:
                 caused_by = [ref for ref in caused_by if ref]
             provider_manages = getattr(getattr(self, "provider", None), "manages_barge_in", False)
             cancel_send_ok = None
+            cancel_response_ids: list[str] = []
+            local_settlements: list[dict[str, Any]] = []
+            if task_cancel and provider_manages:
+                interrupt = getattr(self.provider, "interrupt_request", None)
+                if callable(interrupt):
+                    cancel_response_ids, local_settlements = interrupt(request_id)
+            for event in local_settlements:
+                self._dispatch_event(event)
             if response_active and not provider_manages:
                 with self._response_condition:
                     self._cancelled_response_ids.add(active)
                     self._response_condition.notify_all()
                 cancel_send_ok = self._send({"type": "response.cancel"})
             if provider_manages:
-                # GPT-Live drops response.cancel; an appended instruction interrupts speech
-                # (Delegation > Steer the live conversation). Backend work is not cancelled by it.
+                # GPT-Live rejects response.cancel (ACU-17); as on main, only the instruction below interrupts it.
                 note = ("The user pressed Stop. Stop speaking now and wait quietly for them."
                         if action == "stopSpeaking" else
                         "The user pressed Stop on the current task. Stop speaking, start no further "
                         "steps for it, and wait quietly for the next request.")
-                cancel_send_ok = self._send({"type": "conversation.item.create", "item": {
+                instruction_sent = self._send({"type": "conversation.item.create", "item": {
                     "type": "message", "role": "system", "content": [{"type": "input_text", "text": note}]}})
+                cancel_send_ok = instruction_sent
             log_event("cancel" if task_cancel else "island_control", action=action,
                       cancel=True if task_cancel else None,
                       cancel_ack="unknown" if task_cancel else None,
@@ -2368,7 +2605,7 @@ class LiveSession:
                       cancellation_state="requested" if task_cancel else "response_stop_requested",
                       cancellation_delivery=("steer_instruction" if provider_manages else "response_cancel")
                       if response_active else "no_active_response",
-                      cancel_source=cancel_source if caused_by_step_ref else "card",
+                      cancel_source=cancel_source,
                       cancel_send_ok=cancel_send_ok, cancelled=bool(response_active),
                       inflight_tool_count=len(inflight), inflight_step_refs=inflight_refs,
                       settlement_gap="no_active_response_to_ack" if not response_active else None)
@@ -2415,7 +2652,11 @@ class LiveSession:
             active_run = self._active_task_run_id
             attach_transcript = bool(source == "microphone_transcription" and active_run
                                      and active_run in self._task_runs)
-        task_request_id = request_id or (active_run if attach_transcript else uuid.uuid4().hex)
+        spoken_request_id = self.provider.spoken_request_id() if source == "microphone_transcription" else ""
+        task_request_id = request_id or (active_run if attach_transcript else
+                                         spoken_request_id or uuid.uuid4().hex)
+        self._arm_response_start_watchdog(
+            task_request_id, allow_implicit=source == "microphone_transcription")
         turn = getattr(self, "_turn_latency", {})
         self._turn_latency = {"speech_end": self._pending_speech_end, "run_id": task_request_id,
                               "step_ref": "", "tool_time_total_ms": 0, "tool_count": 0}
@@ -2448,6 +2689,29 @@ class LiveSession:
                   source=source, item_id=item_id or None, chars=len(text))
         self._turn_recovered = False
         return task_request_id
+
+    def _interrupt_answer_for_new_request(self, source: str) -> bool:
+        with self._response_lock:
+            response_id = self._current_response_id
+            active = response_id in self._active_response_ids
+            request_id = self._response_request_ids.get(response_id, "") or self._active_task_run_id
+            already_requested = (response_id in self._stop_requested_response_ids
+                                 or request_id in self._cancel_requested_by_run)
+            pending_task = bool(getattr(self.provider, "manages_barge_in", False) and request_id and (
+                any(call.get("run_id") == request_id for call in self._pending_calls.values())
+                or any(not waiter["event"].is_set() for key, waiter in self._text_waiters.items()
+                       if key == request_id)))
+        audio = self._audio
+        playing = audio is not None and getattr(audio, "has_playback", lambda: False)()
+        if (active and not already_requested) or (playing and not active) or (pending_task and not already_requested):
+            if active:
+                with self._response_condition:
+                    self._stop_requested_response_ids.add(response_id)
+                    self._cancelled_response_ids.add(response_id)
+                    self._response_condition.notify_all()
+            action = "cancel" if getattr(self.provider, "manages_barge_in", False) else "stopSpeaking"
+            self.island_control(action, caused_by_step_ref=new_step_ref(), cancel_source=source)
+        return active
 
     @staticmethod
     def _spoken_task_cancel(text: str) -> bool:
@@ -2544,17 +2808,26 @@ class LiveSession:
                   text_request=bool(request_id) or None)
 
     def send_text(self, text: str, *, request_id: str = "", replay: bool = False,
-                  retry_of_run_ref: str = "") -> None:
+                  retry_of_run_ref: str = "", interrupt_active: bool = True) -> None:
         if not replay and self._spoken_task_cancel(text):
             # A typed stop word takes the same cancel path as a spoken one.
             self._dispatch_event({"type": "conversation.item.input_audio_transcription.completed",
                                   "transcript": text, "item_id": "typed", "source": "typed"})
             return
         if not replay:
+            if interrupt_active:
+                if self._interrupt_answer_for_new_request("typed_request") and not self._wait_for_responses_idle(
+                        timeout=self.RESPONSE_CANCEL_TIMEOUT_S):
+                    error = "Samantha couldn't stop the current response. Please try again."
+                    log_event("response_cancel_timeout", provider=self.provider.name)
+                    island_publish("error", title="Couldn't stop", detail=error)
+                    return
             request_id = self._note_user_turn(text, request_id=request_id,
                                               retry_of_run_ref=retry_of_run_ref)
             print(f"You: {text}", flush=True)
-        self._send({
+        else:
+            self._arm_response_start_watchdog(request_id)
+        sent = self._send({
             "type": "conversation.item.create",
             "item": {
                 "type": "message",
@@ -2562,6 +2835,13 @@ class LiveSession:
                 "content": [{"type": "input_text", "text": text}],
             },
         })
+        if not sent:
+            self._stop_response_start_watchdog(request_id)
+            self._request_reconnect(reason="typed_request_send_failed")
+            if request_id:
+                self._finish_text_waiter(request_id,
+                    error="Could not send the request; reconnecting. Please try again.", error_type="send_failed")
+            return
         self._send_response_create(request_id=request_id)
         island_publish("thinking", title="Thinking", detail=text[:80])
 
@@ -2577,15 +2857,32 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     no_audio = args.no_audio or os.environ.get("VOICE_CUA_NO_AUDIO", "").strip() in {"1", "true", "yes"}
     from voice_cua.auth import MissingApiKey
+    from voice_cua.session_hub import clear_startup_failure, report_startup_failure
 
+    clear_startup_failure()
     try:
         session = LiveSession(enable_audio=not no_audio and not args.text)
     except MissingApiKey as exc:
         # Selected provider (Grok Voice) has no key: say so instead of a silent crash.
-        island_publish("error", title="Needs API key", detail="Grok Voice: add xai-api to Keychain")
+        detail = "Grok Voice: add xai-api to Keychain"
+        reason = report_startup_failure("key_missing", detail)
+        island_publish("error", title="Needs API key", detail=reason)
         log_event("provider_missing_key", provider="xai")
         print(str(exc), file=sys.stderr, flush=True)
         return EXIT_NEEDS_API_KEY
+    except UnsupportedVoiceModel as exc:
+        reason = report_startup_failure("setup_error", str(exc))
+        island_publish("error", title="Voice model unavailable", detail=reason)
+        log_event("voice_model_unavailable", reason=reason[:300])
+        print(reason, file=sys.stderr, flush=True)
+        return 1
+    except Exception as exc:  # noqa: BLE001 — surface constructor failures before the helper exits
+        detail = f"{type(exc).__name__}; voice session setup did not complete."
+        reason = report_startup_failure("setup_error", detail)
+        island_publish("error", title="Samantha setup failed", detail=reason)
+        log_event("voice_setup_failed", error_type=type(exc).__name__)
+        print(reason, file=sys.stderr, flush=True)
+        return 1
 
     if args.text:
         threading.Thread(target=session.run, daemon=True).start()

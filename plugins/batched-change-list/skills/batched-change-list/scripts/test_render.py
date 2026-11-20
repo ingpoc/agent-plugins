@@ -10,6 +10,7 @@ import shutil
 import subprocess
 from pathlib import Path
 from html.parser import HTMLParser
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("change_list_render", Path(__file__).with_name("render.py"))
 renderer = importlib.util.module_from_spec(spec)
@@ -17,6 +18,87 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_all_active_lanes_in_review_make_review_current(self):
+        groups = [{'id': 'A', 'status': 'review'}, {'id': 'B', 'status': 'review'},
+                  {'id': 'DONE', 'status': 'verified', 'phase': 'fix'}]
+        workflow = renderer.render_workflow('plan_fix', groups, 0, 15, False, 0, 1)
+        review = workflow.split('data-stage="review"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('class="wf-step busy"', review)
+
+    def test_fix_and_review_lanes_keep_plan_fix_current(self):
+        groups = [{'id': 'A', 'status': 'planned', 'phase': 'fix'},
+                  {'id': 'B', 'status': 'review'}]
+        workflow = renderer.render_workflow('review', groups, 0, 15, False, 0, 1)
+        fix = workflow.split('data-stage="plan_fix"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('class="wf-step current"', fix)
+
+    def test_no_active_lanes_fall_back_to_tracker_stage(self):
+        groups = [{'id': 'P', 'status': 'parked', 'phase': 'fix'},
+                  {'id': 'DONE', 'status': 'verified', 'phase': 'verify'}]
+        workflow = renderer.render_workflow('review', groups, 0, 15, False, 0, 1)
+        review = workflow.split('data-stage="review"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('class="wf-step current"', review)
+
+    def test_quota_wait_lane_shows_reset_time_and_is_not_stale(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T11:00:00Z'},
+            'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'running','phase':'fix',
+                'updated_at':'2026-11-14T11:00:00Z','quota_wait_until':'2026-11-14T12:00:00Z',
+                'codex':{'status':'running','model':'gpt-6-luna','job':{'pid':99999,
+                'heartbeat_at':'2026-11-14T11:00:00Z'}}}]}}
+        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+        self.assertIn('Waiting for quota until 5:30 PM IST', page)
+        self.assertIn('Waiting for quota', page)
+        self.assertIn('data-stale-active="false"', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
+
+    def _model_column(self, group):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'review','updated_at':'2026-11-14T11:00:00Z'},
+            'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'updated_at':'2026-11-14T11:00:00Z', **group}]}}
+        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:01:00Z'))
+        return re.search(r'<span class="g-model">([^<]*)</span>', page).group(1)
+
+    def test_model_column_shows_review_job_model_not_fix_model(self):
+        self.assertEqual(self._model_column({'status':'review','phase':'review','codex':{'model':'opencode/deepseek-v4.1-flash-free',
+            'fix_status':'passed','job':{'pid':99999,'phase':'review','model':'Grok Bot subagent (own review)',
+            'started_at':'2026-11-14T11:00:00Z','heartbeat_at':'2026-11-14T11:00:00Z'}}}), 'Grok Bot subagent (own review)')
+
+    def test_model_column_shows_recorded_reviewer_once_lane_is_in_review(self):
+        self.assertEqual(self._model_column({'status':'review','phase':'review','codex':{'model':'gpt-6-luna','effort':'max',
+            'reviewer_model':'gpt-6.1-terra medium','job':{'pid':99999,'phase':'fix','model':'gpt-6-luna max','exit_code':0,
+            'finished_at':'2026-11-14T11:00:00Z'}}}), 'gpt-6.1-terra medium')
+
+    def test_model_column_shows_install_model_while_installing(self):
+        self.assertEqual(self._model_column({'status':'installing','phase':'install','install':{'status':'running','started_at':'2026-11-14T11:00:00Z'},'codex':{'model':'gpt-6-luna'},
+            'stage_model':{'stage':'install','model':'release script','at':'2026-11-14T11:00:00Z'}}), 'release script')
+
+    def test_model_column_shows_scripted_check_when_verify_has_no_model(self):
+        self.assertEqual(self._model_column({'status':'verifying','phase':'verify','codex':{'model':'gpt-6-luna','effort':'max'},
+            'stage_model':{'stage':'install','model':'release script','at':'2026-11-14T11:00:00Z'}}), 'No model (scripted check)')
+
+    def test_model_column_shows_verify_model_while_verifying(self):
+        self.assertEqual(self._model_column({'status':'verifying','phase':'verify','codex':{'model':'gpt-6-luna'},
+            'stage_model':{'stage':'verify','model':'Grok Bot subagent (typed verify)','at':'2026-11-14T11:00:00Z'}}),
+            'Grok Bot subagent (typed verify)')
+
+    def test_model_column_keeps_fix_model_while_fixing(self):
+        self.assertEqual(self._model_column({'status':'running','phase':'fix','codex':{'model':'gpt-6-luna','effort':'max',
+            'reviewer_model':'gpt-6.1-terra medium','job':{'pid':99999,'phase':'review','model':'gpt-6.1-terra medium','exit_code':1,
+            'finished_at':'2026-11-14T10:00:00Z'}}}), 'Luna max')
+
+    def test_quota_wait_expired_lane_counts_for_stale_again(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T11:00:00Z'},
+            'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'running','phase':'fix',
+                'updated_at':'2026-11-14T11:00:00Z','quota_wait_until':'2026-11-14T11:05:00Z',
+                'codex':{'status':'running','model':'gpt-6-luna','job':{'pid':99999,
+                'heartbeat_at':'2026-11-14T11:00:00Z'}}}]}}
+        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+        self.assertNotIn('Waiting for quota until', page)
+        self.assertIn('data-stale-active="true"', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale</span>', page)
+
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute rendered page JavaScript')
     def test_legacy_evidence_and_finding_text_render_plain_in_details_dom(self):
         data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
@@ -82,11 +164,11 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         self.assertEqual(blocked["kind"], "blk")
         self.assertEqual(blocked["status"], "blocked")
 
-    def test_blocked_or_planned_lanes_do_not_make_recorded_stage_busy(self):
+    def test_blocked_or_planned_lanes_keep_plan_fix_current(self):
         groups = [{'id':'A', 'status':'blocked', 'phase':'fix'}, {'id':'B', 'status':'planned'}]
         page = renderer.render_workflow('plan_fix', groups, 0, 15, False, 0, 1)
         plan = page.split('>Plan &amp; fix<', 1)[0].rsplit('<li ', 1)[-1]
-        self.assertIn('wf-step upcoming', plan)
+        self.assertIn('wf-step current', plan)
         track = renderer.row_phase_track({'id':'A', 'status':'verified'}, 'verified')
         self.assertEqual(track.count('<i'), 4)
         self.assertEqual(track.count('class="d"'), 4)
@@ -126,6 +208,27 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
                 self.assertEqual(renderer.rollover_gate([finding], tracking), (0, 1, False))
         self.assertEqual(finding['verification_refs'], ['old receipt'])
 
+    def test_zero_verified_fixes_never_marks_workflow_gate_done(self):
+        self.data['findings'] = []
+        self.data['tracking'] = {'workflow': {'stage':'collect','updated_at':'2026-11-14T07:00:00Z'}}
+        page = renderer.render(self.data, self.base)
+        gate = page.split('data-stage="gate"', 1)[1].split('</li>', 1)[0]
+        self.assertNotIn('class="wf-step done wf-gate"', gate)
+        self.assertIn('class="wf-step upcoming wf-gate"', gate)
+        self.assertIn('0 of 15 fixes verified, 0 in progress, gate not met', gate)
+        self.assertNotIn('aria-label="0 of 15 fixes verified, 0 in progress, gate met"', gate)
+        self.assertIn('Report gate exception: no counted findings remain open.', gate)
+
+    def test_legacy_worktree_path_is_short_in_header_and_full_in_details(self):
+        self.data['tracking'] = {'worktree':'/Users/guru/worktrees/samantha-next-rollover'}
+        page = renderer.render(self.data, self.base)
+        header = page.split('class="header-meta"', 1)[1].split('</header>', 1)[0]
+        self.assertIn('class="header-worktree">samantha-next-rollover</span>', header)
+        details = page.split('<details class="worktree-details">', 1)[1].split('</details>', 1)[0]
+        self.assertIn('/Users/guru/worktrees/samantha-next-rollover', details)
+        self.assertNotIn('/Users/guru/worktrees/samantha-next-rollover', header.replace(
+            f'<details class="worktree-details">{details}</details>', ''))
+
         self.data['findings'][0]['status'] = 'verified_fixed'
         self.data['findings'][0]['verification'] = 'Verified on the installed build.'
         self.data['findings'][0]['verification_refs'] = ['Example receipt']
@@ -155,7 +258,7 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         self.assertIn('data-stale-active="false"', page)
         self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
 
-    def test_running_lane_with_overdue_heartbeat_shows_stale(self):
+    def test_active_page_shows_stale_after_no_update_for_window(self):
         data = copy.deepcopy(self.data)
         data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T11:00:00Z'},
             'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'running','phase':'fix',
@@ -164,6 +267,29 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
         self.assertIn('data-stale-active="true"', page)
         self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale</span>', page)
+
+    def test_fresh_workflow_update_clears_old_nonrunning_lane_stamps(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-14T11:10:00Z'},
+            'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'installing','phase':'install',
+                'updated_at':'2026-11-14T11:00:00Z'},
+                {'id':'B','finding_ids':['ISSUE-02'],'status':'verifying','phase':'verify',
+                 'updated_at':'2026-11-14T11:00:00Z'}]}}
+        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+        self.assertIn('data-stale-active="true"', page)
+        self.assertIn('data-stale-since="2026-11-14T11:10:00+00:00"', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
+
+    def test_fresh_live_job_heartbeat_resets_old_workflow_timestamp(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-14T11:00:00Z'},
+            'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'verifying','phase':'verify',
+                'updated_at':'2026-11-14T11:00:00Z','codex':{'job':{'pid':99999,
+                'heartbeat_at':'2026-11-14T11:10:00Z'}}}]}}
+        with patch.object(renderer.live_state, '_pid_is_running', return_value=True):
+            page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+        self.assertIn('data-stale-since="2026-11-14T11:10:00+00:00"', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
 
     def test_recently_updated_completed_lane_never_shows_stale(self):
         data = copy.deepcopy(self.data)
@@ -174,15 +300,49 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         self.assertIn('data-stale-active="false"', page)
         self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
 
-    def test_overdue_active_lane_is_not_hidden_by_healthy_lane(self):
+    def test_stale_live_job_heartbeat_overrides_fresh_workflow_update(self):
         data = copy.deepcopy(self.data)
-        data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T11:09:00Z'},
+        data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-14T11:10:00Z'},
             'plan': {'round':1,'groups':[
-                {'id':'A','finding_ids':['ISSUE-01'],'status':'running','updated_at':'2026-11-14T11:00:00Z'},
-                {'id':'B','finding_ids':['ISSUE-02'],'status':'running','updated_at':'2026-11-14T11:10:00Z'}]}}
-        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+                {'id':'A','finding_ids':['ISSUE-01'],'status':'verifying','phase':'verify',
+                 'updated_at':'2026-11-14T11:10:00Z','codex':{'job':{'pid':99999,
+                 'heartbeat_at':'2026-11-14T11:00:00Z'}}},
+                {'id':'B','finding_ids':['ISSUE-02'],'status':'verifying','phase':'verify',
+                 'updated_at':'2026-11-14T11:10:00Z'}]}}
+        with patch.object(renderer.live_state, '_pid_is_running', return_value=True):
+            page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
         self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale</span>', page)
         self.assertIn('data-stale-since="2026-11-14T11:00:00+00:00"', page)
+
+    @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
+    def test_running_heartbeat_expires_in_browser_at_heartbeat_deadline(self):
+        data = copy.deepcopy(self.data)
+        data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-14T11:59:50Z'},
+            'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'verifying','phase':'verify',
+                'updated_at':'2026-11-14T11:50:30Z','codex':{'job':{'pid':99999,
+                'heartbeat_at':'2026-11-14T11:50:30Z'}}}]}}
+        with patch.object(renderer.live_state, '_pid_is_running', return_value=True):
+            page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T12:00:00Z'))
+        attrs = re.search(r'<time datetime="[^"]+" data-page-updated="([^"]+)" '
+                          r'data-stale-after-min="(\d+)" data-stale-active="(true|false)" '
+                          r'data-stale-since="([^"]*)">', page)
+        self.assertIsNotNone(attrs)
+        updated, stale_after, active, stale_since = attrs.groups()
+        self.assertEqual(stale_since, '2026-11-14T11:50:30+00:00')
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        helper = next(line for line in template.splitlines() if line.startswith('function formatPageTimes()'))
+        program = helper + f"""
+let clock=Date.parse('2026-11-14T12:00:00Z');Date.now=()=>clock;
+const time={{dataset:{{pageUpdated:{json.dumps(updated)},staleAfterMin:{json.dumps(stale_after)},
+  staleActive:{json.dumps(active)},staleSince:{json.dumps(stale_since)}}}}};
+const label={{textContent:''}},badge={{hidden:true}};
+time.parentElement={{querySelector:selector=>selector==='[data-relative-time]'?label:badge}};
+global.document={{querySelectorAll:()=>[time]}};
+formatPageTimes();if(!badge.hidden)process.exit(1);
+clock=Date.parse('2026-11-14T12:00:31Z');formatPageTimes();
+if(badge.hidden||clock>=Date.parse({json.dumps(updated)})+{stale_after}*60000)process.exit(2);
+"""
+        subprocess.run(['node', '-e', program], check=True)
 
     def test_merged_page_shows_commit_and_ist_time(self):
 
@@ -267,7 +427,7 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
             {'id':'D','finding_ids':['ISSUE-02'],'status':'blocked','verify':{'status':'pending','failure':'Codex job failed tests did not pass','method':'Blocked'}}]}}
         page = renderer.render(data, self.base)
         row = page.split('<details class="grp installing">', 1)[1].split('</details>', 1)[0]
-        self.assertIn('5 min', row); self.assertIn('Luna medium Fast', row)
+        self.assertIn('5 min', row); self.assertIn('No model (scripted check)', row); self.assertIn('gpt-6-luna · medium · priority', row)
         self.assertIn('Render label', row); self.assertIn('Install', row)
         self.assertIn('Run the focused test and inspect the live page carefully', page)
         self.assertIn('Blocked', page); self.assertIn('Codex job failed tests did not pass', page)
@@ -605,10 +765,11 @@ setImmediate(async()=>{
         self.assertIn('Fixes <b>7/15</b> verified', page)
         self.assertIn('Round 3', page)
         self.assertIn('under 15 verified', page)
-        self.assertIn('class="wf-band gate-met"', page)
-        self.assertIn('class="wf-step done wf-gate"', page)
+        self.assertIn('class="wf-band gate-pending"', page)
+        self.assertIn('class="wf-step current wf-gate"', page)
+        self.assertIn('Report gate exception: no counted findings remain open.', page)
         self.assertIn('class="wf-exit"', page)
-        self.assertIn('gate-met .wf-loop', page)
+        self.assertIn('class="wf-band gate-pending"', page)
         timeline = page
         stages = ['>Collect<','>Plan &amp; fix<','>Install<','>Verify<',
                   '>Introspect<','Fixes <b>7/15</b> verified','>Report &amp; roll over<','>Merge previous PR<']

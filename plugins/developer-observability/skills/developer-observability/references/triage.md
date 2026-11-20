@@ -6,7 +6,17 @@
    provisional. If findings are absent or freshness or `sources.collector` is
    old, call `observability_collect` once (optionally `project_dir`) and re-read;
    never report no issues from an empty state because empty data does not establish absence. Collection prunes expired
-   plugin-owned files to Trash.
+   plugin-owned files to Trash. If collection reports findings but the selected
+   project still has zero issues, call `observability_projects` again for all
+   projects. Compare project `issue_count` values with `unassigned_issue_count`
+   and inspect each `unassigned_findings[].attribution_reason`. A populated
+   unassigned list means findings exist but are not routed; it is not a
+   no-failures result. Select an unassigned row by `issue_id` and read its
+   `details.first_error_line`, `details.what_happened`, and
+   `details.suggested_investigation` alongside `reported_label`, `owner_ref`,
+   and `attribution_reason`. To inspect the occurrence timeline, correct the
+   project's owner or label mapping, re-query, then expand its issue ID with
+   `observability_diagnose` using the returned project ID and snapshot ID.
    For version-specific results, call `observability_version_scopes` and pass
    the selected `version` and `attribution` to diagnosis and every subsequent
    detail or session call. `unknown` attribution uses no version. Event and

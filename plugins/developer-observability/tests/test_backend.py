@@ -222,6 +222,22 @@ class APITests(unittest.TestCase):
         self.assertEqual(result['unassigned_issue_count'], 4)
         self.assertEqual(result['unassigned_findings'][0]['attribution_reason'], 'ambiguous_owner_mapping')
 
+    def test_unassigned_findings_include_safe_evidence_details(self):
+        self.data['findings'].append({'finding_key': 'outside', 'owner_ref': 'owner:outside',
+                                      'headline': 'outside test failed', 'status': 'active',
+                                      'what_happened': 'The assertion failed with a token.',
+                                      'fix': 'Check the failed assertion.',
+                                      'latest_evidence': {'project': 'outside', 'tool': 'pytest',
+                                                          'first_error_line': 'AssertionError: token=sk-live-abcdefghijklmnop',
+                                                          'error_type': 'test'}})
+        self.write()
+        unassigned = next(row for row in self.api.projects()['unassigned_findings'] if row['issue_id'] == 'outside')
+        self.assertEqual(unassigned['attribution_reason'], 'no_owner_or_label_match')
+        self.assertIn('AssertionError', unassigned['details']['first_error_line'])
+        self.assertIn('[redacted]', unassigned['details']['first_error_line'])
+        self.assertNotIn('sk-live-', json.dumps(unassigned['details']))
+        self.assertEqual(unassigned['details']['suggested_investigation'], 'Check the failed assertion.')
+
     def test_new_and_retained_proposal_provenance(self):
         from backend.recommendations import propose
         from unittest.mock import patch
@@ -289,9 +305,10 @@ class APITests(unittest.TestCase):
         self.assertTrue(rows['my-repo']['discovered'])
         self.assertIn('svc', rows)
         self.assertFalse(rows['a']['discovered'])
-        self.assertEqual(rows['a']['issue_count'], 3)
+        self.assertEqual(rows['a']['issue_count'], 4)
         self.assertEqual([i['issue_id'] for i in api.issues('my-repo')['issues']], ['repo1'])
         self.assertEqual([i['issue_id'] for i in api.issues('svc')['issues']], ['svc1'])
+        self.assertIn('a-label', [i['issue_id'] for i in api.issues('a')['issues']])
         self.assertNotIn('my-repo', [p['project_id'] for p in self.api.projects()['projects']])
 
     def test_missing_decider_is_reported_not_faked(self):

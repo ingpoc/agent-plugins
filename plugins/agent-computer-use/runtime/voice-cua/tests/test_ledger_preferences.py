@@ -1,9 +1,10 @@
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from voice_cua import SYSTEM_INSTRUCTIONS
+from voice_cua import tools
 from voice_cua.ledger_helper import LedgerHelper
 from voice_cua.tools import tool_definitions
 
@@ -20,8 +21,8 @@ def test_preferences_and_recall_without_helper(tmp_path):
     decide = Mock(side_effect=AssertionError('helper model called'))
     helper = LedgerHelper(transport, decide, tmp_path / 'pending')
     for scope, rule, value, quote in [
-        ('tool:gmail', 'account_select', 'Work', 'Please use Work for my email account'),
-        ('tool:macos', 'default_browser', 'Safari', 'Please use Safari as my browser'),
+        ('tool:gmail', 'account_select', 'Work', 'Please use Work for my email account for future choices'),
+        ('tool:macos', 'default_browser', 'Safari', 'Please use Safari as my browser going forward'),
     ]:
         helper.note_user(quote)
         result = helper.run(operation='preference', scope=scope, rule=rule, value=value, owner_quote=quote)
@@ -45,6 +46,114 @@ def test_preferences_and_recall_without_helper(tmp_path):
     assert 'If `has_more` is true, ask rather than select from an incomplete set' in skill
 
 
+def test_personal_preference_without_remember_is_saved(tmp_path):
+    """ACU-13 (Guru 14:41): the store is chosen by what is stored, not by the word remember."""
+    transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'decision_id': 'icecream'}}
+    helper = LedgerHelper(transport, Mock(), tmp_path / 'pending')
+    quote = 'I love chocolate chip ice cream.'
+    helper.note_user(quote)
+    with patch('voice_cua.tools._LEDGER_HELPER', helper):
+        result = tools._ledger_task({
+            'operation': 'preference', 'scope': 'fleet', 'rule': 'favourite_ice_cream',
+            'value': 'chocolate chip ice cream', 'owner_quote': quote,
+        })
+    assert result['status'] == 'saved'
+    assert transport.call.call_args.args[0] == 'save'
+
+
+def test_acu13_corrected_explicit_preference_request_is_accepted(tmp_path):
+    transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'decision_id': 'saved'}}
+    helper = LedgerHelper(transport, Mock(), tmp_path / 'pending')
+    quote = 'Please remember my favourite colour is teal.'
+    helper.note_user(quote)
+    result = helper.run(operation='preference', scope='fleet', rule='favourite_colour',
+                        value='teal', owner_quote=quote)
+    assert result['status'] == 'saved'
+    name, payload = transport.call.call_args.args
+    assert name == 'save'
+    assert (payload['type'], payload['scope'], payload['rule'], payload['decision']) == (
+        'user_decision', 'fleet', 'favourite_colour', 'teal')
+
+
+def test_followup_remember_that_saves_the_preceding_quoted_preference(tmp_path):
+    transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'decision_id': 'followup-saved'}}
+    helper = LedgerHelper(transport, Mock(side_effect=AssertionError('helper model called')), tmp_path / 'pending')
+    helper.note_user('My favourite colour is teal.')
+    helper.note_user('Please remember that.')
+    result = helper.run(operation='preference', scope='fleet', rule='favourite_colour', value='teal',
+                        owner_quote='my favourite colour is teal')
+    assert result['status'] == 'saved'
+    assert result['decision_id'] == 'followup-saved'
+    assert transport.call.call_args.args[0] == 'save'
+
+
+def test_secret_value_is_never_saved_as_a_memory(tmp_path):
+    transport = Mock()
+    helper = LedgerHelper(transport, Mock(side_effect=AssertionError('helper model called')), tmp_path / 'pending')
+    quote = 'Save this password for my Samantha test account: dummy-pass-0000'
+    helper.note_user(quote)
+    result = helper.run(operation='preference', scope='fleet', rule='samantha_test_account_password',
+                        value='dummy-pass-0000', owner_quote=quote)
+    assert result['error_type'] == 'ledger_invalid_argument'
+    transport.call.assert_not_called()
+
+
+def test_grok_2035_capture_fixture_saves_the_followup_preference_through_both_provider_tools(tmp_path):
+    from voice_cua.providers import LiveProvider, XAIProvider
+
+    transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'decision_id': 'grok-2035-saved'}}
+    request = {
+        'operation': 'capture', 'scope': 'fleet', 'rule': 'favourite_colour', 'value': 'teal',
+        'owner_quote': 'my favourite colour is teal',
+        'capture_gate': {
+            'owner_decision': 'User stated their favourite colour is teal',
+            'future_task': 'Any future preference involving colour choices',
+            'changed_choice': 'No prior colour preference on record', 'unique_value': 'teal',
+            'lifetime': 'durable', 'sensitivity': 'model_safe',
+        },
+    }
+    ledger_tool = next(tool for tool in tools.tool_definitions(groups={'ledger'})
+                       if tool['name'] == 'ledger_task')
+    for index, provider in enumerate((XAIProvider('grok-voice-latest'), LiveProvider())):
+        wire = provider.outbound({'type': 'session.update', 'session': {'tools': [ledger_tool]}})
+        assert 'ledger_task' in str(wire)
+        helper = LedgerHelper(transport, Mock(side_effect=AssertionError('helper model called')),
+                              tmp_path / f'pending-{index}')
+        with patch.object(tools, '_LEDGER_HELPER', helper):
+            tools.note_user_turn('My favourite colour is teal.')
+            tools.note_user_turn('Please remember that.')
+            result = tools._ledger_task(request)
+        assert result['status'] == 'saved'
+        assert result['decision_id'] == 'grok-2035-saved'
+    assert transport.call.call_count == 2
+    assert all(call.args[0] == 'save' for call in transport.call.call_args_list)
+
+
+def test_oversized_context_fields_return_the_offending_field(tmp_path):
+    helper = LedgerHelper(Mock(), Mock(), tmp_path / 'pending')
+    for field, limit in (('situation', 1000), ('need', 500), ('project', 80)):
+        request = {'operation': 'lookup', 'situation': 's', 'need': 'n'}
+        request[field] = 'x' * (limit + 1)
+        result = helper.run(**request)
+        assert result['error_type'] == 'ledger_invalid_argument'
+        assert field in result['error']
+
+
+def test_ledger_schema_separates_preference_and_capture_fields():
+    tool = next(tool for tool in tool_definitions(groups={'ledger'}) if tool['name'] == 'ledger_task')
+    fields = tool['parameters']['properties']
+    assert 'Use preference for user preferences' in fields['operation']['description']
+    assert 'do not use capture for a preference' in fields['operation']['description']
+    assert 'immediate' in fields['operation']['description']
+    assert 'save intent may be in an immediate follow-up' in fields['owner_quote']['description']
+    assert 'required for lookup/capture' in fields['situation']['description']
+    assert 'required for lookup/capture' in fields['need']['description']
+
+
 def test_preference_instructions_cover_agreement_and_conflict():
     ledger_tool = next(tool for tool in tool_definitions() if tool['name'] == 'ledger_task')
     skill = (Path(__file__).resolve().parents[3] / 'skills/macos-cua/SKILL.md').read_text()
@@ -61,7 +170,7 @@ def test_preference_normalizes_bare_app_scope(tmp_path):
     transport = Mock()
     transport.call.return_value = {'ok': True, 'data': {'decision_id': 'saved'}}
     helper = LedgerHelper(transport, Mock(), tmp_path / 'pending')
-    quote = 'Please use Work for my email account'
+    quote = 'Please use Work for my email account for future choices'
     helper.note_user(quote)
 
     result = helper.run(operation='preference', scope='Gmail', rule='Account Select',
@@ -76,7 +185,7 @@ def test_preference_normalizes_scope_and_rule_before_lookup_or_save(tmp_path):
     transport = Mock()
     transport.call.return_value = {'ok': True, 'data': {'decision_id': 'saved'}}
     helper = LedgerHelper(transport, Mock(), tmp_path / 'pending')
-    quote = 'Please use Work for my email account'
+    quote = 'Please use Work for my email account going forward'
     helper.note_user(quote)
     result = helper.run(operation='preference', scope=' Tool:Gmail ', rule='Account Select',
                         value='Work', owner_quote=quote)
@@ -116,11 +225,11 @@ def test_lookup_observes_preference_saved_after_empty_lookup(tmp_path):
     helper = LedgerHelper(Mock(call=call), lambda _: {'status': 'found', 'decision_ids': ['saved']}, tmp_path / 'pending')
     lookup = {'operation': 'lookup', 'scope': 'tool:gmail', 'situation': 'choose account', 'need': 'account'}
     assert helper.run(**lookup)['status'] == 'none'
-    quote = 'Please use Work for my email account'
+    quote = 'Please use Work for my email account going forward'
     helper.note_user(quote)
     assert helper.run(operation='preference', scope='tool:gmail', rule='account_select', value='Work', owner_quote=quote)['status'] == 'saved'
     assert helper.run(**lookup)['decisions'][0]['decision'] == 'Work'
-    quote = 'Please use Personal for my email account'
+    quote = 'Please use Personal for my email account going forward'
     helper.note_user(quote)
     assert helper.run(operation='preference', scope='tool:gmail', rule='account_select', value='Personal', owner_quote=quote)['status'] == 'saved'
     assert helper.run(**lookup)['decisions'][0]['decision'] == 'Personal'
@@ -149,3 +258,37 @@ def test_snake_case_value_matches_spoken_words(tmp_path):
     helper.note_user('Remember that ' + quote)
     result = helper.run(operation='preference', scope='fleet', rule='app_appearance_mode', value='dark_mode', owner_quote=quote)
     assert result['status'] == 'saved', result
+
+
+def test_paraphrased_value_gets_one_correction_then_saves(tmp_path):
+    """ACU-13: Grok Voice sent value 'enabled across apps' for 'I like dark mode across apps'."""
+    transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'decision_id': 'darkmode'}}
+    helper = LedgerHelper(transport, Mock(side_effect=AssertionError('helper model called')), tmp_path / 'pending')
+    quote = 'I like dark mode across apps.'
+    helper.note_user(quote)
+    first = helper.run(operation='preference', scope='fleet', rule='dark_mode', value='enabled across apps', owner_quote=quote)
+    assert (first['error_type'], first['retryable']) == ('ledger_value_not_in_quote', True)
+    transport.call.assert_not_called()
+    again = helper.run(operation='preference', scope='fleet', rule='dark_mode', value='on everywhere', owner_quote=quote)
+    assert (again['error_type'], again['retryable']) == ('ledger_invalid_argument', False)
+    # A shorter or longer quote of the same statement does not buy another retry (review pass 2).
+    for other in ('dark mode across apps', 'I like dark mode across apps'):
+        more = helper.run(operation='preference', scope='fleet', rule='dark_mode', value='enabled', owner_quote=other)
+        assert (more['error_type'], more['retryable']) == ('ledger_invalid_argument', False)
+    transport.call.assert_not_called()
+    saved = helper.run(operation='preference', scope='fleet', rule='dark_mode', value='dark mode across apps', owner_quote=quote)
+    assert saved['status'] == 'saved'
+    assert transport.call.call_args.args[1]['decision'] == 'dark mode across apps'
+
+
+def test_value_retry_is_spent_per_user_turn_not_per_quote(tmp_path):
+    transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'decision_id': 'next'}}
+    helper = LedgerHelper(transport, Mock(side_effect=AssertionError('helper model called')), tmp_path / 'pending')
+    helper.note_user('I like dark mode across apps.')
+    first = helper.run(operation='preference', scope='fleet', rule='dark_mode', value='enabled', owner_quote='dark mode across apps')
+    assert first['error_type'] == 'ledger_value_not_in_quote'
+    helper.note_user('I love chocolate chip ice cream.')
+    fresh = helper.run(operation='preference', scope='fleet', rule='ice_cream', value='choc chip', owner_quote='I love chocolate chip ice cream.')
+    assert (fresh['error_type'], fresh['retryable']) == ('ledger_value_not_in_quote', True)

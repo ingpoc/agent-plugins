@@ -37,6 +37,26 @@ class BadStatus(Exception):
 
 
 class HandshakeAccess(unittest.TestCase):
+    def test_setup_callback_error_closes_socket_and_reports_not_ready_reason(self) -> None:
+        class WS:
+            closed = False
+
+            def close(self) -> None:
+                self.closed = True
+
+        session = make_session()
+        ws = WS()
+        session.ws = ws
+        with patch("voice_cua.live_session.build_session_update", side_effect=RuntimeError("bad setup")), \
+                patch("voice_cua.live_session.log_event") as logged, \
+                patch("voice_cua.live_session.mark"):
+            session._on_open_callback(ws)
+        self.assertTrue(ws.closed)
+        self.assertFalse(session._session_ready.is_set())
+        self.assertEqual(session._session_error_reason, "Realtime open failed (RuntimeError).")
+        failure = next(call for call in logged.call_args_list if call.args[0] == "realtime_setup_failed")
+        self.assertEqual(failure.kwargs["error_type"], "RuntimeError")
+
     def test_socket_is_opened_without_origin(self) -> None:
         session = make_session()
         app = MagicMock()

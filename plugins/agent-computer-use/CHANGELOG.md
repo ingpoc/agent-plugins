@@ -1,3 +1,45 @@
+## 0.2.158
+
+- When Samantha saves a memory in her own words instead of yours (for example "enabled across apps" for "I like dark mode across apps"), the memory store now tells her plainly to use your exact words and lets her try once more in that turn, instead of giving up (ACU-13). The secure entry tool also says never to repeat a secret value back.
+
+## 0.2.157
+
+- Samantha chooses where to keep something by what it is, not by the words used. A secret value that grants access (a password, API key or token) goes only to the secure entry form; anything else you say about yourself (facts, profiles you have, things you like, settings you want, a word to keep) is saved to memory, with or without "remember". This stops GPT-Live opening the password form for "my test word is pineapple" (ACU-13, ACU-14). The keyword checks added in 0.2.154 for remember requests are removed; the memory store still refuses secret-looking values.
+
+## 0.2.156
+
+- Interrupting a GPT-Live reply no longer shows a voice error. GPT-Live has no cancel command, so the app no longer sends one, as before 0.2.154; the interrupted reply ends when its backend finishes, and its late text is dropped (ACU-17).
+- A failed Samantha start no longer leaves its island card up for good. The card clears when Samantha is turned off (from the menu or a command), when a voice setting changes (model-unavailable cards only; a microphone denial stays), on Dismiss, and on a new start. Retry now really starts Samantha again. Every island error shown, including ones posted by the voice helper, is written to the activity log with its full raw reason, so developer observability sees it (ACU-18).
+
+## 0.2.155
+
+- GPT-Live typed turns work again: the chat-or-task hint now rides inside that one typed message instead of a reply field GPT-Live rejects, so it cannot build up across turns; Grok Voice routing is unchanged. The GPT-Live test stand-in now rejects any event or field GPT-Live does not accept, and the replay follows a fixed script (ACU-14, ACU-05, ACU-08, ACU-09).
+- Small talk and explicit remember requests are covered on the GPT-Live path too (ACU-07, ACU-13).
+- Choosing a voice model the app does not support now fails the start with a visible reason in the menu and island instead of being silently changed (ACU-01).
+- The release waits until the app answers a real request after restart, up to 30 seconds, instead of a fixed one-second pause (ACU-15).
+- The Dynamic Island shows a Codex run that ended on an error or a usage limit as Stopped with the reason (for example "Quota exhausted, resets 22 Nov 12:28 IST") instead of a green done tick, and keeps it visible like an error (ACU-16).
+
+## 0.2.154
+
+- On GPT-Live, a redirect now stops the answer that was handed to the backend and starts the new request at once; late output from the stopped answer is dropped (ACU-05).
+- When Samantha cannot start, the menu and island stay in a visible failed state with a plain reason until the next try (ACU-01).
+- Small talk is answered by the live voice model and passing mentions are not saved as memories; explicit remember requests save, including on Grok Voice, and a rejected save names the field (ACU-07, ACU-09, ACU-13).
+- After a browser task, the reply states the facts asked for before confirming cleanup (ACU-08).
+- The island cold-start test no longer depends on real timers, the release test finds files from the skill folder, and the repo check fails on a strict skill shape error (ACU-11, ACU-12).
+
+## 0.2.153
+
+- After a redirect, each turn gets the reply of its own response: late output from a stopped answer no longer completes a later turn, and delegated tasks still run their tools. On Grok Voice a redirect now stops the active answer and is answered next (ACU-05).
+
+## 0.2.152
+
+- The installer refuses to build without the voice helper build tool, no longer offers to skip the voice helper, and fails before signing if the helper is missing (ACU-02).
+- The packaged voice helper finds its plugin file beside its scripts, so Samantha can connect from the installed app (ACU-03).
+- A failure while setting up a voice session closes it and retries, and status says not ready with the reason until the session is ready (ACU-04).
+- A new typed or spoken request stops the current answer first and is answered next, on both voice models (ACU-05).
+- Duplicate tool call deliveries are ignored, a tool batch gets one follow-up, and a request with no reply reconnects and ends with a plain error instead of hanging (ACU-06).
+- Usage records keep the live model token counts when the provider sends them; all-zero Grok Voice usage is recorded as unknown instead of zero (ACU-10).
+
 ## 0.2.151
 
 - Thin and route the macos-cua and Samantha verification skills; make release metadata failures explicit and bind package roots to the installed manifest.

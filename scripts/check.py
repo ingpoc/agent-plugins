@@ -21,8 +21,8 @@ diff REF...HEAD touches; scripts/, CI files, catalogs and any path outside
 plugins/ and docs run everything. Collection scripts/ tests always run, every
 package is always validated, and a selection that would run no test fails.
 --jobs N runs test processes in parallel (default: CPU count, never more).
---validate-only runs the manifest and catalog contract checks, no tests (the
-pre-push hook uses it).
+--validate-only runs manifest and catalog checks plus strict skill-shape checks
+when skill-refine is installed; it does not run tests (the pre-push hook uses it).
 --audit-tests prints one JSON line of found/run/skip counts and exits 0
 without running tests.
 
@@ -103,6 +103,39 @@ FULL_TRIGGERS = (
 )
 def plugin_dirs() -> list[Path]:
     return sorted(path.parent for path in (ROOT / "plugins").glob("*/plugin.json"))
+
+
+def skill_shape_errors() -> list[str]:
+    skills = sorted(
+        path.parent
+        for plugin in plugin_dirs()
+        for path in (plugin / "skills").glob("*/SKILL.md")
+    )
+    if not skills:
+        return []
+    checker = Path.home() / ".agents" / "skills" / "skill-refine" / "scripts" / "skill_shape.py"
+    if not checker.is_file():
+        message = f"strict skill_shape checker missing: {checker}"
+        if os.environ.get("CI"):
+            print("strict skill-shape skipped in CI: skill-refine checker is not installed", file=sys.stderr)
+            return []
+        return [message]
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(checker), "--strict", *map(str, skills)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as exc:
+        return [f"strict skill_shape checker could not run: {exc}"]
+    output = (proc.stdout + proc.stderr).strip()
+    if proc.returncode:
+        return [output or f"strict skill_shape exited {proc.returncode}"]
+    if output:
+        print(output)
+    return []
 
 
 def staged_paths() -> list[str]:
@@ -1236,6 +1269,7 @@ def main(argv: list[str] | None = None) -> int:
         errors.extend(validate_plugin(plugin))
     errors.extend(check_host_dest())
     errors.extend(check_triage_renders())
+    errors.extend(skill_shape_errors())
     if errors:
         print("\n".join(errors), file=sys.stderr)
         return 1

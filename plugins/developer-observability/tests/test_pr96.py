@@ -39,14 +39,19 @@ class PR96Tests(unittest.TestCase):
         collect([{'type': 'jsonl', 'path': str(path), 'project': 'p', 'source': 'p:synthetic'}], out, NOW)
         return self.api_for(out), out
 
-    def test_test_fixes_follow_finding_kind_for_ci_and_junit(self):
+    def test_test_failure_fixes_name_assertion_and_only_mention_ci_for_checklogs(self):
         for source in ('origin-ci', 'junit'):
-            events = [{'source': source, 'metric': 'test_ms', 'step': 'Pkg.test_slow', 'error': False}]
-            failure = _test_fix('failure', {}, [{**events[0], 'error': True}])
+            events = [{'source': source, 'metric': 'test_ms', 'step': 'Pkg.test_slow', 'error': False,
+                       'message': '', 'ci_check': source == 'origin-ci'}]
+            failure = _test_fix('failure', {}, [{**events[0], 'error': True,
+                                                 'message': "AssertionError: 'hint' != 'trusted'"}])
             latency = _test_fix('latency_hotspot', {'latency': {'p95_ms': 90000, 'n': 6}}, events)
             redundancy = _test_fix('redundancy', {}, events)
-            self.assertIn('CI check log', failure)
+            self.assertEqual('CI check log' in failure, source == 'origin-ci')
             self.assertIn('Pkg.test_slow', failure)
+            self.assertIn("'hint' != 'trusted'", failure)
+            if source == 'junit':
+                self.assertNotIn('CI', failure)
             self.assertIn('p95 90000 ms', latency)
             self.assertIn('6 runs', latency)
             self.assertIn('deduplicate', redundancy.lower())

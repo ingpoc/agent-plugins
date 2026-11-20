@@ -157,10 +157,11 @@ def log_event(kind: str, **fields: Any) -> None:
     _append_row(entry)
 
 
-# response.usage → row field. Integers only; anything missing is omitted.
+# response.usage → row field. Integers only; missing provider fields are unknown.
 _USAGE_FIELDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("input_tokens", ("input_tokens",)),
     ("output_tokens", ("output_tokens",)),
+    ("cached_tokens", ("cached_tokens",)),
     ("cached_tokens", ("input_token_details", "cached_tokens")),
     ("input_text_tokens", ("input_token_details", "text_tokens")),
     ("input_audio_tokens", ("input_token_details", "audio_tokens")),
@@ -170,6 +171,7 @@ _USAGE_FIELDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     # Responses API (GPT-Live backend) spelling.
     ("cached_tokens", ("input_tokens_details", "cached_tokens")),
     ("reasoning_tokens", ("output_tokens_details", "reasoning_tokens")),
+    ("voice_seconds", ("seconds",)),
 )
 
 
@@ -208,8 +210,8 @@ def usage_row(
     """Build the ``usage`` row for one ``response.done`` (numbers, ids and model labels only).
 
     ``labels``: provider / model / live_model / tier / delegation_id (short strings only).
-    GPT-Live backend rows carry the backend model + tier; live voice minutes are logged
-    separately as ``live_usage`` rows (voice_seconds).
+    GPT-Live backend rows carry the backend model + tier; live voice usage carries seconds
+    and unknown token counts when the provider does not expose them.
     """
     response = response if isinstance(response, dict) else {}
     usage = response.get("usage")
@@ -237,9 +239,10 @@ def usage_row(
             row["call_ids"] = call_ids
     if isinstance(latency_ms, int) and not isinstance(latency_ms, bool) and latency_ms >= 0:
         row["latency_ms"] = latency_ms
+    row.update({field: None for field, _path in _USAGE_FIELDS})
     for field, path in _USAGE_FIELDS:
         value = _usage_int(usage, path)
-        if value is not None and field not in row:
+        if value is not None and row[field] is None:
             row[field] = value
     return row
 
@@ -249,15 +252,17 @@ def log_usage(
     *,
     latency_ms: int | None = None,
     labels: dict[str, Any] | None = None,
+    accumulate: bool = True,
 ) -> None:
     """Append one ``usage`` row (token counts + ids only — never text or transcripts)."""
     row = usage_row(response, latency_ms=latency_ms, labels=labels)
-    with _usage_lock:
-        totals = _usage_totals.setdefault(row["session_id"], {"responses": 0})
-        totals["responses"] += 1
-        for field in _TOTAL_FIELDS:
-            if isinstance(row.get(field), int):
-                totals[field] = totals.get(field, 0) + row[field]
+    if accumulate:
+        with _usage_lock:
+            totals = _usage_totals.setdefault(row["session_id"], {"responses": 0})
+            totals["responses"] += 1
+            for field in _TOTAL_FIELDS:
+                if isinstance(row.get(field), int):
+                    totals[field] = totals.get(field, 0) + row[field]
     _append_row(row)
 
 
@@ -276,6 +281,8 @@ def log_usage_final(*, reason: str = "session_close", **extra: Any) -> None:
                            "ts_iso": datetime.fromtimestamp(now).astimezone().isoformat(timespec="milliseconds"),
                            "session_id": session, "build": build_label(), "final": True,
                            "reason": reason[:40], **totals}
+    for field in _TOTAL_FIELDS:
+        row.setdefault(field, None)
     for key, value in extra.items():
         if value is not None:
             row[key] = value

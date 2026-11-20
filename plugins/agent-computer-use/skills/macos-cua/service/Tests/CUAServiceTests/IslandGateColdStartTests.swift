@@ -1,6 +1,32 @@
 import XCTest
+import Foundation
 import CryptoKit
 @testable import CUAService
+
+@MainActor
+private final class ManualWakeScheduler {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var resumed = false
+    var onWait: (() -> Void)?
+    var onReturn: (() -> Void)?
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            if resumed { continuation.resume() }
+            else {
+                self.continuation = continuation
+                onWait?()
+            }
+        }
+        onReturn?()
+    }
+
+    func resume() {
+        resumed = true
+        continuation?.resume()
+        continuation = nil
+    }
+}
 
 @MainActor
 final class IslandGateColdStartTests: XCTestCase {
@@ -11,12 +37,15 @@ final class IslandGateColdStartTests: XCTestCase {
     private let signingKey = Curve25519.Signing.PrivateKey()
     private let device = IslandGateDevice(id: String(repeating: "d", count: 64), key: P256.Signing.PrivateKey())
 
-    private func makeGate(store: IslandGateMemoryStore = .init()) -> IslandGate {
+    private func makeGate(
+        store: IslandGateMemoryStore = .init(),
+        wakeSleep: @escaping () async throws -> Void = { try await Task.sleep(nanoseconds: 10_000_000) }
+    ) -> IslandGate {
         let client = IslandGateURLProtocol.client()
         client.requestTimeout = 0.05
         client.coldStartBudget = 0.35
         client.retryBackoffBase = 0.05
-        return IslandGate(store: store, client: client, publicKey: signingKey.publicKey.rawRepresentation, device: device, wakeSleep: { try await Task.sleep(nanoseconds: 10_000_000) })
+        return IslandGate(store: store, client: client, publicKey: signingKey.publicKey.rawRepresentation, device: device, wakeSleep: wakeSleep)
     }
 
     private func signedEntitlement(tier: String?, exp: Date) throws -> String {
@@ -127,28 +156,93 @@ final class IslandGateColdStartTests: XCTestCase {
     }
 
     func testSubmitColdStartShowsWakingThenSucceeds() async throws {
-        let gate = makeGate()
+        let scheduler = ManualWakeScheduler()
+        let schedulerWaiting = expectation(description: "wake scheduler is waiting")
+        let schedulerReturned = expectation(description: "cancelled wake scheduler returns")
+        scheduler.onWait = { schedulerWaiting.fulfill() }
+        scheduler.onReturn = { schedulerReturned.fulfill() }
+        let responseStarted = expectation(description: "claim response is held")
+        let releaseResponse = DispatchSemaphore(value: 0)
+        let gate = makeGate(wakeSleep: { await scheduler.wait() })
+        gate.setClientTimingForTests(requestTimeout: 30, coldStartBudget: 60, retryBackoffBase: 0.01)
         gate.handleText = "@friend"
         var attempts = 0
-        var sawWaking = false
-        gate.onChange.append { if case .waking = gate.state { sawWaking = true } }
+        var order: [String] = []
+        let completed = expectation(description: "quick cold start succeeds")
+        gate.onChange.append {
+            if case .waking = gate.state { order.append("waking") }
+            if case .pendingFollow = gate.state { order.append("response"); completed.fulfill() }
+        }
+        defer {
+            scheduler.resume()
+            releaseResponse.signal()
+            gate.stopPollingForTests()
+        }
         IslandGateURLProtocol.handler = { req in
             if req.url?.path == "/v1/claims" {
                 attempts += 1
-                if attempts < 3 { return (503, Data(#"{"error":"server_error"}"#.utf8)) }
+                if attempts == 1 { responseStarted.fulfill() }
+                _ = releaseResponse.wait(timeout: .now() + 10)
                 return (201, Data(#"{"claim_id":"c1","status":"pending_verification","checks":{"follow":"pending","post":"pending"},"poll_after":60}"#.utf8))
             }
             return (200, Self.configPayload())
         }
         gate.submitCheck()
-        try await Task.sleep(nanoseconds: 500_000_000)
-        XCTAssertEqual(attempts, 3)
-        XCTAssertFalse(sawWaking, "A quick first response must not show the waking state")
+        await fulfillment(of: [schedulerWaiting, responseStarted], timeout: 10)
+        XCTAssertTrue(order.isEmpty, "the response has not completed before the wake scheduler fires")
+        releaseResponse.signal()
+        await fulfillment(of: [completed], timeout: 10)
+        XCTAssertEqual(attempts, 1)
+        XCTAssertEqual(order, ["response"], "a response completed before the wake scheduler fired")
+        scheduler.resume()
+        await fulfillment(of: [schedulerReturned], timeout: 10)
+        XCTAssertEqual(order, ["response"], "a completed response must keep the cancelled wake from firing")
         guard case .pendingFollow = gate.state else {
             if case .waking = gate.state { /* still retrying */ }
             return XCTFail("Expected pending follow, got \(gate.state)")
         }
-        gate.stopPollingForTests()
+    }
+
+    func testSubmitColdStartWakeBeforeResponseShowsWaking() async throws {
+        let scheduler = ManualWakeScheduler()
+        let schedulerWaiting = expectation(description: "wake scheduler is waiting")
+        scheduler.onWait = { schedulerWaiting.fulfill() }
+        let responseStarted = expectation(description: "claim response is held")
+        let releaseResponse = DispatchSemaphore(value: 0)
+        let gate = makeGate(wakeSleep: { await scheduler.wait() })
+        gate.setClientTimingForTests(requestTimeout: 30, coldStartBudget: 60, retryBackoffBase: 0.01)
+        gate.handleText = "@friend"
+        var attempts = 0
+        var order: [String] = []
+        let woke = expectation(description: "wake fires before the response")
+        let completed = expectation(description: "claim succeeds after waking")
+        gate.onChange.append {
+            if case .waking = gate.state { order.append("waking"); woke.fulfill() }
+            if case .pendingFollow = gate.state { order.append("response"); completed.fulfill() }
+        }
+        defer {
+            scheduler.resume()
+            releaseResponse.signal()
+            gate.stopPollingForTests()
+        }
+        IslandGateURLProtocol.handler = { req in
+            if req.url?.path == "/v1/claims" {
+                attempts += 1
+                if attempts == 1 { responseStarted.fulfill() }
+                _ = releaseResponse.wait(timeout: .now() + 10)
+                return (201, Data(#"{"claim_id":"c1","status":"pending_verification","checks":{"follow":"pending","post":"pending"},"poll_after":60}"#.utf8))
+            }
+            return (200, Self.configPayload())
+        }
+        gate.submitCheck()
+        await fulfillment(of: [schedulerWaiting, responseStarted], timeout: 10)
+        scheduler.resume()
+        await fulfillment(of: [woke], timeout: 10)
+        XCTAssertEqual(order, ["waking"])
+        releaseResponse.signal()
+        await fulfillment(of: [completed], timeout: 10)
+        XCTAssertEqual(attempts, 1)
+        XCTAssertEqual(order, ["waking", "response"])
     }
 
     func testSubmitColdStartBudgetShowsRetryError() async throws {

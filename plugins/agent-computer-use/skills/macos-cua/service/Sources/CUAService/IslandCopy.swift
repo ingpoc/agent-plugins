@@ -8,7 +8,7 @@ import Foundation
 /// ellipsis. Errors map to short human copy; raw text is logged, not shown.
 enum IslandCopy {
     static let maxTitle = 28
-    static let maxError = 32
+    static let maxError = 48
 
     static let fallbackError = "Something went wrong"
 
@@ -20,6 +20,13 @@ enum IslandCopy {
     /// (lower-cased needles, copy) — first match wins. `{target}` = app/control.
     private static let errorTable: [([String], String)] = [
         // Known causes first (0.2.85), so the generic needles below never swallow them.
+        (["unknown voice model", "unsupported voice model", "model not found"], "Voice model unavailable"),
+        (["voice helper is missing", "bundled voice helper missing", "no voice helper"], "Voice helper is missing"),
+        (["microphone access denied"], "Microphone access denied"),
+        (["available api key", "needs an api key", "voice api key", "xai-api"], "Voice API key needs access"),
+        (["voice gateway did not become healthy", "gateway health timeout"], "Voice gateway did not start"),
+        (["voice helper could not launch"], "Voice helper could not launch"),
+        (["voice helper exited"], "Voice helper exited unexpectedly"),
         (["ledger rejected", "ledger_invalid_argument", "owner decision not found", "project scope",
           "capture requires", "capture_gate"], "Ledger needs clearer details"),
         (["outcome unknown", "ledger_outcome_unknown"], "Ledger save unconfirmed"),
@@ -43,6 +50,8 @@ enum IslandCopy {
 
     private static let humanCopy: Set<String> = [
         fallbackError, "Ledger needs clearer details", "Ledger save unconfirmed", "Ledger busy, try again", "Ledger unavailable",
+        "Voice model unavailable", "Voice helper is missing", "Microphone access denied", "Voice API key needs access",
+        "Voice gateway did not start", "Voice helper could not launch", "Voice helper exited unexpectedly",
         "Couldn't bring Comet to front", "Needs your OK", "Action not confirmed", "Action stopped after failures", "Can't hear you, check mic", "Connection dropped, reconnecting",
         "Stopped — you said no", "Comet isn't available", "That took too long", "Voice hiccup, still here",
     ]
@@ -87,6 +96,14 @@ enum IslandCopy {
         if isBenign(raw) { return nil }
         if humanCopy.contains(raw) { return raw }
         if (raw.hasPrefix("Couldn't ") || raw.hasPrefix("No ")), raw.count <= maxError { return raw }
+        if let range = raw.range(of: "voice model unavailable:", options: .caseInsensitive) {
+            let model = String(raw[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
+            if !model.isEmpty, model.unicodeScalars.allSatisfy({ allowed.contains($0) }) {
+                return String("Voice model unavailable: \(model.prefix(23))".prefix(maxError))
+            }
+            return "Voice model unavailable"
+        }
         let low = raw.lowercased()
         let name = String(squash(target).prefix(16))
         for (needles, copy) in errorTable where needles.contains(where: { low.contains($0) }) {

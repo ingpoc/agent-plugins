@@ -33,6 +33,7 @@ class GateCountTests(unittest.TestCase):
     def test_rollover_no_open_exception_removed(self):
         data = {"findings": [], "tracking": {}}
         self.assertTrue(check.gate_count(data)[2])
+        self.assertFalse(check.verified_gate_count(data)[2])
         self.assertFalse(check.rollover_gate_count(data)[2])
         with self.assertRaisesRegex(ValueError, "rollover gate not met"):
             manage_findings.require_rollover_gate([], {}, False, "rollover")
@@ -55,7 +56,52 @@ class GateCountTests(unittest.TestCase):
                 bcl.main()
         status = json.loads(output.getvalue())
         self.assertEqual(status["report_gate"], {"fixed": 15, "threshold": 15, "met": True})
+        self.assertEqual(status["verified_gate"], {"fixed": 15, "threshold": 15, "met": True})
         self.assertEqual(status["rollover_gate"], {"fixed": 15, "threshold": 16, "met": False})
+
+    def test_status_keeps_empty_report_exception_separate_from_verified_gate(self):
+        bcl_path = test_bcl.BCL
+        loader = SourceFileLoader("bcl_empty_status_test", str(bcl_path))
+        spec = importlib.util.spec_from_loader("bcl_empty_status_test", loader)
+        bcl = importlib.util.module_from_spec(spec)
+        loader.exec_module(bcl)
+        with tempfile.TemporaryDirectory() as directory:
+            data_path = Path(directory) / "tracker.json"
+            data_path.write_text(json.dumps({"findings": [], "tracking": {}}))
+            output = io.StringIO()
+            with patch.object(bcl.live_state, "locate", return_value=("test", {"id": "test"}, data_path)), \
+                 patch.object(bcl, "_ensure_viewer"), \
+                 patch.object(sys, "argv", [str(bcl_path), "--data", str(data_path), "status"]), \
+                 contextlib.redirect_stdout(output):
+                bcl.main()
+        status = json.loads(output.getvalue())
+        self.assertTrue(status["report_gate"]["met"])
+        self.assertEqual(status["verified_gate"], {"fixed": 0, "threshold": 15, "met": False})
+        self.assertEqual(status["rollover_gate"], {"fixed": 0, "threshold": 16, "met": False})
+
+    def test_status_current_stage_matches_active_lanes(self):
+        bcl_path = test_bcl.BCL
+        loader = SourceFileLoader("bcl_lane_status_test", str(bcl_path))
+        spec = importlib.util.spec_from_loader("bcl_lane_status_test", loader)
+        bcl = importlib.util.module_from_spec(spec)
+        loader.exec_module(bcl)
+        data = self.tracker(0)
+        data["tracking"] = {"workflow": {"stage": "plan_fix"}, "round": 1,
+                            "plan": {"round": 1, "groups": [
+                                {"id": "A", "status": "review"},
+                                {"id": "B", "status": "review"}]}}
+        with tempfile.TemporaryDirectory() as directory:
+            data_path = Path(directory) / "tracker.json"
+            data_path.write_text(json.dumps(data))
+            output = io.StringIO()
+            with patch.object(bcl.live_state, "locate", return_value=("test", {"id": "test"}, data_path)), \
+                 patch.object(bcl, "_ensure_viewer"), \
+                 patch.object(sys, "argv", [str(bcl_path), "--data", str(data_path), "status"]), \
+                 contextlib.redirect_stdout(output):
+                bcl.main()
+        status = json.loads(output.getvalue())
+        self.assertEqual(status["stage"], "review")
+        self.assertEqual(status["recorded_stage"], "plan_fix")
 
     def test_entry_point_rollover_boundaries_and_force(self):
         default = render.WF.DEFAULT_ROLLOVER_THRESHOLD
@@ -114,9 +160,10 @@ class GateCountTests(unittest.TestCase):
                 finally:
                     fixture.doCleanups()
 
-    def test_uses_the_renderer_gate_definition(self):
+    def test_report_gate_keeps_no_open_exception_separate_from_ui_gate(self):
         data = {"findings": [], "tracking": {}}
-        self.assertEqual(check.gate_count(data), render.rollover_gate_state(data["findings"], data["tracking"]))
+        self.assertEqual(check.gate_count(data), (0, 15, True))
+        self.assertEqual(check.verified_gate_count(data), (0, 15, False))
 
     def test_gate_waits_for_current_round_introspect_history_after_install(self):
         data = {"findings": [], "tracking": {"cycle": 2, "round": 3,
@@ -134,7 +181,7 @@ class GateCountTests(unittest.TestCase):
         self.assertEqual(check.merge_gate_count(data(15)), (15, 16, False))
         self.assertEqual(check.merge_gate_count(data(16)), (16, 16, True))
 
-    def test_script_reports_count_from_a_temp_tracker(self):
+    def test_documented_gate_count_command_keeps_report_exception(self):
         with tempfile.TemporaryDirectory() as directory:
             data = Path(directory) / "tracker.json"
             data.write_text(json.dumps({"findings": [], "tracking": {}}))

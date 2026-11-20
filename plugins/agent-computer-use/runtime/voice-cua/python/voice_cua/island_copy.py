@@ -12,8 +12,9 @@ from __future__ import annotations
 import re
 
 MAX_TITLE = 28
-# Error copy comes from the fixed table below (pre-vetted, ≤ 32 incl. target).
-MAX_ERROR = 32
+# Error copy comes from the fixed table below (pre-vetted, ≤ 48 incl. model id).
+MAX_ERROR = 48
+_MODEL_UNAVAILABLE = re.compile(r"voice model unavailable:\s*([A-Za-z0-9._-]{1,64})(?=$|[ ·])", re.I)
 
 # Harmless Realtime truncate race — never shown on the island.
 BENIGN_ERROR_PATTERNS = (
@@ -26,6 +27,13 @@ BENIGN_ERROR_PATTERNS = (
 # (pattern, copy) — first match wins; "{target}" is the app / control if known.
 ERROR_COPY: tuple[tuple[re.Pattern[str], str], ...] = (
     # Known causes first, so the generic patterns below never swallow them (0.2.85).
+    (re.compile(r"unknown voice model|unsupported voice model|model not found", re.I), "Voice model unavailable"),
+    (re.compile(r"voice helper is missing|bundled voice helper missing|no voice helper", re.I), "Voice helper is missing"),
+    (re.compile(r"microphone access denied", re.I), "Microphone access denied"),
+    (re.compile(r"available api key|needs an api key|voice api key|xai-api", re.I), "Voice API key needs access"),
+    (re.compile(r"voice gateway did not become healthy|gateway health timeout", re.I), "Voice gateway did not start"),
+    (re.compile(r"voice helper could not launch", re.I), "Voice helper could not launch"),
+    (re.compile(r"voice helper exited", re.I), "Voice helper exited unexpectedly"),
     (re.compile(r"ledger.*(invalid.argument|rejected)|ledger_invalid_argument|owner decision not found|project scope|"
                 r"capture requires|capture_gate", re.I), "Ledger needs clearer details"),
     (re.compile(r"ledger.*outcome unknown|ledger_outcome_unknown|outcome unknown", re.I), "Ledger save unconfirmed"),
@@ -49,7 +57,9 @@ ERROR_COPY: tuple[tuple[re.Pattern[str], str], ...] = (
 FALLBACK_ERROR = "Something went wrong"
 
 HUMAN_COPY = frozenset(
-    {FALLBACK_ERROR, "Ledger needs clearer details", "Ledger save unconfirmed", "Ledger busy, try again",
+    {FALLBACK_ERROR, "Voice model unavailable", "Voice helper is missing", "Microphone access denied",
+     "Voice API key needs access", "Voice gateway did not start", "Voice helper could not launch",
+     "Voice helper exited unexpectedly", "Ledger needs clearer details", "Ledger save unconfirmed", "Ledger busy, try again",
      "Ledger unavailable", "Couldn't bring Comet to front", "Needs your OK", "Action not confirmed", "Action stopped after failures", "Can't hear you, check mic", "Connection dropped, reconnecting", "Stopped — you said no", "Comet isn't available",
      "That took too long", "Voice hiccup, still here"}
 )
@@ -92,6 +102,8 @@ def human_error(raw: str, *, target: str = "") -> str | None:
         return None
     if raw in HUMAN_COPY or (raw.startswith(("Couldn't ", "No ")) and len(raw) <= MAX_ERROR):
         return raw
+    if match := _MODEL_UNAVAILABLE.search(raw):
+        return f"Voice model unavailable: {match.group(1)[:23]}"[:MAX_ERROR]
     name = _squash(target)[:16] or "that"
     for pattern, copy in ERROR_COPY:
         if pattern.search(raw):

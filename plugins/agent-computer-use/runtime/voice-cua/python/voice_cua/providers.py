@@ -36,7 +36,8 @@ from urllib.parse import urlencode
 import uuid
 from typing import Any, Callable
 
-from voice_cua.activity_log import log_event, new_step_ref
+from voice_cua.activity_log import log_event, log_usage, new_step_ref
+from voice_cua.voice_settings import validate_live_model
 
 LIVE_MODEL = "gpt-live-1"  # the only OpenAI voice path (Realtime removed)
 XAI_MODEL = "grok-voice-latest"
@@ -144,11 +145,16 @@ LIVE_INSTRUCTIONS = (
     "Style: Speak English unless the user clearly speaks a full sentence in another language. One or two "
     "short sentences. Say what was done, not what could be done. Never end with offers like 'anything else?'.\n"
     "Backchannel policy: Brief acknowledgments only ('On it.'). Greetings, small talk and 'can you hear me' "
-    "get a short spoken reply and no delegation.\n"
+    "get a short spoken reply and no delegation. Conversational recall from this conversation and empathy "
+    "also stay in Live. A durable personal fact or preference the user shares about themselves is a memory: delegate "
+    "it so the backend saves it to Context Ledger, and still reply warmly. An immediate follow-up such as "
+    "'Please remember that' applies to the most recent quoted preference.\n"
     "Treat a completed user transcript as authoritative: act on its clearly transcribed app or site name, even if "
     "the audio seemed unclear. If an app lookup says it was not found or is not installed, say that and ask only "
     "to confirm its path or installation; do not ask the user to repeat the name.\n"
-    "Honor exact output-format requests without adding a greeting or acknowledgment.\n"
+    "Honor exact output-format requests without adding a greeting or acknowledgment. Before confirming cleanup or "
+    "closure, state every fact the user explicitly asked you to report (for example, a page heading), then state "
+    "the cleanup result.\n"
     "Interruption policy: Stop speaking when interrupted and listen. If the user changes or cancels the "
     "request, delegate the change; never say work was cancelled until the backend confirms it. If a "
     "state-changing action was executing when the user stopped it, report its outcome as unknown; do not "
@@ -156,11 +162,15 @@ LIVE_INSTRUCTIONS = (
     "Delegation policy:\n"
     "Backend tools:\n- Mac apps (Calculator, Finder, TextEdit, Music, Calendar, Settings), Comet browsing, and "
     "saved credential lookup without revealing secrets, and Context Ledger decisions.\n"
-    "Do not delegate to the backend for greetings, small talk, brief clarifications, repeated results, "
-    "simple arithmetic (for example, 12 + 12 = 24), or answers from the conversation or a still-current result. "
+    "Do not delegate to the backend for greetings, small talk, empathy, brief clarifications, conversational "
+    "recall, repeated results, simple arithmetic (for example, 12 + 12 = 24), or answers from the conversation "
+    "or a still-current result. "
     "Answer these directly in Live, in the requested format; never generate <|SpawnThinking|> or create a Responses delegation.\n"
-    "Delegate to the backend when the user asks for computer, app, website, decision-memory or credential work, a "
-    "correction changes work already requested, or the answer depends on backend work or needs careful reasoning "
+    "Delegate to the backend when the user asks for computer, app, website, or credential work, or shares something to "
+    "keep. The backend stores a secret value that grants access (a password, API key or token) in secure entry, and "
+    "anything else the user says about themselves (facts, profiles, likes, settings, words to keep) in Context Ledger "
+    "memory; decide by what is being stored, not by the words used. "
+    "Also delegate when a correction changes work already requested, or the answer depends on backend work or needs careful reasoning "
     "beyond a simple reply. Generate <|SpawnThinking|> before answering when the answer depends on backend work. Do not guess "
     "the result while waiting. Never claim an "
     "action happened until the backend reports it. Unclear or partial speech, or a vague 'that thing'/'it' the last "
@@ -173,6 +183,45 @@ LIVE_INSTRUCTIONS = (
     "that were only considered or not applied."
 )
 
+_TASK_REQUEST = re.compile(
+    r"(?:(?:hey|hi|hello)(?:\s+\w+)?[,!.]?\s*)?(?:(?:please\s+)?(?:open|launch|start|close|quit|switch(?:\s+to)?|go\s+to|navigate\s+to|visit|browse|search(?:\s+for)?|click|type|fill|select|check)\b|"
+    r"(?:can|could|would)\s+you\s+(?:please\s+)?(?:open|launch|start|close|quit|switch(?:\s+to)?|go\s+to|navigate\s+to|visit|browse|search(?:\s+for)?|click|type|fill|select|check)\b)",
+    re.IGNORECASE,
+)
+_CURRENT_RECALL = re.compile(
+    r"^\s*(?:(?:quick one|quick question)[:,]?\s*)?(?:what did i (?:just )?(?:say|tell you)|"
+    r"what was my|remind me what i (?:said|told you))\b",
+    re.IGNORECASE,
+)
+_CONVERSATIONAL_TURN = re.compile(
+    r"^\s*(?:hi|hello|hey|good (?:morning|afternoon|evening))\b|"
+    r"\bhow (?:are you|is your (?:day|morning|afternoon|evening))\b|"
+    r"\b(?:i(?:'m| am) (?:having|feeling|sad|upset|tired|overwhelmed|stressed|worried|anxious|frustrated|lonely|angry|excited|happy|nervous)|"
+    r"i feel (?:sad|upset|tired|overwhelmed|stressed|worried|anxious|frustrated|lonely|angry|nervous)|"
+    r"i had a (?:rough|hard|bad|long|awful) day)\b",
+    re.IGNORECASE,
+)
+
+
+def typed_turn_route(text: str) -> str | None:
+    """Pin obvious typed turns to direct conversation or the tool backend."""
+    text = " ".join(str(text or "").split())
+    if not text:
+        return None
+    if _TASK_REQUEST.search(text):
+        return "delegate"
+    if _CURRENT_RECALL.search(text):
+        return "direct"
+    if _CONVERSATIONAL_TURN.search(text):
+        return "direct"
+    return None
+
+ROUTE_TEXT = {
+    "direct": "(Routing for this turn only: answer directly in GPT-Live without a Responses delegation.)",
+    "delegate": "(Routing for this turn only: use a Responses delegation; the user asked for a "
+                "computer, browser, or preference task.)",
+}
+
 ROUTING_INSTRUCTIONS = (
     "\n\nRouting: you are the Bulk tier, for simple, high-volume tool work (open an app, click, "
     f"type, a single Comet step). If the task needs multi-step planning or the request is "
@@ -181,10 +230,10 @@ ROUTING_INSTRUCTIONS = (
 
 
 def provider_for(model: str) -> str:
-    m = (model or "").strip().lower()
-    if m.startswith("grok-voice"):
+    m = validate_live_model(model)
+    if m == XAI_MODEL:
         return "xai"
-    return "openai-live"  # gpt-live-1, and any retired gpt-realtime-* value
+    return "openai-live"
 
 
 class VoiceProvider:
@@ -195,9 +244,15 @@ class VoiceProvider:
     def __init__(self, model: str, *, send_raw: Callable[[dict[str, Any]], bool] | None = None) -> None:
         self.model = model
         self._send_raw = send_raw or (lambda _e: False)
+        self._on_spoken_request: Callable[[str], None] | None = None
 
-    def bind(self, send_raw: Callable[[dict[str, Any]], bool]) -> None:
+    def bind(self, send_raw: Callable[[dict[str, Any]], bool], *,
+             on_spoken_request: Callable[[str], None] | None = None) -> None:
         self._send_raw = send_raw
+        self._on_spoken_request = on_spoken_request
+
+    def spoken_request_id(self) -> str:
+        return ""
 
     def url(self) -> str:
         raise NotImplementedError
@@ -306,7 +361,19 @@ class XAIProvider(VoiceProvider):
         if et not in {"response.created", "response.done"}:
             return [event]
         response = event.get("response")
-        if not isinstance(response, dict) or response.get("metadata"):
+        if not isinstance(response, dict):
+            return [event]
+        if et == "response.done" and isinstance(response.get("usage"), dict):
+            usage = response["usage"]
+            details = [usage.get("input_token_details"), usage.get("output_token_details")]
+            counts = [usage.get(key) for key in ("input_tokens", "output_tokens", "total_tokens")]
+            counts += [detail.get(key) for detail in details if isinstance(detail, dict)
+                       for key in ("cached_tokens", "text_tokens", "audio_tokens")]
+            numeric = [value for value in counts if isinstance(value, (int, float)) and not isinstance(value, bool)]
+            if numeric and not any(value > 0 for value in numeric):
+                response = {**response, "usage": {}}
+                event = {**event, "response": response}
+        if response.get("metadata"):
             return [event]
         rid = str(response.get("id") or "")
         with self._meta_lock:
@@ -332,23 +399,35 @@ class TranscriptBurst:
     """Groups GPT-Live transcript deltas into utterances (the docs: deltas carry no item id or
     turn-end event, so the app groups them). Flushes after a quiet gap on a timer."""
 
-    def __init__(self, on_flush: Callable[[str], None], gap_s: float = 1.2) -> None:
+    def __init__(self, on_flush: Callable[..., None], gap_s: float = 1.2) -> None:
         self._on_flush = on_flush
         self._gap_s = gap_s
         self._parts: list[str] = []
+        self._context: str | None = None
         self._lock = threading.Lock()
         self._timer: threading.Timer | None = None
 
-    def add(self, delta: str) -> bool:
+    def add(self, delta: str, *, context: str | None = None) -> bool:
         """Append a fragment exactly as received; True when it opens a new utterance."""
+        previous: tuple[str, str | None] | None = None
         with self._lock:
+            if self._parts and self._context != context:
+                previous = ("".join(self._parts).strip(), self._context)
+                self._parts = []
+                if self._timer:
+                    self._timer.cancel()
+                    self._timer = None
             fresh = not self._parts
+            if fresh:
+                self._context = context
             self._parts.append(delta)
             if self._timer:
                 self._timer.cancel()
             self._timer = threading.Timer(self._gap_s, self.flush)
             self._timer.daemon = True
             self._timer.start()
+        if previous and previous[0]:
+            self._deliver(*previous)
         return fresh
 
     def pending(self) -> bool:
@@ -358,19 +437,33 @@ class TranscriptBurst:
 
     def flush(self) -> None:
         with self._lock:
-            text, self._parts = "".join(self._parts).strip(), []
+            text, context = "".join(self._parts).strip(), self._context
+            self._parts, self._context = [], None
             if self._timer:
                 self._timer.cancel()
                 self._timer = None
         if text:
+            self._deliver(text, context)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._parts, self._context = [], None
+            if self._timer:
+                self._timer.cancel()
+                self._timer = None
+
+    def _deliver(self, text: str, context: str | None) -> None:
+        if context is None:
             self._on_flush(text)
+        else:
+            self._on_flush(text, context)
 
 
 class LiveProvider(VoiceProvider):
     """GPT-Live-1 with Responses delegation and a Bulk → Intelligence router."""
 
     name = "openai-live"
-    manages_barge_in = True  # no response.cancel / truncate: Live owns turn-taking
+    manages_barge_in = True  # Live owns audio turn-taking; delegated Responses cancel by response ID.
 
     def __init__(self, model: str = LIVE_MODEL, *, bulk: str | None = None, intelligence: str | None = None,
                  voice: str = "marin", store: bool = True, send_raw: Callable[[dict[str, Any]], bool] | None = None) -> None:
@@ -407,7 +500,8 @@ class LiveProvider(VoiceProvider):
         self._remember("user", text)
         with self._lock:
             backend_busy = bool(self._active_backend_responses or any(self._pending_calls.values()))
-            request_id = (self._pending_spoken_request[0] if self._pending_spoken_request else
+            spoken_request_id = self._pending_spoken_request[0] if self._pending_spoken_request else ""
+            request_id = (spoken_request_id or
                           self._pending_request or self._turn_request)
             step_ref = self._request_step_refs.get(request_id) if request_id else None
             if request_id and not step_ref:
@@ -418,6 +512,8 @@ class LiveProvider(VoiceProvider):
                 self._pending_spoken_update = text
             else:
                 self._pending_spoken_update = ""
+        if spoken_request_id and self._on_spoken_request:
+            self._on_spoken_request(spoken_request_id)
         if backend_busy:
             log_event("live_backend_input_queued", run_id=request_id or None,
                       run_ref_status="linked" if request_id else "unknown",
@@ -431,10 +527,180 @@ class LiveProvider(VoiceProvider):
         print(f"You: {text}", flush=True)
         island_publish("thinking", title=text[:120], detail="Thinking")
 
-    def _on_said(self, text: str) -> None:
+    def _on_said(self, text: str, request_id: str = "") -> None:
+        with self._lock:
+            stale = bool(request_id and request_id in self._retired_live_requests)
+            uncorrelated_typed = not request_id and bool(self._active_live_request)
+        if stale or uncorrelated_typed:
+            log_event("live_stale_turn_output", chars=len(text), run_id=request_id or None,
+                      run_ref_status="linked" if request_id else "unknown",
+                      run_ref_gap=None if request_id else "live_output_request_correlation_missing")
+            return
         self._remember("assistant", text)
-        log_event("assistant_reply", text=text[:2000], source="live_voice")
+        log_event("assistant_reply", text=text[:2000], source="live_voice", run_id=request_id or None,
+                  run_ref_status="linked" if request_id else "unknown",
+                  run_ref_gap=None if request_id else "live_output_request_correlation_missing")
         print(f"Samantha: {text}", flush=True)
+
+    def _retire_live_request_locked(self, request_id: str) -> None:
+        if not request_id:
+            return
+        self._retired_live_requests.pop(request_id, None)
+        self._retired_live_requests[request_id] = None
+        for output_id in self._live_output_ids_by_request.pop(request_id, set()):
+            self._live_output_id_requests.pop(output_id, None)
+            self._retired_live_output_ids[output_id] = request_id
+        while len(self._retired_live_requests) > 256:
+            self._retired_live_requests.pop(next(iter(self._retired_live_requests)))
+        while len(self._retired_live_output_ids) > 512:
+            self._retired_live_output_ids.pop(next(iter(self._retired_live_output_ids)))
+
+    def _remember_live_output_id_locked(self, request_id: str, kind: str, value: str) -> None:
+        if not request_id or not value:
+            return
+        output_id = (kind, value)
+        if output_id in self._retired_live_output_ids:
+            return
+        previous_request = self._live_output_id_requests.get(output_id)
+        if previous_request and previous_request != request_id:
+            self._live_output_id_requests.pop(output_id, None)
+            self._live_output_ids_by_request.get(previous_request, set()).discard(output_id)
+            self._retired_live_output_ids[output_id] = previous_request
+            while len(self._retired_live_output_ids) > 512:
+                self._retired_live_output_ids.pop(next(iter(self._retired_live_output_ids)))
+            return
+        self._live_output_id_requests[output_id] = request_id
+        self._live_output_ids_by_request.setdefault(request_id, set()).add(output_id)
+        while len(self._live_output_id_requests) > 512:
+            old_id = next(iter(self._live_output_id_requests))
+            old_request = self._live_output_id_requests.pop(old_id)
+            self._live_output_ids_by_request.get(old_request, set()).discard(old_id)
+            self._retired_live_output_ids[old_id] = old_request
+        while len(self._retired_live_output_ids) > 512:
+            self._retired_live_output_ids.pop(next(iter(self._retired_live_output_ids)))
+
+    def interrupt_request(self, request_id: str = "") -> tuple[list[str], list[dict[str, Any]]]:
+        response_ids: list[str] = []
+        settled: list[dict[str, Any]] = []
+        with self._lock:
+            request_id = request_id or self._active_live_request
+            self._retire_live_request_locked(request_id)
+            if request_id and self._active_live_request == request_id:
+                self._active_live_request = ""
+            if request_id:
+                self._previous_live_request = request_id
+            delegations = [delegation for delegation, owner in self._delegation_request.items()
+                           if owner == request_id]
+            for delegation in delegations:
+                self._cancelled_backend_delegations[delegation] = request_id
+                response_id = self._delegation_response.get(delegation, "")
+                calls = self._pending_calls.pop(delegation, set())
+                active = response_id in self._active_backend_responses or response_id in self._response_calls
+                if not response_id or (not active and not calls):
+                    continue
+                text = self._response_text.pop(response_id, "")
+                self._cancelled_backend_responses[response_id] = (request_id, text, not active)
+                self._active_backend_responses.discard(response_id)
+                self._response_calls.discard(response_id)
+                if active:
+                    response_ids.append(response_id)
+                else:
+                    settled.append(self._interrupted_backend_event(response_id, request_id, text,
+                                                                   local_settlement=True))
+            while len(self._cancelled_backend_delegations) > 256:
+                self._cancelled_backend_delegations.pop(next(iter(self._cancelled_backend_delegations)))
+            while len(self._cancelled_backend_responses) > 256:
+                self._cancelled_backend_responses.pop(next(iter(self._cancelled_backend_responses)))
+        self.said.clear()
+        if settled:
+            self._deescalate()
+        return response_ids, settled
+
+    @staticmethod
+    def _interrupted_backend_event(response_id: str, request_id: str, text: str, *,
+                                   local_settlement: bool = False) -> dict[str, Any]:
+        output = ([{"type": "message", "content": [{"type": "output_text", "text": text}]}]
+                  if text else [])
+        metadata = {"voice_cua_request_id": request_id, "voice_cua_interrupted": True}
+        if local_settlement:
+            metadata["voice_cua_local_settlement"] = True
+        return {"type": "response.done", "response": {
+            "id": response_id, "status": "cancelled", "usage": {}, "output": output,
+            "metadata": metadata,
+        }}
+
+    def spoken_request_id(self) -> str:
+        with self._lock:
+            return (self._pending_spoken_request[0] if self._pending_spoken_request
+                    else self._spoken_turn_request)
+
+    def _live_output_request(self, event: dict[str, Any]) -> tuple[str, bool]:
+        response = event.get("response") if isinstance(event.get("response"), dict) else {}
+        item = event.get("item") if isinstance(event.get("item"), dict) else {}
+        output_ids = [
+            ("client_event_id", str(event.get("client_event_id") or "")),
+            ("response_id", str(event.get("response_id") or response.get("id") or "")),
+            ("item_id", str(event.get("item_id") or item.get("id") or "")),
+        ]
+        output_ids = [(kind, value) for kind, value in output_ids if value]
+        with self._lock:
+            if any(output_id in self._retired_live_output_ids for output_id in output_ids):
+                return "", True
+            requests = {self._live_output_id_requests[output_id] for output_id in output_ids
+                        if output_id in self._live_output_id_requests}
+            if len(requests) > 1:
+                return "", True
+            request_id = next(iter(requests), "")
+            if not request_id:
+                if output_ids and self._active_backend_responses:
+                    if event.get("type") != "session.output_transcript.delta" or not self._previous_live_request:
+                        return "", True
+                    request_id = self._previous_live_request
+                else:
+                    spoken = self._pending_spoken_request[0] if self._pending_spoken_request else ""
+                    request_id = self._active_live_request or spoken or self._spoken_turn_request
+            if request_id in self._retired_live_requests and request_id != self._previous_live_request:
+                return "", True
+            for kind, value in output_ids:
+                self._remember_live_output_id_locked(request_id, kind, value)
+            if request_id:
+                self._last_live_output_request = request_id
+            return request_id, False
+
+    def _live_response_event(self, event: dict[str, Any]) -> list[dict[str, Any]]:
+        response = event.get("response") or {}
+        if not isinstance(response, dict):
+            return [event]
+        response_id = str(response.get("id") or event.get("response_id") or "")
+        metadata = response.get("metadata")
+        metadata = metadata if isinstance(metadata, dict) else {}
+        request_id = str(metadata.get("voice_cua_request_id") or "")
+        with self._lock:
+            output_id = ("response_id", response_id)
+            retired_request_id = self._retired_live_output_ids.get(output_id, "")
+            terminal_retired = bool(retired_request_id and event.get("type") == "response.done")
+            if retired_request_id:
+                if not terminal_retired:
+                    return []
+                if request_id and request_id != retired_request_id:
+                    return []
+                request_id = retired_request_id
+            mapped_request_id = self._live_output_id_requests.get(output_id, "")
+            if request_id and mapped_request_id and request_id != mapped_request_id:
+                return []
+            request_id = (request_id or mapped_request_id
+                          or self._active_live_request
+                          or (self._pending_spoken_request[0] if self._pending_spoken_request else "")
+                          or self._spoken_turn_request)
+            if request_id in self._retired_live_requests and not terminal_retired:
+                return []
+            if not terminal_retired:
+                self._remember_live_output_id_locked(request_id, "response_id", response_id)
+        if not request_id:
+            return [event]
+        enriched = dict(response)
+        enriched["metadata"] = {**metadata, "voice_cua_request_id": request_id}
+        return [{**event, "response": enriched}]
 
     # -- state ---------------------------------------------------------------
     def reset(self) -> None:
@@ -461,6 +727,13 @@ class LiveProvider(VoiceProvider):
             self._pending_calls: dict[str, set[str]] = {}  # delegation -> outstanding call ids
             self._last_delegation = ""
             self._pending_request = ""  # voice_cua_request_id of the last typed request
+            self._live_output_id_requests: dict[tuple[str, str], str] = {}
+            self._live_output_ids_by_request: dict[str, set[tuple[str, str]]] = {}
+            self._retired_live_output_ids: dict[tuple[str, str], str] = {}
+            self._retired_live_requests: dict[str, None] = {}
+            self._active_live_request = ""
+            self._previous_live_request = ""
+            self._last_live_output_request = ""
             self._pending_spoken_request: tuple[str, int] | None = None
             self._request_step_refs: dict[str, str] = getattr(self, "_request_step_refs", {})
             self._spoken_turn_request = ""
@@ -478,6 +751,8 @@ class LiveProvider(VoiceProvider):
             self._response_text: dict[str, str] = {}
             self._response_calls: set[str] = set()
             self._active_backend_responses: set[str] = set()
+            self._cancelled_backend_delegations: dict[str, str] = {}
+            self._cancelled_backend_responses: dict[str, tuple[str, str, bool]] = {}
             self._pending_spoken_update = ""
             self.voice_seconds = 0
             self._out_seq = getattr(self, "_out_seq", 0)
@@ -653,8 +928,12 @@ class LiveProvider(VoiceProvider):
                     self._pending_spoken_update = ""  # this newer explicit request supersedes queued speech
                     self._pending_spoken_request = None
                     self._user_item_queued = True  # the next response.create opens a turn
+                content = [{"type": "input_text", "text": text}]
+                route = typed_turn_route(text)
+                if route:
+                    content.append({"type": "input_text", "text": ROUTE_TEXT[route]})
                 return [{"type": "response.item.create", "item": {
-                    "type": "message", "role": "user", "content": [{"type": "input_text", "text": text}]}}]
+                    "type": "message", "role": "user", "content": content}}]
             return []
         if et == "response.create":
             with self._lock:
@@ -664,6 +943,7 @@ class LiveProvider(VoiceProvider):
             meta = (event.get("response") or {}).get("metadata") or {}
             request_id = str(meta.get("voice_cua_request_id") or "") if isinstance(meta, dict) else ""
             request_step_ref = str(meta.get("voice_cua_request_step_ref") or "") if isinstance(meta, dict) else ""
+            event_id = str(event.get("event_id") or "")
             with self._lock:
                 if request_id and request_step_ref:
                     self._request_step_refs[request_id] = request_step_ref
@@ -674,10 +954,20 @@ class LiveProvider(VoiceProvider):
                 if new_turn:
                     # A typed request (or its drop-recovery replay); a tool continuation that
                     # carries the same request id stays in its turn.
+                    previous_request = (self._active_live_request
+                                        or (self._pending_spoken_request[0] if self._pending_spoken_request else "")
+                                        or self._spoken_turn_request or self._turn_request
+                                        or self._last_live_output_request)
+                    if previous_request and previous_request != request_id:
+                        self._previous_live_request = previous_request
+                    if previous_request and previous_request != request_id:
+                        self._retire_live_request_locked(previous_request)
+                    self._active_live_request = request_id
                     self._pending_request = request_id
                     self._turn_seq += 1
                     self._turn_request = request_id
                     self._pending_spoken_request = None
+                    self.said.clear()
                     if outstanding:
                         # The queued message rides on the waiting delegation's continuation:
                         # that delegation now answers this turn.
@@ -695,6 +985,7 @@ class LiveProvider(VoiceProvider):
                 update = "" if self._active_backend_responses else self._pending_spoken_update
                 if update:
                     self._pending_spoken_update = ""
+                self._remember_live_output_id_locked(request_id, "client_event_id", event_id)
             out = []
             if update:
                 # Only amend the backend input between responses, never mid-generation.
@@ -704,14 +995,21 @@ class LiveProvider(VoiceProvider):
                         + update[:LIVE_APPEND_MAX_CHARS]
                         + "\nUse this to revise the pending task. Do not repeat completed actions or guess at incomplete speech."}]}})
                 log_event("live_backend_input_updated", chars=len(update))
-            return out + [{"type": "response.create"}]
+            create: dict[str, Any] = {"type": "response.create"}
+            if event_id:
+                create["event_id"] = event_id
+            return out + [create]
         return [event]
 
     def _tool_output(self, item: dict[str, Any]) -> list[dict[str, Any]]:
         call_id = str(item.get("call_id") or "")
         out: list[dict[str, Any]] = []
         with self._lock:
-            known = call_id in self._call_delegation
+            delegation = self._call_delegation.get(call_id, "")
+            if delegation in self._cancelled_backend_delegations:
+                self._call_delegation.pop(call_id, None)
+                return []
+            known = bool(delegation)
         if not known:
             # The call belongs to a session that reconnected away (a new Live session has no
             # such delegation): hand the result over as context; the caller's response.create
@@ -798,7 +1096,20 @@ class LiveProvider(VoiceProvider):
             return []
         if et == "session.updated":
             return [{"type": "session.updated", "session": event.get("session") or {}}]
+        if et in {"response.created", "response.done"}:
+            if et == "response.done":
+                response = event.get("response") or {}
+                response_id = str(response.get("id") or "") if isinstance(response, dict) else ""
+                with self._lock:
+                    delegation = self._response_delegation.get(response_id, "")
+                    cancelled = response_id in self._cancelled_backend_responses
+                if delegation and cancelled:
+                    return self._backend_event(delegation, event)
+            return self._live_response_event(event)
         if et == "session.output_audio.delta":
+            request_id, stale = self._live_output_request(event)
+            if stale:
+                return []
             now = time.monotonic()
             audible = not _is_silence(str(event.get("delta") or ""))
             with self._lock:
@@ -808,17 +1119,27 @@ class LiveProvider(VoiceProvider):
                     if not self._out_seq or now - self._last_out > 1.5:
                         self._out_seq += 1
                     self._last_out = now
-                rid = f"live_out_{self._out_seq}"
-            return [{"type": "response.output_audio.delta", "response_id": rid, "item_id": rid,
-                     "delta": event.get("delta") or ""}]
+                client_event_id = str(event.get("client_event_id") or "")
+                rid = str(event.get("response_id") or
+                          f"live_{client_event_id or request_id or self._out_seq}")
+            output = {"type": "response.output_audio.delta", "response_id": rid,
+                      "item_id": str(event.get("item_id") or rid), "delta": event.get("delta") or ""}
+            if request_id:
+                output["response"] = {"id": rid, "metadata": {"voice_cua_request_id": request_id}}
+            return [output]
         if et == "session.input_transcript.delta":
             # Buffer per response: the user talking over a reply must not cut it into one row per word.
             fresh = self.heard.add(str(event.get("delta") or ""))
             start_ms = event.get("start_ms")
+            retired_live_output = False
             if fresh and isinstance(start_ms, int) and not isinstance(start_ms, bool):
                 with self._lock:
                     backend_busy = bool(self._active_backend_responses or any(self._pending_calls.values()))
-                    if not backend_busy and not self._pending_request:
+                    if not self._pending_request:
+                        if not backend_busy and self._active_live_request:
+                            self._retire_live_request_locked(self._active_live_request)
+                            self._active_live_request = ""
+                            retired_live_output = True
                         request_id = uuid.uuid4().hex
                         self._pending_spoken_request = (request_id, start_ms)
                         self._request_step_refs[request_id] = new_step_ref()
@@ -831,14 +1152,26 @@ class LiveProvider(VoiceProvider):
                             self._delegation_turn.pop(delegation, None)
                             self._delegation_request.pop(delegation, None)
                             self._claim_delegation(delegation, offset_ms=self._unmatched_delegation_offsets.pop(delegation))
+            if retired_live_output:
+                self.said.clear()
             return [{"type": "input_audio_buffer.speech_started"}] if fresh or self._new_user_burst() else []
         if et == "session.output_transcript.delta":
+            request_id, stale = self._live_output_request(event)
+            if stale:
+                return []
             if not self.said.pending():
                 self.heard.flush()  # a new reply closes the user's utterance; mid-reply deltas do not
             with self._lock:
                 self._pending_spoken_request = None
-            self.said.add(str(event.get("delta") or ""))
-            return []
+            self.said.add(str(event.get("delta") or ""), context=request_id or None)
+            output = {"type": "response.output_text.delta",
+                      "response_id": str(event.get("response_id") or
+                                           f"live_{event.get('client_event_id') or request_id}"),
+                      "delta": event.get("delta") or ""}
+            if request_id:
+                output["response"] = {"id": output["response_id"],
+                                      "metadata": {"voice_cua_request_id": request_id}}
+            return [output]
         if et in {"session.usage.updated", "session.closed"}:
             usage = event.get("usage") or {}
             seconds = usage.get("seconds") if isinstance(usage, dict) else None
@@ -846,6 +1179,11 @@ class LiveProvider(VoiceProvider):
                 self.voice_seconds = int(seconds)
             log_event("live_usage", live_model=self.model, voice_seconds=self.voice_seconds,
                       final=et == "session.closed", reason=str(event.get("reason") or "") or None)
+            live_usage: dict[str, Any] = {"usage": dict(usage) if isinstance(usage, dict) else {}}
+            if isinstance(self.voice_seconds, int) and not isinstance(self.voice_seconds, bool):
+                live_usage["usage"]["seconds"] = self.voice_seconds
+            log_usage(live_usage, labels={"provider": self.name, "model": self.model,
+                                          "live_model": self.model}, accumulate=False)
             if et == "session.closed":
                 with self._lock:
                     self.closed.set()
@@ -905,6 +1243,25 @@ class LiveProvider(VoiceProvider):
             return []  # a rejected context/mic command is logged, not surfaced as a session failure
         return [event]
 
+    def _cancelled_backend_done(self, delegation: str, response: dict[str, Any], status: str) -> list[dict[str, Any]]:
+        response_id = str(response.get("id") or "")
+        with self._lock:
+            cancelled = self._cancelled_backend_responses.pop(response_id, None)
+            if not cancelled:
+                return []
+            request_id, partial, settled = cancelled
+            self._active_backend_responses.discard(response_id)
+            self._response_calls.discard(response_id)
+            self._pending_calls.pop(delegation, None)
+            self._response_text.pop(response_id, None)
+        if settled:
+            return []
+        done = self._interrupted_backend_event(response_id, request_id, partial)["response"]
+        done["status"] = response.get("status") or status
+        done["usage"] = response.get("usage") or {}
+        self._deescalate()
+        return [{"type": "response.done", "response": done}]
+
     def _new_user_burst(self) -> bool:
         now = time.monotonic()
         with self._lock:
@@ -914,22 +1271,41 @@ class LiveProvider(VoiceProvider):
 
     def _backend_event(self, delegation: str, inner: dict[str, Any]) -> list[dict[str, Any]]:
         it = inner.get("type")
-        response = inner.get("response") or {}
+        response = inner.get("response")
+        response = response if isinstance(response, dict) else {}
         rid = str(response.get("id") or inner.get("response_id") or "")
-        if it == "response.created":
-            with self._lock:
+        terminal = it in {"response.completed", "response.done", "response.failed", "response.incomplete"}
+        with self._lock:
+            if not rid:
+                # Nested item/text events carry no response id: use this delegation's response.
+                rid = self._delegation_response.get(delegation, "")
+            cancelled_response = rid in self._cancelled_backend_responses
+            if delegation in self._cancelled_backend_delegations and not cancelled_response:
+                return []
+            if cancelled_response:
+                pass
+            elif rid in self._cancelled_backend_responses:
+                return []
+            if it == "response.created":
+                previous_response_id = self._delegation_response.get(delegation, "")
+                if previous_response_id and previous_response_id != rid:
+                    self._response_text.pop(previous_response_id, None)
                 self._active_backend_responses.add(rid)
                 self._delegation_response[delegation] = rid
-        elif not rid:
-            # Nested item/text events carry no response id: use the delegation's current response.
-            rid = self._delegation_response.get(delegation, "")
+        if cancelled_response:
+            return self._cancelled_backend_done(delegation, response | {"id": rid},
+                                                str(response.get("status") or it.split(".")[-1])
+                                                if terminal else "cancelled") if terminal else []
         if it == "response.created":
             with self._lock:
+                if delegation in self._cancelled_backend_delegations or rid in self._cancelled_backend_responses:
+                    return []
                 self._last_delegation = delegation or self._last_delegation
                 if delegation not in self._delegation_turn:
                     self._claim_delegation(delegation)  # no delegation.created seen
                 request_id = self._current_request(delegation)
                 if rid:
+                    self._remember_live_output_id_locked(request_id, "response_id", rid)
                     self._response_delegation[rid] = delegation
                     self._response_tier[rid] = (self.tier, self.backend_model())
                     if len(self._response_tier) > 256:
@@ -941,12 +1317,28 @@ class LiveProvider(VoiceProvider):
                 if request_step_ref:
                     created["metadata"]["voice_cua_request_step_ref"] = request_step_ref
             return [{"type": "response.created", "response": created}]
+        if it == "response.output_text.delta":
+            with self._lock:
+                if delegation in self._cancelled_backend_delegations or rid in self._cancelled_backend_responses:
+                    return []
+                self._response_text[rid] = (self._response_text.get(rid, "")
+                                            + str(inner.get("delta") or ""))[:4000]
+            return []
         if it == "response.output_text.done":
             with self._lock:
+                if delegation in self._cancelled_backend_delegations or rid in self._cancelled_backend_responses:
+                    return []
+                self._remember_live_output_id_locked(self._current_request(delegation), "response_id", rid)
                 self._response_text[rid] = str(inner.get("text") or "")[:4000]
             return []
         if it == "response.output_item.done":
             item = inner.get("item") or {}
+            with self._lock:
+                if delegation in self._cancelled_backend_delegations or rid in self._cancelled_backend_responses:
+                    return []
+                request_id = self._current_request(delegation)
+                self._remember_live_output_id_locked(request_id, "response_id", rid)
+                self._remember_live_output_id_locked(request_id, "item_id", str(item.get("id") or ""))
             if item.get("type") == "message":
                 text = " ".join(str(c.get("text") or "") for c in item.get("content") or []
                                 if isinstance(c, dict) and c.get("type") == "output_text").strip()
@@ -958,6 +1350,8 @@ class LiveProvider(VoiceProvider):
                 return []
             call_id = str(item.get("call_id") or "")
             with self._lock:
+                if call_id in self._call_delegation:
+                    return []
                 self._response_calls.add(rid)
                 self._call_delegation[call_id] = delegation
                 self._pending_calls.setdefault(delegation, set()).add(call_id)
@@ -967,14 +1361,19 @@ class LiveProvider(VoiceProvider):
             return [{"type": "response.output_item.done", "response_id": rid, "item": item}]
         if it in {"response.completed", "response.done", "response.failed", "response.incomplete"}:
             with self._lock:
+                if delegation in self._cancelled_backend_delegations or rid in self._cancelled_backend_responses:
+                    return []
                 self._active_backend_responses.discard(rid)
                 outstanding = bool(self._pending_calls.get(delegation))
                 had_calls = rid in self._response_calls
                 self._response_calls.discard(rid)
                 if not had_calls and not outstanding:
                     self._pending_spoken_update = ""  # no continuation: do not leak speech into a later task
-                text = self._response_text.pop(rid, "")
+                text = self._response_text.get(rid, "")
+                if not had_calls and not outstanding:
+                    self._response_text.pop(rid, None)
                 request_id = self._current_request(delegation)
+                self._remember_live_output_id_locked(request_id, "response_id", rid)
                 stale = bool(text) and not had_calls and not request_id and bool(
                     self._delegation_request.get(delegation))
                 if not had_calls and not outstanding and request_id and request_id == self._spoken_turn_request:
@@ -1015,6 +1414,8 @@ class LiveProvider(VoiceProvider):
         if (self._pending_spoken_request and isinstance(offset_ms, int)
                 and not isinstance(offset_ms, bool)
                 and offset_ms >= self._pending_spoken_request[1]):
+            self._previous_live_request = (self._turn_request or self._active_live_request
+                                           or self._last_live_output_request)
             request_id, _ = self._pending_spoken_request
             self._pending_spoken_request = None
             self._turn_seq += 1

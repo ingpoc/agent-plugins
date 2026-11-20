@@ -65,6 +65,13 @@ class LazyGroupTests(unittest.TestCase):
         self.assertIn("text for visible page text", description)
         self.assertIn("page_context for compact orientation", description)
 
+    def test_comet_cleanup_keeps_requested_facts_in_the_reply(self) -> None:
+        end = next(tool for tool in tools.tool_definitions(comet_active=True) if tool["name"] == "comet_end")
+        self.assertIn("every fact the user requested", end["description"])
+        self.assertIn("page heading", end["description"])
+        self.assertIn("before confirming cleanup or closure", end["description"])
+        self.assertIn("state every fact the user explicitly asked you to report", SYSTEM_INSTRUCTIONS)
+
     def test_comet_act_without_lease_has_no_action_side_effects(self) -> None:
         with patch.object(tools, "comet_is_active", return_value=False), \
                 patch.object(tools, "comet_act") as act, \

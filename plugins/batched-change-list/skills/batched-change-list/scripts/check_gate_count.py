@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Report the authoritative BCL rollover gate count."""
+"""Report the authoritative BCL report gate count."""
 import argparse
 import json
 import sys
@@ -14,7 +14,17 @@ def gate_count(data):
     tracking = data.get("tracking", {})
     if not isinstance(tracking, dict):
         raise ValueError("tracker tracking must be an object")
-    return render.rollover_gate_state(data["findings"], tracking)
+    return render.report_gate_state(data["findings"], tracking)
+
+
+def verified_gate_count(data):
+    if not isinstance(data, dict) or not isinstance(data.get("findings"), list):
+        raise ValueError("tracker must contain a findings array")
+    tracking = data.get("tracking", {})
+    if not isinstance(tracking, dict):
+        raise ValueError("tracker tracking must be an object")
+    fixed, threshold, _ = render.rollover_gate(data["findings"], tracking)
+    return fixed, threshold, fixed >= threshold
 
 
 def rollover_gate_count(data):

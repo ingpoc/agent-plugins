@@ -214,6 +214,19 @@ def build(release: bool = True) -> Path:
 
 def create_app_bundle(binary: Path, dest: Path) -> None:
     """Create a proper .app bundle from the binary."""
+    try:
+        subprocess.run(
+            [sys.executable, "-c", "import PyInstaller"],
+            check=True, capture_output=True, text=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        print(
+            f"ERROR: PyInstaller is unavailable in {sys.executable}; "
+            "run the installer with a Python that has PyInstaller (for example, pyenv python3).",
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from exc
+
     contents = dest / "Contents"
     macos = contents / "MacOS"
     resources = contents / "Resources"
@@ -251,6 +264,12 @@ def create_app_bundle(binary: Path, dest: Path) -> None:
         )
     stamp_version(contents / "Info.plist")
     print(f"  ✓ App bundle created at {dest}")
+
+
+def require_voice_helper(app_path: Path) -> None:
+    helper = app_path / "Contents" / "Helpers" / "voice-cua.app" / "Contents" / "MacOS" / "voice-cua"
+    if not helper.is_file() or not os.access(helper, os.X_OK):
+        raise RuntimeError(f"Voice CUA helper missing or not executable: {helper}")
 
 
 PLUGIN_JSON = PLUGIN_ROOT / "plugin.json"
@@ -416,11 +435,6 @@ def main():
         "--stage-only", metavar="DIR",
         help="With --release: sign + notarize, copy the stapled app to DIR, do not install",
     )
-    parser.add_argument(
-        "--skip-voice-bundle",
-        action="store_true",
-        help="Do not bundle voice-cua helper",
-    )
     args = parser.parse_args()
 
     dest = Path(args.dest)
@@ -430,6 +444,11 @@ def main():
     binary = build(release=not args.debug)
 
     if args.replace_binary:
+        try:
+            require_voice_helper(dest)
+        except RuntimeError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            sys.exit(1)
         dest_bin = dest / "Contents" / "MacOS" / "CUAService"
         if not dest_bin.exists():
             print(f"ERROR: missing {dest_bin}; run a full install first", file=sys.stderr)
@@ -449,8 +468,8 @@ def main():
     print("Creating app bundle...")
     create_app_bundle(binary, target)
 
-    if not args.skip_voice_bundle:
-        bundle_voice_helper(target, team=args.team, skip_sign=True)
+    bundle_voice_helper(target, team=args.team, skip_sign=True)
+    require_voice_helper(target)
     bundle_mediaremote_adapter(target)
     if package_identity(PLUGIN_ROOT) != candidate_identity:
         raise RuntimeError("Source changed during build; refusing to sign/install")
@@ -475,6 +494,7 @@ def main():
         print("Signing...")
         codesign(dest, identity, args.team)
 
+    require_voice_helper(dest)
     refresh_icon_cache(dest)
     if Path(args.dest) == INSTALL_DIR:
         print(f"  ✓ Legacy path {LEGACY_DIR}: {ensure_compat_link(dest)}")

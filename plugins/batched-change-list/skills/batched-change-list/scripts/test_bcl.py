@@ -107,7 +107,7 @@ elif args[:2] != ['pr', 'edit']:
         record = next(iter(json.loads((self.state / "registry.json").read_text()).values()))
         key = "example/project/123"
         self.viewer_port = 40000 + os.getpid() % 19000
-        while self.viewer_port == 53366 or not live_state._port_is_free(self.viewer_port):
+        while self.viewer_port in {53366, 8765, 8766, 52432, 57666} or not live_state._port_is_free(self.viewer_port):
             self.viewer_port = 40000 + (self.viewer_port - 39999) % 19000
         viewer = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
         viewer.write_text(json.dumps({"port": self.viewer_port, "pid": None, "data": record["live"]}))
@@ -117,7 +117,7 @@ elif args[:2] != ['pr', 'edit']:
         viewer_test_guard.stop_viewers(self.root, owned)
 
     def test_suite_leaves_no_viewer_processes(self):
-        proc = subprocess.Popen([sys.executable, str(live_state.SCRIPTS / "serve.py"), str(self.page), "--port", "0"],
+        proc = subprocess.Popen([sys.executable, str(live_state.SCRIPTS / "serve.py"), str(self.page), "--port", str(self.viewer_port)],
                                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             deadline = time.monotonic() + 10
@@ -391,14 +391,15 @@ elif args[:2] != ['pr', 'edit']:
         self.data.write_bytes(live.read_bytes())
         return live
 
-    def _lane_ready(self):
+    def _lane_ready(self, *install_args):
         self.assertEqual(self.call_without_viewer("start").returncode, 0)
         check = self.root / "lane.py"; check.write_text("pass\n")
         command = f'"{sys.executable}" "{check}"'
         plan = self.root / "verify-plan.json"
         plan.write_text(json.dumps({"round":1,"groups":[{"id":"A","finding_ids":["ISSUE-01"],"status":"pending","verify":{"command":command}}]}))
-        self.assertEqual(self.call("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
-        self.assertEqual(self.install_after_review("--ids", "ISSUE-01").returncode, 0)
+        self.assertEqual(self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        self.prepare_review(["ISSUE-01"])
+        self.assertEqual(self.call_without_viewer("install", "--ids", "ISSUE-01", *install_args).returncode, 0)
         live = self._active_verification()
         return live, command
 
@@ -437,6 +438,130 @@ elif args[:2] != ['pr', 'edit']:
         _, command = self._lane_ready()
         lane = self.call("verify", "--ids", "ISSUE-01", "--then", command)
         self.assertEqual(lane.returncode, 0, lane.stderr)
+
+    def test_verify_records_fixed_result_from_a_verifying_lane(self):
+        live, command = self._lane_ready()
+        check = Path(command.split('"')[3])
+        manager = PLUGIN / "skills/batched-change-list/scripts/manage_findings.py"
+        check.write_text(
+            "import json, subprocess, sys\n"
+            "from pathlib import Path\n"
+            f"live = Path({str(live)!r})\n"
+            "document = json.loads(live.read_text())\n"
+            "assert document['tracking']['plan']['groups'][0]['status'] == 'verifying'\n"
+            f"manager = {str(manager)!r}\n"
+            f"page = {str(self.page)!r}\n"
+            "operations = [{'action':'update','id':'ISSUE-01','patch':{'status':'verified_fixed',"
+            "'verification':'The behavior was fixed.','verification_refs':['Verification receipt']}}]\n"
+            "result = subprocess.run([sys.executable, manager, 'batch', str(live), '-', '--render', page], "
+            "input=json.dumps(operations), text=True, capture_output=True)\n"
+            "if result.returncode:\n print(result.stderr or result.stdout, file=sys.stderr)\n"
+            "raise SystemExit(result.returncode)\n")
+        result = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "verified")
+        self.assertEqual(group["phase"], "verify")
+
+    def test_install_and_verify_record_the_model_shown_for_the_lane(self):
+        live, command = self._lane_ready("--model", "release script")
+        group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual((group["stage_model"]["stage"], group["stage_model"]["model"]), ("install", "release script"))
+        check = Path(command.split('"')[3])
+        seen = self.root / "seen-model.json"
+        check.write_text(
+            "import json\n"
+            "from pathlib import Path\n"
+            f"group = json.loads(Path({str(live)!r}).read_text())['tracking']['plan']['groups'][0]\n"
+            f"Path({str(seen)!r}).write_text(json.dumps(group.get('stage_model')))\n")
+        result = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--model", "Grok Bot subagent (typed verify)", "--then", command)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        stage_model = json.loads(seen.read_text())
+        self.assertEqual((stage_model["stage"], stage_model["model"]), ("verify", "Grok Bot subagent (typed verify)"))
+
+    def test_verify_without_model_records_a_scripted_check(self):
+        live, command = self._lane_ready("--model", "release script")
+        result = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("stage_model", json.loads(live.read_text())["tracking"]["plan"]["groups"][0])
+
+    def test_failed_lane_check_reruns_once_per_round_with_a_reason(self):
+        live, command = self._lane_ready()
+        check = Path(command.split('"')[3])
+        check.write_text("raise SystemExit(7)\n")
+        self.assertEqual(self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command).returncode, 7)
+        refused = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("--reason", refused.stderr)
+        check.write_text("pass\n")
+        rerun = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--reason", "verifier needed a git repo", "--then", command)
+        self.assertEqual(rerun.returncode, 0, rerun.stderr)
+        group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(len(group["verify_reruns"]), 1)
+        self.assertEqual(group["verify_reruns"][0]["reason"], "verifier needed a git repo")
+        self.assertIn("exited 7", group["verify_reruns"][0]["previous_failure"])
+        self.assertNotIn("failure", group["verify"])
+        check.write_text("raise SystemExit(7)\n")
+        self.assertEqual(self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command).returncode, 7)
+        again = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--reason", "second try at the same check", "--then", command)
+        self.assertNotEqual(again.returncode, 0)
+        self.assertIn("already rerun this round", again.stderr)
+
+    def test_refused_rerun_spends_nothing(self):
+        live, command = self._lane_ready()
+        check = Path(command.split('"')[3])
+        check.write_text("raise SystemExit(7)\n")
+        self.assertEqual(self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command).returncode, 7)
+        wrong = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--reason", "verifier needed a git repo", "--then", command + " extra")
+        self.assertNotEqual(wrong.returncode, 0)
+        self.assertIn("exact stored command", wrong.stderr)
+        group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "failed", "a refused rerun leaves the lane failed")
+        self.assertNotIn("verify_reruns", group, "a refused rerun does not spend the once-per-round slot")
+        check.write_text("pass\n")
+        rerun = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--reason", "verifier needed a git repo", "--then", command)
+        self.assertEqual(rerun.returncode, 0, rerun.stderr)
+        self.assertEqual(len(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["verify_reruns"]), 1)
+
+    def test_reason_is_refused_for_a_lane_that_did_not_fail(self):
+        _, command = self._lane_ready()
+        result = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--reason", "no failure to rerun here", "--then", command)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("none of these lanes failed", result.stderr)
+
+    def test_correct_round_moves_the_counter_forward_and_keeps_history(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        plan = self.root / "round-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned"}]}))
+        self.assertEqual(self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        self.assertNotEqual(self.call_without_viewer("correct-round", "--round", "3").returncode, 0)
+        result = self.call_without_viewer("correct-round", "--round", "3", "--reason", "two rounds ran without rollover")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        tracking = json.loads(live.read_text())["tracking"]
+        self.assertEqual((tracking["round"], tracking["plan"]["round"]), (3, 3))
+        self.assertEqual(tracking["round_corrections"][0]["from"], 1)
+        self.assertEqual(tracking["round_corrections"][0]["reason"], "two rounds ran without rollover")
+        self.assertIn("Round 3", self.page.read_text())
+        backwards = self.call_without_viewer("correct-round", "--round", "2", "--reason", "trying to go back down")
+        self.assertNotEqual(backwards.returncode, 0)
+        self.assertIn("above the current round 3", backwards.stderr)
+
+    def test_verify_records_failure_after_its_lane_enters_verifying(self):
+        live, command = self._lane_ready()
+        check = Path(command.split('"')[3])
+        check.write_text(
+            "import json\n"
+            "from pathlib import Path\n"
+            f"document = json.loads(Path({str(live)!r}).read_text())\n"
+            "assert document['tracking']['plan']['groups'][0]['status'] == 'verifying'\n"
+            "raise SystemExit(7)\n")
+        result = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertEqual(result.returncode, 7, result.stderr)
+        group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "failed")
+        self.assertEqual(group["phase"], "verify")
+        self.assertIn("exited 7", group["verify"]["failure"])
 
     def call_without_viewer(self, stage, *args):
         output, error = io.StringIO(), io.StringIO()
@@ -540,12 +665,12 @@ elif args[:2] != ['pr', 'edit']:
         prepared = self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01")
         self.assertEqual(prepared.returncode, 0, prepared.stderr)
         review_result = self.root / "review-result.txt"
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
         def job(phase):
             command = [sys.executable, "-c", f"from pathlib import Path; Path({str(review_result)!r}).write_text('VERDICT: PASS\\n')"] if phase == "review" else [sys.executable, "-c", "pass"]
-            return subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
-                *( ["--result", str(review_result)] if phase == "review" else []),
-                "--phase", phase, "job", "--", *command],
-                env=self.env, capture_output=True, text=True)
+            args = ["--ids", "ISSUE-01", *( ["--result", str(review_result)] if phase == "review" else []),
+                    "--phase", phase, "job", "--", *command]
+            return self.call_job_without_viewer(live, *args)
         self.assertEqual(job("fix").returncode, 0)
         self.assertEqual(job("presuite").returncode, 0)
         reviewed = self.call_without_viewer("review", "--ids", "ISSUE-01")
@@ -587,6 +712,30 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(group["codex"]["review_status"], "passed" if writes and verdict == "VERDICT: PASS" else "failed")
         if writes and not isinstance(verdict, bytes):
             self.assertIn("review note", result.read_text())
+
+    def test_review_job_model_is_recorded_for_the_lane_model_column(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        plan = self.root / "review-model-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned",
+            "codex": {"model": "gpt-6-luna", "implementer_session": "writer", "reviewer_session": "reviewer"}}]}))
+        self.assertEqual(self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        def run(phase, *extra):
+            return subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01", *extra,
+                "--phase", phase, "job", "--", sys.executable, "-c", "pass"], env=self.env, capture_output=True, text=True)
+        self.assertEqual(run("fix", "--model", "gpt-6-luna max").returncode, 0)
+        codex = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["codex"]
+        self.assertEqual((codex["job"]["model"], codex.get("reviewer_model")), ("gpt-6-luna max", None))
+        self.assertEqual(self.call_without_viewer("review", "--ids", "ISSUE-01").returncode, 0)
+        result = self.root / "review-model.txt"
+        job = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01", "--result", str(result),
+            "--model", "Grok Bot subagent (own review)", "--phase", "review", "job", "--", sys.executable, "-c",
+            f"from pathlib import Path; Path({str(result)!r}).write_text('VERDICT: PASS\\n')"], env=self.env, capture_output=True, text=True)
+        self.assertEqual(job.returncode, 0, job.stderr)
+        codex = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["codex"]
+        self.assertEqual(codex["job"]["model"], "Grok Bot subagent (own review)")
+        self.assertEqual(codex["reviewer_model"], "Grok Bot subagent (own review)")
+        self.assertEqual(codex["model"], "gpt-6-luna")
+        self.assertEqual(codex["review_status"], "passed")
 
     def test_review_job_with_changes_verdict_records_failed(self):
         self._review_job_verdict("VERDICT: CHANGES")
@@ -661,7 +810,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(data["tracking"]["stages_reached"], ["collect", "plan_fix", "review", "install", "verify", "introspect"])
         self.assertEqual(data["tracking"]["plan"]["groups"][0]["id"], "A")
         self.assertEqual(data["tracking"]["plan"]["status"], "closed")
-        self.assertEqual(json.loads(status.stdout)["plan"][0]["status"], "installing")
+        self.assertEqual(json.loads(status.stdout)["plan"][0]["status"], "verifying")
 
     def test_introspect_draft_rejects_input_tracker_and_live_hard_link(self):
         input_before = self.data.read_bytes()
@@ -811,9 +960,43 @@ elif args[:2] != ['pr', 'edit']:
         result = self.call_job_without_viewer(live,'--ids','ISSUE-01','--phase','fix','job','--',sys.executable,'-c','pass')
         self.assertEqual(result.returncode, 0, result.stderr)
         tracking = json.loads(live.read_text())['tracking']
-        self.assertEqual(tracking['round'], 2)
+        self.assertEqual(tracking.get('round', tracking['plan']['round']), 1)
         self.assertEqual(tracking['plan']['groups'][0]['status'], 'review')
         self.assertEqual(tracking['plan']['groups'][0]['codex']['fix_status'], 'passed')
+
+    def test_restart_after_early_introspect_keeps_round_through_final_introspect(self):
+        live, command = self._lane_ready()
+        check = Path(command.split('"')[3])
+        check.write_text("raise SystemExit(7)\n")
+        failed = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertEqual(failed.returncode, 7, failed.stderr)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["status"], "failed")
+
+        sections = self.root / "early-introspect.json"
+        self.assertEqual(self.call_without_viewer("introspect", "--draft", sections).returncode, 0)
+        payload = json.loads(sections.read_text())
+        payload["none"] = payload["steps"]
+        sections.write_text(json.dumps(payload))
+        introspect = self.call_without_viewer("introspect", "--sections", sections)
+        self.assertEqual(introspect.returncode, 0, introspect.stderr)
+
+        restarted = self.call_job_without_viewer(
+            live, "--ids", "ISSUE-01", "--phase", "fix", "job", "--", sys.executable, "-c", "pass")
+        self.assertEqual(restarted.returncode, 0, restarted.stderr)
+        check.write_text("pass\n")
+        self.assertEqual(self.install_after_review("--ids", "ISSUE-01").returncode, 0)
+        verified = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertEqual(verified.returncode, 0, verified.stderr)
+
+        self.assertEqual(self.call_without_viewer("introspect", "--draft", sections).returncode, 0)
+        payload = json.loads(sections.read_text())
+        payload["none"] = payload["steps"]
+        sections.write_text(json.dumps(payload))
+        introspect = self.call_without_viewer("introspect", "--sections", sections)
+        self.assertEqual(introspect.returncode, 0, introspect.stderr)
+        tracking = json.loads(live.read_text())["tracking"]
+        self.assertEqual(tracking.get("round", tracking["plan"]["round"]), 1)
+        self.assertEqual(tracking.get("round_history", []), [])
 
     def test_fix_job_does_not_run_command_without_current_introspect(self):
         self.assertEqual(self.call('start').returncode, 0)
@@ -844,16 +1027,20 @@ elif args[:2] != ['pr', 'edit']:
         self.assertIn('fix job cannot start a blocked, parked, or deferred lane', result.stderr)
 
     def test_failed_command_does_not_overwrite_newer_plan(self):
-        self.assertEqual(self.call('start').returncode, 0)
+        self.assertEqual(self.call_without_viewer('start').returncode, 0)
         live = Path(json.loads((self.state / 'registry.json').read_text())['example/project/123']['live'])
         fail = self.root / 'replan.py'
         fail.write_text(f"import json\nfrom pathlib import Path\np=Path({str(live)!r})\nd=json.loads(p.read_text())\nd['tracking']['plan']['groups'][0]['status']='review'\np.write_text(json.dumps(d))\nraise SystemExit(7)\n")
         command = f'"{sys.executable}" "{fail}"'
-        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending','verify':{'command':command}}]}
-        path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
-        self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
-        self.assertEqual(self.install_after_review('--ids','ISSUE-01').returncode, 0)
-        result = self.call('verify','--ids','ISSUE-01','--then',command)
+        plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending',
+            'verify':{'command':command}, 'codex': {'implementer_session':'fixture-implementer',
+            'reviewer_session':'fixture-reviewer', 'review_status':'pending'}}]}
+        path = self.root / 'plan.json'
+        path.write_text(json.dumps(plan))
+        self.assertEqual(self.call_without_viewer('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
+        self.prepare_review(['ISSUE-01'])
+        self.assertEqual(self.call_without_viewer('install','--ids','ISSUE-01').returncode, 0)
+        result = self.call_without_viewer('verify','--ids','ISSUE-01','--then',command)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('Could not record failed lanes', result.stderr)
         self.assertEqual(json.loads(live.read_text())['tracking']['plan']['groups'][0]['status'], 'review')
@@ -1383,7 +1570,7 @@ elif args[:2] != ['pr', 'edit']:
             other = reports / "other page.html"
             report.write_text("<html></html>")
             other.write_text("<html></html>")
-            proc = subprocess.Popen([sys.executable, str(live_state.SCRIPTS / "serve.py"), str(report), "--port", "0"],
+            proc = subprocess.Popen([sys.executable, str(live_state.SCRIPTS / "serve.py"), str(report), "--port", str(self.viewer_port)],
                                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             try:
                 deadline = time.monotonic() + 10
@@ -1392,8 +1579,7 @@ elif args[:2] != ['pr', 'edit']:
                 self.assertTrue(live_state._viewer_process(proc.pid, report))
                 self.assertFalse(live_state._viewer_process(proc.pid, other))
             finally:
-                proc.terminate()
-                proc.wait(timeout=5)
+                viewer_test_guard.stop_viewers(directory, (proc.pid,))
                 proc.wait(timeout=5)
 
     def test_merged_keeps_terminal_data_and_emits_todo_when_retarget_api_fails(self):

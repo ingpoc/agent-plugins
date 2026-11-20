@@ -34,6 +34,9 @@ TEST_PURPOSES = {'self_test', 'test', 'fixture'}
 SKIP_DIRS = {'.git', 'node_modules', '.build', '__pycache__', '.venv'}
 _ISO = re.compile(r'^\[?(\d{4}-\d\d-\d\dT[\d:.]+(?:Z|[+-]\d\d:?\d\d)?)')
 _LOG_ERROR = re.compile(r'(?i)\b(error|exception|traceback|fatal|failed|failure)\b')
+_PYTEST_PROGRESS = re.compile(r'^(.+?::.+?)\s+(?:FAILED|ERROR)(?:\s+\[[^\]]+\])?$')
+_PYTEST_FAILURE = re.compile(r'^(?:FAILED|ERROR)\s+(.+?::.+?)(?:\s+-\s+(.*))?$')
+_PYTEST_SUMMARY = re.compile(r'^\d+\s+(?:failed|passed|errors?|skipped|xfailed|xpassed|deselected)\b.*$', re.I)
 _PHASE = re.compile(r'\bphase=(\S+)')
 _WORD = re.compile(r'\b([a-z_]+):')
 _NAMED_MS = re.compile(r'\b(\w+?)_ms=(\d+(?:\.\d+)?)')
@@ -181,7 +184,8 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
            input_rate=None, input_recovery=None, input_selection=None, mirror_ref=None, build=None,
            ledger_rule=None, ledger_selected_count=None, ledger_selected_id=None, ledger_supersedes=None,
            ledger_decision_id=None, ledger_revision=None, step_ref=None, retry_of_step_ref=None,
-           retry_of_run_ref=None, mirror_of=None, caused_by=None, task_data=None):
+           retry_of_run_ref=None, mirror_of=None, caused_by=None, task_data=None, error_type=None,
+           exception_type=None, classification=None, input_tokens=None, output_tokens=None, total_tokens=None):
     item = _stat(stats, source)
     item['events'] += 1
     item['errors'] += bool(error)
@@ -203,6 +207,9 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
                 'task_outcome': task_outcome, 'task_check_id': task_check_id,
                 'task_evidence_class': task_evidence_class, 'task_tools': task_tools,
                 'call_ref': call_ref, 'response_ref': response_ref, 'run_ref': run_ref,
+                'error_type': error_type, 'exception_type': exception_type, 'classification': classification,
+                'input_tokens': input_tokens, 'output_tokens': output_tokens,
+                'total_tokens': total_tokens,
                 'error_details': error_details, 'ledger_result_detail': ledger_result_detail,
                 'ledger_detail_truncated': ledger_detail_truncated, 'input_availability': input_availability,
                 'input_device': input_device, 'input_rate': input_rate, 'input_recovery': input_recovery,
@@ -333,7 +340,8 @@ def _session_flags_update(info, obj):
     session = obj.get('session_id') or obj.get('session')
     if not isinstance(session, str) or not session:
         return
-    entry = info.setdefault(session, {'versions': set(), 'purpose_test': False, 'canned': False, 'instant': False})
+    entry = info.setdefault(session, {'versions': set(), 'purpose_test': False,
+                                      'canned': False, 'instant': False})
     if isinstance(obj.get('version'), str) and obj['version']:
         entry['versions'].add(obj['version'][:40])
     if obj.get('purpose') in TEST_PURPOSES:
@@ -397,6 +405,16 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
         mirror = kind in MIRROR_KINDS
         error = error and not mirror
         text = err.get('message') if isinstance(err, dict) else None
+        error_type = obj.get('error_type')
+        if not isinstance(error_type, str) and isinstance(err, dict):
+            error_type = _first_str(err, ('type', 'name'))
+        error_type = scrub(error_type, 120) if isinstance(error_type, str) else None
+        exception_type = (scrub(obj.get('exception_type'), 120) or None
+                          if isinstance(obj.get('exception_type'), str) else None)
+        classification = (scrub(obj.get('classification'), 80) or None
+                          if isinstance(obj.get('classification'), str) else None)
+        token_counts = {key: obj[key] for key in ('input_tokens', 'output_tokens', 'total_tokens')
+                        if type(obj.get(key)) is int and 0 <= obj[key] <= 2**53 - 1}
         raw_message = text if isinstance(text, str) else _first_str(obj, ('error', 'error_message', 'detail', 'message', 'reason', 'msg'))
         cause = obj.get('cause') if isinstance(obj.get('cause'), str) else _cause(obj.get('detail'), obj.get('error'))
         condition = cause if cause and (error or status == 'skip') else None
@@ -481,6 +499,9 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
                      input_recovery=obj.get('input_recovery') if obj.get('input_recovery') in ('recovered','not_observed','unknown') else None,
                      input_selection=obj.get('input_selection') if obj.get('input_selection') == 'system_default_snapshot' else None,
                      call_ref=opaque_id('call_id'), response_ref=opaque_id('response_id'), run_ref=_run_ref(obj.get('run_id')),
+                     error_type=error_type, exception_type=exception_type, classification=classification,
+                     input_tokens=token_counts.get('input_tokens'),
+                     output_tokens=token_counts.get('output_tokens'), total_tokens=token_counts.get('total_tokens'),
                      mirror_ref=opaque_id('mirror_id'), build=build,
                      ledger_rule=ledger_rule, ledger_selected_count=selected_count,
                      ledger_selected_id=opaque_id('ledger_selected_id'), ledger_supersedes=opaque_id('supersedes')
@@ -493,6 +514,18 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
                      mirror_of=_task_id(obj.get('mirror_of')), caused_by=caused_by,
                      task_data=_task_fields(obj),
                      outcome='failure' if error else ('success' if obj.get('ok') is True or status == 'ok' else 'unknown')))
+    realtime_errors = [event for event in produced if event['kind'] == 'realtime_error'
+                       and event.get('exception_type') and event.get('session') and event.get('ts') is not None]
+    for event in produced:
+        if event['kind'] != 'startup' or event['step'] != 'realtime_ws_error' or not event.get('session') or event.get('ts') is None:
+            continue
+        nearby = [error for error in realtime_errors if error['session'] == event['session']
+                  and abs(error['ts'] - event['ts']) <= 1.0]
+        if nearby:
+            error = min(nearby, key=lambda candidate: abs(candidate['ts'] - event['ts']))
+            for field in ('exception_type', 'classification'):
+                if not event.get(field) and error.get(field):
+                    event[field] = error[field]
     for event in produced:
         _apply_session_flags(event, info, stats, source)
         yield event
@@ -516,19 +549,44 @@ def _prose_phase(line, phases):
     return next((phase for phase in phases if f'_{phase}_' in words), None)
 
 
+def _pytest_test_name(node_id):
+    path, *parts = node_id.split('::')
+    if path.endswith('.py'):
+        path = path[:-3]
+    return '.'.join((path.removeprefix('./').replace('/', '.'), *parts))
+
+
 def iter_textlog(path, project, source, stats, max_bytes=64_000_000):
     _stat(stats, source)
     phases = _known_phases(path, max_bytes)
+    pytest_cases = {}
     # Lines without their own timestamp or session inherit the previous one (else the file's mtime).
-    last_ts, session = None, None
+    last_ts, session, run_id = None, None, None
     mtime = Path(path).stat().st_mtime
     for number, line in _lines(path, max_bytes):
-        line = line.rstrip('\n')
-        error = bool(_LOG_ERROR.search(line)) and 'status=ok' not in line
+        line = line.rstrip('\r\n')
         match = _ISO.match(line)
         stamp = parse_ts(match.group(1)) if match else None
         last_ts = stamp if stamp is not None else last_ts
         ts = last_ts if last_ts is not None else mtime
+        if marker := _CHECK_ID.fullmatch(line):
+            run_id = marker.group(1)
+            continue
+        if _PYTEST_SUMMARY.fullmatch(line.strip(' =')):
+            continue
+        if test := _PYTEST_FAILURE.fullmatch(line):
+            node_id = test.group(1)
+            name = _pytest_test_name(node_id)
+            case = (name, _run_ref(run_id))
+            if case not in pytest_cases or pytest_cases[case][2] is None:
+                pytest_cases[case] = (number, ts, scrub(test.group(2) or f'pytest reported failed test {node_id}'), node_id)
+            continue
+        if test := _PYTEST_PROGRESS.fullmatch(line):
+            node_id = test.group(1)
+            name = _pytest_test_name(node_id)
+            pytest_cases.setdefault((name, _run_ref(run_id)), (number, ts, None, node_id))
+            continue
+        error = bool(_LOG_ERROR.search(line)) and 'status=ok' not in line
         own = _SESSION.search(line)
         if own:
             session = own.group(1)
@@ -556,6 +614,12 @@ def iter_textlog(path, project, source, stats, max_bytes=64_000_000):
                      session_attribution='event' if own else ('previous_line_inferred' if session else 'unknown'),
                      version_attribution='unknown',
                      mirror_ref=hashlib.sha256(m.group(1).encode()).hexdigest()[:24] if (m := re.search(r'\bmirror_id=([0-9a-f]{32})\b', line)) else None)
+    for (name, run_ref), (number, ts, message, node_id) in pytest_cases.items():
+        event = _event(stats, project=project, source=source, kind='test', step=name, error=True,
+                       ts=ts, duration_ms=None, message=message or f'pytest reported failed test {node_id}; failure summary missing',
+                       where=ref(path, number), run_ref=run_ref, outcome='failure')
+        event['pytest_test_id'] = name
+        yield event
 
 
 def iter_junit(path, project, source, stats):
@@ -566,6 +630,24 @@ def iter_junit(path, project, source, stats):
         stats[source]['skipped'] += 1
         return
     ts = Path(path).stat().st_mtime
+    suite_end = {}
+
+    def record_suite_end(node, inherited=None):
+        if node.tag == 'testsuite':
+            started = parse_ts(node.get('timestamp'))
+            try:
+                duration = float(node.get('time'))
+            except (TypeError, ValueError):
+                duration = None
+            if started is not None and duration is not None and duration >= 0:
+                inherited = started + duration
+        if node.tag == 'testcase':
+            suite_end[id(node)] = inherited
+        else:
+            for child in node:
+                record_suite_end(child, inherited)
+
+    record_suite_end(root)
     run_id = root.get('run_id') or root.get('check_id') or next(
         (prop.get('value') for prop in root.iter('property') if prop.get('name') in ('run_id', 'check_id')), None)
     for case in root.iter('testcase'):
@@ -579,12 +661,15 @@ def iter_junit(path, project, source, stats):
         message = scrub((bad.get('message') or bad.text or '') if bad is not None else '')
         error_type = bad.get('type') if bad is not None else None
         case_name = f"{case.get('classname', '')}.{case.get('name', '')}".strip('.')
-        yield _event(stats, project=project, source=source, kind='test',
-                     step=case_name, error=bad is not None, ts=ts,
-                     duration_ms=duration, metric='test_ms', message=message, where=ref(path, 0),
-                     run_ref=_run_ref(run_id), step_ref=_test_step_ref(case.get('step_ref') or case.get('id') or case_name),
-                     task_data={'error_type': scrub(error_type, 120)} if error_type else {},
-                     outcome='failure' if bad is not None else 'success')
+        event = _event(stats, project=project, source=source, kind='test',
+                       step=case_name, error=bad is not None, ts=ts,
+                       duration_ms=duration, metric='test_ms', message=message, where=ref(path, 0),
+                       run_ref=_run_ref(run_id), step_ref=_test_step_ref(case.get('step_ref') or case.get('id') or case_name),
+                       task_data={'error_type': scrub(error_type, 120)} if error_type else {},
+                       outcome='failure' if bad is not None else 'success')
+        event['junit'] = True
+        event['run_end_at'] = suite_end.get(id(case))
+        yield event
 
 
 def iter_checklog(run_dir, project, source, stats):
@@ -637,21 +722,25 @@ def iter_checklog(run_dir, project, source, stats):
                          build=context.get('build'), task_outcome=context.get('task_outcome'))
         elif match := _XCTEST.search(line):
             test_name = f'{match.group(1)}.{match.group(2)}'
-            yield _event(stats, project=project, source=source, kind='test', step=f'{match.group(1)}.{match.group(2)}',
-                         error=True, ts=ts, duration_ms=None, message=scrub(match.group(3)), where=where,
-                         run_ref=_run_ref(run_id),
-                         step_ref=step_ref or (_test_step_ref(test_name) if run_id else None),
-                         task_data={'request': context['request']} if context.get('request') else {},
-                         build=context.get('build'), task_outcome=context.get('task_outcome'))
+            event = _event(stats, project=project, source=source, kind='test', step=test_name,
+                           error=True, ts=ts, duration_ms=None, message=scrub(match.group(3)), where=where,
+                           run_ref=_run_ref(run_id),
+                           step_ref=step_ref or (_test_step_ref(test_name) if run_id else None),
+                           task_data={'request': context['request']} if context.get('request') else {},
+                           build=context.get('build'), task_outcome=context.get('task_outcome'))
+            event['ci_check'] = True
+            yield event
         elif match := _CHECK_TEST.match(line):
-            yield _event(stats, project=project, source=source, kind='check_test', step=match.group(1),
-                         error=match.group(3) != '0', ts=ts, duration_ms=float(match.group(2)) * 1000, metric='test_ms',
-                         message='', where=where, run_ref=_run_ref(run_id),
-                         step_ref=step_ref or (_test_step_ref(match.group(1)) if run_id else None),
-                         task_data={**({'request': context['request']} if context.get('request') else {}),
-                                    **({'error_type': 'test_failure'} if match.group(3) != '0' else {})},
-                         build=context.get('build'), task_outcome=context.get('task_outcome'),
-                         outcome='failure' if match.group(3) != '0' else 'success')
+            event = _event(stats, project=project, source=source, kind='check_test', step=match.group(1),
+                           error=match.group(3) != '0', ts=ts, duration_ms=float(match.group(2)) * 1000, metric='test_ms',
+                           message='', where=where, run_ref=_run_ref(run_id),
+                           step_ref=step_ref or (_test_step_ref(match.group(1)) if run_id else None),
+                           task_data={**({'request': context['request']} if context.get('request') else {}),
+                                      **({'error_type': 'test_failure'} if match.group(3) != '0' else {})},
+                           build=context.get('build'), task_outcome=context.get('task_outcome'),
+                           outcome='failure' if match.group(3) != '0' else 'success')
+            event['ci_check'] = True
+            yield event
 
 
 def _git(repo, *args):

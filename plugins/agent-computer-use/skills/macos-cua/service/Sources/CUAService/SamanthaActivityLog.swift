@@ -44,6 +44,19 @@ enum SamanthaActivityLog {
         }
     }
 
+    /// One `island_error_raw` row for an error the service shows itself (same shape as the voice runtime's).
+    static func islandErrorRaw(raw: String, shown: String) {
+        var payload: [String: Any] = [
+            "ts": Date().timeIntervalSince1970,
+            "kind": "island_error_raw",
+            "raw": String(raw.prefix(300)),
+            "shown": shown,
+            "source": "cuaservice",
+        ]
+        if !currentSessionId.isEmpty { payload["session_id"] = currentSessionId }
+        appendJSON(payload, to: activityURL)
+    }
+
     /// Voice supervisor session id (set at supervisor_begin) so island rows join Samantha's session.
     nonisolated(unsafe) static var currentSessionId = ""
 

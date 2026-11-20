@@ -3,6 +3,13 @@ import AVFoundation
 import Darwin
 import Foundation
 
+struct VoiceStartFailure: Equatable {
+    let category: String
+    let detail: String
+
+    var reason: String { "\(category): \(detail)" }
+}
+
 /// Supervises the bundled voice stack child. Stopping voice does not touch cua-service.sock.
 @MainActor
 final class VoiceSupervisor {
@@ -19,19 +26,38 @@ final class VoiceSupervisor {
     private(set) var gatewayPort: Int
     private let preferredPort: Int
     private let logURL: URL
+    private let microphoneAccessOverride: (() async -> Bool)?
+    private let launchResolverOverride: (() -> LaunchSpec?)?
+    private let settingsLoader: (() -> VoiceSettingsStore.Settings)?
     private var startupSessionId = ""
     private var startupStartedAt: Date?
     private var controlToken = ""
     /// Per-launch token the helper's gateway checks on control endpoints (island card actions).
     var currentControlToken: String { controlToken }
+    private(set) var startFailure: VoiceStartFailure?
+    var onStartAttempt: (() -> Void)?
+    var onStartFailure: ((VoiceStartFailure) -> Void)?
 
-    init(gatewayPort: Int = 8765) {
+    init(
+        gatewayPort: Int = 8765,
+        logURL: URL? = nil,
+        microphoneAccess: (() async -> Bool)? = nil,
+        launchResolver: (() -> LaunchSpec?)? = nil,
+        settingsLoader: (() -> VoiceSettingsStore.Settings)? = nil
+    ) {
         self.gatewayPort = gatewayPort
         preferredPort = gatewayPort
         let cache = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".cache/macos-cua", isDirectory: true)
-        try? FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
-        logURL = cache.appendingPathComponent("voice.log")
+        if let logURL {
+            self.logURL = logURL
+        } else {
+            try? FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
+            self.logURL = cache.appendingPathComponent("voice.log")
+        }
+        microphoneAccessOverride = microphoneAccess
+        launchResolverOverride = launchResolver
+        self.settingsLoader = settingsLoader
     }
 
     var gatewayURL: URL {
@@ -40,6 +66,8 @@ final class VoiceSupervisor {
 
     func start(automatic: Bool = false) async -> Bool {
         guard !running else { return true }
+        startFailure = nil
+        onStartAttempt?()
         if !automatic {
             recentRestarts.removeAll()
         }
@@ -48,12 +76,37 @@ final class VoiceSupervisor {
         SamanthaActivityLog.currentSessionId = startupSessionId
         startupStartedAt = Date()
         logStartup(phase: "supervisor_begin", detail: "port=\(gatewayPort)")
-        guard await ensureMicrophoneAccess() else {
+        let voiceSettings = settingsLoader?() ?? VoiceSettingsStore.load()
+        guard VoiceSettingsStore.supportsLiveModel(voiceSettings.liveModel) else {
+            reportStartFailure(category: "setup_error", detail: VoiceSettingsStore.unavailableModelReason(voiceSettings.liveModel))
+            logStartup(phase: "model_validation", status: "fail", detail: "unsupported live model")
+            return false
+        }
+        let microphoneAllowed: Bool
+        if let microphoneAccessOverride {
+            microphoneAllowed = await microphoneAccessOverride()
+        } else {
+            microphoneAllowed = await ensureMicrophoneAccess()
+        }
+        guard microphoneAllowed else {
+            reportStartFailure(category: "mic_denied", detail: "Microphone access denied.")
             logStartup(phase: "microphone_permission", status: "fail", detail: "denied")
             appendLog("voice start failed: microphone permission denied\n")
             return false
         }
         logStartup(phase: "microphone_permission", status: "ok")
+        let launch: LaunchSpec?
+        if let launchResolverOverride {
+            launch = launchResolverOverride()
+        } else {
+            launch = resolveLaunch()
+        }
+        guard let launch else {
+            reportStartFailure(category: "helper_missing", detail: "Voice helper is missing.")
+            logStartup(phase: "resolve_launch", status: "fail", detail: "no voice helper")
+            appendLog("voice start failed: bundled voice helper missing\n")
+            return false
+        }
         clearStaleVoiceStack(reason: "pre-start", signal: SIGTERM)
         // Only the voice stack is ours to kill; if an unrelated process holds
         // the preferred port, move the gateway instead of touching it.
@@ -74,12 +127,6 @@ final class VoiceSupervisor {
             requestGatewayShutdown()
             clearStaleVoiceStack(reason: "pre-start-kill", signal: SIGKILL)
         }
-        guard let launch = resolveLaunch() else {
-            logStartup(phase: "resolve_launch", status: "fail", detail: "no voice helper")
-            appendLog("voice start failed: bundled voice helper missing\n")
-            return false
-        }
-
         let proc = Process()
         proc.executableURL = launch.executable
         proc.arguments = launch.arguments
@@ -104,7 +151,7 @@ final class VoiceSupervisor {
             logStartup(phase: "island_hub", status: "fail", detail: "island socket not bound; Samantha island updates off")
         }
         env.removeValue(forKey: "VOICE_CUA_REMOTE_ISLAND")
-        for (key, value) in VoiceSettingsStore.applyToEnvironment(VoiceSettingsStore.load()) {
+        for (key, value) in VoiceSettingsStore.applyToEnvironment(voiceSettings) {
             env[key] = value
         }
         proc.environment = env
@@ -137,9 +184,13 @@ final class VoiceSupervisor {
             if startupSessionId == sessionID { gatewayHealthWait = nil }
             let isCurrent = startupSessionId == sessionID && (process.map { $0 === proc } ?? false)
             guard Self.isStartupProcessActive(stopping: stopping, isCurrent: isCurrent, isRunning: proc.isRunning) else {
+                if startFailure == nil, !stopping, startupSessionId == sessionID, !proc.isRunning {
+                    reportStartFailure(category: "setup_error", detail: "Voice helper exited before becoming ready.")
+                }
                 return false
             }
             guard gatewayHealthy else {
+                reportStartFailure(category: "setup_error", detail: "Voice helper did not become ready in 45 seconds.")
                 logStartup(phase: "gateway_health", status: "fail", detail: "timeout 45s")
                 appendLog("voice start failed: gateway health timeout\n")
                 proc.terminate()
@@ -154,6 +205,7 @@ final class VoiceSupervisor {
             logStartup(phase: "supervisor_ready", status: "ok")
             return true
         } catch {
+            reportStartFailure(category: "setup_error", detail: error.localizedDescription)
             logStartup(phase: "process_launch", status: "fail", detail: error.localizedDescription)
             appendLog("voice start error: \(error.localizedDescription)\n")
             setRunning(false)
@@ -357,7 +409,7 @@ final class VoiceSupervisor {
         }
     }
 
-    private struct LaunchSpec {
+    struct LaunchSpec {
         let executable: URL
         let arguments: [String]
         let extraEnv: [String: String]
@@ -394,6 +446,16 @@ final class VoiceSupervisor {
             status: unexpected ? "fail" : "ok",
             detail: unexpected ? "voice process exited" : "voice process stopped"
         )
+        if unexpected {
+            if terminated.terminationStatus == 78 {
+                reportStartFailure(category: "key_missing", detail: "Grok Voice needs an API key in Keychain.")
+            } else {
+                reportStartFailure(
+                    category: "setup_error",
+                    detail: "Voice helper exited unexpectedly (status \(terminated.terminationStatus))."
+                )
+            }
+        }
         setRunning(false)
         appendLog(unexpected ? "voice process exited\n" : "voice process stopped\n")
         // 78 (EX_CONFIG) = the chosen voice model has no API key: restarting can't help.
@@ -432,10 +494,21 @@ final class VoiceSupervisor {
         }
     }
 
+    /// Samantha was turned off after a failed start: that failure is no longer current.
+    func clearStartFailure() {
+        startFailure = nil
+    }
+
     private func setRunning(_ on: Bool) {
         guard running != on else { return }
         running = on
         onRunningChanged?(on)
+    }
+
+    private func reportStartFailure(category: String, detail: String) {
+        let failure = VoiceStartFailure(category: category, detail: detail)
+        startFailure = failure
+        onStartFailure?(failure)
     }
 
     private func startHealthTimer() {
