@@ -8291,9 +8291,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-20T07:07:06Z",
-      "now": "2026-11-20T07:07:06Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-20T07:18:03Z",
+      "now": "2026-11-20T07:18:03Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 116,
@@ -10910,14 +10910,13 @@
       "groups": [
         {
           "id": "ACU-INTERRUPT",
-          "name": "GPT-Live interrupt and island errors",
+          "name": "GPT-Live interrupt",
           "finding_ids": [
             "ACU-17",
-            "ACU-05",
-            "ACU-18"
+            "ACU-05"
           ],
           "depends_on": [],
-          "status": "review",
+          "status": "failed",
           "phase": "review",
           "worktree": "bcl117-r6-acu",
           "reason": "Round 5 root cause: the app sends a cancel GPT-Live-1 rejects, so a voice error shows and the old story keeps running; ACU-05 is rechecked against the 3.0 s limit.",
@@ -10925,7 +10924,7 @@
             "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-acu.sh",
             "method": "Named tests, then typed redirect runs on GPT-Live-1 and Grok Voice 3.0 on the installed app.",
             "status": "pending",
-            "total": 3,
+            "total": 2,
             "fixed": 0,
             "failed": 0
           },
@@ -10936,23 +10935,23 @@
             "fix_status": "passed",
             "fallback_note": "Codex on the Mini out until 22 Nov 12:28 IST; own fix per Guru 11:24, fresh-eyes review by Codex gpt-6.1-terra medium on the box",
             "job": {
-              "pid": 60160,
-              "phase": "fix",
-              "started_at": "2026-11-20T07:06:43Z",
+              "pid": 60992,
+              "phase": "review",
+              "started_at": "2026-11-20T07:07:07Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-20T07:07:05Z",
-              "model": "Grok Bot subagent (own fix, deep pass)",
+              "heartbeat_at": "2026-11-20T07:14:00Z",
+              "model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 4)",
               "exit_code": 0,
-              "duration_s": 22,
-              "finished_at": "2026-11-20T07:07:05Z",
-              "finished_phase_status": "passed"
+              "duration_s": 413,
+              "finished_at": "2026-11-20T07:14:00Z",
+              "finished_phase_status": "failed"
             },
             "implementer_session": "grokbot-r6-own-fix-acu",
             "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-acu",
-            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 3)",
+            "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 4)",
             "review_status": "failed"
           },
-          "updated_at": "2026-11-20T07:07:06Z"
+          "updated_at": "2026-11-20T07:18:03Z"
         },
         {
           "id": "BCL-FLOW",
@@ -10998,7 +10997,31 @@
             "reviewer_model": "grok-4.7-medium via Cursor CLI (fresh-eyes review, pass 2)",
             "review_status": "passed"
           },
-          "updated_at": "2026-11-20T06:43:40Z"
+          "updated_at": "2026-11-20T07:18:03Z"
+        },
+        {
+          "id": "ACU-ISLAND",
+          "name": "Island errors logged and cleared",
+          "finding_ids": [
+            "ACU-18"
+          ],
+          "status": "planned",
+          "phase": "fix",
+          "worktree": "bcl117-r6-island",
+          "label": "ACU-18",
+          "codex": {
+            "model": "Grok Bot subagent (own fix)",
+            "implementer_session": "grokbot-r6-own-fix-island",
+            "reviewer_session": "cursor-cli-grok-4.7-medium-fresh-island"
+          },
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-117/r3/verify-r6-island.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "updated_at": "2026-11-20T07:18:03Z"
         }
       ]
     },
