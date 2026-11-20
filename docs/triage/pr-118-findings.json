@@ -10494,9 +10494,9 @@
       }
     },
     "workflow": {
-      "stage": "collect",
-      "updated_at": "2026-11-20T12:17:21Z",
-      "now": "2026-11-20T12:17:21Z — Started collection"
+      "stage": "present",
+      "updated_at": "2026-11-20T14:24:37Z",
+      "now": "2026-11-20T14:24:37Z — Started collection"
     },
     "rollover": {
       "source_pr": 117,
@@ -13406,7 +13406,8 @@
       }
     ],
     "stages_reached": [
-      "collect"
+      "collect",
+      "present"
     ]
   },
   "findings": [
@@ -13545,6 +13546,38 @@
       "observed": "20 Nov 2026 13:34 and 13:41 IST: test_connected_but_unresponsive_service_times_out_on_runtime_contract (one probe call in 0.01 s) and test_background_jobs_track_and_stop_only_the_returned_job_id (stop had no status; 1 failure in 12 runs alone). Both are on main.",
       "recommendation": "Wait on a condition instead of a fixed short time in both tests.",
       "status": "untested"
+    },
+    {
+      "id": "BCL-92",
+      "title": "Recording a merge is refused when the fix count reads below the merge threshold",
+      "source": "Agent reported",
+      "priority": "medium",
+      "summary": "After a PR was merged on the forge, the change list's merged step refused to record it because the merge gate counted 0 of 16, and it has no override or reason option.",
+      "impact": "A merged PR's list stays at Report and roll over with no merge commit, and stacked PRs are not retargeted, so the history is wrong and the owner has to do that by hand.",
+      "done_when": "The merged step can record a merge that already happened, with a stated reason, when the fix count is below the threshold; the reason is kept in the list and a named test proves it.",
+      "observed": "20 Nov 2026 17:45 IST, PR 117: after the normal merge the merged step refused with a count of 0 of 16. The count was 0 only because a run stopped for rollover marked every check inconclusive.",
+      "recommendation": "Give the merged step the same override with a reason that rollover has, record it with the other gate overrides, and still retarget stacked PRs.",
+      "status": "untested",
+      "details": {
+        "command": "bcl merged",
+        "error": "merge requires 16 verified_fixed findings; count is 0"
+      }
+    },
+    {
+      "id": "BCL-93",
+      "title": "The report step ignores its override option",
+      "source": "Agent reported",
+      "priority": "low",
+      "summary": "The report step accepts an override option but does not pass it to the tracker writer, so its refusal says to use the override even when it was used.",
+      "impact": "An owner-approved report cannot be recorded through bcl, so the orchestrator has to fall back to a raw tracker batch.",
+      "done_when": "The report step with its override records the report stage, keeps the override in the list, and a named test proves the option reaches the writer.",
+      "observed": "20 Nov 2026 17:37 IST, PR 117: the report step with its override still refused; the same stage change sent straight to the tracker writer with the override worked.",
+      "recommendation": "Pass the override through to the tracker writer for the report step, as rollover already does.",
+      "status": "untested",
+      "details": {
+        "command": "bcl report --force",
+        "error": "report gate not met ... pass --force to override"
+      }
     }
   ]
 }
