@@ -515,7 +515,7 @@ def carry_plan_runtime_state(groups, previous, same_round):
             raise ValueError("set-plan cannot claim completed job state; run bcl job for the current lane")
 
 
-def _record_lane_failure(document, identifier, attempt_id, source, reason):
+def _record_lane_failure(document, identifier, attempt_id, source, reason, tool_fault=False, tool_fault_reason=None):
     if not isinstance(document.get("tracking", {}).get("plan"), dict):
         return
     tracking, plan, groups = _lane_groups(document, [identifier])
@@ -523,8 +523,13 @@ def _record_lane_failure(document, identifier, attempt_id, source, reason):
     for group in groups:
         rows = _lane_history(group, "failure_history")
         if not any(row.get("attempt_id") == attempt_id for row in rows):
-            rows.append({"attempt_id": attempt_id, "source": source, "reason": reason,
-                         "cycle": plan.get("cycle"), "round": plan.get("round"), "at": stamp})
+            row = {"attempt_id": attempt_id, "source": source, "reason": reason,
+                   "cycle": plan.get("cycle"), "round": plan.get("round"), "at": stamp}
+            if tool_fault:
+                row["tool_fault"] = True
+                if tool_fault_reason:
+                    row["tool_fault_reason"] = tool_fault_reason
+            rows.append(row)
         if len(_counted_failures(rows)) >= 2:
             group.update(status="blocked", phase=group.get("phase", "fix"),
                          blocked_reason="Second failure", failure_block_reason=reason)
@@ -585,6 +590,99 @@ def unblock_lane(document, operation):
         for item in document.get("findings", []):
             if item.get("id") in group.get("finding_ids", []) and item.get("status") == "blocked":
                 item["status"] = "in_progress"
+
+IN_FLIGHT_STATUSES = {"running", "failed", "blocked", "in_progress", "planned", "pending"}
+IN_FLIGHT_PHASES = {"fix", "review", "install", "verify", "plan_review", "pending"}
+SETTLED_STATUSES = {"done", "verified", "deferred", "parked"}
+TOOL_FAULT_REASON_MARKERS = ("review incomplete", "cut-off", "cutoff", "quota")
+
+
+def in_flight_lanes(document):
+    tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else {}
+    plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
+    groups = plan.get("groups") if isinstance(plan.get("groups"), list) else []
+    lanes = []
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        status, phase = group.get("status"), group.get("phase")
+        if status in SETTLED_STATUSES or phase in SETTLED_STATUSES:
+            continue
+        if status in IN_FLIGHT_STATUSES or phase in IN_FLIGHT_PHASES:
+            lanes.append(group)
+    return lanes
+
+
+def release_check_payload(document):
+    lanes = in_flight_lanes(document)
+    return {"clear": not lanes,
+            "lanes": [{"id": group.get("id"), "status": group.get("status"), "phase": group.get("phase"),
+                       "finding_ids": list(group.get("finding_ids") or [])} for group in lanes]}
+
+
+def _looks_like_tool_fault(row):
+    if row.get("tool_fault"):
+        return True
+    reason = (row.get("reason") or "").lower()
+    return any(marker in reason for marker in TOOL_FAULT_REASON_MARKERS)
+
+
+def resort_failure_candidates(document):
+    plan = (document.get("tracking") or {}).get("plan") if isinstance(document.get("tracking"), dict) else {}
+    groups = plan.get("groups", []) if isinstance(plan, dict) else []
+    found = []
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        if not group.get("failure_history"):
+            continue
+        rows = _lane_history(group, "failure_history")
+        counted = _counted_failures(rows)
+        matches = [row for row in counted if _looks_like_tool_fault(row)]
+        if matches:
+            found.append((group, matches, rows))
+    return found
+
+
+def resort_failures(document, operation):
+    apply = bool(operation.get("apply"))
+    reason = operation.get("reason")
+    if apply:
+        reason = require_override_reason(reason, "resort-failures")
+    stamp = operation.get("timestamp")
+    if apply and (not isinstance(stamp, str) or RENDERER.parse_instant(stamp) is None):
+        raise ValueError("resort-failures timestamp must be an ISO 8601 instant")
+    candidates = resort_failure_candidates(document)
+    report = []
+    for group, matches, rows in candidates:
+        report.append({"id": group.get("id"), "finding_ids": list(group.get("finding_ids") or []),
+                       "attempts": [row.get("attempt_id") for row in matches],
+                       "reasons": [row.get("reason") for row in matches]})
+        if not apply:
+            continue
+        tool_faults = [row.get("attempt_id") for row in matches if isinstance(row.get("attempt_id"), str)]
+        for row in rows:
+            if row.get("attempt_id") in tool_faults:
+                row.update(tool_fault=True, tool_fault_reason=reason)
+        history = group.setdefault("unblock_history", [])
+        if not isinstance(history, list):
+            raise ValueError(f"{group.get('id')} unblock_history must be an array")
+        plan = document.get("tracking", {}).get("plan", {})
+        tracking = document.get("tracking", {})
+        history.append({"at": stamp, "reason": reason, "tool_faults": tool_faults, "resort": True,
+                        "by_cycle": plan.get("cycle", tracking.get("cycle", 1)),
+                        "round": plan.get("round", tracking.get("round", 1))})
+        if group.get("status") == "blocked" and len(_counted_failures(rows)) < 2:
+            group.update(status="running", phase="fix")
+            group.pop("blocked_reason", None)
+            group.pop("failure_block_reason", None)
+            codex = group.setdefault("codex", {})
+            codex.pop("review_status", None)
+            codex.pop("plan_review_status", None)
+            for item in document.get("findings", []):
+                if item.get("id") in group.get("finding_ids", []) and item.get("status") == "blocked":
+                    item["status"] = "in_progress"
+    return {"applied": apply, "lanes": report}
 
 
 def job_transition(document, operation):
@@ -713,7 +811,9 @@ def job_transition(document, operation):
                         codex["must_fix_note"] = reason
                         group.update(status="running", phase="fix")
                         for identifier in set(operation["ids"]).intersection(group.get("finding_ids", [])):
-                            _record_lane_failure(document, identifier, job_id, phase, reason)
+                            _record_lane_failure(document, identifier, job_id, phase, reason,
+                                                 tool_fault=incomplete,
+                                                 tool_fault_reason=reason if incomplete else None)
                     else:
                         codex["plan_review_status"] = "failed" if incomplete else state
             else:
@@ -1972,7 +2072,7 @@ def run(args, parser):
                 return 0
             existing_run = store["document"].get("tracking", {}).get("verification_run")
             original_plan = copy.deepcopy(store['document'].get('tracking', {}).get('plan'))
-            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "stop-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify", "start-job", "attach-job", "heartbeat-job", "finish-job", "skip-review", "record-cleanup", "archive-history", "unblock-lane"}
+            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "stop-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify", "start-job", "attach-job", "heartbeat-job", "finish-job", "skip-review", "record-cleanup", "archive-history", "unblock-lane", "resort-failures"}
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()
@@ -1998,6 +2098,9 @@ def run(args, parser):
                     continue
                 if action == "unblock-lane":
                     unblock_lane(store["document"], operation)
+                    continue
+                if action == "resort-failures":
+                    resort_failures(store["document"], operation)
                     continue
                 if action == "skip-review":
                     tracking, _, groups = _lane_groups(store["document"], operation.get("ids"))

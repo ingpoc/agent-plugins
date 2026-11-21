@@ -1,0 +1,5 @@
+# Release checks
+
+Before pushing or installing a release, run `bcl release-check`. It lists in-flight lanes (open, running, or waiting). Include any fix that belongs in this version, or record why it is deferred, then run the check again until it is clear. Do not ship a version that silently drops an in-progress or finished-but-unshipped lane fix.
+
+After `bcl install-local`, or any install of a newly shipped tool version, run `bcl resort-failures`. It lists counted failures that current rules treat as tool faults (cut-off or incomplete reviews, quota-out, and already marked tool faults). Apply with `bcl resort-failures --apply --reason "why"` to uncount those and reopen lanes that no longer meet the two-failure block. Leave real code failures counted. For a single already-blocked lane, `bcl unblock --ids ID --reason "why" --tool-fault ATTEMPT` still uncounts a named attempt. This sort is not Introspect and not rollover: a new list still carries existing `failing` and `blocked` statuses until this check runs.

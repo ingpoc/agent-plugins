@@ -1,3 +1,8 @@
+## 0.1.57
+
+- Skill release checks: before a release, include or defer in-flight lane fixes; after shipping, re-sort open failures so stale tool-fault blocks do not linger. A failed review or check is classified as a tool or code fault before it is counted. The old model-escalation ladder stays gone; quota-out and cut-off notes sit with the classify-before-count rule.
+- `bcl release-check` lists in-flight lanes and refuses a clear ship while any remain. `bcl resort-failures` lists counted failures that current rules treat as tool faults, and `--apply --reason` uncounts them. Incomplete (cut-off) reviews are recorded as tool faults and are not counted.
+
 ## 0.1.56
 
 - Lane retry admission, plan-review receipts, and repeat-failure blocking now share deduplicated lane history; same-lane plan edits preserve it, and restore-main checks cover plan, group, and finding writes.
