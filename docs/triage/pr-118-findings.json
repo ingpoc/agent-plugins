@@ -10845,6 +10845,132 @@
           "exit_code": 0,
           "finished_at": "2026-11-20T17:18:55Z"
         }
+      },
+      {
+        "id": "d-5e6f05a8-118",
+        "build": "batched-change-list 0.1.53",
+        "revision": "5e6f05a8d0fa035610fe3b2afc604e279c2cee77",
+        "installed_at": "2026-11-21T00:04:08Z",
+        "install_evidence": "bcl install-local from 5e6f05a8: ~/.agents/plugins and ~/.agents/skills plus cursor and codex caches, sha256 6c1b9bb7 matched; plugin.json 0.1.53",
+        "cycle": 10,
+        "status": "interrupted",
+        "checks": {
+          "ACU-07": {
+            "state": "pending"
+          },
+          "ACU-10": {
+            "state": "pending"
+          },
+          "ACU-13": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "BCL-91": {
+            "state": "pending"
+          },
+          "ACU-21": {
+            "state": "pending"
+          },
+          "BCL-92": {
+            "state": "pending"
+          },
+          "BCL-93": {
+            "state": "pending"
+          },
+          "BCL-94": {
+            "state": "pending"
+          },
+          "ACU-22": {
+            "state": "pending"
+          },
+          "BCL-95": {
+            "state": "pending"
+          },
+          "BCL-96": {
+            "state": "pending"
+          },
+          "BCL-97": {
+            "state": "pending"
+          },
+          "BCL-98": {
+            "state": "pending"
+          },
+          "BCL-99": {
+            "state": "pending"
+          },
+          "BCL-100": {
+            "state": "pending"
+          },
+          "BCL-101": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-21T00:04:09Z",
+            "started_at": "2026-11-21T00:04:09Z",
+            "updated_at": "2026-11-21T00:04:09Z",
+            "check_id": "3e4412e93ba64ee9b4bee3a27cf0e76f",
+            "evidence": "Checked: A fix or review out of order on the live list; Expected: The tool refuses a fix without a plan or with a blocked lane, and a review before a finished fix; Observed: All three were refused and the list was not changed; plan review ran as its own recorded step",
+            "details": "live refusals with mtime unchanged; probe P4 pass Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
+            "finished_at": "2026-11-21T00:04:09.438969Z"
+          },
+          "BCL-102": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-21T00:04:09Z",
+            "started_at": "2026-11-21T00:04:09Z",
+            "updated_at": "2026-11-21T00:04:09Z",
+            "check_id": "e0aeef63529e4a35bcaa88a9697c9ab7",
+            "evidence": "Checked: The page while a plan review ran; Expected: The page shows the plan review step and its model, and changes requested is not shown as fix failed; Observed: The page showed 'Plan review · gpt-6.2-sol medium (Codex CLI)'; changes requested shows as fixing or review incomplete, not fix failed",
+            "details": "live page :59151 during the plan review job; probe P2 pass Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
+            "finished_at": "2026-11-21T00:04:09.440060Z"
+          },
+          "BCL-103": {
+            "state": "pending"
+          },
+          "BCL-104": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-21T00:04:09Z",
+            "started_at": "2026-11-21T00:04:09Z",
+            "updated_at": "2026-11-21T00:04:09Z",
+            "check_id": "612297aee4c8440fa11152d6e86537f0",
+            "evidence": "Checked: A review reply cut off or only quoting the verdict; Expected: Only a full verdict line given by the reviewer counts; Observed: The cut-off PR 117 reply and a quoted verdict were both recorded as failed; a real PASS reply was read as a pass",
+            "details": "probe P1 and P7 pass; live review jobs parsed by the installed tool Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
+            "finished_at": "2026-11-21T00:04:09.436598Z"
+          },
+          "BCL-105": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-21T00:04:09Z",
+            "started_at": "2026-11-21T00:04:09Z",
+            "updated_at": "2026-11-21T00:04:09Z",
+            "check_id": "fc8e07ac12d047e391cb9990b1b44270",
+            "evidence": "Checked: Two failures on the same lanes in the live list; Expected: Each failure is counted and the second one blocks the lane with its reason; Observed: The live list counted both failures and blocked both lanes and their three issues with the reason 'Second failure'",
+            "details": "live R3-PLAN and R3-ROUNDS failure_history; probe P3 pass Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
+            "finished_at": "2026-11-21T00:04:09.437824Z"
+          },
+          "BCL-106": {
+            "state": "pending"
+          },
+          "BCL-107": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-21T00:04:09Z",
+            "started_at": "2026-11-21T00:04:09Z",
+            "updated_at": "2026-11-21T00:04:09Z",
+            "check_id": "be2209daa42c4254b8fa882a1b10b96a",
+            "evidence": "Checked: A stage override without a reason; Expected: Every override needs a one-line reason before anything is written; Observed: The override without a reason was refused and nothing was recorded",
+            "details": "probe P6 pass on 0.1.53 tree Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
+            "finished_at": "2026-11-21T00:04:09.441067Z"
+          },
+          "BCL-108": {
+            "state": "pending"
+          },
+          "BCL-109": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -10859,9 +10985,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-21T06:27:55Z",
-      "now": "2026-11-21T06:27:55Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-21T07:30:26Z",
+      "now": "2026-11-21T07:30:26Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 117,
@@ -13913,6 +14039,72 @@
         },
         "round": 2,
         "cycle": 10
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-21T07:30:26Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 2",
+          "Codex write: R3-PLAN",
+          "Codex review: R3-PLAN",
+          "Polling and rework review: R3-PLAN",
+          "Test command: R3-PLAN: /Users/gurusharan/.agents/artifacts/bcl-118/r3/verify-r3-plan.sh",
+          "Codex write: R3-ROUNDS",
+          "Codex review: R3-ROUNDS",
+          "Polling and rework review: R3-ROUNDS",
+          "Test command: R3-ROUNDS: /Users/gurusharan/.agents/artifacts/bcl-118/r3/verify-r3-rounds.sh",
+          "Plan review loop: 12 Sol 6.2 plan reviews on R3-PLAN and R3-ROUNDS, 08:46-11:22 IST",
+          "Luna fix sessions: resumed 01a1fa6e vs fresh 01a1fc7c"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 2",
+          "Codex write: R3-PLAN",
+          "Codex review: R3-PLAN",
+          "Polling and rework review: R3-PLAN",
+          "Test command: R3-PLAN: /Users/gurusharan/.agents/artifacts/bcl-118/r3/verify-r3-plan.sh",
+          "Codex write: R3-ROUNDS",
+          "Codex review: R3-ROUNDS",
+          "Polling and rework review: R3-ROUNDS",
+          "Test command: R3-ROUNDS: /Users/gurusharan/.agents/artifacts/bcl-118/r3/verify-r3-rounds.sh"
+        ],
+        "sections": {
+          "delete": {
+            "none": "Measured: no step ran without effect; each plan review and review produced a recorded verdict that changed the brief or code."
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Plan review loop: 12 Sol 6.2 plan reviews on R3-PLAN and R3-ROUNDS, 08:46-11:22 IST",
+                "evidence": "12 plan-review jobs on the same two lanes; each CHANGES found the next gate reset path (progress.md 08:46-11:22 IST); narrowing scope at 10:16 IST and filing the rest as BCL-110..117 ended it in 2 more reviews",
+                "outcome": "issue",
+                "issue_id": "BCL-120"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Luna fix sessions: resumed 01a1fa6e vs fresh 01a1fc7c",
+                "evidence": "Resumed session fix 09:03-09:37 IST: 22,018,770 input, 62,229 output, 161 calls; fresh session with lean rules 10:32-10:56 IST: 13,976,327 input, 48,322 output; one-item fix 4,842,069 input",
+                "outcome": "fixed inline",
+                "proof": "python3 -c 'import json' reading turn.completed usage in direct/luna-lanefix3.jsonl (fresh codex exec via luna-lanefix3.sh, lean-rule brief): 13,976,327 input vs 22,018,770 resumed"
+              }
+            ]
+          },
+          "automate": {
+            "none": "Measured: no repeated manual step met the bar; per-job token capture is already filed as BCL-119."
+          }
+        },
+        "round": 3,
+        "cycle": 10
       }
     ],
     "archive": {
@@ -13942,7 +14134,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 3,
@@ -13954,13 +14147,13 @@
             "BCL-95",
             "BCL-98"
           ],
-          "status": "installing",
+          "status": "verified",
           "worktree": "bcl118-r3-plan",
           "label": "BCL-95, BCL-98",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r3/verify-r3-plan.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 2,
             "failed": 0,
             "total": 2
           },
@@ -13988,8 +14181,8 @@
             "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`.",
             "review_status": "passed"
           },
-          "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "install",
+          "updated_at": "2026-11-21T06:28:08Z",
+          "phase": "verify",
           "verify_summary": "Review passed; integrating in int3 with ROUNDS (0.1.51)",
           "failure_history": {
             "BCL-95": [
@@ -14149,6 +14342,11 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-21T06:27:49Z"
+          },
+          "stage_model": {
+            "stage": "verify",
+            "model": "No model (scripted check)",
+            "at": "2026-11-21T06:28:08Z"
           }
         },
         {
@@ -14200,13 +14398,13 @@
           "finding_ids": [
             "BCL-99"
           ],
-          "status": "verifying",
+          "status": "verified",
           "worktree": "bcl118-r3-rounds",
           "label": "BCL-99",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r3/verify-r3-rounds.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -14385,14 +14583,15 @@
           "parked_to": 4
         }
       ],
-      "cycle": 10
+      "cycle": 10,
+      "status": "closed"
     },
     "verification_run": {
-      "id": "d-5e6f05a8-118",
-      "build": "batched-change-list 0.1.53",
-      "revision": "5e6f05a8d0fa035610fe3b2afc604e279c2cee77",
-      "installed_at": "2026-11-21T00:04:08Z",
-      "install_evidence": "bcl install-local from 5e6f05a8: ~/.agents/plugins and ~/.agents/skills plus cursor and codex caches, sha256 6c1b9bb7 matched; plugin.json 0.1.53",
+      "id": "d-c3441993-118",
+      "build": "batched-change-list 0.1.56",
+      "revision": "c3441993a349b9a130f39fb62d43f0b0e7096e27",
+      "installed_at": "2026-11-21T06:24:00Z",
+      "install_evidence": "bcl install-local from c3441993: ~/.agents/plugins and ~/.agents/skills plus cursor and codex caches, sha256 636f5223 (plugin) and 32d32cc0 (skill) matched; plugin.json 0.1.56; installed-copy suite 448 OK",
       "cycle": 10,
       "status": "active",
       "checks": {
@@ -14427,7 +14626,15 @@
           "state": "pending"
         },
         "BCL-95": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-21T06:28:54Z",
+          "started_at": "2026-11-21T06:28:54Z",
+          "updated_at": "2026-11-21T06:28:54Z",
+          "check_id": "c30b7e3371f44e93af9c91c7ed7b6e13",
+          "evidence": "Checked: A lane holding a regression against main without a restore-main flag, through plan, lane edit and issue update; Expected: Each write is refused with the restore-main message and the list is unchanged; a lane with the flag is accepted; Observed: All three write paths refused both regression marker forms and left the list unchanged; the lane with the flag was accepted",
+          "details": "verify-r3-plan.sh on installed 0.1.56 via bcl verify, inherited tool paths overridden; sandbox copy only Log: ~/.agents/artifacts/bcl-118/direct/verify-0156-plan.log, verify-0156-rounds.log, gaps-0156.log. Run d-c3441993-118.",
+          "finished_at": "2026-11-21T06:28:54.315258Z"
         },
         "BCL-96": {
           "state": "pending"
@@ -14436,172 +14643,156 @@
           "state": "pending"
         },
         "BCL-98": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-21T06:28:54Z",
+          "started_at": "2026-11-21T06:28:54Z",
+          "updated_at": "2026-11-21T06:28:54Z",
+          "check_id": "254e852f964443319216de86fcdd33d7",
+          "evidence": "Checked: A fix after a failed review on a sibling issue, plan reviews missing a section, rewrites of a failed lane, and a same-second legacy unblock; Expected: The fix waits for a complete plan review tied to the lane's failure; rewrites that change a failed lane are refused; a second failure blocks and only a reasoned unblock reopens it; Observed: The sibling fix was refused before it started; plan reviews missing either section were rejected; the pass was tied to the lane failure; removing, adding or renaming the lane's issues and moving one out were refused; reorder kept all five attempts; the tied legacy case stayed refused until unblock and a fresh pass",
+          "details": "verify-r3-plan.sh (19 checks) and r3/gaps.py (6 checks) on installed 0.1.56; live list also refused a fix before plan review and blocked both lanes on the second failed review at 11:10 IST Log: ~/.agents/artifacts/bcl-118/direct/verify-0156-plan.log, verify-0156-rounds.log, gaps-0156.log. Run d-c3441993-118.",
+          "finished_at": "2026-11-21T06:28:54.316599Z"
         },
         "BCL-99": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-21T06:28:54Z",
+          "started_at": "2026-11-21T06:28:54Z",
+          "updated_at": "2026-11-21T06:28:54Z",
+          "check_id": "0386fcab9e4a456fb952ad898be8ec49",
+          "evidence": "Checked: Five open lanes, machine load above the limit, and stopping an active check run; Expected: Five lanes are refused and four accepted; high load refuses jobs and checks before they start; stopping keeps finished verdicts and the gate count; Observed: Five lanes refused, four accepted; both load refusals happened before the child started; stop kept five verdicts and the gate count of eleven",
+          "details": "verify-r3-rounds.sh on installed 0.1.56 via bcl verify, sandbox copy only Log: ~/.agents/artifacts/bcl-118/direct/verify-0156-plan.log, verify-0156-rounds.log, gaps-0156.log. Run d-c3441993-118.",
+          "finished_at": "2026-11-21T06:28:54.317759Z"
         },
         "BCL-100": {
           "state": "pending"
         },
         "BCL-101": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-21T00:04:09Z",
-          "started_at": "2026-11-21T00:04:09Z",
-          "updated_at": "2026-11-21T00:04:09Z",
-          "check_id": "3e4412e93ba64ee9b4bee3a27cf0e76f",
-          "evidence": "Checked: A fix or review out of order on the live list; Expected: The tool refuses a fix without a plan or with a blocked lane, and a review before a finished fix; Observed: All three were refused and the list was not changed; plan review ran as its own recorded step",
-          "details": "live refusals with mtime unchanged; probe P4 pass Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
-          "finished_at": "2026-11-21T00:04:09.438969Z"
+          "state": "pending"
         },
         "BCL-102": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-21T00:04:09Z",
-          "started_at": "2026-11-21T00:04:09Z",
-          "updated_at": "2026-11-21T00:04:09Z",
-          "check_id": "e0aeef63529e4a35bcaa88a9697c9ab7",
-          "evidence": "Checked: The page while a plan review ran; Expected: The page shows the plan review step and its model, and changes requested is not shown as fix failed; Observed: The page showed 'Plan review · gpt-6.2-sol medium (Codex CLI)'; changes requested shows as fixing or review incomplete, not fix failed",
-          "details": "live page :59151 during the plan review job; probe P2 pass Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
-          "finished_at": "2026-11-21T00:04:09.440060Z"
+          "state": "pending"
         },
         "BCL-103": {
           "state": "pending"
         },
         "BCL-104": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-21T00:04:09Z",
-          "started_at": "2026-11-21T00:04:09Z",
-          "updated_at": "2026-11-21T00:04:09Z",
-          "check_id": "612297aee4c8440fa11152d6e86537f0",
-          "evidence": "Checked: A review reply cut off or only quoting the verdict; Expected: Only a full verdict line given by the reviewer counts; Observed: The cut-off PR 117 reply and a quoted verdict were both recorded as failed; a real PASS reply was read as a pass",
-          "details": "probe P1 and P7 pass; live review jobs parsed by the installed tool Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
-          "finished_at": "2026-11-21T00:04:09.436598Z"
+          "state": "pending"
         },
         "BCL-105": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-21T00:04:09Z",
-          "started_at": "2026-11-21T00:04:09Z",
-          "updated_at": "2026-11-21T00:04:09Z",
-          "check_id": "fc8e07ac12d047e391cb9990b1b44270",
-          "evidence": "Checked: Two failures on the same lanes in the live list; Expected: Each failure is counted and the second one blocks the lane with its reason; Observed: The live list counted both failures and blocked both lanes and their three issues with the reason 'Second failure'",
-          "details": "live R3-PLAN and R3-ROUNDS failure_history; probe P3 pass Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
-          "finished_at": "2026-11-21T00:04:09.437824Z"
+          "state": "pending"
         },
         "BCL-106": {
           "state": "pending"
         },
         "BCL-107": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-21T00:04:09Z",
-          "started_at": "2026-11-21T00:04:09Z",
-          "updated_at": "2026-11-21T00:04:09Z",
-          "check_id": "be2209daa42c4254b8fa882a1b10b96a",
-          "evidence": "Checked: A stage override without a reason; Expected: Every override needs a one-line reason before anything is written; Observed: The override without a reason was refused and nothing was recorded",
-          "details": "probe P6 pass on 0.1.53 tree Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
-          "finished_at": "2026-11-21T00:04:09.441067Z"
+          "state": "pending"
         },
         "BCL-108": {
           "state": "pending"
         },
         "BCL-109": {
           "state": "pending"
+        },
+        "BCL-110": {
+          "state": "pending"
+        },
+        "BCL-111": {
+          "state": "pending"
+        },
+        "BCL-112": {
+          "state": "pending"
+        },
+        "BCL-113": {
+          "state": "pending"
+        },
+        "BCL-114": {
+          "state": "pending"
+        },
+        "BCL-115": {
+          "state": "pending"
+        },
+        "BCL-116": {
+          "state": "pending"
+        },
+        "BCL-117": {
+          "state": "pending"
+        },
+        "BCL-118": {
+          "state": "pending"
+        },
+        "BCL-119": {
+          "state": "pending"
+        },
+        "BCL-120": {
+          "state": "pending"
         }
       }
     },
     "introspect": {
-      "result": "Round 2: 3 lanes verified, viewer lane held; cleanup verifier fault fixed",
-      "at": "2026-11-20T17:44:06Z",
+      "result": "Introspect recorded",
+      "at": "2026-11-21T07:30:26Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 4",
-        "Codex write: BCL-VIEWER",
-        "Codex review: BCL-VIEWER",
-        "Polling and rework review: BCL-VIEWER",
-        "Test command: BCL-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-viewer.sh",
-        "Codex write: ACU-HEADING",
-        "Codex review: ACU-HEADING",
-        "Polling and rework review: ACU-HEADING",
-        "Test command: ACU-HEADING: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-acu-heading.sh",
-        "Codex write: BCL-MERGED",
-        "Codex review: BCL-MERGED",
-        "Polling and rework review: BCL-MERGED",
-        "Test command: BCL-MERGED: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-merged.sh",
-        "Codex write: BCL-SHARED",
-        "Codex review: BCL-SHARED",
-        "Polling and rework review: BCL-SHARED",
-        "Test command: BCL-SHARED: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-shared.sh",
-        "Pre-push suite",
-        "Typed test data cleanup"
+        "Parallel group count: 2",
+        "Codex write: R3-PLAN",
+        "Codex review: R3-PLAN",
+        "Polling and rework review: R3-PLAN",
+        "Test command: R3-PLAN: /Users/gurusharan/.agents/artifacts/bcl-118/r3/verify-r3-plan.sh",
+        "Codex write: R3-ROUNDS",
+        "Codex review: R3-ROUNDS",
+        "Polling and rework review: R3-ROUNDS",
+        "Test command: R3-ROUNDS: /Users/gurusharan/.agents/artifacts/bcl-118/r3/verify-r3-rounds.sh",
+        "Plan review loop: 12 Sol 6.2 plan reviews on R3-PLAN and R3-ROUNDS, 08:46-11:22 IST",
+        "Luna fix sessions: resumed 01a1fa6e vs fresh 01a1fc7c"
       ],
       "none": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 4",
-        "Codex write: BCL-VIEWER",
-        "Polling and rework review: BCL-VIEWER",
-        "Test command: BCL-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-viewer.sh",
-        "Codex write: ACU-HEADING",
-        "Codex review: ACU-HEADING",
-        "Polling and rework review: ACU-HEADING",
-        "Codex write: BCL-MERGED",
-        "Codex review: BCL-MERGED",
-        "Polling and rework review: BCL-MERGED",
-        "Test command: BCL-MERGED: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-merged.sh",
-        "Codex write: BCL-SHARED",
-        "Codex review: BCL-SHARED",
-        "Polling and rework review: BCL-SHARED",
-        "Test command: BCL-SHARED: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-bcl-shared.sh"
+        "Parallel group count: 2",
+        "Codex write: R3-PLAN",
+        "Codex review: R3-PLAN",
+        "Polling and rework review: R3-PLAN",
+        "Test command: R3-PLAN: /Users/gurusharan/.agents/artifacts/bcl-118/r3/verify-r3-plan.sh",
+        "Codex write: R3-ROUNDS",
+        "Codex review: R3-ROUNDS",
+        "Polling and rework review: R3-ROUNDS",
+        "Test command: R3-ROUNDS: /Users/gurusharan/.agents/artifacts/bcl-118/r3/verify-r3-rounds.sh"
       ],
       "sections": {
         "delete": {
-          "items": [
-            {
-              "item": "Codex review: BCL-VIEWER",
-              "evidence": "review-viewer.md, review-viewer-2.md, review-viewer-3.md: three CHANGES verdicts; deep pass did not close the stop-all-or-none gap",
-              "outcome": "issue",
-              "issue_id": "BCL-94"
-            }
-          ]
+          "none": "Measured: no step ran without effect; each plan review and review produced a recorded verdict that changed the brief or code."
         },
         "simplify": {
           "items": [
             {
-              "item": "Pre-push suite",
-              "evidence": "presuite.log and presuite-2.log failed on my own install check and a stale statechart; presuite-3.log passed",
-              "outcome": "fixed inline"
+              "item": "Plan review loop: 12 Sol 6.2 plan reviews on R3-PLAN and R3-ROUNDS, 08:46-11:22 IST",
+              "evidence": "12 plan-review jobs on the same two lanes; each CHANGES found the next gate reset path (progress.md 08:46-11:22 IST); narrowing scope at 10:16 IST and filing the rest as BCL-110..117 ended it in 2 more reviews",
+              "outcome": "issue",
+              "issue_id": "BCL-120"
             }
           ]
         },
         "optimize": {
           "items": [
             {
-              "item": "Test command: ACU-HEADING: /Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-acu-heading.sh",
-              "evidence": "v-acu22.log exit 1 while check22.log shows 4 of 4 PASS; the cleanup read purge results from the wrong stream",
-              "outcome": "issue",
-              "issue_id": "BCL-96"
-            },
-            {
-              "item": "Typed test data cleanup",
-              "evidence": "cleanup8.py now reads both output streams and walks revisions; rerun purged all 24 test decisions, no test secrets left",
-              "outcome": "fixed inline"
+              "item": "Luna fix sessions: resumed 01a1fa6e vs fresh 01a1fc7c",
+              "evidence": "Resumed session fix 09:03-09:37 IST: 22,018,770 input, 62,229 output, 161 calls; fresh session with lean rules 10:32-10:56 IST: 13,976,327 input, 48,322 output; one-item fix 4,842,069 input",
+              "outcome": "fixed inline",
+              "proof": "python3 -c 'import json' reading turn.completed usage in direct/luna-lanefix3.jsonl (fresh codex exec via luna-lanefix3.sh, lean-rule brief): 13,976,327 input vs 22,018,770 resumed"
             }
           ]
         },
         "automate": {
-          "none": "No new automation; the verifier self-test (BCL-96) and cross-round check (BCL-100) are this round's follow-ups."
+          "none": "Measured: no repeated manual step met the bar; per-job token capture is already filed as BCL-119."
         }
       },
-      "round": 2,
+      "round": 3,
       "cycle": 10
     }
   },
@@ -14949,11 +15140,29 @@
       "done_when": "When a check shows a regression against main, the workflow makes the first lane restore main's behaviour, and any redesign is filed as its own separate item.",
       "observed": "20 Nov 2026 21:24 IST, Guru asked for this rule after round reviews on PR 117 and PR 118.",
       "recommendation": "Add the rule to the plan step and have the plan check refuse a redesign lane for an item marked as a regression until a restore lane is recorded.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "approved": "Guru 21:24 IST t1579u"
       },
-      "needs": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`."
+      "needs": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`.",
+      "verification_evidence": [
+        {
+          "checked": "A lane holding a regression against main without a restore-main flag, through plan, lane edit and issue update",
+          "expected": "Each write is refused with the restore-main message and the list is unchanged; a lane with the flag is accepted",
+          "observed": "All three write paths refused both regression marker forms and left the list unchanged; the lane with the flag was accepted",
+          "verdict": "All three write paths refused both regression marker forms and left the list unchanged; the lane with the flag was accepted",
+          "check_id": "bcl-95-0.1.56-c3441993",
+          "build": "batched-change-list 0.1.56",
+          "session": "d-c3441993-118",
+          "timestamp": "2026-11-21T06:28:54Z",
+          "reference": "c3441993a349b9a130f39fb62d43f0b0e7096e27:BCL-95:installed-check",
+          "details": "verify-r3-plan.sh on installed 0.1.56 via bcl verify, inherited tool paths overridden; sandbox copy only Log: ~/.agents/artifacts/bcl-118/direct/verify-0156-plan.log, verify-0156-rounds.log, gaps-0156.log. Run d-c3441993-118."
+        }
+      ],
+      "verification": "All three write paths refused both regression marker forms and left the list unchanged; the lane with the flag was accepted verify-r3-plan.sh on installed 0.1.56 via bcl verify, inherited tool paths overridden; sandbox copy only Log: ~/.agents/artifacts/bcl-118/direct/verify-0156-plan.log, verify-0156-rounds.log, gaps-0156.log. Run d-c3441993-118.",
+      "verification_refs": [
+        "c3441993a349b9a130f39fb62d43f0b0e7096e27:BCL-95:installed-check"
+      ]
     },
     {
       "id": "BCL-96",
@@ -14995,12 +15204,32 @@
       "done_when": "After a lane's first failed review or check, its next fix is refused until a plan review recorded after that failure has passed. The plan review names the root cause and a failing test. A second failure blocks the lane.",
       "observed": "20 Nov 2026 21:24 IST, Guru asked for this rule after repeated retries in earlier rounds.",
       "recommendation": "Use the plan-review gate in place of the separate failing-test and evidence retry flags, which were removed.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "approved": "Guru 21:24 IST t1579u",
-        "rescoped": "Guru 21 Nov 07:49 IST: rescope to the plan-review gate (supersedes the retry flags)"
+        "rescoped": "Guru 21 Nov 07:49 IST: rescope to the plan-review gate (supersedes the retry flags)",
+        "failure_sort": "Sort on 0.1.56, 21 Nov 12:00 IST, R3-PLAN and R3-ROUNDS (same attempts): 9e7827c2 review = tool bug (0.1.52 parser rejected a valid PASS, fixed 0.1.53), already tool fault, not counted. bf49b277, 2bfa30ee = plan-review CHANGES, not counted since 0.1.55.",
+        "failure_sort_2": "a78d5ac9 review 09:48 IST = code bug (per-finding gate; full Terra verdict, 47,838 tokens, exit 0), fixed 886a3f67. aa07f49e review 11:10 IST = code bug (same-second unblock; full verdict, 93,097 tokens, exit 0), fixed aed0768e; owner unblock 11:17 IST. No cut-off or quota case (complete verdicts, no usage-limit text): no unblock."
       },
-      "needs": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`."
+      "needs": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`.",
+      "verification_evidence": [
+        {
+          "checked": "A fix after a failed review on a sibling issue, plan reviews missing a section, rewrites of a failed lane, and a same-second legacy unblock",
+          "expected": "The fix waits for a complete plan review tied to the lane's failure; rewrites that change a failed lane are refused; a second failure blocks and only a reasoned unblock reopens it",
+          "observed": "The sibling fix was refused before it started; plan reviews missing either section were rejected; the pass was tied to the lane failure; removing, adding or renaming the lane's issues and moving one out were refused; reorder kept all five attempts; the tied legacy case stayed refused until unblock and a fresh pass",
+          "verdict": "The sibling fix was refused before it started; plan reviews missing either section were rejected; the pass was tied to the lane failure; removing, adding or renaming the lane's issues and moving one out were refused; reorder kept all five attempts; the tied legacy case stayed refused until unblock and a fresh pass",
+          "check_id": "bcl-98-0.1.56-c3441993",
+          "build": "batched-change-list 0.1.56",
+          "session": "d-c3441993-118",
+          "timestamp": "2026-11-21T06:28:54Z",
+          "reference": "c3441993a349b9a130f39fb62d43f0b0e7096e27:BCL-98:installed-check",
+          "details": "verify-r3-plan.sh (19 checks) and r3/gaps.py (6 checks) on installed 0.1.56; live list also refused a fix before plan review and blocked both lanes on the second failed review at 11:10 IST Log: ~/.agents/artifacts/bcl-118/direct/verify-0156-plan.log, verify-0156-rounds.log, gaps-0156.log. Run d-c3441993-118."
+        }
+      ],
+      "verification": "The sibling fix was refused before it started; plan reviews missing either section were rejected; the pass was tied to the lane failure; removing, adding or renaming the lane's issues and moving one out were refused; reorder kept all five attempts; the tied legacy case stayed refused until unblock and a fresh pass verify-r3-plan.sh (19 checks) and r3/gaps.py (6 checks) on installed 0.1.56; live list also refused a fix before plan review and blocked both lanes on the second failed review at 11:10 IST Log: ~/.agents/artifacts/bcl-118/direct/verify-0156-plan.log, verify-0156-rounds.log, gaps-0156.log. Run d-c3441993-118.",
+      "verification_refs": [
+        "c3441993a349b9a130f39fb62d43f0b0e7096e27:BCL-98:installed-check"
+      ]
     },
     {
       "id": "BCL-99",
@@ -15012,11 +15241,31 @@
       "done_when": "The command line refuses a plan with more than four lanes, checks the Mini's load before runs, and keeps already verified results when a run is stopped so the gate is not zeroed.",
       "observed": "20 Nov 2026 21:24 IST, Guru; on PR 117 a stopped run zeroed the gate and the merge needed an override.",
       "recommendation": "Enforce the cap in the plan check, add a load check to job and verify starts, and carry verified results into the stopped run's history.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
-        "approved": "Guru 21:24 IST t1579u"
+        "approved": "Guru 21:24 IST t1579u",
+        "failure_sort": "Sort on 0.1.56, 21 Nov 12:00 IST, R3-PLAN and R3-ROUNDS (same attempts): 9e7827c2 review = tool bug (0.1.52 parser rejected a valid PASS, fixed 0.1.53), already tool fault, not counted. bf49b277, 2bfa30ee = plan-review CHANGES, not counted since 0.1.55.",
+        "failure_sort_2": "a78d5ac9 review 09:48 IST = code bug (per-finding gate; full Terra verdict, 47,838 tokens, exit 0), fixed 886a3f67. aa07f49e review 11:10 IST = code bug (same-second unblock; full verdict, 93,097 tokens, exit 0), fixed aed0768e; owner unblock 11:17 IST. No cut-off or quota case (complete verdicts, no usage-limit text): no unblock."
       },
-      "needs": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`."
+      "needs": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`.",
+      "verification_evidence": [
+        {
+          "checked": "Five open lanes, machine load above the limit, and stopping an active check run",
+          "expected": "Five lanes are refused and four accepted; high load refuses jobs and checks before they start; stopping keeps finished verdicts and the gate count",
+          "observed": "Five lanes refused, four accepted; both load refusals happened before the child started; stop kept five verdicts and the gate count of eleven",
+          "verdict": "Five lanes refused, four accepted; both load refusals happened before the child started; stop kept five verdicts and the gate count of eleven",
+          "check_id": "bcl-99-0.1.56-c3441993",
+          "build": "batched-change-list 0.1.56",
+          "session": "d-c3441993-118",
+          "timestamp": "2026-11-21T06:28:54Z",
+          "reference": "c3441993a349b9a130f39fb62d43f0b0e7096e27:BCL-99:installed-check",
+          "details": "verify-r3-rounds.sh on installed 0.1.56 via bcl verify, sandbox copy only Log: ~/.agents/artifacts/bcl-118/direct/verify-0156-plan.log, verify-0156-rounds.log, gaps-0156.log. Run d-c3441993-118."
+        }
+      ],
+      "verification": "Five lanes refused, four accepted; both load refusals happened before the child started; stop kept five verdicts and the gate count of eleven verify-r3-rounds.sh on installed 0.1.56 via bcl verify, sandbox copy only Log: ~/.agents/artifacts/bcl-118/direct/verify-0156-plan.log, verify-0156-rounds.log, gaps-0156.log. Run d-c3441993-118.",
+      "verification_refs": [
+        "c3441993a349b9a130f39fb62d43f0b0e7096e27:BCL-99:installed-check"
+      ]
     },
     {
       "id": "BCL-100",
@@ -15449,7 +15698,8 @@
         "kind": "goal",
         "evidence": "bcl-118 direct luna-lanefix jsonl turn.completed usage (cumulative) and Codex rollout token_count deltas 03:33-04:08 UTC",
         "measurement_note": "Measure per job as the difference in session totals, never the cumulative turn total.",
-        "comparison": "Same lane, fresh session with a token-discipline brief, 21 Nov 10:32-10:56 IST: 165 model calls, 13,976,327 input (13,799,808 cached), 48,322 output, about 23.5 min, for code +59/-17 and tests +98/-6. Resumed session at 09:03-09:37 IST: 161 calls, 22,018,770 input (21,814,400 cached), 62,229 output, about 34 min, for code +82/-50 and tests +105/-16. Input down about 37 percent."
+        "comparison": "Same lane, fresh session with a token-discipline brief, 21 Nov 10:32-10:56 IST: 165 model calls, 13,976,327 input (13,799,808 cached), 48,322 output, about 23.5 min, for code +59/-17 and tests +98/-6. Resumed session at 09:03-09:37 IST: 161 calls, 22,018,770 input (21,814,400 cached), 62,229 output, about 34 min, for code +82/-50 and tests +105/-16. Input down about 37 percent.",
+        "comparison_2": "Resumed fresh session 01a1fc7c for the one-item fix, 21 Nov 11:25-11:34 IST: 28 model calls, 4,842,069 input (4,817,920 cached), 8,959 output, for code +12/-4 and tests +25. Measured as the session-total difference."
       }
     },
     {
