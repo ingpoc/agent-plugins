@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "collect",
-      "updated_at": "2026-11-21T08:50:24Z",
-      "now": "2026-11-21T08:50:24Z — Started collection"
+      "stage": "present",
+      "updated_at": "2026-11-21T14:17:10Z",
+      "now": "2026-11-21T14:17:10Z — Started collection"
     },
     "rollover": {
       "source_pr": 118,
@@ -12125,7 +12125,8 @@
       }
     ],
     "stages_reached": [
-      "collect"
+      "collect",
+      "present"
     ]
   },
   "findings": [
@@ -12470,6 +12471,166 @@
         "kind": "goal",
         "related": "BCL-118 timeline, BCL-119 token and time data",
         "refined_by": "Guru 10:24 IST t1606u (evidence bar, via parent)"
+      }
+    },
+    {
+      "id": "BCL-121",
+      "title": "Reviews loop on one change with no cap and scope grows mid-review",
+      "summary": "In PR 118 one lane fix took twelve plan reviews and the release took six work-done reviews, five asking for changes; a new item added during review cost two more reviews and a revert.",
+      "impact": "Hours of review time on a single change and a release that waits on items that were never in its scope.",
+      "recommendation": "Cap reviews at three per change. On a third request for changes, file the remaining items as findings and ship only the reviewed part; never add new scope to a change already under review.",
+      "done_when": "A fourth review of the same change is refused until its open items are filed, and adding a finding to a lane under review is refused.",
+      "observed": "21 Nov 2026 IST: twelve plan reviews between 05:30 and 11:20; six work-done reviews between 12:30 and 13:29 with five asking for changes; the version bump item added at 13:10 was reverted at 13:37 after two reviews.",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Workflow Introspect after PR 118 merge (evidence rule: 2 loops in one PR)",
+        "evidence": "bcl-118/direct planreview-int..int12 (12 files) and review-0157..0157-6 (6 files), file times 05:30-11:20 and 12:30-13:29 IST; revert commits f0ce0b4f and 20a363a1",
+        "kind": "workflow"
+      }
+    },
+    {
+      "id": "BCL-122",
+      "title": "A stale state chart is caught only by the full pre-push suite",
+      "summary": "Three times a skill edit left the generated state chart out of date, and each time only the long suite caught it.",
+      "impact": "Each miss costs a full suite run, about ten minutes, plus a fix and a rerun.",
+      "recommendation": "Run the quick chart check in the fast pre-push gate whenever the change list skill changes.",
+      "done_when": "Pushing a change list skill edit with a stale chart is refused by the fast gate within seconds, and a test proves it.",
+      "observed": "20 Nov 22:22 IST presuite failed on a stale chart; 21 Nov 03:25 IST a stale chart in a broken tree; 21 Nov 13:44 IST presuite failed one of 464 tests on a stale chart after a revert.",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Workflow Introspect after PR 118 merge (evidence rule: 3 recurrences)",
+        "evidence": "bcl-118 progress.md lines 34, 82, 175; direct/presuite-0157.log",
+        "kind": "workflow"
+      }
+    },
+    {
+      "id": "BCL-123",
+      "title": "Delete the unused sync main command",
+      "summary": "The sync main command is not in the skill or its guides and was never run; agents merged by hand six times in PR 118 instead.",
+      "impact": "About 190 lines of code and tests that agents pay to read and nobody uses.",
+      "recommendation": "Delete the command, its helper and its tests.",
+      "done_when": "The command is gone, the help no longer lists it, and the suite passes.",
+      "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
+        "report": "bcl-119 quality-audit.md",
+        "evidence": "0 uses in bcl-110..119 progress logs; _sync_main 60 lines, 8 CLI tests in test_bcl.py lines 227-350",
+        "kind": "delete"
+      }
+    },
+    {
+      "id": "BCL-124",
+      "title": "Delete the legacy viewer path and its hard-coded process number",
+      "summary": "The viewer start code still handles viewers without an instance id and skips one fixed process number; every live viewer since PR 111 has an id.",
+      "impact": "Dead branches in the viewer start path make it harder to fix the fixed-port issue.",
+      "recommendation": "Delete the legacy branch, its matcher and its tests.",
+      "done_when": "Viewer start has one path keyed on the instance id, and the suite passes.",
+      "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
+        "report": "bcl-119 quality-audit.md",
+        "evidence": "viewer state 107 and 110 lack instance, both dead; ensure_viewer pid 87005 special case; _legacy_viewer_matches 10 lines",
+        "kind": "delete"
+      }
+    },
+    {
+      "id": "BCL-125",
+      "title": "Delete the separate review command; the review job already does it",
+      "summary": "The review command only sets the stage and a one-file review skip that has not been used since PR 116; the review job runs the same stage check.",
+      "impact": "The skill tells agents to run two commands for one step.",
+      "recommendation": "Delete the review command, the skip-review action and the one-file skip; point the skill at the review job.",
+      "done_when": "The skill names one review command, the deleted paths are gone, and the suite passes.",
+      "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
+        "report": "bcl-119 quality-audit.md",
+        "evidence": "0 uses in #117/#118; one_file only in 115/116 trackers; bcl job runs run_stage_check review at line 576",
+        "kind": "delete"
+      }
+    },
+    {
+      "id": "BCL-126",
+      "title": "Delete the merge check command that collides with merged",
+      "summary": "The merge command only checks that the tracker snapshot is committed and was never run; merged is the command agents use.",
+      "impact": "Two near-identical command names invite the wrong one.",
+      "recommendation": "Delete the merge command and its guide line.",
+      "done_when": "The help lists only merged, and the suite passes.",
+      "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
+        "report": "bcl-119 quality-audit.md",
+        "evidence": "0 uses in all progress logs; merged used 6 times",
+        "kind": "delete"
+      }
+    },
+    {
+      "id": "BCL-127",
+      "title": "Fold the failure re-sort into the release check and the unblock command",
+      "summary": "Release check and failure re-sort are two commands around one release, and re-sort apply duplicates unblock; neither found anything to do in PR 118.",
+      "impact": "Two extra commands and a second unblock path to keep correct.",
+      "recommendation": "Release check also lists counted failures that look like tool faults; uncounting goes through unblock with a named tool fault; delete the re-sort command.",
+      "done_when": "One release check lists in-flight lanes and tool-fault candidates, unblock is the only path that uncounts, and real use on a list copy shows both.",
+      "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
+        "report": "bcl-119 quality-audit.md",
+        "evidence": "release-check 1x, resort-failures 3x in #118, all empty; fault_kind and resort rows 0 in 115-119",
+        "kind": "delete"
+      }
+    },
+    {
+      "id": "BCL-128",
+      "title": "Five review-verdict command tests repeat one parser table",
+      "summary": "Five command-line tests each spawn the tool to check one bad review reply, about two seconds each; the same cases are unit tested.",
+      "impact": "About ten seconds of the slowest test file in the whole collection.",
+      "recommendation": "Replace them with one table-driven command test.",
+      "done_when": "One command test covers all five replies and the file runs at least seven seconds faster.",
+      "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
+        "report": "bcl-119 quality-audit.md",
+        "evidence": "test_review_job_* 1.9 s each in time-test_bcl.txt; test_bcl.py is the slowest CI job at 141 s",
+        "kind": "delete"
+      }
+    },
+    {
+      "id": "BCL-129",
+      "title": "Tests print every tracker snapshot commit",
+      "summary": "The tool's tests print about a hundred snapshot commit lines, so a suite log is about 290 lines for three that matter.",
+      "impact": "Every agent reading a suite result pays for the noise, about six thousand tokens a read.",
+      "recommendation": "Make snapshot commits quiet in tests or capture their output.",
+      "done_when": "A full suite run prints no snapshot commit lines.",
+      "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
+        "report": "bcl-119 quality-audit.md",
+        "evidence": "suite-installed-0157.log 290 lines; time-test_bcl.txt 105 snapshot pairs",
+        "kind": "delete"
       }
     }
   ]
