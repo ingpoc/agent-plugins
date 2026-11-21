@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-21T14:29:41Z",
-      "now": "2026-11-21T14:29:41Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-21T14:37:23Z",
+      "now": "2026-11-21T14:37:23Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12157,25 +12157,34 @@
             "reviewer_session": "codex-terra-6.1-119r1-dead",
             "fix_status": "passed",
             "job": {
-              "id": "bb1ddd62936a4b5c8ebf2aa161c6124c",
-              "phase": "review",
-              "started_at": "2026-11-21T14:29:27Z",
+              "id": "9366a3d1c64c4c6c8ebf6fa2b16d4730",
+              "phase": "plan_review",
+              "started_at": "2026-11-21T14:37:23Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T14:29:27Z",
+              "heartbeat_at": "2026-11-21T14:37:23Z",
               "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
-              "model": "gpt-6.1-terra medium",
+              "model": "gpt-6.2-sol medium",
               "cycle": 11,
-              "round": 1,
-              "pid": 19913
+              "round": 1
             },
             "tool_fault_streak": 0,
-            "review_status": "running",
-            "reviewer_model": "gpt-6.1-terra medium"
+            "review_status": "changes_requested",
+            "reviewer_model": "gpt-6.1-terra medium",
+            "must_fix_note": "1. [README.md](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/README.md:13) still lists `merge` as a supported stage and describes its freshness check again on line 21. The command now exits with “unknown stage,” so remove or update both instructions."
           },
-          "failure_history": [],
+          "failure_history": [
+            {
+              "attempt_id": "bb1ddd62936a4b5c8ebf2aa161c6124c",
+              "source": "review",
+              "reason": "1. [README.md](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/README.md:13) still lists `merge` as a supported stage and describes its freshness check again on line 21. The command now exits with “unknown stage,” so remove or update both instructions.",
+              "cycle": 11,
+              "round": 1,
+              "at": "2026-11-21T14:30:43Z"
+            }
+          ],
           "plan_review_history": [],
           "updated_at": "2026-11-21T14:17:11Z",
-          "phase": "review"
+          "phase": "plan_review"
         },
         {
           "id": "R1-RELEASE",
@@ -12231,11 +12240,12 @@
               "phase": "fix",
               "started_at": "2026-11-21T14:29:41Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T14:29:41Z",
+              "heartbeat_at": "2026-11-21T14:36:42Z",
               "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
               "model": "gpt-6-luna medium fast",
               "cycle": 11,
-              "round": 1
+              "round": 1,
+              "pid": 21028
             }
           },
           "failure_history": [],
