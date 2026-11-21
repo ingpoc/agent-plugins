@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-21T06:11:50Z",
-      "now": "2026-11-21T06:11:50Z — Presuite started"
+      "stage": "install",
+      "updated_at": "2026-11-21T06:27:49Z",
+      "now": "2026-11-21T06:27:49Z — Install in progress"
     },
     "rollover": {
       "source_pr": 117,
@@ -13940,7 +13940,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "round": 3,
@@ -13952,7 +13953,7 @@
             "BCL-95",
             "BCL-98"
           ],
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl118-r3-plan",
           "label": "BCL-95, BCL-98",
           "verify": {
@@ -13987,7 +13988,7 @@
             "review_status": "passed"
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "review",
+          "phase": "install",
           "verify_summary": "Review passed; integrating in int3 with ROUNDS (0.1.51)",
           "failure_history": {
             "BCL-95": [
@@ -14143,6 +14144,10 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-21T06:16:57Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-21T06:27:49Z"
           }
         },
         {
@@ -14194,7 +14199,7 @@
           "finding_ids": [
             "BCL-99"
           ],
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl118-r3-rounds",
           "label": "BCL-99",
           "verify": {
@@ -14229,7 +14234,7 @@
             "review_status": "passed"
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "review",
+          "phase": "install",
           "verify_summary": "Review passed; integrating in int3 with PLAN (0.1.51)",
           "failure_history": {
             "BCL-99": [
@@ -14325,6 +14330,10 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-21T06:16:57Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-21T06:27:49Z"
           }
         },
         {
