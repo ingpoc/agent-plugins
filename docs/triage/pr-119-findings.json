@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-21T15:21:15Z",
-      "now": "2026-11-21T15:21:15Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-21T16:23:47Z",
+      "now": "2026-11-21T16:23:47Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12141,7 +12141,7 @@
             "BCL-124",
             "BCL-126"
           ],
-          "status": "blocked",
+          "status": "running",
           "worktree": "bcl119-direct",
           "label": "BCL-123, BCL-124, BCL-126",
           "verify": {
@@ -12155,27 +12155,21 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r1-dead",
             "reviewer_session": "codex-terra-6.1-119r1-dead",
-            "fix_status": "passed",
+            "fix_status": "running",
             "job": {
-              "id": "92ab33cdcb614e0698594781f8222771",
-              "phase": "review",
-              "started_at": "2026-11-21T14:56:22Z",
+              "id": "133cef5eb7b34ebd90e52448b33baab4",
+              "phase": "fix",
+              "started_at": "2026-11-21T16:23:47Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T14:57:17Z",
+              "heartbeat_at": "2026-11-21T16:23:47Z",
               "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
-              "model": "gpt-6.1-terra medium",
+              "model": "scripted-revert",
               "cycle": 11,
-              "round": 1,
-              "pid": 7325,
-              "exit_code": 0,
-              "finished_at": "2026-11-21T14:57:17Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it."
+              "round": 1
             },
-            "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra medium",
             "must_fix_note": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it.",
-            "review_status": "blocked"
+            "tool_fault_streak": 0
           },
           "failure_history": [
             {
@@ -12203,12 +12197,33 @@
               "cycle": 11,
               "round": 1,
               "at": "2026-11-21T14:42:19Z"
+            },
+            {
+              "job_id": "2698721d312f490db8eaba2ccb2d25ee",
+              "after_failure": "92ab33cdcb614e0698594781f8222771",
+              "status": "passed",
+              "cycle": 11,
+              "round": 1,
+              "at": "2026-11-21T16:23:26Z"
             }
           ],
           "updated_at": "2026-11-21T14:17:11Z",
           "phase": "fix",
-          "blocked_reason": "Second failure",
-          "failure_block_reason": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it."
+          "unblock_history": [
+            {
+              "at": "2026-11-21T16:20:21Z",
+              "reason": "Guru 2026-11-21 21:49 IST: unblock, drop BCL-124 legacy viewer deletion, keep other deletions",
+              "tool_faults": [],
+              "covered_attempts": [
+                "bb1ddd62936a4b5c8ebf2aa161c6124c",
+                "92ab33cdcb614e0698594781f8222771"
+              ],
+              "rows_seen": 2,
+              "by_cycle": 11,
+              "round": 1,
+              "owner_override": true
+            }
+          ]
         },
         {
           "id": "R1-RELEASE",
@@ -12233,24 +12248,40 @@
             "reviewer_session": "codex-terra-6.1-119r1-release",
             "fix_status": "passed",
             "job": {
-              "id": "6e29cc802ae9422ebb1ebfe80df8430f",
-              "phase": "review",
-              "started_at": "2026-11-21T15:21:15Z",
+              "id": "5458bdec40634e68a020e16d67d10abb",
+              "phase": "plan_review",
+              "started_at": "2026-11-21T16:21:05Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T15:21:15Z",
+              "heartbeat_at": "2026-11-21T16:22:24Z",
               "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
-              "model": "gpt-6.1-terra",
+              "model": "gpt-6.2-sol",
               "cycle": 11,
-              "round": 1
+              "round": 1,
+              "pid": 53821,
+              "exit_code": 0,
+              "finished_at": "2026-11-21T16:22:24Z",
+              "finished_phase_status": "changes_requested",
+              "must_fix": "1. Qualify the blocked-lane instructions in `release.md`. The existing `bcl unblock --ids ID --reason R --tool-fault ATTEMPT` command rejects a correction if two or more counted failures would remain. Describe those candidates as informational too. This is a documentation change within the reduced scope."
             },
             "tool_fault_streak": 0,
-            "review_status": "running",
-            "reviewer_model": "gpt-6.1-terra"
+            "review_status": "changes_requested",
+            "reviewer_model": "gpt-6.1-terra",
+            "must_fix_note": "1. **Listed tool faults cannot be uncounted unless their lane is blocked.** `release-check` reports candidates across all lanes, including the verified lane covered by [test_release_checks.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-release/plugins/batched-change-list/skills/batched-change-list/scripts/test_release_checks.py:26), and the [release guide](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-release/plugins/batched-change-list/skills/batched-change-list/references/release.md:1) directs users to uncount them with `unblock`. But [unblock_lane](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-release/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:566) rejects every non-blocked lane. Removing `resort-failures` therefore leaves those counted faults uncorrectable through the supported path. Allow the named tool-fault correction for those lanes and test it without changing their unrelated status.",
+            "plan_review_status": "changes_requested"
           },
-          "failure_history": [],
+          "failure_history": [
+            {
+              "attempt_id": "6e29cc802ae9422ebb1ebfe80df8430f",
+              "source": "review",
+              "reason": "1. **Listed tool faults cannot be uncounted unless their lane is blocked.** `release-check` reports candidates across all lanes, including the verified lane covered by [test_release_checks.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-release/plugins/batched-change-list/skills/batched-change-list/scripts/test_release_checks.py:26), and the [release guide](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-release/plugins/batched-change-list/skills/batched-change-list/references/release.md:1) directs users to uncount them with `unblock`. But [unblock_lane](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-release/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:566) rejects every non-blocked lane. Removing `resort-failures` therefore leaves those counted faults uncorrectable through the supported path. Allow the named tool-fault correction for those lanes and test it without changing their unrelated status.",
+              "cycle": 11,
+              "round": 1,
+              "at": "2026-11-21T15:22:35Z"
+            }
+          ],
           "plan_review_history": [],
           "updated_at": "2026-11-21T14:17:11Z",
-          "phase": "review"
+          "phase": "plan_review"
         },
         {
           "id": "R1-TESTS",
@@ -12306,7 +12337,7 @@
             "BCL-122",
             "BCL-94"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl119-direct",
           "label": "BCL-121, BCL-122, BCL-94",
           "verify": {
@@ -12320,24 +12351,42 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r1-add",
             "reviewer_session": "codex-terra-6.1-119r1-add",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "b0b8ca07f8114e67927f702b2fc49782",
-              "phase": "fix",
-              "started_at": "2026-11-21T15:01:30Z",
+              "id": "af00b610c5ed4e77ba9752f0895fff86",
+              "phase": "plan_review",
+              "started_at": "2026-11-21T16:21:05Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T15:20:33Z",
+              "heartbeat_at": "2026-11-21T16:22:47Z",
               "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
-              "model": "gpt-6-luna medium fast",
+              "model": "gpt-6.2-sol",
               "cycle": 11,
               "round": 1,
-              "pid": 21254
-            }
+              "pid": 53815,
+              "exit_code": 0,
+              "finished_at": "2026-11-21T16:22:47Z",
+              "finished_phase_status": "changes_requested",
+              "must_fix": "1. **BCL-122. Validate the chart from each affected pushed commit.** The plan fixes which paths trigger the check, but the check still reads the current checkout. A push can therefore pass with a stale chart in the commit being pushed. Run the chart check against that commit’s files and keep the unrelated-file skip."
+            },
+            "tool_fault_streak": 0,
+            "review_status": "changes_requested",
+            "reviewer_model": "gpt-6.1-terra",
+            "must_fix_note": "1. **Existing live viewers are orphaned on upgrade.** [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-add/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:245) switches from a per-list state filename to a per-project filename without discovering the old record. An existing viewer remains running while a second viewer starts on another port. Add a migration test with a live legacy record and verify ownership before replacing it.\n\n2. **Concurrent starts can create duplicate viewers.** [ensure_viewer](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-add/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:245) has no project-level lock around reading state, choosing a port, starting the process, and writing state. Two callers can both see no viewer and start one; the last state write leaves the other unmanaged. Add a concurrent-start test.\n\n3. **Replacing a lane ID can bypass the review cap and scope lock.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-add/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:480) protects removal only for blocked lanes or lanes with counted failures. A same-round plan can replace a reviewed lane with a new ID, losing its review count and lock. Preserve or reject replacement of a lane under review, with a test covering the replacement path.\n\n4. **The requested gate boundaries are not fully tested.** `test_fourth_review_is_refused_until_reasoned_unblock_resets_count` covers the cap and reset, and `test_plan_reviews_do_not_count_toward_work_done_review_cap` covers plan reviews before the cap. Add checks that `plan_review` and `fix` remain available after the cap. The pre-push test covers a positive skill-file match, but needs a negative unrelated-file case and a timing measurement to establish the requested fast-path behavior.",
+            "plan_review_status": "changes_requested"
           },
-          "failure_history": [],
+          "failure_history": [
+            {
+              "attempt_id": "3f61a1e773c044dda78746f2a99e24ce",
+              "source": "review",
+              "reason": "1. **Existing live viewers are orphaned on upgrade.** [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-add/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:245) switches from a per-list state filename to a per-project filename without discovering the old record. An existing viewer remains running while a second viewer starts on another port. Add a migration test with a live legacy record and verify ownership before replacing it.\n\n2. **Concurrent starts can create duplicate viewers.** [ensure_viewer](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-add/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:245) has no project-level lock around reading state, choosing a port, starting the process, and writing state. Two callers can both see no viewer and start one; the last state write leaves the other unmanaged. Add a concurrent-start test.\n\n3. **Replacing a lane ID can bypass the review cap and scope lock.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-add/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:480) protects removal only for blocked lanes or lanes with counted failures. A same-round plan can replace a reviewed lane with a new ID, losing its review count and lock. Preserve or reject replacement of a lane under review, with a test covering the replacement path.\n\n4. **The requested gate boundaries are not fully tested.** `test_fourth_review_is_refused_until_reasoned_unblock_resets_count` covers the cap and reset, and `test_plan_reviews_do_not_count_toward_work_done_review_cap` covers plan reviews before the cap. Add checks that `plan_review` and `fix` remain available after the cap. The pre-push test covers a positive skill-file match, but needs a negative unrelated-file case and a timing measurement to establish the requested fast-path behavior.",
+              "cycle": 11,
+              "round": 1,
+              "at": "2026-11-21T15:26:39Z"
+            }
+          ],
           "plan_review_history": [],
           "updated_at": "2026-11-21T14:17:11Z",
-          "phase": "fix"
+          "phase": "plan_review"
         }
       ],
       "cycle": 11
@@ -12731,7 +12780,7 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "blocked",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
@@ -12750,7 +12799,7 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "blocked",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
@@ -12787,7 +12836,7 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "blocked",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
