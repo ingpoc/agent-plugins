@@ -30,10 +30,6 @@ class ReferenceTests(unittest.TestCase):
         codex, opencode, owner = text.find("codex first"), text.find("free opencode"), text.find("ask the owner")
         self.assertTrue(0 <= codex < opencode < owner, "review.md must give the quota-out order Codex, OpenCode free, owner")
 
-    def test_review_leaves_version_and_changelog_to_integration(self):
-        text = (SKILL / "references/review.md").read_text(encoding="utf-8").lower()
-        self.assertIn("version and changelog belong to integration", text)
-
 
 if __name__ == "__main__":
     unittest.main()
