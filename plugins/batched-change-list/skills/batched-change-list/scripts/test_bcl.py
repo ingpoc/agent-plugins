@@ -224,126 +224,6 @@ elif args[:2] != ['pr', 'edit']:
         self.assertNotIn("viewer PID probe failed", stderr.getvalue())
 
     def git(self, cwd, *args): return subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True)
-    def sync_main(self):
-        return subprocess.run([sys.executable, str(BCL), "sync-main"], cwd=self.home, env=self.env, capture_output=True, text=True)
-    def branch_for_sync(self):
-        self.git(self.home, "add", "docs/triage/pr-123-findings.html")
-        self.git(self.home, "commit", "-qm", "baseline rendered report")
-        self.git(self.home, "branch", "-M", "main")
-        self.git(self.home, "switch", "-c", "feature")
-
-    def test_sync_main_merges_renders_and_stashes_hook_dirt(self):
-        self.branch_for_sync()
-        (self.home / ".githooks").mkdir()
-        (self.home / ".githooks/pre-commit").write_text("leftover hook\n")
-        self.git(self.home, "add", ".githooks/pre-commit"); self.git(self.home, "commit", "-qm", "feature hook")
-        self.git(self.home, "switch", "main")
-        (self.home / "main-change.txt").write_text("from main\n")
-        self.git(self.home, "add", "main-change.txt"); self.git(self.home, "commit", "-qm", "main change")
-        self.git(self.home, "switch", "feature")
-        (self.home / ".githooks/pre-commit").write_text("leftover hook dirt\n")
-        result = self.sync_main()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue((self.home / "main-change.txt").exists())
-        self.assertEqual((self.home / "docs/triage/pr-123-findings.html").read_text()[:15], "<!doctype html>")
-        self.assertEqual((self.home / ".githooks/pre-commit").read_text(), "leftover hook\n")
-        self.assertIn("bcl sync-main hook/check dirt", self.git(self.home, "stash", "list").stdout)
-
-    def test_sync_main_stashes_hook_dirt_and_preserves_unrelated_work(self):
-        self.branch_for_sync()
-        (self.home / ".githooks").mkdir()
-        (self.home / ".githooks/pre-commit").write_text("leftover hook\n")
-        self.git(self.home, "add", ".githooks/pre-commit"); self.git(self.home, "commit", "-qm", "feature hook")
-        self.git(self.home, "switch", "main")
-        (self.home / "main-change.txt").write_text("from main\n")
-        self.git(self.home, "add", "main-change.txt"); self.git(self.home, "commit", "-qm", "main change")
-        self.git(self.home, "switch", "feature")
-        (self.home / ".githooks/pre-commit").write_text("leftover hook dirt\n")
-        (self.home / "wip.txt").write_text("unrelated work\n")
-        result = self.sync_main()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual((self.home / "wip.txt").read_text(), "unrelated work\n")
-        self.assertEqual((self.home / ".githooks/pre-commit").read_text(), "leftover hook\n")
-        stashed = self.git(self.home, "stash", "show", "--include-untracked", "--name-only").stdout
-        self.assertIn(".githooks/pre-commit", stashed)
-        self.assertNotIn("wip.txt", stashed)
-
-    def test_sync_main_refuses_dirty_tracker_without_stashing_or_merging(self):
-        self.branch_for_sync()
-        self.git(self.home, "switch", "main")
-        (self.home / "main-change.txt").write_text("from main\n")
-        self.git(self.home, "add", "main-change.txt"); self.git(self.home, "commit", "-qm", "main change")
-        self.git(self.home, "switch", "feature")
-        (self.home / "docs/triage/pr-123-findings.json").write_text("dirty tracker")
-        result = self.sync_main()
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("commit them or clean them", result.stderr)
-        self.assertFalse((self.home / "main-change.txt").exists())
-        self.assertEqual(self.git(self.home, "stash", "list").stdout, "")
-
-    def test_sync_main_stashes_dirt_created_by_post_merge_hook(self):
-        self.branch_for_sync()
-        (self.home / "feature-change.txt").write_text("feature\n")
-        self.git(self.home, "add", "feature-change.txt"); self.git(self.home, "commit", "-qm", "feature change")
-        self.git(self.home, "switch", "main")
-        (self.home / "main-change.txt").write_text("main\n")
-        self.git(self.home, "add", "main-change.txt"); self.git(self.home, "commit", "-qm", "main change")
-        self.git(self.home, "switch", "feature")
-        hook = self.home / ".git/hooks/post-merge"
-        hook.write_text("#!/bin/sh\nprintf 'hook dirt\\n' > hook-output.txt\n"); hook.chmod(0o755)
-        result = self.sync_main()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertFalse((self.home / "hook-output.txt").exists())
-        self.assertIn("hook-output.txt", self.git(self.home, "stash", "show", "--include-untracked", "--name-only").stdout)
-
-    def test_sync_main_stashes_post_merge_dirt_recreated_at_pre_stashed_path(self):
-        self.branch_for_sync()
-        (self.home / ".githooks").mkdir()
-        (self.home / ".githooks/pre-commit").write_text("committed hook\n")
-        self.git(self.home, "add", ".githooks/pre-commit"); self.git(self.home, "commit", "-qm", "feature hook")
-        self.git(self.home, "switch", "main")
-        (self.home / "main-change.txt").write_text("main\n")
-        self.git(self.home, "add", "main-change.txt"); self.git(self.home, "commit", "-qm", "main change")
-        self.git(self.home, "switch", "feature")
-        (self.home / ".githooks/pre-commit").write_text("leftover hook dirt\n")
-        hook = self.home / ".git/hooks/post-merge"
-        hook.write_text("#!/bin/sh\nprintf 'recreated hook dirt\\n' > .githooks/pre-commit\n")
-        hook.chmod(0o755)
-        result = self.sync_main()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual((self.home / ".githooks/pre-commit").read_text(), "committed hook\n")
-        self.assertIn(".githooks/pre-commit", self.git(self.home, "stash", "show", "--include-untracked", "--name-only").stdout)
-
-    def test_sync_main_preserves_merge_failure_without_unmerged_paths(self):
-        self.branch_for_sync()
-        original_run = subprocess.run
-        calls = []
-        def run(command, *args, **kwargs):
-            if command[-2:] == ["merge", "main"]:
-                return subprocess.CompletedProcess(command, 1, "", "merge failed without conflicts")
-            calls.append(command)
-            return original_run(command, *args, **kwargs)
-        with (patch.object(live_state, "STATE", self.state), patch.object(Path, "cwd", return_value=self.home),
-              patch.object(subprocess, "run", side_effect=run), self.assertRaises(subprocess.CalledProcessError) as failure):
-            bcl_entrypoint._sync_main()
-        self.assertEqual(failure.exception.stderr, "merge failed without conflicts")
-        self.assertFalse(any(command[-2:] == ["commit", "--no-edit"] for command in calls))
-
-    def test_sync_main_resolves_deleted_skill_reference_conflict(self):
-        self.branch_for_sync()
-        reference = self.home / "plugins/example/skills/demo/references/old.md"
-        reference.parent.mkdir(parents=True); reference.write_text("base\n")
-        self.git(self.home, "add", "plugins"); self.git(self.home, "commit", "-qm", "add reference")
-        self.git(self.home, "branch", "-f", "main")
-        self.git(self.home, "switch", "main"); reference.unlink()
-        self.git(self.home, "add", "-u"); self.git(self.home, "commit", "-qm", "delete reference")
-        self.git(self.home, "switch", "feature"); reference.write_text("feature edit\n")
-        self.git(self.home, "add", "plugins"); self.git(self.home, "commit", "-qm", "edit reference")
-        result = self.sync_main()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertFalse(reference.exists())
-        self.assertEqual(self.git(self.home, "status", "--porcelain").stdout, "")
-
     def call(self, stage, *args, cwd=None):
         data, extra = (args[0], args[1:]) if args and isinstance(args[0], Path) else (self.data, args)
         if stage == "plan" and "--plan" in extra:
@@ -1570,13 +1450,6 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(self.git(self.second, "rev-parse", "HEAD").stdout.strip(), other_head)
         self.assertEqual(self.git(self.second, "branch", "--show-current").stdout.strip(), "other")
 
-    def test_merge_guard_rejects_unsnapshotted_live_then_passes(self):
-        live = Path(self.call_without_viewer("adopt", self.data).stdout.strip())
-        doc = json.loads(live.read_text()); doc["title"] += " updated"; live.write_text(json.dumps(doc))
-        self.assertNotEqual(self.call("merge").returncode, 0)
-        self.assertEqual(self.call("start", live).returncode, 0)
-        self.assertEqual(self.call("merge").returncode, 0)
-
     def test_rollover_preserves_old_list_and_defers_new_viewer_until_collect(self):
         self.git(self.home, "worktree", "add", "-qb", "feature-124", str(self.root / "feature-124"))
         old_live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
@@ -1792,7 +1665,6 @@ elif args[:2] != ['pr', 'edit']:
         self.assertIn("snapshot home worktree missing", result.stderr)
         live = Path(record["live"])
         self.assertTrue(live.with_suffix(".unsnapshotted").exists())
-        self.assertNotEqual(self.call("merge", live).returncode, 0)
 
     def test_missing_capture_fails_and_preserves_recovery_marker(self):
         import render
@@ -1810,7 +1682,7 @@ elif args[:2] != ['pr', 'edit']:
         path = self.viewer_state_path()
         state = json.loads(path.read_text())
         self.assertEqual(json.loads((self.state / "viewers/other-list.json").read_text())["port"], 53366)
-        self.assertNotEqual(state["port"], 53366); self.assertNotEqual(state["pid"], 87005)
+        self.assertNotEqual(state["port"], 53366)
         self.assertEqual(state["port"], self.viewer_port)
         self.assertEqual(state["version"], json.loads((PLUGIN / "plugin.json").read_text())["version"])
         self.assertIn("started_at", state)
@@ -1844,12 +1716,12 @@ elif args[:2] != ['pr', 'edit']:
         path = self.viewer_state_path()
         state = json.loads(path.read_text()); first_pid = state["pid"]
         state["version"] = "0.1.16"; path.write_text(json.dumps(state))
-        result = self.call("merge")
+        result = self.call("status")
         self.assertEqual(result.returncode, 0, result.stderr)
         updated = json.loads(path.read_text()); self.assertNotEqual(updated["pid"], first_pid)
         updated["data"] = "/tmp/wrong.json"; path.write_text(json.dumps(updated))
         old_pid = updated["pid"]
-        self.assertEqual(self.call("merge").returncode, 0)
+        self.assertEqual(self.call("status").returncode, 0)
         self.assertNotEqual(json.loads(path.read_text())["pid"], old_pid)
 
     def test_viewer_restarts_when_report_path_moves(self):
@@ -1890,7 +1762,7 @@ elif args[:2] != ['pr', 'edit']:
         real_popen = subprocess.Popen
         def safe_popen(command, *args, **kwargs):
             if len(command) > 1 and str(command[1]).endswith("/serve.py"):
-                return SimpleNamespace(pid=87005)
+                return SimpleNamespace(pid=87006)
             return real_popen(command, *args, **kwargs)
 
         with patch.dict(os.environ, self.env), patch.object(live_state, "STATE", self.state), \
@@ -1919,7 +1791,7 @@ elif args[:2] != ['pr', 'edit']:
             def setsockopt(self, *args): pass
             def bind(self, address): binds.append(address)
         with patch.object(live_state, "STATE", self.state), patch.object(live_state.socket, "socket", FakeSocket), \
-             patch.object(live_state.subprocess, "Popen", return_value=SimpleNamespace(pid=87005)) as popen, \
+             patch.object(live_state.subprocess, "Popen", return_value=SimpleNamespace(pid=87006)) as popen, \
              patch.object(live_state, "_viewer_ready", return_value=True):
             value = live_state.ensure_viewer(key, record, live.resolve(), "0.1.17")
         self.assertEqual(value["port"], 53366)
@@ -1957,7 +1829,7 @@ elif args[:2] != ['pr', 'edit']:
              patch.object(live_state.urllib.request, "urlopen", return_value=FakeResponse()), \
              patch.object(live_state, "_port_is_free", side_effect=port_is_free), \
              patch.object(live_state.socket, "socket", FakeSocket), \
-             patch.object(live_state.subprocess, "Popen", return_value=SimpleNamespace(pid=87005)), \
+             patch.object(live_state.subprocess, "Popen", return_value=SimpleNamespace(pid=87006)), \
              patch.object(live_state, "_viewer_ready", return_value=True):
             value = live_state.ensure_viewer(key, record, live, "0.1.17")
 
@@ -1969,7 +1841,7 @@ elif args[:2] != ['pr', 'edit']:
     def test_viewer_start_failure_is_reported_and_not_recorded(self):
         state = self.state / "viewers/test-1.json"
         state.parent.mkdir(parents=True, exist_ok=True)
-        state.write_text(json.dumps({"pid": 87005}))
+        state.write_text(json.dumps({"pid": 87006}))
         previous = state.read_bytes()
         live = self.root / "live.json"
         live.write_text("{}")
@@ -2018,34 +1890,5 @@ elif args[:2] != ['pr', 'edit']:
                 live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
         signal_process.assert_called_once_with(state['pid'], 0)
         self.assertEqual(state_path.read_bytes(), previous)
-
-    def test_legacy_viewer_is_not_stopped_without_identity(self):
-        records = json.loads((self.state / "registry.json").read_text())
-        key, record = next(iter(records.items()))
-        path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
-        state = {"pid": 28743, "port": 53367, "version": "old", "data": record["live"]}
-        path.write_text(json.dumps(state))
-        unchanged = path.read_bytes()
-        with patch.object(live_state, "STATE", self.state), \
-             patch.object(live_state.os, "kill") as signal_process, \
-             patch.object(live_state.urllib.request, "urlopen") as request:
-            with self.assertRaisesRegex(RuntimeError, "cannot verify viewer ownership"):
-                live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
-        signal_process.assert_called_once_with(state['pid'], 0)
-        request.assert_called_once_with(f"http://127.0.0.1:{state['port']}/__bcl_health", timeout=0.5)
-        self.assertEqual(path.read_bytes(), unchanged)
-
-    def test_status_reconciles_legacy_viewer(self):
-        self.assertEqual(self.call("start").returncode, 0)
-        state = self.viewer_state_path()
-        before = json.loads(state.read_text())
-        before.pop('instance')
-        state.write_text(json.dumps(before))
-        result = self.call('status')
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue(json.loads(result.stdout)['adopted'])
-        after = json.loads(state.read_text())
-        self.assertNotEqual(after['pid'], before['pid'])
-        self.assertTrue(after.get('instance'))
 
 if __name__ == "__main__": unittest.main()

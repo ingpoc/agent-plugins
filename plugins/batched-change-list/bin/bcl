@@ -349,67 +349,6 @@ def _new_pr_url(old_url, number, explicit):
         raise ValueError("--new-url must contain the --new-pr number in its /pull/N path")
     return url
 
-def _sync_main():
-    cwd = Path.cwd().resolve()
-    repo_root = Path(live_state.git(cwd, "rev-parse", "--show-toplevel"))
-    common = Path(live_state.git(repo_root, "rev-parse", "--git-common-dir"))
-    common = (common if common.is_absolute() else repo_root / common).resolve()
-    repo = live_state.repo_id(repo_root)
-    records = []
-    for record in live_state.registry().values():
-        home = Path(record.get("home", ""))
-        if record.get("repo") != repo or not home.exists():
-            continue
-        git_common = Path(live_state.git(home, "rev-parse", "--git-common-dir"))
-        if (git_common if git_common.is_absolute() else home / git_common).resolve() == common:
-            records.append(record)
-    homes = {Path(record["home"]).resolve() for record in records}
-    if len(homes) != 1:
-        raise ValueError("cannot identify one registered home worktree for this repository")
-    home = homes.pop()
-    def dirty_paths():
-        entries = subprocess.check_output(["git", "-C", str(home), "status", "--porcelain", "--untracked-files=all", "-z"]).decode().split("\0")
-        paths = []; index = 0
-        while index < len(entries) and entries[index]:
-            entry = entries[index]; paths.append(entry[3:]); index += 1
-            if "R" in entry[:2] or "C" in entry[:2]:
-                paths.append(entries[index]); index += 1
-        return paths
-
-    dirty = dirty_paths()
-    if any(path == "docs/triage" or path.startswith("docs/triage/") for path in dirty):
-        raise ValueError("docs/triage has uncommitted tracker or report changes; commit them or clean them before sync-main")
-    hook_check_dirt = [path for path in dirty if path.startswith(".githooks/") or path == "scripts/check.py"]
-    preexisting_work = set(dirty) - set(hook_check_dirt)
-    if hook_check_dirt:
-        subprocess.run(["git", "-C", str(home), "stash", "push", "--include-untracked", "-m", "bcl sync-main hook/check dirt", "--",
-                        *(f":(literal){path}" for path in dict.fromkeys(hook_check_dirt))], check=True)
-    merge = subprocess.run(["git", "-C", str(home), "merge", "main"], capture_output=True, text=True)
-    conflicts = [path for path in subprocess.check_output(["git", "-C", str(home), "diff", "--name-only", "--diff-filter=U", "-z"]).decode().split("\0") if path]
-    for path in conflicts:
-        if "/skills/" in f"/{path}" and "/references/" in f"/{path}":
-            exists = subprocess.run(["git", "-C", str(home), "cat-file", "-e", f"main:{path}"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            if exists.returncode:
-                subprocess.run(["git", "-C", str(home), "rm", "--", path], check=True)
-    remaining = [path for path in subprocess.check_output(["git", "-C", str(home), "diff", "--name-only", "--diff-filter=U", "-z"]).decode().split("\0") if path]
-    if remaining:
-        raise ValueError(f"merge has unresolved conflicts: {', '.join(remaining)}")
-    if merge.returncode:
-        if not conflicts:
-            raise subprocess.CalledProcessError(merge.returncode, merge.args, merge.stdout, merge.stderr)
-        subprocess.run(["git", "-C", str(home), "commit", "--no-edit"], check=True)
-    import render
-    for record in records:
-        snapshot = home / record["snapshot"]
-        page = home / record["html"]
-        page.parent.mkdir(parents=True, exist_ok=True)
-        page.write_text(render.render(json.loads(snapshot.read_text()), snapshot.parent))
-    post_merge_dirt = [path for path in dirty_paths() if path not in preexisting_work and path != "docs/triage" and not path.startswith("docs/triage/")]
-    if post_merge_dirt:
-        subprocess.run(["git", "-C", str(home), "stash", "push", "--include-untracked", "-m", "bcl sync-main hook/check dirt", "--",
-                        *(f":(literal){path}" for path in dict.fromkeys(post_merge_dirt))], check=True)
-    print(f"Synced main into {home}; refreshed {len(records)} report(s)")
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=Path); parser.add_argument("--render", type=Path)
@@ -441,11 +380,6 @@ def main():
         try: install_local()
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
             print(f"bcl install-local: {error}", file=sys.stderr); raise SystemExit(1)
-        return
-    if args.stage == "sync-main":
-        try: _sync_main()
-        except (OSError, ValueError, subprocess.CalledProcessError) as error:
-            print(f"bcl sync-main: {error}", file=sys.stderr); raise SystemExit(1)
         return
     if args.stage == "adopt" and not args.data and command_args: args.data = Path(command_args.pop(0))
     if args.stage == "install-hooks":
@@ -621,14 +555,6 @@ def main():
             sys.stderr.write(result.stderr or result.stdout)
             raise SystemExit(result.returncode)
         live_state.snapshot(record, live)
-        return
-    if args.stage == "merge":
-        home = Path(record["home"])
-        if live.with_suffix(".unsnapshotted").exists(): parser.error(f"live tracker has unsnapshotted changes: {live}")
-        try: committed = subprocess.check_output(["git", "-C", str(home), "show", f"HEAD:{record['snapshot']}"], stderr=subprocess.DEVNULL)
-        except subprocess.CalledProcessError: committed = b""
-        if live.read_bytes() != committed:
-            parser.error(f"live tracker has unsnapshotted changes: {live}")
         return
     if args.stage == "rollover":
         if not args.new_pr or args.new_pr < 1 or not args.worktree:

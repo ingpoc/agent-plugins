@@ -243,15 +243,11 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
     state.parent.mkdir(parents=True, exist_ok=True)
     old = json.loads(state.read_text()) if state.exists() else {}
     running = False
-    if old.get("pid") and int(old["pid"]) != 87005:
+    if old.get("pid") and old.get("instance"):
         running = _pid_is_running(int(old["pid"]), reject_unverifiable_pid)
     owns_old = bool(old.get("data")) and Path(old["data"]).resolve() == Path(live).resolve()
     old_port = int(old.get("port", 0) or 0)
-    legacy = running and owns_old and not old.get("instance")
-    if legacy and not _legacy_viewer_matches(old_port, old):
-        # A legacy listener has no shutdown capability; only its health response can identify it.
-        raise RuntimeError(f"cannot verify viewer ownership on port {old_port}; inspect its state before retrying")
-    if running and owns_old and not legacy:
+    if running and owns_old:
         if not _viewer_responds(old_port, old):
             raise RuntimeError(f"cannot verify viewer ownership on port {old_port}; inspect its state before retrying")
         page, base = report_paths(record, live)
@@ -277,7 +273,7 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
         candidates.append(old_port)
     if 53366 not in reserved:
         candidates.append(53366)
-    if (not owns_old or legacy) and old_port:
+    if not owns_old and old_port:
         reserved.add(old_port)
     port = 0
     for candidate in dict.fromkeys(candidates):
@@ -398,17 +394,6 @@ def _viewer_responds(port, expected):
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=1) as response:
             return response.status == 200 and bool(response.read(1))
     except (OSError, urllib.error.URLError, ValueError, KeyError):
-        return False
-
-def _legacy_viewer_matches(port, expected):
-    """Check legacy listener identity without sending a shutdown request."""
-    try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/__bcl_health", timeout=0.5) as response:
-            health = json.load(response)
-            return (response.status == 200 and isinstance(health, dict) and
-                    health.get("pid") == int(expected["pid"]) and
-                    Path(health.get("path", "")).resolve() == Path(expected["data"]).resolve())
-    except (OSError, urllib.error.URLError, ValueError, TypeError):
         return False
 
 def _viewer_ready(proc, port, expected):
