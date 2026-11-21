@@ -481,7 +481,10 @@ def main():
         print(live); return
     if not record:
         if args.stage in ("status", "release-check", "resort-failures"):
-            print(json.dumps({"adopted": False, "message": "Run bcl adopt <tracker-in-repo> first."})); return
+            print(json.dumps({"adopted": False, "message": "Run bcl adopt <tracker-in-repo> first."}))
+            if args.stage == "release-check":
+                sys.exit(2)  # an unknown lane state is never a clear release
+            return
         parser.error("tracker is not adopted; run bcl adopt <tracker-in-repo>")
     if source != live and source.read_bytes() != live.read_bytes():
         parser.error(f"in-repo tracker differs from live state; live file: {live}")

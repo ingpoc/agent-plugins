@@ -530,9 +530,18 @@ def _record_lane_failure(document, identifier, attempt_id, source, reason, tool_
                 if tool_fault_reason:
                     row["tool_fault_reason"] = tool_fault_reason
             rows.append(row)
-        if len(_counted_failures(rows)) >= 2:
+        unblocks = [entry for entry in group.get("unblock_history", []) if isinstance(entry, dict)]
+        since = unblocks[-1].get("rows_seen", 0) if unblocks else 0
+        streak = 0
+        for prior in reversed(rows[since:]):
+            if not prior.get("tool_fault"):
+                break
+            streak += 1
+        repeated = tool_fault and streak >= TOOL_FAULT_STREAK_LIMIT
+        if len(_counted_failures(rows)) >= 2 or repeated:
             group.update(status="blocked", phase=group.get("phase", "fix"),
-                         blocked_reason="Second failure", failure_block_reason=reason)
+                         blocked_reason="Repeated tool faults" if repeated and len(_counted_failures(rows)) < 2
+                         else "Second failure", failure_block_reason=reason)
             codex = group.setdefault("codex", {})
             codex["review_status"] = "blocked"
             for item in document.get("findings", []):
@@ -576,6 +585,7 @@ def unblock_lane(document, operation):
         entry = {"at": stamp, "reason": reason, "tool_faults": sorted(lane_faults),
                  "covered_attempts": [row["attempt_id"] for row in _counted_failures(rows)
                                       if isinstance(row.get("attempt_id"), str)],
+                 "rows_seen": len(rows),
                  "by_cycle": plan.get("cycle", tracking.get("cycle", 1)),
                  "round": plan.get("round", tracking.get("round", 1))}
         if owner_override:
@@ -594,7 +604,10 @@ def unblock_lane(document, operation):
 IN_FLIGHT_STATUSES = {"running", "failed", "blocked", "in_progress", "planned", "pending"}
 IN_FLIGHT_PHASES = {"fix", "review", "install", "verify", "plan_review", "pending"}
 SETTLED_STATUSES = {"done", "verified", "deferred", "parked"}
-TOOL_FAULT_REASON_MARKERS = ("review incomplete", "cut-off", "cutoff", "quota")
+INCOMPLETE_REVIEW_REASON = "Review incomplete: strict verdict or Must-fix section missing"
+# Tool-recorded reason prefixes only; free text from a reviewer never classifies as a tool fault.
+TOOL_FAULT_REASON_PREFIXES = (INCOMPLETE_REVIEW_REASON, "Quota-out:", "Cut-off:")
+TOOL_FAULT_STREAK_LIMIT = 3
 
 
 def in_flight_lanes(document):
@@ -623,8 +636,8 @@ def release_check_payload(document):
 def _looks_like_tool_fault(row):
     if row.get("tool_fault"):
         return True
-    reason = (row.get("reason") or "").lower()
-    return any(marker in reason for marker in TOOL_FAULT_REASON_MARKERS)
+    reason = row.get("reason") or ""
+    return reason.startswith(TOOL_FAULT_REASON_PREFIXES)
 
 
 def resort_failure_candidates(document):
@@ -669,7 +682,7 @@ def resort_failures(document, operation):
             raise ValueError(f"{group.get('id')} unblock_history must be an array")
         plan = document.get("tracking", {}).get("plan", {})
         tracking = document.get("tracking", {})
-        history.append({"at": stamp, "reason": reason, "tool_faults": tool_faults, "resort": True,
+        history.append({"at": stamp, "reason": reason, "tool_faults": tool_faults, "resort": True, "rows_seen": len(rows),
                         "by_cycle": plan.get("cycle", tracking.get("cycle", 1)),
                         "round": plan.get("round", tracking.get("round", 1))})
         if group.get("status") == "blocked" and len(_counted_failures(rows)) < 2:
@@ -806,7 +819,7 @@ def job_transition(document, operation):
                     tool_fault = incomplete and first_line != "VERDICT: CHANGES"
                     state = "incomplete" if incomplete else "changes_requested"
                     job["finished_phase_status"] = state
-                    reason = ("Review incomplete: strict verdict or Must-fix section missing" if tool_fault
+                    reason = (INCOMPLETE_REVIEW_REASON if tool_fault
                               else "Changes requested; Must-fix section missing" if incomplete else must_fix)
                     job["must_fix"] = reason
                     if phase == "review":

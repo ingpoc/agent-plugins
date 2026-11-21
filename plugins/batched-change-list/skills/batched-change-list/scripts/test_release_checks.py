@@ -57,9 +57,35 @@ class ResortFailuresTests(unittest.TestCase):
 
     def test_apply_requires_a_reason(self):
         doc = document([{"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "fix",
-                         "failure_history": [{"attempt_id": "r1", "source": "review", "reason": "Review incomplete", "at": STAMP}]}])
+                         "failure_history": [{"attempt_id": "r1", "source": "review", "reason": manager.INCOMPLETE_REVIEW_REASON, "at": STAMP}]}])
         with self.assertRaisesRegex(ValueError, "resort-failures"):
             manager.resort_failures(doc, {"apply": True, "timestamp": STAMP})
+
+    def test_reviewer_text_mentioning_quota_or_cut_off_stays_counted(self):
+        doc = document([{"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "fix",
+                         "failure_history": [
+                             {"attempt_id": "r1", "source": "review", "reason": "1. Fix the quota calculation", "at": STAMP},
+                             {"attempt_id": "r2", "source": "review", "reason": "Handle a cut-off upload; review incomplete docs", "at": STAMP}]}])
+        self.assertEqual(manager.resort_failures(doc, {"apply": False})["lanes"], [])
+
+
+class ToolFaultStreakTests(unittest.TestCase):
+    def _lane(self):
+        return document([{"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "fix"}])
+
+    def test_three_incomplete_reviews_in_a_row_block_the_lane_until_unblock(self):
+        doc = self._lane()
+        for n in range(2):
+            manager._record_lane_failure(doc, "ISSUE-01", f"cut-{n}", "review", manager.INCOMPLETE_REVIEW_REASON, tool_fault=True)
+        group = doc["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "running")
+        manager._record_lane_failure(doc, "ISSUE-01", "cut-2", "review", manager.INCOMPLETE_REVIEW_REASON, tool_fault=True)
+        self.assertEqual(group["status"], "blocked")
+        self.assertEqual(group["blocked_reason"], "Repeated tool faults")
+        manager.unblock_lane(doc, {"ids": ["ISSUE-01"], "reason": "reviewer fixed", "timestamp": STAMP})
+        self.assertEqual(group["status"], "running")
+        manager._record_lane_failure(doc, "ISSUE-01", "cut-3", "review", manager.INCOMPLETE_REVIEW_REASON, tool_fault=True)
+        self.assertEqual(group["status"], "running")
 
 
 if __name__ == "__main__":
