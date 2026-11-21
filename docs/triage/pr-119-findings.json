@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-21T14:17:11Z",
-      "now": "2026-11-21T14:17:11Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-21T14:29:27Z",
+      "now": "2026-11-21T14:29:27Z — Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12127,7 +12127,8 @@
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix"
+      "plan_fix",
+      "review"
     ],
     "plan": {
       "round": 1,
@@ -12140,7 +12141,7 @@
             "BCL-124",
             "BCL-126"
           ],
-          "status": "pending",
+          "status": "review",
           "worktree": "bcl119-direct",
           "label": "BCL-123, BCL-124, BCL-126",
           "verify": {
@@ -12154,11 +12155,26 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r1-dead",
             "reviewer_session": "codex-terra-6.1-119r1-dead",
-            "review_status": "pending"
+            "fix_status": "passed",
+            "job": {
+              "id": "bb1ddd62936a4b5c8ebf2aa161c6124c",
+              "phase": "review",
+              "started_at": "2026-11-21T14:29:27Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-21T14:29:27Z",
+              "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
+              "model": "gpt-6.1-terra medium",
+              "cycle": 11,
+              "round": 1
+            },
+            "tool_fault_streak": 0,
+            "review_status": "running",
+            "reviewer_model": "gpt-6.1-terra medium"
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-21T14:17:11Z"
+          "updated_at": "2026-11-21T14:17:11Z",
+          "phase": "review"
         },
         {
           "id": "R1-RELEASE",
