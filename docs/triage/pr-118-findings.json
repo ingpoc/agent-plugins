@@ -10971,6 +10971,149 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "d-c3441993-118",
+        "build": "batched-change-list 0.1.56",
+        "revision": "c3441993a349b9a130f39fb62d43f0b0e7096e27",
+        "installed_at": "2026-11-21T06:24:00Z",
+        "install_evidence": "bcl install-local from c3441993: ~/.agents/plugins and ~/.agents/skills plus cursor and codex caches, sha256 636f5223 (plugin) and 32d32cc0 (skill) matched; plugin.json 0.1.56; installed-copy suite 448 OK",
+        "cycle": 10,
+        "status": "interrupted",
+        "checks": {
+          "ACU-07": {
+            "state": "pending"
+          },
+          "ACU-10": {
+            "state": "pending"
+          },
+          "ACU-13": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "BCL-91": {
+            "state": "pending"
+          },
+          "ACU-21": {
+            "state": "pending"
+          },
+          "BCL-92": {
+            "state": "pending"
+          },
+          "BCL-93": {
+            "state": "pending"
+          },
+          "BCL-94": {
+            "state": "pending"
+          },
+          "ACU-22": {
+            "state": "pending"
+          },
+          "BCL-95": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-21T06:28:54Z",
+            "started_at": "2026-11-21T06:28:54Z",
+            "updated_at": "2026-11-21T06:28:54Z",
+            "check_id": "c30b7e3371f44e93af9c91c7ed7b6e13",
+            "evidence": "Checked: A lane holding a regression against main without a restore-main flag, through plan, lane edit and issue update; Expected: Each write is refused with the restore-main message and the list is unchanged; a lane with the flag is accepted; Observed: All three write paths refused both regression marker forms and left the list unchanged; the lane with the flag was accepted",
+            "details": "verify-r3-plan.sh on installed 0.1.56 via bcl verify, inherited tool paths overridden; sandbox copy only Log: ~/.agents/artifacts/bcl-118/direct/verify-0156-plan.log, verify-0156-rounds.log, gaps-0156.log. Run d-c3441993-118.",
+            "finished_at": "2026-11-21T06:28:54.315258Z"
+          },
+          "BCL-96": {
+            "state": "pending"
+          },
+          "BCL-97": {
+            "state": "pending"
+          },
+          "BCL-98": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-21T06:28:54Z",
+            "started_at": "2026-11-21T06:28:54Z",
+            "updated_at": "2026-11-21T06:28:54Z",
+            "check_id": "254e852f964443319216de86fcdd33d7",
+            "evidence": "Checked: A fix after a failed review on a sibling issue, plan reviews missing a section, rewrites of a failed lane, and a same-second legacy unblock; Expected: The fix waits for a complete plan review tied to the lane's failure; rewrites that change a failed lane are refused; a second failure blocks and only a reasoned unblock reopens it; Observed: The sibling fix was refused before it started; plan reviews missing either section were rejected; the pass was tied to the lane failure; removing, adding or renaming the lane's issues and moving one out were refused; reorder kept all five attempts; the tied legacy case stayed refused until unblock and a fresh pass",
+            "details": "verify-r3-plan.sh (19 checks) and r3/gaps.py (6 checks) on installed 0.1.56; live list also refused a fix before plan review and blocked both lanes on the second failed review at 11:10 IST Log: ~/.agents/artifacts/bcl-118/direct/verify-0156-plan.log, verify-0156-rounds.log, gaps-0156.log. Run d-c3441993-118.",
+            "finished_at": "2026-11-21T06:28:54.316599Z"
+          },
+          "BCL-99": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-21T06:28:54Z",
+            "started_at": "2026-11-21T06:28:54Z",
+            "updated_at": "2026-11-21T06:28:54Z",
+            "check_id": "0386fcab9e4a456fb952ad898be8ec49",
+            "evidence": "Checked: Five open lanes, machine load above the limit, and stopping an active check run; Expected: Five lanes are refused and four accepted; high load refuses jobs and checks before they start; stopping keeps finished verdicts and the gate count; Observed: Five lanes refused, four accepted; both load refusals happened before the child started; stop kept five verdicts and the gate count of eleven",
+            "details": "verify-r3-rounds.sh on installed 0.1.56 via bcl verify, sandbox copy only Log: ~/.agents/artifacts/bcl-118/direct/verify-0156-plan.log, verify-0156-rounds.log, gaps-0156.log. Run d-c3441993-118.",
+            "finished_at": "2026-11-21T06:28:54.317759Z"
+          },
+          "BCL-100": {
+            "state": "pending"
+          },
+          "BCL-101": {
+            "state": "pending"
+          },
+          "BCL-102": {
+            "state": "pending"
+          },
+          "BCL-103": {
+            "state": "pending"
+          },
+          "BCL-104": {
+            "state": "pending"
+          },
+          "BCL-105": {
+            "state": "pending"
+          },
+          "BCL-106": {
+            "state": "pending"
+          },
+          "BCL-107": {
+            "state": "pending"
+          },
+          "BCL-108": {
+            "state": "pending"
+          },
+          "BCL-109": {
+            "state": "pending"
+          },
+          "BCL-110": {
+            "state": "pending"
+          },
+          "BCL-111": {
+            "state": "pending"
+          },
+          "BCL-112": {
+            "state": "pending"
+          },
+          "BCL-113": {
+            "state": "pending"
+          },
+          "BCL-114": {
+            "state": "pending"
+          },
+          "BCL-115": {
+            "state": "pending"
+          },
+          "BCL-116": {
+            "state": "pending"
+          },
+          "BCL-117": {
+            "state": "pending"
+          },
+          "BCL-118": {
+            "state": "pending"
+          },
+          "BCL-119": {
+            "state": "pending"
+          },
+          "BCL-120": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -10985,9 +11128,8 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-21T07:30:26Z",
-      "now": "2026-11-21T07:30:26Z — Introspection recorded"
+      "stage": "report_rollover",
+      "updated_at": "2026-11-21T08:48:07Z"
     },
     "rollover": {
       "source_pr": 117,
@@ -14135,7 +14277,8 @@
       "plan_fix",
       "install",
       "verify",
-      "introspect"
+      "introspect",
+      "report_rollover"
     ],
     "plan": {
       "round": 3,
@@ -14587,11 +14730,11 @@
       "status": "closed"
     },
     "verification_run": {
-      "id": "d-c3441993-118",
-      "build": "batched-change-list 0.1.56",
-      "revision": "c3441993a349b9a130f39fb62d43f0b0e7096e27",
-      "installed_at": "2026-11-21T06:24:00Z",
-      "install_evidence": "bcl install-local from c3441993: ~/.agents/plugins and ~/.agents/skills plus cursor and codex caches, sha256 636f5223 (plugin) and 32d32cc0 (skill) matched; plugin.json 0.1.56; installed-copy suite 448 OK",
+      "id": "d-9afdcf6e-118",
+      "build": "batched-change-list 0.1.57",
+      "revision": "9afdcf6e40c53ae683c2e9ab71122a420efee059",
+      "installed_at": "2026-11-21T08:41:34Z",
+      "install_evidence": "bcl install-local from 9afdcf6e: ~/.agents/plugins plus cursor and codex caches sha256 acadb8db (plugin, 5 copies matched), skill sha256 419a42d9; plugin.json 0.1.57; installed-copy suite 464 OK; realuse-0157 7/7 on installed copy",
       "cycle": 10,
       "status": "active",
       "checks": {
@@ -14626,15 +14769,7 @@
           "state": "pending"
         },
         "BCL-95": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-21T06:28:54Z",
-          "started_at": "2026-11-21T06:28:54Z",
-          "updated_at": "2026-11-21T06:28:54Z",
-          "check_id": "c30b7e3371f44e93af9c91c7ed7b6e13",
-          "evidence": "Checked: A lane holding a regression against main without a restore-main flag, through plan, lane edit and issue update; Expected: Each write is refused with the restore-main message and the list is unchanged; a lane with the flag is accepted; Observed: All three write paths refused both regression marker forms and left the list unchanged; the lane with the flag was accepted",
-          "details": "verify-r3-plan.sh on installed 0.1.56 via bcl verify, inherited tool paths overridden; sandbox copy only Log: ~/.agents/artifacts/bcl-118/direct/verify-0156-plan.log, verify-0156-rounds.log, gaps-0156.log. Run d-c3441993-118.",
-          "finished_at": "2026-11-21T06:28:54.315258Z"
+          "state": "pending"
         },
         "BCL-96": {
           "state": "pending"
@@ -14643,26 +14778,10 @@
           "state": "pending"
         },
         "BCL-98": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-21T06:28:54Z",
-          "started_at": "2026-11-21T06:28:54Z",
-          "updated_at": "2026-11-21T06:28:54Z",
-          "check_id": "254e852f964443319216de86fcdd33d7",
-          "evidence": "Checked: A fix after a failed review on a sibling issue, plan reviews missing a section, rewrites of a failed lane, and a same-second legacy unblock; Expected: The fix waits for a complete plan review tied to the lane's failure; rewrites that change a failed lane are refused; a second failure blocks and only a reasoned unblock reopens it; Observed: The sibling fix was refused before it started; plan reviews missing either section were rejected; the pass was tied to the lane failure; removing, adding or renaming the lane's issues and moving one out were refused; reorder kept all five attempts; the tied legacy case stayed refused until unblock and a fresh pass",
-          "details": "verify-r3-plan.sh (19 checks) and r3/gaps.py (6 checks) on installed 0.1.56; live list also refused a fix before plan review and blocked both lanes on the second failed review at 11:10 IST Log: ~/.agents/artifacts/bcl-118/direct/verify-0156-plan.log, verify-0156-rounds.log, gaps-0156.log. Run d-c3441993-118.",
-          "finished_at": "2026-11-21T06:28:54.316599Z"
+          "state": "pending"
         },
         "BCL-99": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-21T06:28:54Z",
-          "started_at": "2026-11-21T06:28:54Z",
-          "updated_at": "2026-11-21T06:28:54Z",
-          "check_id": "0386fcab9e4a456fb952ad898be8ec49",
-          "evidence": "Checked: Five open lanes, machine load above the limit, and stopping an active check run; Expected: Five lanes are refused and four accepted; high load refuses jobs and checks before they start; stopping keeps finished verdicts and the gate count; Observed: Five lanes refused, four accepted; both load refusals happened before the child started; stop kept five verdicts and the gate count of eleven",
-          "details": "verify-r3-rounds.sh on installed 0.1.56 via bcl verify, sandbox copy only Log: ~/.agents/artifacts/bcl-118/direct/verify-0156-plan.log, verify-0156-rounds.log, gaps-0156.log. Run d-c3441993-118.",
-          "finished_at": "2026-11-21T06:28:54.317759Z"
+          "state": "pending"
         },
         "BCL-100": {
           "state": "pending"
@@ -14692,7 +14811,15 @@
           "state": "pending"
         },
         "BCL-109": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-21T08:47:52Z",
+          "started_at": "2026-11-21T08:47:52Z",
+          "updated_at": "2026-11-21T08:47:52Z",
+          "check_id": "96c87a5380a8411eb8d787ebf99ee646",
+          "evidence": "Checked: Each workflow lane check for the plan and rounds lanes, and the 0.1.57 release checks, run on the installed tool; Expected: Each check drives the installed tool against a copy of the live list and shows the changed behaviour; Observed: The plan lane check passed 18 of 18 real-use steps, the rounds lane check 7 of 7 on a rerun, and the release checks 7 of 7, each on a sandbox copy of the live list through the installed 0.1.57 tool",
+          "details": "Honest note: both lane wrappers still also rerun a few named unit tests after the real-use steps, which the recommendation asked to replace; the done-when is met because the real-use run now decides each check. The first rounds run failed only its fixture precondition (the new run had no finished verdict yet) and passed once one was recorded. Log: ~/.agents/artifacts/bcl-118/direct/verify-0157.log, verify-0157-rounds2.log, realuse-0157-installed.log. Run d-9afdcf6e-118.",
+          "finished_at": "2026-11-21T08:47:52.337290Z"
         },
         "BCL-110": {
           "state": "pending"
@@ -14713,7 +14840,15 @@
           "state": "pending"
         },
         "BCL-116": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-21T08:47:18Z",
+          "started_at": "2026-11-21T08:47:18Z",
+          "updated_at": "2026-11-21T08:47:18Z",
+          "check_id": "19fed0714e6949b89be421a14d1ab4dc",
+          "evidence": "Checked: Both lane check wrappers run with conflicting inherited tool paths that point at a missing copy; Expected: The wrappers ignore the inherited paths and drive only the installed package; Observed: Both wrappers reported installed version 0.1.57 and drove it against a sandbox copy of the live list; 24 real-use checks ran through the installed tool and none touched the missing inherited copy",
+          "details": "verify-0157.sh with inherited paths set to a missing location; plan wrapper 19 of 19 checks passed; rounds wrapper ran 7 checks on the installed tool, one fixture precondition failed (the fresh run has no finished verdict yet), unrelated to the paths Log: ~/.agents/artifacts/bcl-118/direct/verify-0157.log. Run d-9afdcf6e-118.",
+          "finished_at": "2026-11-21T08:47:18.669893Z"
         },
         "BCL-117": {
           "state": "pending"
@@ -15508,11 +15643,29 @@
       "done_when": "Each workflow lane's check runs the installed tool against a copy of the live list and shows the changed behaviour.",
       "observed": "21 Nov 2026 00:20 IST, a PR 118 round 3 check ran unit tests and a wording search only.",
       "recommendation": "Replace the test rerun and wording search with one real-use run of the installed tool on a copy of the live list.",
-      "status": "untested",
+      "status": "verified_fixed",
       "details": {
         "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 12",
         "filed_by": "Guru 00:33 IST t1597u"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "Each workflow lane check for the plan and rounds lanes, and the 0.1.57 release checks, run on the installed tool",
+          "expected": "Each check drives the installed tool against a copy of the live list and shows the changed behaviour",
+          "observed": "The plan lane check passed 18 of 18 real-use steps, the rounds lane check 7 of 7 on a rerun, and the release checks 7 of 7, each on a sandbox copy of the live list through the installed 0.1.57 tool",
+          "verdict": "The plan lane check passed 18 of 18 real-use steps, the rounds lane check 7 of 7 on a rerun, and the release checks 7 of 7, each on a sandbox copy of the live list through the installed 0.1.57 tool",
+          "check_id": "bcl-109-0.1.57-9afdcf6e",
+          "build": "batched-change-list 0.1.57",
+          "session": "d-9afdcf6e-118",
+          "timestamp": "2026-11-21T08:47:52Z",
+          "reference": "9afdcf6e40c53ae683c2e9ab71122a420efee059:BCL-109:installed-check",
+          "details": "Honest note: both lane wrappers still also rerun a few named unit tests after the real-use steps, which the recommendation asked to replace; the done-when is met because the real-use run now decides each check. The first rounds run failed only its fixture precondition (the new run had no finished verdict yet) and passed once one was recorded. Log: ~/.agents/artifacts/bcl-118/direct/verify-0157.log, verify-0157-rounds2.log, realuse-0157-installed.log. Run d-9afdcf6e-118."
+        }
+      ],
+      "verification": "The plan lane check passed 18 of 18 real-use steps, the rounds lane check 7 of 7 on a rerun, and the release checks 7 of 7, each on a sandbox copy of the live list through the installed 0.1.57 tool Honest note: both lane wrappers still also rerun a few named unit tests after the real-use steps, which the recommendation asked to replace; the done-when is met because the real-use run now decides each check. The first rounds run failed only its fixture precondition (the new run had no finished verdict yet) and passed once one was recorded. Log: ~/.agents/artifacts/bcl-118/direct/verify-0157.log, verify-0157-rounds2.log, realuse-0157-installed.log. Run d-9afdcf6e-118.",
+      "verification_refs": [
+        "9afdcf6e40c53ae683c2e9ab71122a420efee059:BCL-109:installed-check"
+      ]
     },
     {
       "id": "BCL-110",
@@ -15638,14 +15791,32 @@
       "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
       "priority": "low",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
         "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 7",
         "carry_to_round": "4",
         "technical": "The installed acceptance wrappers must pin both BCL_BIN and BCL_SCRIPTS and be tested against conflicting inherited values.",
         "commit": "0fac47be"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "Both lane check wrappers run with conflicting inherited tool paths that point at a missing copy",
+          "expected": "The wrappers ignore the inherited paths and drive only the installed package",
+          "observed": "Both wrappers reported installed version 0.1.57 and drove it against a sandbox copy of the live list; 24 real-use checks ran through the installed tool and none touched the missing inherited copy",
+          "verdict": "Both wrappers reported installed version 0.1.57 and drove it against a sandbox copy of the live list; 24 real-use checks ran through the installed tool and none touched the missing inherited copy",
+          "check_id": "bcl-116-0.1.57-9afdcf6e",
+          "build": "batched-change-list 0.1.57",
+          "session": "d-9afdcf6e-118",
+          "timestamp": "2026-11-21T08:47:18Z",
+          "reference": "9afdcf6e40c53ae683c2e9ab71122a420efee059:BCL-116:installed-check",
+          "details": "verify-0157.sh with inherited paths set to a missing location; plan wrapper 19 of 19 checks passed; rounds wrapper ran 7 checks on the installed tool, one fixture precondition failed (the fresh run has no finished verdict yet), unrelated to the paths Log: ~/.agents/artifacts/bcl-118/direct/verify-0157.log. Run d-9afdcf6e-118."
+        }
+      ],
+      "verification": "Both wrappers reported installed version 0.1.57 and drove it against a sandbox copy of the live list; 24 real-use checks ran through the installed tool and none touched the missing inherited copy verify-0157.sh with inherited paths set to a missing location; plan wrapper 18 of 18 checks passed; rounds wrapper ran 7 checks on the installed tool, one fixture precondition failed (the fresh run has no finished verdict yet), unrelated to the paths Log: ~/.agents/artifacts/bcl-118/direct/verify-0157.log. Run d-9afdcf6e-118.",
+      "verification_refs": [
+        "9afdcf6e40c53ae683c2e9ab71122a420efee059:BCL-116:installed-check"
+      ]
     },
     {
       "id": "BCL-117",
