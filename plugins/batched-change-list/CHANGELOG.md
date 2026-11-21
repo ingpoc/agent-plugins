@@ -1,3 +1,8 @@
+## 0.1.58
+
+- Deleted unused commands: `bcl sync-main` (never run, BCL-123) and `bcl merge` (BCL-126); the README no longer lists them and a reference test rejects either name in the docs. Legacy viewer-record handling stays (BCL-124 deferred: removing it would orphan live viewers without an instance id).
+- Quieter, faster tests: five review-verdict CLI tests are one table-driven test (BCL-128), and tracker snapshot commits run quietly, so suite output drops from about 290 to 59 lines while git errors still reach stderr (BCL-129).
+
 ## 0.1.57
 
 - Skill release checks: before a release, include or defer in-flight lane fixes; after shipping, re-sort open failures so stale tool-fault blocks do not linger. A failed review or check is classified as a tool or code fault before it is counted. The old model-escalation ladder stays gone; quota-out and cut-off notes sit with the classify-before-count rule, and the review guide restores the quota-out fallback order (Codex, then free OpenCode, then ask the owner; BCL-86).
