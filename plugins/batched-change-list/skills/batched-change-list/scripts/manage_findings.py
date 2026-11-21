@@ -461,7 +461,8 @@ def plan_candidate_sha256(plan):
                 group.pop("verify", None)
         codex = group.get("codex")
         if isinstance(codex, dict):
-            for field in ("job", "fix_status", "review_status", "plan_review_status", "reviewer_model", "must_fix_note"):
+            for field in ("job", "fix_status", "review_status", "plan_review_status", "reviewer_model", "must_fix_note",
+                          "tool_fault_streak"):
                 codex.pop(field, None)
             if not codex:
                 group.pop("codex", None)
@@ -470,7 +471,8 @@ def plan_candidate_sha256(plan):
 
 def carry_plan_runtime_state(groups, previous, same_round):
     old = {group.get("id"): group for group in previous.get("groups", [])} if isinstance(previous, dict) else {}
-    protected_codex = ("job", "fix_status", "review_status", "plan_review_status", "reviewer_model", "must_fix_note")
+    protected_codex = ("job", "fix_status", "review_status", "plan_review_status", "reviewer_model", "must_fix_note",
+                       "tool_fault_streak")
     protected_group = ("status", "phase", "presuite", "failure_history", "plan_review_history", "unblock_history", "blocked_reason", "failure_block_reason")
     for prior in old.values():
         _lane_history(prior, "failure_history")
@@ -532,18 +534,15 @@ def _record_lane_failure(document, identifier, attempt_id, source, reason, tool_
                 if tool_fault_reason:
                     row["tool_fault_reason"] = tool_fault_reason
             rows.append(row)
-        unblocks = [entry for entry in group.get("unblock_history", []) if isinstance(entry, dict)]
-        since = unblocks[-1].get("rows_seen", 0) if unblocks else 0
-        streak = 0
-        for prior in reversed(rows[since:]):
-            if not prior.get("tool_fault"):
-                break
-            streak += 1
-        repeated = tool_fault and streak >= TOOL_FAULT_STREAK_LIMIT
-        if len(_counted_failures(rows)) >= 2 or repeated:
+            # Consecutive tool-fault jobs: any job that ends without a tool fault, an unblock or a re-sort resets it.
+            streak_codex = group.setdefault("codex", {})
+            streak_codex["tool_fault_streak"] = streak_codex.get("tool_fault_streak", 0) + 1 if tool_fault else 0
+        repeated = tool_fault and group.get("codex", {}).get("tool_fault_streak", 0) >= TOOL_FAULT_STREAK_LIMIT
+        # An uncounted tool fault never re-blocks a lane whose earlier counted failures an unblock covered.
+        if (not tool_fault and len(_counted_failures(rows)) >= 2) or repeated:
             group.update(status="blocked", phase=group.get("phase", "fix"),
-                         blocked_reason="Repeated tool faults" if repeated and len(_counted_failures(rows)) < 2
-                         else "Second failure", failure_block_reason=reason)
+                         blocked_reason="Repeated tool faults" if repeated else "Second failure",
+                         failure_block_reason=reason)
             codex = group.setdefault("codex", {})
             codex["review_status"] = "blocked"
             for item in document.get("findings", []):
@@ -599,6 +598,7 @@ def unblock_lane(document, operation):
         codex = group.setdefault("codex", {})
         codex.pop("review_status", None)
         codex.pop("plan_review_status", None)
+        codex.pop("tool_fault_streak", None)
         for item in document.get("findings", []):
             if item.get("id") in group.get("finding_ids", []) and item.get("status") == "blocked":
                 item["status"] = "in_progress"
@@ -696,6 +696,7 @@ def resort_failures(document, operation):
             raise ValueError(f"{group.get('id')} unblock_history must be an array")
         plan = document.get("tracking", {}).get("plan", {})
         tracking = document.get("tracking", {})
+        group.setdefault("codex", {}).pop("tool_fault_streak", None)
         history.append({"at": stamp, "reason": reason, "tool_faults": tool_faults, "resort": True, "rows_seen": len(rows),
                         "by_cycle": plan.get("cycle", tracking.get("cycle", 1)),
                         "round": plan.get("round", tracking.get("round", 1))})
@@ -811,6 +812,7 @@ def job_transition(document, operation):
             codex = group.setdefault("codex", {})
             job = codex.get("job")
             job.update(exit_code=exit_code, finished_at=stamp)
+            job_tool_fault = False
             if phase in ("review", "plan_review"):
                 status = verdict if exit_code == 0 else None
                 if status == "PASS":
@@ -847,6 +849,7 @@ def job_transition(document, operation):
                         codex["plan_review_status"] = "failed" if incomplete else state
                     # Review findings always enter failure history; plan-review tool faults enter it
                     # too (never counted) so repeated cut-offs hit the tool-fault streak block.
+                    job_tool_fault = tool_fault
                     if phase == "review" or tool_fault:
                         for identifier in set(operation["ids"]).intersection(group.get("finding_ids", [])):
                             _record_lane_failure(document, identifier, job_id, phase, reason,
@@ -866,6 +869,8 @@ def job_transition(document, operation):
                     group["presuite"] = {"status": "passed" if passed else "failed",
                                          "exit_code": exit_code, "finished_at": stamp}
             job["heartbeat_at"] = stamp
+            if not job_tool_fault:
+                codex["tool_fault_streak"] = 0
     else:
         raise ValueError("unknown job transition")
 

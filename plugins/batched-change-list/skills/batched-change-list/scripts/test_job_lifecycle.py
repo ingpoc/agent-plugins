@@ -274,5 +274,34 @@ class JobLifecycleTests(unittest.TestCase):
         self.assertEqual(len(manager._counted_failures(group["failure_history"])), 1)
 
 
+    def test_tool_fault_after_an_owner_unblock_does_not_reblock_the_lane(self):
+        doc = document()
+        group = doc["tracking"]["plan"]["groups"][0]
+        for n in (1, 2):
+            manager._record_lane_failure(doc, "ISSUE-01", f"bug-{n}", "review", "real bug")
+        self.assertEqual(group["status"], "blocked")
+        manager.unblock_lane(doc, {"ids": ["ISSUE-01"], "reason": "owner approved", "timestamp": STAMP})
+        manager._record_lane_failure(doc, "ISSUE-01", "cut-1", "review", manager.INCOMPLETE_REVIEW_REASON, tool_fault=True)
+        self.assertEqual(group["status"], "running")
+        manager._record_lane_failure(doc, "ISSUE-01", "bug-3", "review", "another real bug")
+        self.assertEqual(group["status"], "blocked")
+        self.assertEqual(group["blocked_reason"], "Second failure")
+
+    def test_tool_faults_separated_by_a_clean_job_do_not_block(self):
+        doc = document()
+        group = doc["tracking"]["plan"]["groups"][0]
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1")
+        for n in (1, 2):
+            transition(doc, "start-job", "review", f"cut-{n}")
+            finish(doc, "review", f"cut-{n}", reply="partial review")
+            transition(doc, "start-job", "fix", f"fix-ok-{n}")
+            finish(doc, "fix", f"fix-ok-{n}")
+        transition(doc, "start-job", "review", "cut-3")
+        finish(doc, "review", "cut-3", reply="partial review")
+        self.assertNotEqual(group["status"], "blocked")
+        self.assertEqual(group["codex"]["tool_fault_streak"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()
