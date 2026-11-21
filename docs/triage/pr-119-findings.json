@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-21T16:23:47Z",
-      "now": "2026-11-21T16:23:47Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-21T16:27:21Z",
+      "now": "2026-11-21T16:27:21Z — Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12141,7 +12141,7 @@
             "BCL-124",
             "BCL-126"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl119-direct",
           "label": "BCL-123, BCL-124, BCL-126",
           "verify": {
@@ -12155,21 +12155,22 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r1-dead",
             "reviewer_session": "codex-terra-6.1-119r1-dead",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "133cef5eb7b34ebd90e52448b33baab4",
-              "phase": "fix",
-              "started_at": "2026-11-21T16:23:47Z",
+              "id": "7180bd20a0134c37b4aec4a0e7f75543",
+              "phase": "review",
+              "started_at": "2026-11-21T16:27:21Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T16:23:47Z",
+              "heartbeat_at": "2026-11-21T16:27:21Z",
               "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
-              "model": "scripted-revert",
+              "model": "gpt-6.1-terra",
               "cycle": 11,
               "round": 1
             },
-            "reviewer_model": "gpt-6.1-terra medium",
+            "reviewer_model": "gpt-6.1-terra",
             "must_fix_note": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it.",
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "review_status": "running"
           },
           "failure_history": [
             {
@@ -12208,7 +12209,7 @@
             }
           ],
           "updated_at": "2026-11-21T14:17:11Z",
-          "phase": "fix",
+          "phase": "review",
           "unblock_history": [
             {
               "at": "2026-11-21T16:20:21Z",
