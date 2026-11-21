@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-21T17:05:46Z",
-      "now": "2026-11-21T17:05:46Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-21T17:08:29Z",
+      "now": "2026-11-21T17:08:29Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 118,
@@ -12101,6 +12101,100 @@
           }
         },
         "source_task": "WF-21"
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-21T17:08:29Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: R1-DEAD",
+          "Codex review: R1-DEAD",
+          "Polling and rework review: R1-DEAD",
+          "Test command: R1-DEAD: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-dead.sh",
+          "Codex write: R1-RELEASE",
+          "Codex review: R1-RELEASE",
+          "Polling and rework review: R1-RELEASE",
+          "Test command: R1-RELEASE: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-release.sh",
+          "Codex write: R1-TESTS",
+          "Codex review: R1-TESTS",
+          "Polling and rework review: R1-TESTS",
+          "Test command: R1-TESTS: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-tests.sh",
+          "Codex write: R1-ADD",
+          "Codex review: R1-ADD",
+          "Polling and rework review: R1-ADD",
+          "Test command: R1-ADD: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-add.sh",
+          "Presuite: first job failed on an unchanged comet-control timing test under load 11; rerun with 6 test workers passed",
+          "Release check: owner exception for the two carried lanes because they could not be deferred"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: R1-DEAD",
+          "Codex review: R1-DEAD",
+          "Polling and rework review: R1-DEAD",
+          "Test command: R1-DEAD: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-dead.sh",
+          "Codex write: R1-RELEASE",
+          "Codex review: R1-RELEASE",
+          "Test command: R1-RELEASE: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-release.sh",
+          "Codex write: R1-TESTS",
+          "Codex review: R1-TESTS",
+          "Polling and rework review: R1-TESTS",
+          "Test command: R1-TESTS: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-tests.sh",
+          "Codex write: R1-ADD",
+          "Codex review: R1-ADD",
+          "Test command: R1-ADD: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-add.sh"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Polling and rework review: R1-RELEASE",
+                "evidence": "Seven plan reviews (about 4.2M input tokens) and one counted review failure; each plan review found a deeper edge until the owner cut the lane; no cap stopped the loop",
+                "outcome": "issue",
+                "issue_id": "BCL-137"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Polling and rework review: R1-ADD",
+                "evidence": "Six plan reviews (about 4.9M input tokens); the per-project viewer and plan freeze grew locks, migration and validator changes before the cut; lane carried to round 2",
+                "outcome": "issue",
+                "issue_id": "BCL-133"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Presuite: first job failed on an unchanged comet-control timing test under load 11; rerun with 6 test workers passed",
+                "evidence": "check.py with 10 workers peaked load 11.5 and failed a different comet-control timing test each run; with 6 workers it passed in about 7 minutes",
+                "outcome": "fixed inline",
+                "proof": "python3 scripts/check.py --jobs 6 (presuite job 2 passed)"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Release check: owner exception for the two carried lanes because they could not be deferred",
+                "evidence": "Release check exits 2 for lanes whose review passed and for carried lanes it cannot defer (BCL-135); shipping needed an owner exception",
+                "outcome": "issue",
+                "issue_id": "BCL-136"
+              }
+            ]
+          }
+        },
+        "round": 1,
+        "cycle": 11
       }
     ],
     "archive": {
@@ -12130,7 +12224,8 @@
       "plan_fix",
       "review",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 1,
@@ -12148,8 +12243,8 @@
           "label": "BCL-123, BCL-124, BCL-126",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-dead.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "partial",
+            "fixed": 2,
             "failed": 0,
             "total": 3
           },
@@ -12306,13 +12401,13 @@
             "BCL-128",
             "BCL-129"
           ],
-          "status": "installing",
+          "status": "verified",
           "worktree": "bcl119-direct",
           "label": "BCL-128, BCL-129",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-tests.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 2,
             "failed": 0,
             "total": 2
           },
@@ -12342,8 +12437,8 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-21T14:17:11Z",
-          "phase": "install",
+          "updated_at": "2026-11-21T17:05:49Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12414,7 +12509,8 @@
           "phase": "plan_review"
         }
       ],
-      "cycle": 11
+      "cycle": 11,
+      "status": "closed"
     },
     "verification_run": {
       "id": "r1-65c8dd9b-119",
@@ -12492,25 +12588,66 @@
           "state": "pending"
         },
         "BCL-123": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-21T17:07:32Z",
+          "started_at": "2026-11-21T17:06:53Z",
+          "updated_at": "2026-11-21T17:07:32Z",
+          "check_id": "b207f31235aa4fd8a764d48566260839",
+          "evidence": "Checked: The removed sync main command, run on a dummy list with the installed version; Expected: Refused as unknown and missing from the guides; Observed: Refused as an unknown stage; the readme, skill and guides no longer mention it; full suite passes on the installed copy",
+          "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
+          "finished_at": "2026-11-21T17:07:32.605218Z"
         },
         "BCL-124": {
-          "state": "pending"
+          "state": "blocked",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-21T17:07:32Z",
+          "started_at": "2026-11-21T17:06:53Z",
+          "updated_at": "2026-11-21T17:07:32Z",
+          "check_id": "e0a327bd73e84edf85022a755ab7cae2",
+          "evidence": "Checked: the installed viewer start code; Expected: old viewer records still handled, per the owner; Observed: the handling and its three tests are present",
+          "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
+          "blocker": "Owner decision 21 Nov 21:49 IST: keep old viewer record handling; deletion moves to round 2",
+          "finished_at": "2026-11-21T17:07:32.610077Z"
         },
         "BCL-125": {
           "state": "pending"
         },
         "BCL-126": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-21T17:07:32Z",
+          "started_at": "2026-11-21T17:06:53Z",
+          "updated_at": "2026-11-21T17:07:32Z",
+          "check_id": "1f46d10e1a70497bb9fbfb9adcb72641",
+          "evidence": "Checked: The removed merge command, run on a dummy list with the installed version; Expected: Refused as unknown and missing from the guides; Observed: Refused as an unknown stage; the guides are clean and a reference test rejects the name; the merged command still works",
+          "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
+          "finished_at": "2026-11-21T17:07:32.607023Z"
         },
         "BCL-127": {
           "state": "pending"
         },
         "BCL-128": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-21T17:07:32Z",
+          "started_at": "2026-11-21T17:06:53Z",
+          "updated_at": "2026-11-21T17:07:32Z",
+          "check_id": "e9c46ceac53f43e08bae018f90f4dbce",
+          "evidence": "Checked: The installed test file and a focused run of the verdict test; Expected: One table test that keeps all five verdict cases; Observed: One verdict test passes on the installed copy; the review confirmed every check was kept",
+          "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
+          "finished_at": "2026-11-21T17:07:32.608549Z"
         },
         "BCL-129": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-21T17:07:32Z",
+          "started_at": "2026-11-21T17:06:53Z",
+          "updated_at": "2026-11-21T17:07:32Z",
+          "check_id": "5c081b943a7241258b0d8d998a114f34",
+          "evidence": "Checked: Test output on the installed version and the full suite output; Expected: No snapshot commit noise, with git errors still shown; Observed: No snapshot lines in test output; suite output fell from 290 to 59 lines; failed commits still raise",
+          "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
+          "finished_at": "2026-11-21T17:07:32.610047Z"
         },
         "BCL-130": {
           "state": "pending"
@@ -12531,6 +12668,100 @@
           "state": "pending"
         }
       }
+    },
+    "introspect": {
+      "result": "Introspect recorded",
+      "at": "2026-11-21T17:08:29Z",
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: R1-DEAD",
+        "Codex review: R1-DEAD",
+        "Polling and rework review: R1-DEAD",
+        "Test command: R1-DEAD: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-dead.sh",
+        "Codex write: R1-RELEASE",
+        "Codex review: R1-RELEASE",
+        "Polling and rework review: R1-RELEASE",
+        "Test command: R1-RELEASE: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-release.sh",
+        "Codex write: R1-TESTS",
+        "Codex review: R1-TESTS",
+        "Polling and rework review: R1-TESTS",
+        "Test command: R1-TESTS: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-tests.sh",
+        "Codex write: R1-ADD",
+        "Codex review: R1-ADD",
+        "Polling and rework review: R1-ADD",
+        "Test command: R1-ADD: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-add.sh",
+        "Presuite: first job failed on an unchanged comet-control timing test under load 11; rerun with 6 test workers passed",
+        "Release check: owner exception for the two carried lanes because they could not be deferred"
+      ],
+      "none": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: R1-DEAD",
+        "Codex review: R1-DEAD",
+        "Polling and rework review: R1-DEAD",
+        "Test command: R1-DEAD: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-dead.sh",
+        "Codex write: R1-RELEASE",
+        "Codex review: R1-RELEASE",
+        "Test command: R1-RELEASE: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-release.sh",
+        "Codex write: R1-TESTS",
+        "Codex review: R1-TESTS",
+        "Polling and rework review: R1-TESTS",
+        "Test command: R1-TESTS: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-tests.sh",
+        "Codex write: R1-ADD",
+        "Codex review: R1-ADD",
+        "Test command: R1-ADD: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-add.sh"
+      ],
+      "sections": {
+        "delete": {
+          "items": [
+            {
+              "item": "Polling and rework review: R1-RELEASE",
+              "evidence": "Seven plan reviews (about 4.2M input tokens) and one counted review failure; each plan review found a deeper edge until the owner cut the lane; no cap stopped the loop",
+              "outcome": "issue",
+              "issue_id": "BCL-137"
+            }
+          ]
+        },
+        "simplify": {
+          "items": [
+            {
+              "item": "Polling and rework review: R1-ADD",
+              "evidence": "Six plan reviews (about 4.9M input tokens); the per-project viewer and plan freeze grew locks, migration and validator changes before the cut; lane carried to round 2",
+              "outcome": "issue",
+              "issue_id": "BCL-133"
+            }
+          ]
+        },
+        "optimize": {
+          "items": [
+            {
+              "item": "Presuite: first job failed on an unchanged comet-control timing test under load 11; rerun with 6 test workers passed",
+              "evidence": "check.py with 10 workers peaked load 11.5 and failed a different comet-control timing test each run; with 6 workers it passed in about 7 minutes",
+              "outcome": "fixed inline",
+              "proof": "python3 scripts/check.py --jobs 6 (presuite job 2 passed)"
+            }
+          ]
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "Release check: owner exception for the two carried lanes because they could not be deferred",
+              "evidence": "Release check exits 2 for lanes whose review passed and for carried lanes it cannot defer (BCL-135); shipping needed an owner exception",
+              "outcome": "issue",
+              "issue_id": "BCL-136"
+            }
+          ]
+        }
+      },
+      "round": 1,
+      "cycle": 11
     }
   },
   "findings": [
@@ -12921,14 +13152,32 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
         "evidence": "0 uses in bcl-110..119 progress logs; _sync_main 60 lines, 8 CLI tests in test_bcl.py lines 227-350",
         "kind": "delete"
       },
-      "needs": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it."
+      "needs": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it.",
+      "verification_evidence": [
+        {
+          "checked": "The removed sync main command, run on a dummy list with the installed version",
+          "expected": "Refused as unknown and missing from the guides",
+          "observed": "Refused as an unknown stage; the readme, skill and guides no longer mention it; full suite passes on the installed copy",
+          "verdict": "Refused as an unknown stage; the readme, skill and guides no longer mention it; full suite passes on the installed copy",
+          "check_id": "bcl-123-0.1.58-65c8dd9b",
+          "build": "batched-change-list 0.1.58",
+          "session": "r1-65c8dd9b-119",
+          "timestamp": "2026-11-21T17:07:32Z",
+          "reference": "65c8dd9b:BCL-123:installed-check",
+          "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119."
+        }
+      ],
+      "verification": "Refused as an unknown stage; the readme, skill and guides no longer mention it; full suite passes on the installed copy Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
+      "verification_refs": [
+        "65c8dd9b:BCL-123:installed-check"
+      ]
     },
     {
       "id": "BCL-124",
@@ -12978,14 +13227,32 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
         "evidence": "0 uses in all progress logs; merged used 6 times",
         "kind": "delete"
       },
-      "needs": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it."
+      "needs": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it.",
+      "verification_evidence": [
+        {
+          "checked": "The removed merge command, run on a dummy list with the installed version",
+          "expected": "Refused as unknown and missing from the guides",
+          "observed": "Refused as an unknown stage; the guides are clean and a reference test rejects the name; the merged command still works",
+          "verdict": "Refused as an unknown stage; the guides are clean and a reference test rejects the name; the merged command still works",
+          "check_id": "bcl-126-0.1.58-65c8dd9b",
+          "build": "batched-change-list 0.1.58",
+          "session": "r1-65c8dd9b-119",
+          "timestamp": "2026-11-21T17:07:32Z",
+          "reference": "65c8dd9b:BCL-126:installed-check",
+          "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119."
+        }
+      ],
+      "verification": "Refused as an unknown stage; the guides are clean and a reference test rejects the name; the merged command still works Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
+      "verification_refs": [
+        "65c8dd9b:BCL-126:installed-check"
+      ]
     },
     {
       "id": "BCL-127",
@@ -13015,13 +13282,31 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
         "evidence": "test_review_job_* 1.9 s each in time-test_bcl.txt; test_bcl.py is the slowest CI job at 141 s",
         "kind": "delete"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The installed test file and a focused run of the verdict test",
+          "expected": "One table test that keeps all five verdict cases",
+          "observed": "One verdict test passes on the installed copy; the review confirmed every check was kept",
+          "verdict": "One verdict test passes on the installed copy; the review confirmed every check was kept",
+          "check_id": "bcl-128-0.1.58-65c8dd9b",
+          "build": "batched-change-list 0.1.58",
+          "session": "r1-65c8dd9b-119",
+          "timestamp": "2026-11-21T17:07:32Z",
+          "reference": "65c8dd9b:BCL-128:installed-check",
+          "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119."
+        }
+      ],
+      "verification": "One verdict test passes on the installed copy; the review confirmed every check was kept Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
+      "verification_refs": [
+        "65c8dd9b:BCL-128:installed-check"
+      ]
     },
     {
       "id": "BCL-129",
@@ -13033,13 +13318,31 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
         "evidence": "suite-installed-0157.log 290 lines; time-test_bcl.txt 105 snapshot pairs",
         "kind": "delete"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "Test output on the installed version and the full suite output",
+          "expected": "No snapshot commit noise, with git errors still shown",
+          "observed": "No snapshot lines in test output; suite output fell from 290 to 59 lines; failed commits still raise",
+          "verdict": "No snapshot lines in test output; suite output fell from 290 to 59 lines; failed commits still raise",
+          "check_id": "bcl-129-0.1.58-65c8dd9b",
+          "build": "batched-change-list 0.1.58",
+          "session": "r1-65c8dd9b-119",
+          "timestamp": "2026-11-21T17:07:32Z",
+          "reference": "65c8dd9b:BCL-129:installed-check",
+          "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119."
+        }
+      ],
+      "verification": "No snapshot lines in test output; suite output fell from 290 to 59 lines; failed commits still raise Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
+      "verification_refs": [
+        "65c8dd9b:BCL-129:installed-check"
+      ]
     },
     {
       "id": "BCL-130",
@@ -13149,6 +13452,43 @@
         "kind": "fix",
         "release_exception": "Guru 22:05 IST: one-time release-check exception for 0.1.58 covering only R1-RELEASE and R1-ADD, carried to round 2 because this bug blocks deferring them",
         "round2_order": "1 (first in round 2)"
+      }
+    },
+    {
+      "id": "BCL-136",
+      "title": "Release check never clears for fixes that are ready to ship",
+      "summary": "The release check treats a lane whose review passed as still in flight, so it keeps failing for exactly the fixes the release is meant to carry, until after they are installed and verified.",
+      "impact": "The rule to run the check before pushing or installing until it is clear cannot be followed; every release needs a judgement call or an exception.",
+      "recommendation": "Let the release check accept lanes whose review passed and that are named for this release, and keep failing only for lanes still fixing or reviewing.",
+      "done_when": "With every lane either review passed and included, or carried to the next round, the release check exits 0 before push.",
+      "observed": "21 Nov 2026 22:00 IST, bcl 0.1.57 installed, PR 119 release check before shipping 0.1.58",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "statechart skill review of bcl 0.1.58",
+        "report": "bcl-119/statechart-review.tgz out1/report.md",
+        "evidence": "Model rule ReviewedFixCanShip breaks in 2 steps; real replay: release-check rc=2 at 22:00 IST listing R1-DEAD and R1-TESTS with review passed as in flight",
+        "kind": "fix"
+      }
+    },
+    {
+      "id": "BCL-137",
+      "title": "Plan reviews have no limit per lane",
+      "summary": "A plan review that asks for changes is not counted and has no cap, so a lane can loop on plan reviews forever without blocking or reaching the owner.",
+      "impact": "In PR 119 two lanes ran seven and six plan reviews, about nine million tokens, before the owner had to step in by hand.",
+      "recommendation": "Cap plan reviews per lane per round at three; the fourth start is refused until a reasoned unblock or the lane is carried to the next round.",
+      "done_when": "The fourth plan review start for a lane in a round is refused with a message naming unblock or carry, and a test covers it.",
+      "observed": "21 Nov 2026 21:15 IST, bcl 0.1.57 installed, PR 119 round 1",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "statechart skill review of bcl 0.1.58",
+        "report": "bcl-119/statechart-review.tgz out1/report.md",
+        "evidence": "Model rule PlanReviewsCapped breaks in 5 steps; real: bcl job accepted plan reviews 4 to 7 on R1-RELEASE and 4 to 6 on R1-ADD",
+        "kind": "fix",
+        "related": "BCL-121 covers work-done reviews only"
       }
     }
   ]
