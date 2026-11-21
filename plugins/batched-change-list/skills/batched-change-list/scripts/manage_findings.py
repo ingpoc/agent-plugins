@@ -255,7 +255,13 @@ def validate_verification_reason(reason):
 
 def verification_check(document, finding_id, check_id):
     tracking = document.get("tracking", {})
-    runs = [*tracking.get("verification_history", []), tracking.get("verification_run", {})]
+    runs = [*tracking.get("verification_history", [])]
+    archive = tracking.get("archive")
+    archive_path = Path(archive["path"]) if isinstance(archive, dict) and isinstance(archive.get("path"), str) else None
+    if archive_path and archive_path.is_file():
+        runs.extend(row for row in json.loads(archive_path.read_text(encoding="utf-8"))
+                    if isinstance(row, dict) and row.get("record_type") == "verification_history")
+    runs.append(tracking.get("verification_run", {}))
     matches = []
     for run in runs:
         if not isinstance(run, dict):
@@ -321,6 +327,552 @@ def validate_plan_group_fields(group, round_number):
         raise ValueError(f"plan group {group.get('id')} updated_at must be an ISO 8601 timestamp")
     if group.get("quota_wait_until") and RENDERER.parse_instant(group["quota_wait_until"]) is None:
         raise ValueError(f"plan group {group.get('id')} quota_wait_until must be an ISO 8601 timestamp")
+
+
+def require_override_reason(reason, action):
+    if not isinstance(reason, str) or not reason.strip() or "\n" in reason or "\r" in reason:
+        raise ValueError(f"{action} override requires a one-line nonblank --reason")
+    return reason.strip()
+
+
+def parse_review_reply(reply):
+    if not isinstance(reply, str):
+        return None, None
+    first = next((line for line in reply.splitlines() if line.strip()), None)
+    if first not in ("VERDICT: PASS", "VERDICT: CHANGES"):
+        return None, None
+    verdict = first.partition(":")[2].strip()
+    body = _section_body(reply, "Must-fix")
+    if not body:
+        return None, None
+    if verdict == "PASS" and body.casefold().rstrip(".") != "none":
+        return None, None
+    if verdict == "CHANGES" and not any(re.match(r"\s*(?:[-*+]\s+|\d+[.)]\s+)", line) for line in body.splitlines()):
+        return None, None
+    return verdict, body
+
+
+def _section_body(reply, title):
+    lines = reply.splitlines()
+    heading = rf"\s*(?:#{{1,6}}\s*)?\**{re.escape(title)}\**\s*(?::\**\s*(.*)|\s*)"
+    start = next((index for index, line in enumerate(lines) if re.fullmatch(heading, line, re.I)), None)
+    if start is None:
+        return ""
+    end = next((index for index in range(start + 1, len(lines))
+                if re.match(r"^\s*(?:#{1,6}\s+|\**[A-Z][\w -]*\**:)", lines[index])), len(lines))
+    inline = re.fullmatch(heading, lines[start], re.I).group(1) or ""
+    return "\n".join([inline, *lines[start + 1:end]]).strip()
+
+
+def _lane_groups(document, ids):
+    tracking = document.setdefault("tracking", {})
+    plan = tracking.get("plan")
+    if (not isinstance(ids, list) or not ids or len(ids) != len(set(ids))
+            or not isinstance(plan, dict) or plan.get("cycle", 1) != RENDERER.rollover_cycle(tracking)
+            or plan.get("round", 1) != RENDERER.rollover_round(tracking)):
+        raise ValueError("job requires unique IDs covered by the current recorded plan")
+    groups = [group for group in plan.get("groups", []) if set(ids).intersection(group.get("finding_ids", []))]
+    covered = {identifier for group in groups for identifier in set(ids).intersection(group.get("finding_ids", []))}
+    if not groups or covered != set(ids):
+        raise ValueError("job IDs must be covered by current plan groups")
+    for group in groups:
+        _lane_history(group, "failure_history")
+        _lane_history(group, "plan_review_history")
+    return tracking, plan, groups
+
+
+def _lane_history(group, field):
+    history = group.get(field, [])
+    if isinstance(history, dict):
+        if any(not isinstance(rows, list) for rows in history.values()):
+            raise ValueError(f"{group.get('id')} {field} legacy entries must be arrays")
+        history = [row for rows in history.values() if isinstance(rows, list) for row in rows]
+    if not isinstance(history, list) or any(not isinstance(row, dict) for row in history):
+        raise ValueError(f"{group.get('id')} {field} must be an array")
+    ordered = list(enumerate(history))
+    def chronology(item):
+        index, row = item
+        return (_history_instant(row) or datetime.min.replace(tzinfo=timezone.utc), index)
+    ordered.sort(key=chronology)
+    unique, seen = [], set()
+    for _, row in ordered:
+        key = ((row.get("attempt_id"),) if field == "failure_history" else
+               (row.get("job_id"), row.get("after_failure")))
+        if key[0] and key in seen:
+            continue
+        if key[0]:
+            seen.add(key)
+        unique.append(row)
+    group[field] = unique
+    if field == "failure_history":
+        failures = _counted_failures(unique)
+        if len(failures) >= 2 and not _unblock_covers_failures(group, failures):
+            group.update(status="blocked", phase=group.get("phase", "fix"))
+            group.setdefault("blocked_reason", "Two counted lane failures require an owner unblock")
+            group.setdefault("failure_block_reason", group["blocked_reason"])
+    return unique
+
+
+def _counted_failures(rows):
+    counted, attempts = [], set()
+    for row in rows:
+        attempt = row.get("attempt_id")
+        if row.get("tool_fault") or row.get("source") == "plan_review" or (attempt and attempt in attempts):
+            continue
+        if attempt:
+            attempts.add(attempt)
+        counted.append(row)
+    return counted
+
+
+def _history_instant(row):
+    return RENDERER.parse_instant(row.get("at") or row.get("timestamp") or row.get("recorded_at") or "")
+
+
+def _unblock_covers_failures(group, failures):
+    if len(failures) < 2:
+        return True
+    history = group.get("unblock_history", [])
+    if not isinstance(history, list) or any(not isinstance(row, dict) for row in history):
+        raise ValueError(f"{group.get('id')} unblock_history must be an array")
+    for row in history:
+        if not row.get("owner_override"):
+            continue
+        covered = set(row.get("covered_attempts", []))
+        unblocked_at = _history_instant(row)
+        if all((failure.get("attempt_id") in covered) or
+               (unblocked_at and _history_instant(failure) and unblocked_at > _history_instant(failure))
+               for failure in failures):
+            return True
+    return False
+
+
+def plan_candidate_sha256(plan):
+    candidate = copy.deepcopy(plan)
+    for group in candidate.get("groups", []):
+        for field in ("status", "phase", "presuite", "updated_at", "failure_history", "unblock_history",
+                      "plan_review_history", "blocked_reason", "failure_block_reason"):
+            group.pop(field, None)
+        verify = group.get("verify")
+        if isinstance(verify, dict):
+            for field in ("status", "fixed", "failed", "total", "failure"):
+                verify.pop(field, None)
+            if not verify:
+                group.pop("verify", None)
+        codex = group.get("codex")
+        if isinstance(codex, dict):
+            for field in ("job", "fix_status", "review_status", "plan_review_status", "reviewer_model", "must_fix_note",
+                          "tool_fault_streak"):
+                codex.pop(field, None)
+            if not codex:
+                group.pop("codex", None)
+    return hashlib.sha256(json.dumps(candidate, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+
+
+def carry_plan_runtime_state(groups, previous, same_round):
+    old = {group.get("id"): group for group in previous.get("groups", [])} if isinstance(previous, dict) else {}
+    protected_codex = ("job", "fix_status", "review_status", "plan_review_status", "reviewer_model", "must_fix_note",
+                       "tool_fault_streak")
+    protected_group = ("status", "phase", "presuite", "failure_history", "plan_review_history", "unblock_history", "blocked_reason", "failure_block_reason")
+    for prior in old.values():
+        _lane_history(prior, "failure_history")
+        _lane_history(prior, "plan_review_history")
+    def gated(group):
+        return group.get("status") == "blocked" or bool(_counted_failures(_lane_history(group, "failure_history")))
+
+    replacements = {group.get("id"): group for group in groups}
+    for identifier, prior in old.items():
+        if gated(prior):
+            replacement = replacements.get(identifier)
+            if not replacement or set(replacement.get("finding_ids", [])) != set(prior.get("finding_ids", [])):
+                raise ValueError(f"set-plan cannot change gated lane {identifier}; keep its id and findings")
+    for group in groups:
+        prior = old.get(group.get("id"))
+        unchanged = prior and set(group.get("finding_ids", [])) == set(prior.get("finding_ids", []))
+        if prior and unchanged and (same_round or gated(prior)):
+            for field in protected_group:
+                if field in prior and (same_round or field in ("failure_history", "plan_review_history", "unblock_history", "blocked_reason", "failure_block_reason") or prior.get("status") == "blocked" and field == "status"):
+                    group[field] = copy.deepcopy(prior[field])
+                else:
+                    group.pop(field, None)
+            codex = group.setdefault("codex", {})
+            previous_codex = prior.get("codex") if isinstance(prior.get("codex"), dict) else {}
+            for field in protected_codex if same_round else ():
+                if field in previous_codex:
+                    codex[field] = copy.deepcopy(previous_codex[field])
+                else:
+                    codex.pop(field, None)
+            if group.get("status") == "blocked" and not group.get("phase"):
+                group["phase"] = prior.get("phase") or "fix"
+            continue
+        codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+        claims_runtime = (
+            "job" in codex or codex.get("fix_status") not in (None, "pending")
+            or codex.get("review_status") not in (None, "pending")
+            or codex.get("plan_review_status") not in (None, "pending")
+            or bool(codex.get("reviewer_model")) or bool(codex.get("must_fix_note"))
+            or (isinstance(group.get("presuite"), dict) and group["presuite"].get("status") not in (None, "pending"))
+        )
+        if RENDERER.plan_status(group) == "verified" or claims_runtime:
+            raise ValueError("set-plan cannot claim completed job state; run bcl job for the current lane")
+
+
+def _record_lane_failure(document, identifier, attempt_id, source, reason, tool_fault=False, tool_fault_reason=None,
+                         fault_kind="incomplete_review"):
+    if not isinstance(document.get("tracking", {}).get("plan"), dict):
+        return
+    tracking, plan, groups = _lane_groups(document, [identifier])
+    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    for group in groups:
+        rows = _lane_history(group, "failure_history")
+        if not any(row.get("attempt_id") == attempt_id for row in rows):
+            row = {"attempt_id": attempt_id, "source": source, "reason": reason,
+                   "cycle": plan.get("cycle"), "round": plan.get("round"), "at": stamp}
+            if tool_fault:
+                row["tool_fault"] = True
+                row["fault_kind"] = fault_kind
+                if tool_fault_reason:
+                    row["tool_fault_reason"] = tool_fault_reason
+            rows.append(row)
+            # Consecutive tool-fault jobs: any job that ends without a tool fault, an unblock or a re-sort resets it.
+            streak_codex = group.setdefault("codex", {})
+            streak_codex["tool_fault_streak"] = streak_codex.get("tool_fault_streak", 0) + 1 if tool_fault else 0
+        repeated = tool_fault and group.get("codex", {}).get("tool_fault_streak", 0) >= TOOL_FAULT_STREAK_LIMIT
+        # An uncounted tool fault never re-blocks a lane whose earlier counted failures an unblock covered.
+        if (not tool_fault and len(_counted_failures(rows)) >= 2) or repeated:
+            group.update(status="blocked", phase=group.get("phase", "fix"),
+                         blocked_reason="Repeated tool faults" if repeated else "Second failure",
+                         failure_block_reason=reason)
+            codex = group.setdefault("codex", {})
+            codex["review_status"] = "blocked"
+            for item in document.get("findings", []):
+                if item.get("id") in group.get("finding_ids", []):
+                    item.update(status="blocked", needs=reason)
+
+
+def unblock_lane(document, operation):
+    tracking, plan, groups = _lane_groups(document, operation.get("ids"))
+    reason = require_override_reason(operation.get("reason"), "unblock")
+    tool_faults = operation.get("tool_faults", [])
+    if (not isinstance(tool_faults, list)
+            or any(not isinstance(value, str) or not value.strip() for value in tool_faults)
+            or len(tool_faults) != len(set(tool_faults))):
+        raise ValueError("unblock tool_faults must be unique nonempty attempt IDs")
+    stamp = operation.get("timestamp")
+    if not isinstance(stamp, str) or RENDERER.parse_instant(stamp) is None:
+        raise ValueError("unblock timestamp must be an ISO 8601 instant")
+    lanes, known_faults = [], set()
+    for group in groups:
+        if group.get("status") != "blocked":
+            raise ValueError(f"unblock requires blocked lane {group.get('id')}")
+        history = group.setdefault("unblock_history", [])
+        if not isinstance(history, list):
+            raise ValueError(f"{group.get('id')} unblock_history must be an array")
+        rows = _lane_history(group, "failure_history")
+        known_faults.update(row["attempt_id"] for row in rows
+                            if isinstance(row.get("attempt_id"), str))
+        lanes.append((group, history, rows))
+    unknown = set(tool_faults) - known_faults
+    if unknown:
+        raise ValueError(f"unblock names unknown attempt ID(s): {', '.join(sorted(unknown))}")
+    for group, history, rows in lanes:
+        lane_faults = set(tool_faults).intersection(row.get("attempt_id") for row in rows)
+        for row in rows:
+            if row.get("attempt_id") in lane_faults:
+                row.update(tool_fault=True, tool_fault_reason=reason)
+        owner_override = len(_counted_failures(rows)) >= 2
+        if owner_override and tool_faults:
+            raise ValueError(f"unblock lane {group.get('id')} has two or more counted failures; owner override requires no --tool-fault")
+        entry = {"at": stamp, "reason": reason, "tool_faults": sorted(lane_faults),
+                 "covered_attempts": [row["attempt_id"] for row in _counted_failures(rows)
+                                      if isinstance(row.get("attempt_id"), str)],
+                 "rows_seen": len(rows),
+                 "by_cycle": plan.get("cycle", tracking.get("cycle", 1)),
+                 "round": plan.get("round", tracking.get("round", 1))}
+        if owner_override:
+            entry["owner_override"] = True
+        history.append(entry)
+        group.update(status="running", phase="fix")
+        group.pop("blocked_reason", None)
+        group.pop("failure_block_reason", None)
+        codex = group.setdefault("codex", {})
+        codex.pop("review_status", None)
+        codex.pop("plan_review_status", None)
+        codex.pop("tool_fault_streak", None)
+        for item in document.get("findings", []):
+            if item.get("id") in group.get("finding_ids", []) and item.get("status") == "blocked":
+                item["status"] = "in_progress"
+
+IN_FLIGHT_STATUSES = {"running", "failed", "blocked", "in_progress", "planned", "pending"}
+IN_FLIGHT_PHASES = {"fix", "review", "install", "verify", "plan_review", "pending"}
+SETTLED_STATUSES = {"done", "verified", "deferred", "parked"}
+INCOMPLETE_REVIEW_REASON = "Review incomplete: strict verdict or Must-fix section missing"
+# Fault provenance is the structured fault_kind the tool records, never reason text.
+TOOL_FAULT_KINDS = {"incomplete_review", "quota_out", "cut_off", "runner_exit"}
+TOOL_FAULT_STREAK_LIMIT = 3
+
+
+def in_flight_lanes(document):
+    tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else {}
+    plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
+    groups = plan.get("groups") if isinstance(plan.get("groups"), list) else []
+    lanes = []
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        status, phase = group.get("status"), group.get("phase")
+        if status in SETTLED_STATUSES or phase in SETTLED_STATUSES:
+            continue
+        if status in IN_FLIGHT_STATUSES or phase in IN_FLIGHT_PHASES:
+            lanes.append(group)
+    return lanes
+
+
+def release_check_payload(document):
+    lanes = in_flight_lanes(document)
+    return {"clear": not lanes,
+            "lanes": [{"id": group.get("id"), "status": group.get("status"), "phase": group.get("phase"),
+                       "finding_ids": list(group.get("finding_ids") or [])} for group in lanes]}
+
+
+def _looks_like_tool_fault(row):
+    return bool(row.get("tool_fault")) or row.get("fault_kind") in TOOL_FAULT_KINDS
+
+
+def _ambiguous_legacy_incomplete(row):
+    # Before 0.1.57 this reason was also written for CHANGES replies missing a Must-fix section.
+    return not row.get("fault_kind") and row.get("reason") == INCOMPLETE_REVIEW_REASON
+
+
+def resort_failure_candidates(document):
+    plan = (document.get("tracking") or {}).get("plan") if isinstance(document.get("tracking"), dict) else {}
+    groups = plan.get("groups", []) if isinstance(plan, dict) else []
+    found = []
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        if not group.get("failure_history"):
+            continue
+        rows = _lane_history(group, "failure_history")
+        counted = _counted_failures(rows)
+        matches = [row for row in counted if _looks_like_tool_fault(row)]
+        ambiguous = [row for row in counted if _ambiguous_legacy_incomplete(row)]
+        if matches or ambiguous:
+            found.append((group, matches, rows, ambiguous))
+    return found
+
+
+def resort_failures(document, operation):
+    apply = bool(operation.get("apply"))
+    reason = operation.get("reason")
+    if apply:
+        reason = require_override_reason(reason, "resort-failures")
+    stamp = operation.get("timestamp")
+    if apply and (not isinstance(stamp, str) or RENDERER.parse_instant(stamp) is None):
+        raise ValueError("resort-failures timestamp must be an ISO 8601 instant")
+    candidates = resort_failure_candidates(document)
+    report = []
+    named = set(operation.get("tool_faults") or [])
+    if named and not apply:
+        raise ValueError("resort-failures --tool-fault needs --apply and --reason")
+    known = {row.get("attempt_id") for _, _, _, ambiguous in candidates for row in ambiguous}
+    if named - known:
+        raise ValueError(f"resort-failures --tool-fault names no ambiguous counted failure: {', '.join(sorted(named - known))}")
+    for group, matches, rows, ambiguous in candidates:
+        # Ambiguous legacy rows are uncounted only when the owner names them after reading the reply.
+        matches = matches + [row for row in ambiguous if row.get("attempt_id") in named]
+        report.append({"id": group.get("id"), "finding_ids": list(group.get("finding_ids") or []),
+                       "attempts": [row.get("attempt_id") for row in matches],
+                       "reasons": [row.get("reason") for row in matches],
+                       "ambiguous": [row.get("attempt_id") for row in ambiguous]})
+        if not apply or not matches:
+            continue
+        tool_faults = [row.get("attempt_id") for row in matches if isinstance(row.get("attempt_id"), str)]
+        for row in rows:
+            if row.get("attempt_id") in tool_faults:
+                row.update(tool_fault=True, tool_fault_reason=reason)
+        history = group.setdefault("unblock_history", [])
+        if not isinstance(history, list):
+            raise ValueError(f"{group.get('id')} unblock_history must be an array")
+        plan = document.get("tracking", {}).get("plan", {})
+        tracking = document.get("tracking", {})
+        group.setdefault("codex", {}).pop("tool_fault_streak", None)
+        history.append({"at": stamp, "reason": reason, "tool_faults": tool_faults, "resort": True, "rows_seen": len(rows),
+                        "by_cycle": plan.get("cycle", tracking.get("cycle", 1)),
+                        "round": plan.get("round", tracking.get("round", 1))})
+        if group.get("status") == "blocked" and len(_counted_failures(rows)) < 2:
+            group.update(status="running", phase="fix")
+            group.pop("blocked_reason", None)
+            group.pop("failure_block_reason", None)
+            codex = group.setdefault("codex", {})
+            codex.pop("review_status", None)
+            codex.pop("plan_review_status", None)
+            for item in document.get("findings", []):
+                if item.get("id") in group.get("finding_ids", []) and item.get("status") == "blocked":
+                    item["status"] = "in_progress"
+    return {"applied": apply, "lanes": report}
+
+
+def job_transition(document, operation):
+    tracking, plan, groups = _lane_groups(document, operation.get("ids"))
+    phase, action = operation.get("phase"), operation["action"]
+    if phase not in ("plan_review", "fix", "review", "presuite"):
+        raise ValueError("job phase must be plan_review, fix, review, or presuite")
+    cycle = plan.get("cycle", tracking.get("cycle", 1))
+    round_number = plan.get("round", tracking.get("round", 1))
+    if operation.get("cycle") != cycle or operation.get("round") != round_number:
+        raise ValueError("job belongs to a stale plan cycle or round")
+    stamp = operation.get("timestamp")
+    if not isinstance(stamp, str) or RENDERER.parse_instant(stamp) is None:
+        raise ValueError("job timestamp must be an ISO 8601 instant")
+    if action in ("attach-job", "heartbeat-job"):
+        job_id = operation.get("job_id")
+        for group in groups:
+            job = (group.get("codex") or {}).get("job")
+            if not isinstance(job, dict) or job.get("id") != job_id or job.get("phase") != phase or "exit_code" in job:
+                raise ValueError(f"stale {phase} job update for lane {group['id']}")
+            if action == "attach-job":
+                pid = operation.get("pid")
+                if type(pid) is not int or pid < 1:
+                    raise ValueError("job pid must be a positive integer")
+                job["pid"] = pid
+            job["heartbeat_at"] = stamp
+        return
+    if action == "start-job":
+        job = operation.get("job")
+        if not isinstance(job, dict) or not isinstance(job.get("id"), str) or not job["id"].strip():
+            raise ValueError("job reservation requires an id")
+        if operation.get("load_override") is not None:
+            reason = require_override_reason(operation["load_override"], "machine-load")
+            tracking.setdefault("machine_load_overrides", []).append(
+                {"cycle": cycle, "round": round_number, "phase": phase, "reason": reason, "at": stamp})
+        if job.get("plan_sha256") != plan_candidate_sha256(plan):
+            raise ValueError("job reservation belongs to a stale plan candidate")
+        for group in groups:
+            codex = group.setdefault("codex", {})
+            if group.get("status") in ("blocked", "parked", "deferred") or (
+                    group.get("status") == "failed" and phase not in ("fix", "plan_review")):
+                recovery = "; run bcl unblock --reason" if group.get("status") == "blocked" else ""
+                raise ValueError(f"job cannot start blocked, parked, deferred, or failed lane {group['id']}{recovery}")
+            failures = _counted_failures(_lane_history(group, "failure_history"))
+            if phase == "fix":
+                if len(failures) >= 2 and not _unblock_covers_failures(group, failures):
+                    raise ValueError(f"{group['id']} is blocked after two counted failures; run bcl unblock --reason")
+                if failures:
+                    reviews = _lane_history(group, "plan_review_history")
+                    latest_at = _history_instant(failures[-1])
+                    ambiguous = sum(_history_instant(row) == latest_at for row in failures) > 1 and latest_at is not None
+                    if not any(entry.get("status") == "passed" and entry.get("after_failure") == failures[-1].get("attempt_id")
+                               and (not ambiguous or _history_instant(entry) and _history_instant(entry) > latest_at)
+                               for entry in reviews):
+                        raise ValueError(f"{group['id']} requires a passed plan_review after failure")
+                codex.pop("review_status", None)
+                codex.pop("plan_review_status", None)
+                group.pop("presuite", None)
+                group.update(status="running", phase="fix")
+                codex["fix_status"] = "running"
+            elif phase == "review":
+                if group.get("phase") != "review" or codex.get("fix_status") != "passed":
+                    raise ValueError(f"review requires lane {group['id']} to finish fix")
+                group.update(status="review", phase="review")
+                codex["review_status"] = "running"
+                if isinstance(job.get("model"), str):
+                    codex["reviewer_model"] = job["model"]
+            elif phase == "presuite":
+                if (codex.get("fix_status") != "passed" or
+                        codex.get("review_status") not in ("passed", "skipped_one_file")):
+                    raise ValueError(f"presuite requires lane {group['id']} review to pass or be skipped_one_file")
+                group.update(status="review", phase="review")
+            else:
+                group.update(status="review", phase="plan_review")
+            codex["job"] = {**job, "phase": phase, "started_at": stamp, "cycle": cycle, "round": round_number}
+        workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
+        tracking["workflow"] = {**workflow, "stage": "review" if phase in ("plan_review", "review", "presuite") else "plan_fix",
+                                 "updated_at": stamp, "now": f"{stamp} — {phase.replace('_', ' ').title()} started"}
+        stages = tracking.setdefault("stages_reached", [])
+        global_stage = tracking["workflow"]["stage"]
+        if global_stage not in stages:
+            stages.append(global_stage)
+    elif action == "finish-job":
+        job_id, exit_code = operation.get("job_id"), operation.get("exit_code")
+        if not isinstance(job_id, str) or type(exit_code) is not int:
+            raise ValueError("job completion requires a job id and integer exit code")
+        if operation.get("plan_sha256") != plan_candidate_sha256(plan):
+            raise ValueError("job completion belongs to a stale plan candidate")
+        for group in groups:
+            job = (group.get("codex") or {}).get("job")
+            if (not isinstance(job, dict) or job.get("id") != job_id or job.get("phase") != phase
+                    or job.get("cycle") != cycle or job.get("round") != round_number
+                    or job.get("plan_sha256") != operation.get("plan_sha256")
+                    or group.get("status") == "blocked" or "exit_code" in job):
+                raise ValueError(f"stale {phase} completion for lane {group['id']}")
+        reply = operation.get("reply")
+        verdict, must_fix = parse_review_reply(reply) if phase in ("review", "plan_review") else (None, None)
+        for group in groups:
+            codex = group.setdefault("codex", {})
+            job = codex.get("job")
+            job.update(exit_code=exit_code, finished_at=stamp)
+            job_tool_fault = False
+            if phase in ("review", "plan_review"):
+                status = verdict if exit_code == 0 else None
+                if status == "PASS":
+                    job["finished_phase_status"] = "passed"
+                    if phase == "plan_review":
+                        codex["plan_review_status"] = "passed"
+                        counted = _counted_failures(_lane_history(group, "failure_history"))
+                        if counted and (not _section_body(reply, "ROOT CAUSE") or not _section_body(reply, "FAILING TEST")):
+                            raise ValueError("plan_review after a failure requires ROOT CAUSE and FAILING TEST sections")
+                        _lane_history(group, "plan_review_history").append(
+                            {"job_id": job_id, "after_failure": counted[-1].get("attempt_id") if counted else None,
+                             "status": "passed", "cycle": cycle, "round": round_number, "at": stamp})
+                    else:
+                        codex["review_status"] = "passed"
+                        group.update(status="review", phase="review")
+                else:
+                    first_line = next((line.strip() for line in (reply or "").splitlines() if line.strip()), "")
+                    # A failed runner without a declared CHANGES verdict, or a reply with no CHANGES verdict
+                    # line (cut off, quoted, quota), is a tool fault; a declared CHANGES always counts.
+                    runner_failed = exit_code != 0 and first_line != "VERDICT: CHANGES"
+                    incomplete = runner_failed or verdict is None
+                    tool_fault = runner_failed or (incomplete and first_line != "VERDICT: CHANGES")
+                    state = "incomplete" if incomplete else "changes_requested"
+                    job["finished_phase_status"] = state
+                    reason = (f"Reviewer exited {exit_code}" if runner_failed
+                              else INCOMPLETE_REVIEW_REASON if tool_fault
+                              else "Changes requested; Must-fix section missing" if incomplete else must_fix)
+                    job["must_fix"] = reason
+                    if phase == "review":
+                        codex["review_status"] = "failed" if incomplete else state
+                        codex["must_fix_note"] = reason
+                        group.update(status="running", phase="fix")
+                    else:
+                        codex["plan_review_status"] = "failed" if incomplete else state
+                    # Review findings always enter failure history; plan-review tool faults enter it
+                    # too (never counted) so repeated cut-offs hit the tool-fault streak block.
+                    job_tool_fault = tool_fault
+                    if phase == "review" or tool_fault:
+                        for identifier in set(operation["ids"]).intersection(group.get("finding_ids", [])):
+                            _record_lane_failure(document, identifier, job_id, phase, reason,
+                                                 tool_fault=tool_fault,
+                                                 tool_fault_reason=reason if tool_fault else None,
+                                                 fault_kind="runner_exit" if runner_failed else "incomplete_review")
+            else:
+                passed = exit_code == 0
+                job["finished_phase_status"] = "passed" if passed else "failed"
+                if phase == "fix":
+                    codex["fix_status"] = "passed" if passed else "failed"
+                    group.update(status="review" if passed else "failed", phase="review" if passed else "fix")
+                    if not passed:
+                        for identifier in set(operation["ids"]).intersection(group.get("finding_ids", [])):
+                            _record_lane_failure(document, identifier, job_id, "fix", f"Fix job exited {exit_code}")
+                elif phase == "presuite":
+                    group["presuite"] = {"status": "passed" if passed else "failed",
+                                         "exit_code": exit_code, "finished_at": stamp}
+            job["heartbeat_at"] = stamp
+            if not job_tool_fault:
+                codex["tool_fault_streak"] = 0
+    else:
+        raise ValueError("unknown job transition")
 
 
 def normalized_text(value):
@@ -518,6 +1070,8 @@ def verification_action(document, findings, operation):
         item["verification"] = reason
         if item["status"] == "verified_fixed" or outcome == "not_fixed":
             item["status"] = "failing" if outcome == "not_fixed" else "investigation"
+        if outcome == "not_fixed":
+            _record_lane_failure(document, item["id"], run["id"], "verify", reason)
         return
     if action == "start-verification":
         new = operation.get("run")
@@ -535,22 +1089,53 @@ def verification_action(document, findings, operation):
             raise ValueError("verification run id must be unique")
         if run:
             history.append({**run, "status": "interrupted" if run.get("status") == "active" else run.get("status")})
-        tracking["verification_run"] = {**new, "status":"active",
+        tracking["verification_run"] = {**new, "cycle": RENDERER.rollover_cycle(tracking), "status":"active",
                                         "checks":{item["id"]:{"state":"pending"} for item in findings}}
         return
     if action == "reserve-shared-check":
         if run.get("status") != "active" or operation.get("run_id") != run.get("id"):
             raise ValueError("active verification run id is required")
-        if run.get("shared_check") is not None:
-            raise ValueError("shared check already recorded for this verification run")
+        previous = run.get("shared_check")
+        reason = operation.get("reason")
+        if previous is not None:
+            if not isinstance(previous, dict) or previous.get("state") != "failed":
+                raise ValueError("shared check already recorded for this verification run")
+            if not isinstance(reason, str) or not reason.strip() or "\n" in reason:
+                raise ValueError("shared check failed for this verification run; rerun it with --reason \"why\"")
         command = operation.get("command")
         if not isinstance(command, str) or not command.strip():
             raise ValueError("shared check command must be nonempty text")
+        if previous is not None:
+            attempts = run.setdefault("shared_check_attempts", [])
+            if not isinstance(attempts, list):
+                raise ValueError("tracking.verification_run.shared_check_attempts must be an array")
+            attempts.append(previous)
         run["shared_check"] = {"command": command, "state": "checking"}
+        if previous is not None:
+            run["shared_check"]["rerun_reason"] = reason.strip()
         return
     reopens = action == "start-check" and operation.get("recheck") is True and isinstance(run, dict) and run.get("status") == "complete"
     if not isinstance(run, dict) or (run.get("status") != "active" and not reopens) or operation.get("run_id") != run.get("id"):
         raise ValueError("active verification run id is required")
+    if action == "stop-verification":
+        # BCL-99: stopping a run keeps every finished verdict; only unfinished checks become stopped-inconclusive,
+        # and those do not uncount an issue that was already verified fixed.
+        reason = operation.get("reason")
+        if not isinstance(reason, str) or not reason.strip() or "\n" in reason:
+            raise ValueError("stop-verification requires a one-line reason")
+        stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+        for check in run.get("checks", {}).values():
+            if check.get("state") in ("pending", "checking"):
+                check.setdefault("started_at", stamp)
+                check.update(state="inconclusive", stopped=True, evidence=f"Run stopped: {reason.strip()}",
+                             observation=f"Run stopped: {reason.strip()}", observed_at=stamp,
+                             updated_at=stamp, finished_at=stamp)
+        shared = run.get("shared_check")
+        if isinstance(shared, dict) and shared.get("state") == "checking":
+            shared.update(state="failed", stopped=True, finished_at=stamp)
+        run["status"] = "complete"
+        run["stopped"] = {"reason": reason.strip(), "at": stamp}
+        return
     if action == "complete-verification":
         if any(check.get("state") not in ("fixed", "not_fixed", "blocked", "inconclusive")
                for check in run.get("checks", {}).values()):
@@ -611,6 +1196,7 @@ def verification_action(document, findings, operation):
         raise ValueError("fixed requires verified_fixed status and verification references")
     if outcome == "not_fixed":
         item["status"] = "failing"
+        _record_lane_failure(document, item["id"], run["id"], "verify", evidence)
     checks[item["id"]] = {**check, "state":outcome, "check_id":uuid.uuid4().hex, "evidence":evidence,
                            **({"details":details} if details else {}),
                            **({"blocker":operation["blocker"].strip()} if outcome == "blocked" else {}),
@@ -717,6 +1303,19 @@ def append_archive_entries(existing, additions):
             rows.append(row)
             identities.add(identity)
     return rows
+
+
+def archive_cycle_history(tracking, through_cycle):
+    moved = []
+    for key in ("verification_history", "introspect_history"):
+        history = tracking.get(key, [])
+        if not isinstance(history, list) or any(not isinstance(row, dict) for row in history):
+            raise ValueError(f"tracking.{key} must be an array of records")
+        moved.extend({**copy.deepcopy(row), "record_type": key, "archived_cycle": row["cycle"]}
+                     for row in history if type(row.get("cycle")) is int and row["cycle"] <= through_cycle)
+        tracking[key] = [row for row in history
+                         if not (type(row.get("cycle")) is int and row["cycle"] <= through_cycle)]
+    return moved
 
 
 def parked_finding(entry):
@@ -844,10 +1443,16 @@ def validate_introspect_sections(sections):
             text = item.get("item") or item.get("step")
             evidence = item.get("evidence")
             outcome = item.get("outcome")
+            proof = item.get("proof")
             if not isinstance(text, str) or not text.strip() or not isinstance(evidence, str) or not evidence.strip():
                 raise ValueError(f"introspect section {name} items require item and evidence")
             if outcome == "fixed inline":
-                clean_items.append({"item": text.strip(), "evidence": evidence.strip(), "outcome": "fixed inline"})
+                if not isinstance(proof, str) or not re.search(
+                        r"\btest_[A-Za-z0-9_]+\b|(?:^|\s)(?:python3?|pytest|bcl|make|npm|pnpm|yarn|swift|xcodebuild|cargo|go)\s+",
+                        proof):
+                    raise ValueError(f"{text.strip()}: fixed inline requires a named command or test in proof")
+                clean_items.append({"item": text.strip(), "evidence": evidence.strip(),
+                                    "outcome": "fixed inline", "proof": proof.strip()})
             elif outcome == "issue":
                 issue_id = item.get("issue_id")
                 if not isinstance(issue_id, str) or not issue_id.strip() or re.fullmatch(r"WF-\d+", issue_id.strip()):
@@ -863,11 +1468,32 @@ def validate_introspect_sections(sections):
 MAX_GROUP_ISSUES = 4
 
 
+def regresses_against_main(item):
+    details = item.get("details") if isinstance(item.get("details"), dict) else {}
+    return str(details.get("regression_against_main", "")).strip().lower() in ("yes", "true")
+
+
+def require_restore_lane(group, findings):
+    """BCL-95: a lane holding a regression against main restores main's behaviour first; a redesign is its own finding."""
+    by_id = {item["id"]: item for item in findings}
+    regressed = [i for i in group.get("finding_ids", []) if i in by_id and regresses_against_main(by_id[i])]
+    if regressed and group.get("restores_main") is not True:
+        raise ValueError(f"plan group {group.get('id')}: {', '.join(regressed)} regress against main; this lane must restore "
+                         "main's behaviour first (set restores_main true) and any redesign must be filed as its own finding")
+
+MAX_ROUND_LANES = 4
+
+
 def validate_plan_groups(plan: dict) -> None:
-    """Check the group size before a fix round starts."""
+    """Check the group size and the round's lane cap before a fix round starts."""
     groups = plan.get("groups") if isinstance(plan, dict) else None
     if not isinstance(groups, list):
         return
+    # count lanes as the page does; finished, deferred, parked, blocked and failed lanes do not take a slot
+    active = [g for g in groups if isinstance(g, dict)
+              and RENDERER.plan_status(g) not in {"verified", "deferred", "parked", "blocked", "failed"}]
+    if len(active) > MAX_ROUND_LANES:
+        raise ValueError(f"a round runs at most {MAX_ROUND_LANES} lanes (plan has {len(active)}); defer the rest to the next round")
     for group in groups:
         if not isinstance(group, dict):
             continue
@@ -887,7 +1513,7 @@ def finding_verified(item, tracking):
     if not isinstance(check, dict):
         return False
     return (item.get('status') == 'verified_fixed' and bool(item.get('verification_refs'))
-            and check.get('state') not in {'checking', 'blocked', 'inconclusive', 'not_fixed'})
+            and RENDERER.check_keeps_verified(check))
 
 
 def validate_dependencies(groups, findings, tracking):
@@ -1097,7 +1723,7 @@ def touch_workflow(document):
         tracking["cycle"] = RENDERER.rollover_cycle(tracking)
 
 
-def require_rollover_gate(findings, tracking, force, action):
+def require_rollover_gate(findings, tracking, force, action, reason=None):
     data = {"findings": findings, "tracking": tracking}
     fixed, threshold, met = (check_gate_count.rollover_gate_count(data) if action == "rollover"
                              else workflow_definition.run_stage_check("report_rollover", data))
@@ -1108,6 +1734,7 @@ def require_rollover_gate(findings, tracking, force, action):
                   if action == "rollover" else
                   f"report gate not met: {fixed} of {threshold} verified_fixed findings and open findings remain")
         raise ValueError(f"{reason}; pass --force to override")
+    reason = require_override_reason(reason, action)
     rollover = tracking.setdefault("rollover", {})
     if not isinstance(rollover, dict):
         raise ValueError("tracking.rollover must be an object")
@@ -1116,7 +1743,7 @@ def require_rollover_gate(findings, tracking, force, action):
         raise ValueError("tracking.rollover.forced_gate_overrides must be an array")
     forced.append({"cycle": RENDERER.rollover_cycle(tracking), "action": action,
                    "forced_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
-                   "verified_fixed": fixed, "threshold": threshold})
+                   "verified_fixed": fixed, "threshold": threshold, "reason": reason})
 
 
 def validate_merged_record(merged):
@@ -1176,7 +1803,7 @@ def prepare_rollover(document, operation, force=False):
         raise ValueError("rollover requires pull_request {label,url} and worktree")
     if "install" in tracking.get("stages_reached", []):
         require_current_round_introspect(tracking, "rollover")
-    require_rollover_gate(findings, tracking, force, "rollover")
+    require_rollover_gate(findings, tracking, force, "rollover", operation.get("override_reason"))
     rollover = tracking.setdefault("rollover", {})
     if not isinstance(rollover, dict):
         raise ValueError("tracking.rollover must be an object")
@@ -1257,6 +1884,8 @@ def rollover_live(path, operation, force=False):
     if path != live and path.read_bytes() != live.read_bytes():
         raise ValueError(f"in-repo tracker differs from live state; live file: {live}")
     document, archive_additions = prepare_rollover(json.loads(live.read_text(encoding="utf-8")), operation, force)
+    tracking = document.setdefault("tracking", {})
+    archive_additions.extend(archive_cycle_history(tracking, RENDERER.rollover_cycle(tracking) - 1))
     archive_file, parked_file = live_state.archive_path(live), live_state.parked_path(live)
     archive_original, archive_rows = read_sibling_json(archive_file)
     parked_original, parked_rows = read_sibling_json(parked_file)
@@ -1376,7 +2005,8 @@ def parser_for():
     batch.add_argument("--render", type=Path, help="render the resulting authoritative JSON to this HTML file")
     batch.add_argument("--base", type=Path, help="resolve relative evidence paths from this tracker snapshot directory")
     batch.add_argument("--inventory", type=Path, help="optional installed-plugin inventory JSON")
-    batch.add_argument("--force", action="store_true", help="override the verified-fix rollover gate and record the override")
+    batch.add_argument("--force", action="store_true", help="override a gate and record the reason")
+    batch.add_argument("--reason", help="one-line reason for a forced gate or machine-load override")
     batch.add_argument("--collection", default="findings")
     return parser
 
@@ -1478,12 +2108,13 @@ def run(args, parser):
             if any(isinstance(op, dict) and op.get("action") == "rollover" for op in operations):
                 if len(operations) != 1 or not isinstance(operations[0], dict):
                     raise ValueError("rollover must be the only batch operation")
+                operations[0].setdefault("override_reason", args.reason)
                 new_live = rollover_live(path, operations[0], args.force)
                 print(f"Created new live list {new_live}; the current viewer stays on the old list until bcl start begins Collect")
                 return 0
             existing_run = store["document"].get("tracking", {}).get("verification_run")
             original_plan = copy.deepcopy(store['document'].get('tracking', {}).get('plan'))
-            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify"}
+            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "stop-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify", "start-job", "attach-job", "heartbeat-job", "finish-job", "skip-review", "record-cleanup", "archive-history", "unblock-lane", "resort-failures"}
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()
@@ -1504,6 +2135,50 @@ def run(args, parser):
                 if not isinstance(operation, dict):
                     raise ValueError("batch operation must be an object")
                 action = operation.get("action")
+                if action in ("start-job", "attach-job", "heartbeat-job", "finish-job"):
+                    job_transition(store["document"], operation)
+                    continue
+                if action == "unblock-lane":
+                    unblock_lane(store["document"], operation)
+                    continue
+                if action == "resort-failures":
+                    resort_failures(store["document"], operation)
+                    continue
+                if action == "skip-review":
+                    tracking, _, groups = _lane_groups(store["document"], operation.get("ids"))
+                    for group in groups:
+                        codex = group.setdefault("codex", {})
+                        if not codex.get("one_file") or codex.get("fix_status") != "passed":
+                            raise ValueError("skipped_one_file requires a one-file lane with a passed fix job")
+                        codex["review_status"] = "skipped_one_file"
+                        group.update(status="review", phase="review")
+                    continue
+                if action == "record-cleanup":
+                    tracking = store["document"].setdefault("tracking", {})
+                    run = tracking.get("verification_run")
+                    if not isinstance(run, dict) or run.get("id") != operation.get("run_id"):
+                        raise ValueError("cleanup requires the current verification run id")
+                    outcome = operation.get("outcome")
+                    if outcome not in ("passed", "failed", "not_run"):
+                        raise ValueError("cleanup outcome must be passed, failed, or not_run")
+                    reason = operation.get("reason", "")
+                    if not isinstance(reason, str) or (outcome == "failed" and not reason.strip()):
+                        raise ValueError("failed cleanup requires a reason")
+                    run["cleanup"] = {"outcome": outcome, "reason": reason.strip(),
+                                       "at": operation.get("timestamp") or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")}
+                    continue
+                if action == "archive-history":
+                    tracking = store["document"].setdefault("tracking", {})
+                    current_cycle = operation.get("through_cycle", RENDERER.rollover_cycle(tracking) - 1)
+                    if type(current_cycle) is not int or current_cycle < 0:
+                        raise ValueError("archive-history through_cycle must be a nonnegative integer")
+                    archive_state = sidecar("archive")
+                    moved = archive_cycle_history(tracking, current_cycle)
+                    if moved:
+                        archive_state["rows"] = append_archive_entries(archive_state["rows"], moved)
+                        update_sidecar_summary(tracking, archive_state["path"], archive_state["rows"],
+                                               sidecar("parked")["path"], sidecar("parked")["rows"])
+                    continue
                 if action in ("archive", "park", "unpark"):
                     tracking = store["document"].setdefault("tracking", {})
                     rollover = tracking.get("rollover", {})
@@ -1642,8 +2317,12 @@ def run(args, parser):
                         if starting_new_round:
                             advance_plan_round(tracking, findings,
                                                datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
+                        carry_plan_runtime_state(requested_plan["groups"], current_plan, same_current_plan and not starting_new_round)
                         plan = copy.deepcopy(requested_plan)
                         groups = plan["groups"]
+                        for group in groups:
+                            _lane_history(group, "failure_history")
+                            _lane_history(group, "plan_review_history")
                         ids = [group.get("id") for group in groups if isinstance(group, dict)]
                         if len(ids) != len(groups) or any(not isinstance(i, str) or not i.strip() for i in ids) or len(ids) != len(set(ids)):
                             raise ValueError("plan groups require unique nonempty ids")
@@ -1670,6 +2349,7 @@ def run(args, parser):
                             if not isinstance(group.get("depends_on", []), list) or any(not isinstance(i, str) or i not in ids for i in group.get("depends_on", [])):
                                 raise ValueError(f"plan group {group['id']} has invalid dependencies")
                             validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
+                            require_restore_lane(group, findings)
                         validate_dependencies(groups, findings, tracking)
                         plan["cycle"] = cycle
                         plan["round"] = RENDERER.rollover_round(tracking)
@@ -1688,6 +2368,9 @@ def run(args, parser):
                         plan = tracking.get("plan")
                         if not isinstance(plan, dict) or plan.get("cycle", cycle) != cycle:
                             raise ValueError("update-plan-group requires a plan for the current cycle")
+                        for lane in plan.get("groups", []):
+                            _lane_history(lane, "failure_history")
+                            _lane_history(lane, "plan_review_history")
                         if 'expected_plan_sha256' in operation:
                             actual = hashlib.sha256(json.dumps(original_plan, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
                             if operation['expected_plan_sha256'] != actual:
@@ -1702,8 +2385,12 @@ def run(args, parser):
                                 raise ValueError('plan group changed; refusing group update')
                         group = next((g for g in plan.get("groups", []) if g.get("id") == operation.get("id")), None)
                         patch = operation.get("patch")
-                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at", "presuite", "quota_wait_until"}:
+                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at", "presuite", "quota_wait_until", "retry_cause"}:
                             raise ValueError("update-plan-group requires id and a valid group patch")
+                        if group.get("status") == "blocked" and patch.get("status", "blocked") != "blocked":
+                            raise ValueError(f"blocked lane {group.get('id')} can only be reopened with bcl unblock --reason")
+                        if "finding_ids" in patch and (group.get("status") == "blocked" or _counted_failures(_lane_history(group, "failure_history"))) and set(patch["finding_ids"]) != set(group.get("finding_ids", [])):
+                            raise ValueError(f"update-plan-group cannot change gated lane {group.get('id')} findings")
                         if any(key in patch and not isinstance(patch[key], str) for key in ("label", "verify_summary", "name", "worktree", "reason")):
                             raise ValueError("label, name, verify_summary, worktree and reason must be strings")
                         if len(patch.get("verify_summary", "").split()) > 10:
@@ -1714,6 +2401,11 @@ def run(args, parser):
                             raise ValueError("depends_on must reference plan groups")
                         if "verify" in patch and not isinstance(patch["verify"], dict) or "codex" in patch and not isinstance(patch["codex"], dict):
                             raise ValueError("codex and verify patches must be objects")
+                        if any(key in patch.get("codex", {}) for key in ("job", "fix_status", "review_status", "plan_review_status", "must_fix_note")):
+                            raise ValueError("job receipts and review state can only change through bcl job")
+                        if ((patch.get("status") == "running" and patch.get("phase", group.get("phase")) == "fix")
+                                or (patch.get("status") == "review" and patch.get("phase", group.get("phase")) in ("review", "plan_review"))):
+                            raise ValueError("use bcl job to start a lane phase")
                         if "verify" in patch and patch["verify"].get("summary") is not None and (not isinstance(patch["verify"]["summary"], str) or len(patch["verify"]["summary"].split()) > 10):
                             raise ValueError("verify.summary must be at most 10 words")
                         activity_fields = ('status', 'phase', 'verify', 'blocked_reason', 'codex')
@@ -1723,6 +2415,7 @@ def run(args, parser):
                         group.update(patch)
                         check_install_sessions.validate_group_codex(group)
                         validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
+                        require_restore_lane(group, findings)
                         validate_plan_groups(plan)
                         validate_dependencies(plan['groups'], findings, tracking)
                         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -1750,7 +2443,20 @@ def run(args, parser):
                         fixed, threshold, met = workflow_definition.run_stage_check(
                             "merged", {"findings": findings, "tracking": tracking})
                         if not met:
-                            raise ValueError(f"merge requires {threshold} verified_fixed findings; count is {fixed}")
+                            reason = operation.get("override_reason")
+                            if not args.force:
+                                raise ValueError(f"merge requires {threshold} verified_fixed findings; count is {fixed}; "
+                                                 "pass --force with --reason to record an already merged pull request")
+                            reason = require_override_reason(reason, "merged")
+                            rollover = tracking.setdefault("rollover", {})
+                            if not isinstance(rollover, dict):
+                                raise ValueError("tracking.rollover must be an object")
+                            forced = rollover.setdefault("forced_gate_overrides", [])
+                            if not isinstance(forced, list):
+                                raise ValueError("tracking.rollover.forced_gate_overrides must be an array")
+                            forced.append({"cycle": RENDERER.rollover_cycle(tracking), "action": "merged",
+                                           "forced_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+                                           "verified_fixed": fixed, "threshold": threshold, "reason": reason.strip()})
                 if action == "introspect":
                     tracking = store["document"].setdefault("tracking", {})
                     workflow_definition.require_transition("introspect", tracking.get("stages_reached", []))
@@ -1796,6 +2502,11 @@ def run(args, parser):
                 if action in ("set-stage", "set-activity", "rollover"):
                     target = "report_rollover" if action == "rollover" else operation.get("stage")
                     tracking = store["document"].setdefault("tracking", {})
+                    if operation.get("load_override") is not None:
+                        reason = require_override_reason(operation["load_override"], "machine-load")
+                        tracking.setdefault("machine_load_overrides", []).append(
+                            {"cycle": RENDERER.rollover_cycle(tracking), "phase": target,
+                             "reason": reason, "at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")})
                     previous_stage = tracking.get("workflow", {}).get("stage")
                     if previous_stage == "merged" and target != "merged":
                         raise ValueError("merged is terminal; start a new list with bcl rollover")
@@ -1804,7 +2515,8 @@ def run(args, parser):
                     if target == "report_rollover" and "install" in tracking.get("stages_reached", []):
                         require_current_round_introspect(tracking, "rollover" if action == "rollover" else "report_rollover")
                     if target == "report_rollover" and action != "set-activity":
-                        require_rollover_gate(findings, tracking, args.force, action)
+                        require_rollover_gate(findings, tracking, args.force, action,
+                                              operation.get("override_reason", args.reason))
                     if target in ("plan_fix", "install", "verify") and action == "set-stage" and not any(item.get("status") == "in_progress" for item in findings):
                         raise ValueError(f"{target} requires at least one finding with status in_progress; log the finding and set it in progress first")
                     if target in RENDERER.WORKFLOW_STAGES and target not in tracking.setdefault("stages_reached", []):
@@ -1864,6 +2576,13 @@ def run(args, parser):
                             validate_dependencies(groups, findings, tracking)
                             if stage == 'install':
                                 workflow_definition.run_stage_check('install', plan, ids)
+                                for group in matched:
+                                    codex = group.get('codex') if isinstance(group.get('codex'), dict) else {}
+                                    suite = group.get('presuite') if isinstance(group.get('presuite'), dict) else {}
+                                    if (codex.get('fix_status') != 'passed'
+                                            or codex.get('review_status') not in ('passed', 'skipped_one_file')
+                                            or suite.get('status') != 'passed'):
+                                        raise ValueError(f"install requires passed fix, review, and presuite jobs for lane {group['id']}")
                         by_id = {group['id']: group for group in groups}
                         for group in matched:
                             if set(ids).intersection(group.get('finding_ids', [])):
@@ -1877,7 +2596,8 @@ def run(args, parser):
                     for item in affected:
                         item["status"] = "in_progress"
                     if stage == "report_rollover":
-                        require_rollover_gate(findings, store["document"].setdefault("tracking", {}), args.force, action)
+                        require_rollover_gate(findings, store["document"].setdefault("tracking", {}), args.force, action,
+                                              operation.get("override_reason", args.reason))
                     if stage in ("plan_fix", "install", "verify") and (not ids or not any(item.get("status") == "in_progress" for item in findings)):
                         raise ValueError(f"set-activity for {stage} requires a nonempty ID list and an in_progress finding; log a finding and set it in progress first")
                     timestamp = operation.get("timestamp")
@@ -1933,6 +2653,12 @@ def run(args, parser):
                             type(carried_from) is int and carried_from > 0 or isinstance(carried_from, str) and carried_from.strip()):
                         raise ValueError("carried_from must be a positive round number or nonempty cycle")
                     updated = merge_patch(dict(findings[index]), patch)
+                    if regresses_against_main(updated):
+                        plan = store["document"].get("tracking", {}).get("plan", {})
+                        updated_findings = [updated if item.get("id") == updated["id"] else item for item in findings]
+                        for group in plan.get("groups", []):
+                            if updated["id"] in group.get("finding_ids", []):
+                                require_restore_lane(group, updated_findings)
                     warn_summary(updated)
                     validate_detail_limits(updated)
                     trim_verification_evidence(updated)

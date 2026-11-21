@@ -87,7 +87,7 @@ class ArchiveTests(unittest.TestCase):
         if render:
             command.extend(["--render", str(self.page), "--base", str(self.root)])
         if force:
-            command.append("--force")
+            command.extend(["--force", "--reason", "test override"])
         return subprocess.run(command, text=True, capture_output=True,
                               env={**os.environ, "BCL_STATE_DIR": str(self.state)})
 
@@ -238,10 +238,10 @@ class ArchiveTests(unittest.TestCase):
         new_live = live.parent / "116.json"
         saved = json.loads(new_live.read_text())
         archive = json.loads((live.parent / "archive.json").read_text())
-        self.assertEqual(len(archive), 67)
+        self.assertEqual(len(archive), 84)
         self.assertEqual(len(saved["findings"]), 15)
-        self.assertEqual(len(saved["tracking"]["introspect_history"]), 17)
-        self.assertEqual(saved["tracking"]["archive"]["count"], 67)
+        self.assertEqual(len(saved["tracking"]["introspect_history"]), 0)
+        self.assertEqual(saved["tracking"]["archive"]["count"], 84)
         self.assertEqual(saved["tracking"]["rollover"]["excluded_ids"], [])
 
     def test_rollover_stores_worktree_name_from_full_path(self):
@@ -265,7 +265,8 @@ class ArchiveTests(unittest.TestCase):
         worktrees = (f"worktree {first}\nHEAD abc\nbranch refs/heads/first\n\n"
                      f"worktree {explicit}\nHEAD def\nbranch refs/heads/second\n")
         operation = {"action":"rollover", "source_pr":115, "worktree":str(explicit),
-                     "pull_request":{"label":"PR #116", "url":"https://example.test/repo/pull/116"}}
+                     "pull_request":{"label":"PR #116", "url":"https://example.test/repo/pull/116"},
+                     "override_reason":"test override"}
         with mock.patch.object(live_state, "STATE", self.state), \
              mock.patch.object(live_state, "git", return_value=worktrees):
             manage_findings.rollover_live(live, operation, force=True)
@@ -317,7 +318,8 @@ class ArchiveTests(unittest.TestCase):
                 else:
                     archive_path.unlink(missing_ok=True)
                 operation = {"action": "rollover", "source_pr": 115, "worktree": "next-wt",
-                             "pull_request": {"label": "PR #116", "url": "https://example.test/pull/116"}}
+                             "pull_request": {"label": "PR #116", "url": "https://example.test/pull/116"},
+                             "override_reason": "test override"}
                 registry_original = (self.state / "registry.json").read_bytes()
                 with mock.patch.object(manage_findings.live_state, "STATE", self.state), \
                      mock.patch.object(manage_findings.live_state, "save_registry", side_effect=OSError("registration failed")):

@@ -1,3 +1,49 @@
+## 0.1.57
+
+- Skill release checks: before a release, include or defer in-flight lane fixes; after shipping, re-sort open failures so stale tool-fault blocks do not linger. A failed review or check is classified as a tool or code fault before it is counted. The old model-escalation ladder stays gone; quota-out and cut-off notes sit with the classify-before-count rule, and the review guide restores the quota-out fallback order (Codex, then free OpenCode, then ask the owner; BCL-86).
+- `bcl release-check` lists in-flight lanes and refuses a clear ship while any remain. `bcl resort-failures` lists counted failures that current rules treat as tool faults, and `--apply --reason` uncounts them. Incomplete (cut-off) reviews are recorded as tool faults and are not counted; a reply whose first line is `VERDICT: CHANGES` but lacks a Must-fix section still counts as a code failure, so a malformed reviewer cannot loop a lane forever; three tool faults in a row block the lane until a reasoned unblock. Re-sorting uses the tool-recorded fault kind, never reason text; legacy incomplete-review rows are listed as ambiguous and uncounted only when named with `--tool-fault`, and `release-check` on an unadopted tracker exits 2. A reviewer that exits nonzero without a declared CHANGES verdict is a tool fault; plan-review cut-offs count toward the block, which needs three consecutive tool-fault jobs; a tool fault never re-blocks a lane an owner unblocked.
+
+## 0.1.56
+
+- Lane retry admission, plan-review receipts, and repeat-failure blocking now share deduplicated lane history; same-lane plan edits preserve it, and restore-main checks cover plan, group, and finding writes.
+
+## 0.1.55
+
+- A plan review's CHANGES keeps the lane's fix waiting for a passed plan review and is no longer counted toward the two-failure block (0.1.54 blocked lanes whose plan was only being refined).
+
+## 0.1.54
+
+- `bcl unblock` restores blocked lanes and lets the owner exclude tool-fault attempts from failure counts.
+
+## 0.1.53
+
+- Review replies with the Must-fix value on the heading line (`Must-fix: none`, `**Must-fix:**`) are read correctly; a section ends at the next heading or `Label:` line. 0.1.52 recorded such a PASS as incomplete.
+
+## 0.1.52
+
+- `bcl job` owns every lane step: `--phase plan_review|fix|review|presuite` runs the real command as its child, and the tracker refuses out-of-order steps (fix needs a plan; review needs a finished fix; presuite needs a passed or skipped review; a new fix voids earlier passes) (BCL-101, BCL-102).
+- Strict review verdict: only a reply whose first line is `VERDICT: PASS` or `VERDICT: CHANGES` with a Must-fix section counts; cut-off or quoted verdicts are recorded as incomplete and fail (BCL-104).
+- Changes requested sends the lane back to fixing instead of showing "Fix failed"; the page shows plan review and its model, review passed, and interrupted only for a dead job (BCL-102).
+- Failure counter: each failed review or check is counted once per lane; the next fix needs a passed plan review, and a second failure blocks the lane with its reason. Replaces 0.1.51's `--failing-test`/`--evidence` retry flags (BCL-105).
+- Every gate override (`--force` on batch set-stage, rollover, merged, machine load) needs a one-line `--reason` before anything is written (BCL-107).
+- `bcl install` refuses a lane whose verify script is missing; verify commands share one validator and are refused before any reservation (BCL-96).
+- `bcl cleanup --run-id ID --outcome ...` records teardown apart from verdicts; Introspect `fixed inline` items need a proof (BCL-97, BCL-106).
+- `bcl archive-history` moves earlier cycles' run and Introspect history into the archive (BCL-108, partial: unstamped legacy rows stay).
+- Docs drop rules the tool now enforces; review docs say version and changelog belong to integration (BCL-103).
+
+## 0.1.51
+
+- A finding marked as a regression against main must sit in a lane that restores main first (`restores_main`); a redesign is its own finding (BCL-95).
+- After a failed Verify, `bcl job --phase fix` needs `--failing-test` (already written in the lane) and `--evidence` (an existing record) before a retry (BCL-98).
+- Protected rounds: at most 4 open lanes per round; `bcl job` and `bcl verify` check the machine load (`BCL_MAX_LOAD`, `--force` overrides); `bcl stop-verify --reason` stops a run and keeps verified fixes counted (BCL-99).
+- Rewriting a plan keeps a gated lane's identity, findings and retry history across rounds; legacy histories sort by recorded time and deduplicate attempts and review bindings. Two counted failures require `bcl unblock --reason`, which records covered attempt IDs so a later same-second failure stays blocked; ambiguous failures also need a fresh passed plan review (BCL-95, BCL-98, BCL-99).
+
+## 0.1.50
+
+- bcl merged --force --reason "why" records an already merged PR when the merge gate reads short (for example a stopped run zeroed it); the one-line reason is kept with the forced gate overrides (BCL-92).
+- bcl report --force now reaches the gate and overrides an unmet report gate, recording the override (BCL-93).
+- After a failed shared check, bcl verify --shared --reason "why" reruns it once per failure and keeps the failed attempt; a shared or lane verify command that is a missing or non-executable script is refused before anything is recorded, and bcl install refuses such a lane script (BCL-91).
+
 ## 0.1.49
 
 - bcl correct-round --round N --reason "why" moves a wrong round counter forward and keeps the correction in the list history; no hand edits (BCL-88).

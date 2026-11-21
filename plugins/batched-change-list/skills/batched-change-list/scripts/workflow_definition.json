@@ -27,7 +27,7 @@
     "note": "Report at {threshold}+ verified or when no counted findings remain open. Rollover requires at least {merge_threshold}+ verified and the rollover threshold. Merge previous PR requires {merge_threshold}+ verified. No-open exception applies only to report."
   },
   "suggested_verdicts": {},
-  "lane_phase_rank": {"fix": 0, "review": 1, "install": 2, "verify": 3, "introspect": 4},
+  "lane_phase_rank": {"fix": 0, "plan_review": 1, "review": 2, "install": 3, "verify": 4, "introspect": 5},
   "checks": {
     "review": {"module": "check_install_sessions", "function": "validate_review_sessions", "file": "check_install_sessions.py"},
     "install": {"module": "check_install_sessions", "function": "validate_install_sessions", "file": "check_install_sessions.py"},

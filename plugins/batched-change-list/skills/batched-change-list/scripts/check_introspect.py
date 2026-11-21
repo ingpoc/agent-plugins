@@ -2,6 +2,7 @@
 """Check Introspect ordering and coverage of the round's performed steps."""
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 import workflow_definition as WF
@@ -105,6 +106,12 @@ def validate_introspect(sections, steps, none_steps, tracking):
                 step = item.get("item") or item.get("step") if isinstance(item, dict) else None
                 if not isinstance(step, str) or not step.strip():
                     raise ValueError(f"section {name} items must name a performed step")
+                if item.get("outcome") == "fixed inline":
+                    proof = item.get("proof")
+                    if not isinstance(proof, str) or not re.search(
+                            r"\btest_[A-Za-z0-9_]+\b|(?:^|\s)(?:python3?|pytest|bcl|make|npm|pnpm|yarn|swift|xcodebuild|cargo|go)\s+",
+                            proof):
+                        raise ValueError(f"{step}: fixed inline requires a named command or test in proof")
                 covered.add(step.strip())
         reason = section.get("none")
         if reason is not None and (not isinstance(reason, str) or not reason.strip()):

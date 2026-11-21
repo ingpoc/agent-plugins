@@ -20,9 +20,9 @@ CHECK_STATES = {"pending", "checking", "fixed", "not_fixed", "blocked", "inconcl
 WORKFLOW_STAGES = {**WF.STAGE_LABELS, "gate": WF.DEFINITION["gate"]["badge_label"]}
 PLAN_STATUSES = {"planned", "running", "review", "installing", "verifying", "verified", "blocked", "failed", "parked"}
 PLAN_STATUS_ALIASES = {"pending": "planned", "queued": "planned", "deferred": "parked", "install": "planned", "fixed": "planned", "partial": "verifying"}
-PLAN_PHASES = {"fix", "review", "install", "verify", "introspect"}
+PLAN_PHASES = {"fix", "plan_review", "review", "install", "verify", "introspect"}
 PLAN_PHASE_ALIASES = {"pending": "fix", "done": "verify"}
-LANE_PHASES = {"fix": "Plan & fix", "review": "Review", "install": "Install", "verify": "Verify", "introspect": "Introspect"}
+LANE_PHASES = {"fix": "Plan & fix", "plan_review": "Plan review", "review": "Review", "install": "Install", "verify": "Verify", "introspect": "Introspect"}
 STALE_LANE_STATUSES = {"running", "review", "installing", "verifying"}
 DEFAULT_ROLLOVER_THRESHOLD = WF.DEFAULT_ROLLOVER_THRESHOLD
 AGENT_COLLECTION_PLUGINS = ("agent-computer-use", "batched-change-list", "comet-control",
@@ -271,6 +271,9 @@ def plan_phase(group):
     explicit = group.get("phase")
     codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
     install = group.get("install") if isinstance(group.get("install"), dict) else {}
+    job = codex.get("job") if isinstance(codex.get("job"), dict) else {}
+    if job.get("phase") == "plan_review" and "exit_code" not in job:
+        return "plan_review"
     if status == "planned" and not install.get("started_at") and explicit in ("install", "verify"):
         return "review" if codex.get("review_status") == "passed" else "fix"
     if status in ("blocked", "failed") and explicit in PLAN_PHASES:
@@ -302,6 +305,8 @@ def current_workflow_stage(recorded_stage, groups):
     if not active:
         return recorded_stage
     phase = min((plan_phase(group) for group in active), key=phase_order.__getitem__)
+    if phase == "plan_review":
+        return "review"
     return next(stage["id"] for stage in WF.LOOP if stage.get("lane_phase") == phase)
 
 
@@ -322,8 +327,8 @@ def lane_model(group, codex):
         model = recorded.get("model") if recorded.get("stage") == stage else None
         return model.strip() if isinstance(model, str) and model.strip() else "No model (scripted check)"
     job = codex.get("job") if isinstance(codex.get("job"), dict) else {}
-    in_review = group.get("phase") == "review" or plan_status(group) == "review"
-    job_stage = "fix" if job.get("phase") == "fix" else "review" if job.get("phase") in ("review", "presuite") else None
+    in_review = group.get("phase") in ("plan_review", "review") or plan_status(group) == "review"
+    job_stage = "fix" if job.get("phase") == "fix" else "review" if job.get("phase") in ("plan_review", "review", "presuite") else None
     if isinstance(job.get("model"), str) and job["model"].strip() and job_stage == ("review" if in_review else "fix"):
         return job["model"].strip()
     if in_review and isinstance(codex.get("reviewer_model"), str) and codex["reviewer_model"].strip():
@@ -362,10 +367,21 @@ def lane_issue_status(group, round_number):
     codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
     job = codex.get("job") if isinstance(codex.get("job"), dict) else group.get("job")
     pid = job.get("pid") if isinstance(job, dict) else None
-    if (isinstance(job, dict) and job.get("phase") in {"fix", "review", "presuite"}
+    if (isinstance(job, dict) and job.get("phase") in {"fix", "plan_review", "review", "presuite"}
             and "exit_code" not in job
             and type(pid) is int and pid > 0 and not live_state._pid_is_running(pid)):
         return {"copy": f"Interrupted · resume needed · {group_id}", "kind": "warn", "status": "interrupted"}
+    if isinstance(job, dict) and job.get("phase") == "plan_review" and "exit_code" not in job:
+        return {"copy": f"Plan review · {job.get('model') or 'unknown'}", "kind": "run", "status": "review"}
+    if codex.get("review_status") == "changes_requested" or codex.get("plan_review_status") == "changes_requested":
+        return {"copy": f"Changes requested · {group_id}", "kind": "warn", "status": "running"}
+    if (isinstance(job, dict) and job.get("finished_phase_status") == "incomplete"
+            or codex.get("review_status") == "incomplete" or codex.get("plan_review_status") == "incomplete"):
+        return {"copy": f"Review incomplete · {group_id}", "kind": "warn", "status": "running"}
+    if codex.get("review_status") == "passed" or codex.get("plan_review_status") == "passed":
+        return {"copy": f"Review passed · {group_id}", "kind": "ok", "status": "review"}
+    if isinstance(job, dict) and job.get("phase") == "plan_review" and job.get("finished_phase_status") == "passed":
+        return {"copy": f"Plan review passed · {group_id}", "kind": "ok", "status": "review"}
     if checks_pending_reason(group) and status in {"blocked", "verifying"}:
         copy = f"Checks pending · {group.get('blocked_reason')}"
         return {"copy": copy, "kind": "run", "status": "verifying"}
@@ -656,6 +672,16 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
             f'<p class="gate-note">{html.escape(gate_note)} Fix count excludes completed introspection workflow records and excluded issues.</p>')
 
 
+def check_keeps_verified(check):
+    """A verified issue stays counted unless its latest check reopened it; a check left unfinished by a stopped run does not (BCL-99)."""
+    if not isinstance(check, dict):
+        return False
+    state = check.get("state")
+    if state == "inconclusive" and check.get("stopped") is True:
+        return True
+    return state not in {"checking", "blocked", "inconclusive", "not_fixed"}
+
+
 def rollover_gate(findings, tracking):
     threshold = tracking.get("rollover_threshold", DEFAULT_ROLLOVER_THRESHOLD)
     if type(threshold) is not int or threshold < 1:
@@ -674,7 +700,7 @@ def rollover_gate(findings, tracking):
     checks = run.get("checks", {}) if isinstance(run, dict) else {}
     def currently_fixed(item):
         check = checks.get(item["id"], {}) if isinstance(checks, dict) else {}
-        return item.get("status") == "verified_fixed" and isinstance(check, dict) and check.get("state") not in {"checking", "blocked", "inconclusive", "not_fixed"}
+        return item.get("status") == "verified_fixed" and check_keeps_verified(check)
     fixed = sum(currently_fixed(item) for item in counted)
     has_open = any(item.get("status") != "closed" and not currently_fixed(item) for item in counted)
     # A count at or above the threshold is always met; never render N of 15 as not met when N >= 15.

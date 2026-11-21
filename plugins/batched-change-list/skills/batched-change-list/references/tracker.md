@@ -10,7 +10,7 @@ Adopt an in-repo tracker once with `bcl --data FINDINGS.json adopt`. The live JS
 
 Use `plugins/batched-change-list/bin/bcl --data FINDINGS.json <stage>` for workflow stages. Commands resolve the live file; `status` is read-only and does not start a viewer. Other adopted-list commands start or restart the per-list viewer. `plan --plan PLAN.json` records the current cycle and loop round. When the round counter is wrong, `bcl correct-round --round N --reason "why"` moves it forward only (never by hand), and the change is kept in `tracking.round_corrections`. `update-plan-group` accepts status, Codex, and verify updates. Install requires a nonempty current-cycle plan, and Verify requires Install to have been reached. `bcl merge` refuses unsnapshotted live changes and never merges branches. `bcl install-hooks` adds repository pre-commit and pre-push report freshness checks.
 
-`get` omits large inline screenshot payloads by default; pass `--include-evidence` only when you need the image bytes. `list` stays compact.
+`get` omits large inline screenshot payloads by default; pass `--include-evidence` only when you need the image bytes. `list` stays compact. `bcl archive-history [--through-cycle N]` moves earlier cycles' verification and Introspect history into the archive.
 
 Set `SKILL_DIR` to the absolute `batched-change-list` skill directory before running these recovery commands. Prefer `bcl` for workflow stages; use `manage_findings.py` only for audit, compact, list/get, evidence, and batch writes that `bcl` does not wrap.
 

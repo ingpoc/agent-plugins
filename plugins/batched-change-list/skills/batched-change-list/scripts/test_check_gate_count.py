@@ -123,11 +123,11 @@ class GateCountTests(unittest.TestCase):
                         if entry == "manager":
                             op = [{"action": "rollover", "pull_request": {"label": "PR #124", "url": "https://github.com/example/project/pull/124"}, "worktree": "next"}]
                             args = [sys.executable, str(Path(__file__).with_name("manage_findings.py")), "batch", str(live), "-"]
-                            if force: args.append("--force")
+                            if force: args.extend(["--force", "--reason", "test override"])
                             result = subprocess.run(args, input=json.dumps(op), env=fixture.env, text=True, capture_output=True)
                         else:
                             args = ["--new-pr", "124", "--worktree", "next"]
-                            if force: args.append("--force")
+                            if force: args.extend(["--force", "--reason", "test override"])
                             result = fixture.call_without_viewer("rollover", *args)
                         self.assertEqual(result.returncode == 0, succeeds, result.stderr)
                         records = json.loads((fixture.state / "registry.json").read_text())

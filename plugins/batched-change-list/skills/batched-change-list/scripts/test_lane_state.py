@@ -1,4 +1,5 @@
 import contextlib
+import copy
 import io
 import importlib.util
 import json
@@ -20,6 +21,13 @@ sys.path.pop(0)
 
 
 class LaneStateTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.live = Path(self.tmp.name) / "live.json"
+        self.live.write_text(json.dumps({"tracking": {"plan": {"cycle": 1, "round": 1,
+            "groups": [self.lane()]}}}))
+
     def lane(self, status="running", **extra):
         return {"id": "A", "finding_ids": ["ISSUE-01"], "status": status,
                 "phase": "fix", "codex": {"implementer_session": "impl", **extra}}
@@ -37,23 +45,29 @@ class LaneStateTests(unittest.TestCase):
 
     def test_job_records_pid_heartbeat_and_exit(self):
         writes = []
+        def write_job(*args):
+            operations = args[-1]
+            writes.append(copy.deepcopy(operations))
+            if operations[0]["action"] == "finish-job":
+                document = json.loads(self.live.read_text())
+                document["tracking"]["plan"]["groups"][0]["codex"] = {
+                    "job": {"finished_phase_status": "passed"}}
+                self.live.write_text(json.dumps(document))
         process = MagicMock(pid=90210)
         process.wait.side_effect = [TimeoutExpired(["check"], 60), 0]
         with patch.object(test_bcl.bcl_entrypoint.subprocess, "Popen", return_value=process), \
-             patch.object(test_bcl.bcl_entrypoint, "_job_write", side_effect=lambda *args: writes.append(args[-1])), \
+             patch.object(test_bcl.bcl_entrypoint, "_job_write", side_effect=write_job), \
              patch.object(test_bcl.bcl_entrypoint, "_utc_now", side_effect=["2026-11-18T09:00:00Z",
-                   "2026-11-18T09:01:00Z", "2026-11-18T09:02:00Z"]):
-            result = test_bcl.bcl_entrypoint._run_job({}, Path("live"), Path("report"), Path("base"),
+                   "2026-11-18T09:00:30Z", "2026-11-18T09:01:00Z", "2026-11-18T09:02:00Z"]):
+            result = test_bcl.bcl_entrypoint._run_job({}, self.live, Path("report"), Path("base"),
                 [self.lane()], "fix", ["ISSUE-01"], ["python3", "check.py"])
         self.assertEqual(result, 0)
-        jobs = [op["patch"]["codex"]["job"] for batch in writes for op in batch
-                if op.get("action") == "update-plan-group"]
-        self.assertEqual(len(jobs), 3)
-        self.assertEqual(jobs[0]["pid"], 90210)
-        self.assertEqual(jobs[1]["heartbeat_at"], "2026-11-18T09:01:00Z")
-        self.assertEqual(jobs[-1]["exit_code"], 0)
-        self.assertEqual(jobs[-1]["duration_s"], 120)
-        self.assertEqual(jobs[-1]["finished_phase_status"], "passed")
+        self.assertEqual([batch[0]["action"] for batch in writes],
+                         ["start-job", "attach-job", "heartbeat-job", "finish-job"])
+        self.assertEqual(writes[0][0]["job"]["heartbeat_at"], "2026-11-18T09:00:00Z")
+        self.assertEqual(writes[1][0]["pid"], 90210)
+        self.assertEqual(writes[2][0]["timestamp"], "2026-11-18T09:01:00Z")
+        self.assertEqual(writes[-1][0]["exit_code"], 0)
 
     def test_heartbeat_write_conflict_keeps_child_running(self):
         process = MagicMock(pid=90211)
@@ -65,11 +79,11 @@ class LaneStateTests(unittest.TestCase):
              patch.object(test_bcl.bcl_entrypoint.live_state, "snapshot", side_effect=[None, None, conflict, conflict, conflict, None]) as snapshot, \
              patch.object(test_bcl.bcl_entrypoint.time, "sleep"), \
              patch.object(test_bcl.bcl_entrypoint, "_utc_now", side_effect=["2026-11-18T09:00:00Z",
-                   "2026-11-18T09:01:00Z", "2026-11-18T09:02:00Z"]), \
+                   "2026-11-18T09:00:30Z", "2026-11-18T09:01:00Z", "2026-11-18T09:02:00Z"]), \
              contextlib.redirect_stderr(io.StringIO()) as errors:
-            result = test_bcl.bcl_entrypoint._run_job({}, Path("live"), Path("report"), Path("base"),
+            result = test_bcl.bcl_entrypoint._run_job({}, self.live, Path("report"), Path("base"),
                 [self.lane()], "fix", ["ISSUE-01"], ["python3", "check.py"])
-        self.assertEqual(result, 0)
+        self.assertEqual(result, 1)  # The mocked write path never records the finish receipt.
         self.assertEqual(snapshot.call_count, 6)
         process.terminate.assert_not_called()
         self.assertIn("heartbeat write failed; will retry", errors.getvalue())
@@ -82,7 +96,7 @@ class LaneStateTests(unittest.TestCase):
                    OSError("write failed"), OSError("write failed")]), \
              patch.object(test_bcl.bcl_entrypoint.time, "sleep"):
             with self.assertRaisesRegex(RuntimeError, "child exited with code 7; final tracker write failed"):
-                test_bcl.bcl_entrypoint._run_job({}, Path("live"), Path("report"), Path("base"),
+                test_bcl.bcl_entrypoint._run_job({}, self.live, Path("report"), Path("base"),
                     [self.lane()], "fix", ["ISSUE-01"], ["python3", "check.py"])
         process.terminate.assert_not_called()
 
