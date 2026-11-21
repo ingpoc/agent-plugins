@@ -1,3 +1,7 @@
+## 0.1.56
+
+- Lane retry admission, plan-review receipts, and repeat-failure blocking now share deduplicated lane history; same-lane plan edits preserve it, and restore-main checks cover plan, group, and finding writes.
+
 ## 0.1.55
 
 - A plan review's CHANGES keeps the lane's fix waiting for a passed plan review and is no longer counted toward the two-failure block (0.1.54 blocked lanes whose plan was only being refined).
@@ -27,6 +31,7 @@
 - A finding marked as a regression against main must sit in a lane that restores main first (`restores_main`); a redesign is its own finding (BCL-95).
 - After a failed Verify, `bcl job --phase fix` needs `--failing-test` (already written in the lane) and `--evidence` (an existing record) before a retry (BCL-98).
 - Protected rounds: at most 4 open lanes per round; `bcl job` and `bcl verify` check the machine load (`BCL_MAX_LOAD`, `--force` overrides); `bcl stop-verify --reason` stops a run and keeps verified fixes counted (BCL-99).
+- Rewriting a plan keeps a gated lane's identity, findings and retry history across rounds; legacy histories sort by recorded time and deduplicate attempts and review bindings. Two counted failures require `bcl unblock --reason`, which records covered attempt IDs so a later same-second failure stays blocked; ambiguous failures also need a fresh passed plan review (BCL-95, BCL-98, BCL-99).
 
 ## 0.1.50
 

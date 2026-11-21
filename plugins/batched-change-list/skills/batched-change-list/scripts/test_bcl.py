@@ -1083,7 +1083,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(failed.returncode, 7, failed.stderr)
         tracking = json.loads(live.read_text())["tracking"]
         self.assertEqual(tracking["plan"]["groups"][0]["status"], "failed")
-        self.assertNotIn("failure_history", tracking["plan"]["groups"][0])
+        self.assertEqual(tracking["plan"]["groups"][0]["failure_history"], [])
 
     def test_fix_job_does_not_run_command_without_current_introspect(self):
         self.assertEqual(self.call('start').returncode, 0)
@@ -1432,7 +1432,7 @@ elif args[:2] != ['pr', 'edit']:
         updated = json.loads(live.read_text())
         group = updated["tracking"]["plan"]["groups"][0]
         self.assertEqual((group["status"], group["phase"]), ("running", "fix"))
-        self.assertTrue(group["failure_history"]["ISSUE-01"][0]["tool_fault"])
+        self.assertTrue(group["failure_history"][0]["tool_fault"])
         self.assertEqual(group["unblock_history"][-1]["tool_faults"], ["attempt-1"])
 
     def test_review_refuses_until_fix_job_finishes(self):

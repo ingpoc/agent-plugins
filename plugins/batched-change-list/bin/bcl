@@ -545,7 +545,7 @@ def main():
             parser.error("job IDs must be covered by current plan groups")
         if args.phase == "fix":
             if any(group.get("status") in ("blocked", "parked", "deferred") for group in groups):
-                parser.error("fix job cannot start a blocked, parked, or deferred lane")
+                parser.error("fix job cannot start a blocked, parked, or deferred lane; run bcl unblock --reason for blocked lanes")
         if args.phase in ("review", "presuite") and any(group.get("phase") != "review" or (group.get("codex") or {}).get("fix_status") != "passed" for group in groups):
             parser.error("review and presuite jobs require each lane to finish fix and enter review")
         elif args.phase == "review":
