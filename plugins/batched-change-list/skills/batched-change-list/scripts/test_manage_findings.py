@@ -1683,6 +1683,98 @@ class ManageFindingsTests(unittest.TestCase):
             args.append("--force")
         return self.cli(*args)
 
+    def _blocked_lane(self):
+        document = copy.deepcopy(self.document)
+        document["findings"] = document["findings"][:2]
+        for index, finding in enumerate(document["findings"], 1):
+            finding.update(id=f"ISSUE-0{index}", status="blocked")
+        failures = [{"attempt_id": "attempt-1", "source": "review", "reason": "Review incomplete"},
+                    {"attempt_id": "attempt-2", "source": "plan_review", "reason": "Changes requested"}]
+        document["tracking"] = {"cycle": 1, "round": 1, "plan": {"cycle": 1, "round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01", "ISSUE-02"], "status": "blocked", "phase": "fix",
+            "blocked_reason": "Second failure", "failure_block_reason": "review failed",
+            "codex": {"review_status": "blocked", "fix_status": "failed"},
+            "failure_history": {"ISSUE-01": copy.deepcopy(failures), "ISSUE-02": copy.deepcopy(failures)},
+        }]}}
+        return document
+
+    def test_unblock_requires_reason_and_preserves_tracker_bytes(self):
+        document = self._blocked_lane()
+        before = json.dumps(document).encode()
+        result = self._replay_batch(document, {"action": "unblock-lane", "ids": ["ISSUE-01"]})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unblock override requires a one-line nonblank --reason", result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
+    def test_unblock_tool_fault_is_excluded_and_plan_review_is_still_required(self):
+        document = self._blocked_lane()
+        result = self._replay_batch(document, {"action": "unblock-lane", "ids": ["ISSUE-01"],
+            "reason": "0.1.52 misparsed a valid PASS", "tool_faults": ["attempt-2"],
+            "timestamp": "2026-11-21T12:00:00Z"})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        document = json.loads(self.data.read_bytes())
+        group = document["tracking"]["plan"]["groups"][0]
+        self.assertEqual((group["status"], group["phase"]), ("running", "fix"))
+        self.assertNotIn("blocked_reason", group)
+        self.assertNotIn("failure_block_reason", group)
+        self.assertEqual([item["status"] for item in document["findings"]], ["in_progress", "in_progress"])
+        self.assertTrue(group["failure_history"]["ISSUE-01"][1]["tool_fault"])
+        self.assertTrue(group["failure_history"]["ISSUE-02"][1]["tool_fault"])
+        self.assertEqual(group["failure_history"]["ISSUE-01"][1]["tool_fault_reason"],
+                         "0.1.52 misparsed a valid PASS")
+        self.assertEqual(group["unblock_history"][0]["tool_faults"], ["attempt-2"])
+        self.assertEqual(len(manage_findings._counted_failures(group["failure_history"]["ISSUE-01"])), 1)
+        with self.assertRaisesRegex(ValueError, "passed plan_review"):
+            manage_findings.job_transition(document, {"action": "start-job", "phase": "fix", "ids": ["ISSUE-01"],
+                "cycle": 1, "round": 1, "timestamp": "2026-11-21T12:01:00Z",
+                "job": {"id": "fix-early", "plan_sha256": manage_findings.plan_candidate_sha256(document["tracking"]["plan"])}})
+        manage_findings.job_transition(document, {"action": "start-job", "phase": "plan_review", "ids": ["ISSUE-01"],
+            "cycle": 1, "round": 1, "timestamp": "2026-11-21T12:02:00Z",
+            "job": {"id": "plan-review", "plan_sha256": manage_findings.plan_candidate_sha256(document["tracking"]["plan"])}})
+        manage_findings.job_transition(document, {"action": "finish-job", "phase": "plan_review", "ids": ["ISSUE-01"],
+            "cycle": 1, "round": 1, "timestamp": "2026-11-21T12:03:00Z", "job_id": "plan-review",
+            "exit_code": 0, "plan_sha256": manage_findings.plan_candidate_sha256(document["tracking"]["plan"]),
+            "reply": "VERDICT: PASS\n## Must-fix\nnone\n## ROOT CAUSE\nparser fault\n## FAILING TEST\ntest_parse\n"})
+        self.assertEqual(group["plan_review_history"]["ISSUE-01"][-1]["after_failure"], "attempt-1")
+        manage_findings.job_transition(document, {"action": "start-job", "phase": "fix", "ids": ["ISSUE-01"],
+            "cycle": 1, "round": 1, "timestamp": "2026-11-21T12:04:00Z",
+            "job": {"id": "fix-after-review", "plan_sha256": manage_findings.plan_candidate_sha256(document["tracking"]["plan"])}})
+
+    def test_unblock_refuses_nonblocked_lane_and_unknown_attempt_without_writing(self):
+        for blocked, fault in ((False, "attempt-1"), (True, "missing")):
+            with self.subTest(blocked=blocked, fault=fault):
+                document = self._blocked_lane()
+                if not blocked:
+                    document["tracking"]["plan"]["groups"][0]["status"] = "running"
+                before = json.dumps(document).encode()
+                result = self._replay_batch(document, {"action": "unblock-lane", "ids": ["ISSUE-01"],
+                    "reason": "owner reviewed the blocked lane", "tool_faults": [fault],
+                    "timestamp": "2026-11-21T12:00:00Z"})
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(self.data.read_bytes(), before)
+                self.assertIn("blocked lane" if not blocked else "unknown attempt ID", result.stderr)
+
+    def test_unblock_without_tool_fault_records_owner_override(self):
+        document = self._blocked_lane()
+        result = self._replay_batch(document, {"action": "unblock-lane", "ids": ["ISSUE-01"],
+            "reason": "Owner override: proceed after reviewing both failures.",
+            "timestamp": "2026-11-21T12:00:00Z"})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        history = json.loads(self.data.read_bytes())["tracking"]["plan"]["groups"][0]["unblock_history"]
+        self.assertTrue(history[-1]["owner_override"])
+
+    def test_unblock_tool_fault_cannot_replace_owner_override_for_two_remaining_failures(self):
+        document = self._blocked_lane()
+        for rows in document["tracking"]["plan"]["groups"][0]["failure_history"].values():
+            rows.append({"attempt_id": "attempt-3", "source": "review", "reason": "third failure"})
+        before = json.dumps(document).encode()
+        result = self._replay_batch(document, {"action": "unblock-lane", "ids": ["ISSUE-01"],
+            "reason": "mark parser attempt", "tool_faults": ["attempt-1"],
+            "timestamp": "2026-11-21T12:00:00Z"})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("owner override requires no --tool-fault", result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
     def _path1_pre(self):
         return {
             "title": "Product issues",

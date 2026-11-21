@@ -1403,6 +1403,38 @@ elif args[:2] != ['pr', 'edit']:
         self.assertNotEqual(self.call("verify").returncode, 0)
         self.assertNotEqual(self.call("report").returncode, 0)
 
+    def test_unblock_without_reason_refuses_without_changing_tracker(self):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        before_source, before_live = self.data.read_bytes(), live.read_bytes()
+        result = self.call_without_viewer("unblock", "--ids", "ISSUE-01")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unblock override requires a one-line nonblank --reason", result.stderr)
+        self.assertEqual(self.data.read_bytes(), before_source)
+        self.assertEqual(live.read_bytes(), before_live)
+
+    def test_unblock_cli_records_tool_fault(self):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        document = json.loads(live.read_text())
+        document["findings"][0]["status"] = "blocked"
+        document["tracking"].update(cycle=1, round=1, plan={"cycle": 1, "round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "status": "blocked", "phase": "fix",
+            "blocked_reason": "Second failure", "failure_block_reason": "Review incomplete",
+            "failure_history": {"ISSUE-01": [
+                {"attempt_id": "attempt-1", "source": "review", "reason": "Review incomplete"},
+                {"attempt_id": "attempt-2", "source": "plan_review", "reason": "Changes requested"},
+            ]},
+        }]})
+        payload = json.dumps(document)
+        live.write_text(payload); self.data.write_text(payload)
+        result = self.call_without_viewer("unblock", "--ids", "ISSUE-01", "--reason", "parser fault",
+                                          "--tool-fault", "attempt-1")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        updated = json.loads(live.read_text())
+        group = updated["tracking"]["plan"]["groups"][0]
+        self.assertEqual((group["status"], group["phase"]), ("running", "fix"))
+        self.assertTrue(group["failure_history"]["ISSUE-01"][0]["tool_fault"])
+        self.assertEqual(group["unblock_history"][-1]["tool_faults"], ["attempt-1"])
+
     def test_review_refuses_until_fix_job_finishes(self):
         self.assertEqual(self.call("start").returncode, 0)
         plan = self.root / "plan.json"

@@ -1,3 +1,7 @@
+## 0.1.54
+
+- `bcl unblock` restores blocked lanes and lets the owner exclude tool-fault attempts from failure counts.
+
 ## 0.1.53
 
 - Review replies with the Must-fix value on the heading line (`Must-fix: none`, `**Must-fix:**`) are read correctly; a section ends at the next heading or `Label:` line. 0.1.52 recorded such a PASS as incomplete.

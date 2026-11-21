@@ -388,10 +388,14 @@ def _failure_rows(group, identifier):
     return rows
 
 
+def _counted_failures(rows):
+    return [row for row in rows if not row.get("tool_fault")]
+
+
 def plan_candidate_sha256(plan):
     candidate = copy.deepcopy(plan)
     for group in candidate.get("groups", []):
-        for field in ("status", "phase", "presuite", "updated_at", "failure_history",
+        for field in ("status", "phase", "presuite", "updated_at", "failure_history", "unblock_history",
                       "plan_review_history", "blocked_reason", "failure_block_reason"):
             group.pop(field, None)
         verify = group.get("verify")
@@ -410,7 +414,7 @@ def plan_candidate_sha256(plan):
 def carry_plan_runtime_state(groups, previous, same_round):
     old = {group.get("id"): group for group in previous.get("groups", [])} if isinstance(previous, dict) else {}
     protected_codex = ("job", "fix_status", "review_status", "plan_review_status", "reviewer_model", "must_fix_note")
-    protected_group = ("status", "phase", "presuite", "failure_history", "plan_review_history", "blocked_reason", "failure_block_reason")
+    protected_group = ("status", "phase", "presuite", "failure_history", "plan_review_history", "unblock_history", "blocked_reason", "failure_block_reason")
     for group in groups:
         prior = old.get(group.get("id"))
         if same_round and prior and group.get("finding_ids") == prior.get("finding_ids"):
@@ -449,7 +453,7 @@ def _record_lane_failure(document, identifier, attempt_id, source, reason):
         if not any(row.get("attempt_id") == attempt_id for row in rows):
             rows.append({"attempt_id": attempt_id, "source": source, "reason": reason,
                          "cycle": plan.get("cycle"), "round": plan.get("round"), "at": stamp})
-        if len(rows) >= 2:
+        if len(_counted_failures(rows)) >= 2:
             group.update(status="blocked", phase=group.get("phase", "fix"),
                          blocked_reason="Second failure", failure_block_reason=reason)
             codex = group.setdefault("codex", {})
@@ -457,6 +461,65 @@ def _record_lane_failure(document, identifier, attempt_id, source, reason):
             for item in document.get("findings", []):
                 if item.get("id") == identifier:
                     item.update(status="blocked", needs=reason)
+
+
+def unblock_lane(document, operation):
+    tracking, plan, groups = _lane_groups(document, operation.get("ids"))
+    reason = require_override_reason(operation.get("reason"), "unblock")
+    tool_faults = operation.get("tool_faults", [])
+    if (not isinstance(tool_faults, list)
+            or any(not isinstance(value, str) or not value.strip() for value in tool_faults)
+            or len(tool_faults) != len(set(tool_faults))):
+        raise ValueError("unblock tool_faults must be unique nonempty attempt IDs")
+    stamp = operation.get("timestamp")
+    if not isinstance(stamp, str) or RENDERER.parse_instant(stamp) is None:
+        raise ValueError("unblock timestamp must be an ISO 8601 instant")
+    lanes, known_faults = [], set()
+    for group in groups:
+        if group.get("status") != "blocked":
+            raise ValueError(f"unblock requires blocked lane {group.get('id')}")
+        history = group.setdefault("unblock_history", [])
+        if not isinstance(history, list):
+            raise ValueError(f"{group.get('id')} unblock_history must be an array")
+        rows_by_id = {identifier: _failure_rows(group, identifier)
+                      for identifier in group.get("finding_ids", [])}
+        known_faults.update(row["attempt_id"] for rows in rows_by_id.values() for row in rows
+                            if isinstance(row.get("attempt_id"), str))
+        lanes.append((group, history, rows_by_id))
+    unknown = set(tool_faults) - known_faults
+    if unknown:
+        raise ValueError(f"unblock names unknown attempt ID(s): {', '.join(sorted(unknown))}")
+    for group, history, rows_by_id in lanes:
+        lane_faults = set(tool_faults).intersection(
+            row.get("attempt_id") for rows in rows_by_id.values() for row in rows)
+        for rows in rows_by_id.values():
+            for row in rows:
+                if row.get("attempt_id") in lane_faults:
+                    row.update(tool_fault=True, tool_fault_reason=reason)
+        counted_attempts = set()
+        for identifier, rows in rows_by_id.items():
+            for index, row in enumerate(_counted_failures(rows)):
+                attempt = row.get("attempt_id")
+                counted_attempts.add(attempt if isinstance(attempt, str) and attempt
+                                     else (identifier, index))
+        owner_override = len(counted_attempts) >= 2
+        if owner_override and tool_faults:
+            raise ValueError(f"unblock lane {group.get('id')} has two or more counted failures; owner override requires no --tool-fault")
+        entry = {"at": stamp, "reason": reason, "tool_faults": sorted(lane_faults),
+                 "by_cycle": plan.get("cycle", tracking.get("cycle", 1)),
+                 "round": plan.get("round", tracking.get("round", 1))}
+        if owner_override:
+            entry["owner_override"] = True
+        history.append(entry)
+        group.update(status="running", phase="fix")
+        group.pop("blocked_reason", None)
+        group.pop("failure_block_reason", None)
+        codex = group.setdefault("codex", {})
+        codex.pop("review_status", None)
+        codex.pop("plan_review_status", None)
+        for item in document.get("findings", []):
+            if item.get("id") in rows_by_id and item.get("status") == "blocked":
+                item["status"] = "in_progress"
 
 
 def job_transition(document, operation):
@@ -500,7 +563,7 @@ def job_transition(document, operation):
                     group.get("status") == "failed" and phase not in ("fix", "plan_review")):
                 raise ValueError(f"job cannot start blocked, parked, deferred, or failed lane {group['id']}")
             selected = set(operation["ids"]).intersection(group.get("finding_ids", []))
-            failures = {identifier: (group.get("failure_history") or {}).get(identifier, []) for identifier in selected}
+            failures = {identifier: _counted_failures(_failure_rows(group, identifier)) for identifier in selected}
             if phase == "fix":
                 for identifier, rows in failures.items():
                     if rows:
@@ -562,10 +625,11 @@ def job_transition(document, operation):
                         codex["plan_review_status"] = "passed"
                         for identifier in set(operation["ids"]).intersection(group.get("finding_ids", [])):
                             rows = _failure_rows(group, identifier)
-                            if rows and (not _section_body(reply, "ROOT CAUSE") or not _section_body(reply, "FAILING TEST")):
+                            counted = _counted_failures(rows)
+                            if counted and (not _section_body(reply, "ROOT CAUSE") or not _section_body(reply, "FAILING TEST")):
                                 raise ValueError("plan_review after a failure requires ROOT CAUSE and FAILING TEST sections")
                             history = group.setdefault("plan_review_history", {}).setdefault(identifier, [])
-                            history.append({"job_id": job_id, "after_failure": rows[-1]["attempt_id"] if rows else None,
+                            history.append({"job_id": job_id, "after_failure": counted[-1]["attempt_id"] if counted else None,
                                             "status": "passed", "cycle": cycle, "round": round_number})
                     else:
                         codex["review_status"] = "passed"
@@ -1843,7 +1907,7 @@ def run(args, parser):
                 return 0
             existing_run = store["document"].get("tracking", {}).get("verification_run")
             original_plan = copy.deepcopy(store['document'].get('tracking', {}).get('plan'))
-            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "stop-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify", "start-job", "attach-job", "heartbeat-job", "finish-job", "skip-review", "record-cleanup", "archive-history"}
+            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "stop-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify", "start-job", "attach-job", "heartbeat-job", "finish-job", "skip-review", "record-cleanup", "archive-history", "unblock-lane"}
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()
@@ -1866,6 +1930,9 @@ def run(args, parser):
                 action = operation.get("action")
                 if action in ("start-job", "attach-job", "heartbeat-job", "finish-job"):
                     job_transition(store["document"], operation)
+                    continue
+                if action == "unblock-lane":
+                    unblock_lane(store["document"], operation)
                     continue
                 if action == "skip-review":
                     tracking, _, groups = _lane_groups(store["document"], operation.get("ids"))
