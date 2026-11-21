@@ -1,3 +1,7 @@
+## 0.1.55
+
+- A plan review's CHANGES keeps the lane's fix waiting for a passed plan review and is no longer counted toward the two-failure block (0.1.54 blocked lanes whose plan was only being refined).
+
 ## 0.1.54
 
 - `bcl unblock` restores blocked lanes and lets the owner exclude tool-fault attempts from failure counts.

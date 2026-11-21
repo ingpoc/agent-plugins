@@ -389,7 +389,7 @@ def _failure_rows(group, identifier):
 
 
 def _counted_failures(rows):
-    return [row for row in rows if not row.get("tool_fault")]
+    return [row for row in rows if not row.get("tool_fault") and row.get("source") != "plan_review"]
 
 
 def plan_candidate_sha256(plan):
@@ -645,10 +645,10 @@ def job_transition(document, operation):
                         codex["review_status"] = "failed" if incomplete else state
                         codex["must_fix_note"] = reason
                         group.update(status="running", phase="fix")
+                        for identifier in set(operation["ids"]).intersection(group.get("finding_ids", [])):
+                            _record_lane_failure(document, identifier, job_id, phase, reason)
                     else:
                         codex["plan_review_status"] = "failed" if incomplete else state
-                    for identifier in set(operation["ids"]).intersection(group.get("finding_ids", [])):
-                        _record_lane_failure(document, identifier, job_id, phase, reason)
             else:
                 passed = exit_code == 0
                 job["finished_phase_status"] = "passed" if passed else "failed"

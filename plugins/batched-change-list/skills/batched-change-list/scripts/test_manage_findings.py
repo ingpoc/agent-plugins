@@ -1689,7 +1689,7 @@ class ManageFindingsTests(unittest.TestCase):
         for index, finding in enumerate(document["findings"], 1):
             finding.update(id=f"ISSUE-0{index}", status="blocked")
         failures = [{"attempt_id": "attempt-1", "source": "review", "reason": "Review incomplete"},
-                    {"attempt_id": "attempt-2", "source": "plan_review", "reason": "Changes requested"}]
+                    {"attempt_id": "attempt-2", "source": "review", "reason": "Changes requested"}]
         document["tracking"] = {"cycle": 1, "round": 1, "plan": {"cycle": 1, "round": 1, "groups": [{
             "id": "A", "finding_ids": ["ISSUE-01", "ISSUE-02"], "status": "blocked", "phase": "fix",
             "blocked_reason": "Second failure", "failure_block_reason": "review failed",

@@ -82,6 +82,19 @@ class JobLifecycleTests(unittest.TestCase):
         self.assertEqual(group["status"], "blocked")
         self.assertEqual(doc["findings"][0]["status"], "blocked")
 
+    def test_plan_review_changes_keeps_fix_gate_closed_without_counting_a_failure(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1", code=1)
+        group = doc["tracking"]["plan"]["groups"][0]
+        for n in (1, 2):
+            transition(doc, "start-job", "plan_review", f"plan-{n}")
+            finish(doc, "plan_review", f"plan-{n}", code=1, reply="VERDICT: CHANGES\n## Must-fix\n1. tighten the plan")
+        self.assertNotEqual(group["status"], "blocked")
+        self.assertEqual(len(group["failure_history"]["ISSUE-01"]), 1)
+        with self.assertRaisesRegex(ValueError, "passed plan_review"):
+            transition(doc, "start-job", "fix", "fix-2")
+
 
 if __name__ == "__main__":
     unittest.main()
