@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-21T16:27:21Z",
-      "now": "2026-11-21T16:27:21Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-21T17:05:18Z",
+      "now": "2026-11-21T17:05:18Z — Install in progress"
     },
     "rollover": {
       "source_pr": 118,
@@ -12128,7 +12128,8 @@
       "collect",
       "present",
       "plan_fix",
-      "review"
+      "review",
+      "install"
     ],
     "plan": {
       "round": 1,
@@ -12141,7 +12142,7 @@
             "BCL-124",
             "BCL-126"
           ],
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl119-direct",
           "label": "BCL-123, BCL-124, BCL-126",
           "verify": {
@@ -12157,18 +12158,18 @@
             "reviewer_session": "codex-terra-6.1-119r1-dead",
             "fix_status": "passed",
             "job": {
-              "id": "7180bd20a0134c37b4aec4a0e7f75543",
-              "phase": "review",
-              "started_at": "2026-11-21T16:27:21Z",
+              "id": "89d1866176dc4ef98c5b7b6f1d239240",
+              "phase": "presuite",
+              "started_at": "2026-11-21T16:57:00Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T16:28:51Z",
+              "heartbeat_at": "2026-11-21T17:01:23Z",
               "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
-              "model": "gpt-6.1-terra",
+              "model": "none",
               "cycle": 11,
               "round": 1,
-              "pid": 67248,
+              "pid": 38903,
               "exit_code": 0,
-              "finished_at": "2026-11-21T16:28:51Z",
+              "finished_at": "2026-11-21T17:01:23Z",
               "finished_phase_status": "passed"
             },
             "reviewer_model": "gpt-6.1-terra",
@@ -12213,7 +12214,7 @@
             }
           ],
           "updated_at": "2026-11-21T14:17:11Z",
-          "phase": "review",
+          "phase": "install",
           "unblock_history": [
             {
               "at": "2026-11-21T16:20:21Z",
@@ -12228,7 +12229,16 @@
               "round": 1,
               "owner_override": true
             }
-          ]
+          ],
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-21T17:01:23Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-21T17:05:18Z"
+          }
         },
         {
           "id": "R1-RELEASE",
@@ -12311,18 +12321,18 @@
             "reviewer_session": "codex-terra-6.1-119r1-tests",
             "fix_status": "passed",
             "job": {
-              "id": "e5438f5cca4a4c19a09aae058c56c816",
-              "phase": "review",
-              "started_at": "2026-11-21T15:01:18Z",
+              "id": "89d1866176dc4ef98c5b7b6f1d239240",
+              "phase": "presuite",
+              "started_at": "2026-11-21T16:57:00Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T15:02:17Z",
+              "heartbeat_at": "2026-11-21T17:01:23Z",
               "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
-              "model": "gpt-6.1-terra medium",
+              "model": "none",
               "cycle": 11,
               "round": 1,
-              "pid": 20099,
+              "pid": 38903,
               "exit_code": 0,
-              "finished_at": "2026-11-21T15:02:17Z",
+              "finished_at": "2026-11-21T17:01:23Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -12332,7 +12342,12 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-21T14:17:11Z",
-          "phase": "review"
+          "phase": "review",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-21T17:01:23Z"
+          }
         },
         {
           "id": "R1-ADD",
@@ -12809,7 +12824,8 @@
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
         "evidence": "viewer state 107 and 110 lack instance, both dead; ensure_viewer pid 87005 special case; _legacy_viewer_matches 10 lines",
-        "kind": "delete"
+        "kind": "delete",
+        "deferred": "Round 2 (owner t1627u 21:49 IST): Terra 2 found deleting it orphans live instance-less viewers; deletion reverted in fbe629dc"
       },
       "needs": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it."
     },
@@ -12902,6 +12918,116 @@
         "report": "bcl-119 quality-audit.md",
         "evidence": "suite-installed-0157.log 290 lines; time-test_bcl.txt 105 snapshot pairs",
         "kind": "delete"
+      }
+    },
+    {
+      "id": "BCL-130",
+      "title": "Release check changes the tracker while listing tool faults",
+      "summary": "Looking for tool-fault candidates normalises lane history, so a verified lane can read as blocked and the document changes.",
+      "impact": "The pre-ship check can report a state it just changed.",
+      "recommendation": "Make candidate discovery a pure read of a copy.",
+      "done_when": "Release check leaves the tracker bytes unchanged and reports recorded lane state.",
+      "observed": "21 Nov 2026 22:20 IST, PR 119 round 1 reviews (bcl 0.1.57 source)",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "PR 119 round 1 reviews",
+        "report": "r1/planreview-release-2.md, -7.md",
+        "evidence": "Sol plan reviews release-2 and release-7 reproduced the in-memory change at e922ca0f",
+        "kind": "fix"
+      }
+    },
+    {
+      "id": "BCL-131",
+      "title": "Listed tool faults often cannot be uncounted",
+      "summary": "Unblock with a tool fault only works on blocked lanes that drop below two counted failures, but the release check lists faults on every lane.",
+      "impact": "Agents are told to uncount faults the command then refuses.",
+      "recommendation": "Split correcting an attempt from reopening a lane; validate all ids before writing; replay is a no-op.",
+      "done_when": "A named fault on a verified, running or still-blocked lane can be uncounted without changing unrelated state.",
+      "observed": "21 Nov 2026 22:20 IST, PR 119 round 1 reviews (bcl 0.1.57 source)",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "PR 119 round 1 reviews",
+        "report": "r1/review-release-1.md, planreview-release-4.md, -7.md",
+        "evidence": "Terra review release-1; Sol release-4 and release-7 reproductions",
+        "kind": "fix"
+      }
+    },
+    {
+      "id": "BCL-132",
+      "title": "Batch finalizer changes lanes the batch did not mean to change",
+      "summary": "The verify sync after a batch runs on every lane and can add verify fields or advance a lane status after a pure fault correction.",
+      "impact": "A small correction can silently move lane state.",
+      "recommendation": "Run the finalizer only for lanes the batch changed in ways that need it.",
+      "done_when": "A fault-only batch leaves status, phase and other lanes unchanged.",
+      "observed": "21 Nov 2026 22:20 IST, PR 119 round 1 reviews (bcl 0.1.57 source)",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "PR 119 round 1 reviews",
+        "report": "r1/planreview-release-5.md, -6.md",
+        "evidence": "Sol plan reviews release-5 and release-6 reproduced it in memory",
+        "kind": "fix"
+      }
+    },
+    {
+      "id": "BCL-133",
+      "title": "Plan edits can strand a running job or reset the review count",
+      "summary": "The job receipt hashes the whole plan and plan writers can replace a lane codex object, so an edit to any lane can make a running job finish as stale or clear review counts.",
+      "impact": "The review cap from BCL-121 can be bypassed and running jobs lost.",
+      "recommendation": "Protect job-owned and cap fields in both plan writers and scope the job hash to its lane.",
+      "done_when": "Editing another lane or patching codex during a review neither strands the job nor resets the count.",
+      "observed": "21 Nov 2026 22:20 IST, PR 119 round 1 reviews (bcl 0.1.57 source)",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "PR 119 round 1 reviews",
+        "report": "r1/planreview-add-3.md, -4.md, -5.md",
+        "evidence": "Sol plan reviews add-3, add-4 and add-5 reproduced the stale completion",
+        "kind": "fix"
+      }
+    },
+    {
+      "id": "BCL-134",
+      "title": "Pre-push chart check misses deleted files and checks the wrong tree",
+      "summary": "The pre-push hook drops deleted and renamed-out paths and runs the chart check on the checkout instead of the pushed commit.",
+      "impact": "A push can carry a stale workflow chart.",
+      "recommendation": "Trigger on all pushed paths and check the chart from the pushed commit.",
+      "done_when": "Deleting a chart input without regenerating fails the push; unrelated pushes skip the check.",
+      "observed": "21 Nov 2026 22:20 IST, PR 119 round 1 reviews (bcl 0.1.57 source)",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "PR 119 round 1 reviews",
+        "report": "r1/planreview-add-2.md, -6.md",
+        "evidence": "Sol plan reviews add-2 and add-6",
+        "kind": "fix"
+      }
+    },
+    {
+      "id": "BCL-135",
+      "title": "Carried lanes cannot be deferred after a review asked for changes",
+      "summary": "The plan group check only accepts three review states, but review jobs also record a changes requested state, so a lane whose review asked for changes cannot be moved to the next round.",
+      "impact": "Release check stays at exit 2 for carried lanes with no supported way to settle them, so nothing can ship.",
+      "recommendation": "Let the group check accept every review state that review jobs write, and keep install rules unchanged.",
+      "done_when": "A lane whose review asked for changes can be moved to the next round and the release check then clears.",
+      "observed": "21 Nov 2026 22:25 IST, bcl 0.1.57 installed, deferring R1-RELEASE and R1-ADD in PR 119",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "PR 119 round 1 integration",
+        "report": "r1/ops-round2.json",
+        "evidence": "batch error: R1-RELEASE: codex.review_status must be pending, passed, or failed (check_install_sessions.py:19)",
+        "kind": "fix",
+        "release_exception": "Guru 22:05 IST: one-time release-check exception for 0.1.58 covering only R1-RELEASE and R1-ADD, carried to round 2 because this bug blocks deferring them",
+        "round2_order": "1 (first in round 2)"
       }
     }
   ]
