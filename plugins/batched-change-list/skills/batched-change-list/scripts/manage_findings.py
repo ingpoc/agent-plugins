@@ -608,7 +608,7 @@ IN_FLIGHT_PHASES = {"fix", "review", "install", "verify", "plan_review", "pendin
 SETTLED_STATUSES = {"done", "verified", "deferred", "parked"}
 INCOMPLETE_REVIEW_REASON = "Review incomplete: strict verdict or Must-fix section missing"
 # Fault provenance is the structured fault_kind the tool records, never reason text.
-TOOL_FAULT_KINDS = {"incomplete_review", "quota_out", "cut_off"}
+TOOL_FAULT_KINDS = {"incomplete_review", "quota_out", "cut_off", "runner_exit"}
 TOOL_FAULT_STREAK_LIMIT = 3
 
 
@@ -827,25 +827,32 @@ def job_transition(document, operation):
                         codex["review_status"] = "passed"
                         group.update(status="review", phase="review")
                 else:
-                    incomplete = verdict is None
                     first_line = next((line.strip() for line in (reply or "").splitlines() if line.strip()), "")
-                    # Only a reply with no CHANGES verdict line (cut off, quoted, quota) is a tool fault.
-                    tool_fault = incomplete and first_line != "VERDICT: CHANGES"
+                    # A failed runner without a declared CHANGES verdict, or a reply with no CHANGES verdict
+                    # line (cut off, quoted, quota), is a tool fault; a declared CHANGES always counts.
+                    runner_failed = exit_code != 0 and first_line != "VERDICT: CHANGES"
+                    incomplete = runner_failed or verdict is None
+                    tool_fault = runner_failed or (incomplete and first_line != "VERDICT: CHANGES")
                     state = "incomplete" if incomplete else "changes_requested"
                     job["finished_phase_status"] = state
-                    reason = (INCOMPLETE_REVIEW_REASON if tool_fault
+                    reason = (f"Reviewer exited {exit_code}" if runner_failed
+                              else INCOMPLETE_REVIEW_REASON if tool_fault
                               else "Changes requested; Must-fix section missing" if incomplete else must_fix)
                     job["must_fix"] = reason
                     if phase == "review":
                         codex["review_status"] = "failed" if incomplete else state
                         codex["must_fix_note"] = reason
                         group.update(status="running", phase="fix")
+                    else:
+                        codex["plan_review_status"] = "failed" if incomplete else state
+                    # Review findings always enter failure history; plan-review tool faults enter it
+                    # too (never counted) so repeated cut-offs hit the tool-fault streak block.
+                    if phase == "review" or tool_fault:
                         for identifier in set(operation["ids"]).intersection(group.get("finding_ids", [])):
                             _record_lane_failure(document, identifier, job_id, phase, reason,
                                                  tool_fault=tool_fault,
-                                                 tool_fault_reason=reason if tool_fault else None)
-                    else:
-                        codex["plan_review_status"] = "failed" if incomplete else state
+                                                 tool_fault_reason=reason if tool_fault else None,
+                                                 fault_kind="runner_exit" if runner_failed else "incomplete_review")
             else:
                 passed = exit_code == 0
                 job["finished_phase_status"] = "passed" if passed else "failed"

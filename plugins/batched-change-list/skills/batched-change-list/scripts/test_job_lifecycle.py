@@ -244,5 +244,35 @@ class JobLifecycleTests(unittest.TestCase):
             transition(doc, "start-job", "fix", "fix-2")
 
 
+    def test_nonzero_reviewer_exit_with_a_pass_reply_is_an_uncounted_tool_fault(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1")
+        transition(doc, "start-job", "review", "review-1")
+        finish(doc, "review", "review-1", code=3, reply="VERDICT: PASS\n## Must-fix\nnone\n")
+        group = doc["tracking"]["plan"]["groups"][0]
+        row = group["failure_history"][0]
+        self.assertTrue(row["tool_fault"])
+        self.assertEqual(row["fault_kind"], "runner_exit")
+        self.assertEqual(row["reason"], "Reviewer exited 3")
+        self.assertEqual(manager._counted_failures(group["failure_history"]), [])
+        self.assertNotEqual(group["codex"]["review_status"], "passed")
+
+    def test_repeated_plan_review_cut_offs_block_the_lane_without_counting(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1", code=1)
+        group = doc["tracking"]["plan"]["groups"][0]
+        for n in (1, 2):
+            transition(doc, "start-job", "plan_review", f"plan-{n}")
+            finish(doc, "plan_review", f"plan-{n}", reply="partial plan review with no verdict")
+        self.assertNotEqual(group["status"], "blocked")
+        transition(doc, "start-job", "plan_review", "plan-3")
+        finish(doc, "plan_review", "plan-3", code=1, reply="")
+        self.assertEqual(group["status"], "blocked")
+        self.assertEqual(group["blocked_reason"], "Repeated tool faults")
+        self.assertEqual(len(manager._counted_failures(group["failure_history"])), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
