@@ -12161,16 +12161,20 @@
               "phase": "review",
               "started_at": "2026-11-21T16:27:21Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T16:27:21Z",
+              "heartbeat_at": "2026-11-21T16:28:51Z",
               "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
               "model": "gpt-6.1-terra",
               "cycle": 11,
-              "round": 1
+              "round": 1,
+              "pid": 67248,
+              "exit_code": 0,
+              "finished_at": "2026-11-21T16:28:51Z",
+              "finished_phase_status": "passed"
             },
             "reviewer_model": "gpt-6.1-terra",
             "must_fix_note": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it.",
             "tool_fault_streak": 0,
-            "review_status": "running"
+            "review_status": "passed"
           },
           "failure_history": [
             {
