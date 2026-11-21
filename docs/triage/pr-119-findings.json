@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-21T14:56:22Z",
-      "now": "2026-11-21T14:56:22Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-21T15:01:30Z",
+      "now": "2026-11-21T15:01:30Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12141,7 +12141,7 @@
             "BCL-124",
             "BCL-126"
           ],
-          "status": "review",
+          "status": "blocked",
           "worktree": "bcl119-direct",
           "label": "BCL-123, BCL-124, BCL-126",
           "verify": {
@@ -12161,16 +12161,21 @@
               "phase": "review",
               "started_at": "2026-11-21T14:56:22Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T14:56:22Z",
+              "heartbeat_at": "2026-11-21T14:57:17Z",
               "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
               "model": "gpt-6.1-terra medium",
               "cycle": 11,
-              "round": 1
+              "round": 1,
+              "pid": 7325,
+              "exit_code": 0,
+              "finished_at": "2026-11-21T14:57:17Z",
+              "finished_phase_status": "changes_requested",
+              "must_fix": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it."
             },
             "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra medium",
-            "must_fix_note": "1. [README.md](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/README.md:13) still lists `merge` as a supported stage and describes its freshness check again on line 21. The command now exits with “unknown stage,” so remove or update both instructions.",
-            "review_status": "running"
+            "must_fix_note": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it.",
+            "review_status": "blocked"
           },
           "failure_history": [
             {
@@ -12180,6 +12185,14 @@
               "cycle": 11,
               "round": 1,
               "at": "2026-11-21T14:30:43Z"
+            },
+            {
+              "attempt_id": "92ab33cdcb614e0698594781f8222771",
+              "source": "review",
+              "reason": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it.",
+              "cycle": 11,
+              "round": 1,
+              "at": "2026-11-21T14:57:17Z"
             }
           ],
           "plan_review_history": [
@@ -12193,7 +12206,9 @@
             }
           ],
           "updated_at": "2026-11-21T14:17:11Z",
-          "phase": "review"
+          "phase": "fix",
+          "blocked_reason": "Second failure",
+          "failure_block_reason": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it."
         },
         {
           "id": "R1-RELEASE",
@@ -12222,7 +12237,7 @@
               "phase": "fix",
               "started_at": "2026-11-21T14:42:01Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T14:56:03Z",
+              "heartbeat_at": "2026-11-21T15:01:04Z",
               "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
               "model": "gpt-6-luna medium fast",
               "cycle": 11,
@@ -12242,7 +12257,7 @@
             "BCL-128",
             "BCL-129"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl119-direct",
           "label": "BCL-128, BCL-129",
           "verify": {
@@ -12256,24 +12271,27 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r1-tests",
             "reviewer_session": "codex-terra-6.1-119r1-tests",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "d9eddf7448f34c0892155670649765f7",
-              "phase": "fix",
-              "started_at": "2026-11-21T14:29:41Z",
+              "id": "e5438f5cca4a4c19a09aae058c56c816",
+              "phase": "review",
+              "started_at": "2026-11-21T15:01:18Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T14:55:45Z",
+              "heartbeat_at": "2026-11-21T15:01:18Z",
               "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
-              "model": "gpt-6-luna medium fast",
+              "model": "gpt-6.1-terra medium",
               "cycle": 11,
               "round": 1,
-              "pid": 21028
-            }
+              "pid": 20099
+            },
+            "tool_fault_streak": 0,
+            "review_status": "running",
+            "reviewer_model": "gpt-6.1-terra medium"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-21T14:17:11Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "R1-ADD",
@@ -12283,7 +12301,7 @@
             "BCL-122",
             "BCL-94"
           ],
-          "status": "pending",
+          "status": "running",
           "worktree": "bcl119-direct",
           "label": "BCL-121, BCL-122, BCL-94",
           "verify": {
@@ -12297,11 +12315,23 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r1-add",
             "reviewer_session": "codex-terra-6.1-119r1-add",
-            "review_status": "pending"
+            "fix_status": "running",
+            "job": {
+              "id": "b0b8ca07f8114e67927f702b2fc49782",
+              "phase": "fix",
+              "started_at": "2026-11-21T15:01:30Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-21T15:01:30Z",
+              "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
+              "model": "gpt-6-luna medium fast",
+              "cycle": 11,
+              "round": 1
+            }
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-21T14:17:11Z"
+          "updated_at": "2026-11-21T14:17:11Z",
+          "phase": "fix"
         }
       ],
       "cycle": 11
@@ -12695,13 +12725,14 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "blocked",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
         "evidence": "0 uses in bcl-110..119 progress logs; _sync_main 60 lines, 8 CLI tests in test_bcl.py lines 227-350",
         "kind": "delete"
-      }
+      },
+      "needs": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it."
     },
     {
       "id": "BCL-124",
@@ -12713,13 +12744,14 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "blocked",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
         "evidence": "viewer state 107 and 110 lack instance, both dead; ensure_viewer pid 87005 special case; _legacy_viewer_matches 10 lines",
         "kind": "delete"
-      }
+      },
+      "needs": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it."
     },
     {
       "id": "BCL-125",
@@ -12749,13 +12781,14 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "blocked",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
         "evidence": "0 uses in all progress logs; merged used 6 times",
         "kind": "delete"
-      }
+      },
+      "needs": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it."
     },
     {
       "id": "BCL-127",
