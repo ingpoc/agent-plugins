@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-21T02:49:56Z",
-      "now": "2026-11-21T02:49:56Z — Plan Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-21T03:32:58Z",
+      "now": "2026-11-21T03:32:58Z — Fix started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13952,7 +13952,7 @@
             "BCL-95",
             "BCL-98"
           ],
-          "status": "blocked",
+          "status": "running",
           "worktree": "bcl118-r3-plan",
           "label": "BCL-95, BCL-98",
           "verify": {
@@ -13967,29 +13967,22 @@
             "implementer_session": "grokbot-118r3-plan",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-plan",
             "job": {
-              "id": "2bfa30ee3f534156881a6b623175b7f8",
-              "phase": "plan_review",
-              "started_at": "2026-11-21T02:49:56Z",
-              "command": "sol-int2.sh",
-              "heartbeat_at": "2026-11-21T02:51:24Z",
+              "id": "911cbea4bcdd45b8abf46c545fe4bffa",
+              "phase": "fix",
+              "started_at": "2026-11-21T03:32:58Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-21T03:32:58Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6.2-sol medium (Codex CLI)",
+              "model": "gpt-6-luna medium fast (Codex CLI)",
               "cycle": 10,
-              "round": 3,
-              "pid": 90310,
-              "exit_code": 0,
-              "finished_at": "2026-11-21T02:51:24Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding."
+              "round": 3
             },
-            "fix_status": "passed",
+            "fix_status": "running",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
-            "plan_review_status": "changes_requested",
-            "review_status": "blocked"
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "plan_review",
+          "phase": "fix",
           "verify_summary": "Review passed; integrating in int3 with ROUNDS (0.1.51)",
           "failure_history": {
             "BCL-95": [
@@ -14058,10 +14051,15 @@
               ],
               "by_cycle": 10,
               "round": 3
+            },
+            {
+              "at": "2026-11-21T03:15:12Z",
+              "reason": "Guru 07:49 / 08:39: second block came from Sol plan_review CHANGES, which 0.1.55 no longer counts (tool-fault 9e7827c2 already marked); lanes go back to plan review + fix",
+              "tool_faults": [],
+              "by_cycle": 10,
+              "round": 3
             }
-          ],
-          "blocked_reason": "Second failure",
-          "failure_block_reason": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding."
+          ]
         },
         {
           "id": "R3-VERIFY",
@@ -14112,7 +14110,7 @@
           "finding_ids": [
             "BCL-99"
           ],
-          "status": "blocked",
+          "status": "running",
           "worktree": "bcl118-r3-rounds",
           "label": "BCL-99",
           "verify": {
@@ -14127,29 +14125,22 @@
             "implementer_session": "grokbot-118r3-rounds",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-rounds",
             "job": {
-              "id": "2bfa30ee3f534156881a6b623175b7f8",
-              "phase": "plan_review",
-              "started_at": "2026-11-21T02:49:56Z",
-              "command": "sol-int2.sh",
-              "heartbeat_at": "2026-11-21T02:51:24Z",
+              "id": "911cbea4bcdd45b8abf46c545fe4bffa",
+              "phase": "fix",
+              "started_at": "2026-11-21T03:32:58Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-21T03:32:58Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6.2-sol medium (Codex CLI)",
+              "model": "gpt-6-luna medium fast (Codex CLI)",
               "cycle": 10,
-              "round": 3,
-              "pid": 90310,
-              "exit_code": 0,
-              "finished_at": "2026-11-21T02:51:24Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding."
+              "round": 3
             },
-            "fix_status": "passed",
+            "fix_status": "running",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
-            "plan_review_status": "changes_requested",
-            "review_status": "blocked"
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "plan_review",
+          "phase": "fix",
           "verify_summary": "Review passed; integrating in int3 with PLAN (0.1.51)",
           "failure_history": {
             "BCL-99": [
@@ -14190,10 +14181,15 @@
               ],
               "by_cycle": 10,
               "round": 3
+            },
+            {
+              "at": "2026-11-21T03:15:12Z",
+              "reason": "Guru 07:49 / 08:39: second block came from Sol plan_review CHANGES, which 0.1.55 no longer counts (tool-fault 9e7827c2 already marked); lanes go back to plan review + fix",
+              "tool_faults": [],
+              "by_cycle": 10,
+              "round": 3
             }
-          ],
-          "blocked_reason": "Second failure",
-          "failure_block_reason": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding."
+          ]
         },
         {
           "id": "R3-INTROSPECT",
@@ -14802,7 +14798,7 @@
       "done_when": "When a check shows a regression against main, the workflow makes the first lane restore main's behaviour, and any redesign is filed as its own separate item.",
       "observed": "20 Nov 2026 21:24 IST, Guru asked for this rule after round reviews on PR 117 and PR 118.",
       "recommendation": "Add the rule to the plan step and have the plan check refuse a redesign lane for an item marked as a regression until a restore lane is recorded.",
-      "status": "blocked",
+      "status": "in_progress",
       "details": {
         "approved": "Guru 21:24 IST t1579u"
       },
@@ -14848,7 +14844,7 @@
       "done_when": "After a lane's first failed review or check, its next fix is refused until a plan review recorded after that failure has passed. The plan review names the root cause and a failing test. A second failure blocks the lane.",
       "observed": "20 Nov 2026 21:24 IST, Guru asked for this rule after repeated retries in earlier rounds.",
       "recommendation": "Use the plan-review gate in place of the separate failing-test and evidence retry flags, which were removed.",
-      "status": "blocked",
+      "status": "in_progress",
       "details": {
         "approved": "Guru 21:24 IST t1579u",
         "rescoped": "Guru 21 Nov 07:49 IST: rescope to the plan-review gate (supersedes the retry flags)"
@@ -14865,7 +14861,7 @@
       "done_when": "The command line refuses a plan with more than four lanes, checks the Mini's load before runs, and keeps already verified results when a run is stopped so the gate is not zeroed.",
       "observed": "20 Nov 2026 21:24 IST, Guru; on PR 117 a stopped run zeroed the gate and the merge needed an override.",
       "recommendation": "Enforce the cap in the plan check, add a load check to job and verify starts, and carry verified results into the stopped run's history.",
-      "status": "blocked",
+      "status": "in_progress",
       "details": {
         "approved": "Guru 21:24 IST t1579u"
       },
