@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-21T06:27:49Z",
-      "now": "2026-11-21T06:27:49Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-21T06:27:55Z",
+      "now": "2026-11-21T06:27:55Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 117,
@@ -13941,7 +13941,8 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 3,
@@ -14199,7 +14200,7 @@
           "finding_ids": [
             "BCL-99"
           ],
-          "status": "installing",
+          "status": "verifying",
           "worktree": "bcl118-r3-rounds",
           "label": "BCL-99",
           "verify": {
@@ -14233,8 +14234,8 @@
             "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`.",
             "review_status": "passed"
           },
-          "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "install",
+          "updated_at": "2026-11-21T06:27:55Z",
+          "phase": "verify",
           "verify_summary": "Review passed; integrating in int3 with PLAN (0.1.51)",
           "failure_history": {
             "BCL-99": [
@@ -14334,6 +14335,11 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-21T06:27:49Z"
+          },
+          "stage_model": {
+            "stage": "verify",
+            "model": "No model (scripted check)",
+            "at": "2026-11-21T06:27:55Z"
           }
         },
         {
