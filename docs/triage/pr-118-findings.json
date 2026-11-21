@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-21T05:02:28Z",
-      "now": "2026-11-21T05:02:28Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-21T05:32:39Z",
+      "now": "2026-11-21T05:32:39Z — Review started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13952,7 +13952,7 @@
             "BCL-95",
             "BCL-98"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl118-r3-plan",
           "label": "BCL-95, BCL-98",
           "verify": {
@@ -13967,22 +13967,23 @@
             "implementer_session": "grokbot-118r3-plan",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-plan",
             "job": {
-              "id": "ce7f88140b3347c2a48aeaf643b5a41d",
-              "phase": "fix",
-              "started_at": "2026-11-21T05:02:28Z",
+              "id": "aa07f49ed52f4882818acfe3a09c2609",
+              "phase": "review",
+              "started_at": "2026-11-21T05:32:39Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T05:02:28Z",
+              "heartbeat_at": "2026-11-21T05:32:39Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6-luna medium fast (Codex CLI, fresh session)",
+              "model": "gpt-6.1-terra medium (Codex CLI)",
               "cycle": 10,
               "round": 3
             },
-            "fix_status": "running",
+            "fix_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "must_fix_note": "1. **Changing a lane’s membership or ID through `set-plan` can clear its retry gate.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:438) carries history only when both the lane ID and finding set match. A same-round plan that removes or adds a finding, or renames the lane, can therefore replace a blocked lane with a fresh planned lane and bypass `bcl unblock --reason`. Preserve the gate or reject such replacement, and test it from a genuinely blocked lane.\n\n2. **The acceptance scripts can test different packages.** [common.sh](/Users/gurusharan/.agents/artifacts/bcl-118/r3/common.sh:3) checks the installed version and runs its tests, but [realuse.py](/Users/gurusharan/.agents/artifacts/bcl-118/r3/realuse.py:15) inherits `BCL_BIN` and `BCL_SCRIPTS` overrides. If those are set, the acceptance result combines evidence from different copies. Pin both paths to the checked package in the verification scripts.\n\n3. **Legacy history conversion can bind review to the wrong failure.** [_lane_history](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:384) concatenates per-finding lists rather than preserving chronological order; the gate later treats the last row as the latest failure. Add a migration test with interleaved sibling failures and preserve their actual order."
+            "must_fix_note": "1. **Changing a lane’s membership or ID through `set-plan` can clear its retry gate.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:438) carries history only when both the lane ID and finding set match. A same-round plan that removes or adds a finding, or renames the lane, can therefore replace a blocked lane with a fresh planned lane and bypass `bcl unblock --reason`. Preserve the gate or reject such replacement, and test it from a genuinely blocked lane.\n\n2. **The acceptance scripts can test different packages.** [common.sh](/Users/gurusharan/.agents/artifacts/bcl-118/r3/common.sh:3) checks the installed version and runs its tests, but [realuse.py](/Users/gurusharan/.agents/artifacts/bcl-118/r3/realuse.py:15) inherits `BCL_BIN` and `BCL_SCRIPTS` overrides. If those are set, the acceptance result combines evidence from different copies. Pin both paths to the checked package in the verification scripts.\n\n3. **Legacy history conversion can bind review to the wrong failure.** [_lane_history](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:384) concatenates per-finding lists rather than preserving chronological order; the gate later treats the last row as the latest failure. Add a migration test with interleaved sibling failures and preserve their actual order.",
+            "review_status": "running"
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "fix",
+          "phase": "review",
           "verify_summary": "Review passed; integrating in int3 with ROUNDS (0.1.51)",
           "failure_history": {
             "BCL-95": [
@@ -14146,7 +14147,7 @@
           "finding_ids": [
             "BCL-99"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl118-r3-rounds",
           "label": "BCL-99",
           "verify": {
@@ -14161,22 +14162,23 @@
             "implementer_session": "grokbot-118r3-rounds",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-rounds",
             "job": {
-              "id": "ce7f88140b3347c2a48aeaf643b5a41d",
-              "phase": "fix",
-              "started_at": "2026-11-21T05:02:28Z",
+              "id": "aa07f49ed52f4882818acfe3a09c2609",
+              "phase": "review",
+              "started_at": "2026-11-21T05:32:39Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T05:02:28Z",
+              "heartbeat_at": "2026-11-21T05:32:39Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6-luna medium fast (Codex CLI, fresh session)",
+              "model": "gpt-6.1-terra medium (Codex CLI)",
               "cycle": 10,
               "round": 3
             },
-            "fix_status": "running",
+            "fix_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "must_fix_note": "1. **Changing a lane’s membership or ID through `set-plan` can clear its retry gate.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:438) carries history only when both the lane ID and finding set match. A same-round plan that removes or adds a finding, or renames the lane, can therefore replace a blocked lane with a fresh planned lane and bypass `bcl unblock --reason`. Preserve the gate or reject such replacement, and test it from a genuinely blocked lane.\n\n2. **The acceptance scripts can test different packages.** [common.sh](/Users/gurusharan/.agents/artifacts/bcl-118/r3/common.sh:3) checks the installed version and runs its tests, but [realuse.py](/Users/gurusharan/.agents/artifacts/bcl-118/r3/realuse.py:15) inherits `BCL_BIN` and `BCL_SCRIPTS` overrides. If those are set, the acceptance result combines evidence from different copies. Pin both paths to the checked package in the verification scripts.\n\n3. **Legacy history conversion can bind review to the wrong failure.** [_lane_history](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:384) concatenates per-finding lists rather than preserving chronological order; the gate later treats the last row as the latest failure. Add a migration test with interleaved sibling failures and preserve their actual order."
+            "must_fix_note": "1. **Changing a lane’s membership or ID through `set-plan` can clear its retry gate.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:438) carries history only when both the lane ID and finding set match. A same-round plan that removes or adds a finding, or renames the lane, can therefore replace a blocked lane with a fresh planned lane and bypass `bcl unblock --reason`. Preserve the gate or reject such replacement, and test it from a genuinely blocked lane.\n\n2. **The acceptance scripts can test different packages.** [common.sh](/Users/gurusharan/.agents/artifacts/bcl-118/r3/common.sh:3) checks the installed version and runs its tests, but [realuse.py](/Users/gurusharan/.agents/artifacts/bcl-118/r3/realuse.py:15) inherits `BCL_BIN` and `BCL_SCRIPTS` overrides. If those are set, the acceptance result combines evidence from different copies. Pin both paths to the checked package in the verification scripts.\n\n3. **Legacy history conversion can bind review to the wrong failure.** [_lane_history](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:384) concatenates per-finding lists rather than preserving chronological order; the gate later treats the last row as the latest failure. Add a migration test with interleaved sibling failures and preserve their actual order.",
+            "review_status": "running"
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "fix",
+          "phase": "review",
           "verify_summary": "Review passed; integrating in int3 with PLAN (0.1.51)",
           "failure_history": {
             "BCL-99": [
