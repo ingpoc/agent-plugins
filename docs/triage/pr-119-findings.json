@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-21T14:37:23Z",
-      "now": "2026-11-21T14:37:23Z — Plan Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-21T14:42:01Z",
+      "now": "2026-11-21T14:42:01Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12157,20 +12157,22 @@
             "reviewer_session": "codex-terra-6.1-119r1-dead",
             "fix_status": "passed",
             "job": {
-              "id": "9366a3d1c64c4c6c8ebf6fa2b16d4730",
+              "id": "07ac07c1bb62425eb0bfe6cd0df05b11",
               "phase": "plan_review",
-              "started_at": "2026-11-21T14:37:23Z",
+              "started_at": "2026-11-21T14:41:42Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T14:37:23Z",
+              "heartbeat_at": "2026-11-21T14:41:42Z",
               "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
               "model": "gpt-6.2-sol medium",
               "cycle": 11,
-              "round": 1
+              "round": 1,
+              "pid": 51805
             },
             "tool_fault_streak": 0,
             "review_status": "changes_requested",
             "reviewer_model": "gpt-6.1-terra medium",
-            "must_fix_note": "1. [README.md](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/README.md:13) still lists `merge` as a supported stage and describes its freshness check again on line 21. The command now exits with “unknown stage,” so remove or update both instructions."
+            "must_fix_note": "1. [README.md](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/README.md:13) still lists `merge` as a supported stage and describes its freshness check again on line 21. The command now exits with “unknown stage,” so remove or update both instructions.",
+            "plan_review_status": "changes_requested"
           },
           "failure_history": [
             {
@@ -12193,7 +12195,7 @@
             "BCL-125",
             "BCL-127"
           ],
-          "status": "pending",
+          "status": "running",
           "worktree": "bcl119-direct",
           "label": "BCL-125, BCL-127",
           "verify": {
@@ -12207,11 +12209,23 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r1-release",
             "reviewer_session": "codex-terra-6.1-119r1-release",
-            "review_status": "pending"
+            "fix_status": "running",
+            "job": {
+              "id": "fade442cef3e4033b7cda31fa2f09f96",
+              "phase": "fix",
+              "started_at": "2026-11-21T14:42:01Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-21T14:42:01Z",
+              "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
+              "model": "gpt-6-luna medium fast",
+              "cycle": 11,
+              "round": 1
+            }
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-21T14:17:11Z"
+          "updated_at": "2026-11-21T14:17:11Z",
+          "phase": "fix"
         },
         {
           "id": "R1-TESTS",
@@ -12240,7 +12254,7 @@
               "phase": "fix",
               "started_at": "2026-11-21T14:29:41Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T14:36:42Z",
+              "heartbeat_at": "2026-11-21T14:41:43Z",
               "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
               "model": "gpt-6-luna medium fast",
               "cycle": 11,
