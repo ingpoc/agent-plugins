@@ -799,6 +799,14 @@ elif args[:2] != ['pr', 'edit']:
     def test_review_job_first_invalid_verdict_records_failed(self):
         self._review_job_verdict("VERDICT: MAYBE\nVERDICT: PASS")
 
+    def test_release_check_on_an_unadopted_tracker_is_not_clear(self):
+        stray = self.root / "stray" / "list.json"; stray.parent.mkdir()
+        self.git(stray.parent, "init", "-q")
+        stray.write_text(EXAMPLE.read_text())
+        result = self.call("release-check", stray)
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn('"adopted": false', result.stdout)
+
     def test_review_job_with_stale_pass_records_failed(self):
         self._review_job_verdict("VERDICT: PASS", writes=False)
 

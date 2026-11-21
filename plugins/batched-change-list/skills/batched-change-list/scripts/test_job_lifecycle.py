@@ -206,6 +206,102 @@ class JobLifecycleTests(unittest.TestCase):
                "## ROOT CAUSE\nwhy\n## FAILING TEST\ntest_lane"), timestamp="2026-11-21T00:00:02Z")
         transition(doc, "start-job", "fix", "fix-fresh")
 
+    def test_incomplete_review_is_recorded_as_a_tool_fault_and_does_not_require_plan_review(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1")
+        transition(doc, "start-job", "review", "review-1")
+        finish(doc, "review", "review-1", reply="cut off mid-sentence")
+        group = doc["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["failure_history"][0]["reason"], "Review incomplete: strict verdict or Must-fix section missing")
+        self.assertTrue(group["failure_history"][0]["tool_fault"])
+        self.assertEqual(group["status"], "running")
+        transition(doc, "start-job", "fix", "fix-2")
+        self.assertEqual(group["status"], "running")
+        self.assertEqual(group["phase"], "fix")
+
+    def test_changes_review_still_counts_as_a_code_failure(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1")
+        transition(doc, "start-job", "review", "review-1")
+        finish(doc, "review", "review-1", reply="VERDICT: CHANGES\n## Must-fix\n- missing guard")
+        group = doc["tracking"]["plan"]["groups"][0]
+        self.assertFalse(group["failure_history"][0].get("tool_fault"))
+        with self.assertRaisesRegex(ValueError, "passed plan_review"):
+            transition(doc, "start-job", "fix", "fix-2")
+
+    def test_changes_verdict_without_must_fix_section_still_counts(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1")
+        transition(doc, "start-job", "review", "review-1")
+        finish(doc, "review", "review-1", reply="VERDICT: CHANGES\n- must-fix 0\n")
+        group = doc["tracking"]["plan"]["groups"][0]
+        self.assertFalse(group["failure_history"][0].get("tool_fault"))
+        self.assertNotIn("incomplete", group["failure_history"][0]["reason"].lower())
+        with self.assertRaisesRegex(ValueError, "passed plan_review"):
+            transition(doc, "start-job", "fix", "fix-2")
+
+
+    def test_nonzero_reviewer_exit_with_a_pass_reply_is_an_uncounted_tool_fault(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1")
+        transition(doc, "start-job", "review", "review-1")
+        finish(doc, "review", "review-1", code=3, reply="VERDICT: PASS\n## Must-fix\nnone\n")
+        group = doc["tracking"]["plan"]["groups"][0]
+        row = group["failure_history"][0]
+        self.assertTrue(row["tool_fault"])
+        self.assertEqual(row["fault_kind"], "runner_exit")
+        self.assertEqual(row["reason"], "Reviewer exited 3")
+        self.assertEqual(manager._counted_failures(group["failure_history"]), [])
+        self.assertNotEqual(group["codex"]["review_status"], "passed")
+
+    def test_repeated_plan_review_cut_offs_block_the_lane_without_counting(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1", code=1)
+        group = doc["tracking"]["plan"]["groups"][0]
+        for n in (1, 2):
+            transition(doc, "start-job", "plan_review", f"plan-{n}")
+            finish(doc, "plan_review", f"plan-{n}", reply="partial plan review with no verdict")
+        self.assertNotEqual(group["status"], "blocked")
+        transition(doc, "start-job", "plan_review", "plan-3")
+        finish(doc, "plan_review", "plan-3", code=1, reply="")
+        self.assertEqual(group["status"], "blocked")
+        self.assertEqual(group["blocked_reason"], "Repeated tool faults")
+        self.assertEqual(len(manager._counted_failures(group["failure_history"])), 1)
+
+
+    def test_tool_fault_after_an_owner_unblock_does_not_reblock_the_lane(self):
+        doc = document()
+        group = doc["tracking"]["plan"]["groups"][0]
+        for n in (1, 2):
+            manager._record_lane_failure(doc, "ISSUE-01", f"bug-{n}", "review", "real bug")
+        self.assertEqual(group["status"], "blocked")
+        manager.unblock_lane(doc, {"ids": ["ISSUE-01"], "reason": "owner approved", "timestamp": STAMP})
+        manager._record_lane_failure(doc, "ISSUE-01", "cut-1", "review", manager.INCOMPLETE_REVIEW_REASON, tool_fault=True)
+        self.assertEqual(group["status"], "running")
+        manager._record_lane_failure(doc, "ISSUE-01", "bug-3", "review", "another real bug")
+        self.assertEqual(group["status"], "blocked")
+        self.assertEqual(group["blocked_reason"], "Second failure")
+
+    def test_tool_faults_separated_by_a_clean_job_do_not_block(self):
+        doc = document()
+        group = doc["tracking"]["plan"]["groups"][0]
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1")
+        for n in (1, 2):
+            transition(doc, "start-job", "review", f"cut-{n}")
+            finish(doc, "review", f"cut-{n}", reply="partial review")
+            transition(doc, "start-job", "fix", f"fix-ok-{n}")
+            finish(doc, "fix", f"fix-ok-{n}")
+        transition(doc, "start-job", "review", "cut-3")
+        finish(doc, "review", "cut-3", reply="partial review")
+        self.assertNotEqual(group["status"], "blocked")
+        self.assertEqual(group["codex"]["tool_fault_streak"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

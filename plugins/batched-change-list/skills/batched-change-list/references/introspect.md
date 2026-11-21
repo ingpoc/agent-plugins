@@ -9,3 +9,5 @@ Run `python3 <skill-dir>/scripts/check_introspect.py --data <live-tracker.json> 
 The call appends the ordered sections, steps, result, and timestamp to `tracking.introspect_history` and updates the current-round `tracking.introspect` record without creating a finding. Follow [gate.md](gate.md); `report_rollover` requires this round's Introspect after Install.
 
 A `fixed inline` item needs a `proof` naming the command or test that shows it. Do not pass `issues` or `next_cycle` notes on the Introspect call. Create code follow-ups as separate non-WF findings before linking them from a section item.
+
+Re-sorting open failures after a tool ship is a [release check](release.md), not an Introspect pass.

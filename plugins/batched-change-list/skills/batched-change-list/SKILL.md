@@ -27,6 +27,7 @@ description: Use when collecting findings one at a time, managing build-install-
 
 | When | Load |
 |---|---|
+| Before a release or after shipping | `references/release.md` |
 | Recovery | `references/tracker.md` |
 | Viewer use | `references/viewer.md` |
 | Debugging, tests, sequencing, shared state, or proof | `references/principles.md` |

@@ -24,6 +24,12 @@ class ReferenceTests(unittest.TestCase):
                        "4 open lanes", "named test", "verify"):
             self.assertIn(phrase, text)
 
+    def test_review_keeps_quota_out_fallback_order(self):
+        text = (SKILL / "references/review.md").read_text(encoding="utf-8").lower()
+        text = text[text.find("quota-out fallback"):]
+        codex, opencode, owner = text.find("codex first"), text.find("free opencode"), text.find("ask the owner")
+        self.assertTrue(0 <= codex < opencode < owner, "review.md must give the quota-out order Codex, OpenCode free, owner")
+
 
 if __name__ == "__main__":
     unittest.main()
