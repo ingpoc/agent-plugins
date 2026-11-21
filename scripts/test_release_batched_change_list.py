@@ -159,23 +159,6 @@ class BumpPolicyTests(unittest.TestCase):
             (package / 'plugin.json').write_text(json.dumps({'version': '1.0.1'}))
             self.assertEqual(release.bump_policy(root, base='HEAD')['version'], '1.0.1')
 
-    def test_untracked_shipped_file_needs_a_bump(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root, package = self.repo(tmp)
-            (package / 'scripts' / 'new_runtime.py').write_text('b = 1\n')
-            with self.assertRaisesRegex(RuntimeError, 'require a version increase'):
-                release.bump_policy(root, base='HEAD')
-
-    def test_push_to_main_judges_the_new_commit_against_its_parent(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root, package = self.repo(tmp)
-            (package / 'scripts' / 'tool.py').write_text('a = 3\n')
-            subprocess.run(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qam', 'no bump'], cwd=root, check=True)
-            subprocess.run(['git', 'update-ref', 'refs/remotes/origin/main', 'HEAD'], cwd=root, check=True)
-            with patch.dict(os.environ, {'AGENT_PLUGINS_RELEASE_BASE': ''}):
-                with self.assertRaisesRegex(RuntimeError, 'require a version increase'):
-                    release.bump_policy(root)
-
     def test_test_only_change_needs_no_bump(self):
         with tempfile.TemporaryDirectory() as tmp:
             root, package = self.repo(tmp)

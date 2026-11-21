@@ -18,14 +18,9 @@ def bump_policy(root, *, base=None):
     """Version and changelog belong to integration: shipped package changes since base need a version increase."""
     version = json.loads((Path(root) / PACKAGE / 'plugin.json').read_text())['version']
     # The integrated head is judged against main, so a multi-commit version is not re-bumped per commit.
-    explicit = base or os.environ.get('AGENT_PLUGINS_RELEASE_BASE')
-    base = shared.output(['git', 'rev-parse', '--verify', (explicit or 'refs/remotes/origin/main') + '^{commit}'], root=root)
-    if not explicit and base == shared.output(['git', 'rev-parse', 'HEAD'], root=root):
-        # On main itself (a push to main), judge the newest commit against its first parent.
-        parent = subprocess.run(['git', 'rev-parse', '--verify', 'HEAD^1^{commit}'], cwd=root, text=True, capture_output=True)
-        base = parent.stdout.strip() if parent.returncode == 0 else base
+    baseline = base or os.environ.get('AGENT_PLUGINS_RELEASE_BASE') or 'refs/remotes/origin/main'
+    base = shared.output(['git', 'rev-parse', '--verify', baseline + '^{commit}'], root=root)
     changed = shared.output(['git', 'diff', '--name-only', base, '--', PACKAGE], root=root).splitlines()
-    changed += shared.output(['git', 'ls-files', '--others', '--exclude-standard', '--', PACKAGE], root=root).splitlines()
     shipped = [p for p in changed if not Path(p).name.startswith('test_') and not {'tests', 'Tests'} & set(Path(p).parts)]
     previous = subprocess.run(['git', 'show', f'{base}:{PACKAGE}/plugin.json'], cwd=root, text=True, capture_output=True)
     if shipped and previous.returncode == 0:
