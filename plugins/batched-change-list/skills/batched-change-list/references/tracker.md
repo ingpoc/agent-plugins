@@ -2,7 +2,7 @@
 
 Every mutation must either finish its snapshot and report success or exit nonzero with a recovery action. A missing home worktree or capture leaves the live tracker and unsnapshotted marker intact; restore the missing item and retry before merge. A viewer start must confirm it serves the report; on failure, inspect the named log and retry. Do not count a failed or empty command as verification.
 
-Viewer restarts require a matching instance, process and tracker identity. A stale viewer whose ownership cannot be verified is never signalled; inspect its state and stop it safely before retrying.
+Viewer restarts require a matching instance, process and tracker identity. A legacy or stale viewer whose ownership cannot be verified is never signalled; inspect its state and stop it safely before retrying.
 
 Set `SKILL_DIR` to the absolute batched-change-list skill directory. To compare a prior PR's committed page, run `python3 "$SKILL_DIR/scripts/previous_report.py" PR_NUMBER /absolute/path/to/new-report.html` from the repository. It searches available local Git refs, prints the source commit, and refuses to overwrite a file. A missing report requires fetching the relevant refs or checking the PR number. This historical snapshot is not current verification.
 
