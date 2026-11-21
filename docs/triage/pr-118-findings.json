@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-21T04:11:13Z",
-      "now": "2026-11-21T04:11:13Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-21T05:02:28Z",
+      "now": "2026-11-21T05:02:28Z — Fix started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13952,7 +13952,7 @@
             "BCL-95",
             "BCL-98"
           ],
-          "status": "review",
+          "status": "running",
           "worktree": "bcl118-r3-plan",
           "label": "BCL-95, BCL-98",
           "verify": {
@@ -13967,23 +13967,22 @@
             "implementer_session": "grokbot-118r3-plan",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-plan",
             "job": {
-              "id": "a78d5ac9737349119b3f771396be29b2",
-              "phase": "review",
-              "started_at": "2026-11-21T04:11:13Z",
+              "id": "ce7f88140b3347c2a48aeaf643b5a41d",
+              "phase": "fix",
+              "started_at": "2026-11-21T05:02:28Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T04:11:13Z",
+              "heartbeat_at": "2026-11-21T05:02:28Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6.1-terra medium (Codex CLI)",
+              "model": "gpt-6-luna medium fast (Codex CLI, fresh session)",
               "cycle": 10,
               "round": 3
             },
-            "fix_status": "passed",
+            "fix_status": "running",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
-            "review_status": "running"
+            "must_fix_note": "1. **Changing a lane’s membership or ID through `set-plan` can clear its retry gate.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:438) carries history only when both the lane ID and finding set match. A same-round plan that removes or adds a finding, or renames the lane, can therefore replace a blocked lane with a fresh planned lane and bypass `bcl unblock --reason`. Preserve the gate or reject such replacement, and test it from a genuinely blocked lane.\n\n2. **The acceptance scripts can test different packages.** [common.sh](/Users/gurusharan/.agents/artifacts/bcl-118/r3/common.sh:3) checks the installed version and runs its tests, but [realuse.py](/Users/gurusharan/.agents/artifacts/bcl-118/r3/realuse.py:15) inherits `BCL_BIN` and `BCL_SCRIPTS` overrides. If those are set, the acceptance result combines evidence from different copies. Pin both paths to the checked package in the verification scripts.\n\n3. **Legacy history conversion can bind review to the wrong failure.** [_lane_history](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:384) concatenates per-finding lists rather than preserving chronological order; the gate later treats the last row as the latest failure. Add a migration test with interleaved sibling failures and preserve their actual order."
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "review",
+          "phase": "fix",
           "verify_summary": "Review passed; integrating in int3 with ROUNDS (0.1.51)",
           "failure_history": {
             "BCL-95": [
@@ -14012,6 +14011,14 @@
                 "cycle": 10,
                 "round": 3,
                 "at": "2026-11-21T02:51:24Z"
+              },
+              {
+                "attempt_id": "a78d5ac9737349119b3f771396be29b2",
+                "source": "review",
+                "reason": "1. **Changing a lane’s membership or ID through `set-plan` can clear its retry gate.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:438) carries history only when both the lane ID and finding set match. A same-round plan that removes or adds a finding, or renames the lane, can therefore replace a blocked lane with a fresh planned lane and bypass `bcl unblock --reason`. Preserve the gate or reject such replacement, and test it from a genuinely blocked lane.\n\n2. **The acceptance scripts can test different packages.** [common.sh](/Users/gurusharan/.agents/artifacts/bcl-118/r3/common.sh:3) checks the installed version and runs its tests, but [realuse.py](/Users/gurusharan/.agents/artifacts/bcl-118/r3/realuse.py:15) inherits `BCL_BIN` and `BCL_SCRIPTS` overrides. If those are set, the acceptance result combines evidence from different copies. Pin both paths to the checked package in the verification scripts.\n\n3. **Legacy history conversion can bind review to the wrong failure.** [_lane_history](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:384) concatenates per-finding lists rather than preserving chronological order; the gate later treats the last row as the latest failure. Add a migration test with interleaved sibling failures and preserve their actual order.",
+                "cycle": 10,
+                "round": 3,
+                "at": "2026-11-21T04:12:36Z"
               }
             ],
             "BCL-98": [
@@ -14040,6 +14047,14 @@
                 "cycle": 10,
                 "round": 3,
                 "at": "2026-11-21T02:51:24Z"
+              },
+              {
+                "attempt_id": "a78d5ac9737349119b3f771396be29b2",
+                "source": "review",
+                "reason": "1. **Changing a lane’s membership or ID through `set-plan` can clear its retry gate.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:438) carries history only when both the lane ID and finding set match. A same-round plan that removes or adds a finding, or renames the lane, can therefore replace a blocked lane with a fresh planned lane and bypass `bcl unblock --reason`. Preserve the gate or reject such replacement, and test it from a genuinely blocked lane.\n\n2. **The acceptance scripts can test different packages.** [common.sh](/Users/gurusharan/.agents/artifacts/bcl-118/r3/common.sh:3) checks the installed version and runs its tests, but [realuse.py](/Users/gurusharan/.agents/artifacts/bcl-118/r3/realuse.py:15) inherits `BCL_BIN` and `BCL_SCRIPTS` overrides. If those are set, the acceptance result combines evidence from different copies. Pin both paths to the checked package in the verification scripts.\n\n3. **Legacy history conversion can bind review to the wrong failure.** [_lane_history](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:384) concatenates per-finding lists rather than preserving chronological order; the gate later treats the last row as the latest failure. Add a migration test with interleaved sibling failures and preserve their actual order.",
+                "cycle": 10,
+                "round": 3,
+                "at": "2026-11-21T04:12:36Z"
               }
             ]
           },
@@ -14060,7 +14075,27 @@
               "by_cycle": 10,
               "round": 3
             }
-          ]
+          ],
+          "plan_review_history": {
+            "BCL-95": [
+              {
+                "job_id": "66179c93c8824e348c1442a747c95b66",
+                "after_failure": "a78d5ac9737349119b3f771396be29b2",
+                "status": "passed",
+                "cycle": 10,
+                "round": 3
+              }
+            ],
+            "BCL-98": [
+              {
+                "job_id": "66179c93c8824e348c1442a747c95b66",
+                "after_failure": "a78d5ac9737349119b3f771396be29b2",
+                "status": "passed",
+                "cycle": 10,
+                "round": 3
+              }
+            ]
+          }
         },
         {
           "id": "R3-VERIFY",
@@ -14111,7 +14146,7 @@
           "finding_ids": [
             "BCL-99"
           ],
-          "status": "review",
+          "status": "running",
           "worktree": "bcl118-r3-rounds",
           "label": "BCL-99",
           "verify": {
@@ -14126,23 +14161,22 @@
             "implementer_session": "grokbot-118r3-rounds",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-rounds",
             "job": {
-              "id": "a78d5ac9737349119b3f771396be29b2",
-              "phase": "review",
-              "started_at": "2026-11-21T04:11:13Z",
+              "id": "ce7f88140b3347c2a48aeaf643b5a41d",
+              "phase": "fix",
+              "started_at": "2026-11-21T05:02:28Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T04:11:13Z",
+              "heartbeat_at": "2026-11-21T05:02:28Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6.1-terra medium (Codex CLI)",
+              "model": "gpt-6-luna medium fast (Codex CLI, fresh session)",
               "cycle": 10,
               "round": 3
             },
-            "fix_status": "passed",
+            "fix_status": "running",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
-            "review_status": "running"
+            "must_fix_note": "1. **Changing a lane’s membership or ID through `set-plan` can clear its retry gate.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:438) carries history only when both the lane ID and finding set match. A same-round plan that removes or adds a finding, or renames the lane, can therefore replace a blocked lane with a fresh planned lane and bypass `bcl unblock --reason`. Preserve the gate or reject such replacement, and test it from a genuinely blocked lane.\n\n2. **The acceptance scripts can test different packages.** [common.sh](/Users/gurusharan/.agents/artifacts/bcl-118/r3/common.sh:3) checks the installed version and runs its tests, but [realuse.py](/Users/gurusharan/.agents/artifacts/bcl-118/r3/realuse.py:15) inherits `BCL_BIN` and `BCL_SCRIPTS` overrides. If those are set, the acceptance result combines evidence from different copies. Pin both paths to the checked package in the verification scripts.\n\n3. **Legacy history conversion can bind review to the wrong failure.** [_lane_history](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:384) concatenates per-finding lists rather than preserving chronological order; the gate later treats the last row as the latest failure. Add a migration test with interleaved sibling failures and preserve their actual order."
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "review",
+          "phase": "fix",
           "verify_summary": "Review passed; integrating in int3 with PLAN (0.1.51)",
           "failure_history": {
             "BCL-99": [
@@ -14171,6 +14205,14 @@
                 "cycle": 10,
                 "round": 3,
                 "at": "2026-11-21T02:51:24Z"
+              },
+              {
+                "attempt_id": "a78d5ac9737349119b3f771396be29b2",
+                "source": "review",
+                "reason": "1. **Changing a lane’s membership or ID through `set-plan` can clear its retry gate.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:438) carries history only when both the lane ID and finding set match. A same-round plan that removes or adds a finding, or renames the lane, can therefore replace a blocked lane with a fresh planned lane and bypass `bcl unblock --reason`. Preserve the gate or reject such replacement, and test it from a genuinely blocked lane.\n\n2. **The acceptance scripts can test different packages.** [common.sh](/Users/gurusharan/.agents/artifacts/bcl-118/r3/common.sh:3) checks the installed version and runs its tests, but [realuse.py](/Users/gurusharan/.agents/artifacts/bcl-118/r3/realuse.py:15) inherits `BCL_BIN` and `BCL_SCRIPTS` overrides. If those are set, the acceptance result combines evidence from different copies. Pin both paths to the checked package in the verification scripts.\n\n3. **Legacy history conversion can bind review to the wrong failure.** [_lane_history](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:384) concatenates per-finding lists rather than preserving chronological order; the gate later treats the last row as the latest failure. Add a migration test with interleaved sibling failures and preserve their actual order.",
+                "cycle": 10,
+                "round": 3,
+                "at": "2026-11-21T04:12:36Z"
               }
             ]
           },
@@ -14191,7 +14233,18 @@
               "by_cycle": 10,
               "round": 3
             }
-          ]
+          ],
+          "plan_review_history": {
+            "BCL-99": [
+              {
+                "job_id": "66179c93c8824e348c1442a747c95b66",
+                "after_failure": "a78d5ac9737349119b3f771396be29b2",
+                "status": "passed",
+                "cycle": 10,
+                "round": 3
+              }
+            ]
+          }
         },
         {
           "id": "R3-INTROSPECT",
@@ -15114,6 +15167,211 @@
       "details": {
         "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 12",
         "filed_by": "Guru 00:33 IST t1597u"
+      }
+    },
+    {
+      "id": "BCL-110",
+      "title": "Delete, archive, park, unpark or a reused ID can strip a finding of its lane gate",
+      "summary": "Deleting, archiving, parking or unparking a finding, or adding one with a reused ID, moves it out of its lane without the lane's failure and plan-review history.",
+      "impact": "A failed finding can be moved out and come back with a clean gate, skipping the required plan review or unblock.",
+      "recommendation": "Refuse removal or reassignment of a finding in a gated lane before any tracker or sidecar write; keep all gate history through same-lane rewrites; reject caller-supplied gate history.",
+      "done_when": "Each of those writes on a gated lane is refused with the tracker and sidecars unchanged, or keeps the gate intact.",
+      "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
+        "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 1",
+        "carry_to_round": "4",
+        "technical": "Standalone and batch delete, archive, park, unpark, and add with a reused finding ID move or remove a lane member without its failure and plan-review history.",
+        "commit": "0fac47be"
+      }
+    },
+    {
+      "id": "BCL-111",
+      "title": "Rollover hands unresolved findings a clean lane in the next PR",
+      "summary": "Rolling a PR over drops the lane plan but keeps unresolved findings, so their failures and block are lost in the next PR.",
+      "impact": "A blocked or gated finding restarts in the next PR as if it had never failed.",
+      "recommendation": "Refuse a rollover that would strand a protected gate (even when forced), or carry and enforce the gate in the successor.",
+      "done_when": "Rolling over with a gated lane is refused, or the successor shows the same failures and block.",
+      "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
+        "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 2",
+        "carry_to_round": "4",
+        "technical": "prepare_rollover drops tracking.plan but keeps unresolved findings, so their failure history and block are lost in the successor.",
+        "commit": "0fac47be"
+      }
+    },
+    {
+      "id": "BCL-112",
+      "title": "Several writers can overwrite a blocked lane's status",
+      "summary": "Several commands other than unblock (lane edits, verify syncing, skipping review, activity updates) can overwrite a blocked lane's status.",
+      "impact": "A lane blocked by two failures can be reopened without a reasoned unblock.",
+      "recommendation": "Guard set-activity, verification sync, skip-review, rerun and verifier completion so only a reasoned unblock clears a failure block.",
+      "done_when": "Every writer except a reasoned unblock leaves a failure-blocked lane blocked.",
+      "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
+        "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 3",
+        "carry_to_round": "4",
+        "technical": "update-plan-group blocked_reason, sync_plan_verify, skip-review, set-activity and raw verify activity can replace a blocked status, so the job guard sees an open lane.",
+        "commit": "0fac47be"
+      }
+    },
+    {
+      "id": "BCL-113",
+      "title": "Edits can invalidate a running job, and a PASS can race a newer failure",
+      "summary": "Editing the plan or a lane during a job can drop the job's only receipt, and a plan-review pass is not checked against failures recorded while it ran.",
+      "impact": "A running job's result can be lost, or a stale PASS can authorize a fix after a newer failure.",
+      "recommendation": "Preserve the receipt through compatible edits or refuse the change until completion; bind a plan review to the failure present at reservation and reject its PASS if a newer failure arrived.",
+      "done_when": "Edits during a running job keep or refuse; a PASS finishing after a newer failure does not open the fix.",
+      "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
+        "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 4",
+        "carry_to_round": "4",
+        "technical": "A second reservation, a plan or group edit changing the candidate hash, replacing codex, or correct-round can drop a running job's only receipt; a plan-review PASS is not checked against failures recorded during the review.",
+        "commit": "0fac47be"
+      }
+    },
+    {
+      "id": "BCL-114",
+      "title": "Legacy history, the lane cap after unblock, and restore-main on single updates",
+      "summary": "Old per-finding history is not fully converted before gate decisions, the four-lane cap is not rechecked after an unblock, and single finding updates skip the restore-main check.",
+      "impact": "A merged legacy lane can sit open with two failures, a fifth lane can reopen, and a single update can mark a regression without a restore lane.",
+      "recommendation": "Convert chronologically with duplicate failures and plan-review bindings removed, block at two counted failures honoring recorded unblocks, keep same-second ambiguity until a fresh PASS; recheck the cap on every slot-opening transition; apply the restore-main check to single updates.",
+      "done_when": "Tests for interleaved, duplicate and same-second legacy rows, an unblock past four lanes, and a standalone regression update all refuse or block as specified.",
+      "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
+        "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 5",
+        "carry_to_round": "4",
+        "technical": "Old per-finding history is not fully converted before gate decisions; the four-open-lane cap is not rechecked after unblock or retry; the restore-main check is missing from standalone finding updates.",
+        "commit": "0fac47be"
+      }
+    },
+    {
+      "id": "BCL-115",
+      "title": "Adopt and output paths can overwrite another tracker",
+      "summary": "Adopting a new list can overwrite another list's tracker, and report, draft or progress files can be written over a tracker.",
+      "impact": "One list's tracker can be silently replaced by another list or by a report file.",
+      "recommendation": "Make first adoption exclusive; reject report, draft and progress destinations that resolve to any tracker or snapshot, including aliases.",
+      "done_when": "Adopting onto an existing destination and writing an output onto a tracker are both refused.",
+      "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
+        "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 6",
+        "carry_to_round": "4",
+        "technical": "A new adopt key can overwrite an existing sanitized destination, and report, draft and progress outputs can resolve to a tracker or snapshot.",
+        "commit": "0fac47be"
+      }
+    },
+    {
+      "id": "BCL-116",
+      "title": "Acceptance wrappers can pick up inherited bcl paths",
+      "summary": "The installed acceptance scripts can pick up bcl paths inherited from the environment and mix two copies of bcl.",
+      "impact": "An acceptance run can mix evidence from two copies of bcl.",
+      "recommendation": "Pin both paths in the installed wrappers, keep explicit overrides for the worktree run only, and test with conflicting inherited values.",
+      "done_when": "Running the wrappers with conflicting inherited bcl paths still checks the installed package only.",
+      "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
+      "priority": "low",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
+        "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 7",
+        "carry_to_round": "4",
+        "technical": "The installed acceptance wrappers must pin both BCL_BIN and BCL_SCRIPTS and be tested against conflicting inherited values.",
+        "commit": "0fac47be"
+      }
+    },
+    {
+      "id": "BCL-117",
+      "title": "The page's Updated stamp does not move on finding writes",
+      "summary": "The PR 118 page's Updated time only changes on lane activity, not when findings are added or updated.",
+      "impact": "The page can look stale after real tracker changes.",
+      "recommendation": "Stamp Updated from the tracker's last write, whatever the write was.",
+      "done_when": "Adding or updating a finding moves the page's Updated time.",
+      "observed": "21 Nov 2026 morning IST, page :59151 kept an old Updated time after finding writes.",
+      "priority": "low",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
+        "report": "bcl-118 progress.md open item",
+        "carry_to_round": "4"
+      }
+    },
+    {
+      "id": "BCL-118",
+      "title": "Goal: the page shows the full orchestration timeline",
+      "summary": "The PR 118 page shows only the current job. It should list every job in the round with its model and effort, state, duration and links to its outputs.",
+      "impact": "Nobody can see how a round actually ran (which models ran, how long each step took, where its output is) without reading logs.",
+      "recommendation": "Render a per-lane timeline from the recorded job history: one row per job with phase, model and effort, state, start, duration and output links.",
+      "done_when": "After a round with several jobs, the page lists every job with model and effort, state, duration and a working link to its output.",
+      "observed": "21 Nov 2026 morning IST, during PR 118 round 3 the page showed one line such as Plan review with its model, while nine plan reviews, two fixes and one review had run.",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 10:20 IST t1604u (north star goal, via parent)",
+        "carry_to_round": "4",
+        "kind": "goal"
+      }
+    },
+    {
+      "id": "BCL-119",
+      "title": "Goal: every job records tokens and wall time, and Introspect ranks the costliest steps",
+      "summary": "Jobs record no token usage or wall time. Each job should store its measured tokens and duration, and Introspect should rank the round's most token-expensive steps and propose delete, simplify or optimize cuts against them.",
+      "impact": "Token cost is invisible and easy to misread: one fix job's reported usage was the whole session's running total, about seven times what the job itself used.",
+      "recommendation": "Capture input, cached and output tokens plus wall time from each child's own usage report when the job finishes; have Introspect rank steps by tokens and time and propose a cut for the top ones.",
+      "done_when": "Every finished job shows measured tokens and wall time, and Introspect lists the round's top steps by tokens with a proposed cut for each.",
+      "observed": "21 Nov 2026 09:03 to 09:37 IST, the PR 118 round 3 lane fix job (fast fix model, resumed session) made 161 model calls using 22,018,770 input tokens (21,814,400 cached) and 62,229 output tokens; its end-of-run usage line showed 159,527,814 input, the session's running total since 00:58 IST. Context per call grew from about 46 thousand to 210 thousand tokens as about 874 thousand characters of command output (file reads, full test runs) piled up. The tracker recorded none of it.",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 10:20 IST t1604u (north star goal, via parent)",
+        "carry_to_round": "4",
+        "kind": "goal",
+        "evidence": "bcl-118 direct luna-lanefix jsonl turn.completed usage (cumulative) and Codex rollout token_count deltas 03:33-04:08 UTC",
+        "measurement_note": "Measure per job as the difference in session totals, never the cumulative turn total."
+      }
+    },
+    {
+      "id": "BCL-120",
+      "title": "Goal: a workflow-level Introspect runs after every merge and gates the next Collect",
+      "summary": "Introspect runs only per lane. After each PR merge and before Collect starts for the next PR, bcl should run a workflow-level Introspect over the whole PR's orchestration and refuse Collect until it is recorded.",
+      "impact": "Patterns that repeat across lanes and rounds (review loops, interrupted runs, retries, token-heavy steps, hand work outside bcl) are never reviewed as a whole, so they recur in the next PR.",
+      "recommendation": "Add a post-merge Introspect stage that reads the measured job data for the whole PR, names repeating inefficiency patterns, and records cuts in the order delete, simplify, optimize, automate; refuse Collect for the next PR until that record exists. It must not invent work: it files a change only when measured evidence shows the pattern recurred two or more times or had a material token or time cost; anything below that bar is noted and dropped, and no change needed is a valid outcome.",
+      "done_when": "After a merge, starting Collect for the next PR is refused until the workflow-level Introspect is recorded. The record lists each pattern with measured numbers; a change is filed only for a pattern that recurred two or more times or had a material token or time cost, with a delete, simplify, optimize or automate cut; patterns below that bar are noted as dropped, not filed; and a record of no change needed is accepted and unlocks Collect.",
+      "observed": "21 Nov 2026 08:46 to about 10:25 IST, PR 118 round 3 ran nine plan reviews in a row on the same two lanes, and the orchestrating run was interrupted and resumed three times; nothing in bcl reviews that pattern across the PR.",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 10:21 IST t1605u (north star goal, via parent)",
+        "carry_to_round": "4",
+        "kind": "goal",
+        "related": "BCL-118 timeline, BCL-119 token and time data",
+        "refined_by": "Guru 10:24 IST t1606u (evidence bar, via parent)"
       }
     }
   ]
