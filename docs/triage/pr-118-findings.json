@@ -10860,8 +10860,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-21T06:05:55Z",
-      "now": "2026-11-21T06:05:55Z — Review started"
+      "updated_at": "2026-11-21T06:11:50Z",
+      "now": "2026-11-21T06:11:50Z — Presuite started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13967,18 +13967,18 @@
             "implementer_session": "grokbot-118r3-plan",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-plan",
             "job": {
-              "id": "9d9be420a8de4e5db83863c213b2e3d3",
-              "phase": "review",
-              "started_at": "2026-11-21T06:05:55Z",
+              "id": "48cf202836bc47b8b1ac5f8307cc39d4",
+              "phase": "presuite",
+              "started_at": "2026-11-21T06:11:50Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T06:07:06Z",
+              "heartbeat_at": "2026-11-21T06:16:57Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6.1-terra medium (Codex CLI)",
+              "model": "No model (scripted pre-push suite)",
               "cycle": 10,
               "round": 3,
-              "pid": 97088,
+              "pid": 9278,
               "exit_code": 0,
-              "finished_at": "2026-11-21T06:07:06Z",
+              "finished_at": "2026-11-21T06:16:57Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -14138,6 +14138,11 @@
                 "round": 3
               }
             ]
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-21T06:16:57Z"
           }
         },
         {
@@ -14204,18 +14209,18 @@
             "implementer_session": "grokbot-118r3-rounds",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-rounds",
             "job": {
-              "id": "9d9be420a8de4e5db83863c213b2e3d3",
-              "phase": "review",
-              "started_at": "2026-11-21T06:05:55Z",
+              "id": "48cf202836bc47b8b1ac5f8307cc39d4",
+              "phase": "presuite",
+              "started_at": "2026-11-21T06:11:50Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T06:07:06Z",
+              "heartbeat_at": "2026-11-21T06:16:57Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6.1-terra medium (Codex CLI)",
+              "model": "No model (scripted pre-push suite)",
               "cycle": 10,
               "round": 3,
-              "pid": 97088,
+              "pid": 9278,
               "exit_code": 0,
-              "finished_at": "2026-11-21T06:07:06Z",
+              "finished_at": "2026-11-21T06:16:57Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -14315,6 +14320,11 @@
                 "round": 3
               }
             ]
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-21T06:16:57Z"
           }
         },
         {
