@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "present",
-      "updated_at": "2026-11-21T14:17:10Z",
-      "now": "2026-11-21T14:17:10Z — Started collection"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-21T14:17:11Z",
+      "now": "2026-11-21T14:17:11Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 118,
@@ -12126,8 +12126,125 @@
     ],
     "stages_reached": [
       "collect",
-      "present"
-    ]
+      "present",
+      "plan_fix"
+    ],
+    "plan": {
+      "round": 1,
+      "groups": [
+        {
+          "id": "R1-DEAD",
+          "name": "Delete dead commands and viewer legacy path",
+          "finding_ids": [
+            "BCL-123",
+            "BCL-124",
+            "BCL-126"
+          ],
+          "status": "pending",
+          "worktree": "bcl119-direct",
+          "label": "BCL-123, BCL-124, BCL-126",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-dead.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 3
+          },
+          "codex": {
+            "model": "gpt-6-luna medium fast (Codex CLI)",
+            "implementer_session": "codex-luna-119r1-dead",
+            "reviewer_session": "codex-terra-6.1-119r1-dead",
+            "review_status": "pending"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-21T14:17:11Z"
+        },
+        {
+          "id": "R1-RELEASE",
+          "name": "One release check, one unblock path, one review command",
+          "finding_ids": [
+            "BCL-125",
+            "BCL-127"
+          ],
+          "status": "pending",
+          "worktree": "bcl119-direct",
+          "label": "BCL-125, BCL-127",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-release.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "codex": {
+            "model": "gpt-6-luna medium fast (Codex CLI)",
+            "implementer_session": "codex-luna-119r1-release",
+            "reviewer_session": "codex-terra-6.1-119r1-release",
+            "review_status": "pending"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-21T14:17:11Z"
+        },
+        {
+          "id": "R1-TESTS",
+          "name": "Quiet, non-repeating tests",
+          "finding_ids": [
+            "BCL-128",
+            "BCL-129"
+          ],
+          "status": "pending",
+          "worktree": "bcl119-direct",
+          "label": "BCL-128, BCL-129",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-tests.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "codex": {
+            "model": "gpt-6-luna medium fast (Codex CLI)",
+            "implementer_session": "codex-luna-119r1-tests",
+            "reviewer_session": "codex-terra-6.1-119r1-tests",
+            "review_status": "pending"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-21T14:17:11Z"
+        },
+        {
+          "id": "R1-ADD",
+          "name": "Review cap, fast chart check, fixed viewer port",
+          "finding_ids": [
+            "BCL-121",
+            "BCL-122",
+            "BCL-94"
+          ],
+          "status": "pending",
+          "worktree": "bcl119-direct",
+          "label": "BCL-121, BCL-122, BCL-94",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-add.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 3
+          },
+          "codex": {
+            "model": "gpt-6-luna medium fast (Codex CLI)",
+            "implementer_session": "codex-luna-119r1-add",
+            "reviewer_session": "codex-terra-6.1-119r1-add",
+            "review_status": "pending"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-21T14:17:11Z"
+        }
+      ],
+      "cycle": 11
+    }
   },
   "findings": [
     {
