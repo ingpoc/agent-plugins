@@ -801,10 +801,13 @@ def job_transition(document, operation):
                         group.update(status="review", phase="review")
                 else:
                     incomplete = verdict is None
+                    first_line = next((line.strip() for line in (reply or "").splitlines() if line.strip()), "")
+                    # Only a reply with no CHANGES verdict line (cut off, quoted, quota) is a tool fault.
+                    tool_fault = incomplete and first_line != "VERDICT: CHANGES"
                     state = "incomplete" if incomplete else "changes_requested"
                     job["finished_phase_status"] = state
-                    reason = ("Review incomplete: strict verdict or Must-fix section missing" if incomplete
-                              else must_fix)
+                    reason = ("Review incomplete: strict verdict or Must-fix section missing" if tool_fault
+                              else "Changes requested; Must-fix section missing" if incomplete else must_fix)
                     job["must_fix"] = reason
                     if phase == "review":
                         codex["review_status"] = "failed" if incomplete else state
@@ -812,8 +815,8 @@ def job_transition(document, operation):
                         group.update(status="running", phase="fix")
                         for identifier in set(operation["ids"]).intersection(group.get("finding_ids", [])):
                             _record_lane_failure(document, identifier, job_id, phase, reason,
-                                                 tool_fault=incomplete,
-                                                 tool_fault_reason=reason if incomplete else None)
+                                                 tool_fault=tool_fault,
+                                                 tool_fault_reason=reason if tool_fault else None)
                     else:
                         codex["plan_review_status"] = "failed" if incomplete else state
             else:

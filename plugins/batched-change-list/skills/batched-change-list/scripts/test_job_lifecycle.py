@@ -231,6 +231,18 @@ class JobLifecycleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "passed plan_review"):
             transition(doc, "start-job", "fix", "fix-2")
 
+    def test_changes_verdict_without_must_fix_section_still_counts(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1")
+        transition(doc, "start-job", "review", "review-1")
+        finish(doc, "review", "review-1", reply="VERDICT: CHANGES\n- must-fix 0\n")
+        group = doc["tracking"]["plan"]["groups"][0]
+        self.assertFalse(group["failure_history"][0].get("tool_fault"))
+        self.assertNotIn("incomplete", group["failure_history"][0]["reason"].lower())
+        with self.assertRaisesRegex(ValueError, "passed plan_review"):
+            transition(doc, "start-job", "fix", "fix-2")
+
 
 if __name__ == "__main__":
     unittest.main()
