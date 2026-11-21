@@ -54,6 +54,7 @@ if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 import check_inventory
 import release_agent_computer_use
+import release_batched_change_list
 
 PLUGIN_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 MCP_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
@@ -1264,6 +1265,10 @@ def main(argv: list[str] | None = None) -> int:
         release_agent_computer_use.policy(ROOT)
     except (RuntimeError, ValueError, OSError, subprocess.SubprocessError) as exc:
         errors.append(f"ACU release policy: {exc}")
+    try:
+        release_batched_change_list.bump_policy(ROOT)
+    except (RuntimeError, ValueError, OSError, subprocess.SubprocessError) as exc:
+        errors.append(f"batched-change-list release policy: {exc}")
     for plugin in plugin_dirs() if args.changed_since or args.validate_only else plugins:
         print(f"validate {plugin.relative_to(ROOT)}", flush=True)
         errors.extend(validate_plugin(plugin))

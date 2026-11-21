@@ -138,5 +138,35 @@ class ReleaseTests(unittest.TestCase):
             os.close(stderr_write)
 
 
+class BumpPolicyTests(unittest.TestCase):
+    def repo(self, tmp):
+        root = Path(tmp)
+        package = root / release.PACKAGE
+        (package / 'scripts').mkdir(parents=True)
+        (package / 'plugin.json').write_text(json.dumps({'version': '1.0.0'}))
+        (package / 'scripts' / 'tool.py').write_text('a = 1\n')
+        for command in (['git', 'init', '-q'], ['git', 'add', '-A'],
+                        ['git', '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'base']):
+            subprocess.run(command, cwd=root, check=True)
+        return root, package
+
+    def test_shipped_change_without_a_version_increase_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, package = self.repo(tmp)
+            (package / 'scripts' / 'tool.py').write_text('a = 2\n')
+            with self.assertRaisesRegex(RuntimeError, 'require a version increase'):
+                release.bump_policy(root, base='HEAD')
+            (package / 'plugin.json').write_text(json.dumps({'version': '1.0.1'}))
+            self.assertEqual(release.bump_policy(root, base='HEAD')['version'], '1.0.1')
+
+    def test_test_only_change_needs_no_bump(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, package = self.repo(tmp)
+            (package / 'scripts' / 'test_tool.py').write_text('pass\n')
+            subprocess.run(['git', 'add', '-A'], cwd=root, check=True)
+            self.assertIn('test_tool.py', release.shared.output(['git', 'diff', '--name-only', 'HEAD'], root=root))
+            self.assertEqual(release.bump_policy(root, base='HEAD')['version'], '1.0.0')
+
+
 if __name__ == '__main__':
     unittest.main()

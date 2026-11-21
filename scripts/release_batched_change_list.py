@@ -11,6 +11,24 @@ from urllib.request import urlopen
 
 import release_agent_computer_use as shared
 
+PACKAGE = 'plugins/batched-change-list'
+
+
+def bump_policy(root, *, base=None):
+    """Version and changelog belong to integration: shipped package changes since base need a version increase."""
+    version = json.loads((Path(root) / PACKAGE / 'plugin.json').read_text())['version']
+    # The integrated head is judged against main, so a multi-commit version is not re-bumped per commit.
+    baseline = base or os.environ.get('AGENT_PLUGINS_RELEASE_BASE') or 'refs/remotes/origin/main'
+    base = shared.output(['git', 'rev-parse', '--verify', baseline + '^{commit}'], root=root)
+    changed = shared.output(['git', 'diff', '--name-only', base, '--', PACKAGE], root=root).splitlines()
+    shipped = [p for p in changed if not Path(p).name.startswith('test_') and not {'tests', 'Tests'} & set(Path(p).parts)]
+    previous = subprocess.run(['git', 'show', f'{base}:{PACKAGE}/plugin.json'], cwd=root, text=True, capture_output=True)
+    if shipped and previous.returncode == 0:
+        semver = lambda value: tuple(map(int, value.split('.')))
+        if semver(version) <= semver(json.loads(previous.stdout)['version']):
+            raise RuntimeError('shipped batched-change-list changes require a version increase')
+    return {'version': version, 'base': base}
+
 
 def viewer_address(server, timeout=15):
     deadline = time.monotonic() + timeout

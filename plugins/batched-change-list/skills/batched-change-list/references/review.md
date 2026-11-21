@@ -6,6 +6,8 @@ When a review, fix, or check does not pass, classify the fault before it is coun
 
 Quota-out fallback: fixes and reviews run on Codex first; if the Codex quota runs out, free OpenCode models (the latest, per the opencode-free-implementer skill) take the remaining fixes and reviews; if OpenCode is unavailable or out of quota too, stop and ask the owner. A quota-out is a tool fault and is not counted; three tool faults in a row (plan reviews included) block the lane until `bcl unblock --reason`.
 
+Version and changelog belong to integration: a lane review and its handoff never list a version bump or changelog entry as must-fix; the collection check refuses shipped package changes without a version increase on the integrated head.
+
 Run the full source suite before Install with `bcl job --phase presuite -- python3 -m unittest discover -s <skill-dir>/scripts -p 'test_*.py'`; the page shows this as **Pre-push suite** within Review. The pre-push suite is a source check, not the post-install Verify stage. Install requires a passed suite and a passed review or recorded one-file skip for each lane.
 
 `check_install_sessions.py` validates the selected lane and review receipts before Install.
