@@ -27,8 +27,8 @@ def transition(doc, action, phase, job_id, **fields):
     manager.job_transition(doc, operation)
 
 
-def finish(doc, phase, job_id, code=0, reply=None):
-    transition(doc, "finish-job", phase, job_id, exit_code=code, reply=reply)
+def finish(doc, phase, job_id, code=0, reply=None, timestamp=STAMP):
+    transition(doc, "finish-job", phase, job_id, timestamp=timestamp, exit_code=code, reply=reply)
 
 
 class JobLifecycleTests(unittest.TestCase):
@@ -134,6 +134,52 @@ class JobLifecycleTests(unittest.TestCase):
         transition(doc, "start-job", "fix", "fix-B", ids=["ISSUE-02"])
         finish(doc, "fix", "fix-B", code=1)
         self.assertEqual(group["status"], "blocked")
+
+    def test_legacy_sibling_histories_merge_chronologically_and_dedupe(self):
+        group = {"id": "A", "failure_history": {
+            "ISSUE-01": [{"attempt_id": "later", "at": "2026-11-21T00:00:02Z"},
+                         {"attempt_id": "shared", "at": "2026-11-21T00:00:01Z"}],
+            "ISSUE-02": [{"attempt_id": "earlier", "at": "2026-11-21T00:00:00Z"},
+                         {"attempt_id": "shared", "at": "2026-11-21T00:00:01Z"}]}}
+        rows = manager._lane_history(group, "failure_history")
+        self.assertEqual([row["attempt_id"] for row in rows], ["earlier", "shared", "later"])
+
+    def test_two_legacy_sibling_failures_block_until_owner_unblock(self):
+        doc = document()
+        group = doc["tracking"]["plan"]["groups"][0]
+        group["failure_history"] = {"ISSUE-01": [{"attempt_id": "one", "at": "2026-11-21T00:00:00Z"}],
+                                    "ISSUE-02": [{"attempt_id": "two", "at": "2026-11-21T00:00:01Z"}]}
+        group["status"] = "running"
+        manager._lane_history(group, "failure_history")
+        self.assertEqual(group["status"], "blocked")
+        with self.assertRaisesRegex(ValueError, "bcl unblock --reason"):
+            transition(doc, "start-job", "fix", "fix-blocked")
+        manager.unblock_lane(doc, {"ids": ["ISSUE-01"], "reason": "owner authorized", "tool_faults": [],
+                                   "timestamp": "2026-11-21T00:00:02Z"})
+        transition(doc, "start-job", "plan_review", "recovery-review")
+        finish(doc, "plan_review", "recovery-review", reply=("VERDICT: PASS\n## Must-fix\nnone\n"
+               "## ROOT CAUSE\nwhy\n## FAILING TEST\ntest_lane"), timestamp="2026-11-21T00:00:03Z")
+        transition(doc, "start-job", "fix", "fix-open")
+
+    def test_same_second_legacy_failures_require_fresh_plan_review(self):
+        doc = document()
+        group = doc["tracking"]["plan"]["groups"][0]
+        stamp = "2026-11-21T00:00:00Z"
+        group["failure_history"] = {"ISSUE-01": [{"attempt_id": "one", "at": stamp}],
+                                    "ISSUE-02": [{"attempt_id": "two", "at": stamp}]}
+        manager._lane_history(group, "failure_history")
+        latest = manager._counted_failures(group["failure_history"])[-1]
+        group["plan_review_history"] = [{"job_id": "stale", "after_failure": latest["attempt_id"],
+                                          "status": "passed", "at": stamp}]
+        group["status"] = "blocked"
+        manager.unblock_lane(doc, {"ids": ["ISSUE-01"], "reason": "owner authorized", "tool_faults": [],
+                                   "timestamp": "2026-11-21T00:00:01Z"})
+        with self.assertRaisesRegex(ValueError, "passed plan_review"):
+            transition(doc, "start-job", "fix", "fix-stale")
+        transition(doc, "start-job", "plan_review", "fresh")
+        finish(doc, "plan_review", "fresh", reply=("VERDICT: PASS\n## Must-fix\nnone\n"
+               "## ROOT CAUSE\nwhy\n## FAILING TEST\ntest_lane"), timestamp="2026-11-21T00:00:02Z")
+        transition(doc, "start-job", "fix", "fix-fresh")
 
 
 if __name__ == "__main__":

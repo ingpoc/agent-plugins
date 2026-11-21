@@ -1301,10 +1301,17 @@ class ManageFindingsTests(unittest.TestCase):
         result = self._replay_batch(copy.deepcopy(self.document), {"action": "set-plan", "plan": {"round": 1, "groups": [group]}})
         self.assertEqual(result.returncode, 0, result.stderr)
         blocked = json.loads(self.data.read_bytes())
-        before = json.dumps(blocked).encode()
+        for changed in (
+            {**copy.deepcopy(group), "finding_ids": ["ISSUE-01"]},
+            {**copy.deepcopy(group), "id": "RENAMED"},
+        ):
+            result = self._replay_batch(blocked, {"action": "set-plan", "plan": {"round": 1, "groups": [changed]}})
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("gated lane", result.stderr)
+            self.assertEqual(json.loads(self.data.read_bytes()), blocked)
         result = self._replay_batch(blocked, {"action": "update-plan-group", "id": "A", "patch": {"status": "planned"}})
         self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(self.data.read_bytes(), before)
+        self.assertEqual(json.loads(self.data.read_bytes()), blocked)
         reordered = copy.deepcopy(blocked["tracking"]["plan"]["groups"][0])
         reordered["finding_ids"].reverse()
         result = self._replay_batch(blocked, {"action": "set-plan", "plan": {"round": 1, "groups": [reordered]}})
@@ -1313,6 +1320,41 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(group["status"], "blocked")
         self.assertEqual([row["attempt_id"] for row in group["failure_history"]], ["a", "b"])
         self.assertEqual(group["plan_review_history"][0]["after_failure"], "b")
+
+    def test_gated_lane_carries_its_gate_across_round_re_record(self):
+        prior = {"groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "blocked",
+                             "failure_history": [{"attempt_id": "failed", "at": "2026-11-21T00:00:00Z"}],
+                             "plan_review_history": [{"job_id": "review", "after_failure": "failed"}],
+                             "unblock_history": [{"at": "2026-11-21T00:00:01Z", "reason": "owner"}]}]}
+        groups = [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned"}]
+        manage_findings.carry_plan_runtime_state(groups, prior, False)
+        self.assertEqual(groups[0]["status"], "blocked")
+        self.assertEqual(groups[0]["failure_history"][0]["attempt_id"], "failed")
+        self.assertEqual(groups[0]["plan_review_history"][0]["after_failure"], "failed")
+        self.assertEqual(groups[0]["unblock_history"][0]["reason"], "owner")
+
+    def test_one_failure_refuses_set_plan_membership_or_id_change(self):
+        previous = {"groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "running",
+                                "failure_history": [{"attempt_id": "failed", "source": "review"}]}]}
+        for replacement in (
+            {"id": "A", "finding_ids": ["ISSUE-01", "ISSUE-02"]},
+            {"id": "A", "finding_ids": []},
+            {"id": "RENAMED", "finding_ids": ["ISSUE-01"]},
+        ):
+            with self.subTest(replacement=replacement), self.assertRaisesRegex(ValueError, "gated lane"):
+                manage_findings.carry_plan_runtime_state([replacement], previous, True)
+
+    def test_update_plan_group_cannot_detach_a_finding_from_gated_lane(self):
+        document = copy.deepcopy(self.document)
+        document["tracking"] = {"cycle": 1, "round": 1, "plan": {"cycle": 1, "round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01", "ISSUE-02"], "status": "running",
+            "failure_history": [{"attempt_id": "one", "source": "review"}]}]}}
+        before = json.dumps(document).encode()
+        result = self._replay_batch(document, {"action": "update-plan-group", "id": "A",
+                                              "patch": {"finding_ids": ["ISSUE-02"]}})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("gated lane", result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
 
     def test_checking_must_be_saved_before_finishing(self):
         ops = self.root / 'verify.json'
@@ -1793,7 +1835,9 @@ class ManageFindingsTests(unittest.TestCase):
             with self.subTest(blocked=blocked, fault=fault):
                 document = self._blocked_lane()
                 if not blocked:
-                    document["tracking"]["plan"]["groups"][0]["status"] = "running"
+                    group = document["tracking"]["plan"]["groups"][0]
+                    group["status"] = "running"
+                    group["failure_history"] = [{"attempt_id": "attempt-1", "source": "review"}]
                 before = json.dumps(document).encode()
                 result = self._replay_batch(document, {"action": "unblock-lane", "ids": ["ISSUE-01"],
                     "reason": "owner reviewed the blocked lane", "tool_faults": [fault],
@@ -2099,7 +2143,7 @@ class ManageFindingsTests(unittest.TestCase):
         completed_round["tracking"]["plan"]["groups"][0].update(status="blocked", blocked_reason="test lane complete")
         next_plan = copy.deepcopy(completed_round["tracking"]["plan"])
         next_plan["round"] = 2
-        next_plan["groups"][0].update(id="B", status="pending")
+        next_plan["groups"][0].update(status="pending")
         path1 = self._replay_batch(completed_round,
             {"action": "introspect", "sections": none, "result": "round 1 done"},
             {"action": "set-plan", "plan": next_plan})
@@ -2107,6 +2151,7 @@ class ManageFindingsTests(unittest.TestCase):
         tracking = json.loads(self.data.read_text())["tracking"]
         self.assertEqual(tracking["round"], 2)
         self.assertEqual(tracking["workflow"]["stage"], "plan_fix")
+        self.assertEqual(tracking["plan"]["groups"][0]["status"], "blocked")
         self.assertEqual(tracking["introspect"]["round"], 1)
         self.assertEqual(tracking["introspect"]["cycle"], 1)
         path2 = self._replay_batch(self._path2_pre(), {"action": "introspect", "sections": none, "result": "round 2 done"}, {
@@ -2138,6 +2183,7 @@ class ManageFindingsTests(unittest.TestCase):
         tracking = json.loads(self.data.read_text())["tracking"]
         self.assertEqual(tracking["round"], 2)
         self.assertEqual(tracking["plan"]["round"], 2)
+        self.assertEqual(tracking["plan"]["groups"][0]["status"], "blocked")
         self.assertEqual(tracking["round_history"][0]["round"], 1)
         self.assertEqual(len(tracking["round_history"]), 1)
 
