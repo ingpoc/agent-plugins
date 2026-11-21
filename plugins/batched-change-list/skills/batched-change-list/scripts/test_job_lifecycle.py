@@ -18,7 +18,7 @@ def document():
 
 def transition(doc, action, phase, job_id, **fields):
     plan = doc.get("tracking", {}).get("plan", {})
-    operation = {"action": action, "phase": phase, "ids": ["ISSUE-01"], "cycle": 1, "round": 1,
+    operation = {"action": action, "phase": phase, "ids": fields.pop("ids", ["ISSUE-01"]), "cycle": 1, "round": 1,
                  "timestamp": STAMP, **fields}
     if action == "start-job":
         operation["job"] = {"id": job_id, "plan_sha256": manager.plan_candidate_sha256(plan)}
@@ -69,9 +69,9 @@ class JobLifecycleTests(unittest.TestCase):
         transition(doc, "start-job", "fix", "fix-1")
         finish(doc, "fix", "fix-1", code=1)
         group = doc["tracking"]["plan"]["groups"][0]
-        self.assertEqual(len(group["failure_history"]["ISSUE-01"]), 1)
+        self.assertEqual(len(group["failure_history"]), 1)
         manager._record_lane_failure(doc, "ISSUE-01", "fix-1", "fix", "duplicate")
-        self.assertEqual(len(group["failure_history"]["ISSUE-01"]), 1)
+        self.assertEqual(len(group["failure_history"]), 1)
         with self.assertRaisesRegex(ValueError, "passed plan_review"):
             transition(doc, "start-job", "fix", "fix-2")
         transition(doc, "start-job", "plan_review", "plan-1")
@@ -91,9 +91,49 @@ class JobLifecycleTests(unittest.TestCase):
             transition(doc, "start-job", "plan_review", f"plan-{n}")
             finish(doc, "plan_review", f"plan-{n}", code=1, reply="VERDICT: CHANGES\n## Must-fix\n1. tighten the plan")
         self.assertNotEqual(group["status"], "blocked")
-        self.assertEqual(len(group["failure_history"]["ISSUE-01"]), 1)
+        self.assertEqual(len(group["failure_history"]), 1)
         with self.assertRaisesRegex(ValueError, "passed plan_review"):
             transition(doc, "start-job", "fix", "fix-2")
+
+    def test_lane_gate_reviews_siblings_and_deduplicates_attempts(self):
+        doc = document()
+        doc["findings"].append({"id": "ISSUE-02", "status": "in_progress"})
+        group = doc["tracking"]["plan"]["groups"][0]
+        group["finding_ids"].append("ISSUE-02")
+        manager._record_lane_failure(doc, "ISSUE-01", "failed-A", "review", "review failed")
+        manager._record_lane_failure(doc, "ISSUE-02", "failed-A", "review", "same lane attempt")
+        self.assertEqual(len(group["failure_history"]), 1)
+        with self.assertRaisesRegex(ValueError, "passed plan_review"):
+            transition(doc, "start-job", "fix", "fix-B", ids=["ISSUE-02"])
+        transition(doc, "start-job", "plan_review", "plan-B", ids=["ISSUE-02"])
+        with self.assertRaisesRegex(ValueError, "ROOT CAUSE and FAILING TEST"):
+            finish(doc, "plan_review", "plan-B", reply="VERDICT: PASS\n## Must-fix\nnone\n## ROOT CAUSE\nwhy")
+
+    def test_plan_review_after_failure_requires_each_named_section(self):
+        for reply in (
+            "VERDICT: PASS\n## Must-fix\nnone\n## FAILING TEST\ntest_lane",
+            "VERDICT: PASS\n## Must-fix\nnone\n## ROOT CAUSE\nwhy",
+        ):
+            with self.subTest(reply=reply):
+                doc = document()
+                manager._record_lane_failure(doc, "ISSUE-01", "failed-A", "review", "review failed")
+                transition(doc, "start-job", "plan_review", "plan-B")
+                with self.assertRaisesRegex(ValueError, "ROOT CAUSE and FAILING TEST"):
+                    finish(doc, "plan_review", "plan-B", reply=reply)
+
+    def test_lane_plan_review_binds_sibling_fix_and_second_failure_blocks(self):
+        doc = document()
+        doc["findings"].append({"id": "ISSUE-02", "status": "in_progress"})
+        group = doc["tracking"]["plan"]["groups"][0]
+        group["finding_ids"].append("ISSUE-02")
+        manager._record_lane_failure(doc, "ISSUE-01", "failed-A", "review", "review failed")
+        transition(doc, "start-job", "plan_review", "plan-B", ids=["ISSUE-02"])
+        finish(doc, "plan_review", "plan-B", reply=("VERDICT: PASS\n## Must-fix\nnone\n"
+               "## ROOT CAUSE\nwhy\n## FAILING TEST\ntest_lane"))
+        self.assertEqual(group["plan_review_history"][-1]["after_failure"], "failed-A")
+        transition(doc, "start-job", "fix", "fix-B", ids=["ISSUE-02"])
+        finish(doc, "fix", "fix-B", code=1)
+        self.assertEqual(group["status"], "blocked")
 
 
 if __name__ == "__main__":

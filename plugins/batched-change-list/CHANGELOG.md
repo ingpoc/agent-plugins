@@ -1,3 +1,7 @@
+## 0.1.56
+
+- Lane retry admission, plan-review receipts, and repeat-failure blocking now share deduplicated lane history; same-lane plan edits preserve it, and restore-main checks cover plan, group, and finding writes.
+
 ## 0.1.55
 
 - A plan review's CHANGES keeps the lane's fix waiting for a passed plan review and is no longer counted toward the two-failure block (0.1.54 blocked lanes whose plan was only being refined).

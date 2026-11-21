@@ -375,21 +375,42 @@ def _lane_groups(document, ids):
     covered = {identifier for group in groups for identifier in set(ids).intersection(group.get("finding_ids", []))}
     if not groups or covered != set(ids):
         raise ValueError("job IDs must be covered by current plan groups")
+    for group in groups:
+        _lane_history(group, "failure_history")
+        _lane_history(group, "plan_review_history")
     return tracking, plan, groups
 
 
-def _failure_rows(group, identifier):
-    failures = group.setdefault("failure_history", {})
-    if not isinstance(failures, dict):
-        raise ValueError(f"{group.get('id')} failure_history must be an object")
-    rows = failures.setdefault(identifier, [])
-    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
-        raise ValueError(f"{group.get('id')} failure history for {identifier} must be an array")
-    return rows
+def _lane_history(group, field):
+    history = group.get(field, [])
+    if isinstance(history, dict):
+        if any(not isinstance(rows, list) for rows in history.values()):
+            raise ValueError(f"{group.get('id')} {field} legacy entries must be arrays")
+        history = [row for rows in history.values() if isinstance(rows, list) for row in rows]
+    if not isinstance(history, list) or any(not isinstance(row, dict) for row in history):
+        raise ValueError(f"{group.get('id')} {field} must be an array")
+    unique, seen = [], set()
+    for row in history:
+        key = row.get("attempt_id") if field == "failure_history" else row.get("job_id")
+        if key and key in seen:
+            continue
+        if key:
+            seen.add(key)
+        unique.append(row)
+    group[field] = unique
+    return unique
 
 
 def _counted_failures(rows):
-    return [row for row in rows if not row.get("tool_fault") and row.get("source") != "plan_review"]
+    counted, attempts = [], set()
+    for row in rows:
+        attempt = row.get("attempt_id")
+        if row.get("tool_fault") or row.get("source") == "plan_review" or (attempt and attempt in attempts):
+            continue
+        if attempt:
+            attempts.add(attempt)
+        counted.append(row)
+    return counted
 
 
 def plan_candidate_sha256(plan):
@@ -402,6 +423,8 @@ def plan_candidate_sha256(plan):
         if isinstance(verify, dict):
             for field in ("status", "fixed", "failed", "total", "failure"):
                 verify.pop(field, None)
+            if not verify:
+                group.pop("verify", None)
         codex = group.get("codex")
         if isinstance(codex, dict):
             for field in ("job", "fix_status", "review_status", "plan_review_status", "reviewer_model", "must_fix_note"):
@@ -415,9 +438,12 @@ def carry_plan_runtime_state(groups, previous, same_round):
     old = {group.get("id"): group for group in previous.get("groups", [])} if isinstance(previous, dict) else {}
     protected_codex = ("job", "fix_status", "review_status", "plan_review_status", "reviewer_model", "must_fix_note")
     protected_group = ("status", "phase", "presuite", "failure_history", "plan_review_history", "unblock_history", "blocked_reason", "failure_block_reason")
+    for prior in old.values():
+        _lane_history(prior, "failure_history")
+        _lane_history(prior, "plan_review_history")
     for group in groups:
         prior = old.get(group.get("id"))
-        if same_round and prior and group.get("finding_ids") == prior.get("finding_ids"):
+        if same_round and prior and set(group.get("finding_ids", [])) == set(prior.get("finding_ids", [])):
             for field in protected_group:
                 if field in prior:
                     group[field] = copy.deepcopy(prior[field])
@@ -449,7 +475,7 @@ def _record_lane_failure(document, identifier, attempt_id, source, reason):
     tracking, plan, groups = _lane_groups(document, [identifier])
     stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     for group in groups:
-        rows = _failure_rows(group, identifier)
+        rows = _lane_history(group, "failure_history")
         if not any(row.get("attempt_id") == attempt_id for row in rows):
             rows.append({"attempt_id": attempt_id, "source": source, "reason": reason,
                          "cycle": plan.get("cycle"), "round": plan.get("round"), "at": stamp})
@@ -459,7 +485,7 @@ def _record_lane_failure(document, identifier, attempt_id, source, reason):
             codex = group.setdefault("codex", {})
             codex["review_status"] = "blocked"
             for item in document.get("findings", []):
-                if item.get("id") == identifier:
+                if item.get("id") in group.get("finding_ids", []):
                     item.update(status="blocked", needs=reason)
 
 
@@ -481,28 +507,19 @@ def unblock_lane(document, operation):
         history = group.setdefault("unblock_history", [])
         if not isinstance(history, list):
             raise ValueError(f"{group.get('id')} unblock_history must be an array")
-        rows_by_id = {identifier: _failure_rows(group, identifier)
-                      for identifier in group.get("finding_ids", [])}
-        known_faults.update(row["attempt_id"] for rows in rows_by_id.values() for row in rows
+        rows = _lane_history(group, "failure_history")
+        known_faults.update(row["attempt_id"] for row in rows
                             if isinstance(row.get("attempt_id"), str))
-        lanes.append((group, history, rows_by_id))
+        lanes.append((group, history, rows))
     unknown = set(tool_faults) - known_faults
     if unknown:
         raise ValueError(f"unblock names unknown attempt ID(s): {', '.join(sorted(unknown))}")
-    for group, history, rows_by_id in lanes:
-        lane_faults = set(tool_faults).intersection(
-            row.get("attempt_id") for rows in rows_by_id.values() for row in rows)
-        for rows in rows_by_id.values():
-            for row in rows:
-                if row.get("attempt_id") in lane_faults:
-                    row.update(tool_fault=True, tool_fault_reason=reason)
-        counted_attempts = set()
-        for identifier, rows in rows_by_id.items():
-            for index, row in enumerate(_counted_failures(rows)):
-                attempt = row.get("attempt_id")
-                counted_attempts.add(attempt if isinstance(attempt, str) and attempt
-                                     else (identifier, index))
-        owner_override = len(counted_attempts) >= 2
+    for group, history, rows in lanes:
+        lane_faults = set(tool_faults).intersection(row.get("attempt_id") for row in rows)
+        for row in rows:
+            if row.get("attempt_id") in lane_faults:
+                row.update(tool_fault=True, tool_fault_reason=reason)
+        owner_override = len(_counted_failures(rows)) >= 2
         if owner_override and tool_faults:
             raise ValueError(f"unblock lane {group.get('id')} has two or more counted failures; owner override requires no --tool-fault")
         entry = {"at": stamp, "reason": reason, "tool_faults": sorted(lane_faults),
@@ -518,7 +535,7 @@ def unblock_lane(document, operation):
         codex.pop("review_status", None)
         codex.pop("plan_review_status", None)
         for item in document.get("findings", []):
-            if item.get("id") in rows_by_id and item.get("status") == "blocked":
+            if item.get("id") in group.get("finding_ids", []) and item.get("status") == "blocked":
                 item["status"] = "in_progress"
 
 
@@ -562,15 +579,13 @@ def job_transition(document, operation):
             if group.get("status") in ("blocked", "parked", "deferred") or (
                     group.get("status") == "failed" and phase not in ("fix", "plan_review")):
                 raise ValueError(f"job cannot start blocked, parked, deferred, or failed lane {group['id']}")
-            selected = set(operation["ids"]).intersection(group.get("finding_ids", []))
-            failures = {identifier: _counted_failures(_failure_rows(group, identifier)) for identifier in selected}
+            failures = _counted_failures(_lane_history(group, "failure_history"))
             if phase == "fix":
-                for identifier, rows in failures.items():
-                    if rows:
-                        reviews = group.get("plan_review_history", {}).get(identifier, [])
-                        if not any(entry.get("status") == "passed" and entry.get("after_failure") == rows[-1]["attempt_id"]
-                                   for entry in reviews if isinstance(entry, dict)):
-                            raise ValueError(f"{group['id']} requires a passed plan_review after failure for {identifier}")
+                if failures:
+                    reviews = _lane_history(group, "plan_review_history")
+                    if not any(entry.get("status") == "passed" and entry.get("after_failure") == failures[-1].get("attempt_id")
+                               for entry in reviews):
+                        raise ValueError(f"{group['id']} requires a passed plan_review after failure")
                 codex.pop("review_status", None)
                 codex.pop("plan_review_status", None)
                 group.pop("presuite", None)
@@ -623,14 +638,12 @@ def job_transition(document, operation):
                     job["finished_phase_status"] = "passed"
                     if phase == "plan_review":
                         codex["plan_review_status"] = "passed"
-                        for identifier in set(operation["ids"]).intersection(group.get("finding_ids", [])):
-                            rows = _failure_rows(group, identifier)
-                            counted = _counted_failures(rows)
-                            if counted and (not _section_body(reply, "ROOT CAUSE") or not _section_body(reply, "FAILING TEST")):
-                                raise ValueError("plan_review after a failure requires ROOT CAUSE and FAILING TEST sections")
-                            history = group.setdefault("plan_review_history", {}).setdefault(identifier, [])
-                            history.append({"job_id": job_id, "after_failure": counted[-1]["attempt_id"] if counted else None,
-                                            "status": "passed", "cycle": cycle, "round": round_number})
+                        counted = _counted_failures(_lane_history(group, "failure_history"))
+                        if counted and (not _section_body(reply, "ROOT CAUSE") or not _section_body(reply, "FAILING TEST")):
+                            raise ValueError("plan_review after a failure requires ROOT CAUSE and FAILING TEST sections")
+                        _lane_history(group, "plan_review_history").append(
+                            {"job_id": job_id, "after_failure": counted[-1].get("attempt_id") if counted else None,
+                             "status": "passed", "cycle": cycle, "round": round_number})
                     else:
                         codex["review_status"] = "passed"
                         group.update(status="review", phase="review")
@@ -1266,8 +1279,6 @@ def regresses_against_main(item):
 
 def require_restore_lane(group, findings):
     """BCL-95: a lane holding a regression against main restores main's behaviour first; a redesign is its own finding."""
-    if RENDERER.plan_status(group) in ("parked", "deferred"):
-        return
     by_id = {item["id"]: item for item in findings}
     regressed = [i for i in group.get("finding_ids", []) if i in by_id and regresses_against_main(by_id[i])]
     if regressed and group.get("restores_main") is not True:
@@ -2110,6 +2121,15 @@ def run(args, parser):
                         plan = copy.deepcopy(requested_plan)
                         groups = plan["groups"]
                         carry_plan_runtime_state(groups, current_plan, same_current_plan and not starting_new_round)
+                        for group in groups:
+                            _lane_history(group, "failure_history")
+                            _lane_history(group, "plan_review_history")
+                        if same_current_plan:
+                            requested_by_id = {group.get("id"): group for group in groups}
+                            for prior in current_plan.get("groups", []):
+                                replacement = requested_by_id.get(prior.get("id"))
+                                if prior.get("status") == "blocked" and (not replacement or set(prior.get("finding_ids", [])) != set(replacement.get("finding_ids", []))):
+                                    raise ValueError(f"set-plan cannot change blocked lane {prior.get('id')}; use bcl unblock")
                         ids = [group.get("id") for group in groups if isinstance(group, dict)]
                         if len(ids) != len(groups) or any(not isinstance(i, str) or not i.strip() for i in ids) or len(ids) != len(set(ids)):
                             raise ValueError("plan groups require unique nonempty ids")
@@ -2155,6 +2175,9 @@ def run(args, parser):
                         plan = tracking.get("plan")
                         if not isinstance(plan, dict) or plan.get("cycle", cycle) != cycle:
                             raise ValueError("update-plan-group requires a plan for the current cycle")
+                        for lane in plan.get("groups", []):
+                            _lane_history(lane, "failure_history")
+                            _lane_history(lane, "plan_review_history")
                         if 'expected_plan_sha256' in operation:
                             actual = hashlib.sha256(json.dumps(original_plan, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
                             if operation['expected_plan_sha256'] != actual:
@@ -2171,6 +2194,8 @@ def run(args, parser):
                         patch = operation.get("patch")
                         if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at", "presuite", "quota_wait_until", "retry_cause"}:
                             raise ValueError("update-plan-group requires id and a valid group patch")
+                        if group.get("status") == "blocked" and patch.get("status", "blocked") != "blocked":
+                            raise ValueError(f"blocked lane {group.get('id')} can only be reopened with bcl unblock --reason")
                         if any(key in patch and not isinstance(patch[key], str) for key in ("label", "verify_summary", "name", "worktree", "reason")):
                             raise ValueError("label, name, verify_summary, worktree and reason must be strings")
                         if len(patch.get("verify_summary", "").split()) > 10:
@@ -2195,6 +2220,7 @@ def run(args, parser):
                         group.update(patch)
                         check_install_sessions.validate_group_codex(group)
                         validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
+                        require_restore_lane(group, findings)
                         validate_plan_groups(plan)
                         validate_dependencies(plan['groups'], findings, tracking)
                         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -2432,6 +2458,12 @@ def run(args, parser):
                             type(carried_from) is int and carried_from > 0 or isinstance(carried_from, str) and carried_from.strip()):
                         raise ValueError("carried_from must be a positive round number or nonempty cycle")
                     updated = merge_patch(dict(findings[index]), patch)
+                    if regresses_against_main(updated):
+                        plan = store["document"].get("tracking", {}).get("plan", {})
+                        updated_findings = [updated if item.get("id") == updated["id"] else item for item in findings]
+                        for group in plan.get("groups", []):
+                            if updated["id"] in group.get("finding_ids", []):
+                                require_restore_lane(group, updated_findings)
                     warn_summary(updated)
                     validate_detail_limits(updated)
                     trim_verification_evidence(updated)

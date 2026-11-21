@@ -1266,6 +1266,54 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('use bcl job', result.stderr)
 
+    def test_restore_main_guard_covers_group_membership_and_finding_updates(self):
+        for marker in ("yes", "true"):
+            with self.subTest(marker=marker):
+                document = copy.deepcopy(self.document)
+                document["findings"][1]["details"] = {"regression_against_main": marker}
+                group = {"id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "deferred"}
+                result = self._replay_batch(document,
+                    {"action": "set-plan", "plan": {"round": 1, "groups": [group]}})
+                self.assertEqual(result.returncode, 0, result.stderr)
+                before = json.dumps(json.loads(self.data.read_bytes())).encode()
+                result = self._replay_batch(json.loads(before), {"action": "update-plan-group", "id": "A",
+                    "patch": {"finding_ids": ["ISSUE-01", "ISSUE-02"], "status": "planned"}})
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("restore main", result.stderr)
+                self.assertEqual(self.data.read_bytes(), before)
+
+        document = copy.deepcopy(self.document)
+        group = {"id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "planned"}
+        self.assertEqual(self._replay_batch(document, {"action": "set-plan", "plan": {"round": 1, "groups": [group]}}).returncode, 0)
+        before = json.dumps(json.loads(self.data.read_bytes())).encode()
+        result = self._replay_batch(json.loads(before), {"action": "update", "id": "ISSUE-01",
+            "patch": {"details": {"regression_against_main": "yes"}}})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("restore main", result.stderr)
+        self.assertEqual(self.data.read_bytes(), before)
+
+    def test_blocked_lane_status_and_lane_history_survive_plan_edits(self):
+        group = {"id": "A", "finding_ids": ["ISSUE-01", "ISSUE-02"], "depends_on": [], "status": "blocked",
+                 "phase": "fix", "blocked_reason": "Second failure", "failure_block_reason": "failed",
+                 "failure_history": {"ISSUE-01": [{"attempt_id": "a", "source": "review"}],
+                                     "ISSUE-02": [{"attempt_id": "b", "source": "review"}]},
+                 "plan_review_history": {"ISSUE-01": [{"job_id": "p", "after_failure": "b"}]}}
+        result = self._replay_batch(copy.deepcopy(self.document), {"action": "set-plan", "plan": {"round": 1, "groups": [group]}})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        blocked = json.loads(self.data.read_bytes())
+        before = json.dumps(blocked).encode()
+        result = self._replay_batch(blocked, {"action": "update-plan-group", "id": "A", "patch": {"status": "planned"}})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.data.read_bytes(), before)
+        reordered = copy.deepcopy(blocked["tracking"]["plan"]["groups"][0])
+        reordered["finding_ids"].reverse()
+        result = self._replay_batch(blocked, {"action": "set-plan", "plan": {"round": 1, "groups": [reordered]}})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        group = json.loads(self.data.read_bytes())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "blocked")
+        self.assertEqual([row["attempt_id"] for row in group["failure_history"]], ["a", "b"])
+        self.assertEqual(group["plan_review_history"][0]["after_failure"], "b")
+
     def test_checking_must_be_saved_before_finishing(self):
         ops = self.root / 'verify.json'
         run = {'id':'install-1','build':'ACU','revision':'abc','installed_at':'2026-11-06T00:00:00Z','install_evidence':'receipt'}
@@ -1718,12 +1766,12 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertNotIn("blocked_reason", group)
         self.assertNotIn("failure_block_reason", group)
         self.assertEqual([item["status"] for item in document["findings"]], ["in_progress", "in_progress"])
-        self.assertTrue(group["failure_history"]["ISSUE-01"][1]["tool_fault"])
-        self.assertTrue(group["failure_history"]["ISSUE-02"][1]["tool_fault"])
-        self.assertEqual(group["failure_history"]["ISSUE-01"][1]["tool_fault_reason"],
+        self.assertEqual(len(group["failure_history"]), 2)
+        self.assertTrue(group["failure_history"][1]["tool_fault"])
+        self.assertEqual(group["failure_history"][1]["tool_fault_reason"],
                          "0.1.52 misparsed a valid PASS")
         self.assertEqual(group["unblock_history"][0]["tool_faults"], ["attempt-2"])
-        self.assertEqual(len(manage_findings._counted_failures(group["failure_history"]["ISSUE-01"])), 1)
+        self.assertEqual(len(manage_findings._counted_failures(group["failure_history"])), 1)
         with self.assertRaisesRegex(ValueError, "passed plan_review"):
             manage_findings.job_transition(document, {"action": "start-job", "phase": "fix", "ids": ["ISSUE-01"],
                 "cycle": 1, "round": 1, "timestamp": "2026-11-21T12:01:00Z",
@@ -1735,7 +1783,7 @@ class ManageFindingsTests(unittest.TestCase):
             "cycle": 1, "round": 1, "timestamp": "2026-11-21T12:03:00Z", "job_id": "plan-review",
             "exit_code": 0, "plan_sha256": manage_findings.plan_candidate_sha256(document["tracking"]["plan"]),
             "reply": "VERDICT: PASS\n## Must-fix\nnone\n## ROOT CAUSE\nparser fault\n## FAILING TEST\ntest_parse\n"})
-        self.assertEqual(group["plan_review_history"]["ISSUE-01"][-1]["after_failure"], "attempt-1")
+        self.assertEqual(group["plan_review_history"][-1]["after_failure"], "attempt-1")
         manage_findings.job_transition(document, {"action": "start-job", "phase": "fix", "ids": ["ISSUE-01"],
             "cycle": 1, "round": 1, "timestamp": "2026-11-21T12:04:00Z",
             "job": {"id": "fix-after-review", "plan_sha256": manage_findings.plan_candidate_sha256(document["tracking"]["plan"])}})
@@ -1765,8 +1813,8 @@ class ManageFindingsTests(unittest.TestCase):
 
     def test_unblock_tool_fault_cannot_replace_owner_override_for_two_remaining_failures(self):
         document = self._blocked_lane()
-        for rows in document["tracking"]["plan"]["groups"][0]["failure_history"].values():
-            rows.append({"attempt_id": "attempt-3", "source": "review", "reason": "third failure"})
+        document["tracking"]["plan"]["groups"][0]["failure_history"]["ISSUE-01"].append(
+            {"attempt_id": "attempt-3", "source": "review", "reason": "third failure"})
         before = json.dumps(document).encode()
         result = self._replay_batch(document, {"action": "unblock-lane", "ids": ["ISSUE-01"],
             "reason": "mark parser attempt", "tool_faults": ["attempt-1"],

@@ -1324,7 +1324,7 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         self.assertNotIn('<span class="lc-more">6</span>6</span>', workflow)
 
 
-    def test_status_only_plan_update_preserves_lane_phase(self):
+    def test_group_update_cannot_reopen_blocked_lane(self):
         data = copy.deepcopy(self.data)
         data['tracking'] = {'round':1,'plan':{'round':1,'groups':[
             {'id':'A','finding_ids':['ISSUE-01'],'status':'blocked','phase':'fix','blocked_reason':'no mic'}]}}
@@ -1336,9 +1336,10 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
             result = subprocess.run([sys.executable, str(Path(__file__).with_name('manage_findings.py')),
                                      'batch', str(source), str(operations), '--render', str(page)],
                                     capture_output=True, text=True)
-            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('only be reopened with bcl unblock --reason', result.stderr)
             group = json.loads(source.read_text())['tracking']['plan']['groups'][0]
-            self.assertEqual(group['status'], 'installing')
+            self.assertEqual(group['status'], 'blocked')
             self.assertEqual(group['phase'], 'fix')
 
 
