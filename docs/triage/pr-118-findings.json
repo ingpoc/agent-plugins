@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-21T05:54:53Z",
-      "now": "2026-11-21T05:54:53Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-21T06:05:55Z",
+      "now": "2026-11-21T06:05:55Z — Review started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13952,7 +13952,7 @@
             "BCL-95",
             "BCL-98"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl118-r3-plan",
           "label": "BCL-95, BCL-98",
           "verify": {
@@ -13967,22 +13967,23 @@
             "implementer_session": "grokbot-118r3-plan",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-plan",
             "job": {
-              "id": "59cabbb7366d468e940cd02a332b5ba3",
-              "phase": "fix",
-              "started_at": "2026-11-21T05:54:53Z",
+              "id": "9d9be420a8de4e5db83863c213b2e3d3",
+              "phase": "review",
+              "started_at": "2026-11-21T06:05:55Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T05:54:53Z",
+              "heartbeat_at": "2026-11-21T06:05:55Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6-luna medium fast (Codex CLI, resumed 01a1fc7c)",
+              "model": "gpt-6.1-terra medium (Codex CLI)",
               "cycle": 10,
               "round": 3
             },
-            "fix_status": "running",
+            "fix_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`."
+            "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`.",
+            "review_status": "running"
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "fix",
+          "phase": "review",
           "verify_summary": "Review passed; integrating in int3 with ROUNDS (0.1.51)",
           "failure_history": {
             "BCL-95": [
@@ -14184,7 +14185,7 @@
           "finding_ids": [
             "BCL-99"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl118-r3-rounds",
           "label": "BCL-99",
           "verify": {
@@ -14199,22 +14200,23 @@
             "implementer_session": "grokbot-118r3-rounds",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-rounds",
             "job": {
-              "id": "59cabbb7366d468e940cd02a332b5ba3",
-              "phase": "fix",
-              "started_at": "2026-11-21T05:54:53Z",
+              "id": "9d9be420a8de4e5db83863c213b2e3d3",
+              "phase": "review",
+              "started_at": "2026-11-21T06:05:55Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T05:54:53Z",
+              "heartbeat_at": "2026-11-21T06:05:55Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6-luna medium fast (Codex CLI, resumed 01a1fc7c)",
+              "model": "gpt-6.1-terra medium (Codex CLI)",
               "cycle": 10,
               "round": 3
             },
-            "fix_status": "running",
+            "fix_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`."
+            "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`.",
+            "review_status": "running"
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "fix",
+          "phase": "review",
           "verify_summary": "Review passed; integrating in int3 with PLAN (0.1.51)",
           "failure_history": {
             "BCL-99": [
