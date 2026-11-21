@@ -161,6 +161,31 @@ class JobLifecycleTests(unittest.TestCase):
                "## ROOT CAUSE\nwhy\n## FAILING TEST\ntest_lane"), timestamp="2026-11-21T00:00:03Z")
         transition(doc, "start-job", "fix", "fix-open")
 
+    def test_unblock_attempt_ids_distinguish_same_second_legacy_failures(self):
+        def legacy_lane():
+            doc = document()
+            doc["findings"].append({"id": "ISSUE-02", "status": "in_progress"})
+            group = doc["tracking"]["plan"]["groups"][0]
+            group.update(finding_ids=["ISSUE-01", "ISSUE-02"], status="blocked",
+                         failure_history={"ISSUE-01": [{"attempt_id": "before-A", "at": STAMP}],
+                                          "ISSUE-02": [{"attempt_id": "before-B", "at": STAMP}]})
+            manager.unblock_lane(doc, {"ids": ["ISSUE-01"], "reason": "owner authorized", "tool_faults": [],
+                                       "timestamp": STAMP})
+            return doc, group
+
+        _, group = legacy_lane()
+        self.assertEqual(group["unblock_history"][0]["covered_attempts"], ["before-A", "before-B"])
+        manager._lane_history(group, "failure_history")
+        self.assertEqual(group["status"], "running")
+
+        _, group = legacy_lane()
+        group["failure_history"] = {
+            "ISSUE-01": [{"attempt_id": "before-A", "at": STAMP}, {"attempt_id": "after-unblock", "at": STAMP}],
+            "ISSUE-02": [{"attempt_id": "before-B", "at": STAMP}],
+        }
+        manager._lane_history(group, "failure_history")
+        self.assertEqual(group["status"], "blocked")
+
     def test_same_second_legacy_failures_require_fresh_plan_review(self):
         doc = document()
         group = doc["tracking"]["plan"]["groups"][0]

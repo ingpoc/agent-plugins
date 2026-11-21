@@ -435,10 +435,16 @@ def _unblock_covers_failures(group, failures):
     history = group.get("unblock_history", [])
     if not isinstance(history, list) or any(not isinstance(row, dict) for row in history):
         raise ValueError(f"{group.get('id')} unblock_history must be an array")
-    latest = _history_instant(failures[-1])
-    return any(row.get("owner_override") and _history_instant(row)
-               and (latest is None or _history_instant(row) >= latest)
-               for row in history)
+    for row in history:
+        if not row.get("owner_override"):
+            continue
+        covered = set(row.get("covered_attempts", []))
+        unblocked_at = _history_instant(row)
+        if all((failure.get("attempt_id") in covered) or
+               (unblocked_at and _history_instant(failure) and unblocked_at > _history_instant(failure))
+               for failure in failures):
+            return True
+    return False
 
 
 def plan_candidate_sha256(plan):
@@ -563,6 +569,8 @@ def unblock_lane(document, operation):
         if owner_override and tool_faults:
             raise ValueError(f"unblock lane {group.get('id')} has two or more counted failures; owner override requires no --tool-fault")
         entry = {"at": stamp, "reason": reason, "tool_faults": sorted(lane_faults),
+                 "covered_attempts": [row["attempt_id"] for row in _counted_failures(rows)
+                                      if isinstance(row.get("attempt_id"), str)],
                  "by_cycle": plan.get("cycle", tracking.get("cycle", 1)),
                  "round": plan.get("round", tracking.get("round", 1))}
         if owner_override:
