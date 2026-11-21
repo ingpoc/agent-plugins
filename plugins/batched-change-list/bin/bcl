@@ -419,13 +419,14 @@ def main():
     parser.add_argument("--phase", choices=("plan_review", "fix", "review", "presuite"))
     parser.add_argument("--model", help="job, install or verify: who runs this step, shown in the lane model column")
     parser.add_argument("--round", type=int, help="correct-round: the real round number")
-    parser.add_argument("--reason", help="why an override, verify rerun, cleanup failure, or stopped run is recorded")
+    parser.add_argument("--reason", help="why an override, verify rerun, cleanup failure, stopped run, or resort-failures apply is recorded")
     parser.add_argument("--tool-fault", action="append", default=[], help="unblock: failure attempt ID recorded as a tool fault; repeat for each attempt")
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
     parser.add_argument("--shared", action="store_true")
     parser.add_argument("--new-pr", type=int); parser.add_argument("--new-url"); parser.add_argument("--worktree")
     parser.add_argument("--merge-commit"); parser.add_argument("--merged-at"); parser.add_argument("--base-branch")
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--apply", action="store_true", help="resort-failures: apply the listed tool-fault uncounts")
     parser.add_argument("--run-id"); parser.add_argument("--outcome", choices=("passed", "failed", "not_run"))
     parser.add_argument("--through-cycle", type=int)
     parser.add_argument("stage")
@@ -479,7 +480,7 @@ def main():
         if not record: parser.error("could not register tracker")
         print(live); return
     if not record:
-        if args.stage == "status":
+        if args.stage in ("status", "release-check", "resort-failures"):
             print(json.dumps({"adopted": False, "message": "Run bcl adopt <tracker-in-repo> first."})); return
         parser.error("tracker is not adopted; run bcl adopt <tracker-in-repo>")
     if source != live and source.read_bytes() != live.read_bytes():
@@ -528,6 +529,23 @@ def main():
         verified_fixed, verified_threshold, verified_met = manage_findings.check_gate_count.verified_gate_count(data)
         _, rollover_threshold, rollover_met = manage_findings.check_gate_count.rollover_gate_count(data)
         print(json.dumps({"adopted": True, "live": str(live), "stage": current_stage, "recorded_stage": recorded_stage, "cycle": tracking.get("cycle", 1), "report_gate": {"fixed": fixed, "threshold": threshold, "met": report_met}, "verified_gate": {"fixed": verified_fixed, "threshold": verified_threshold, "met": verified_met}, "rollover_gate": {"fixed": fixed, "threshold": rollover_threshold, "met": rollover_met}, "plan": [{"id": g.get("id"), "status": g.get("status"), "message": lane_render.lane_issue_status(g, tracking.get("cycle", 1)).get("copy")} for g in tracking.get("plan", {}).get("groups", [])]}, indent=2)); return
+    if args.stage == "release-check":
+        payload = manage_findings.release_check_payload(data)
+        print(json.dumps(payload, indent=2))
+        raise SystemExit(0 if payload["clear"] else 2)
+    if args.stage == "resort-failures":
+        if args.apply:
+            try:
+                reason = manage_findings.require_override_reason(args.reason, "resort-failures")
+                report, base = live_state.report_paths(record, live)
+                _job_write(record, live, report, base, [{"action": "resort-failures", "apply": True,
+                             "reason": reason, "timestamp": _utc_now()}])
+            except (OSError, RuntimeError, ValueError) as error:
+                parser.error(str(error))
+            print(json.dumps(manage_findings.resort_failures(json.loads(live.read_text()), {"apply": False}), indent=2))
+            return
+        print(json.dumps(manage_findings.resort_failures(data, {"apply": False}), indent=2))
+        return
     if record.get("rollover_pending") and (args.stage != "start" or not begins_collect):
         parser.error("run bcl start to begin Collect before using the new list")
     load_override = _require_machine_load(parser, args) if args.stage in ("job", "verify") else None

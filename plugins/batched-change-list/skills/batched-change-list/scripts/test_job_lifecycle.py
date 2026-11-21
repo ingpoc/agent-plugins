@@ -181,6 +181,31 @@ class JobLifecycleTests(unittest.TestCase):
                "## ROOT CAUSE\nwhy\n## FAILING TEST\ntest_lane"), timestamp="2026-11-21T00:00:02Z")
         transition(doc, "start-job", "fix", "fix-fresh")
 
+    def test_incomplete_review_is_recorded_as_a_tool_fault_and_does_not_require_plan_review(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1")
+        transition(doc, "start-job", "review", "review-1")
+        finish(doc, "review", "review-1", reply="cut off mid-sentence")
+        group = doc["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["failure_history"][0]["reason"], "Review incomplete: strict verdict or Must-fix section missing")
+        self.assertTrue(group["failure_history"][0]["tool_fault"])
+        self.assertEqual(group["status"], "running")
+        transition(doc, "start-job", "fix", "fix-2")
+        self.assertEqual(group["status"], "running")
+        self.assertEqual(group["phase"], "fix")
+
+    def test_changes_review_still_counts_as_a_code_failure(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1")
+        transition(doc, "start-job", "review", "review-1")
+        finish(doc, "review", "review-1", reply="VERDICT: CHANGES\n## Must-fix\n- missing guard")
+        group = doc["tracking"]["plan"]["groups"][0]
+        self.assertFalse(group["failure_history"][0].get("tool_fault"))
+        with self.assertRaisesRegex(ValueError, "passed plan_review"):
+            transition(doc, "start-job", "fix", "fix-2")
+
 
 if __name__ == "__main__":
     unittest.main()
