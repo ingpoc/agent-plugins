@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-21T05:32:39Z",
-      "now": "2026-11-21T05:32:39Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-21T05:54:53Z",
+      "now": "2026-11-21T05:54:53Z — Fix started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13952,7 +13952,7 @@
             "BCL-95",
             "BCL-98"
           ],
-          "status": "review",
+          "status": "running",
           "worktree": "bcl118-r3-plan",
           "label": "BCL-95, BCL-98",
           "verify": {
@@ -13967,23 +13967,22 @@
             "implementer_session": "grokbot-118r3-plan",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-plan",
             "job": {
-              "id": "aa07f49ed52f4882818acfe3a09c2609",
-              "phase": "review",
-              "started_at": "2026-11-21T05:32:39Z",
+              "id": "59cabbb7366d468e940cd02a332b5ba3",
+              "phase": "fix",
+              "started_at": "2026-11-21T05:54:53Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T05:32:39Z",
+              "heartbeat_at": "2026-11-21T05:54:53Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6.1-terra medium (Codex CLI)",
+              "model": "gpt-6-luna medium fast (Codex CLI, resumed 01a1fc7c)",
               "cycle": 10,
               "round": 3
             },
-            "fix_status": "passed",
+            "fix_status": "running",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "must_fix_note": "1. **Changing a lane’s membership or ID through `set-plan` can clear its retry gate.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:438) carries history only when both the lane ID and finding set match. A same-round plan that removes or adds a finding, or renames the lane, can therefore replace a blocked lane with a fresh planned lane and bypass `bcl unblock --reason`. Preserve the gate or reject such replacement, and test it from a genuinely blocked lane.\n\n2. **The acceptance scripts can test different packages.** [common.sh](/Users/gurusharan/.agents/artifacts/bcl-118/r3/common.sh:3) checks the installed version and runs its tests, but [realuse.py](/Users/gurusharan/.agents/artifacts/bcl-118/r3/realuse.py:15) inherits `BCL_BIN` and `BCL_SCRIPTS` overrides. If those are set, the acceptance result combines evidence from different copies. Pin both paths to the checked package in the verification scripts.\n\n3. **Legacy history conversion can bind review to the wrong failure.** [_lane_history](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:384) concatenates per-finding lists rather than preserving chronological order; the gate later treats the last row as the latest failure. Add a migration test with interleaved sibling failures and preserve their actual order.",
-            "review_status": "running"
+            "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`."
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "review",
+          "phase": "fix",
           "verify_summary": "Review passed; integrating in int3 with ROUNDS (0.1.51)",
           "failure_history": {
             "BCL-95": [
@@ -14020,6 +14019,14 @@
                 "cycle": 10,
                 "round": 3,
                 "at": "2026-11-21T04:12:36Z"
+              },
+              {
+                "attempt_id": "aa07f49ed52f4882818acfe3a09c2609",
+                "source": "review",
+                "reason": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`.",
+                "cycle": 10,
+                "round": 3,
+                "at": "2026-11-21T05:34:19Z"
               }
             ],
             "BCL-98": [
@@ -14056,6 +14063,14 @@
                 "cycle": 10,
                 "round": 3,
                 "at": "2026-11-21T04:12:36Z"
+              },
+              {
+                "attempt_id": "aa07f49ed52f4882818acfe3a09c2609",
+                "source": "review",
+                "reason": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`.",
+                "cycle": 10,
+                "round": 3,
+                "at": "2026-11-21T05:34:19Z"
               }
             ]
           },
@@ -14075,6 +14090,14 @@
               "tool_faults": [],
               "by_cycle": 10,
               "round": 3
+            },
+            {
+              "at": "2026-11-21T05:48:18Z",
+              "reason": "Guru voice approval 11:17 IST: unblock to fix Terra's single same-second unblock/failure ordering finding (direct/review-lanefix3.md)",
+              "tool_faults": [],
+              "by_cycle": 10,
+              "round": 3,
+              "owner_override": true
             }
           ],
           "plan_review_history": {
@@ -14085,12 +14108,26 @@
                 "status": "passed",
                 "cycle": 10,
                 "round": 3
+              },
+              {
+                "job_id": "4d5a6420c5a14f4c951fbb5db5bc64a6",
+                "after_failure": "aa07f49ed52f4882818acfe3a09c2609",
+                "status": "passed",
+                "cycle": 10,
+                "round": 3
               }
             ],
             "BCL-98": [
               {
                 "job_id": "66179c93c8824e348c1442a747c95b66",
                 "after_failure": "a78d5ac9737349119b3f771396be29b2",
+                "status": "passed",
+                "cycle": 10,
+                "round": 3
+              },
+              {
+                "job_id": "4d5a6420c5a14f4c951fbb5db5bc64a6",
+                "after_failure": "aa07f49ed52f4882818acfe3a09c2609",
                 "status": "passed",
                 "cycle": 10,
                 "round": 3
@@ -14147,7 +14184,7 @@
           "finding_ids": [
             "BCL-99"
           ],
-          "status": "review",
+          "status": "running",
           "worktree": "bcl118-r3-rounds",
           "label": "BCL-99",
           "verify": {
@@ -14162,23 +14199,22 @@
             "implementer_session": "grokbot-118r3-rounds",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-rounds",
             "job": {
-              "id": "aa07f49ed52f4882818acfe3a09c2609",
-              "phase": "review",
-              "started_at": "2026-11-21T05:32:39Z",
+              "id": "59cabbb7366d468e940cd02a332b5ba3",
+              "phase": "fix",
+              "started_at": "2026-11-21T05:54:53Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T05:32:39Z",
+              "heartbeat_at": "2026-11-21T05:54:53Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6.1-terra medium (Codex CLI)",
+              "model": "gpt-6-luna medium fast (Codex CLI, resumed 01a1fc7c)",
               "cycle": 10,
               "round": 3
             },
-            "fix_status": "passed",
+            "fix_status": "running",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "must_fix_note": "1. **Changing a lane’s membership or ID through `set-plan` can clear its retry gate.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:438) carries history only when both the lane ID and finding set match. A same-round plan that removes or adds a finding, or renames the lane, can therefore replace a blocked lane with a fresh planned lane and bypass `bcl unblock --reason`. Preserve the gate or reject such replacement, and test it from a genuinely blocked lane.\n\n2. **The acceptance scripts can test different packages.** [common.sh](/Users/gurusharan/.agents/artifacts/bcl-118/r3/common.sh:3) checks the installed version and runs its tests, but [realuse.py](/Users/gurusharan/.agents/artifacts/bcl-118/r3/realuse.py:15) inherits `BCL_BIN` and `BCL_SCRIPTS` overrides. If those are set, the acceptance result combines evidence from different copies. Pin both paths to the checked package in the verification scripts.\n\n3. **Legacy history conversion can bind review to the wrong failure.** [_lane_history](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:384) concatenates per-finding lists rather than preserving chronological order; the gate later treats the last row as the latest failure. Add a migration test with interleaved sibling failures and preserve their actual order.",
-            "review_status": "running"
+            "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`."
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "review",
+          "phase": "fix",
           "verify_summary": "Review passed; integrating in int3 with PLAN (0.1.51)",
           "failure_history": {
             "BCL-99": [
@@ -14215,6 +14251,14 @@
                 "cycle": 10,
                 "round": 3,
                 "at": "2026-11-21T04:12:36Z"
+              },
+              {
+                "attempt_id": "aa07f49ed52f4882818acfe3a09c2609",
+                "source": "review",
+                "reason": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`.",
+                "cycle": 10,
+                "round": 3,
+                "at": "2026-11-21T05:34:19Z"
               }
             ]
           },
@@ -14234,6 +14278,14 @@
               "tool_faults": [],
               "by_cycle": 10,
               "round": 3
+            },
+            {
+              "at": "2026-11-21T05:48:18Z",
+              "reason": "Guru voice approval 11:17 IST: unblock to fix Terra's single same-second unblock/failure ordering finding (direct/review-lanefix3.md)",
+              "tool_faults": [],
+              "by_cycle": 10,
+              "round": 3,
+              "owner_override": true
             }
           ],
           "plan_review_history": {
@@ -14241,6 +14293,13 @@
               {
                 "job_id": "66179c93c8824e348c1442a747c95b66",
                 "after_failure": "a78d5ac9737349119b3f771396be29b2",
+                "status": "passed",
+                "cycle": 10,
+                "round": 3
+              },
+              {
+                "job_id": "4d5a6420c5a14f4c951fbb5db5bc64a6",
+                "after_failure": "aa07f49ed52f4882818acfe3a09c2609",
                 "status": "passed",
                 "cycle": 10,
                 "round": 3
@@ -14859,7 +14918,7 @@
       "details": {
         "approved": "Guru 21:24 IST t1579u"
       },
-      "needs": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding."
+      "needs": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`."
     },
     {
       "id": "BCL-96",
@@ -14906,7 +14965,7 @@
         "approved": "Guru 21:24 IST t1579u",
         "rescoped": "Guru 21 Nov 07:49 IST: rescope to the plan-review gate (supersedes the retry flags)"
       },
-      "needs": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding."
+      "needs": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`."
     },
     {
       "id": "BCL-99",
@@ -14922,7 +14981,7 @@
       "details": {
         "approved": "Guru 21:24 IST t1579u"
       },
-      "needs": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding."
+      "needs": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl118-direct/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:440) treats an owner unblock at the same timestamp as the latest merged failure as covering that failure. Timestamps have one-second resolution, so the unblock may have occurred *before* that failure. A previously unblocked lane with a later same-second failure can therefore remain open after legacy histories merge. A direct read-only call confirmed that equal timestamps leave the lane `running`. Preserve enough ordering or failure identity to require an unblock that covers the latest failure, and add a regression test that fails on `0fac47be`."
     },
     {
       "id": "BCL-100",
@@ -15354,7 +15413,8 @@
         "carry_to_round": "4",
         "kind": "goal",
         "evidence": "bcl-118 direct luna-lanefix jsonl turn.completed usage (cumulative) and Codex rollout token_count deltas 03:33-04:08 UTC",
-        "measurement_note": "Measure per job as the difference in session totals, never the cumulative turn total."
+        "measurement_note": "Measure per job as the difference in session totals, never the cumulative turn total.",
+        "comparison": "Same lane, fresh session with a token-discipline brief, 21 Nov 10:32-10:56 IST: 165 model calls, 13,976,327 input (13,799,808 cached), 48,322 output, about 23.5 min, for code +59/-17 and tests +98/-6. Resumed session at 09:03-09:37 IST: 161 calls, 22,018,770 input (21,814,400 cached), 62,229 output, about 34 min, for code +82/-50 and tests +105/-16. Input down about 37 percent."
       }
     },
     {
