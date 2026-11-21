@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-21T17:05:18Z",
-      "now": "2026-11-21T17:05:18Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-21T17:05:46Z",
+      "now": "2026-11-21T17:05:46Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 118,
@@ -12129,7 +12129,8 @@
       "present",
       "plan_fix",
       "review",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 1,
@@ -12142,7 +12143,7 @@
             "BCL-124",
             "BCL-126"
           ],
-          "status": "installing",
+          "status": "verifying",
           "worktree": "bcl119-direct",
           "label": "BCL-123, BCL-124, BCL-126",
           "verify": {
@@ -12213,8 +12214,8 @@
               "at": "2026-11-21T16:23:26Z"
             }
           ],
-          "updated_at": "2026-11-21T14:17:11Z",
-          "phase": "install",
+          "updated_at": "2026-11-21T17:05:46Z",
+          "phase": "verify",
           "unblock_history": [
             {
               "at": "2026-11-21T16:20:21Z",
@@ -12305,7 +12306,7 @@
             "BCL-128",
             "BCL-129"
           ],
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl119-direct",
           "label": "BCL-128, BCL-129",
           "verify": {
@@ -12342,11 +12343,15 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-21T14:17:11Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-21T17:01:23Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-21T17:05:19Z"
           }
         },
         {
@@ -12410,6 +12415,122 @@
         }
       ],
       "cycle": 11
+    },
+    "verification_run": {
+      "id": "r1-65c8dd9b-119",
+      "build": "batched-change-list 0.1.58",
+      "revision": "65c8dd9b1a4d0d1f10cb741b8be07f95fad61009",
+      "installed_at": "2026-11-21T16:46:00Z",
+      "install_evidence": "bcl install-local from 65c8dd9b at 22:16 IST: ~/.agents/plugins plus cursor and codex caches sha256 96346af3 (plugin, 5 copies matched), skill sha256 556117d6; plugin.json 0.1.58; installed-copy suite 449 OK; presuite job 2 passed",
+      "cycle": 11,
+      "status": "active",
+      "checks": {
+        "ACU-10": {
+          "state": "pending"
+        },
+        "ACU-20": {
+          "state": "pending"
+        },
+        "ACU-21": {
+          "state": "pending"
+        },
+        "BCL-94": {
+          "state": "pending"
+        },
+        "BCL-96": {
+          "state": "pending"
+        },
+        "BCL-97": {
+          "state": "pending"
+        },
+        "BCL-100": {
+          "state": "pending"
+        },
+        "BCL-103": {
+          "state": "pending"
+        },
+        "BCL-106": {
+          "state": "pending"
+        },
+        "BCL-108": {
+          "state": "pending"
+        },
+        "BCL-110": {
+          "state": "pending"
+        },
+        "BCL-111": {
+          "state": "pending"
+        },
+        "BCL-112": {
+          "state": "pending"
+        },
+        "BCL-113": {
+          "state": "pending"
+        },
+        "BCL-114": {
+          "state": "pending"
+        },
+        "BCL-115": {
+          "state": "pending"
+        },
+        "BCL-117": {
+          "state": "pending"
+        },
+        "BCL-118": {
+          "state": "pending"
+        },
+        "BCL-119": {
+          "state": "pending"
+        },
+        "BCL-120": {
+          "state": "pending"
+        },
+        "BCL-121": {
+          "state": "pending"
+        },
+        "BCL-122": {
+          "state": "pending"
+        },
+        "BCL-123": {
+          "state": "pending"
+        },
+        "BCL-124": {
+          "state": "pending"
+        },
+        "BCL-125": {
+          "state": "pending"
+        },
+        "BCL-126": {
+          "state": "pending"
+        },
+        "BCL-127": {
+          "state": "pending"
+        },
+        "BCL-128": {
+          "state": "pending"
+        },
+        "BCL-129": {
+          "state": "pending"
+        },
+        "BCL-130": {
+          "state": "pending"
+        },
+        "BCL-131": {
+          "state": "pending"
+        },
+        "BCL-132": {
+          "state": "pending"
+        },
+        "BCL-133": {
+          "state": "pending"
+        },
+        "BCL-134": {
+          "state": "pending"
+        },
+        "BCL-135": {
+          "state": "pending"
+        }
+      }
     }
   },
   "findings": [
@@ -12894,7 +13015,7 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
@@ -12912,7 +13033,7 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
