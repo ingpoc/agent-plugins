@@ -10654,8 +10654,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-20T23:39:50Z",
-      "now": "2026-11-20T23:39:50Z — Review started"
+      "updated_at": "2026-11-20T23:56:55Z",
+      "now": "2026-11-20T23:56:55Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13746,7 +13746,7 @@
             "BCL-95",
             "BCL-98"
           ],
-          "status": "running",
+          "status": "blocked",
           "worktree": "bcl118-r3-plan",
           "label": "BCL-95, BCL-98",
           "verify": {
@@ -13761,28 +13761,29 @@
             "implementer_session": "grokbot-118r3-plan",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-plan",
             "job": {
-              "id": "9e7827c21ec246dc831cd11538ee9a1a",
-              "phase": "review",
-              "started_at": "2026-11-20T23:39:50Z",
-              "command": "review-terra.sh",
-              "heartbeat_at": "2026-11-20T23:40:43Z",
+              "id": "bf49b2770146457ea4b03ecd3c41ea91",
+              "phase": "plan_review",
+              "started_at": "2026-11-20T23:56:55Z",
+              "command": "sol-int.sh",
+              "heartbeat_at": "2026-11-21T00:00:40Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6.1-terra medium (Codex CLI)",
+              "model": "gpt-6.2-sol medium (Codex CLI)",
               "cycle": 10,
               "round": 3,
-              "pid": 79722,
+              "pid": 21153,
               "exit_code": 0,
-              "finished_at": "2026-11-20T23:40:43Z",
-              "finished_phase_status": "incomplete",
-              "must_fix": "Review incomplete: strict verdict or Must-fix section missing"
+              "finished_at": "2026-11-21T00:00:40Z",
+              "finished_phase_status": "changes_requested",
+              "must_fix": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately."
             },
             "fix_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "review_status": "failed",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
+            "review_status": "blocked",
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
+            "plan_review_status": "changes_requested"
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "fix",
+          "phase": "plan_review",
           "verify_summary": "Review passed; integrating in int3 with ROUNDS (0.1.51)",
           "failure_history": {
             "BCL-95": [
@@ -13793,6 +13794,14 @@
                 "cycle": 10,
                 "round": 3,
                 "at": "2026-11-20T23:40:44Z"
+              },
+              {
+                "attempt_id": "bf49b2770146457ea4b03ecd3c41ea91",
+                "source": "plan_review",
+                "reason": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately.",
+                "cycle": 10,
+                "round": 3,
+                "at": "2026-11-21T00:00:40Z"
               }
             ],
             "BCL-98": [
@@ -13803,9 +13812,19 @@
                 "cycle": 10,
                 "round": 3,
                 "at": "2026-11-20T23:40:44Z"
+              },
+              {
+                "attempt_id": "bf49b2770146457ea4b03ecd3c41ea91",
+                "source": "plan_review",
+                "reason": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately.",
+                "cycle": 10,
+                "round": 3,
+                "at": "2026-11-21T00:00:40Z"
               }
             ]
-          }
+          },
+          "blocked_reason": "Second failure",
+          "failure_block_reason": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately."
         },
         {
           "id": "R3-VERIFY",
@@ -13856,7 +13875,7 @@
           "finding_ids": [
             "BCL-99"
           ],
-          "status": "running",
+          "status": "blocked",
           "worktree": "bcl118-r3-rounds",
           "label": "BCL-99",
           "verify": {
@@ -13871,28 +13890,29 @@
             "implementer_session": "grokbot-118r3-rounds",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-rounds",
             "job": {
-              "id": "9e7827c21ec246dc831cd11538ee9a1a",
-              "phase": "review",
-              "started_at": "2026-11-20T23:39:50Z",
-              "command": "review-terra.sh",
-              "heartbeat_at": "2026-11-20T23:40:43Z",
+              "id": "bf49b2770146457ea4b03ecd3c41ea91",
+              "phase": "plan_review",
+              "started_at": "2026-11-20T23:56:55Z",
+              "command": "sol-int.sh",
+              "heartbeat_at": "2026-11-21T00:00:40Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6.1-terra medium (Codex CLI)",
+              "model": "gpt-6.2-sol medium (Codex CLI)",
               "cycle": 10,
               "round": 3,
-              "pid": 79722,
+              "pid": 21153,
               "exit_code": 0,
-              "finished_at": "2026-11-20T23:40:43Z",
-              "finished_phase_status": "incomplete",
-              "must_fix": "Review incomplete: strict verdict or Must-fix section missing"
+              "finished_at": "2026-11-21T00:00:40Z",
+              "finished_phase_status": "changes_requested",
+              "must_fix": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately."
             },
             "fix_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "review_status": "failed",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
+            "review_status": "blocked",
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
+            "plan_review_status": "changes_requested"
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "fix",
+          "phase": "plan_review",
           "verify_summary": "Review passed; integrating in int3 with PLAN (0.1.51)",
           "failure_history": {
             "BCL-99": [
@@ -13903,9 +13923,19 @@
                 "cycle": 10,
                 "round": 3,
                 "at": "2026-11-20T23:40:44Z"
+              },
+              {
+                "attempt_id": "bf49b2770146457ea4b03ecd3c41ea91",
+                "source": "plan_review",
+                "reason": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately.",
+                "cycle": 10,
+                "round": 3,
+                "at": "2026-11-21T00:00:40Z"
               }
             ]
-          }
+          },
+          "blocked_reason": "Second failure",
+          "failure_block_reason": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately."
         },
         {
           "id": "R3-INTROSPECT",
@@ -14594,10 +14624,11 @@
       "done_when": "When a check shows a regression against main, the workflow makes the first lane restore main's behaviour, and any redesign is filed as its own separate item.",
       "observed": "20 Nov 2026 21:24 IST, Guru asked for this rule after round reviews on PR 117 and PR 118.",
       "recommendation": "Add the rule to the plan step and have the plan check refuse a redesign lane for an item marked as a regression until a restore lane is recorded.",
-      "status": "in_progress",
+      "status": "blocked",
       "details": {
         "approved": "Guru 21:24 IST t1579u"
-      }
+      },
+      "needs": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately."
     },
     {
       "id": "BCL-96",
@@ -14639,10 +14670,11 @@
       "done_when": "A second fix attempt for the same issue is refused until a failing test built from the real observability evidence of the failure is recorded with it.",
       "observed": "20 Nov 2026 21:24 IST, Guru asked for this rule after repeated retries in earlier rounds.",
       "recommendation": "Have the fix job require a named failing test and its evidence path when the issue already has a failed attempt, replacing the free text retry note.",
-      "status": "in_progress",
+      "status": "blocked",
       "details": {
         "approved": "Guru 21:24 IST t1579u"
-      }
+      },
+      "needs": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately."
     },
     {
       "id": "BCL-99",
@@ -14654,10 +14686,11 @@
       "done_when": "The command line refuses a plan with more than four lanes, checks the Mini's load before runs, and keeps already verified results when a run is stopped so the gate is not zeroed.",
       "observed": "20 Nov 2026 21:24 IST, Guru; on PR 117 a stopped run zeroed the gate and the merge needed an override.",
       "recommendation": "Enforce the cap in the plan check, add a load check to job and verify starts, and carry verified results into the stopped run's history.",
-      "status": "in_progress",
+      "status": "blocked",
       "details": {
         "approved": "Guru 21:24 IST t1579u"
-      }
+      },
+      "needs": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately."
     },
     {
       "id": "BCL-100",
