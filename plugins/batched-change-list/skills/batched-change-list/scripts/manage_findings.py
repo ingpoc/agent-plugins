@@ -515,7 +515,8 @@ def carry_plan_runtime_state(groups, previous, same_round):
             raise ValueError("set-plan cannot claim completed job state; run bcl job for the current lane")
 
 
-def _record_lane_failure(document, identifier, attempt_id, source, reason, tool_fault=False, tool_fault_reason=None):
+def _record_lane_failure(document, identifier, attempt_id, source, reason, tool_fault=False, tool_fault_reason=None,
+                         fault_kind="incomplete_review"):
     if not isinstance(document.get("tracking", {}).get("plan"), dict):
         return
     tracking, plan, groups = _lane_groups(document, [identifier])
@@ -527,6 +528,7 @@ def _record_lane_failure(document, identifier, attempt_id, source, reason, tool_
                    "cycle": plan.get("cycle"), "round": plan.get("round"), "at": stamp}
             if tool_fault:
                 row["tool_fault"] = True
+                row["fault_kind"] = fault_kind
                 if tool_fault_reason:
                     row["tool_fault_reason"] = tool_fault_reason
             rows.append(row)
@@ -605,8 +607,8 @@ IN_FLIGHT_STATUSES = {"running", "failed", "blocked", "in_progress", "planned", 
 IN_FLIGHT_PHASES = {"fix", "review", "install", "verify", "plan_review", "pending"}
 SETTLED_STATUSES = {"done", "verified", "deferred", "parked"}
 INCOMPLETE_REVIEW_REASON = "Review incomplete: strict verdict or Must-fix section missing"
-# Tool-recorded reason prefixes only; free text from a reviewer never classifies as a tool fault.
-TOOL_FAULT_REASON_PREFIXES = (INCOMPLETE_REVIEW_REASON, "Quota-out:", "Cut-off:")
+# Fault provenance is the structured fault_kind the tool records, never reason text.
+TOOL_FAULT_KINDS = {"incomplete_review", "quota_out", "cut_off"}
 TOOL_FAULT_STREAK_LIMIT = 3
 
 
@@ -634,10 +636,12 @@ def release_check_payload(document):
 
 
 def _looks_like_tool_fault(row):
-    if row.get("tool_fault"):
-        return True
-    reason = row.get("reason") or ""
-    return reason.startswith(TOOL_FAULT_REASON_PREFIXES)
+    return bool(row.get("tool_fault")) or row.get("fault_kind") in TOOL_FAULT_KINDS
+
+
+def _ambiguous_legacy_incomplete(row):
+    # Before 0.1.57 this reason was also written for CHANGES replies missing a Must-fix section.
+    return not row.get("fault_kind") and row.get("reason") == INCOMPLETE_REVIEW_REASON
 
 
 def resort_failure_candidates(document):
@@ -652,8 +656,9 @@ def resort_failure_candidates(document):
         rows = _lane_history(group, "failure_history")
         counted = _counted_failures(rows)
         matches = [row for row in counted if _looks_like_tool_fault(row)]
-        if matches:
-            found.append((group, matches, rows))
+        ambiguous = [row for row in counted if _ambiguous_legacy_incomplete(row)]
+        if matches or ambiguous:
+            found.append((group, matches, rows, ambiguous))
     return found
 
 
@@ -667,11 +672,20 @@ def resort_failures(document, operation):
         raise ValueError("resort-failures timestamp must be an ISO 8601 instant")
     candidates = resort_failure_candidates(document)
     report = []
-    for group, matches, rows in candidates:
+    named = set(operation.get("tool_faults") or [])
+    if named and not apply:
+        raise ValueError("resort-failures --tool-fault needs --apply and --reason")
+    known = {row.get("attempt_id") for _, _, _, ambiguous in candidates for row in ambiguous}
+    if named - known:
+        raise ValueError(f"resort-failures --tool-fault names no ambiguous counted failure: {', '.join(sorted(named - known))}")
+    for group, matches, rows, ambiguous in candidates:
+        # Ambiguous legacy rows are uncounted only when the owner names them after reading the reply.
+        matches = matches + [row for row in ambiguous if row.get("attempt_id") in named]
         report.append({"id": group.get("id"), "finding_ids": list(group.get("finding_ids") or []),
                        "attempts": [row.get("attempt_id") for row in matches],
-                       "reasons": [row.get("reason") for row in matches]})
-        if not apply:
+                       "reasons": [row.get("reason") for row in matches],
+                       "ambiguous": [row.get("attempt_id") for row in ambiguous]})
+        if not apply or not matches:
             continue
         tool_faults = [row.get("attempt_id") for row in matches if isinstance(row.get("attempt_id"), str)]
         for row in rows:

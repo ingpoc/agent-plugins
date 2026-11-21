@@ -420,7 +420,7 @@ def main():
     parser.add_argument("--model", help="job, install or verify: who runs this step, shown in the lane model column")
     parser.add_argument("--round", type=int, help="correct-round: the real round number")
     parser.add_argument("--reason", help="why an override, verify rerun, cleanup failure, stopped run, or resort-failures apply is recorded")
-    parser.add_argument("--tool-fault", action="append", default=[], help="unblock: failure attempt ID recorded as a tool fault; repeat for each attempt")
+    parser.add_argument("--tool-fault", action="append", default=[], help="unblock or resort-failures --apply: failure attempt ID recorded as a tool fault; repeat for each attempt")
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
     parser.add_argument("--shared", action="store_true")
     parser.add_argument("--new-pr", type=int); parser.add_argument("--new-url"); parser.add_argument("--worktree")
@@ -542,11 +542,13 @@ def main():
                 reason = manage_findings.require_override_reason(args.reason, "resort-failures")
                 report, base = live_state.report_paths(record, live)
                 _job_write(record, live, report, base, [{"action": "resort-failures", "apply": True,
-                             "reason": reason, "timestamp": _utc_now()}])
+                             "reason": reason, "tool_faults": list(args.tool_fault), "timestamp": _utc_now()}])
             except (OSError, RuntimeError, ValueError) as error:
                 parser.error(str(error))
             print(json.dumps(manage_findings.resort_failures(json.loads(live.read_text()), {"apply": False}), indent=2))
             return
+        if args.tool_fault:
+            parser.error("resort-failures --tool-fault needs --apply and --reason")
         print(json.dumps(manage_findings.resort_failures(data, {"apply": False}), indent=2))
         return
     if record.get("rollover_pending") and (args.stage != "start" or not begins_collect):
