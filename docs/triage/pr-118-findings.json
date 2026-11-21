@@ -10639,6 +10639,212 @@
           "exit_code": 0,
           "finished_at": "2026-11-20T14:50:04Z"
         }
+      },
+      {
+        "id": "r2-6e3feedc-118",
+        "build": "agent-computer-use 0.2.161, developer-observability 0.1.34, batched-change-list 0.1.50",
+        "revision": "6e3feedc8576688d4646175f735c94e5d59832d6",
+        "installed_at": "2026-11-20T17:07:20Z",
+        "install_evidence": "ACU 0.2.161 local signed release (sign-only; report /Users/gurusharan/.agents/artifacts/bcl-118/r2/acu-release-0.2.161.json; source checks, build-install, sync, signature, live client/cursor/fd and native Calculator smoke passed; microphone step FAILED: no input device at 22:45 IST (AirPods not connected), typed verify does not use the microphone; notarization not attempted); bcl 0.1.50 install-local from 6e3feedc; dev-obs 0.1.34 unchanged",
+        "status": "complete",
+        "checks": {
+          "ACU-07": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T17:42:15Z",
+            "started_at": "2026-11-20T17:42:15Z",
+            "updated_at": "2026-11-20T17:42:15Z",
+            "check_id": "8ce47d0a199f4b81ae115a25957b92e5",
+            "evidence": "Checked: Two typed runs of the saving cases on both voice models with the new installed app; Expected: Lasting facts are saved once and casual chat is not saved; Observed: Every saving case passed on both models in both runs, with no save for casual chat",
+            "details": "live2a+live2b on 0.2.161 via typed_run_sync; check8-r2.log lane cases failed 0 on GPT-Live-1 and Grok Voice 3.0; own check on the new build, not part of the heading lane. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/check8-r2.log. Run r2-6e3feedc-118.",
+            "finished_at": "2026-11-20T17:42:15.491198Z"
+          },
+          "ACU-10": {
+            "state": "blocked",
+            "observation": "Closing the round two run",
+            "observed_at": "2026-11-20T17:43:34Z",
+            "started_at": "2026-11-20T17:43:34Z",
+            "updated_at": "2026-11-20T17:43:34Z",
+            "check_id": "1554d0a07b8a4a5b80cfb4c84099295d",
+            "evidence": "Checked: nothing new; Expected: real token counts; Observed: unchanged provider limit",
+            "details": "Parked (Guru). Run r2-6e3feedc-118.",
+            "blocker": "The voice providers do not send live model token counts",
+            "finished_at": "2026-11-20T17:43:34.152513Z"
+          },
+          "ACU-13": {
+            "state": "fixed",
+            "observation": "Rechecking with the saving cases only",
+            "observed_at": "2026-11-20T17:42:56Z",
+            "started_at": "2026-11-20T17:43:03Z",
+            "updated_at": "2026-11-20T17:43:03Z",
+            "previous_checks": [
+              {
+                "state": "fixed",
+                "observation": "Checking the installed version now",
+                "observed_at": "2026-11-20T17:42:15Z",
+                "started_at": "2026-11-20T17:42:15Z",
+                "updated_at": "2026-11-20T17:42:15Z",
+                "check_id": "4fd0158c06914ab9b86a94ab2bce79d2",
+                "evidence": "Checked: Two typed runs of the conversational cases on both voice models with the new installed app; Expected: Replies stay natural and the secure entry case never asks for the value in chat; Observed: Every conversational and secure entry case passed on both models in both runs",
+                "details": "live2a+live2b on 0.2.161 via typed_run_sync; check8-r2.log her: ok on all cases; own check on the new build, not part of the heading lane. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/check8-r2.log. Run r2-6e3feedc-118.",
+                "finished_at": "2026-11-20T17:42:15.491634Z"
+              }
+            ],
+            "check_id": "754af2783b5c4e22900f76dc434abc61",
+            "evidence": "Checked: Two typed runs of the saving cases on Grok Voice 3.0 with the new installed app; Expected: Each memory save on Grok Voice is accepted; Observed: Every saving case on Grok Voice saved once in both runs, with no rejected request",
+            "details": "live2a+live2b on 0.2.161 via typed_run_sync; check8-r2.log Grok Voice 3.0 saving cases saves 1 each; replaces the first wording of this check. Log: check8-r2.log. Run r2-6e3feedc-118.",
+            "finished_at": "2026-11-20T17:43:03.235783Z"
+          },
+          "ACU-20": {
+            "state": "inconclusive",
+            "observation": "Closing the round two run",
+            "observed_at": "2026-11-20T17:43:34Z",
+            "started_at": "2026-11-20T17:43:34Z",
+            "updated_at": "2026-11-20T17:43:34Z",
+            "check_id": "8583a08f77b54073bc6e2860692b8fca",
+            "evidence": "Checked: nothing; Expected: a fix first; Observed: parked and left alone this round",
+            "details": "Parked (Guru). Run r2-6e3feedc-118.",
+            "finished_at": "2026-11-20T17:43:34.152689Z"
+          },
+          "BCL-91": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T17:23:20Z",
+            "started_at": "2026-11-20T17:23:20Z",
+            "updated_at": "2026-11-20T17:23:20Z",
+            "check_id": "2b4768f815b1476ea6036c14fad599dd",
+            "evidence": "Checked: Installed tool's shared check rerun and executable script tests, and this run's own check scripts; Expected: A failed shared check can be rerun with a reason; scripts that cannot run are refused before anything is recorded; Observed: Tests pass on the installed copy; this run's shared check passed first time and every stored lane script can run",
+            "details": "verify-bcl-shared.sh: -k shared -k install_refuses on installed 0.1.50; verify-shared.sh rc 0. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/v-merged.log, v-bclshared.log, v-shared.log. Run r2-6e3feedc-118.",
+            "finished_at": "2026-11-20T17:23:29.734448Z"
+          },
+          "ACU-21": {
+            "state": "inconclusive",
+            "observation": "Closing the round two run",
+            "observed_at": "2026-11-20T17:43:34Z",
+            "started_at": "2026-11-20T17:43:34Z",
+            "updated_at": "2026-11-20T17:43:34Z",
+            "check_id": "eb562bd88324459a81c3fdc350f65074",
+            "evidence": "Checked: nothing; Expected: a fix first; Observed: parked and left alone this round",
+            "details": "Parked (Guru). Run r2-6e3feedc-118.",
+            "finished_at": "2026-11-20T17:43:34.152715Z"
+          },
+          "BCL-92": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T17:23:20Z",
+            "started_at": "2026-11-20T17:23:20Z",
+            "updated_at": "2026-11-20T17:23:20Z",
+            "check_id": "5fbfd17798004f55a817460819e83cae",
+            "evidence": "Checked: Installed tool's merge override tests, then the real record of PR 117's merge; Expected: Merge recorded with an override that keeps its reason; Observed: Tests pass, and the earlier pull request now shows as merged at its merge commit with the override reason kept",
+            "details": "bcl merged --force --reason on 117.json; commit cd03675758e8, merged 2026-11-20T12:14:48Z; verify-bcl-merged.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/v-merged.log, v-bclshared.log, v-shared.log. Run r2-6e3feedc-118.",
+            "finished_at": "2026-11-20T17:23:29.733941Z"
+          },
+          "BCL-93": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T17:23:20Z",
+            "started_at": "2026-11-20T17:23:20Z",
+            "updated_at": "2026-11-20T17:23:20Z",
+            "check_id": "74ec31d7af49456eb554f8bca42e99dc",
+            "evidence": "Checked: Installed tool's report override test; Expected: The report override reaches the gate and is recorded; Observed: Tests pass: an unmet report gate is overridden and recorded only when the override is asked for",
+            "details": "test_report_force_passes_through_to_the_gate on installed 0.1.50; verify-bcl-merged.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/v-merged.log, v-bclshared.log, v-shared.log. Run r2-6e3feedc-118.",
+            "finished_at": "2026-11-20T17:23:29.734262Z"
+          },
+          "BCL-94": {
+            "state": "inconclusive",
+            "observation": "Closing the round two run",
+            "observed_at": "2026-11-20T17:43:34Z",
+            "started_at": "2026-11-20T17:43:34Z",
+            "updated_at": "2026-11-20T17:43:34Z",
+            "check_id": "dd859ba2a4874817b8e843c9fa633c22",
+            "evidence": "Checked: nothing installed; Expected: one fixed viewer address per project; Observed: the fix was held after three reviews found a remaining safety gap, so it was not built",
+            "details": "Lane BCL-VIEWER held per the repeat-failure ladder after review 3 (stop-all-or-none retire still missing). Commits 3499f750, 92cba9dd, 48ab21a1 on W/bcl118-r2-viewer, not integrated. Run r2-6e3feedc-118.",
+            "finished_at": "2026-11-20T17:43:34.152742Z"
+          },
+          "ACU-22": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-20T17:41:36Z",
+            "started_at": "2026-11-20T17:41:36Z",
+            "updated_at": "2026-11-20T17:41:36Z",
+            "check_id": "1073d971e5d942348525a01d86be7549",
+            "evidence": "Checked: Two typed runs of the multi-step page check on both voice models with the installed app; Expected: Both models report the page heading as well as the closed window; Observed: All four replies name the Example Domain heading and say the window is closed",
+            "details": "live2a+live2b on 0.2.161 via typed_run_sync; GPT-Live-1 and Grok Voice 3.0 multi_step PASS 4/4 (check22.log); tool_surface -k comet 9 passed; first lane run exit 1 came only from cleanup8.py misreading purge results (verifier fault), rerun with reason passed. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/check22.log, v-acu22-rerun.log. Run r2-6e3feedc-118.",
+            "finished_at": "2026-11-20T17:41:36.153282Z"
+          },
+          "BCL-95": {
+            "state": "inconclusive",
+            "observation": "Closing the round two run",
+            "observed_at": "2026-11-20T17:43:34Z",
+            "started_at": "2026-11-20T17:43:34Z",
+            "updated_at": "2026-11-20T17:43:34Z",
+            "check_id": "2a33fa50a7fa492eb8734e1ed84c15b1",
+            "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
+            "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
+            "finished_at": "2026-11-20T17:43:34.152761Z"
+          },
+          "BCL-96": {
+            "state": "inconclusive",
+            "observation": "Closing the round two run",
+            "observed_at": "2026-11-20T17:43:34Z",
+            "started_at": "2026-11-20T17:43:34Z",
+            "updated_at": "2026-11-20T17:43:34Z",
+            "check_id": "3c1fd061c8a7476987e45b77cb3d292e",
+            "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
+            "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
+            "finished_at": "2026-11-20T17:43:34.152778Z"
+          },
+          "BCL-97": {
+            "state": "inconclusive",
+            "observation": "Closing the round two run",
+            "observed_at": "2026-11-20T17:43:34Z",
+            "started_at": "2026-11-20T17:43:34Z",
+            "updated_at": "2026-11-20T17:43:34Z",
+            "check_id": "0ebdfc85ee0d49f88702a049ca63d512",
+            "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
+            "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
+            "finished_at": "2026-11-20T17:43:34.152795Z"
+          },
+          "BCL-98": {
+            "state": "inconclusive",
+            "observation": "Closing the round two run",
+            "observed_at": "2026-11-20T17:43:34Z",
+            "started_at": "2026-11-20T17:43:34Z",
+            "updated_at": "2026-11-20T17:43:34Z",
+            "check_id": "218b7548718b421eafe90faf796c562f",
+            "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
+            "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
+            "finished_at": "2026-11-20T17:43:34.152811Z"
+          },
+          "BCL-99": {
+            "state": "inconclusive",
+            "observation": "Closing the round two run",
+            "observed_at": "2026-11-20T17:43:34Z",
+            "started_at": "2026-11-20T17:43:34Z",
+            "updated_at": "2026-11-20T17:43:34Z",
+            "check_id": "aed17c6a274549b594085055ed3036ca",
+            "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
+            "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
+            "finished_at": "2026-11-20T17:43:34.152828Z"
+          },
+          "BCL-100": {
+            "state": "inconclusive",
+            "observation": "Closing the round two run",
+            "observed_at": "2026-11-20T17:43:34Z",
+            "started_at": "2026-11-20T17:43:34Z",
+            "updated_at": "2026-11-20T17:43:34Z",
+            "check_id": "aa34506b40684eae983eec61da1dd170",
+            "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
+            "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
+            "finished_at": "2026-11-20T17:43:34.152845Z"
+          }
+        },
+        "shared_check": {
+          "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-shared.sh",
+          "state": "passed",
+          "exit_code": 0,
+          "finished_at": "2026-11-20T17:18:55Z"
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -10654,8 +10860,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-20T23:56:55Z",
-      "now": "2026-11-20T23:56:55Z — Plan Review started"
+      "updated_at": "2026-11-21T02:49:56Z",
+      "now": "2026-11-21T02:49:56Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13761,26 +13967,26 @@
             "implementer_session": "grokbot-118r3-plan",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-plan",
             "job": {
-              "id": "bf49b2770146457ea4b03ecd3c41ea91",
+              "id": "2bfa30ee3f534156881a6b623175b7f8",
               "phase": "plan_review",
-              "started_at": "2026-11-20T23:56:55Z",
-              "command": "sol-int.sh",
-              "heartbeat_at": "2026-11-21T00:00:40Z",
+              "started_at": "2026-11-21T02:49:56Z",
+              "command": "sol-int2.sh",
+              "heartbeat_at": "2026-11-21T02:51:24Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
               "model": "gpt-6.2-sol medium (Codex CLI)",
               "cycle": 10,
               "round": 3,
-              "pid": 21153,
+              "pid": 90310,
               "exit_code": 0,
-              "finished_at": "2026-11-21T00:00:40Z",
+              "finished_at": "2026-11-21T02:51:24Z",
               "finished_phase_status": "changes_requested",
-              "must_fix": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately."
+              "must_fix": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding."
             },
             "fix_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "review_status": "blocked",
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
-            "plan_review_status": "changes_requested"
+            "plan_review_status": "changes_requested",
+            "review_status": "blocked"
           },
           "updated_at": "2026-11-20T19:20:19Z",
           "phase": "plan_review",
@@ -13793,7 +13999,9 @@
                 "reason": "Review incomplete: strict verdict or Must-fix section missing",
                 "cycle": 10,
                 "round": 3,
-                "at": "2026-11-20T23:40:44Z"
+                "at": "2026-11-20T23:40:44Z",
+                "tool_fault": true,
+                "tool_fault_reason": "0.1.52 parser rejected a valid inline Must-fix PASS (fixed in 0.1.53 ddd7a588); Guru 07:49 IST"
               },
               {
                 "attempt_id": "bf49b2770146457ea4b03ecd3c41ea91",
@@ -13802,6 +14010,14 @@
                 "cycle": 10,
                 "round": 3,
                 "at": "2026-11-21T00:00:40Z"
+              },
+              {
+                "attempt_id": "2bfa30ee3f534156881a6b623175b7f8",
+                "source": "plan_review",
+                "reason": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding.",
+                "cycle": 10,
+                "round": 3,
+                "at": "2026-11-21T02:51:24Z"
               }
             ],
             "BCL-98": [
@@ -13811,7 +14027,9 @@
                 "reason": "Review incomplete: strict verdict or Must-fix section missing",
                 "cycle": 10,
                 "round": 3,
-                "at": "2026-11-20T23:40:44Z"
+                "at": "2026-11-20T23:40:44Z",
+                "tool_fault": true,
+                "tool_fault_reason": "0.1.52 parser rejected a valid inline Must-fix PASS (fixed in 0.1.53 ddd7a588); Guru 07:49 IST"
               },
               {
                 "attempt_id": "bf49b2770146457ea4b03ecd3c41ea91",
@@ -13820,11 +14038,30 @@
                 "cycle": 10,
                 "round": 3,
                 "at": "2026-11-21T00:00:40Z"
+              },
+              {
+                "attempt_id": "2bfa30ee3f534156881a6b623175b7f8",
+                "source": "plan_review",
+                "reason": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding.",
+                "cycle": 10,
+                "round": 3,
+                "at": "2026-11-21T02:51:24Z"
               }
             ]
           },
+          "unblock_history": [
+            {
+              "at": "2026-11-21T02:49:44Z",
+              "reason": "0.1.52 parser rejected a valid inline Must-fix PASS (fixed in 0.1.53 ddd7a588); Guru 07:49 IST",
+              "tool_faults": [
+                "9e7827c21ec246dc831cd11538ee9a1a"
+              ],
+              "by_cycle": 10,
+              "round": 3
+            }
+          ],
           "blocked_reason": "Second failure",
-          "failure_block_reason": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately."
+          "failure_block_reason": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding."
         },
         {
           "id": "R3-VERIFY",
@@ -13890,26 +14127,26 @@
             "implementer_session": "grokbot-118r3-rounds",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-rounds",
             "job": {
-              "id": "bf49b2770146457ea4b03ecd3c41ea91",
+              "id": "2bfa30ee3f534156881a6b623175b7f8",
               "phase": "plan_review",
-              "started_at": "2026-11-20T23:56:55Z",
-              "command": "sol-int.sh",
-              "heartbeat_at": "2026-11-21T00:00:40Z",
+              "started_at": "2026-11-21T02:49:56Z",
+              "command": "sol-int2.sh",
+              "heartbeat_at": "2026-11-21T02:51:24Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
               "model": "gpt-6.2-sol medium (Codex CLI)",
               "cycle": 10,
               "round": 3,
-              "pid": 21153,
+              "pid": 90310,
               "exit_code": 0,
-              "finished_at": "2026-11-21T00:00:40Z",
+              "finished_at": "2026-11-21T02:51:24Z",
               "finished_phase_status": "changes_requested",
-              "must_fix": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately."
+              "must_fix": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding."
             },
             "fix_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "review_status": "blocked",
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
-            "plan_review_status": "changes_requested"
+            "plan_review_status": "changes_requested",
+            "review_status": "blocked"
           },
           "updated_at": "2026-11-20T19:20:19Z",
           "phase": "plan_review",
@@ -13922,7 +14159,9 @@
                 "reason": "Review incomplete: strict verdict or Must-fix section missing",
                 "cycle": 10,
                 "round": 3,
-                "at": "2026-11-20T23:40:44Z"
+                "at": "2026-11-20T23:40:44Z",
+                "tool_fault": true,
+                "tool_fault_reason": "0.1.52 parser rejected a valid inline Must-fix PASS (fixed in 0.1.53 ddd7a588); Guru 07:49 IST"
               },
               {
                 "attempt_id": "bf49b2770146457ea4b03ecd3c41ea91",
@@ -13931,11 +14170,30 @@
                 "cycle": 10,
                 "round": 3,
                 "at": "2026-11-21T00:00:40Z"
+              },
+              {
+                "attempt_id": "2bfa30ee3f534156881a6b623175b7f8",
+                "source": "plan_review",
+                "reason": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding.",
+                "cycle": 10,
+                "round": 3,
+                "at": "2026-11-21T02:51:24Z"
               }
             ]
           },
+          "unblock_history": [
+            {
+              "at": "2026-11-21T02:49:44Z",
+              "reason": "0.1.52 parser rejected a valid inline Must-fix PASS (fixed in 0.1.53 ddd7a588); Guru 07:49 IST",
+              "tool_faults": [
+                "9e7827c21ec246dc831cd11538ee9a1a"
+              ],
+              "by_cycle": 10,
+              "round": 3
+            }
+          ],
           "blocked_reason": "Second failure",
-          "failure_block_reason": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately."
+          "failure_block_reason": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding."
         },
         {
           "id": "R3-INTROSPECT",
@@ -13983,209 +14241,129 @@
       "cycle": 10
     },
     "verification_run": {
-      "id": "r2-6e3feedc-118",
-      "build": "agent-computer-use 0.2.161, developer-observability 0.1.34, batched-change-list 0.1.50",
-      "revision": "6e3feedc8576688d4646175f735c94e5d59832d6",
-      "installed_at": "2026-11-20T17:07:20Z",
-      "install_evidence": "ACU 0.2.161 local signed release (sign-only; report /Users/gurusharan/.agents/artifacts/bcl-118/r2/acu-release-0.2.161.json; source checks, build-install, sync, signature, live client/cursor/fd and native Calculator smoke passed; microphone step FAILED: no input device at 22:45 IST (AirPods not connected), typed verify does not use the microphone; notarization not attempted); bcl 0.1.50 install-local from 6e3feedc; dev-obs 0.1.34 unchanged",
-      "status": "complete",
+      "id": "d-5e6f05a8-118",
+      "build": "batched-change-list 0.1.53",
+      "revision": "5e6f05a8d0fa035610fe3b2afc604e279c2cee77",
+      "installed_at": "2026-11-21T00:04:08Z",
+      "install_evidence": "bcl install-local from 5e6f05a8: ~/.agents/plugins and ~/.agents/skills plus cursor and codex caches, sha256 6c1b9bb7 matched; plugin.json 0.1.53",
+      "cycle": 10,
+      "status": "active",
       "checks": {
         "ACU-07": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T17:42:15Z",
-          "started_at": "2026-11-20T17:42:15Z",
-          "updated_at": "2026-11-20T17:42:15Z",
-          "check_id": "8ce47d0a199f4b81ae115a25957b92e5",
-          "evidence": "Checked: Two typed runs of the saving cases on both voice models with the new installed app; Expected: Lasting facts are saved once and casual chat is not saved; Observed: Every saving case passed on both models in both runs, with no save for casual chat",
-          "details": "live2a+live2b on 0.2.161 via typed_run_sync; check8-r2.log lane cases failed 0 on GPT-Live-1 and Grok Voice 3.0; own check on the new build, not part of the heading lane. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/check8-r2.log. Run r2-6e3feedc-118.",
-          "finished_at": "2026-11-20T17:42:15.491198Z"
+          "state": "pending"
         },
         "ACU-10": {
-          "state": "blocked",
-          "observation": "Closing the round two run",
-          "observed_at": "2026-11-20T17:43:34Z",
-          "started_at": "2026-11-20T17:43:34Z",
-          "updated_at": "2026-11-20T17:43:34Z",
-          "check_id": "1554d0a07b8a4a5b80cfb4c84099295d",
-          "evidence": "Checked: nothing new; Expected: real token counts; Observed: unchanged provider limit",
-          "details": "Parked (Guru). Run r2-6e3feedc-118.",
-          "blocker": "The voice providers do not send live model token counts",
-          "finished_at": "2026-11-20T17:43:34.152513Z"
+          "state": "pending"
         },
         "ACU-13": {
-          "state": "fixed",
-          "observation": "Rechecking with the saving cases only",
-          "observed_at": "2026-11-20T17:42:56Z",
-          "started_at": "2026-11-20T17:43:03Z",
-          "updated_at": "2026-11-20T17:43:03Z",
-          "previous_checks": [
-            {
-              "state": "fixed",
-              "observation": "Checking the installed version now",
-              "observed_at": "2026-11-20T17:42:15Z",
-              "started_at": "2026-11-20T17:42:15Z",
-              "updated_at": "2026-11-20T17:42:15Z",
-              "check_id": "4fd0158c06914ab9b86a94ab2bce79d2",
-              "evidence": "Checked: Two typed runs of the conversational cases on both voice models with the new installed app; Expected: Replies stay natural and the secure entry case never asks for the value in chat; Observed: Every conversational and secure entry case passed on both models in both runs",
-              "details": "live2a+live2b on 0.2.161 via typed_run_sync; check8-r2.log her: ok on all cases; own check on the new build, not part of the heading lane. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/check8-r2.log. Run r2-6e3feedc-118.",
-              "finished_at": "2026-11-20T17:42:15.491634Z"
-            }
-          ],
-          "check_id": "754af2783b5c4e22900f76dc434abc61",
-          "evidence": "Checked: Two typed runs of the saving cases on Grok Voice 3.0 with the new installed app; Expected: Each memory save on Grok Voice is accepted; Observed: Every saving case on Grok Voice saved once in both runs, with no rejected request",
-          "details": "live2a+live2b on 0.2.161 via typed_run_sync; check8-r2.log Grok Voice 3.0 saving cases saves 1 each; replaces the first wording of this check. Log: check8-r2.log. Run r2-6e3feedc-118.",
-          "finished_at": "2026-11-20T17:43:03.235783Z"
+          "state": "pending"
         },
         "ACU-20": {
-          "state": "inconclusive",
-          "observation": "Closing the round two run",
-          "observed_at": "2026-11-20T17:43:34Z",
-          "started_at": "2026-11-20T17:43:34Z",
-          "updated_at": "2026-11-20T17:43:34Z",
-          "check_id": "8583a08f77b54073bc6e2860692b8fca",
-          "evidence": "Checked: nothing; Expected: a fix first; Observed: parked and left alone this round",
-          "details": "Parked (Guru). Run r2-6e3feedc-118.",
-          "finished_at": "2026-11-20T17:43:34.152689Z"
+          "state": "pending"
         },
         "BCL-91": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T17:23:20Z",
-          "started_at": "2026-11-20T17:23:20Z",
-          "updated_at": "2026-11-20T17:23:20Z",
-          "check_id": "2b4768f815b1476ea6036c14fad599dd",
-          "evidence": "Checked: Installed tool's shared check rerun and executable script tests, and this run's own check scripts; Expected: A failed shared check can be rerun with a reason; scripts that cannot run are refused before anything is recorded; Observed: Tests pass on the installed copy; this run's shared check passed first time and every stored lane script can run",
-          "details": "verify-bcl-shared.sh: -k shared -k install_refuses on installed 0.1.50; verify-shared.sh rc 0. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/v-merged.log, v-bclshared.log, v-shared.log. Run r2-6e3feedc-118.",
-          "finished_at": "2026-11-20T17:23:29.734448Z"
+          "state": "pending"
         },
         "ACU-21": {
-          "state": "inconclusive",
-          "observation": "Closing the round two run",
-          "observed_at": "2026-11-20T17:43:34Z",
-          "started_at": "2026-11-20T17:43:34Z",
-          "updated_at": "2026-11-20T17:43:34Z",
-          "check_id": "eb562bd88324459a81c3fdc350f65074",
-          "evidence": "Checked: nothing; Expected: a fix first; Observed: parked and left alone this round",
-          "details": "Parked (Guru). Run r2-6e3feedc-118.",
-          "finished_at": "2026-11-20T17:43:34.152715Z"
+          "state": "pending"
         },
         "BCL-92": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T17:23:20Z",
-          "started_at": "2026-11-20T17:23:20Z",
-          "updated_at": "2026-11-20T17:23:20Z",
-          "check_id": "5fbfd17798004f55a817460819e83cae",
-          "evidence": "Checked: Installed tool's merge override tests, then the real record of PR 117's merge; Expected: Merge recorded with an override that keeps its reason; Observed: Tests pass, and the earlier pull request now shows as merged at its merge commit with the override reason kept",
-          "details": "bcl merged --force --reason on 117.json; commit cd03675758e8, merged 2026-11-20T12:14:48Z; verify-bcl-merged.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/v-merged.log, v-bclshared.log, v-shared.log. Run r2-6e3feedc-118.",
-          "finished_at": "2026-11-20T17:23:29.733941Z"
+          "state": "pending"
         },
         "BCL-93": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T17:23:20Z",
-          "started_at": "2026-11-20T17:23:20Z",
-          "updated_at": "2026-11-20T17:23:20Z",
-          "check_id": "74ec31d7af49456eb554f8bca42e99dc",
-          "evidence": "Checked: Installed tool's report override test; Expected: The report override reaches the gate and is recorded; Observed: Tests pass: an unmet report gate is overridden and recorded only when the override is asked for",
-          "details": "test_report_force_passes_through_to_the_gate on installed 0.1.50; verify-bcl-merged.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/v-merged.log, v-bclshared.log, v-shared.log. Run r2-6e3feedc-118.",
-          "finished_at": "2026-11-20T17:23:29.734262Z"
+          "state": "pending"
         },
         "BCL-94": {
-          "state": "inconclusive",
-          "observation": "Closing the round two run",
-          "observed_at": "2026-11-20T17:43:34Z",
-          "started_at": "2026-11-20T17:43:34Z",
-          "updated_at": "2026-11-20T17:43:34Z",
-          "check_id": "dd859ba2a4874817b8e843c9fa633c22",
-          "evidence": "Checked: nothing installed; Expected: one fixed viewer address per project; Observed: the fix was held after three reviews found a remaining safety gap, so it was not built",
-          "details": "Lane BCL-VIEWER held per the repeat-failure ladder after review 3 (stop-all-or-none retire still missing). Commits 3499f750, 92cba9dd, 48ab21a1 on W/bcl118-r2-viewer, not integrated. Run r2-6e3feedc-118.",
-          "finished_at": "2026-11-20T17:43:34.152742Z"
+          "state": "pending"
         },
         "ACU-22": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-20T17:41:36Z",
-          "started_at": "2026-11-20T17:41:36Z",
-          "updated_at": "2026-11-20T17:41:36Z",
-          "check_id": "1073d971e5d942348525a01d86be7549",
-          "evidence": "Checked: Two typed runs of the multi-step page check on both voice models with the installed app; Expected: Both models report the page heading as well as the closed window; Observed: All four replies name the Example Domain heading and say the window is closed",
-          "details": "live2a+live2b on 0.2.161 via typed_run_sync; GPT-Live-1 and Grok Voice 3.0 multi_step PASS 4/4 (check22.log); tool_surface -k comet 9 passed; first lane run exit 1 came only from cleanup8.py misreading purge results (verifier fault), rerun with reason passed. Log: /Users/gurusharan/.agents/artifacts/bcl-118/r2/check22.log, v-acu22-rerun.log. Run r2-6e3feedc-118.",
-          "finished_at": "2026-11-20T17:41:36.153282Z"
+          "state": "pending"
         },
         "BCL-95": {
-          "state": "inconclusive",
-          "observation": "Closing the round two run",
-          "observed_at": "2026-11-20T17:43:34Z",
-          "started_at": "2026-11-20T17:43:34Z",
-          "updated_at": "2026-11-20T17:43:34Z",
-          "check_id": "2a33fa50a7fa492eb8734e1ed84c15b1",
-          "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
-          "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
-          "finished_at": "2026-11-20T17:43:34.152761Z"
+          "state": "pending"
         },
         "BCL-96": {
-          "state": "inconclusive",
-          "observation": "Closing the round two run",
-          "observed_at": "2026-11-20T17:43:34Z",
-          "started_at": "2026-11-20T17:43:34Z",
-          "updated_at": "2026-11-20T17:43:34Z",
-          "check_id": "3c1fd061c8a7476987e45b77cb3d292e",
-          "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
-          "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
-          "finished_at": "2026-11-20T17:43:34.152778Z"
+          "state": "pending"
         },
         "BCL-97": {
-          "state": "inconclusive",
-          "observation": "Closing the round two run",
-          "observed_at": "2026-11-20T17:43:34Z",
-          "started_at": "2026-11-20T17:43:34Z",
-          "updated_at": "2026-11-20T17:43:34Z",
-          "check_id": "0ebdfc85ee0d49f88702a049ca63d512",
-          "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
-          "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
-          "finished_at": "2026-11-20T17:43:34.152795Z"
+          "state": "pending"
         },
         "BCL-98": {
-          "state": "inconclusive",
-          "observation": "Closing the round two run",
-          "observed_at": "2026-11-20T17:43:34Z",
-          "started_at": "2026-11-20T17:43:34Z",
-          "updated_at": "2026-11-20T17:43:34Z",
-          "check_id": "218b7548718b421eafe90faf796c562f",
-          "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
-          "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
-          "finished_at": "2026-11-20T17:43:34.152811Z"
+          "state": "pending"
         },
         "BCL-99": {
-          "state": "inconclusive",
-          "observation": "Closing the round two run",
-          "observed_at": "2026-11-20T17:43:34Z",
-          "started_at": "2026-11-20T17:43:34Z",
-          "updated_at": "2026-11-20T17:43:34Z",
-          "check_id": "aed17c6a274549b594085055ed3036ca",
-          "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
-          "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
-          "finished_at": "2026-11-20T17:43:34.152828Z"
+          "state": "pending"
         },
         "BCL-100": {
-          "state": "inconclusive",
-          "observation": "Closing the round two run",
-          "observed_at": "2026-11-20T17:43:34Z",
-          "started_at": "2026-11-20T17:43:34Z",
-          "updated_at": "2026-11-20T17:43:34Z",
-          "check_id": "aa34506b40684eae983eec61da1dd170",
-          "evidence": "Checked: nothing; Expected: a fix first; Observed: filed this round, fixed in the next round",
-          "details": "Filed 21:25 IST (Guru t1579u) for round 3. Run r2-6e3feedc-118.",
-          "finished_at": "2026-11-20T17:43:34.152845Z"
+          "state": "pending"
+        },
+        "BCL-101": {
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-21T00:04:09Z",
+          "started_at": "2026-11-21T00:04:09Z",
+          "updated_at": "2026-11-21T00:04:09Z",
+          "check_id": "3e4412e93ba64ee9b4bee3a27cf0e76f",
+          "evidence": "Checked: A fix or review out of order on the live list; Expected: The tool refuses a fix without a plan or with a blocked lane, and a review before a finished fix; Observed: All three were refused and the list was not changed; plan review ran as its own recorded step",
+          "details": "live refusals with mtime unchanged; probe P4 pass Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
+          "finished_at": "2026-11-21T00:04:09.438969Z"
+        },
+        "BCL-102": {
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-21T00:04:09Z",
+          "started_at": "2026-11-21T00:04:09Z",
+          "updated_at": "2026-11-21T00:04:09Z",
+          "check_id": "e0aeef63529e4a35bcaa88a9697c9ab7",
+          "evidence": "Checked: The page while a plan review ran; Expected: The page shows the plan review step and its model, and changes requested is not shown as fix failed; Observed: The page showed 'Plan review · gpt-6.2-sol medium (Codex CLI)'; changes requested shows as fixing or review incomplete, not fix failed",
+          "details": "live page :59151 during the plan review job; probe P2 pass Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
+          "finished_at": "2026-11-21T00:04:09.440060Z"
+        },
+        "BCL-103": {
+          "state": "pending"
+        },
+        "BCL-104": {
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-21T00:04:09Z",
+          "started_at": "2026-11-21T00:04:09Z",
+          "updated_at": "2026-11-21T00:04:09Z",
+          "check_id": "612297aee4c8440fa11152d6e86537f0",
+          "evidence": "Checked: A review reply cut off or only quoting the verdict; Expected: Only a full verdict line given by the reviewer counts; Observed: The cut-off PR 117 reply and a quoted verdict were both recorded as failed; a real PASS reply was read as a pass",
+          "details": "probe P1 and P7 pass; live review jobs parsed by the installed tool Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
+          "finished_at": "2026-11-21T00:04:09.436598Z"
+        },
+        "BCL-105": {
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-21T00:04:09Z",
+          "started_at": "2026-11-21T00:04:09Z",
+          "updated_at": "2026-11-21T00:04:09Z",
+          "check_id": "fc8e07ac12d047e391cb9990b1b44270",
+          "evidence": "Checked: Two failures on the same lanes in the live list; Expected: Each failure is counted and the second one blocks the lane with its reason; Observed: The live list counted both failures and blocked both lanes and their three issues with the reason 'Second failure'",
+          "details": "live R3-PLAN and R3-ROUNDS failure_history; probe P3 pass Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
+          "finished_at": "2026-11-21T00:04:09.437824Z"
+        },
+        "BCL-106": {
+          "state": "pending"
+        },
+        "BCL-107": {
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-21T00:04:09Z",
+          "started_at": "2026-11-21T00:04:09Z",
+          "updated_at": "2026-11-21T00:04:09Z",
+          "check_id": "be2209daa42c4254b8fa882a1b10b96a",
+          "evidence": "Checked: A stage override without a reason; Expected: Every override needs a one-line reason before anything is written; Observed: The override without a reason was refused and nothing was recorded",
+          "details": "probe P6 pass on 0.1.53 tree Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
+          "finished_at": "2026-11-21T00:04:09.441067Z"
+        },
+        "BCL-108": {
+          "state": "pending"
+        },
+        "BCL-109": {
+          "state": "pending"
         }
-      },
-      "shared_check": {
-        "command": "/Users/gurusharan/.agents/artifacts/bcl-118/r2/verify-shared.sh",
-        "state": "passed",
-        "exit_code": 0,
-        "finished_at": "2026-11-20T17:18:55Z"
       }
     },
     "introspect": {
@@ -14628,7 +14806,7 @@
       "details": {
         "approved": "Guru 21:24 IST t1579u"
       },
-      "needs": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately."
+      "needs": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding."
     },
     {
       "id": "BCL-96",
@@ -14662,19 +14840,20 @@
     },
     {
       "id": "BCL-98",
-      "title": "A second fix attempt can start without a failing test from real evidence",
+      "title": "A second fix attempt can start without a reviewed plan for the failure",
       "source": "User requested",
       "priority": "high",
-      "summary": "After a fix fails verification, another attempt can start on a guess instead of a test built from the recorded failure.",
+      "summary": "After a lane's first failed review or check, another fix could start on a guess. The fix now waits for a passed plan review of that failure.",
       "impact": "Retries repeat without learning the cause, wasting rounds and model time.",
-      "done_when": "A second fix attempt for the same issue is refused until a failing test built from the real observability evidence of the failure is recorded with it.",
+      "done_when": "After a lane's first failed review or check, its next fix is refused until a plan review recorded after that failure has passed. The plan review names the root cause and a failing test. A second failure blocks the lane.",
       "observed": "20 Nov 2026 21:24 IST, Guru asked for this rule after repeated retries in earlier rounds.",
-      "recommendation": "Have the fix job require a named failing test and its evidence path when the issue already has a failed attempt, replacing the free text retry note.",
+      "recommendation": "Use the plan-review gate in place of the separate failing-test and evidence retry flags, which were removed.",
       "status": "blocked",
       "details": {
-        "approved": "Guru 21:24 IST t1579u"
+        "approved": "Guru 21:24 IST t1579u",
+        "rescoped": "Guru 21 Nov 07:49 IST: rescope to the plan-review gate (supersedes the retry flags)"
       },
-      "needs": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately."
+      "needs": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding."
     },
     {
       "id": "BCL-99",
@@ -14690,7 +14869,7 @@
       "details": {
         "approved": "Guru 21:24 IST t1579u"
       },
-      "needs": "1. Record a fresh `plan_review` PASS before starting the fix receipt for either lane. Tie it to the recorded attempt and preserve the failure history. The earlier reviews passed, but they predate the current retry gate and do not supply its receipt.\n2. Re-scope BCL-98 with owner approval before marking it verified. The gate requires a PASS tied to the latest failure and nonempty `ROOT CAUSE` and `FAILING TEST` sections. It does not check that the named test exists, fails, or comes from the recorded evidence. If the original acceptance stands, leave BCL-98 open.\n3. Update the R3 verification scripts before using them as acceptance evidence. Both accept 0.1.51, load tests from `~/.agents/skills`, and can report success after running zero matching tests. The ROUNDS driver also passes the live tracker to the load-check job and only prints the gate count before stop. Run every mutation-capable check against the temporary copy and assert the result after stop.\n4. Close the BCL-95 guard bypass before verifying its full criterion. `set-plan` checks `restores_main`, but `update-plan-group` can add a marked regression to a lane without that check. Verify restore-first on both paths and confirm that any proposed redesign is tracked separately."
+      "needs": "1. Make the running `plan_review` job’s recorded PASS a prerequisite for Luna’s fix job. Check that the receipt covers BCL-95, BCL-98, and BCL-99 and points to counted attempt `bf49b277…`. Preserve the parser-fault row and the counted failure.\n2. BCL-98’s rescope resolves the retry-flags issue. Complete its acceptance check by rejecting a plan review missing either `ROOT CAUSE` or `FAILING TEST`, asserting that the PASS is tied to the counted failure, and proving a second counted failure blocks the lane.\n3. Run the corrected scripts after installing the reviewed 0.1.55 candidate. Load tests from the same installed package as `bcl`, and require each named test to run. The brief ends with worktree proof, and its aggregate zero-test guard can miss a dropped selection. Keep the fresh integration review and full pre-push receipt tied to the candidate.\n4. Keep the shared restore guard and three write-path checks. Exercise the existing regression marker forms (`yes` and `true`) and confirm that any proposed redesign has its own finding."
     },
     {
       "id": "BCL-100",
@@ -14717,10 +14896,28 @@
       "done_when": "After a lane's first failed review, its next fix waits for a Sol 6.2 medium plan review run read-only in the lane's worktree. The reviewer gets the finding and its acceptance criteria, the lane plan and the tried change, every review verdict with its must-fix list, any test or verify failure logs, and the observability commands for the run. It returns the root cause, a revised plan, a failing test that proves the cause, and whether the original approach stays or is replaced. Only then does the fix run. The skill and the tool both require this.",
       "observed": "20 Nov 2026 23:40 IST, Guru set this rule during round 3 of PR 118, where all four lanes failed their first review.",
       "recommendation": "Replace the plan review that waits for two failures with a Sol 6.2 medium plan review after the first failed review, and have the fix step refuse a lane that failed review until a passed plan review is recorded.",
-      "status": "untested",
+      "status": "verified_fixed",
       "details": {
         "approved": "Guru 23:40 IST (rule), 23:43 IST (Sol 6.2 medium), 23:45 IST (brief shape)"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "A fix or review out of order on the live list",
+          "expected": "The tool refuses a fix without a plan or with a blocked lane, and a review before a finished fix",
+          "observed": "All three were refused and the list was not changed; plan review ran as its own recorded step",
+          "verdict": "All three were refused and the list was not changed; plan review ran as its own recorded step",
+          "check_id": "bcl-101-0.1.53-5e6f05a8",
+          "build": "batched-change-list 0.1.53",
+          "session": "d-5e6f05a8-118",
+          "timestamp": "2026-11-21T00:04:09Z",
+          "reference": "5e6f05a8d0fa035610fe3b2afc604e279c2cee77:BCL-101:installed-check",
+          "details": "live refusals with mtime unchanged; probe P4 pass Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118."
+        }
+      ],
+      "verification": "All three were refused and the list was not changed; plan review ran as its own recorded step live refusals with mtime unchanged; probe P4 pass Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
+      "verification_refs": [
+        "5e6f05a8d0fa035610fe3b2afc604e279c2cee77:BCL-101:installed-check"
+      ]
     },
     {
       "id": "BCL-102",
@@ -14732,10 +14929,28 @@
       "done_when": "A lane can be recorded in a plan review step with its model and the page shows Plan review with that model; a passed review shows as Review passed, ready for Install; a lane with a new fix after a failed review shows Fixing or In review, never Failed.",
       "observed": "21 Nov 2026 00:02 and 00:09 IST, Guru found PR 118 lane badges stale: two lanes in plan review and fix showed Failed, two passed lanes showed In review.",
       "recommendation": "Add a plan review phase to the lane record and the page, set by the tool when the plan review job starts and cleared when the fix job starts.",
-      "status": "untested",
+      "status": "verified_fixed",
       "details": {
         "approved": "Guru 00:02 IST and 00:09 IST (parent steering)"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The page while a plan review ran",
+          "expected": "The page shows the plan review step and its model, and changes requested is not shown as fix failed",
+          "observed": "The page showed 'Plan review · gpt-6.2-sol medium (Codex CLI)'; changes requested shows as fixing or review incomplete, not fix failed",
+          "verdict": "The page showed 'Plan review · gpt-6.2-sol medium (Codex CLI)'; changes requested shows as fixing or review incomplete, not fix failed",
+          "check_id": "bcl-102-0.1.53-5e6f05a8",
+          "build": "batched-change-list 0.1.53",
+          "session": "d-5e6f05a8-118",
+          "timestamp": "2026-11-21T00:04:09Z",
+          "reference": "5e6f05a8d0fa035610fe3b2afc604e279c2cee77:BCL-102:installed-check",
+          "details": "live page :59151 during the plan review job; probe P2 pass Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118."
+        }
+      ],
+      "verification": "The page showed 'Plan review · gpt-6.2-sol medium (Codex CLI)'; changes requested shows as fixing or review incomplete, not fix failed live page :59151 during the plan review job; probe P2 pass Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
+      "verification_refs": [
+        "5e6f05a8d0fa035610fe3b2afc604e279c2cee77:BCL-102:installed-check"
+      ]
     },
     {
       "id": "BCL-103",
@@ -14763,11 +14978,29 @@
       "done_when": "Only a full verdict line given by the reviewer counts; a cut-off or quoted verdict is recorded as no verdict, which fails the review.",
       "observed": "20 Nov 2026 09:58 IST on PR 117, a reviewer reply cut off by a usage limit began with a quoted pass sentence; fed to the review step it records a pass.",
       "recommendation": "Parse the reviewer's raw final message, accept only a full verdict line, and drop the slicing in the wrapper scripts.",
-      "status": "untested",
+      "status": "verified_fixed",
       "details": {
         "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 2",
         "filed_by": "Guru 00:33 IST t1597u"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "A review reply cut off or only quoting the verdict",
+          "expected": "Only a full verdict line given by the reviewer counts",
+          "observed": "The cut-off PR 117 reply and a quoted verdict were both recorded as failed; a real PASS reply was read as a pass",
+          "verdict": "The cut-off PR 117 reply and a quoted verdict were both recorded as failed; a real PASS reply was read as a pass",
+          "check_id": "bcl-104-0.1.53-5e6f05a8",
+          "build": "batched-change-list 0.1.53",
+          "session": "d-5e6f05a8-118",
+          "timestamp": "2026-11-21T00:04:09Z",
+          "reference": "5e6f05a8d0fa035610fe3b2afc604e279c2cee77:BCL-104:installed-check",
+          "details": "probe P1 and P7 pass; live review jobs parsed by the installed tool Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118."
+        }
+      ],
+      "verification": "The cut-off PR 117 reply and a quoted verdict were both recorded as failed; a real PASS reply was read as a pass probe P1 and P7 pass; live review jobs parsed by the installed tool Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
+      "verification_refs": [
+        "5e6f05a8d0fa035610fe3b2afc604e279c2cee77:BCL-104:installed-check"
+      ]
     },
     {
       "id": "BCL-105",
@@ -14779,11 +15012,29 @@
       "done_when": "Each failed review or check is counted on the issue; the fix step refuses a further attempt until the escalation step is recorded, and the final failure blocks the issue with its reason.",
       "observed": "20 Nov 2026 21:54 IST, a PR 118 issue was held by the ladder but still showed as in progress; a probe ran a fourth fix after three failed reviews.",
       "recommendation": "Record each failure on the issue and let the fix step enforce the count and the final block, replacing the hand bookkeeping.",
-      "status": "untested",
+      "status": "verified_fixed",
       "details": {
         "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 4",
         "filed_by": "Guru 00:33 IST t1597u"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "Two failures on the same lanes in the live list",
+          "expected": "Each failure is counted and the second one blocks the lane with its reason",
+          "observed": "The live list counted both failures and blocked both lanes and their three issues with the reason 'Second failure'",
+          "verdict": "The live list counted both failures and blocked both lanes and their three issues with the reason 'Second failure'",
+          "check_id": "bcl-105-0.1.53-5e6f05a8",
+          "build": "batched-change-list 0.1.53",
+          "session": "d-5e6f05a8-118",
+          "timestamp": "2026-11-21T00:04:09Z",
+          "reference": "5e6f05a8d0fa035610fe3b2afc604e279c2cee77:BCL-105:installed-check",
+          "details": "live R3-PLAN and R3-ROUNDS failure_history; probe P3 pass Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118."
+        }
+      ],
+      "verification": "The live list counted both failures and blocked both lanes and their three issues with the reason 'Second failure' live R3-PLAN and R3-ROUNDS failure_history; probe P3 pass Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
+      "verification_refs": [
+        "5e6f05a8d0fa035610fe3b2afc604e279c2cee77:BCL-105:installed-check"
+      ]
     },
     {
       "id": "BCL-106",
@@ -14811,11 +15062,29 @@
       "done_when": "Every gate override, through any path, needs a one-line reason, recorded with it.",
       "observed": "20 Nov 2026 17:35 and 17:45 IST, two PR 117 overrides were recorded without a reason.",
       "recommendation": "Use one override helper that requires a reason for stage changes, rollover and merged, and remove the duplicated merged-only code.",
-      "status": "untested",
+      "status": "verified_fixed",
       "details": {
         "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 8",
         "filed_by": "Guru 00:33 IST t1597u"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "A stage override without a reason",
+          "expected": "Every override needs a one-line reason before anything is written",
+          "observed": "The override without a reason was refused and nothing was recorded",
+          "verdict": "The override without a reason was refused and nothing was recorded",
+          "check_id": "bcl-107-0.1.53-5e6f05a8",
+          "build": "batched-change-list 0.1.53",
+          "session": "d-5e6f05a8-118",
+          "timestamp": "2026-11-21T00:04:09Z",
+          "reference": "5e6f05a8d0fa035610fe3b2afc604e279c2cee77:BCL-107:installed-check",
+          "details": "probe P6 pass on 0.1.53 tree Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118."
+        }
+      ],
+      "verification": "The override without a reason was refused and nothing was recorded probe P6 pass on 0.1.53 tree Log: ~/.agents/artifacts/bcl-118/direct/realuse-live.log. Run d-5e6f05a8-118.",
+      "verification_refs": [
+        "5e6f05a8d0fa035610fe3b2afc604e279c2cee77:BCL-107:installed-check"
+      ]
     },
     {
       "id": "BCL-108",
