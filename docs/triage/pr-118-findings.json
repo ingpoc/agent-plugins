@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-21T03:32:58Z",
-      "now": "2026-11-21T03:32:58Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-21T04:11:13Z",
+      "now": "2026-11-21T04:11:13Z — Review started"
     },
     "rollover": {
       "source_pr": 117,
@@ -13952,7 +13952,7 @@
             "BCL-95",
             "BCL-98"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl118-r3-plan",
           "label": "BCL-95, BCL-98",
           "verify": {
@@ -13967,22 +13967,23 @@
             "implementer_session": "grokbot-118r3-plan",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-plan",
             "job": {
-              "id": "911cbea4bcdd45b8abf46c545fe4bffa",
-              "phase": "fix",
-              "started_at": "2026-11-21T03:32:58Z",
+              "id": "a78d5ac9737349119b3f771396be29b2",
+              "phase": "review",
+              "started_at": "2026-11-21T04:11:13Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T03:32:58Z",
+              "heartbeat_at": "2026-11-21T04:11:13Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6-luna medium fast (Codex CLI)",
+              "model": "gpt-6.1-terra medium (Codex CLI)",
               "cycle": 10,
               "round": 3
             },
-            "fix_status": "running",
+            "fix_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
+            "review_status": "running"
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "fix",
+          "phase": "review",
           "verify_summary": "Review passed; integrating in int3 with ROUNDS (0.1.51)",
           "failure_history": {
             "BCL-95": [
@@ -14110,7 +14111,7 @@
           "finding_ids": [
             "BCL-99"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl118-r3-rounds",
           "label": "BCL-99",
           "verify": {
@@ -14125,22 +14126,23 @@
             "implementer_session": "grokbot-118r3-rounds",
             "reviewer_session": "cursor-cli-grok-4.7-medium-118r3-rounds",
             "job": {
-              "id": "911cbea4bcdd45b8abf46c545fe4bffa",
-              "phase": "fix",
-              "started_at": "2026-11-21T03:32:58Z",
+              "id": "a78d5ac9737349119b3f771396be29b2",
+              "phase": "review",
+              "started_at": "2026-11-21T04:11:13Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-21T03:32:58Z",
+              "heartbeat_at": "2026-11-21T04:11:13Z",
               "plan_sha256": "3b305cb6aee58e0d924ff5203938b917a930def0e7c478c553cbb44ccf52e93d",
-              "model": "gpt-6-luna medium fast (Codex CLI)",
+              "model": "gpt-6.1-terra medium (Codex CLI)",
               "cycle": 10,
               "round": 3
             },
-            "fix_status": "running",
+            "fix_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
+            "review_status": "running"
           },
           "updated_at": "2026-11-20T19:20:19Z",
-          "phase": "fix",
+          "phase": "review",
           "verify_summary": "Review passed; integrating in int3 with PLAN (0.1.51)",
           "failure_history": {
             "BCL-99": [
