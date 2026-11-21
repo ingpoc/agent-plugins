@@ -444,7 +444,7 @@ def snapshot(record, live):
             if changed.returncode not in (0, 1):
                 raise RuntimeError(f"snapshot diff failed with exit {changed.returncode}")
             if changed.returncode == 1:
-                subprocess.run(["git", "-C", str(home), "commit", "--only", "-m", "Change list: snapshot live tracker", "--", record["snapshot"], record["html"]], check=True)
+                subprocess.run(["git", "-C", str(home), "commit", "--quiet", "--only", "-m", "Change list: snapshot live tracker", "--", record["snapshot"], record["html"]], check=True)
         with tracker_lock.exclusive_lock(tracker_lock.tracker_lock_path(live)):
             current = live.read_bytes()
             if current != captured:

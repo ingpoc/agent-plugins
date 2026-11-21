@@ -609,36 +609,40 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(group["codex"]["review_status"], "passed")
         self.assertNotIn("reviewer_session", group["codex"])
 
-    def _review_job_verdict(self, verdict, writes=True):
-        self.assertEqual(self.call_without_viewer("start").returncode, 0)
-        plan = self.root / "review-verdict-plan.json"
-        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned",
-            "codex": {"implementer_session": "writer", "reviewer_session": "reviewer"}}]}))
-        self.assertEqual(self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
-        def run(phase):
-            return subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
-                "--phase", phase, "job", "--", sys.executable, "-c", "pass"], env=self.env, capture_output=True, text=True)
-        self.assertEqual(run("fix").returncode, 0)
-        reviewed = self.call_without_viewer("review", "--ids", "ISSUE-01")
-        self.assertEqual(reviewed.returncode, 0, reviewed.stderr)
+    def _review_job_verdict(self, cases):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        document = json.loads(self.data.read_text())
+        document["findings"][0]["status"] = "in_progress"
+        document["tracking"].update(stages_reached=["collect", "plan_fix", "review"],
+            workflow={"stage": "review", "updated_at": bcl_entrypoint._utc_now()}, cycle=1,
+            plan={"cycle": 1, "round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "review",
+                "phase": "review", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer",
+                    "fix_status": "passed"}}]})
+        prepared = json.dumps(document).encode()
+        live.write_bytes(prepared)
+        self.data.write_bytes(prepared)
         result = self.root / "review.txt"
-        if not writes:
-            result.write_text("VERDICT: PASS\nReview note\nstale note\n## Must-fix\nnone\n")
-            writer = "pass"
-        elif isinstance(verdict, bytes):
-            writer = f"from pathlib import Path; Path({str(result)!r}).write_bytes(bytes.fromhex({verdict.hex()!r}))"
-        else:
-            contents = (verdict + "\n" if verdict else "") + "Review note\nreview note\n## Must-fix\n" + ("- named issue\n" if verdict == "VERDICT: CHANGES" else "none\n")
-            writer = f"from pathlib import Path; Path({str(result)!r}).write_text({contents!r})"
-        job = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
-            "--result", str(result), "--phase", "review", "job", "--", sys.executable, "-c", writer],
-            env=self.env, capture_output=True, text=True)
-        self.assertEqual(job.returncode, 0 if writes and verdict == "VERDICT: PASS" else 1, job.stderr)
-        group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
-        expected_status = "passed" if writes and verdict == "VERDICT: PASS" else "changes_requested" if verdict == "VERDICT: CHANGES" else "failed"
-        self.assertEqual(group["codex"]["review_status"], expected_status)
-        if writes and not isinstance(verdict, bytes):
-            self.assertIn("review note", result.read_text())
+        for verdict, writes in cases:
+            with self.subTest(verdict=verdict, writes=writes):
+                live.write_bytes(prepared)
+                self.data.write_bytes(prepared)
+                result.unlink(missing_ok=True)
+                if not writes:
+                    result.write_text("VERDICT: PASS\nReview note\nstale note\n## Must-fix\nnone\n")
+                    writer = "pass"
+                elif isinstance(verdict, bytes):
+                    writer = f"from pathlib import Path; Path({str(result)!r}).write_bytes(bytes.fromhex({verdict.hex()!r}))"
+                else:
+                    contents = (verdict + "\n" if verdict else "") + "Review note\nreview note\n## Must-fix\n" + ("- named issue\n" if verdict == "VERDICT: CHANGES" else "none\n")
+                    writer = f"from pathlib import Path; Path({str(result)!r}).write_text({contents!r})"
+                job = self.call_job_without_viewer(self.data, "--ids", "ISSUE-01", "--result", result,
+                    "--phase", "review", "job", "--", sys.executable, "-c", writer)
+                self.assertEqual(job.returncode, 0 if writes and verdict == "VERDICT: PASS" else 1, job.stderr)
+                group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
+                expected_status = "passed" if writes and verdict == "VERDICT: PASS" else "changes_requested" if verdict == "VERDICT: CHANGES" else "failed"
+                self.assertEqual(group["codex"].get("review_status"), expected_status, job.stdout + job.stderr)
+                if writes and not isinstance(verdict, bytes):
+                    self.assertIn("review note", result.read_text())
 
     def test_review_job_model_is_recorded_for_the_lane_model_column(self):
         self.assertEqual(self.call_without_viewer("start").returncode, 0)
@@ -664,20 +668,16 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(codex["model"], "gpt-6-luna")
         self.assertEqual(codex["review_status"], "passed")
 
-    def test_review_job_with_changes_verdict_records_failed(self):
-        self._review_job_verdict("VERDICT: CHANGES")
-
-    def test_review_job_with_pass_verdict_records_passed(self):
-        self._review_job_verdict("VERDICT: PASS")
-
-    def test_review_job_without_verdict_records_failed(self):
-        self._review_job_verdict(None)
-
-    def test_review_job_first_conflicting_verdict_records_failed(self):
-        self._review_job_verdict("VERDICT: CHANGES\nVERDICT: PASS")
-
-    def test_review_job_first_invalid_verdict_records_failed(self):
-        self._review_job_verdict("VERDICT: MAYBE\nVERDICT: PASS")
+    def test_review_job_verdicts(self):
+        self._review_job_verdict([
+            ("VERDICT: CHANGES", True),
+            ("VERDICT: PASS", True),
+            (None, True),
+            ("VERDICT: CHANGES\nVERDICT: PASS", True),
+            ("VERDICT: MAYBE\nVERDICT: PASS", True),
+            (b"\xff", True),
+            ("VERDICT: PASS", False),
+        ])
 
     def test_release_check_on_an_unadopted_tracker_is_not_clear(self):
         stray = self.root / "stray" / "list.json"; stray.parent.mkdir()
@@ -686,12 +686,6 @@ elif args[:2] != ['pr', 'edit']:
         result = self.call("release-check", stray)
         self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
         self.assertIn('"adopted": false', result.stdout)
-
-    def test_review_job_with_stale_pass_records_failed(self):
-        self._review_job_verdict("VERDICT: PASS", writes=False)
-
-    def test_review_job_with_invalid_encoding_records_failed(self):
-        self._review_job_verdict(b"\xff")
 
     def test_workflow_cycle_uses_live_tracker_and_snapshots_each_stage(self):
         result = self.call_without_viewer("start")
