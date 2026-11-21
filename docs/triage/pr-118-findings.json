@@ -14736,79 +14736,247 @@
       "installed_at": "2026-11-21T08:41:34Z",
       "install_evidence": "bcl install-local from 9afdcf6e: ~/.agents/plugins plus cursor and codex caches sha256 acadb8db (plugin, 5 copies matched), skill sha256 419a42d9; plugin.json 0.1.57; installed-copy suite 464 OK; realuse-0157 7/7 on installed copy",
       "cycle": 10,
-      "status": "active",
+      "status": "complete",
       "checks": {
         "ACU-07": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "ACU-10": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "ACU-13": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "ACU-20": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-91": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "ACU-21": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-92": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-93": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-94": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "ACU-22": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-95": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-96": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-97": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-98": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-99": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-100": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-101": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-102": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-103": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-104": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-105": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-106": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-107": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-108": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-109": {
           "state": "fixed",
@@ -14822,22 +14990,64 @@
           "finished_at": "2026-11-21T08:47:52.337290Z"
         },
         "BCL-110": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-111": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-112": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-113": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-114": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-115": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-116": {
           "state": "fixed",
@@ -14851,17 +15061,49 @@
           "finished_at": "2026-11-21T08:47:18.669893Z"
         },
         "BCL-117": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-118": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-119": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         },
         "BCL-120": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-21T08:48:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observation": "Run stopped: 0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+          "observed_at": "2026-11-21T08:48:27Z",
+          "updated_at": "2026-11-21T08:48:27Z",
+          "finished_at": "2026-11-21T08:48:27Z"
         }
+      },
+      "stopped": {
+        "reason": "0.1.57 checks for BCL-109 and BCL-116 finished; closing the run for rollover",
+        "at": "2026-11-21T08:48:27Z"
       }
     },
     "introspect": {
