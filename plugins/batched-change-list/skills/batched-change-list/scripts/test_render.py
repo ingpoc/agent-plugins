@@ -207,7 +207,7 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         self.assertIn('<svg width="22" height="22" viewBox="0 0 22 22"', gate_node)
         self.assertIn('stroke="var(--sage-line)" stroke-width="3"', gate_node)
         self.assertNotIn('var(--amber)', gate_node)
-        self.assertIn('Fixes <b>1/1000</b> verified<small>0 in progress</small>', gate_node)
+        self.assertIn('Fixes <b>1/1000</b> verified<small>1/1000 report gate</small><small>0 in progress</small>', gate_node)
         self.assertNotIn('excludes completed introspection', gate_node)
         self.assertIn('Report at 1000+ verified or when no counted findings remain open.', page)
         self.assertIn('Rollover requires at least 16+ verified and the rollover threshold.', page)
@@ -229,7 +229,7 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         gate = page.split('data-stage="gate"', 1)[1].split('</li>', 1)[0]
         self.assertNotIn('class="wf-step done wf-gate"', gate)
         self.assertIn('class="wf-step upcoming wf-gate"', gate)
-        self.assertIn('0 of 15 fixes verified, 0 in progress, gate not met', gate)
+        self.assertIn('0 of 16 fixes verified (report gate 15), 0 in progress, gate not met', gate)
         self.assertNotIn('aria-label="0 of 15 fixes verified, 0 in progress, gate met"', gate)
         self.assertIn('Report gate exception: no counted findings remain open.', gate)
 
@@ -426,7 +426,7 @@ if(badge.hidden||clock>=Date.parse({json.dumps(updated)})+{stale_after}*60000)pr
         self.assertIn('In install · INSTALL', page)
         self.assertIn('Blocked · no mic · needs Guru', page)
         self.assertIn('CARRIED', page)
-        self.assertIn('Fixes <b>0/15</b> verified<small>1 in progress</small>', page)
+        self.assertIn('Fixes <b>0/16</b> verified<small>0/15 report gate</small><small>1 in progress</small>', page)
         self.assertIn('Round closes when every lane is <b>verified, blocked or parked</b> → Introspect → gate.', page)
         self.assertNotIn('Working on it', page)
         self.assertNotIn('workflow-now', page)
@@ -776,7 +776,8 @@ setImmediate(async()=>{
             item['id'] = f'ISSUE-{index + 3:02d}'
             data['findings'].append(item)
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes <b>7/15</b> verified', page)
+        self.assertIn('Fixes <b>7/16</b> verified<small>7/15 report gate</small>', page)
+        self.assertIn('aria-label="7 of 16 fixes verified (report gate 15), 0 in progress, gate not met', page)
         self.assertIn('Round 3', page)
         self.assertIn('under 15 verified', page)
         self.assertIn('class="wf-band gate-pending"', page)
@@ -786,7 +787,7 @@ setImmediate(async()=>{
         self.assertIn('class="wf-band gate-pending"', page)
         timeline = page
         stages = ['>Collect<','>Plan &amp; fix<','>Install<','>Verify<',
-                  '>Introspect<','Fixes <b>7/15</b> verified','>Report &amp; roll over<','>Merge previous PR<']
+                  '>Introspect<','Fixes <b>7/16</b> verified','>Report &amp; roll over<','>Merge previous PR<']
         positions = [timeline.index(stage) for stage in stages]
         self.assertEqual(positions, sorted(positions))
         self.assertNotIn('>Present<', timeline)
@@ -1261,13 +1262,13 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
             + [item('AGENT-18', 'untested'), introspect]
         )
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes <b>17/15</b> verified', page)
+        self.assertIn('Fixes <b>17/16</b> verified', page)
         self.assertIn('class="wf-band gate-met"', page)
         self.assertNotIn('class="wf-band gate-pending"', page)
         # 14 VF with an open page-tool finding stays short of the threshold and is not met.
         data['findings'] = [item(f'AGENT-{i:02d}') for i in range(1, 15)] + [item('PAGE-01', 'untested')]
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes <b>14/15</b> verified', page)
+        self.assertIn('Fixes <b>14/16</b> verified', page)
         self.assertIn('class="wf-band gate-pending"', page)
         self.assertNotIn('class="wf-band gate-met"', page)
         fixed, _, met = renderer.rollover_gate([item('WF-06', 'untested'), introspect], {})
@@ -1279,13 +1280,13 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
             + [item('PAGE-01', 'untested'), item('BCL-01', 'failing'), item('WF-07', 'untested')]
         )
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes <b>15/15</b> verified', page)
+        self.assertIn('Fixes <b>15/16</b> verified', page)
         self.assertIn('class="wf-band gate-met"', page)
         self.assertNotIn('class="wf-band gate-pending"', page)
         # 16 of 15 with an extra open product finding is still met.
         data['findings'] = [item(f'ISSUE-{i:02d}') for i in range(1, 17)] + [item('ISSUE-99', 'untested')]
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes <b>16/15</b> verified', page)
+        self.assertIn('Fixes <b>16/16</b> verified', page)
         self.assertIn('class="wf-band gate-met"', page)
 
 
