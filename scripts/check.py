@@ -1188,8 +1188,11 @@ def check_triage_renders() -> list[str]:
     if current_pr is None:
         return errors
     current = [(data, report) for data, report in pairs if report.stem == f"pr-{current_pr}"]
+    # A GitHub PR number is not a change-list tracker by itself (this repo's
+    # github.com PR numbers and change-list PR numbers differ). Only check
+    # freshness when this PR already has a tracker page.
     if not current:
-        errors.append(f"docs/triage/pr-{current_pr}.html: no matching current PR tracker found")
+        return errors
     for data, report in current:
         if seen.get(report) != data:
             continue

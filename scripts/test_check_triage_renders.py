@@ -140,6 +140,18 @@ class TriageRenderPairsTests(unittest.TestCase):
                     patch.object(check.subprocess, "check_output", side_effect=subprocess.CalledProcessError(1, "git")):
                 errors = check.check_triage_renders()
             self.assertTrue(any("could not read Git index" in error for error in errors), errors)
+    def test_unrelated_github_pr_without_tracker_is_skipped(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            triage = root / "docs" / "triage"
+            triage.mkdir(parents=True)
+            _write(triage, "pr-118-findings.json", 118)
+            (triage / "pr-118.html").write_bytes(b"fresh")
+            renderer = self._checker_fixture(root)
+            with patch.object(check, "ROOT", root), patch.object(check, "TRIAGE_RENDERER", renderer), \
+                    patch.object(check, "current_triage_pr", return_value=28):
+                errors = check.check_triage_renders()
+            self.assertFalse(any("pr-28.html" in error for error in errors), errors)
 
 
 if __name__ == "__main__":
