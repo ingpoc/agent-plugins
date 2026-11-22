@@ -445,6 +445,18 @@ class ManageFindingsTests(unittest.TestCase):
         group = json.loads(self.data.read_text())['tracking']['plan']['groups'][0]
         self.assertEqual((group['status'], group['label'], group['verify_summary']), ('done','Updated label','Runtime check passed'))
 
+    def test_plan_check_refuses_open_lanes_that_change_the_same_files(self):
+        sys.path.insert(0, str(SCRIPT.parent))
+        import manage_findings
+        lane = lambda gid, files, status="planned": {"id": gid, "finding_ids": [gid + "-1"], "status": status, "files": files}
+        with self.assertRaisesRegex(ValueError, "lanes A and B both change scripts/render.py"):
+            manage_findings.validate_plan_groups({"round": 1, "groups": [lane("A", ["scripts/render.py"]), lane("B", ["scripts/render.py", "x.md"])]})
+        with self.assertRaisesRegex(ValueError, "lanes A and C both change"):
+            manage_findings.validate_plan_groups({"round": 1, "groups": [lane("A", ["scripts/*.py"]), lane("C", ["scripts/bcl_tool.py"])]})
+        manage_findings.validate_plan_groups({"round": 1, "groups": [lane("A", ["scripts/render.py"]), lane("B", ["bin/bcl"])]})
+        manage_findings.validate_plan_groups({"round": 1, "groups": [lane("A", ["bin/bcl"]), lane("B", ["bin/bcl"], "deferred")]})
+        manage_findings.validate_plan_groups({"round": 1, "groups": [lane("A", ["bin/bcl"]), {"id": "N", "finding_ids": ["N-1"], "status": "planned"}]})
+
     def test_plan_check_caps_group_size_and_allows_max_effort(self):
         sys.path.insert(0, str(SCRIPT.parent))
         import manage_findings
@@ -1332,6 +1344,24 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(groups[0]["failure_history"][0]["attempt_id"], "failed")
         self.assertEqual(groups[0]["plan_review_history"][0]["after_failure"], "failed")
         self.assertEqual(groups[0]["unblock_history"][0]["reason"], "owner")
+
+    def test_new_round_keeps_verified_lanes_verified_and_carried_lanes_as_requested(self):
+        prior = {"groups": [
+            {"id": "V", "finding_ids": ["ISSUE-01"], "status": "verified", "phase": "done",
+             "failure_history": [{"attempt_id": "old", "source": "review", "at": "2026-11-21T00:00:00Z"}],
+             "verify": {"status": "passed", "summary": "named tests passed"}},
+            {"id": "C", "finding_ids": ["ISSUE-02"], "status": "running", "phase": "review",
+             "failure_history": [{"attempt_id": "f1", "source": "review", "at": "2026-11-21T00:00:00Z"}]}]}
+        groups = [{"id": "C", "finding_ids": ["ISSUE-02"], "status": "deferred", "phase": "deferred"}]
+        manage_findings.carry_plan_runtime_state(groups, prior, False)  # V omitted: allowed in a new round
+        self.assertEqual((groups[0]["status"], groups[0]["phase"]), ("deferred", "deferred"))
+        self.assertEqual(groups[0]["failure_history"][0]["attempt_id"], "f1")
+        kept = [{"id": "V", "finding_ids": ["ISSUE-01"], "status": "planned"},
+                {"id": "C", "finding_ids": ["ISSUE-02"], "status": "planned"}]
+        manage_findings.carry_plan_runtime_state(kept, prior, False)
+        self.assertEqual((kept[0]["status"], kept[0]["verify"]["status"]), ("verified", "passed"))
+        with self.assertRaisesRegex(ValueError, "gated lane V"):
+            manage_findings.carry_plan_runtime_state([], prior, True)  # same round still protects it
 
     def test_one_failure_refuses_set_plan_membership_or_id_change(self):
         previous = {"groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "running",

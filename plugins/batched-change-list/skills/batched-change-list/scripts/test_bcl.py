@@ -481,6 +481,24 @@ elif args[:2] != ['pr', 'edit']:
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("none of these lanes failed", result.stderr)
 
+    def test_fix_order_is_set_by_one_command_and_shown_in_order(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        refused = self.call_without_viewer("fix-order", "--ids", "ISSUE-02", "--ids", "ISSUE-01")
+        self.assertNotEqual(refused.returncode, 0)
+        result = self.call_without_viewer("fix-order", "--ids", "ISSUE-02", "--ids", "ISSUE-01",
+                                          "--reason", "owner wants the second issue first", "--by", "Guru")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        order = json.loads(live.read_text())["tracking"]["fix_order"]
+        self.assertEqual((order["ids"], order["by"], order["reason"]), (["ISSUE-02", "ISSUE-01"], "Guru", "owner wants the second issue first"))
+        self.assertTrue(order["at"])
+        page = self.page.read_text()
+        self.assertIn("Fix order: ISSUE-02 → ISSUE-01", page)
+        data = page.split('id="findings-data"', 1)[1]
+        self.assertLess(data.index('"ISSUE-02"'), data.index('"ISSUE-01"'))
+        unknown = self.call_without_viewer("fix-order", "--ids", "NOPE-1", "--reason", "an unknown issue id here")
+        self.assertNotEqual(unknown.returncode, 0)
+
     def test_correct_round_moves_the_counter_forward_and_keeps_history(self):
         self.assertEqual(self.call_without_viewer("start").returncode, 0)
         plan = self.root / "round-plan.json"
@@ -848,6 +866,10 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(data["tracking"]["plan"]["groups"][0]["id"], "A")
         self.assertEqual(data["tracking"]["plan"]["status"], "closed")
         self.assertEqual(json.loads(status.stdout)["plan"][0]["status"], "verifying")
+        closed = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
+                                 "--phase", "fix", "job", "--", *job], env=self.env, capture_output=True, text=True)
+        self.assertNotEqual(closed.returncode, 0, "BCL-158: no fix job after the round's introspect, before the next plan")
+        self.assertIn("record the next round's plan", closed.stderr)
 
     def test_introspect_draft_rejects_input_tracker_and_live_hard_link(self):
         input_before = self.data.read_bytes()

@@ -2,6 +2,7 @@
 """Read and edit individual findings in the authoritative JSON export."""
 import argparse
 import copy
+import fnmatch
 import hashlib
 from datetime import datetime, timezone
 import importlib.util
@@ -508,15 +509,23 @@ def carry_plan_runtime_state(groups, previous, same_round):
     def gated(group):
         return group.get("status") == "blocked" or bool(_counted_failures(_lane_history(group, "failure_history")))
 
+    def settled(group):
+        # BCL-158: a lane verified in an earlier round stays verified and need not be re-planned
+        return not same_round and RENDERER.plan_status(group) == "verified"
+
     replacements = {group.get("id"): group for group in groups}
     for identifier, prior in old.items():
-        if gated(prior):
+        if gated(prior) and not settled(prior):
             replacement = replacements.get(identifier)
             if not replacement or set(replacement.get("finding_ids", [])) != set(prior.get("finding_ids", [])):
                 raise ValueError(f"set-plan cannot change gated lane {identifier}; keep its id and findings")
     for group in groups:
         prior = old.get(group.get("id"))
         unchanged = prior and set(group.get("finding_ids", [])) == set(prior.get("finding_ids", []))
+        if prior and unchanged and settled(prior):
+            group.clear()
+            group.update(copy.deepcopy(prior))
+            continue
         if prior and unchanged and (same_round or gated(prior)):
             requested_status, requested_phase = group.get("status"), group.get("phase")
             for field in protected_group:
@@ -824,6 +833,9 @@ def job_transition(document, operation):
     if action == "start-job":
         if pause_record(tracking) is not None:
             raise ValueError("round paused; run bcl resume")
+        if phase in ("plan_review", "fix") and introspect_covers_current_round(tracking):
+            raise ValueError(f"round {round_number} is closed (introspect recorded); "
+                             "record the next round's plan (bcl plan) before plan or fix jobs")
         job = operation.get("job")
         if not isinstance(job, dict) or not isinstance(job.get("id"), str) or not job["id"].strip():
             raise ValueError("job reservation requires an id")
@@ -1644,6 +1656,20 @@ def validate_plan_groups(plan: dict) -> None:
               and RENDERER.plan_status(g) not in {"verified", "deferred", "parked", "blocked", "failed"}]
     if len(active) > MAX_ROUND_LANES:
         raise ValueError(f"a round runs at most {MAX_ROUND_LANES} lanes (plan has {len(active)}); defer the rest to the next round")
+    claimed = []
+    for group in active:
+        files = group.get("files")
+        if files is None:
+            continue
+        if not isinstance(files, list) or any(not isinstance(path, str) or not path.strip() for path in files):
+            raise ValueError(f"{group.get('id')}: files must be a list of paths or globs")
+        for other_id, other_files in claimed:
+            shared = next((f"{a} / {b}" if a != b else a for a in files for b in other_files
+                           if a == b or fnmatch.fnmatch(a, b) or fnmatch.fnmatch(b, a)), None)
+            if shared:
+                raise ValueError(f"lanes {other_id} and {group.get('id')} both change {shared}; "
+                                 "run the second after the first lands (defer it) or split the files")
+        claimed.append((group.get("id"), files))
     for group in groups:
         if not isinstance(group, dict):
             continue
@@ -1756,6 +1782,27 @@ def validate_stage_model(model):
                               or "\r" in model or len(model) > 120):
         raise ValueError("set-activity model must be one line of at most 120 characters")
     return model.strip() if isinstance(model, str) else None
+
+
+def set_fix_order(document, operation):
+    """BCL-151: record the order findings are fixed in, who set it, when and why."""
+    ids, reason, by = operation.get("ids"), operation.get("reason"), operation.get("by")
+    known = {item.get("id") for item in document.get("findings", []) if isinstance(item, dict)}
+    if not isinstance(ids, list) or not ids or any(not isinstance(i, str) for i in ids) or len(set(ids)) != len(ids):
+        raise ValueError("set-fix-order requires ids: a nonempty list of distinct finding IDs")
+    unknown = [i for i in ids if i not in known]
+    if unknown:
+        raise ValueError(f"set-fix-order names unknown findings: {', '.join(unknown)}")
+    if not isinstance(reason, str) or len(reason.split()) < 3:
+        raise ValueError("set-fix-order requires a one-line reason of at least three words")
+    if not isinstance(by, str) or not by.strip():
+        raise ValueError("set-fix-order requires by: who set the order")
+    stamp = operation.get("timestamp") or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    tracking = document.setdefault("tracking", {})
+    previous = tracking.get("fix_order")
+    if isinstance(previous, dict):
+        tracking.setdefault("fix_order_history", []).append(previous)
+    tracking["fix_order"] = {"ids": list(ids), "by": by.strip(), "at": stamp, "reason": reason.strip()}
 
 
 def correct_round(tracking, operation, timestamp):
@@ -2269,7 +2316,7 @@ def run(args, parser):
                 raise ValueError("pause and resume must be the only batch operation")
             existing_run = store["document"].get("tracking", {}).get("verification_run")
             original_plan = copy.deepcopy(store['document'].get('tracking', {}).get('plan'))
-            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "stop-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify", "start-job", "attach-job", "heartbeat-job", "finish-job", "skip-review", "record-cleanup", "archive-history", "unblock-lane", "resort-failures"}
+            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "stop-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify", "set-fix-order", "start-job", "attach-job", "heartbeat-job", "finish-job", "skip-review", "record-cleanup", "archive-history", "unblock-lane", "resort-failures"}
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()
@@ -2433,6 +2480,9 @@ def run(args, parser):
                                           if identifier in current_ids}
                     update_sidecar_summary(tracking, archive_state["path"], archive_state["rows"],
                                            parked_state["path"], parked_state["rows"])
+                    continue
+                if action == "set-fix-order":
+                    set_fix_order(store["document"], operation)
                     continue
                 if action in ("correct-round", "rerun-verify"):
                     stamp = operation.get("timestamp")

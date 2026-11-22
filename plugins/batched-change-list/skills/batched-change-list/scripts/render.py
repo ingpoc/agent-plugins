@@ -1238,6 +1238,10 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
                                     tracking_data.get("stages_reached") or [], rollover_cycle(tracking_data),
                                     introspect_record_for_round(tracking_data), report_exception)
     plan_view = render_plan(data, tracking_data, plan, round_number, render_now, displays)
+    fix_order = tracking_data.get("fix_order") if isinstance(tracking_data.get("fix_order"), dict) else None
+    if fix_order and fix_order.get("ids"):
+        plan_view += (f'<p class="fix-order">Fix order: {html.escape(" → ".join(map(str, fix_order["ids"])))}'
+                      f' · set by {html.escape(str(fix_order.get("by", "")))} · {html.escape(str(fix_order.get("reason", "")))}</p>')
     viewer_html = (f'<div class="viewer-footer">Live view, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}'
                    f'<details><summary>Details</summary><p>Report path: {html.escape(str(viewer["path"]))}</p></details></div>'
                    if viewer else '<p class="viewer-footer">Viewer version not recorded</p>')
@@ -1250,6 +1254,9 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
         if item["id"] in group_of:
             item["_group"] = group_of[item["id"]]
         item["_plugin"] = plugin_of(item)
+    order = tracking_data.get("fix_order") if isinstance(tracking_data.get("fix_order"), dict) else {}
+    rank = {identifier: index for index, identifier in enumerate(order.get("ids") or []) if isinstance(identifier, str)}
+    output.sort(key=lambda item: rank.get(item["id"], len(rank)))
     serialized = json.dumps([item for item in output if item["id"] not in excluded], ensure_ascii=True).replace("<", "\\u003c")
     run_view = {key: run[key] for key in ("id", "build", "revision", "installed_at", "status")} if run else None
     replacements = {"{{TITLE}}": html.escape(title), "{{FINDINGS_JSON}}": serialized,
