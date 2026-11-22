@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "collect",
-      "updated_at": "2026-11-22T12:25:38Z",
-      "now": "2026-11-22T12:25:38Z — Started collection"
+      "stage": "present",
+      "updated_at": "2026-11-22T12:49:04Z",
+      "now": "2026-11-22T12:49:04Z — Started collection"
     },
     "rollover": {
       "source_pr": 119,
@@ -12154,7 +12154,8 @@
       }
     ],
     "stages_reached": [
-      "collect"
+      "collect",
+      "present"
     ]
   },
   "findings": [
@@ -12240,7 +12241,9 @@
         "filed_by": "Guru 00:33 IST t1597u",
         "ci_range_note": "0.1.57 attempt (045979c5, 6017f4db) reverted in f0ce0b4f/20a363a1 after Terra 6.1 reviews 5 and 6: a bump check against origin/main passes on a push to main (base equals HEAD), and a HEAD^1 fallback misjudges multi-commit pushes. Needs the pushed range from the CI event (github.event.before..after) passed via AGENT_PLUGINS_RELEASE_BASE in ci.yml, plus untracked shipped files, with tests. Review guide line also reverted with it.",
         "carry_to_round": "4",
-        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
+        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)",
+        "also reported as BCL-168": "CI fails a version bump the local checks never test The agent-computer-use release check compares against HEAD locally but against main in CI, so a skill-doc change carried in an earlier commit passed every local suite and failed only on the PR's CI. 22 Nov 2026 18:00 IST, PR 119 CI at 4915cf0b",
+        "also reported as BCL-169": "Main does not pass the structure check that CI runs CI runs the strict skill structure check installed on the build machine, which requires a principles file in every plugin skill, but the main branch's agent computer use skills have none, so main itself would fail CI and removing a change to match main cannot pass. 22 Nov 2026 18:05 IST, PR 119 local CI-mode check"
       }
     },
     {
