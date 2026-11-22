@@ -349,6 +349,48 @@ def _new_pr_url(old_url, number, explicit):
         raise ValueError("--new-url must contain the --new-pr number in its /pull/N path")
     return url
 
+def _git(cwd, *args):
+    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True)
+
+def _refresh_worktrees(args, tracking, parser):
+    """BCL-158: give each unverified lane of this round a fresh worktree at the list branch head, replaying its commits."""
+    repo = (args.repo or Path.cwd()).resolve()
+    head = _git(repo, "rev-parse", "HEAD")
+    if head.returncode:
+        parser.error(f"refresh-worktrees: {repo} is not a git checkout; pass --repo LIST_WORKTREE")
+    head = head.stdout.strip()
+    round_number = lane_render.rollover_round(tracking)
+    groups = lane_render.plan_groups_for_round(tracking.get("plan"), round_number)
+    operations = []
+    for group in groups:
+        name = group.get("worktree")
+        if not isinstance(name, str) or not name or lane_render.plan_status(group) == "verified":
+            continue
+        if args.ids and not set(args.ids) & set(group.get("finding_ids", [])):
+            continue
+        fresh = f"{re.sub(r'-r[0-9]+$', '', name)}-r{round_number}"
+        old, new = repo.parent / name, repo.parent / fresh
+        if fresh == name or new.exists():
+            continue
+        old_head = _git(old, "rev-parse", "HEAD").stdout.strip() if old.is_dir() else ""
+        commits = _git(repo, "rev-list", "--reverse", "--no-merges", f"{head}..{old_head}").stdout.split() if old_head else []
+        made = _git(repo, "worktree", "add", "-q", "-b", f"bcl/{fresh}", str(new), head)
+        if made.returncode:
+            print(f"refresh-worktrees: cannot create {new}: {made.stderr.strip()}", file=sys.stderr)
+            raise SystemExit(1)
+        for commit in commits:
+            if _git(new, "cherry-pick", "--allow-empty", commit).returncode:
+                files = _git(new, "diff", "--name-only", "--diff-filter=U").stdout.split()
+                _git(new, "cherry-pick", "--abort")
+                _git(repo, "worktree", "remove", "--force", str(new))
+                _git(repo, "branch", "-D", f"bcl/{fresh}")
+                print(f"refresh-worktrees: lane {group['id']} commit {commit[:8]} conflicts with the list branch in "
+                      f"{', '.join(files) or 'unknown files'}; resolve in {old} and rerun", file=sys.stderr)
+                raise SystemExit(1)
+        operations.append({"action": "update-plan-group", "id": group["id"], "patch": {"worktree": fresh}})
+        print(f"{group['id']}: fresh worktree {new} at {head[:8]} with {len(commits)} commits replayed")
+    return operations
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=Path); parser.add_argument("--render", type=Path)
@@ -671,6 +713,10 @@ def main():
         if not (args.reason or "").strip():
             parser.error('stop-verify requires --reason "why the run stops"; finished verdicts are kept')
         operations = [{"action": "stop-verification", "run_id": run["id"], "reason": args.reason}]
+    elif stage == "refresh-worktrees":
+        operations = _refresh_worktrees(args, tracking, parser)
+        if not operations:
+            print("no carried lane needs a fresh worktree"); return
     elif stage == "fix-order":
         if not args.ids or not args.reason:
             parser.error("fix-order requires --ids in order (repeat --ids) and --reason \"why this order\"")

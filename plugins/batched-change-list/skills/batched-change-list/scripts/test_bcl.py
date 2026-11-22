@@ -499,6 +499,34 @@ elif args[:2] != ['pr', 'edit']:
         unknown = self.call_without_viewer("fix-order", "--ids", "NOPE-1", "--reason", "an unknown issue id here")
         self.assertNotEqual(unknown.returncode, 0)
 
+    def test_refresh_worktrees_replays_lane_commits_on_the_list_head_or_names_conflicts(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        lane = self.root / "lane-a"
+        self.git(self.home, "worktree", "add", "-qb", "lane-a", str(lane))
+        (lane / "lane.txt").write_text("lane work\n"); (lane / "shared.txt").write_text("lane\n")
+        self.git(lane, "add", "."); self.git(lane, "commit", "-qm", "lane fix")
+        (self.home / "list.txt").write_text("list work\n")
+        self.git(self.home, "add", "list.txt"); self.git(self.home, "commit", "-qm", "list moved on")
+        plan = self.root / "round-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned", "worktree": "lane-a"}]}))
+        self.assertEqual(self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        result = self.call_without_viewer("refresh-worktrees", "--repo", str(self.home))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        fresh = self.root / "lane-a-r1"
+        self.assertEqual(((fresh / "lane.txt").read_text(), (fresh / "list.txt").read_text()), ("lane work\n", "list work\n"))
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        self.assertEqual(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["worktree"], "lane-a-r1")
+        self.git(self.root / "lane-a-r1", "checkout", "-q", "--detach")
+        self.git(self.home, "worktree", "remove", "--force", str(fresh)); self.git(self.home, "branch", "-D", "bcl/lane-a-r1")
+        (self.home / "shared.txt").write_text("list\n")
+        self.git(self.home, "add", "shared.txt"); self.git(self.home, "commit", "-qm", "list conflicts")
+        doc = json.loads(live.read_text()); doc["tracking"]["plan"]["groups"][0]["worktree"] = "lane-a"
+        live.write_text(json.dumps(doc)); self.data.write_text(json.dumps(doc))
+        conflict = self.call_without_viewer("refresh-worktrees", "--repo", str(self.home))
+        self.assertNotEqual(conflict.returncode, 0)
+        self.assertIn("shared.txt", conflict.stderr + conflict.stdout)
+        self.assertFalse(fresh.exists())
+
     def test_correct_round_moves_the_counter_forward_and_keeps_history(self):
         self.assertEqual(self.call_without_viewer("start").returncode, 0)
         plan = self.root / "round-plan.json"
@@ -1622,6 +1650,27 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(result.returncode, 0, result.stderr)
         new_live = Path(json.loads((self.state / "registry.json").read_text())["example/project/124"]["live"])
         self.assertNotIn("plan", json.loads(new_live.read_text())["tracking"])
+
+    def test_rollover_carries_a_gated_lane_and_the_successor_enforces_it(self):
+        self.git(self.home, "worktree", "add", "-qb", "feature-124", str(self.root / "feature-124"))
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        doc = json.loads(live.read_text())
+        doc["tracking"]["plan"] = {"round": 2, "cycle": 1, "groups": [{"id": "G", "finding_ids": ["ISSUE-01"], "status": "running",
+            "failure_history": [{"attempt_id": "f1", "source": "review", "reason": "changes", "at": "2026-11-21T00:00:00Z"}]}]}
+        live.write_text(json.dumps(doc)); self.data.write_text(json.dumps(doc))
+        result = self.call("rollover", "--new-pr", "124", "--worktree", "feature-124", "--force", "--reason", "test override")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        new_live = Path(json.loads((self.state / "registry.json").read_text())["example/project/124"]["live"])
+        tracking = json.loads(new_live.read_text())["tracking"]
+        self.assertEqual([gate["id"] for gate in tracking["carried_gates"]], ["G"])
+        self.assertEqual(tracking["carried_gates"][0]["failure_history"][0]["attempt_id"], "f1")
+        import manage_findings
+        with self.assertRaisesRegex(ValueError, "gated lane G"):
+            manage_findings.carry_plan_runtime_state([{"id": "FRESH", "finding_ids": ["ISSUE-01"], "status": "planned"}],
+                                                     {"groups": tracking["carried_gates"]}, False)
+        lane = [{"id": "G", "finding_ids": ["ISSUE-01"], "status": "planned"}]
+        manage_findings.carry_plan_runtime_state(lane, {"groups": tracking["carried_gates"]}, False)
+        self.assertEqual(lane[0]["failure_history"][0]["attempt_id"], "f1")
 
     def test_merged_records_terminal_state_and_retargets_stacked_prs(self):
         sha = "a" * 40; merged_at = "2026-11-14T12:00:00Z"

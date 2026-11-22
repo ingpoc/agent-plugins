@@ -1992,6 +1992,22 @@ def advance_plan_round(tracking, findings, timestamp):
     tracking["stages_reached"].append("plan_fix")
 
 
+def carried_gates(plan, current_ids):
+    """BCL-158: unverified lanes with counted failures or a block keep their gate in the successor list."""
+    kept = ("id", "finding_ids", "status", "phase", "failure_history", "plan_review_history", "unblock_history",
+            "blocked_reason", "failure_block_reason")
+    gates = []
+    for group in (plan or {}).get("groups", []) if isinstance(plan, dict) else []:
+        if not isinstance(group, dict) or RENDERER.plan_status(group) == "verified":
+            continue
+        ids = [i for i in group.get("finding_ids", []) if i in current_ids]
+        if ids and (group.get("status") == "blocked" or _counted_failures(_lane_history(group, "failure_history"))):
+            gate = {key: copy.deepcopy(group[key]) for key in kept if key in group}
+            gate["finding_ids"] = ids
+            gates.append(gate)
+    return gates
+
+
 def prepare_rollover(document, operation, force=False):
     findings = document.get("findings")
     tracking = document.setdefault("tracking", {})
@@ -2039,6 +2055,7 @@ def prepare_rollover(document, operation, force=False):
     tracking.setdefault("round_history", []).append({"round": round_number, "fixed": len(fixed), "ended_at": timestamp})
     tracking["round"] = 1
     tracking["cycle"] = RENDERER.rollover_cycle(tracking) + 1
+    tracking["carried_gates"] = carried_gates(tracking.get("plan"), current_ids)
     tracking.pop("plan", None)
     tracking["workflow"] = {"stage":"collect", "updated_at":timestamp}
     run = tracking.pop("verification_run", None)
@@ -2530,7 +2547,9 @@ def run(args, parser):
                         if starting_new_round:
                             advance_plan_round(tracking, findings,
                                                datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
-                        carry_plan_runtime_state(requested_plan["groups"], current_plan, same_current_plan and not starting_new_round)
+                        carry_from = current_plan if isinstance(current_plan, dict) else {
+                            "groups": copy.deepcopy(tracking.get("carried_gates") or [])}
+                        carry_plan_runtime_state(requested_plan["groups"], carry_from, same_current_plan and not starting_new_round)
                         plan = copy.deepcopy(requested_plan)
                         groups = plan["groups"]
                         for group in groups:
