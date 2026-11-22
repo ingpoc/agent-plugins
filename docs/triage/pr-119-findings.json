@@ -11499,9 +11499,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T10:36:53Z",
-      "now": "2026-11-22T10:36:53Z — Presuite started"
+      "stage": "install",
+      "updated_at": "2026-11-22T10:47:50Z",
+      "now": "2026-11-22T10:47:50Z — Install in progress"
     },
     "rollover": {
       "source_pr": 118,
@@ -12989,7 +12989,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "round": 3,
@@ -13018,11 +13019,15 @@
               "phase": "presuite",
               "started_at": "2026-11-22T10:36:53Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-22T10:36:53Z",
+              "heartbeat_at": "2026-11-22T10:41:52Z",
               "plan_sha256": "c81f4a2d99d981e1a2a531467693ca88af0d08b1bbb368b92d00b75799603e3f",
               "model": "scripted presuite",
               "cycle": 11,
-              "round": 3
+              "round": 3,
+              "pid": 98070,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T10:41:52Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "fix_status": "passed",
@@ -13102,9 +13107,23 @@
               "owner_override": true
             }
           ],
-          "status": "review",
+          "status": "installing",
           "updated_at": "2026-11-22T09:04:52Z",
-          "phase": "review"
+          "phase": "install",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T10:41:52Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T10:47:50Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "scripted install",
+            "at": "2026-11-22T10:47:50Z"
+          }
         },
         {
           "id": "R2-145",
