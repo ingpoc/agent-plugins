@@ -636,10 +636,12 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
                      f'<span class="lanes">{"".join(chips)}</span></li>')
 
     gate_state = "done" if gate_met else "current" if active == "gate" else "upcoming"
-    accessible = f"{fixed} of {threshold} fixes verified, {in_progress} in progress, gate {'met' if gate_met else 'not met'}"
+    merge_threshold = max(threshold, WF.MERGE_PREVIOUS_PR_THRESHOLD)
+    accessible = (f"{fixed} of {merge_threshold} fixes verified (report gate {threshold}), "
+                  f"{in_progress} in progress, gate {'met' if gate_met else 'not met'}")
     if report_exception:
         accessible += "; report gate exception applies"
-    amount = min(100, round(100 * fixed / threshold))
+    amount = min(100, round(100 * fixed / merge_threshold))
     if gate_met:
         icon = (f'<svg width="22" height="22" viewBox="0 0 22 22" role="img" aria-label="{html.escape(accessible, quote=True)}">'
                 '<circle cx="11" cy="11" r="8.5" fill="var(--green)" stroke="var(--green)" stroke-width="3"/>'
@@ -649,7 +651,7 @@ def render_workflow(active, groups, fixed, threshold, gate_met, in_progress, rou
         icon = (f'<svg width="22" height="22" viewBox="0 0 22 22" role="img" aria-label="{html.escape(accessible, quote=True)}">'
                 '<circle cx="11" cy="11" r="8.5" fill="#fff" stroke="var(--sage-line)" stroke-width="3"/>' + arc + '</svg>')
     gate = (f'<li data-stage="gate" class="wf-step {gate_state} wf-gate"><span class="wf-dot">{icon}</span>'
-            f'<span class="wf-label">{WF.DEFINITION["gate"]["badge_label"]} <b>{fixed}/{threshold}</b> verified<small>{in_progress} in progress</small>'
+            f'<span class="wf-label">{WF.DEFINITION["gate"]["badge_label"]} <b>{fixed}/{merge_threshold}</b> verified<small>{fixed}/{threshold} report gate</small><small>{in_progress} in progress</small>'
             f'{"<small>Report gate exception: no counted findings remain open.</small>" if report_exception else ""}</span>'
             '<span class="lanes"></span></li>')
     pips = "".join("<i></i>" for _ in range(min(round_number, 5)))
