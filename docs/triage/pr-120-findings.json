@@ -13045,7 +13045,8 @@
         "kind": "fix",
         "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)"
       },
-      "needs": "1. [live_state.py:473](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:473) clears the pending marker after an ordinary same-stage snapshot even when it creates no commit. If that snapshot runs before the explicit `bcl snapshot`, the latter reports “nothing to save” and the pending change remains uncommitted. Preserve the pending marker until the explicit save commits it. The [concurrency test](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:199) checks for deadlock and marker removal but does not check that the pending change was committed; make the ordering deterministic and assert the saved commit."
+      "needs": "1. [live_state.py:473](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:473) clears the pending marker after an ordinary same-stage snapshot even when it creates no commit. If that snapshot runs before the explicit `bcl snapshot`, the latter reports “nothing to save” and the pending change remains uncommitted. Preserve the pending marker until the explicit save commits it. The [concurrency test](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:199) checks for deadlock and marker removal but does not check that the pending change was committed; make the ordering deterministic and assert the saved commit.",
+      "verification": "Verifying the snapshot command on the live list"
     },
     {
       "id": "BCL-144",
