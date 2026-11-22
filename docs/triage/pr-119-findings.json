@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T04:09:15Z",
-      "now": "2026-11-22T04:09:15Z — Fix started"
+      "stage": "install",
+      "updated_at": "2026-11-22T04:15:26Z",
+      "now": "2026-11-22T04:15:26Z — Install in progress"
     },
     "rollover": {
       "source_pr": 118,
@@ -12227,7 +12227,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "round": 2,
@@ -12394,7 +12395,7 @@
           "finding_ids": [
             "BCL-135"
           ],
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl119-r2-135",
           "label": "BCL-135",
           "reason": "Shipped in 0.1.59 (46ef08eb) as a bootstrap fix: the bug blocked every plan write, so the fix ran before this plan could be recorded",
@@ -12416,11 +12417,14 @@
               "phase": "presuite",
               "started_at": "2026-11-22T04:08:21Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-22T04:08:21Z",
+              "heartbeat_at": "2026-11-22T04:13:35Z",
               "plan_sha256": "8e2b7aecec13d072b201703b8d0fcfabcb027274ffd896b173c87450e48b61f2",
               "cycle": 11,
               "round": 2,
-              "pid": 91523
+              "pid": 91523,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T04:13:35Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "review_status": "skipped_one_file"
@@ -12428,7 +12432,16 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T04:07:33Z",
-          "phase": "review"
+          "phase": "install",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T04:13:35Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T04:15:26Z"
+          }
         },
         {
           "id": "R2-136",
@@ -12456,11 +12469,12 @@
               "phase": "fix",
               "started_at": "2026-11-22T04:09:15Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T04:09:15Z",
+              "heartbeat_at": "2026-11-22T04:15:16Z",
               "plan_sha256": "8e2b7aecec13d072b201703b8d0fcfabcb027274ffd896b173c87450e48b61f2",
               "model": "gpt-6-luna medium fast (Codex CLI)",
               "cycle": 11,
-              "round": 2
+              "round": 2,
+              "pid": 94572
             }
           },
           "failure_history": [],
@@ -12474,7 +12488,7 @@
           "finding_ids": [
             "BCL-137"
           ],
-          "status": "pending",
+          "status": "running",
           "worktree": "bcl119-r2-137",
           "label": "BCL-137",
           "verify": {
@@ -12488,11 +12502,24 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r2-137",
             "reviewer_session": "codex-terra-6.1-119r2-137",
-            "review_status": "pending"
+            "fix_status": "running",
+            "job": {
+              "id": "9c1763e59a8b4d1f808e8d94d3517d81",
+              "phase": "fix",
+              "started_at": "2026-11-22T04:09:18Z",
+              "command": "env",
+              "heartbeat_at": "2026-11-22T04:15:19Z",
+              "plan_sha256": "8e2b7aecec13d072b201703b8d0fcfabcb027274ffd896b173c87450e48b61f2",
+              "model": "gpt-6-luna medium fast (Codex CLI)",
+              "cycle": 11,
+              "round": 2,
+              "pid": 95546
+            }
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T04:07:33Z"
+          "updated_at": "2026-11-22T04:07:33Z",
+          "phase": "fix"
         },
         {
           "id": "R2-138",
@@ -12500,7 +12527,7 @@
           "finding_ids": [
             "BCL-138"
           ],
-          "status": "pending",
+          "status": "review",
           "worktree": "bcl119-r2-138",
           "label": "BCL-138",
           "verify": {
@@ -12514,12 +12541,29 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r2-138",
             "reviewer_session": "codex-terra-6.1-119r2-138",
-            "review_status": "pending",
-            "one_file": true
+            "one_file": true,
+            "fix_status": "passed",
+            "job": {
+              "id": "d2c2acab70dd40e6b854e9d465e96001",
+              "phase": "fix",
+              "started_at": "2026-11-22T04:09:21Z",
+              "command": "env",
+              "heartbeat_at": "2026-11-22T04:14:31Z",
+              "plan_sha256": "8e2b7aecec13d072b201703b8d0fcfabcb027274ffd896b173c87450e48b61f2",
+              "model": "gpt-6-luna medium fast (Codex CLI)",
+              "cycle": 11,
+              "round": 2,
+              "pid": 96612,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T04:14:31Z",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T04:07:33Z"
+          "updated_at": "2026-11-22T04:07:33Z",
+          "phase": "review"
         }
       ],
       "cycle": 11
@@ -13425,7 +13469,8 @@
         "filed_by": "PR 119 round 1 reviews",
         "report": "r1/planreview-add-3.md, -4.md, -5.md",
         "evidence": "Sol plan reviews add-3, add-4 and add-5 reproduced the stale completion",
-        "kind": "fix"
+        "kind": "fix",
+        "merged_with": "BCL-113 (same root cause: plan edits invalidate a running job); fix in the same lane"
       }
     },
     {
@@ -13443,7 +13488,8 @@
         "filed_by": "PR 119 round 1 reviews",
         "report": "r1/planreview-add-2.md, -6.md",
         "evidence": "Sol plan reviews add-2 and add-6",
-        "kind": "fix"
+        "kind": "fix",
+        "merged_with": "BCL-122 (same pre-push chart check); fix in the same lane"
       }
     },
     {
@@ -13500,7 +13546,8 @@
         "report": "bcl-119/statechart-review.tgz out1/report.md",
         "evidence": "Model rule PlanReviewsCapped breaks in 5 steps; real: bcl job accepted plan reviews 4 to 7 on R1-RELEASE and 4 to 6 on R1-ADD",
         "kind": "fix",
-        "related": "BCL-121 covers work-done reviews only"
+        "related": "BCL-121 covers work-done reviews only",
+        "merged_with": "BCL-121 (one review budget for plan and work reviews); fix in the same lane"
       }
     },
     {
@@ -13610,6 +13657,63 @@
         "evidence": "set-plan round 2 on a copy: omitting R1-DEAD gives cannot change gated lane; keeping it as pending or deferred gives plan group R1-DEAD has invalid status (carry_plan_runtime_state drops status for carried lanes in a new round unless blocked)",
         "kind": "fix",
         "blocks": "round 2 plan"
+      }
+    },
+    {
+      "id": "BCL-144",
+      "title": "Ship every round, with a recorded hotfix route for tool bugs",
+      "summary": "Verified fixes wait for the rollover gate before they ship, and when a tool bug blocks the loop the only way forward is manual exception steps and fixes built outside any lane.",
+      "impact": "Finished fixes sit unshipped between rounds, and tool-bug fixes skip the recorded loop, needing owner exceptions each time.",
+      "recommendation": "At the end of every round, release every verified fix as a patch version whatever the count and carry the rest; keep the 16 verified gate only for rollover and merge to main. Add one bcl command that runs a single tool-bug fix as a recorded one-lane mini round (fix, tests, release check, install, verify), allowed only when the blocker is a tool bug and logged with a reason, replacing the manual exception steps rather than adding to them.",
+      "done_when": "The release and rollover guides and the statechart say every round ships its verified fixes and the 16 gate applies only to rollover and merge; a bcl hotfix command records a one-lane mini round end to end with a reason, is refused for non-tool blockers, and the manual exception steps it replaces are deleted; tests cover it.",
+      "observed": "22 Nov 2026 09:40 IST, bcl 0.1.60, PR 119 round 2",
+      "priority": "high",
+      "source": "User requested",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 09:40 IST via parent agent",
+        "report": "bcl-119 progress.md",
+        "depends_on": "BCL-136 (release check must clear for reviewed fixes)",
+        "round2_order": "right after BCL-136",
+        "evidence": "Round 1 and 2 of PR 119 needed a one-time release-check exception (0.1.58) and two fixes built outside lanes (BCL-135 in 0.1.59, BCL-143 in 0.1.60)",
+        "kind": "fix"
+      }
+    },
+    {
+      "id": "BCL-145",
+      "title": "Lane states and allowed moves are listed separately in each writer",
+      "summary": "The states a lane can be in, and which moves each command allows, are written out again in each checker, the release check, the page and the chart, so one command writes a state that another refuses.",
+      "impact": "This one cause produced the stuck loops of rounds 117 to 119: a carried lane could not be deferred, a new round could not be planned, the release check never cleared, and writers overwrote blocked lanes; each needed a fix built outside a lane or an owner exception.",
+      "recommendation": "Declare the lane states and allowed moves once in the workflow definition file and make every checker, the release check, the page and the chart read that one table; delete the separate lists.",
+      "done_when": "One declared lane state table is the only list of lane states and moves in the code; a test fails if any command writes a state the table does not allow from the current one; the separate lists are deleted.",
+      "observed": "22 Nov 2026 09:45 IST, bcl 0.1.60, reliability pass over PR 117 to 119",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "PR 119 round 2 reliability pass (Guru 09:41 IST); attack-the-premise",
+        "report": "bcl-119 progress.md",
+        "evidence": "Six separate lane state sets (render PLAN_STATUSES, PLAN_PHASES, STALE_LANE_STATUSES; manage_findings IN_FLIGHT and SETTLED sets; check_install_sessions REVIEW_STATUSES) plus about 24 inline status checks; BCL-135, 136, 143 were each a state one path writes and another refuses",
+        "kind": "fix",
+        "root_cause_for": "BCL-110, BCL-112, BCL-132, BCL-135, BCL-136, BCL-143"
+      }
+    },
+    {
+      "id": "BCL-146",
+      "title": "The pre-push suite runs ten at a time and timing tests fail under load",
+      "summary": "The repository check runs ten test processes at once by default; on the loaded Mini unrelated timing tests fail, so the pre-push suite fails and is rerun by hand with six workers.",
+      "impact": "Every release in PR 117 to 119 lost one or two pre-push runs to load failures in code the round did not touch.",
+      "recommendation": "Make six workers the default for the repository check and drop the manual flag from the release steps.",
+      "done_when": "The repository check defaults to six workers, the release steps no longer pass the flag, and a full run passes under normal Mini load.",
+      "observed": "22 Nov 2026 09:45 IST, PR 117 to 119 pre-push runs",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "PR 119 round 2 reliability pass",
+        "report": "bcl-117 and bcl-118 progress.md",
+        "evidence": "117 16:47, 22:07, 13:41 and 17:17; 118 08:19; 119 22:14 and 22:26: timing tests failed under about ten-way load and passed alone or with six workers",
+        "kind": "fix"
       }
     }
   ]
