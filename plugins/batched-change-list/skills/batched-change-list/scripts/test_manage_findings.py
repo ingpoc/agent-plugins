@@ -1336,6 +1336,29 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual([row["attempt_id"] for row in group["failure_history"]], ["a", "b"])
         self.assertEqual(group["plan_review_history"][0]["after_failure"], "b")
 
+    def test_bcl180_blocked_lane_can_only_be_parked_with_reason_and_keeps_gate(self):
+        blocked = copy.deepcopy(self.document)
+        blocked["tracking"] = {"cycle": 1, "round": 1, "plan": {"cycle": 1, "round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "status": "blocked", "phase": "fix",
+            "failure_history": [{"attempt_id": "failure-1", "at": "2026-11-21T00:00:00Z"},
+                                {"attempt_id": "failure-2", "at": "2026-11-21T00:01:00Z"}],
+            "plan_review_history": [{"job_id": "review", "after_failure": "failure-2"}],
+            "blocked_reason": "two counted failures"}]}}
+        for patch in ({"status": "planned", "reason": "later"}, {"status": "parked"}):
+            result = self._replay_batch(blocked, {"action": "update-plan-group", "id": "A", "patch": patch})
+            self.assertNotEqual(result.returncode, 0)
+        parked = self._replay_batch(blocked, {"action": "update-plan-group", "id": "A",
+                                               "patch": {"status": "parked", "parked_to": 2,
+                                                         "reason": "defer to next round"}})
+        self.assertEqual(parked.returncode, 0, parked.stderr)
+        current = json.loads(self.data.read_text())
+        current["tracking"]["plan"]["groups"].append({"id": "B", "finding_ids": ["ISSUE-02"], "status": "verified"})
+        self.assertTrue(manage_findings.release_check_payload(current)["clear"])
+        next_round = [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned"}]
+        manage_findings.carry_plan_runtime_state(next_round, current["tracking"]["plan"], False)
+        self.assertEqual(next_round[0]["status"], "blocked")
+        self.assertEqual([row["attempt_id"] for row in next_round[0]["failure_history"]], ["failure-1", "failure-2"])
+
     def test_gated_lane_carries_its_gate_across_round_re_record(self):
         prior = {"groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "blocked",
                              "failure_history": [{"attempt_id": "failed", "at": "2026-11-21T00:00:00Z"}],

@@ -491,6 +491,11 @@ def refuse_lane_moves(before, after):
     for group in after.get("groups", []):
         prior = previous.get(group.get("id")) if isinstance(group, dict) else None
         if prior is not None and set(prior.get("finding_ids", [])) == set(group.get("finding_ids", [])):
+            if (prior.get("status") == "blocked" and prior.get("blocked_reason") in
+                    ("Individual issue checks pending", "Remaining issue checks pending")
+                    and not _counted_failures(_lane_history(prior, "failure_history"))
+                    and group.get("status") in ("verifying", "verified")):
+                continue
             workflow_definition.refuse_lane_move(group.get("id"), prior.get("status"), group.get("status"))
 
 
@@ -603,7 +608,9 @@ def carry_plan_runtime_state(groups, previous, same_round):
         if prior and unchanged and (same_round or gated(prior)):
             requested_status, requested_phase = group.get("status"), group.get("phase")
             for field in protected_group:
-                if field in prior and (same_round or field in LANE["gate_paths"] or prior.get("status") == "blocked" and field == "status"):
+                if field in prior and (same_round or field in LANE["gate_paths"] or
+                                       prior.get("status") == "blocked" and field == "status" or
+                                       prior.get("status") == "parked" and prior.get("blocked_reason") and field == "status"):
                     group[field] = copy.deepcopy(prior[field])
                 else:
                     group.pop(field, None)
@@ -614,6 +621,8 @@ def carry_plan_runtime_state(groups, previous, same_round):
                         group["phase"] = requested_phase
                 else:
                     group["status"] = "planned"
+            if not same_round and prior.get("status") == "parked" and prior.get("blocked_reason"):
+                group["status"] = "blocked"
             codex = group.setdefault("codex", {})
             previous_codex = prior.get("codex") if isinstance(prior.get("codex"), dict) else {}
             for field in protected_codex if same_round else ():
@@ -911,6 +920,10 @@ def job_transition(document, operation):
                 {"cycle": cycle, "round": round_number, "phase": phase, "reason": reason, "at": stamp})
         if job.get("plan_sha256") != plan_candidate_sha256(plan):
             raise ValueError("job reservation belongs to a stale plan candidate")
+        worktree = job.get("worktree")
+        if isinstance(worktree, str) and worktree.strip():
+            for group in groups:
+                group["worktree"] = worktree
         for group in groups:
             codex = group.setdefault("codex", {})
             if group.get("status") in LANE["groups"]["fix_refused"] or (
@@ -2688,7 +2701,10 @@ def run(args, parser):
                         if group is None or not isinstance(patch, dict) or "id" in patch:
                             raise ValueError("update-plan-group requires id and a valid group patch")
                         if group.get("status") == "blocked" and patch.get("status", "blocked") != "blocked":
-                            raise ValueError(f"blocked lane {group.get('id')} can only be reopened with bcl unblock --reason")
+                            if (patch.get("status") not in LANE["moves"].get("blocked", [])
+                                    or patch.get("status") != "parked"
+                                    or not isinstance(patch.get("reason"), str) or not patch["reason"].strip()):
+                                raise ValueError(f"blocked lane {group.get('id')} can only be reopened with bcl unblock --reason; defer it to parked with a reason")
                         if "finding_ids" in patch and (group.get("status") == "blocked" or _counted_failures(_lane_history(group, "failure_history"))) and set(patch["finding_ids"]) != set(group.get("finding_ids", [])):
                             raise ValueError(f"update-plan-group cannot change gated lane {group.get('id')} findings")
                         if any(key in patch and not isinstance(patch[key], str) for key in ("label", "verify_summary", "name", "worktree", "reason")):

@@ -105,7 +105,7 @@
     ],
     "step_chips": ["planned", "running", "review", "installing", "verifying"],
     "gate_paths": ["failure_history", "plan_review_history", "unblock_history", "blocked_reason", "failure_block_reason"],
-    "hash_excluded": ["status", "phase", "presuite", "updated_at", "failure_history", "unblock_history", "plan_review_history", "blocked_reason", "failure_block_reason", "verify.status", "verify.fixed", "verify.failed", "verify.total", "verify.failure", "codex.job", "codex.fix_status", "codex.review_status", "codex.plan_review_status", "codex.reviewer_model", "codex.must_fix_note", "codex.tool_fault_streak"],
+    "hash_excluded": ["status", "phase", "worktree", "presuite", "updated_at", "failure_history", "unblock_history", "plan_review_history", "blocked_reason", "failure_block_reason", "verify.status", "verify.fixed", "verify.failed", "verify.total", "verify.failure", "codex.job", "codex.fix_status", "codex.review_status", "codex.plan_review_status", "codex.reviewer_model", "codex.must_fix_note", "codex.tool_fault_streak"],
     "moves": {
       "planned": ["running", "review", "installing", "verifying", "verified", "blocked", "failed", "parked"],
       "running": ["planned", "review", "installing", "verifying", "verified", "blocked", "failed", "parked"],
@@ -113,7 +113,7 @@
       "installing": ["planned", "running", "review", "verifying", "verified", "blocked", "failed", "parked"],
       "verifying": ["planned", "running", "review", "installing", "verified", "blocked", "failed", "parked"],
       "failed": ["planned", "running", "review", "installing", "verifying", "verified", "blocked", "parked"],
-      "blocked": ["planned", "running", "verifying", "verified", "failed", "parked"],
+      "blocked": ["planned", "running", "parked"],
       "verified": ["verifying", "blocked", "failed"],
       "parked": ["planned"]
     },

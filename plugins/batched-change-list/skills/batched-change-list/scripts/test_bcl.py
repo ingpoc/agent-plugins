@@ -37,6 +37,14 @@ def tearDownModule():
     viewer_test_guard.assert_no_viewers(viewer_test_guard.TEMP_ROOTS)
 
 class BclTests(unittest.TestCase):
+    def test_bcl179_fresh_worktree_name_replaces_one_round_marker(self):
+        for old, expected in (("bcl120-r2-do1", "bcl120-r3-do1"),
+                              ("bcl120-r2", "bcl120-r3"),
+                              ("bcl120-r2-r2", "bcl120-r3-r2"),
+                              ("bcl120", "bcl120-r3")):
+            with self.subTest(old=old):
+                self.assertEqual(bcl_entrypoint._fresh_worktree_name(old, 3), expected)
+
     def test_plugin_root_stays_inside_plugin_or_installed(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); plugin = root / "plugins/batched-change-list"
@@ -695,6 +703,40 @@ elif args[:2] != ['pr', 'edit']:
         self.assertNotEqual(conflict.returncode, 0)
         self.assertIn("shared.txt", conflict.stderr + conflict.stdout)
         self.assertFalse(fresh.exists())
+
+    def test_bcl175_refresh_worktrees_dry_run_and_no_record(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        lane = self.root / "lane-a"
+        self.git(self.home, "worktree", "add", "-qb", "lane-a", str(lane))
+        (lane / "lane.txt").write_text("lane work\n")
+        self.git(lane, "add", "."); self.git(lane, "commit", "-qm", "lane fix")
+        (self.home / "list.txt").write_text("list work\n")
+        self.git(self.home, "add", "list.txt"); self.git(self.home, "commit", "-qm", "list moved")
+        plan = self.root / "round-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned", "worktree": "lane-a"}]}))
+        self.assertEqual(self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        before = live.read_bytes()
+        dry = self.call_without_viewer("refresh-worktrees", "--repo", str(self.home), "--dry-run")
+        self.assertEqual(dry.returncode, 0, dry.stderr)
+        self.assertIn("commits to replay", dry.stdout)
+        self.assertIn("base ", dry.stdout)
+        fresh = self.root / "lane-a-r1"
+        self.assertFalse(fresh.exists())
+        self.assertEqual(live.read_bytes(), before)
+        made = self.call_without_viewer("refresh-worktrees", "--repo", str(self.home), "--no-record")
+        self.assertEqual(made.returncode, 0, made.stderr)
+        self.assertTrue(fresh.is_dir())
+        self.assertEqual(live.read_bytes(), before)
+        result_file = self.root / "job-result.txt"
+        old_cwd = Path.cwd()
+        try:
+            os.chdir(fresh)
+            job = self.call_job_without_viewer(live, "job", "--ids", "ISSUE-01", "--phase", "fix", "--", "true")
+        finally:
+            os.chdir(old_cwd)
+        self.assertEqual(job.returncode, 0, job.stderr)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["worktree"], "lane-a-r1")
 
     def test_correct_round_moves_the_counter_forward_and_keeps_history(self):
         self.assertEqual(self.call_without_viewer("start").returncode, 0)
@@ -2543,7 +2585,7 @@ elif args[:2] != ['pr', 'edit']:
         return subprocess.run([sys.executable, str(manager), "batch", str(live), "-", "--render", str(self.page)],
                               input=json.dumps(operations), text=True, capture_output=True, env=self.env)
 
-    def test_definition_controls_verify_admission(self):
+    def test_bcl180_blocked_lane_move_to_verifying_remains_refused(self):
         live, command = self._lane_ready()
         marker = self.root / "lane-ran"
         (self.root / "lane.py").write_text(f"from pathlib import Path; Path({str(marker)!r}).touch()\n")
@@ -2556,8 +2598,9 @@ elif args[:2] != ['pr', 'edit']:
         self.assertFalse(marker.exists())
         root = self._lane_copy(lambda lane: lane["groups"]["verify_refused"].remove("blocked"))
         changed = self._run_bcl(root / "bin/bcl", "verify", "--ids", "ISSUE-01", "--then", command)
-        self.assertEqual(changed.returncode, 0, changed.stderr)
-        self.assertTrue(marker.exists())
+        self.assertNotEqual(changed.returncode, 0)
+        self.assertIn("cannot move from blocked to verifying", changed.stderr)
+        self.assertFalse(marker.exists())
 
     def test_one_dependency_group_controls_validation_and_invalidation(self):
         script = ("import json, manage_findings as m\n"

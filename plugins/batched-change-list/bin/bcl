@@ -139,6 +139,7 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
     job = {"id": uuid.uuid4().hex, "phase": phase, "started_at": started_at,
            "command": Path(command_args[0]).name, "heartbeat_at": started_at,
            "plan_sha256": manage_findings.plan_candidate_sha256(plan)}
+    job["worktree"] = Path.cwd().name
     if model:
         job["model"] = model
     _job_write_retry(record, live, report, base,
@@ -368,12 +369,16 @@ def _refresh_worktrees(args, tracking, parser):
             continue
         if args.ids and not set(args.ids) & set(group.get("finding_ids", [])):
             continue
-        fresh = f"{re.sub(r'-r[0-9]+$', '', name)}-r{round_number}"
+        fresh = _fresh_worktree_name(name, round_number)
         old, new = repo.parent / name, repo.parent / fresh
         if fresh == name or new.exists():
             continue
         old_head = _git(old, "rev-parse", "HEAD").stdout.strip() if old.is_dir() else ""
         commits = _git(repo, "rev-list", "--reverse", "--no-merges", f"{head}..{old_head}").stdout.split() if old_head else []
+        if args.dry_run:
+            replay = ", ".join(commits) or "none"
+            print(f"{group['id']}: planned worktree {new}; base {head}; commits to replay: {replay}")
+            continue
         made = _git(repo, "worktree", "add", "-q", "-b", f"bcl/{fresh}", str(new), head)
         if made.returncode:
             print(f"refresh-worktrees: cannot create {new}: {made.stderr.strip()}", file=sys.stderr)
@@ -387,9 +392,14 @@ def _refresh_worktrees(args, tracking, parser):
                 print(f"refresh-worktrees: lane {group['id']} commit {commit[:8]} conflicts with the list branch in "
                       f"{', '.join(files) or 'unknown files'}; resolve in {old} and rerun", file=sys.stderr)
                 raise SystemExit(1)
-        operations.append({"action": "update-plan-group", "id": group["id"], "patch": {"worktree": fresh}})
+        if not args.no_record:
+            operations.append({"action": "update-plan-group", "id": group["id"], "patch": {"worktree": fresh}})
         print(f"{group['id']}: fresh worktree {new} at {head[:8]} with {len(commits)} commits replayed")
     return operations
+
+def _fresh_worktree_name(name, round_number):
+    marker = re.search(r"-r[0-9]+(?=-|$)", name)
+    return re.sub(r"-r[0-9]+(?=-|$)", f"-r{round_number}", name, count=1) if marker else f"{name}-r{round_number}"
 
 def main():
     parser = argparse.ArgumentParser()
@@ -404,6 +414,7 @@ def main():
     parser.add_argument("--reason", help="why an override, fix order, verify rerun, cleanup failure, stopped run, resort-failures apply, or pause is recorded")
     parser.add_argument("--tool-fault", action="append", default=[], help="unblock or resort-failures --apply: failure attempt ID recorded as a tool fault; repeat for each attempt")
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
+    parser.add_argument("--dry-run", action="store_true"); parser.add_argument("--no-record", action="store_true")
     parser.add_argument("--shared", action="store_true")
     parser.add_argument("--new-pr", type=int); parser.add_argument("--new-url"); parser.add_argument("--worktree")
     parser.add_argument("--merge-commit"); parser.add_argument("--merged-at"); parser.add_argument("--base-branch")

@@ -1,6 +1,6 @@
 # Release checks
 
-Before pushing or installing a release, run `bcl release-check --ids ID` for each finding shipped in this version (repeat `--ids` as needed). A named lane is included only after its fix and review pass; every other in-flight lane remains listed until included or deferred, so do not ship a version that silently drops lane work.
+Before pushing or installing a release, run `bcl release-check --ids ID` for each finding shipped in this version (repeat `--ids` as needed). A named lane is included only after its fix and review pass; other in-flight lanes remain listed until included or deferred/parked with a reason.
 
 For a lane release, run presuite with `CI=1 python3 scripts/check.py --jobs 6 --changed-since <last released commit or origin/main>` and record which plugins ran in the presuite job. Merge to main and Origin CI still run the full suite, so the gate is unchanged.
 
