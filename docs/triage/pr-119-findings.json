@@ -11499,9 +11499,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T08:53:41Z",
-      "now": "2026-11-22T08:53:41Z — Review started"
+      "stage": "introspect",
+      "updated_at": "2026-11-22T08:59:43Z",
+      "now": "2026-11-22T08:59:43Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 118,
@@ -12840,6 +12840,123 @@
         },
         "round": 1,
         "cycle": 11
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-22T08:59:43Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 5",
+          "Codex write: R2-146",
+          "Codex review: R2-146",
+          "Polling and rework review: R2-146",
+          "Test command: R2-146: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-146.sh",
+          "Codex write: R2-141",
+          "One-file review exemption: R2-141",
+          "Polling and rework review: R2-141",
+          "Test command: R2-141: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-141.sh",
+          "Codex write: R2-135",
+          "One-file review exemption: R2-135",
+          "Polling and rework review: R2-135",
+          "Test command: R2-135: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-135.sh",
+          "Codex write: R2-136",
+          "Codex review: R2-136",
+          "Polling and rework review: R2-136",
+          "Test command: R2-136: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-136.sh",
+          "Codex write: R2-138",
+          "One-file review exemption: R2-138",
+          "Polling and rework review: R2-138",
+          "Test command: R2-138: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-138.sh",
+          "Carried lanes: R2-137, R2-144, R2-145, R2-150, R2-142 deferred to round 3 after the review cap or a second counted failure",
+          "Release exceptions: 0.1.61 and 0.1.62 shipped past release-check refusals with Guru approval"
+        ],
+        "none": [
+          "Stage: Verify",
+          "Codex write: R2-146",
+          "Codex review: R2-146",
+          "Polling and rework review: R2-146",
+          "Test command: R2-146: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-146.sh",
+          "Codex write: R2-141",
+          "One-file review exemption: R2-141",
+          "Polling and rework review: R2-141",
+          "Test command: R2-141: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-141.sh",
+          "Codex write: R2-135",
+          "One-file review exemption: R2-135",
+          "Polling and rework review: R2-135",
+          "Test command: R2-135: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-135.sh",
+          "Codex write: R2-136",
+          "Codex review: R2-136",
+          "Test command: R2-136: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-136.sh",
+          "Codex write: R2-138",
+          "One-file review exemption: R2-138",
+          "Polling and rework review: R2-138",
+          "Test command: R2-138: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-138.sh"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Polling and rework review: R2-136",
+                "evidence": "R2-136 needed Terra 1 CHANGES, two Sol plan reviews, fix 2 and Terra 2; round 2 ran 15 plan reviews (11 CHANGES) using about 5.3 million input tokens",
+                "outcome": "issue",
+                "issue_id": "BCL-153"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Stage: Install",
+                "evidence": "bcl install checks lane readiness separately from release-check; both releases needed an exception because the two gates disagreed with blocked or reviewed lanes",
+                "outcome": "issue",
+                "issue_id": "BCL-154"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Parallel group count: 5",
+                "evidence": "Parallel lanes R2-141 and R2-150 changed the page renderer and R2-137 and R2-144 changed plan writes; merges conflicted and reviews hit changes from other lanes",
+                "outcome": "issue",
+                "issue_id": "BCL-152"
+              },
+              {
+                "item": "Carried lanes: R2-137, R2-144, R2-145, R2-150, R2-142 deferred to round 3 after the review cap or a second counted failure",
+                "evidence": "Five lanes ended blocked or deferred; the root cause is lane states and runtime fields kept separately in each writer",
+                "outcome": "issue",
+                "issue_id": "BCL-145"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Stage: Review",
+                "evidence": "The 0.1.62 presuite failed only because a definition change was committed without regenerating the chart; about 5 minutes lost",
+                "outcome": "issue",
+                "issue_id": "BCL-155"
+              },
+              {
+                "item": "Stage: Plan & fix",
+                "evidence": "Reopened R2-145 and integration branches needed 4 manual merges onto the list branch head with definition and chart conflicts",
+                "outcome": "issue",
+                "issue_id": "BCL-156"
+              },
+              {
+                "item": "Release exceptions: 0.1.61 and 0.1.62 shipped past release-check refusals with Guru approval",
+                "evidence": "No bcl command records an approved exception; both were recorded in finding details",
+                "outcome": "issue",
+                "issue_id": "BCL-148"
+              }
+            ]
+          }
+        },
+        "round": 2,
+        "cycle": 11
       }
     ],
     "archive": {
@@ -12869,7 +12986,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 2,
@@ -12880,7 +12998,7 @@
           "finding_ids": [
             "BCL-150"
           ],
-          "status": "blocked",
+          "status": "deferred",
           "worktree": "bcl119-r2-150",
           "label": "BCL-150",
           "verify": {
@@ -12911,10 +13029,8 @@
               "finished_phase_status": "changes_requested",
               "must_fix": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:381) lets stored review outcomes override settled lane status. A verified or blocked lane retaining `review_status: passed` renders and counts as “Review passed” or “in review.” Preserve settled outcomes and test a verified lane with a realistic passed review receipt.\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:2739) still touches and writes the tracker when a repeated pause or resume reports a no-op. Return without mutation for those cases, and test that tracker contents remain unchanged."
             },
-            "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:381) lets stored review outcomes override settled lane status. A verified or blocked lane retaining `review_status: passed` renders and counts as “Review passed” or “in review.” Preserve settled outcomes and test a verified lane with a realistic passed review receipt.\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:2739) still touches and writes the tracker when a repeated pause or resume reports a no-op. Return without mutation for those cases, and test that tracker contents remain unchanged.",
-            "review_status": "blocked"
+            "must_fix_note": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:381) lets stored review outcomes override settled lane status. A verified or blocked lane retaining `review_status: passed` renders and counts as “Review passed” or “in review.” Preserve settled outcomes and test a verified lane with a realistic passed review receipt.\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:2739) still touches and writes the tracker when a repeated pause or resume reports a no-op. Return without mutation for those cases, and test that tracker contents remain unchanged."
           },
           "failure_history": [
             {
@@ -12944,10 +13060,25 @@
               "at": "2026-11-22T07:35:14Z"
             }
           ],
-          "updated_at": "2026-11-22T08:53:40Z",
-          "phase": "fix",
-          "blocked_reason": "Second failure",
-          "failure_block_reason": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:381) lets stored review outcomes override settled lane status. A verified or blocked lane retaining `review_status: passed` renders and counts as “Review passed” or “in review.” Preserve settled outcomes and test a verified lane with a realistic passed review receipt.\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:2739) still touches and writes the tracker when a repeated pause or resume reports a no-op. Return without mutation for those cases, and test that tracker contents remain unchanged."
+          "updated_at": "2026-11-22T08:58:57Z",
+          "phase": "deferred",
+          "unblock_history": [
+            {
+              "at": "2026-11-22T08:58:56Z",
+              "reason": "Guru 14:27: carry to R3, Astra re-plan, split",
+              "tool_faults": [],
+              "covered_attempts": [
+                "d6eaec1bcc5b46199299be65ec5a84dc",
+                "096f23f32cd94210a8bbd1f5c0c363e8"
+              ],
+              "rows_seen": 2,
+              "by_cycle": 11,
+              "round": 2,
+              "owner_override": true
+            }
+          ],
+          "reason": "Guru 14:27 IST: carry to round 3; Astra writes an implementer-ready plan split into 1-3 file sub-lanes covering Terra must-fixes (review-150-1, review-150-2)",
+          "parked_to": 3
         },
         {
           "id": "R2-145",
@@ -12955,7 +13086,7 @@
           "finding_ids": [
             "BCL-145"
           ],
-          "status": "review",
+          "status": "deferred",
           "worktree": "bcl119-r2-145",
           "label": "BCL-145",
           "verify": {
@@ -12975,16 +13106,19 @@
               "phase": "review",
               "started_at": "2026-11-22T08:53:41Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T08:53:41Z",
+              "heartbeat_at": "2026-11-22T08:55:17Z",
               "plan_sha256": "d7917005a75a7540400bee0b8f4263c507f7799b06a228af6df11ed948422d45",
               "model": "gpt-6.1-terra",
               "cycle": 11,
-              "round": 2
+              "round": 2,
+              "pid": 4475,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T08:55:17Z",
+              "finished_phase_status": "changes_requested",
+              "must_fix": "1. Literal lane-state groups remain in the consumers. For example, [manage_findings.py:1599](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1599) repeats the declared settled states, and [render.py:372](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:372) repeats the declared job phases. Read these from `workflow_definition` so changes to the declared groups reach every consumer."
             },
-            "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1540) protects runtime fields only when a lane already exists. A new lane can supply fields such as `failure_history`, `install`, or `verify_reruns` through `set-plan`; the later claim check covers only a subset. Apply the declared protection to new lanes too.\n\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1528) accepts `pending` even when a stored status differs, then silently restores the stored value. A caller’s attempted change must be refused; permit `pending` as a default only when no value was stored.\n\n3. Literal lane-state lists remain in [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:618), including the in-flight states and the list at line 624. The stated single-definition requirement is therefore incomplete.\n\n4. Add CLI behavior coverage for new-lane runtime claims, attempts to replace stored values with `pending`, and `bcl plan` without `--plan` resubmitting unchanged stored runtime values. The added tests exercise batch operations but do not cover those paths.",
-            "review_status": "running"
+            "must_fix_note": "1. Literal lane-state groups remain in the consumers. For example, [manage_findings.py:1599](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1599) repeats the declared settled states, and [render.py:372](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:372) repeats the declared job phases. Read these from `workflow_definition` so changes to the declared groups reach every consumer."
           },
           "failure_history": [
             {
@@ -13005,6 +13139,14 @@
               "tool_fault": true,
               "fault_kind": "runner_exit",
               "tool_fault_reason": "Reviewer exited 1"
+            },
+            {
+              "attempt_id": "30745247200347efb8ebc88357088142",
+              "source": "review",
+              "reason": "1. Literal lane-state groups remain in the consumers. For example, [manage_findings.py:1599](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1599) repeats the declared settled states, and [render.py:372](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:372) repeats the declared job phases. Read these from `workflow_definition` so changes to the declared groups reach every consumer.",
+              "cycle": 11,
+              "round": 2,
+              "at": "2026-11-22T08:55:17Z"
             }
           ],
           "plan_review_history": [
@@ -13017,10 +13159,25 @@
               "at": "2026-11-22T08:25:51Z"
             }
           ],
-          "updated_at": "2026-11-22T08:53:40Z",
-          "phase": "review",
-          "reason": "Guru 13:42 IST: continue with R2-145 now that 0.1.62 shipped; serial (only writer/renderer lane open)",
-          "parked_to": 3
+          "updated_at": "2026-11-22T08:58:57Z",
+          "phase": "deferred",
+          "reason": "Guru 14:27 IST: carry to round 3; Astra re-plan split into 1-3 file sub-lanes covering Terra must-fixes (review-145-1, review-145-2: remaining literal state groups)",
+          "parked_to": 3,
+          "unblock_history": [
+            {
+              "at": "2026-11-22T08:58:56Z",
+              "reason": "Guru 14:27: carry to R3, Astra re-plan, split",
+              "tool_faults": [],
+              "covered_attempts": [
+                "6cfd7b5c50ab4594b51536cbfe6692ac",
+                "30745247200347efb8ebc88357088142"
+              ],
+              "rows_seen": 3,
+              "by_cycle": 11,
+              "round": 2,
+              "owner_override": true
+            }
+          ]
         },
         {
           "id": "R3-STAGE",
@@ -13262,7 +13419,7 @@
           "finding_ids": [
             "BCL-142"
           ],
-          "status": "blocked",
+          "status": "deferred",
           "worktree": "bcl119-r2-142",
           "label": "BCL-142",
           "verify": {
@@ -13293,10 +13450,8 @@
               "finished_phase_status": "changes_requested",
               "must_fix": "1. [live_state.py:473](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:473) clears the pending marker after an ordinary same-stage snapshot even when it creates no commit. If that snapshot runs before the explicit `bcl snapshot`, the latter reports “nothing to save” and the pending change remains uncommitted. Preserve the pending marker until the explicit save commits it. The [concurrency test](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:199) checks for deadlock and marker removal but does not check that the pending change was committed; make the ordering deterministic and assert the saved commit."
             },
-            "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. [live_state.py:473](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:473) clears the pending marker after an ordinary same-stage snapshot even when it creates no commit. If that snapshot runs before the explicit `bcl snapshot`, the latter reports “nothing to save” and the pending change remains uncommitted. Preserve the pending marker until the explicit save commits it. The [concurrency test](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:199) checks for deadlock and marker removal but does not check that the pending change was committed; make the ordering deterministic and assert the saved commit.",
-            "review_status": "blocked"
+            "must_fix_note": "1. [live_state.py:473](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:473) clears the pending marker after an ordinary same-stage snapshot even when it creates no commit. If that snapshot runs before the explicit `bcl snapshot`, the latter reports “nothing to save” and the pending change remains uncommitted. Preserve the pending marker until the explicit save commits it. The [concurrency test](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:199) checks for deadlock and marker removal but does not check that the pending change was committed; make the ordering deterministic and assert the saved commit."
           },
           "failure_history": [
             {
@@ -13326,10 +13481,25 @@
               "at": "2026-11-22T06:17:13Z"
             }
           ],
-          "updated_at": "2026-11-22T08:53:40Z",
-          "phase": "fix",
-          "blocked_reason": "Second failure",
-          "failure_block_reason": "1. [live_state.py:473](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:473) clears the pending marker after an ordinary same-stage snapshot even when it creates no commit. If that snapshot runs before the explicit `bcl snapshot`, the latter reports “nothing to save” and the pending change remains uncommitted. Preserve the pending marker until the explicit save commits it. The [concurrency test](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:199) checks for deadlock and marker removal but does not check that the pending change was committed; make the ordering deterministic and assert the saved commit."
+          "updated_at": "2026-11-22T08:58:57Z",
+          "phase": "deferred",
+          "unblock_history": [
+            {
+              "at": "2026-11-22T08:58:57Z",
+              "reason": "Guru 14:27: carry to R3, Astra re-plan, split",
+              "tool_faults": [],
+              "covered_attempts": [
+                "fcde003316e84cabb4b5b71ef60b1d89",
+                "2f8fdbc5600a497583c134b947d7f8eb"
+              ],
+              "rows_seen": 2,
+              "by_cycle": 11,
+              "round": 2,
+              "owner_override": true
+            }
+          ],
+          "reason": "Guru 14:27 IST: carry to round 3; Astra re-plan covering Terra must-fixes (review-142-1, review-142-2: pending marker cleared without commit)",
+          "parked_to": 3
         },
         {
           "id": "R2-146",
@@ -13863,7 +14033,8 @@
           "parked_to": 3
         }
       ],
-      "cycle": 11
+      "cycle": 11,
+      "status": "closed"
     },
     "verification_run": {
       "id": "r2-4f1763d4-119",
@@ -14059,96 +14230,119 @@
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-21T17:08:29Z",
+      "at": "2026-11-22T08:59:43Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 4",
-        "Codex write: R1-DEAD",
-        "Codex review: R1-DEAD",
-        "Polling and rework review: R1-DEAD",
-        "Test command: R1-DEAD: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-dead.sh",
-        "Codex write: R1-RELEASE",
-        "Codex review: R1-RELEASE",
-        "Polling and rework review: R1-RELEASE",
-        "Test command: R1-RELEASE: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-release.sh",
-        "Codex write: R1-TESTS",
-        "Codex review: R1-TESTS",
-        "Polling and rework review: R1-TESTS",
-        "Test command: R1-TESTS: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-tests.sh",
-        "Codex write: R1-ADD",
-        "Codex review: R1-ADD",
-        "Polling and rework review: R1-ADD",
-        "Test command: R1-ADD: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-add.sh",
-        "Presuite: first job failed on an unchanged comet-control timing test under load 11; rerun with 6 test workers passed",
-        "Release check: owner exception for the two carried lanes because they could not be deferred"
+        "Parallel group count: 5",
+        "Codex write: R2-146",
+        "Codex review: R2-146",
+        "Polling and rework review: R2-146",
+        "Test command: R2-146: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-146.sh",
+        "Codex write: R2-141",
+        "One-file review exemption: R2-141",
+        "Polling and rework review: R2-141",
+        "Test command: R2-141: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-141.sh",
+        "Codex write: R2-135",
+        "One-file review exemption: R2-135",
+        "Polling and rework review: R2-135",
+        "Test command: R2-135: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-135.sh",
+        "Codex write: R2-136",
+        "Codex review: R2-136",
+        "Polling and rework review: R2-136",
+        "Test command: R2-136: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-136.sh",
+        "Codex write: R2-138",
+        "One-file review exemption: R2-138",
+        "Polling and rework review: R2-138",
+        "Test command: R2-138: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-138.sh",
+        "Carried lanes: R2-137, R2-144, R2-145, R2-150, R2-142 deferred to round 3 after the review cap or a second counted failure",
+        "Release exceptions: 0.1.61 and 0.1.62 shipped past release-check refusals with Guru approval"
       ],
       "none": [
-        "Stage: Plan & fix",
-        "Stage: Review",
-        "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 4",
-        "Codex write: R1-DEAD",
-        "Codex review: R1-DEAD",
-        "Polling and rework review: R1-DEAD",
-        "Test command: R1-DEAD: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-dead.sh",
-        "Codex write: R1-RELEASE",
-        "Codex review: R1-RELEASE",
-        "Test command: R1-RELEASE: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-release.sh",
-        "Codex write: R1-TESTS",
-        "Codex review: R1-TESTS",
-        "Polling and rework review: R1-TESTS",
-        "Test command: R1-TESTS: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-tests.sh",
-        "Codex write: R1-ADD",
-        "Codex review: R1-ADD",
-        "Test command: R1-ADD: /Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-add.sh"
+        "Codex write: R2-146",
+        "Codex review: R2-146",
+        "Polling and rework review: R2-146",
+        "Test command: R2-146: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-146.sh",
+        "Codex write: R2-141",
+        "One-file review exemption: R2-141",
+        "Polling and rework review: R2-141",
+        "Test command: R2-141: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-141.sh",
+        "Codex write: R2-135",
+        "One-file review exemption: R2-135",
+        "Polling and rework review: R2-135",
+        "Test command: R2-135: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-135.sh",
+        "Codex write: R2-136",
+        "Codex review: R2-136",
+        "Test command: R2-136: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-136.sh",
+        "Codex write: R2-138",
+        "One-file review exemption: R2-138",
+        "Polling and rework review: R2-138",
+        "Test command: R2-138: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-138.sh"
       ],
       "sections": {
         "delete": {
           "items": [
             {
-              "item": "Polling and rework review: R1-RELEASE",
-              "evidence": "Seven plan reviews (about 4.2M input tokens) and one counted review failure; each plan review found a deeper edge until the owner cut the lane; no cap stopped the loop",
+              "item": "Polling and rework review: R2-136",
+              "evidence": "R2-136 needed Terra 1 CHANGES, two Sol plan reviews, fix 2 and Terra 2; round 2 ran 15 plan reviews (11 CHANGES) using about 5.3 million input tokens",
               "outcome": "issue",
-              "issue_id": "BCL-137"
+              "issue_id": "BCL-153"
             }
           ]
         },
         "simplify": {
           "items": [
             {
-              "item": "Polling and rework review: R1-ADD",
-              "evidence": "Six plan reviews (about 4.9M input tokens); the per-project viewer and plan freeze grew locks, migration and validator changes before the cut; lane carried to round 2",
+              "item": "Stage: Install",
+              "evidence": "bcl install checks lane readiness separately from release-check; both releases needed an exception because the two gates disagreed with blocked or reviewed lanes",
               "outcome": "issue",
-              "issue_id": "BCL-133"
+              "issue_id": "BCL-154"
             }
           ]
         },
         "optimize": {
           "items": [
             {
-              "item": "Presuite: first job failed on an unchanged comet-control timing test under load 11; rerun with 6 test workers passed",
-              "evidence": "check.py with 10 workers peaked load 11.5 and failed a different comet-control timing test each run; with 6 workers it passed in about 7 minutes",
-              "outcome": "fixed inline",
-              "proof": "python3 scripts/check.py --jobs 6 (presuite job 2 passed)"
+              "item": "Parallel group count: 5",
+              "evidence": "Parallel lanes R2-141 and R2-150 changed the page renderer and R2-137 and R2-144 changed plan writes; merges conflicted and reviews hit changes from other lanes",
+              "outcome": "issue",
+              "issue_id": "BCL-152"
+            },
+            {
+              "item": "Carried lanes: R2-137, R2-144, R2-145, R2-150, R2-142 deferred to round 3 after the review cap or a second counted failure",
+              "evidence": "Five lanes ended blocked or deferred; the root cause is lane states and runtime fields kept separately in each writer",
+              "outcome": "issue",
+              "issue_id": "BCL-145"
             }
           ]
         },
         "automate": {
           "items": [
             {
-              "item": "Release check: owner exception for the two carried lanes because they could not be deferred",
-              "evidence": "Release check exits 2 for lanes whose review passed and for carried lanes it cannot defer (BCL-135); shipping needed an owner exception",
+              "item": "Stage: Review",
+              "evidence": "The 0.1.62 presuite failed only because a definition change was committed without regenerating the chart; about 5 minutes lost",
               "outcome": "issue",
-              "issue_id": "BCL-136"
+              "issue_id": "BCL-155"
+            },
+            {
+              "item": "Stage: Plan & fix",
+              "evidence": "Reopened R2-145 and integration branches needed 4 manual merges onto the list branch head with definition and chart conflicts",
+              "outcome": "issue",
+              "issue_id": "BCL-156"
+            },
+            {
+              "item": "Release exceptions: 0.1.61 and 0.1.62 shipped past release-check refusals with Guru approval",
+              "evidence": "No bcl command records an approved exception; both were recorded in finding details",
+              "outcome": "issue",
+              "issue_id": "BCL-148"
             }
           ]
         }
       },
-      "round": 1,
+      "round": 2,
       "cycle": 11
     }
   },
@@ -15036,7 +15230,7 @@
       "observed": "22 Nov 2026 09:02 IST, bcl 0.1.59, closing round 1 of PR 119",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "blocked",
+      "status": "in_progress",
       "details": {
         "filed_by": "PR 119 round 2 (Guru 09:05 IST: file missing bcl commands instead of calling internal code)",
         "report": "bcl-119 progress.md",
@@ -15102,7 +15296,8 @@
         "kind": "fix",
         "root_cause_for": "BCL-110, BCL-112, BCL-132, BCL-135, BCL-136, BCL-143",
         "more_evidence": "Round 2: page shows deferred R2-137 as Changes requested, not Parked (render keeps its own state order); Sol plan reviews of R2-137 (cap marker) and R2-144 (hotfix key) both found a field one writer protects and another accepts; bcl install and verify reruns on one lane changed the plan hash and stranded two running jobs (also BCL-113/133)"
-      }
+      },
+      "needs": "1. Literal lane-state groups remain in the consumers. For example, [manage_findings.py:1599](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1599) repeats the declared settled states, and [render.py:372](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:372) repeats the declared job phases. Read these from `workflow_definition` so changes to the declared groups reach every consumer."
     },
     {
       "id": "BCL-146",
@@ -15206,7 +15401,7 @@
       "observed": "22 Nov 2026 12:29 IST, bcl 0.1.61, PR 119 round 2",
       "priority": "medium",
       "source": "User reported",
-      "status": "blocked",
+      "status": "in_progress",
       "details": {
         "filed_by": "PR 119 round 2",
         "kind": "fix",
