@@ -11353,9 +11353,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T17:22:51Z",
-      "now": "2026-11-22T17:22:51Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T17:29:07Z",
+      "now": "2026-11-22T17:29:07Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12937,7 +12937,7 @@
             "BCL-157"
           ],
           "label": "BCL-157",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl120-r4-157",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-157.sh",
@@ -12951,21 +12951,22 @@
             "implementer_session": "codex-luna-120-157",
             "reviewer_session": "codex-terra-120-157",
             "job": {
-              "id": "b42aed3117b94c5181776cf063d64562",
-              "phase": "fix",
-              "started_at": "2026-11-22T17:22:51Z",
-              "command": "run-luna-157-fix2.sh",
-              "heartbeat_at": "2026-11-22T17:22:51Z",
+              "id": "88aac7e2794945218655ff8b762c1aa6",
+              "phase": "review",
+              "started_at": "2026-11-22T17:29:07Z",
+              "command": "run-review-157-2-job.sh",
+              "heartbeat_at": "2026-11-22T17:29:07Z",
               "plan_sha256": "8dbb428df40993cd3f3867cc093b95dc6dd311b530e33d76408378e9eda24da5",
               "worktree": "bcl120-r4-157",
-              "model": "gpt-6-luna fast medium",
+              "model": "gpt-6.1-terra medium (review)",
               "cycle": 12,
               "round": 4
             },
             "tool_fault_streak": 0,
-            "fix_status": "running",
+            "fix_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (review)",
-            "must_fix_note": "1. [manage_findings.py:523](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:523) and [manage_findings.py:625](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:625): Replanning a lane with the same ID but different findings drops `stage_entered_at`. If its canonical pair remains unchanged, the stamp helper does not restore it, so the lane shows no duration. I reproduced this in memory; add a regression test for the plan-write path.\n\n2. [manage_findings.py:573](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:573): Plan writes accept a supplied `stage_entered_at` when it equals the stored value. The requested contract forbids supplying the field, including an equal value."
+            "must_fix_note": "1. [manage_findings.py:523](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:523) and [manage_findings.py:625](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:625): Replanning a lane with the same ID but different findings drops `stage_entered_at`. If its canonical pair remains unchanged, the stamp helper does not restore it, so the lane shows no duration. I reproduced this in memory; add a regression test for the plan-write path.\n\n2. [manage_findings.py:573](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:573): Plan writes accept a supplied `stage_entered_at` when it equals the stored value. The requested contract forbids supplying the field, including an equal value.",
+            "review_status": "running"
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -13006,7 +13007,7 @@
             }
           ],
           "updated_at": "2026-11-22T16:38:10Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "R4-171",
@@ -14395,6 +14396,23 @@
       "verification_refs": [
         "3f9d178c:BCL-176:installed-check"
       ]
+    },
+    {
+      "id": "BCL-177",
+      "title": "Change-list events and job tokens are not stamped for a per-round view",
+      "summary": "Observability events carry no pull request, round, stage, job or run, and Codex and Grok Bot token use never lands per job, so a per-round view cannot tell what this round did or what it cost.",
+      "impact": "Introspect and a per-round observability query cannot show stamped findings or token coverage; missing sources stay invisible.",
+      "recommendation": "At capture time, the change list writes one events log line per stage and job with pull request, round, stage, group, job, run, build, plugin, times, outcome, and tokens, naming the token source. Developer observability reads that log as a source. After a round, token use per group and job is available, and a missing source is reported by name.",
+      "done_when": "Every finished stage and job on this list has a stamped events line, observability can read those dimensions, token coverage reports a named source or a named gap, and tests cover a Codex job, a missing Grok Bot source, and an unstamped event counted as a gap.",
+      "observed": "22 Nov 2026 19:15 IST design in ~/.agents/artifacts/bcl-120/devobs-round-view.md; task-usage.sqlite3 has 1 row; round 3 measured 396,079 Codex tokens only in job logs",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "spec": "devobs-round-view.md capture-time fields and Tokens sections; acceptance checks 9 and the events.jsonl contract. Query filters, tiers, and UI stay with DO-3.",
+        "related": "Split from the capture half of DO-3. Related to BCL-147 (job receipts and fail-if-no-commit, not in this slice) and DO-2 (token sources, covered here for Codex and Grok Bot).",
+        "kind": "fix"
+      }
     }
   ]
 }
