@@ -10984,9 +10984,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T13:46:59Z",
-      "now": "2026-11-22T13:46:59Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T13:50:27Z",
+      "now": "2026-11-22T13:50:27Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12396,7 +12396,7 @@
             "BCL-145"
           ],
           "label": "BCL-145",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl120-r1-145",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
@@ -12409,19 +12409,22 @@
             "model": "Guru subagent worker",
             "implementer_session": "worker-bcl120-r1-145",
             "reviewer_session": "review-r2-145",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "15791f5a56e6405ea3dedf7c90d78c02",
-              "phase": "fix",
-              "started_at": "2026-11-22T13:46:28Z",
+              "id": "a6e0f52080d54fea92899bfa55657883",
+              "phase": "review",
+              "started_at": "2026-11-22T13:49:47Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T13:46:28Z",
+              "heartbeat_at": "2026-11-22T13:49:47Z",
               "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
-              "model": "Guru subagent worker (66396c6e)",
+              "model": "gpt-6.1-terra medium (Codex)",
               "cycle": 12,
               "round": 2,
-              "pid": 20430
-            }
+              "pid": 32502
+            },
+            "tool_fault_streak": 0,
+            "review_status": "running",
+            "reviewer_model": "gpt-6.1-terra medium (Codex)"
           },
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -12432,7 +12435,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T13:42:25Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "R2-DO1",
@@ -12441,7 +12444,7 @@
             "DO-1"
           ],
           "label": "DO-1",
-          "status": "review",
+          "status": "running",
           "worktree": "bcl120-r2-do1-r2",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-do1.sh",
@@ -12454,32 +12457,59 @@
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "codex-luna-120-do1",
             "reviewer_session": "codex-terra-120-do1",
-            "fix_status": "passed",
+            "fix_status": "running",
             "job": {
-              "id": "fecb56635a924c65a93b333aed93ed5b",
+              "id": "6173e9c0a957419cbb475cca28e3b868",
               "phase": "fix",
-              "started_at": "2026-11-22T13:43:01Z",
+              "started_at": "2026-11-22T13:50:27Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T13:44:37Z",
+              "heartbeat_at": "2026-11-22T13:50:27Z",
               "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
-              "model": "gpt-6-luna fast medium (Codex)",
+              "model": "gpt-6-luna fast medium (Codex, resumed)",
               "cycle": 12,
-              "round": 2,
-              "pid": 8086,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T13:44:37Z",
-              "finished_phase_status": "passed"
+              "round": 2
             },
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "reviewer_model": "gpt-6.1-terra medium (Codex)",
+            "must_fix_note": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Empty commits produce no changed paths and are silently ignored, although other ahead commits must still count. A failed `diff-tree` call is also silently ignored, which can hide an unpushed commit. Count empty commits and handle inspection failures without reporting false success; add behavioral coverage."
           },
           "files": [
             "plugins/developer-observability/runtime/collector/sources.py",
             "plugins/developer-observability/tests/test_collector*.py"
           ],
-          "failure_history": [],
-          "plan_review_history": [],
+          "failure_history": [
+            {
+              "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
+              "source": "review",
+              "reason": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Empty commits produce no changed paths and are silently ignored, although other ahead commits must still count. A failed `diff-tree` call is also silently ignored, which can hide an unpushed commit. Count empty commits and handle inspection failures without reporting false success; add behavioral coverage.",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:47:58Z"
+            },
+            {
+              "attempt_id": "97d390f143b64b1f84744481175417da",
+              "source": "plan_review",
+              "reason": "Reviewer exited 1",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:48:55Z",
+              "tool_fault": true,
+              "fault_kind": "runner_exit",
+              "tool_fault_reason": "Reviewer exited 1"
+            }
+          ],
+          "plan_review_history": [
+            {
+              "job_id": "8ed5a5892da64c9383d7cdcd6fcc20b6",
+              "after_failure": "3c9e094c725a400b95a22641c1cf7369",
+              "status": "passed",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:50:18Z"
+            }
+          ],
           "updated_at": "2026-11-22T13:42:38Z",
-          "phase": "review"
+          "phase": "fix"
         },
         {
           "id": "R2-176",
@@ -12511,10 +12541,14 @@
               "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
               "model": "Grok Bot review (one-file, Terra skipped)",
               "cycle": 12,
-              "round": 2
+              "round": 2,
+              "pid": 21766,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T13:46:59Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "Grok Bot review (one-file, Terra skipped)"
           },
           "files": [
