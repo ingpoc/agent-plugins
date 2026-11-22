@@ -11339,6 +11339,133 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "r3-c9aee24d-120",
+        "build": "0.1.71",
+        "revision": "c9aee24da19af9464ee971c3de3b02feaae7979d",
+        "installed_at": "2026-11-22T16:24:50Z",
+        "install_evidence": "bcl install-local from list worktree at c9aee24d (includes batched-change-list 0.1.71 37ea398c): plugin sha f7daa54a (cache copies), skill sha cbb45d25",
+        "cycle": 12,
+        "status": "interrupted",
+        "checks": {
+          "ACU-10": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "ACU-21": {
+            "state": "pending"
+          },
+          "BCL-94": {
+            "state": "pending"
+          },
+          "BCL-103": {
+            "state": "pending"
+          },
+          "BCL-106": {
+            "state": "pending"
+          },
+          "BCL-108": {
+            "state": "pending"
+          },
+          "BCL-110": {
+            "state": "pending"
+          },
+          "BCL-113": {
+            "state": "pending"
+          },
+          "BCL-115": {
+            "state": "pending"
+          },
+          "BCL-120": {
+            "state": "pending"
+          },
+          "BCL-121": {
+            "state": "pending"
+          },
+          "BCL-124": {
+            "state": "pending"
+          },
+          "BCL-125": {
+            "state": "pending"
+          },
+          "BCL-130": {
+            "state": "pending"
+          },
+          "BCL-134": {
+            "state": "pending"
+          },
+          "BCL-139": {
+            "state": "pending"
+          },
+          "BCL-140": {
+            "state": "pending"
+          },
+          "BCL-142": {
+            "state": "pending"
+          },
+          "BCL-144": {
+            "state": "pending"
+          },
+          "BCL-145": {
+            "state": "pending"
+          },
+          "BCL-147": {
+            "state": "pending"
+          },
+          "BCL-149": {
+            "state": "pending"
+          },
+          "BCL-151": {
+            "state": "pending"
+          },
+          "BCL-157": {
+            "state": "pending"
+          },
+          "BCL-158": {
+            "state": "pending"
+          },
+          "BCL-159": {
+            "state": "pending"
+          },
+          "BCL-160": {
+            "state": "pending"
+          },
+          "BCL-161": {
+            "state": "pending"
+          },
+          "BCL-166": {
+            "state": "pending"
+          },
+          "BCL-171": {
+            "state": "pending"
+          },
+          "BCL-175": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-22T16:28:07Z",
+            "started_at": "2026-11-22T16:26:42Z",
+            "updated_at": "2026-11-22T16:28:07Z",
+            "check_id": "6b31e95bf6294449b79d31688372e71d",
+            "evidence": "Checked: The installed commands for a dry run, making a worktree without writing the live list, replacing an existing round marker, and moving a blocked lane to a later round, including a parked lane that was blocked without counted failures; Expected: A dry run writes nothing; making a worktree without recording leaves the list unchanged and the next job records it; a fresh name replaces one round marker; a blocked or parked-with-reason lane stays blocked until it is unblocked, and other moves stay refused; Observed: All four checks passed on the installed copy; no new observability finding and no status change between the two snapshots",
+            "details": "Log: ~/.agents/artifacts/bcl-120/verify-r3-175.log; dev-obs before 90fa4234 (21:56:23 IST), after 6276e372 (21:57:03 IST), same build. Run r3-c9aee24d-120.",
+            "finished_at": "2026-11-22T16:28:07.491745Z"
+          },
+          "DO-1": {
+            "state": "pending"
+          },
+          "DO-2": {
+            "state": "pending"
+          },
+          "DO-3": {
+            "state": "pending"
+          },
+          "BCL-176": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -13397,11 +13524,11 @@
       "cycle": 12
     },
     "verification_run": {
-      "id": "r3-c9aee24d-120",
-      "build": "0.1.71",
-      "revision": "c9aee24da19af9464ee971c3de3b02feaae7979d",
-      "installed_at": "2026-11-22T16:24:50Z",
-      "install_evidence": "bcl install-local from list worktree at c9aee24d (includes batched-change-list 0.1.71 37ea398c): plugin sha f7daa54a (cache copies), skill sha cbb45d25",
+      "id": "r4-1f866e81-120",
+      "build": "0.1.72",
+      "revision": "1f866e81335acf9702f48b26a5ed4248284fcbd4",
+      "installed_at": "2026-11-22T18:24:24Z",
+      "install_evidence": "bcl install-local from list worktree at 1f866e81 (batched-change-list 0.1.72): plugin sha 75a56173 (cache copies), skill sha adde971e",
       "cycle": 12,
       "status": "active",
       "checks": {
@@ -13499,15 +13626,7 @@
           "state": "pending"
         },
         "BCL-175": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-22T16:28:07Z",
-          "started_at": "2026-11-22T16:26:42Z",
-          "updated_at": "2026-11-22T16:28:07Z",
-          "check_id": "6b31e95bf6294449b79d31688372e71d",
-          "evidence": "Checked: The installed commands for a dry run, making a worktree without writing the live list, replacing an existing round marker, and moving a blocked lane to a later round, including a parked lane that was blocked without counted failures; Expected: A dry run writes nothing; making a worktree without recording leaves the list unchanged and the next job records it; a fresh name replaces one round marker; a blocked or parked-with-reason lane stays blocked until it is unblocked, and other moves stay refused; Observed: All four checks passed on the installed copy; no new observability finding and no status change between the two snapshots",
-          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r3-175.log; dev-obs before 90fa4234 (21:56:23 IST), after 6276e372 (21:57:03 IST), same build. Run r3-c9aee24d-120.",
-          "finished_at": "2026-11-22T16:28:07.491745Z"
+          "state": "pending"
         },
         "DO-1": {
           "state": "pending"
@@ -13519,6 +13638,9 @@
           "state": "pending"
         },
         "BCL-176": {
+          "state": "pending"
+        },
+        "BCL-177": {
           "state": "pending"
         }
       }
@@ -13602,7 +13724,7 @@
       "round": 3,
       "cycle": 12
     },
-    "last_written_at": "2026-11-22T18:24:24Z"
+    "last_written_at": "2026-11-22T18:24:58Z"
   },
   "findings": [
     {
