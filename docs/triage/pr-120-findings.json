@@ -10970,6 +10970,121 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "r1-e5f518da-120",
+        "build": "0.1.68",
+        "revision": "e5f518dabc95b24e533f88f65e08a1de0edf60f9",
+        "installed_at": "2026-11-22T13:37:52Z",
+        "install_evidence": "bcl install-local from clean detached worktree at e5f518da: plugin sha 925ea4e8, skill sha 7a60b11f; dev-obs before snapshot 0ea4fb35 (19:07:32 IST)",
+        "cycle": 12,
+        "status": "interrupted",
+        "checks": {
+          "ACU-10": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "ACU-21": {
+            "state": "pending"
+          },
+          "BCL-94": {
+            "state": "pending"
+          },
+          "BCL-103": {
+            "state": "pending"
+          },
+          "BCL-106": {
+            "state": "pending"
+          },
+          "BCL-108": {
+            "state": "pending"
+          },
+          "BCL-110": {
+            "state": "pending"
+          },
+          "BCL-113": {
+            "state": "pending"
+          },
+          "BCL-115": {
+            "state": "pending"
+          },
+          "BCL-120": {
+            "state": "pending"
+          },
+          "BCL-121": {
+            "state": "pending"
+          },
+          "BCL-124": {
+            "state": "pending"
+          },
+          "BCL-125": {
+            "state": "pending"
+          },
+          "BCL-130": {
+            "state": "pending"
+          },
+          "BCL-134": {
+            "state": "pending"
+          },
+          "BCL-139": {
+            "state": "pending"
+          },
+          "BCL-140": {
+            "state": "pending"
+          },
+          "BCL-142": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-22T13:38:34Z",
+            "started_at": "2026-11-22T13:38:34Z",
+            "updated_at": "2026-11-22T13:38:34Z",
+            "check_id": "c699ffe9024b47d78e1ce8c697301b41",
+            "evidence": "Checked: The installed version, its snapshot tests and guidance, and the snapshot command on the live list; Expected: One command saves a pending copy of the list, renders the page, commits it when it changed and then has nothing left to save; Observed: All four checks passed; on the live list the command committed the pending copy and a second run had nothing to save; the only new observability finding between the two snapshots was the unpushed snapshot commit itself",
+            "details": "Log: ~/.agents/artifacts/bcl-120/verify-r2-142.log; dev-obs before 0ea4fb35 (19:07:32 IST), after d017c9e9 (19:08:11 IST), same build. Run r1-e5f518da-120.",
+            "finished_at": "2026-11-22T13:38:34.418116Z"
+          },
+          "BCL-144": {
+            "state": "pending"
+          },
+          "BCL-145": {
+            "state": "pending"
+          },
+          "BCL-147": {
+            "state": "pending"
+          },
+          "BCL-149": {
+            "state": "pending"
+          },
+          "BCL-151": {
+            "state": "pending"
+          },
+          "BCL-157": {
+            "state": "pending"
+          },
+          "BCL-158": {
+            "state": "pending"
+          },
+          "BCL-159": {
+            "state": "pending"
+          },
+          "BCL-160": {
+            "state": "pending"
+          },
+          "BCL-161": {
+            "state": "pending"
+          },
+          "BCL-166": {
+            "state": "pending"
+          },
+          "BCL-171": {
+            "state": "pending"
+          },
+          "BCL-175": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -10984,9 +11099,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T14:19:41Z",
-      "now": "2026-11-22T14:19:41Z — Presuite started"
+      "stage": "install",
+      "updated_at": "2026-11-22T14:58:28Z",
+      "now": "2026-11-22T14:58:28Z — Install in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -12384,7 +12499,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "round": 2,
@@ -12396,7 +12512,7 @@
             "BCL-145"
           ],
           "label": "BCL-145",
-          "status": "running",
+          "status": "deferred",
           "worktree": "bcl120-r1-145",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
@@ -12463,8 +12579,8 @@
               "at": "2026-11-22T14:00:00Z"
             }
           ],
-          "updated_at": "2026-11-22T13:42:25Z",
-          "phase": "fix",
+          "updated_at": "2026-11-22T14:56:37Z",
+          "phase": "deferred",
           "unblock_history": [
             {
               "at": "2026-11-22T14:56:27Z",
@@ -12479,7 +12595,9 @@
               "round": 2,
               "owner_override": true
             }
-          ]
+          ],
+          "reason": "Guru approved 2026-11-22 20:26 IST: defer to round 3 so R2-176 can ship; open must-fix in BCL-145 review_notes",
+          "parked_to": 3
         },
         {
           "id": "R2-DO1",
@@ -12488,7 +12606,7 @@
             "DO-1"
           ],
           "label": "DO-1",
-          "status": "running",
+          "status": "deferred",
           "worktree": "bcl120-r2-do1-r2",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-do1.sh",
@@ -12564,8 +12682,8 @@
               "at": "2026-11-22T13:50:18Z"
             }
           ],
-          "updated_at": "2026-11-22T13:42:38Z",
-          "phase": "fix",
+          "updated_at": "2026-11-22T14:56:37Z",
+          "phase": "deferred",
           "unblock_history": [
             {
               "at": "2026-11-22T14:56:28Z",
@@ -12580,7 +12698,9 @@
               "round": 2,
               "owner_override": true
             }
-          ]
+          ],
+          "reason": "Guru approved 2026-11-22 20:26 IST: defer to round 3 so R2-176 can ship; open must-fix in DO-1 review_notes",
+          "parked_to": 3
         },
         {
           "id": "R2-176",
@@ -12589,7 +12709,7 @@
             "BCL-176"
           ],
           "label": "BCL-176",
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl120-r2-176-r2",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-176.sh",
@@ -12628,11 +12748,15 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T13:42:38Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-22T14:21:50Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T14:58:28Z"
           }
         },
         {
@@ -12688,11 +12812,11 @@
       "cycle": 12
     },
     "verification_run": {
-      "id": "r1-e5f518da-120",
-      "build": "0.1.68",
-      "revision": "e5f518dabc95b24e533f88f65e08a1de0edf60f9",
-      "installed_at": "2026-11-22T13:37:52Z",
-      "install_evidence": "bcl install-local from clean detached worktree at e5f518da: plugin sha 925ea4e8, skill sha 7a60b11f; dev-obs before snapshot 0ea4fb35 (19:07:32 IST)",
+      "id": "r2-3f9d178c-120",
+      "build": "0.1.69",
+      "revision": "3f9d178cf1c8d0f8be376fd3676c7acfd2f89c4a",
+      "installed_at": "2026-11-22T14:57:00Z",
+      "install_evidence": "bcl install-local from clean detached worktree at 3f9d178c: plugin sha 93be7156 (cache copies), skill sha 7ec64a72",
       "cycle": 12,
       "status": "active",
       "checks": {
@@ -12751,15 +12875,7 @@
           "state": "pending"
         },
         "BCL-142": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-22T13:38:34Z",
-          "started_at": "2026-11-22T13:38:34Z",
-          "updated_at": "2026-11-22T13:38:34Z",
-          "check_id": "c699ffe9024b47d78e1ce8c697301b41",
-          "evidence": "Checked: The installed version, its snapshot tests and guidance, and the snapshot command on the live list; Expected: One command saves a pending copy of the list, renders the page, commits it when it changed and then has nothing left to save; Observed: All four checks passed; on the live list the command committed the pending copy and a second run had nothing to save; the only new observability finding between the two snapshots was the unpushed snapshot commit itself",
-          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r2-142.log; dev-obs before 0ea4fb35 (19:07:32 IST), after d017c9e9 (19:08:11 IST), same build. Run r1-e5f518da-120.",
-          "finished_at": "2026-11-22T13:38:34.418116Z"
+          "state": "pending"
         },
         "BCL-144": {
           "state": "pending"
@@ -12798,6 +12914,18 @@
           "state": "pending"
         },
         "BCL-175": {
+          "state": "pending"
+        },
+        "DO-1": {
+          "state": "pending"
+        },
+        "DO-2": {
+          "state": "pending"
+        },
+        "DO-3": {
+          "state": "pending"
+        },
+        "BCL-176": {
           "state": "pending"
         }
       }
