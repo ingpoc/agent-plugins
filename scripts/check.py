@@ -1208,6 +1208,11 @@ def check_triage_renders() -> list[str]:
     return errors
 
 
+def worker_count(requested: int | None, cpu_count: int) -> int:
+    """Choose a bounded test-process count, defaulting to at most six."""
+    return max(1, min(requested or min(6, cpu_count), cpu_count))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate packages and run discovered tests.")
     parser.add_argument(
@@ -1237,7 +1242,7 @@ def main(argv: list[str] | None = None) -> int:
         "--jobs",
         type=int,
         default=int(os.environ.get("AGENT_PLUGINS_CHECK_JOBS") or 0) or None,
-        help="Parallel test processes (default and maximum: CPU count; 1 is serial).",
+        help="Parallel test processes (default: min(6, CPU count); 1 is serial).",
     )
     parser.add_argument(
         "--validate-only",
@@ -1247,7 +1252,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     plugins, reason = selected_plugins(args.fast, args.changed_since)
     cores = os.cpu_count() or 1
-    workers = max(1, min(args.jobs or cores, cores))
+    workers = worker_count(args.jobs, cores)
     if args.audit_tests:
         try:
             report = check_inventory.audit(
