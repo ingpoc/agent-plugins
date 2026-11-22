@@ -45,7 +45,9 @@ class ServerTests(unittest.TestCase):
             with patch.object(server_module.RENDERER, 'discover_installed_plugins', return_value={'versions': {}, 'sources': {}}):
                 _, (current, installed, now) = server_module.response_state(root / 'page.html', data)
             page = server_module.RENDERER.render(current, root, installed, now)
-            self.assertIn('minutes">Stale</span>', page)
+            # No live job: an old workflow timestamp alone never shows Stale.
+            self.assertIn(' hidden>Stale</span>', page)
+            self.assertIn('data-stale-active="false"', page)
 
     def test_running_server_reloads_changed_renderer(self):
         def renderer_source(marker):

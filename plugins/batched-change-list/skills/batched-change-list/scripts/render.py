@@ -26,6 +26,7 @@ LANE_PHASES = {"fix": "Plan & fix", "plan_review": "Plan review", "review": "Rev
 STALE_LANE_STATUSES = {"running", "review", "installing", "verifying"}
 LANE_JOB_PHASES = {"fix", "plan_review", "review", "presuite"}
 JOB_DRIVEN_LANE_STATUSES = {"running", "review"}
+STALE_EXEMPT_DISPLAY_STATES = {"verified", "blocked", "failed", "parked", "paused"}
 LANE_JOB_LABELS = {"fix": "Fixing", "plan_review": "Plan review", "review": "Review", "presuite": "Presuite"}
 DEFAULT_ROLLOVER_THRESHOLD = WF.DEFAULT_ROLLOVER_THRESHOLD
 AGENT_COLLECTION_PLUGINS = ("agent-computer-use", "batched-change-list", "comet-control",
@@ -1040,31 +1041,23 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     if reference is not None and reference.tzinfo is None:
         raise ValueError("now must include a timezone")
     render_now = reference or reported
-    active_stage = active in ("install", "verify", "install_verify")
-    stale_active = active_stage
-    activity_times = [reported] if reported else []
-    running_heartbeats = []
-    for group in groups:
-        if quota_wait_time(group, render_now):
-            continue
-        status = plan_status(group)
-        running = lane_job_running(group)
-        if status not in STALE_LANE_STATUSES and not running:
-            continue
-        stale_active = True
-        codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
-        job = codex.get("job") if isinstance(codex.get("job"), dict) else group.get("job", {})
-        if not isinstance(job, dict):
-            job = {}
-        lane_update = parse_instant(group.get("updated_at"))
-        if lane_update:
-            activity_times.append(lane_update)
-        heartbeat = parse_instant(job.get("heartbeat_at"))
-        if heartbeat:
-            activity_times.append(heartbeat)
-        if running and (heartbeat or lane_update):
-            running_heartbeats.append(heartbeat or lane_update)
-    stale_since = min(running_heartbeats) if running_heartbeats else max(activity_times, default=reported)
+    # Stale only for overdue live work: unfinished, PID-live jobs of unsettled lanes in an
+    # unpaused round. Each job's freshness is its latest heartbeat or lane progress (else its
+    # start); the oldest of those decides, so one fresh job cannot mask an overdue one.
+    job_times = []
+    if not paused:
+        for group in groups:
+            if quota_wait_time(group, render_now) or not lane_job_running(group):
+                continue
+            if displays[group.get("id")]["status"] in STALE_EXEMPT_DISPLAY_STATES:
+                continue
+            job = lane_job(group) or {}
+            progress = [stamp for stamp in (parse_instant(job.get("heartbeat_at")), parse_instant(group.get("updated_at"))) if stamp]
+            latest = max(progress) if progress else parse_instant(job.get("started_at"))
+            if latest:
+                job_times.append(latest)
+    stale_active = bool(job_times)
+    stale_since = min(job_times) if job_times else None
     relative = ""
     if reported and reference:
         seconds = max(0, int((reference - reported).total_seconds()))

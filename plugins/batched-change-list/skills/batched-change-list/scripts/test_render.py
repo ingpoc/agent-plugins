@@ -106,9 +106,10 @@ class RenderTests(unittest.TestCase):
         data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T11:00:00Z'},
             'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'running','phase':'fix',
                 'updated_at':'2026-11-14T11:00:00Z','quota_wait_until':'2026-11-14T11:05:00Z',
-                'codex':{'status':'running','model':'gpt-6-luna','job':{'pid':99999,
+                'codex':{'status':'running','model':'gpt-6-luna','job':{'pid':99999,'phase':'fix',
                 'heartbeat_at':'2026-11-14T11:00:00Z'}}}]}}
-        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+        with patch.object(renderer.live_state, '_pid_is_running', return_value=True):
+            page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
         self.assertNotIn('Waiting for quota until', page)
         self.assertIn('data-stale-active="true"', page)
         self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale</span>', page)
@@ -277,12 +278,13 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T11:00:00Z'},
             'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'running','phase':'fix',
                 'updated_at':'2026-11-14T11:00:00Z','codex':{'status':'running','model':'gpt-6-luna',
-                'job':{'pid':99999,'heartbeat_at':'2026-11-14T11:00:00Z'}}}]}}
-        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+                'job':{'pid':99999,'phase':'fix','heartbeat_at':'2026-11-14T11:00:00Z'}}}]}}
+        with patch.object(renderer.live_state, '_pid_is_running', return_value=True):
+            page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
         self.assertIn('data-stale-active="true"', page)
         self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale</span>', page)
 
-    def test_fresh_workflow_update_clears_old_nonrunning_lane_stamps(self):
+    def test_stale_hidden_for_jobless_install_and_verify(self):
         data = copy.deepcopy(self.data)
         data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-14T11:10:00Z'},
             'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'installing','phase':'install',
@@ -290,8 +292,8 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
                 {'id':'B','finding_ids':['ISSUE-02'],'status':'verifying','phase':'verify',
                  'updated_at':'2026-11-14T11:00:00Z'}]}}
         page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
-        self.assertIn('data-stale-active="true"', page)
-        self.assertIn('data-stale-since="2026-11-14T11:10:00+00:00"', page)
+        self.assertIn('data-stale-active="false"', page)
+        self.assertIn('data-stale-since=""', page)
         self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
 
     def test_fresh_live_job_heartbeat_resets_old_workflow_timestamp(self):
@@ -304,6 +306,55 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
             page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
         self.assertIn('data-stale-since="2026-11-14T11:10:00+00:00"', page)
         self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
+
+    def _stale_tag(self, page):
+        return re.search(r'<span class="tag-stale"[^>]*>', page).group(0)
+
+    def _stale_page(self, groups, now='2026-11-14T11:11:00Z', paused=None, alive=True):
+        data = copy.deepcopy(self.data)
+        workflow = {'stage': 'plan_fix', 'updated_at': '2026-11-14T11:10:00Z'}
+        if paused:
+            workflow['paused'] = {'reason': paused, 'at': '2026-11-14T11:00:00Z'}
+        data['tracking'] = {'workflow': workflow, 'plan': {'round': 1, 'groups': groups}}
+        with patch.object(renderer.live_state, '_pid_is_running', return_value=alive):
+            return renderer.render(data, self.base, now=renderer.parse_instant(now))
+
+    def _stale_lane(self, lane_id, heartbeat, **job):
+        return {'id': lane_id, 'finding_ids': ['ISSUE-01'], 'status': 'running', 'phase': 'fix',
+                'codex': {'job': {'pid': 4242, 'phase': 'fix', 'started_at': '2026-11-14T10:00:00Z',
+                                  'heartbeat_at': heartbeat, **job}}}
+
+    def test_stale_hidden_for_fresh_live_job_and_at_exact_threshold(self):
+        self.assertIn(' hidden', self._stale_tag(self._stale_page([self._stale_lane('A', '2026-11-14T11:10:00Z')])))
+        exact = self._stale_page([self._stale_lane('A', '2026-11-14T11:00:00Z')], now='2026-11-14T11:10:00Z')
+        self.assertIn(' hidden', self._stale_tag(exact))
+
+    def test_stale_visible_for_overdue_live_job_even_beside_fresh_job(self):
+        alone = self._stale_page([self._stale_lane('A', '2026-11-14T11:00:00Z')])
+        self.assertNotIn(' hidden', self._stale_tag(alone))
+        both = self._stale_page([self._stale_lane('A', '2026-11-14T11:00:00Z'), self._stale_lane('B', '2026-11-14T11:10:30Z')])
+        self.assertNotIn(' hidden', self._stale_tag(both))
+        self.assertIn('data-stale-since="2026-11-14T11:00:00+00:00"', both)
+
+    def test_stale_hidden_after_fresh_progress_on_same_job(self):
+        lane = self._stale_lane('A', '2026-11-14T11:00:00Z')
+        lane['updated_at'] = '2026-11-14T11:09:00Z'
+        self.assertIn(' hidden', self._stale_tag(self._stale_page([lane])))
+
+    def test_stale_hidden_for_paused_dead_missing_and_completed_jobs(self):
+        overdue = self._stale_lane('A', '2026-11-14T11:00:00Z')
+        self.assertIn(' hidden', self._stale_tag(self._stale_page([overdue], paused='maintenance')))
+        self.assertIn(' hidden', self._stale_tag(self._stale_page([overdue], alive=False)))
+        missing = self._stale_lane('A', '2026-11-14T11:00:00Z')
+        missing['codex']['job'].pop('pid')
+        self.assertIn(' hidden', self._stale_tag(self._stale_page([missing])))
+        done = self._stale_lane('A', '2026-11-14T11:00:00Z', exit_code=0)
+        self.assertIn(' hidden', self._stale_tag(self._stale_page([done])))
+        jobless = [{'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'installing', 'phase': 'install',
+                    'install': {'started_at': '2026-11-14T10:00:00Z'}, 'updated_at': '2026-11-14T10:00:00Z'}]
+        page = self._stale_page(jobless)
+        self.assertIn(' hidden', self._stale_tag(page))
+        self.assertIn('data-stale-active="false"', page)
 
     def test_recently_updated_completed_lane_never_shows_stale(self):
         data = copy.deepcopy(self.data)
@@ -319,10 +370,11 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-14T11:10:00Z'},
             'plan': {'round':1,'groups':[
                 {'id':'A','finding_ids':['ISSUE-01'],'status':'verifying','phase':'verify',
-                 'updated_at':'2026-11-14T11:10:00Z','codex':{'job':{'pid':99999,
+                 'updated_at':'2026-11-14T11:00:00Z','codex':{'job':{'pid':99999,
                  'heartbeat_at':'2026-11-14T11:00:00Z'}}},
                 {'id':'B','finding_ids':['ISSUE-02'],'status':'verifying','phase':'verify',
-                 'updated_at':'2026-11-14T11:10:00Z'}]}}
+                 'updated_at':'2026-11-14T11:10:00Z','codex':{'job':{'pid':99998,
+                 'heartbeat_at':'2026-11-14T11:10:00Z'}}}]}}
         with patch.object(renderer.live_state, '_pid_is_running', return_value=True):
             page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
         self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale</span>', page)
@@ -415,8 +467,8 @@ if(badge.hidden||clock>=Date.parse({json.dumps(updated)})+{stale_after}*60000)pr
         self.assertIn('Updated <time datetime=', page)
         self.assertIn('4:30 PM IST', page)
         self.assertIn('13 min ago', page)
-        self.assertIn('class="tag-stale"', page)
-        self.assertIn('data-stale-active="true"', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
+        self.assertIn('data-stale-active="false"', page)
         self.assertIn('2 lanes · each installs and verifies when ready', page)
         self.assertIn('<b>1</b> installing', page)
         self.assertIn('<b>1</b> blocked', page)

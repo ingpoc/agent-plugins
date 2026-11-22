@@ -106,11 +106,11 @@ class LaneStateTests(unittest.TestCase):
             page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
         self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale', page)
 
-    def test_page_stale_when_job_dead_and_no_update(self):
+    def test_stale_hidden_when_job_dead_and_no_update(self):
         data = self.stale_data(12345)
         with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=False):
             page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
-        self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
 
     def test_dead_unfinished_review_job_renders_interrupted(self):
         data = self.stale_data(12345)
@@ -169,12 +169,12 @@ class LaneStateTests(unittest.TestCase):
         group["presuite"] = {"status": "passed"}
         self.assertEqual(check_install_sessions.validate_install_sessions({"groups": [group]}, ["ISSUE-01"]), ["A"])
 
-    def test_exited_job_pid_reuse_does_not_prevent_stale(self):
+    def test_stale_hidden_for_completed_receipt_with_live_pid(self):
         data = self.stale_data(12345)
         data["tracking"]["plan"]["groups"][0]["codex"]["job"]["exit_code"] = 0
         with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=True):
             page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
-        self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
 
     def test_dead_unfinished_fix_job_renders_as_interrupted_and_resume_needed(self):
         data = self.stale_data(87654321)
