@@ -1,3 +1,7 @@
+## 0.1.68
+
+- Existing lanes cannot claim absent protected runtime state as pending, while new lanes strip pending defaults; verify admission and dependent invalidation use named groups from the lane definition (BCL-145).
+
 ## 0.1.67
 
 - A new round starts cleanly: plan and fix jobs are refused after the round's introspect until the next plan is recorded; verified lanes stay verified and need not be re-planned; `bcl refresh-worktrees` gives each unverified lane a fresh worktree at the list head with its commits replayed, naming conflicting files; rollover carries gated lanes so the next list must plan them under the same id (BCL-158).

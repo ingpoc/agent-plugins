@@ -2324,6 +2324,41 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(replaced.returncode, 0, replaced.stderr)
         fresh = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
         self.assertNotIn("job", fresh.get("codex") or {})
+        self.assertNotIn("fix_status", fresh.get("codex") or {})
+
+    def test_plan_refuses_pending_claim_when_existing_protected_value_is_absent(self):
+        live = self._runtime_identity_setup()
+        data = json.loads(live.read_text())
+        group = data["tracking"]["plan"]["groups"][0]
+        group.setdefault("codex", {}).pop("fix_status", None)
+        live.write_text(json.dumps(data)); self.data.write_text(json.dumps(data))
+        before = live.read_bytes()
+        result = self._submit_plan([{"id": "A", "finding_ids": ["ISSUE-01"], "status": "review",
+                                     "phase": "review", "codex": {"fix_status": "pending"}}])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("set-plan cannot claim completed job state (codex.fix_status)", result.stderr)
+        self.assertEqual(live.read_bytes(), before)
+
+    def test_update_plan_group_refuses_pending_claim_when_existing_value_is_absent(self):
+        live = self._one_lane()
+        before = live.read_bytes()
+        result = self._lane_batch(live, [{"action": "update-plan-group", "id": "A",
+                                          "patch": {"codex": {"review_status": "pending"}}}])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("update-plan-group cannot claim completed job state (codex.review_status)", result.stderr)
+        self.assertEqual(live.read_bytes(), before)
+
+    def test_new_plan_lane_strips_pending_protected_defaults(self):
+        live = self._runtime_identity_setup()
+        result = self._submit_plan([
+            {"id": "A", "finding_ids": ["ISSUE-01"], "status": "review", "phase": "review"},
+            {"id": "B", "finding_ids": ["ISSUE-02"], "status": "planned",
+             "codex": {"fix_status": "pending", "review_status": "pending", "plan_review_status": "pending"}},
+        ])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        new_lane = next(group for group in json.loads(live.read_text())["tracking"]["plan"]["groups"] if group["id"] == "B")
+        for field in ("fix_status", "review_status", "plan_review_status"):
+            self.assertNotIn(field, new_lane.get("codex") or {})
 
     def _lane_copy(self, mutate):
         """Copy the package under test, let mutate change its lane table, return the copy's root."""
@@ -2338,6 +2373,37 @@ elif args[:2] != ['pr', 'edit']:
         manager = (root or PLUGIN) / "skills/batched-change-list/scripts/manage_findings.py"
         return subprocess.run([sys.executable, str(manager), "batch", str(live), "-", "--render", str(self.page)],
                               input=json.dumps(operations), text=True, capture_output=True, env=self.env)
+
+    def test_definition_controls_verify_refusal_and_dependency_invalidation(self):
+        root = self._lane_copy(lambda lane: lane["groups"]["verify_refused"].remove("blocked"))
+        definition = root / "skills/batched-change-list/scripts/workflow_definition.json"
+        data = json.loads(definition.read_text())
+        data["lane"]["groups"]["dependency_invalidated"].remove("running")
+        definition.write_text(json.dumps(data, indent=2))
+
+        live, command = self._lane_ready()
+        document = json.loads(live.read_text())
+        lane = document["tracking"]["plan"]["groups"][0]
+        lane.update(status="blocked", phase="verify")
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+        baseline = self._run_bcl(BCL, "verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertNotEqual(baseline.returncode, 0)
+        self.assertIn("verify cannot start a blocked, failed, or parked lane", baseline.stderr)
+        changed = self._run_bcl(root / "bin/bcl", "verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertNotIn("verify cannot start a blocked, failed, or parked lane", changed.stderr)
+
+        script = ("import json, manage_findings as m; "
+                  "d={'findings':[{'id':'B','status':'in_progress'}], 'tracking':{'round':1,'plan':{'round':1,'groups':["
+                  "{'id':'A','finding_ids':['A'],'status':'verified','phase':'verify'},"
+                  "{'id':'B','finding_ids':['B'],'status':'running','phase':'fix','depends_on':['A']}]},"
+                  "'verification_run':{'checks':{'A':{'state':'passed'}}}}}; "
+                  "p=json.loads(json.dumps(d)); p['findings']=[{'id':'A','status':'verified_fixed','verification_refs':['receipt']},"
+                  "{'id':'B','status':'in_progress'}]; m.invalidate_dependents(d,p); print(d['tracking']['plan']['groups'][1]['status'])")
+        scripts = root / "skills/batched-change-list/scripts"
+        env = {**self.env, "PYTHONPATH": str(scripts)}
+        invalidation = subprocess.run([sys.executable, "-c", script], cwd=scripts, env=env, capture_output=True, text=True)
+        self.assertEqual(invalidation.returncode, 0, invalidation.stderr)
+        self.assertEqual(invalidation.stdout.strip(), "running")
 
     def _one_lane(self):
         live = self._runtime_identity_setup()

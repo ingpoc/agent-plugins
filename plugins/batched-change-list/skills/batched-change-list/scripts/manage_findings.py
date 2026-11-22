@@ -531,7 +531,7 @@ def refuse_protected_claims(groups, eligible_prior, action="set-plan"):
     """Compare explicit protected values with the eligible stored lane before anything is copied.
 
     Missing input keeps stored data; equal input is accepted; any other value, including null,
-    is refused. A lane with no eligible receipt may only state the pending defaults. Runtime-looking
+    is refused. New lanes may submit pending defaults, which are stripped before persistence. Runtime-looking
     fields the lane table does not declare are refused outright."""
     for group in groups:
         prior = eligible_prior.get(group.get("id"))
@@ -548,6 +548,14 @@ def refuse_protected_claims(groups, eligible_prior, action="set-plan"):
             stored = _protected_value(prior, path) if prior is not None else _MISSING
             if stored is _MISSING:
                 if path in LANE["pending_defaults"] and claimed == "pending":
+                    if prior is not None:
+                        raise ValueError(f"{action} cannot claim completed job state ({path}) for lane {group.get('id')}; run bcl job for the current lane")
+                    node = group
+                    parts = path.split(".")
+                    for part in parts[:-1]:
+                        node = node.get(part) if isinstance(node, dict) else None
+                    if isinstance(node, dict):
+                        node.pop(parts[-1], None)
                     continue
                 raise ValueError(f"{action} cannot claim completed job state ({path}) for lane {group.get('id')}; run bcl job for the current lane")
             if claimed != stored:
@@ -1811,7 +1819,7 @@ def invalidate_dependents(document, previous_document):
     for group in groups:
         status = RENDERER.plan_status(group)
         if (group['id'] in invalid and status == 'verified') or (
-                group['id'] in affected - invalid and status in {'running', 'review', 'installing', 'verifying', 'verified'}):
+                group['id'] in affected - invalid and status in LANE["groups"]["dependency_invalidated"]):
             group['phase'] = RENDERER.plan_phase(group)
             group['status'] = 'blocked'
             group['blocked_reason'] = 'Prerequisite verification changed'

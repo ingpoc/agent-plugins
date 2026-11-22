@@ -750,7 +750,7 @@ def main():
             failed_lanes = [g['id'] for g in groups if g.get('status') == 'failed']
             if args.reason and not failed_lanes:
                 parser.error("--reason reruns a failed lane's check; none of these lanes failed")
-            if failed_lanes and args.reason and not any(g.get('status') in ('blocked', 'parked', 'deferred') for g in groups):
+            if failed_lanes and args.reason and not any(g.get('status') in workflow_definition.LANE["groups"]["verify_rerun_excluded"] for g in groups):
                 # Preview only: the rerun is written in the same batch that starts verify, after
                 # every check below and under the verification lock, so a refusal spends nothing.
                 rerun_op = {"action":"rerun-verify", "ids":failed_lanes, "reason":args.reason}
@@ -760,7 +760,7 @@ def main():
                 except ValueError as error:
                     parser.error(str(error))
                 groups = [g for g in preview.get("tracking", {}).get("plan", {}).get("groups", []) if set(ids).intersection(g.get("finding_ids", []))]
-            if any(g.get('status') in ('blocked', 'failed', 'parked', 'deferred') for g in groups):
+            if any(g.get('status') in workflow_definition.LANE["groups"]["verify_refused"] for g in groups):
                 parser.error("verify cannot start a blocked, failed, or parked lane; rerun a failed lane's check once with --reason \"why\"")
             values = [g.get("verify", {}).get("command", "") for g in groups]
             if any(not isinstance(value, str) for value in values):
