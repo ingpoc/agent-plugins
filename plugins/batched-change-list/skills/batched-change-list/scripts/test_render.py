@@ -23,7 +23,21 @@ class RenderTests(unittest.TestCase):
                   {'id': 'DONE', 'status': 'verified', 'phase': 'fix'}]
         workflow = renderer.render_workflow('plan_fix', groups, 0, 15, False, 0, 1)
         review = workflow.split('data-stage="review"', 1)[1].split('</li>', 1)[0]
-        self.assertIn('class="wf-step current"', review)
+        self.assertIn('class="wf-step busy"', review)
+        self.assertIn('2 review', review)
+
+    def test_review_chip_sits_under_review_not_install(self):
+        groups = [{'id': 'A', 'status': 'review', 'phase': 'review'},
+                  {'id': 'DONE', 'status': 'verified', 'phase': 'verify'}]
+        workflow = renderer.render_workflow('install', groups, 0, 15, False, 0, 1)
+        review = workflow.split('data-stage="review"', 1)[1].split('</li>', 1)[0]
+        install = workflow.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
+        introspect = workflow.split('data-stage="introspect"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('1 review', review)
+        self.assertNotIn('review', install)
+        self.assertNotIn('verified', introspect)
+        self.assertNotIn('DONE', introspect)
+        self.assertNotIn('class="lc', introspect)
 
     def test_fix_and_review_lanes_keep_plan_fix_current(self):
         groups = [{'id': 'A', 'status': 'planned', 'phase': 'fix'},
@@ -92,9 +106,10 @@ class RenderTests(unittest.TestCase):
         data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T11:00:00Z'},
             'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'running','phase':'fix',
                 'updated_at':'2026-11-14T11:00:00Z','quota_wait_until':'2026-11-14T11:05:00Z',
-                'codex':{'status':'running','model':'gpt-6-luna','job':{'pid':99999,
+                'codex':{'status':'running','model':'gpt-6-luna','job':{'pid':99999,'phase':'fix',
                 'heartbeat_at':'2026-11-14T11:00:00Z'}}}]}}
-        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+        with patch.object(renderer.live_state, '_pid_is_running', return_value=True):
+            page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
         self.assertNotIn('Waiting for quota until', page)
         self.assertIn('data-stale-active="true"', page)
         self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale</span>', page)
@@ -134,6 +149,71 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
 """).replace('PAYLOAD', json.dumps(payload))
         subprocess.run(['node','-e',program],check=True)
 
+    @unittest.skipUnless(shutil.which('node'), 'node is needed to execute rendered page JavaScript')
+    def test_issue_list_renders_one_collapsed_row_per_plan_group_and_a_done_section(self):
+        data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
+        extra = dict(data['findings'][0], id='ISSUE-03', title='Ungrouped issue')
+        data['findings'].append(extra)
+        data.setdefault('tracking', {})['plan'] = {'round': 1, 'groups': [
+            {'id': 'M-ONE', 'name': 'Shared cause', 'finding_ids': ['ISSUE-01', 'ISSUE-02'], 'status': 'deferred', 'phase': 'deferred'}]}
+        page = renderer.render(data, Path(__file__).parent.parent)
+        payload = re.search(r'<script type="application/json" id="findings-data">(.*?)</script>', page).group(1)
+        rows = json.loads(payload)
+        self.assertEqual(rows[0]['_group'], {'id': 'M-ONE', 'name': 'Shared cause'})
+        self.assertNotIn('_group', rows[2])
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        start = template.index('const navList=')
+        build = template[start:template.index('\n', template.index('function addNavItem', start))]
+        program = (r"""
+const localStorage={getItem:()=>'group'};
+class Element { constructor(tag,text='',cls=''){this.tag=tag;this.text=text||'';this.cls=cls||'';this.children=[];this.dataset={}} append(...children){this.children.push(...children)} setAttribute(){} }
+const node=(tag,text,cls)=>new Element(tag,text,cls);
+const findings=JSON.parse(PAYLOAD),labels={verified_fixed:'Verified fixed',untested:'Untested'},run=null,checkLabels={},markStale=()=>{};
+const nav=new Element('ul'),document={createTextNode:text=>text};
+""" + build + r"""
+const text=el=>(el?.text||'')+(el?.children||[]).map(text).join('');
+const [group,plain,done]=nav.children;
+if(nav.children.length!==3)process.exit(1);
+if(group.cls!=='nav-group'||group.children[0].tag!=='details'||text(group.children[0].children[0])!=='Shared cause · 1 issue')process.exit(2);
+if(!text(group).includes('ISSUE-01')||text(group).includes('ISSUE-02'))process.exit(3);
+if(plain.cls!=='nav-item'||!text(plain).includes('ISSUE-03'))process.exit(4);
+if(done.cls!=='nav-group nav-done'||text(done.children[0].children[0])!=='Done · 1 verified'||!text(done).includes('ISSUE-02'))process.exit(5);
+""").replace('PAYLOAD', json.dumps(payload))
+        subprocess.run(['node', '-e', program], check=True)
+
+    def test_issue_list_by_plugin_nests_groups_and_folds_verified_per_plugin(self):
+        data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
+        first, second = data['findings'][0], data['findings'][1]
+        data['findings'] = [dict(first, id='BCL-01', title='Bcl grouped'), dict(first, id='BCL-02', title='Bcl plain'),
+                            dict(second, id='BCL-03', title='Bcl done'), dict(first, id='ACU-01', title='Acu open'),
+                            dict(first, id='ISSUE-09', title='Ledger by path', details={'files': 'plugins/context-ledger/x.py'})]
+        data.setdefault('tracking', {})['plan'] = {'round': 1, 'groups': [
+            {'id': 'M-ONE', 'name': 'Shared cause', 'finding_ids': ['BCL-01'], 'status': 'deferred', 'phase': 'deferred'}]}
+        page = renderer.render(data, Path(__file__).parent.parent)
+        payload = re.search(r'<script type="application/json" id="findings-data">(.*?)</script>', page).group(1)
+        self.assertEqual([row['_plugin'] for row in json.loads(payload)],
+                         ['batched-change-list'] * 3 + ['agent-computer-use', 'context-ledger'])
+        self.assertIn('data-mode="plugin">By plugin</button><button type="button" data-mode="group">By group</button>', page)
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        start = template.index('const navList=')
+        build = template[start:template.index('\n', template.index('function addNavItem', start))]
+        program = (r"""
+class Element { constructor(tag,text='',cls=''){this.tag=tag;this.text=text||'';this.cls=cls||'';this.children=[];this.dataset={}} append(...children){this.children.push(...children)} setAttribute(){} }
+const node=(tag,text,cls)=>new Element(tag,text,cls);
+const findings=JSON.parse(PAYLOAD),labels={verified_fixed:'Verified fixed',untested:'Untested'},run=null,checkLabels={},markStale=()=>{};
+const nav=new Element('ul'),document={createTextNode:text=>text};
+""" + build + r"""
+const text=el=>(el?.text||'')+(el?.children||[]).map(text).join('');
+const heads=nav.children.map(li=>text(li.children[0].children[0]));
+if(JSON.stringify(heads)!==JSON.stringify(['agent-computer-use · 1 open · 0 verified','batched-change-list · 2 open · 1 verified','context-ledger · 1 open · 0 verified']))process.exit(1);
+if(nav.children.some(li=>li.cls!=='nav-group nav-plugin'))process.exit(2);
+const bcl=nav.children[1].children[0].children[1].children;
+if(bcl.length!==3||bcl[0].cls!=='nav-group'||text(bcl[0].children[0].children[0])!=='Shared cause · 1 issue')process.exit(3);
+if(bcl[1].cls!=='nav-item'||!text(bcl[1]).includes('BCL-02'))process.exit(4);
+if(bcl[2].cls!=='nav-group nav-done'||text(bcl[2].children[0].children[0])!=='Done · 1 verified'||!text(bcl[2]).includes('BCL-03'))process.exit(5);
+""").replace('PAYLOAD', json.dumps(payload))
+        subprocess.run(['node', '-e', program], check=True)
+
     def test_review_sublabel_is_separated_in_rendered_text(self):
         workflow = renderer.render_workflow('review', [], 0, 15, False, 0, 1)
         text = html.unescape(re.sub(r'<[^>]+>', ' ', workflow))
@@ -170,7 +250,7 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         plan = page.split('>Plan &amp; fix<', 1)[0].rsplit('<li ', 1)[-1]
         self.assertIn('wf-step current', plan)
         track = renderer.row_phase_track({'id':'A', 'status':'verified'}, 'verified')
-        self.assertEqual(track.count('<i'), 5)
+        self.assertEqual(track.count('<i'), 4)
         self.assertEqual(track.count('class="d"'), 4)
 
     def test_planned_lane_does_not_look_active_during_introspection(self):
@@ -193,7 +273,7 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         self.assertIn('<svg width="22" height="22" viewBox="0 0 22 22"', gate_node)
         self.assertIn('stroke="var(--sage-line)" stroke-width="3"', gate_node)
         self.assertNotIn('var(--amber)', gate_node)
-        self.assertIn('Fixes <b>1/1000</b> verified<small>0 in progress</small>', gate_node)
+        self.assertIn('Fixes <b>1/1000</b> verified<small>1/1000 report gate</small><small>0 in progress</small>', gate_node)
         self.assertNotIn('excludes completed introspection', gate_node)
         self.assertIn('Report at 1000+ verified or when no counted findings remain open.', page)
         self.assertIn('Rollover requires at least 16+ verified and the rollover threshold.', page)
@@ -215,7 +295,7 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         gate = page.split('data-stage="gate"', 1)[1].split('</li>', 1)[0]
         self.assertNotIn('class="wf-step done wf-gate"', gate)
         self.assertIn('class="wf-step upcoming wf-gate"', gate)
-        self.assertIn('0 of 15 fixes verified, 0 in progress, gate not met', gate)
+        self.assertIn('0 of 16 fixes verified (report gate 15), 0 in progress, gate not met', gate)
         self.assertNotIn('aria-label="0 of 15 fixes verified, 0 in progress, gate met"', gate)
         self.assertIn('Report gate exception: no counted findings remain open.', gate)
 
@@ -263,12 +343,13 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T11:00:00Z'},
             'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'running','phase':'fix',
                 'updated_at':'2026-11-14T11:00:00Z','codex':{'status':'running','model':'gpt-6-luna',
-                'job':{'pid':99999,'heartbeat_at':'2026-11-14T11:00:00Z'}}}]}}
-        page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+                'job':{'pid':99999,'phase':'fix','heartbeat_at':'2026-11-14T11:00:00Z'}}}]}}
+        with patch.object(renderer.live_state, '_pid_is_running', return_value=True):
+            page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
         self.assertIn('data-stale-active="true"', page)
         self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale</span>', page)
 
-    def test_fresh_workflow_update_clears_old_nonrunning_lane_stamps(self):
+    def test_stale_hidden_for_jobless_install_and_verify(self):
         data = copy.deepcopy(self.data)
         data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-14T11:10:00Z'},
             'plan': {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'installing','phase':'install',
@@ -276,8 +357,8 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
                 {'id':'B','finding_ids':['ISSUE-02'],'status':'verifying','phase':'verify',
                  'updated_at':'2026-11-14T11:00:00Z'}]}}
         page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
-        self.assertIn('data-stale-active="true"', page)
-        self.assertIn('data-stale-since="2026-11-14T11:10:00+00:00"', page)
+        self.assertIn('data-stale-active="false"', page)
+        self.assertIn('data-stale-since=""', page)
         self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
 
     def test_fresh_live_job_heartbeat_resets_old_workflow_timestamp(self):
@@ -290,6 +371,55 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
             page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
         self.assertIn('data-stale-since="2026-11-14T11:10:00+00:00"', page)
         self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
+
+    def _stale_tag(self, page):
+        return re.search(r'<span class="tag-stale"[^>]*>', page).group(0)
+
+    def _stale_page(self, groups, now='2026-11-14T11:11:00Z', paused=None, alive=True):
+        data = copy.deepcopy(self.data)
+        workflow = {'stage': 'plan_fix', 'updated_at': '2026-11-14T11:10:00Z'}
+        if paused:
+            workflow['paused'] = {'reason': paused, 'at': '2026-11-14T11:00:00Z'}
+        data['tracking'] = {'workflow': workflow, 'plan': {'round': 1, 'groups': groups}}
+        with patch.object(renderer.live_state, '_pid_is_running', return_value=alive):
+            return renderer.render(data, self.base, now=renderer.parse_instant(now))
+
+    def _stale_lane(self, lane_id, heartbeat, **job):
+        return {'id': lane_id, 'finding_ids': ['ISSUE-01'], 'status': 'running', 'phase': 'fix',
+                'codex': {'job': {'pid': 4242, 'phase': 'fix', 'started_at': '2026-11-14T10:00:00Z',
+                                  'heartbeat_at': heartbeat, **job}}}
+
+    def test_stale_hidden_for_fresh_live_job_and_at_exact_threshold(self):
+        self.assertIn(' hidden', self._stale_tag(self._stale_page([self._stale_lane('A', '2026-11-14T11:10:00Z')])))
+        exact = self._stale_page([self._stale_lane('A', '2026-11-14T11:00:00Z')], now='2026-11-14T11:10:00Z')
+        self.assertIn(' hidden', self._stale_tag(exact))
+
+    def test_stale_visible_for_overdue_live_job_even_beside_fresh_job(self):
+        alone = self._stale_page([self._stale_lane('A', '2026-11-14T11:00:00Z')])
+        self.assertNotIn(' hidden', self._stale_tag(alone))
+        both = self._stale_page([self._stale_lane('A', '2026-11-14T11:00:00Z'), self._stale_lane('B', '2026-11-14T11:10:30Z')])
+        self.assertNotIn(' hidden', self._stale_tag(both))
+        self.assertIn('data-stale-since="2026-11-14T11:00:00+00:00"', both)
+
+    def test_stale_hidden_after_fresh_progress_on_same_job(self):
+        lane = self._stale_lane('A', '2026-11-14T11:00:00Z')
+        lane['updated_at'] = '2026-11-14T11:09:00Z'
+        self.assertIn(' hidden', self._stale_tag(self._stale_page([lane])))
+
+    def test_stale_hidden_for_paused_dead_missing_and_completed_jobs(self):
+        overdue = self._stale_lane('A', '2026-11-14T11:00:00Z')
+        self.assertIn(' hidden', self._stale_tag(self._stale_page([overdue], paused='maintenance')))
+        self.assertIn(' hidden', self._stale_tag(self._stale_page([overdue], alive=False)))
+        missing = self._stale_lane('A', '2026-11-14T11:00:00Z')
+        missing['codex']['job'].pop('pid')
+        self.assertIn(' hidden', self._stale_tag(self._stale_page([missing])))
+        done = self._stale_lane('A', '2026-11-14T11:00:00Z', exit_code=0)
+        self.assertIn(' hidden', self._stale_tag(self._stale_page([done])))
+        jobless = [{'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'installing', 'phase': 'install',
+                    'install': {'started_at': '2026-11-14T10:00:00Z'}, 'updated_at': '2026-11-14T10:00:00Z'}]
+        page = self._stale_page(jobless)
+        self.assertIn(' hidden', self._stale_tag(page))
+        self.assertIn('data-stale-active="false"', page)
 
     def test_recently_updated_completed_lane_never_shows_stale(self):
         data = copy.deepcopy(self.data)
@@ -305,10 +435,11 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-14T11:10:00Z'},
             'plan': {'round':1,'groups':[
                 {'id':'A','finding_ids':['ISSUE-01'],'status':'verifying','phase':'verify',
-                 'updated_at':'2026-11-14T11:10:00Z','codex':{'job':{'pid':99999,
+                 'updated_at':'2026-11-14T11:00:00Z','codex':{'job':{'pid':99999,
                  'heartbeat_at':'2026-11-14T11:00:00Z'}}},
                 {'id':'B','finding_ids':['ISSUE-02'],'status':'verifying','phase':'verify',
-                 'updated_at':'2026-11-14T11:10:00Z'}]}}
+                 'updated_at':'2026-11-14T11:10:00Z','codex':{'job':{'pid':99998,
+                 'heartbeat_at':'2026-11-14T11:10:00Z'}}}]}}
         with patch.object(renderer.live_state, '_pid_is_running', return_value=True):
             page = renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
         self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale</span>', page)
@@ -366,13 +497,14 @@ if(badge.hidden||clock>=Date.parse({json.dumps(updated)})+{stale_after}*60000)pr
             {'id':'B','finding_ids':['ISSUE-02'],'depends_on':['A'],'status':'pending'}]}}
         page = renderer.render(self.data, self.base)
         self.assertEqual(page, renderer.render(self.data, self.base))
-        for marker in ('class="wf"', 'class="wf-band gate-pending"', 'class="wf-loop"', 'wf-gate', 'class="grp running"', 'class="grp planned"', 'after A', 'href="#ISSUE-01"', 'title="'):
+        for marker in ('class="wf"', 'class="wf-band gate-pending"', 'class="wf-loop"', 'wf-gate', 'class="grp paused"', 'class="grp planned"', 'after A', 'href="#ISSUE-01"', 'title="'):
             self.assertIn(marker, page)
-        self.assertIn('<div class="plan-head"><span><strong>Round 1</strong> · 2 lanes · each installs and verifies when ready</span></div>', page)
+        self.assertIn('<strong>Round 1</strong> · 2 lanes · each installs and verifies when ready', page)
+        self.assertIn('<b>1</b> paused', page)
         self.assertLess(page.index('class="plan-head"'), page.index('class="plan-rows"'))
         self.assertNotIn('class="tail"', page)
         self.assertNotIn('round-plan', page)
-        self.assertIn('Fixing', page)
+        self.assertIn('Paused · needs resume', page)
         self.assertIn('Planned', page)
         self.assertIn('No fix plan for Round 1 yet.', renderer.render({**self.data, 'tracking':{'workflow':{'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}}}, self.base))
         self.assertNotIn('class="plan-rows"', renderer.render({**self.data, 'tracking':{}}, self.base))
@@ -400,23 +532,186 @@ if(badge.hidden||clock>=Date.parse({json.dumps(updated)})+{stale_after}*60000)pr
         self.assertIn('Updated <time datetime=', page)
         self.assertIn('4:30 PM IST', page)
         self.assertIn('13 min ago', page)
-        self.assertIn('class="tag-stale"', page)
-        self.assertIn('data-stale-active="true"', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
+        self.assertIn('data-stale-active="false"', page)
         self.assertIn('2 lanes · each installs and verifies when ready', page)
         self.assertIn('<b>1</b> installing', page)
         self.assertIn('<b>1</b> blocked', page)
         self.assertIn('Parked for Round 2', page)
         self.assertIn('CORE · 1', page)
-        self.assertIn('aria-label="Phase 4 of 5: Install"', page)
-        self.assertIn('aria-label="Phase 5 of 5: Verify, blocked"', page)
+        self.assertIn('aria-label="Phase 3 of 4: Install"', page)
+        self.assertIn('aria-label="Phase 4 of 4: Verify, blocked"', page)
         self.assertIn('In install · INSTALL', page)
         self.assertIn('Blocked · no mic · needs Guru', page)
         self.assertIn('CARRIED', page)
-        self.assertIn('Fixes <b>0/15</b> verified<small>1 in progress</small>', page)
+        self.assertIn('Fixes <b>0/16</b> verified<small>0/15 report gate</small><small>1 in progress</small>', page)
         self.assertIn('Round closes when every lane is <b>verified, blocked or parked</b> → Introspect → gate.', page)
         self.assertNotIn('Working on it', page)
         self.assertNotIn('workflow-now', page)
         self.assertIn('setInterval(formatPageTimes,60000)', page)
+
+    def _lane_display_page(self, groups, paused=None):
+        data = copy.deepcopy(self.data)
+        workflow = {'stage': 'plan_fix', 'updated_at': '2026-11-14T11:10:00Z'}
+        if paused is not None:
+            workflow['paused'] = {'reason': paused, 'at': '2026-11-14T11:10:00Z'}
+        data['tracking'] = {'workflow': workflow, 'plan': {'round': 1, 'groups': groups}}
+        return renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+
+    def _lane_display_chips(self, page):
+        payload = page.split('<script type="application/json" id="findings-data">', 1)[1].split('</script>', 1)[0]
+        return {item['id']: item['_lane_status'] for item in json.loads(payload)}
+
+    def _lane_display_row(self, page, group_id):
+        for chunk in page.split('<details class="grp ')[1:]:
+            if f'<code>{group_id}</code>' in chunk:
+                return chunk.split('</details>', 1)[0]
+        self.fail(f'no lane row for {group_id}')
+
+    def _lane_display_tally(self, page):
+        self.assertIn('<span class="t">', page)
+        return page.split('<span class="t">', 1)[1].split('</span></div>', 1)[0]
+
+    def test_lane_display_live_phases_in_chip_row_and_tally(self):
+        child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])
+        self.addCleanup(child.wait)
+        self.addCleanup(child.terminate)
+        cases = {'fix': ('Fixing', 'fixing'), 'plan_review': ('Plan review', 'in review'),
+                 'review': ('Review', 'in review'), 'presuite': ('Presuite', 'in review')}
+        for phase, (label, tally) in cases.items():
+            with self.subTest(phase=phase):
+                group = {'id': 'A', 'finding_ids': ['ISSUE-01'],
+                         'status': 'running' if phase == 'fix' else 'review',
+                         'phase': 'fix' if phase == 'fix' else 'review',
+                         'codex': {'job': {'pid': child.pid, 'phase': phase,
+                                           'started_at': '2026-11-14T11:10:00Z'}}}
+                page = self._lane_display_page([group])
+                self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'], f'{label} · A')
+                self.assertIn(f'>{label}</span>', self._lane_display_row(page, 'A'))
+                self.assertIn(f'<b>1</b> {tally}', self._lane_display_tally(page))
+
+    def test_lane_display_interrupted_phases_in_chip_row_and_tally(self):
+        child = subprocess.Popen([sys.executable, '-c', 'pass'])
+        child.wait()
+        for phase in ('fix', 'plan_review', 'review', 'presuite'):
+            with self.subTest(phase=phase):
+                resume = 'plan review' if phase == 'plan_review' else phase
+                copy = f'Interrupted · resume at {resume}'
+                group = {'id': 'A', 'finding_ids': ['ISSUE-01'],
+                         'status': 'running' if phase == 'fix' else 'review',
+                         'phase': 'fix' if phase == 'fix' else 'review',
+                         'codex': {'job': {'pid': child.pid, 'phase': phase,
+                                           'started_at': '2026-11-14T11:10:00Z'}}}
+                page = self._lane_display_page([group])
+                self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'], f'{copy} · A')
+                self.assertIn(f'>{copy}</span>', self._lane_display_row(page, 'A'))
+                self.assertIn('<b>1</b> interrupted', self._lane_display_tally(page))
+
+    def test_lane_display_started_receipt_without_pid_is_interrupted(self):
+        group = {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'running', 'phase': 'fix',
+                 'codex': {'job': {'phase': 'plan_review', 'started_at': '2026-11-14T11:10:00Z'}}}
+        page = self._lane_display_page([group])
+        copy = 'Interrupted · resume at plan review'
+        self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'], f'{copy} · A')
+        self.assertIn(f'>{copy}</span>', self._lane_display_row(page, 'A'))
+        self.assertIn('<b>1</b> interrupted', self._lane_display_tally(page))
+
+    def test_lane_display_jobless_active_lane_is_paused(self):
+        for status in ('running', 'review'):
+            with self.subTest(status=status):
+                group = {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': status,
+                         'phase': {'running': 'fix', 'review': 'review', 'installing': 'install',
+                                   'verifying': 'verify'}[status],
+                         'install': {'started_at': '2026-11-14T11:00:00Z'}}
+                page = self._lane_display_page([group])
+                self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'],
+                                 'Paused · needs resume · A')
+                self.assertIn('>Paused · needs resume</span>', self._lane_display_row(page, 'A'))
+                self.assertIn('<b>1</b> paused', self._lane_display_tally(page))
+
+    def test_lane_display_jobless_install_and_verify_keep_stage_copy(self):
+        # Install and verify run as stage commands without a job receipt.
+        for status, copy, label in (('installing', 'In install · A', 'Installing'), ('verifying', 'Verifying · A', 'Verifying')):
+            with self.subTest(status=status):
+                group = {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': status,
+                         'phase': 'install' if status == 'installing' else 'verify',
+                         'install': {'started_at': '2026-11-14T11:00:00Z'}}
+                page = self._lane_display_page([group])
+                self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'], copy)
+                self.assertIn(f'>{label}</span>', self._lane_display_row(page, 'A'))
+                self.assertNotIn('Paused', self._lane_display_row(page, 'A'))
+
+    def test_lane_display_passed_review_without_live_job_is_paused(self):
+        group = {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'review', 'phase': 'review',
+                 'codex': {'review_status': 'passed',
+                           'job': {'pid': 99999, 'phase': 'review', 'exit_code': 0}}}
+        page = self._lane_display_page([group])
+        self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'], 'Paused · needs resume · A')
+        self.assertIn('>Paused · needs resume</span>', self._lane_display_row(page, 'A'))
+        self.assertIn('<b>1</b> paused', self._lane_display_tally(page))
+        self.assertNotIn('Review passed', page)
+        self.assertNotIn('<b>1</b> in review', self._lane_display_tally(page))
+
+    def test_lane_display_paused_round_keeps_settled_verified_lane(self):
+        child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])
+        self.addCleanup(child.wait)
+        self.addCleanup(child.terminate)
+        groups = [
+            {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'running', 'phase': 'fix',
+             'codex': {'job': {'pid': child.pid, 'phase': 'fix', 'started_at': '2026-11-14T11:10:00Z'}}},
+            {'id': 'B', 'finding_ids': ['ISSUE-02'], 'status': 'verified', 'phase': 'verify',
+             'verify': {'status': 'verified'},
+             'codex': {'review_status': 'passed',
+                       'job': {'pid': 99999, 'phase': 'review', 'exit_code': 0,
+                               'finished_phase_status': 'passed'}}},
+        ]
+        page = self._lane_display_page(groups, paused='maintenance')
+        chips = self._lane_display_chips(page)
+        self.assertEqual(chips['ISSUE-01']['copy'], 'Paused · maintenance · A')
+        self.assertEqual(chips['ISSUE-02']['copy'], 'Verified · B')
+        self.assertIn('>Paused · maintenance</span>', self._lane_display_row(page, 'A'))
+        self.assertIn('>Verified</span>', self._lane_display_row(page, 'B'))
+        tally = self._lane_display_tally(page)
+        self.assertIn('<b>1</b> paused', tally)
+        self.assertIn('<b>1</b> verified', tally)
+        self.assertNotIn('<b>1</b> in review', tally)
+        self.assertNotIn('Review passed', page)
+
+    def test_lane_display_pause_reason_is_escaped_in_row(self):
+        child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])
+        self.addCleanup(child.wait)
+        self.addCleanup(child.terminate)
+        group = {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'running', 'phase': 'fix',
+                 'codex': {'job': {'pid': child.pid, 'phase': 'fix', 'started_at': '2026-11-14T11:10:00Z'}}}
+        page = self._lane_display_page([group], paused='<b>owner</b> stop')
+        row = self._lane_display_row(page, 'A')
+        self.assertIn('>Paused · &lt;b&gt;owner&lt;/b&gt; stop</span>', row)
+        self.assertNotIn('<b>owner</b>', row)
+
+    def test_lane_display_settled_blocked_lane_keeps_passed_review_out_of_tally(self):
+        group = {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'blocked', 'phase': 'verify',
+                 'blocked_reason': 'no mic · needs Guru',
+                 'codex': {'review_status': 'passed',
+                           'job': {'pid': 99999, 'phase': 'review', 'exit_code': 0}}}
+        page = self._lane_display_page([group])
+        self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'],
+                         'Blocked · no mic · needs Guru')
+        self.assertIn('>Blocked</span>', self._lane_display_row(page, 'A'))
+        tally = self._lane_display_tally(page)
+        self.assertIn('<b>1</b> blocked', tally)
+        self.assertNotIn('<b>1</b> in review', tally)
+        self.assertNotIn('Review passed', page)
+
+    def test_lane_display_blocked_checks_pending_keeps_detail(self):
+        group = {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'blocked', 'phase': 'verify',
+                 'blocked_reason': 'Individual issue checks pending',
+                 'codex': {'review_status': 'passed'}}
+        page = self._lane_display_page([group])
+        self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'],
+                         'Checks pending · Individual issue checks pending')
+        self.assertIn('>Checks pending</span>', self._lane_display_row(page, 'A'))
+        self.assertIn('<b>1</b> verifying', self._lane_display_tally(page))
+        self.assertNotIn('Review passed', page)
 
     def test_compact_plan_labels_duration_status_details_and_fallbacks(self):
         data = copy.deepcopy(self.data)
@@ -762,7 +1057,8 @@ setImmediate(async()=>{
             item['id'] = f'ISSUE-{index + 3:02d}'
             data['findings'].append(item)
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes <b>7/15</b> verified', page)
+        self.assertIn('Fixes <b>7/16</b> verified<small>7/15 report gate</small>', page)
+        self.assertIn('aria-label="7 of 16 fixes verified (report gate 15), 0 in progress, gate not met', page)
         self.assertIn('Round 3', page)
         self.assertIn('under 15 verified', page)
         self.assertIn('class="wf-band gate-pending"', page)
@@ -772,7 +1068,7 @@ setImmediate(async()=>{
         self.assertIn('class="wf-band gate-pending"', page)
         timeline = page
         stages = ['>Collect<','>Plan &amp; fix<','>Install<','>Verify<',
-                  '>Introspect<','Fixes <b>7/15</b> verified','>Report &amp; roll over<','>Merge previous PR<']
+                  '>Introspect<','Fixes <b>7/16</b> verified','>Report &amp; roll over<','>Merge previous PR<']
         positions = [timeline.index(stage) for stage in stages]
         self.assertEqual(positions, sorted(positions))
         self.assertNotIn('>Present<', timeline)
@@ -1247,13 +1543,13 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
             + [item('AGENT-18', 'untested'), introspect]
         )
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes <b>17/15</b> verified', page)
+        self.assertIn('Fixes <b>17/16</b> verified', page)
         self.assertIn('class="wf-band gate-met"', page)
         self.assertNotIn('class="wf-band gate-pending"', page)
         # 14 VF with an open page-tool finding stays short of the threshold and is not met.
         data['findings'] = [item(f'AGENT-{i:02d}') for i in range(1, 15)] + [item('PAGE-01', 'untested')]
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes <b>14/15</b> verified', page)
+        self.assertIn('Fixes <b>14/16</b> verified', page)
         self.assertIn('class="wf-band gate-pending"', page)
         self.assertNotIn('class="wf-band gate-met"', page)
         fixed, _, met = renderer.rollover_gate([item('WF-06', 'untested'), introspect], {})
@@ -1265,13 +1561,13 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
             + [item('PAGE-01', 'untested'), item('BCL-01', 'failing'), item('WF-07', 'untested')]
         )
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes <b>15/15</b> verified', page)
+        self.assertIn('Fixes <b>15/16</b> verified', page)
         self.assertIn('class="wf-band gate-met"', page)
         self.assertNotIn('class="wf-band gate-pending"', page)
         # 16 of 15 with an extra open product finding is still met.
         data['findings'] = [item(f'ISSUE-{i:02d}') for i in range(1, 17)] + [item('ISSUE-99', 'untested')]
         page = renderer.render(data, Path(__file__).parents[1])
-        self.assertIn('Fixes <b>16/15</b> verified', page)
+        self.assertIn('Fixes <b>16/16</b> verified', page)
         self.assertIn('class="wf-band gate-met"', page)
 
 
@@ -1304,7 +1600,7 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         ]}}
         page = renderer.render(data, self.base)
         self.assertIn('class="grp failed"', page)
-        self.assertIn('Phase 5 of 5: Verify, failed', page)
+        self.assertIn('Phase 4 of 4: Verify, failed', page)
         self.assertIn('Fix failed · F', page)
         self.assertIn('Fix failed · D', page)
         data['tracking']['plan']['groups'][0]['status'] = 'unknown'
@@ -1316,7 +1612,7 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         group = {'id':'A','status':'installing','phase':'fix','finding_ids':['ISSUE-01'],'install':{'started_at':'2026-11-14T09:00:00Z'}}
         self.assertEqual(renderer.plan_phase(group), 'install')
         track = renderer.row_phase_track(group, 'installing')
-        self.assertIn('Phase 4 of 5: Install', track)
+        self.assertIn('Phase 3 of 4: Install', track)
         workflow = renderer.render_workflow('plan_fix',
             [{**group, 'id':f'G{i}'} for i in range(6)], 0, 15, False, 0, 1)
         self.assertIn('aria-label="6 lanes"', workflow)
@@ -1351,8 +1647,9 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         page = renderer.render(data, self.base)
         self.assertIn('class="grp installing"', page)
         self.assertIn('>Installing</span>', page)
-        self.assertIn('class="grp running"', page)
-        self.assertIn('Phase 4 of 5: Install', page)
+        self.assertIn('class="grp paused"', page)
+        self.assertIn('>Paused · needs resume</span>', page)
+        self.assertIn('Phase 3 of 4: Install', page)
         self.assertIn('data-stage="gate"', page)
         install = page.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
         self.assertNotIn('wf-step done', install)
@@ -1362,13 +1659,13 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         data['tracking']['plan']['groups'][0]['verify'] = {'status':'verified','method':'Unit tests'}
         page = renderer.render(data, self.base)
         self.assertIn('class="grp verified"', page)
-        self.assertIn('Phase 5 of 5: Verify', page)
+        self.assertIn('Phase 4 of 4: Verify', page)
         self.assertIn('class="wf-step done"', page)
         data['tracking']['plan']['groups'][0].update(status='review', phase='review', verify={'status':'pending'})
         page = renderer.render(data, self.base)
-        self.assertIn('class="grp review"', page)
-        self.assertIn('>In review</span>', page)
-        self.assertIn('Phase 3 of 5: Review', page)
+        self.assertIn('class="grp paused"', page)
+        self.assertIn('>Paused · needs resume</span>', page)
+        self.assertIn('Phase 2 of 4: Review', page)
         data['tracking']['workflow']['stage'] = 'install'
         data['tracking']['plan']['groups'] = [
             {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'done','phase':'install','install':{'started_at':'2026-11-14T09:00:00Z'},'verify':{'status':'pending'}},

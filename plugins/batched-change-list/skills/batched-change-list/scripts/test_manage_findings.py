@@ -637,7 +637,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(run({'action':'set-activity','stage':'review','ids':['ISSUE-01'],'now':'Review'}).returncode, 0)
         install = run({'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'})
         self.assertNotEqual(install.returncode, 0)
-        self.assertIn("install requires codex.review_status='passed'", install.stderr)
+        self.assertIn("install requires a clear bcl release-check", install.stderr)
         before = self.data.read_bytes()
         self.assertNotEqual(run({'action':'set-stage','stage':'made-up'}).returncode, 0)
         self.assertEqual(self.data.read_bytes(), before)
@@ -1208,7 +1208,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(batch({'action':'start-verification','run':run}).returncode, 0)
         added = copy.deepcopy(json.loads(self.data.read_text())['findings'][0])
         added.update(id='ISSUE-03', title='Added after start')
-        self.assertEqual(batch({'action':'add','entry':added}).returncode, 0)
+        self.assertEqual(batch({'action':'add','entry':added,'new':True}).returncode, 0)
         self.assertIn('Not checked this install', page.read_text())
         for issue in ('ISSUE-01', 'ISSUE-02'):
             self.assertEqual(batch({'action':'start-check','id':issue,'run_id':'cohort-run','observation':'Initial state','observed_at':'2026-11-06T00:01:00Z'}).returncode, 0)
@@ -1231,7 +1231,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(batch({'action':'complete-verification','run_id':'completed-run'}).returncode, 0)
         added = copy.deepcopy(json.loads(self.data.read_text())['findings'][0])
         added.update(id='ISSUE-03', title='Added after completion')
-        result = batch({'action':'add','entry':added})
+        result = batch({'action':'add','entry':added,'new':True})
         self.assertEqual(result.returncode, 0, result.stderr)
         tracking = json.loads(self.data.read_text())['tracking']
         self.assertEqual(tracking['verification_run']['status'], 'complete')
@@ -1400,7 +1400,7 @@ class ManageFindingsTests(unittest.TestCase):
     def test_batch_add_delete_and_render_failure_reports_committed_json(self):
         operations = self.root / 'batch.json'
         entry = dict(self.document['findings'][0], id='ISSUE-03')
-        operations.write_text(json.dumps([{'action':'add','entry':entry},
+        operations.write_text(json.dumps([{'action':'add','entry':entry,'new':True},
                                           {'action':'delete','id':'ISSUE-02'}]))
         result = self.cli('batch', self.data, operations, '--render', self.root / 'missing' / 'page.html')
         self.assertNotEqual(result.returncode, 0)
@@ -1630,7 +1630,7 @@ class ManageFindingsTests(unittest.TestCase):
         entry.write_text(json.dumps({'id':'ISSUE-03','title':'A control does not open','source':'User reported',
             'status':'untested','observed':'The control stays closed.','recommendation':'Restore the open action.',
             'impact':'Readers cannot continue.','done_when':'The control opens when selected.'}))
-        added = self.cli('add', self.data, entry)
+        added = self.cli('add', self.data, entry, '--new')
         self.assertEqual(added.returncode, 0, added.stderr)
         self.assertIn('add summary, impact and done_when in plain words', added.stderr)
         patch = self.root / 'patch.json'
@@ -1772,6 +1772,61 @@ class ManageFindingsTests(unittest.TestCase):
         if force:
             args.append("--force")
         return self.cli(*args)
+
+    def test_install_readiness_is_release_check_for_named_lanes(self):
+        document = copy.deepcopy(self.document)
+        document["findings"] = document["findings"][:2]
+        for index, finding in enumerate(document["findings"], 1):
+            finding.update(id=f"ISSUE-0{index}", status="in_progress")
+        ready = {"id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "review", "phase": "review",
+                 "codex": {"implementer_session": "writer", "reviewer_session": "reviewer",
+                           "fix_status": "passed", "review_status": "passed"}, "presuite": {"status": "passed"}}
+        fixing = {"id": "B", "finding_ids": ["ISSUE-02"], "depends_on": [], "status": "running", "phase": "fix",
+                  "codex": {"implementer_session": "writer", "fix_status": "running"}}
+        document.setdefault("tracking", {}).update(cycle=1, round=1, stages_reached=["collect", "present", "plan_fix", "review"],
+                                                   plan={"cycle": 1, "round": 1, "groups": [ready, fixing]})
+        install = {"action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Installing"}
+        refused = self._replay_batch(document, install)
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("install requires a clear bcl release-check", refused.stderr)
+        self.assertIn("not ready: B", refused.stderr)
+        fixing.update(status="deferred", phase="deferred")
+        allowed = self._replay_batch(document, install)
+        self.assertEqual(allowed.returncode, 0, allowed.stderr)
+        ready["presuite"] = {"status": "failed"}
+        self.assertIn("not ready: A", self._replay_batch(document, install).stderr)
+    def test_add_refuses_near_duplicate_unless_new_or_into(self):
+        document = copy.deepcopy(self.document)
+        original = document["findings"][0]
+        original["status"] = "untested"
+        twin = {key: original[key] for key in ("title", "summary", "impact", "recommendation", "done_when",
+                                              "priority", "source", "observed") if key in original}
+        twin.update(id="ISSUE-99", status="untested")
+        refused = self._replay_batch(document, {"action": "add", "entry": twin})
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn(f"looks like open {original['id']}", refused.stderr)
+        added = self._replay_batch(document, {"action": "add", "entry": twin, "new": True})
+        self.assertEqual(added.returncode, 0, added.stderr)
+        self.assertIn("ISSUE-99", [item["id"] for item in json.loads(self.data.read_text())["findings"]])
+        count = len(document["findings"])
+        appended = self._replay_batch(document, {"action": "add", "entry": twin, "into": original["id"]})
+        self.assertEqual(appended.returncode, 0, appended.stderr)
+        saved = json.loads(self.data.read_text())
+        self.assertEqual(len(saved["findings"]), count)
+        target = next(item for item in saved["findings"] if item["id"] == original["id"])
+        self.assertIn(original["title"], target["details"]["also reported as ISSUE-99"])
+
+    def test_add_accepts_unrelated_entry_and_ignores_closed_twins(self):
+        document = copy.deepcopy(self.document)
+        original = document["findings"][0]
+        twin = {key: original[key] for key in ("title", "summary", "impact", "recommendation", "done_when",
+                                              "priority", "source") if key in original}
+        twin.update(id="ISSUE-98", status="untested")
+        original["status"] = "verified_fixed"
+        self.assertEqual(manage_findings.near_duplicates([original], twin), [])
+        unrelated = {"id": "ISSUE-97", "title": "Voice input drops the first syllable",
+                     "summary": "Microphone capture starts late after wake.", "recommendation": "Prime the audio buffer."}
+        self.assertEqual(manage_findings.near_duplicates(document["findings"][1:], unrelated), [])
 
     def _blocked_lane(self):
         document = copy.deepcopy(self.document)
@@ -2187,6 +2242,58 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(tracking["round_history"][0]["round"], 1)
         self.assertEqual(len(tracking["round_history"]), 1)
 
+    def test_new_round_keeps_requested_status_for_gated_lane(self):
+        none = {
+            "delete": {"none": "No deletions this cycle."},
+            "simplify": {"none": "No simplifications this cycle."},
+            "optimize": {"none": "No optimizations this cycle."},
+            "automate": {"none": "No automations this cycle."},
+        }
+        document = self._path1_pre()
+        for number in (3, 4):
+            finding = copy.deepcopy(document["findings"][0])
+            finding.update(id=f"ISSUE-0{number}", status="in_progress")
+            document["findings"].append(finding)
+        plan = document["tracking"]["plan"]
+        plan["groups"] = [
+            {"id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "deferred",
+             "codex": {"review_status": "changes_requested"},
+             "failure_history": [{"attempt_id": "failed-a", "source": "review", "reason": "Changes requested"}]},
+            {"id": "B", "finding_ids": ["ISSUE-02"], "depends_on": [], "status": "verified"},
+        ]
+        next_plan = {"round": 2, "groups": [
+            {"id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "deferred"},
+            {"id": "C", "finding_ids": ["ISSUE-03"], "depends_on": [], "status": "pending"},
+            {"id": "D", "finding_ids": ["ISSUE-04"], "depends_on": [], "status": "pending"},
+        ]}
+        result = self._replay_batch(document,
+            {"action": "introspect", "sections": none, "result": "round 1 done"},
+            {"action": "set-plan", "plan": next_plan})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved = json.loads(self.data.read_text())["tracking"]["plan"]
+        lane_a = next(group for group in saved["groups"] if group["id"] == "A")
+        self.assertEqual(lane_a["status"], "deferred")
+        self.assertEqual(lane_a["parked_to"], 3)
+        self.assertEqual(len(manage_findings._counted_failures(lane_a["failure_history"])), 1)
+
+        pending_plan = copy.deepcopy(next_plan)
+        pending_plan["groups"][0]["status"] = "pending"
+        result = self._replay_batch(document,
+            {"action": "introspect", "sections": none, "result": "round 1 done"},
+            {"action": "set-plan", "plan": pending_plan})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved = json.loads(self.data.read_text())["tracking"]["plan"]
+        lane_a = next(group for group in saved["groups"] if group["id"] == "A")
+        self.assertEqual(lane_a["status"], "planned")
+        self.assertEqual(len(manage_findings._counted_failures(lane_a["failure_history"])), 1)
+
+        dropped_plan = {"round": 2, "groups": [group for group in next_plan["groups"] if group["id"] != "A"]}
+        result = self._replay_batch(document,
+            {"action": "introspect", "sections": none, "result": "round 1 done"},
+            {"action": "set-plan", "plan": dropped_plan})
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("cannot change gated lane A", result.stderr)
+
     def test_set_plan_rejects_round_mismatch_after_introspect(self):
         none = {
             "delete": {"none": "No deletions this cycle."},
@@ -2267,7 +2374,7 @@ class ManageFindingsTests(unittest.TestCase):
             "action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Install",
         })
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("review_status='passed'", result.stderr)
+        self.assertIn("install requires a clear bcl release-check", result.stderr)
         self.assertEqual(self.data.read_bytes(), before)
 
     def test_job_receipt_cannot_be_patched_directly(self):
@@ -2322,30 +2429,41 @@ class ManageFindingsTests(unittest.TestCase):
         before = json.dumps(document).encode()
         result = self._replay_batch(document, plan, {"action": "set-stage", "stage": "install"})
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("review_status='passed'", result.stderr)
+        self.assertIn("install requires a clear bcl release-check", result.stderr)
         self.assertEqual(self.data.read_bytes(), before)
 
-    def test_set_activity_install_dispatches_through_declared_workflow_check(self):
+    def test_job_review_statuses_allow_defer_but_not_install_or_unknown_state(self):
+        for action in ("update-plan-group", "set-plan"):
+            with self.subTest(action=action):
+                document = copy.deepcopy(self.document)
+                document["findings"] = document["findings"][:1]
+                group = {"id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [],
+                         "status": "review", "phase": "review",
+                         "codex": {"review_status": "changes_requested", "reviewer_session": "reviewer"},
+                         "failure_history": [{"attempt": 1, "status": "failed"}]}
+                tracking = document.setdefault("tracking", {})
+                tracking.update(cycle=1, round=1, stages_reached=["plan_fix", "review"])
+                if action == "update-plan-group":
+                    tracking["plan"] = {"cycle": 1, "round": 1, "groups": [copy.deepcopy(group)]}
+                    operation = {"action": action, "id": "A", "patch": {"status": "deferred", "phase": "deferred"}}
+                else:
+                    group.update(status="deferred", phase="deferred")
+                    tracking["plan"] = {"cycle": 1, "round": 1, "groups": [copy.deepcopy(group)]}
+                    operation = {"action": action, "plan": {"round": 1, "groups": [group]}}
+                result = self._replay_batch(document, operation)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                saved = json.loads(self.data.read_text())
+                saved_group = saved["tracking"]["plan"]["groups"][0]
+                self.assertEqual((saved_group["status"], saved_group["phase"]), ("deferred", "deferred"))
+                self.assertEqual(saved_group["codex"]["review_status"], "changes_requested")
+                self.assertEqual(saved_group["failure_history"], [{"attempt": 1, "status": "failed"}])
+                self.assertEqual(manage_findings.release_check_payload(saved)["lanes"], [])
+                ready = manage_findings.release_check_payload(saved, ["ISSUE-01"], require_presuite=True)
+                self.assertEqual(ready.get("included"), [])
+
         document = copy.deepcopy(self.document)
-        document["findings"][0]["status"] = "in_progress"
-        plan = {"cycle": 1, "round": 1, "groups": [{
-            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "running",
-            "codex": {"implementer_session": "writer", "reviewer_session": "reviewer",
-                      "review_status": "passed"},
-        }]}
-        document["tracking"] = {"cycle": 1, "round": 1, "stages_reached": ["plan_fix", "review"], "plan": plan}
-        self.data.write_text(json.dumps(document), encoding="utf-8")
-        operations = self.root / "install.json"
-        operations.write_text(json.dumps([{
-            "action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Install",
-        }]), encoding="utf-8")
-        with patch.object(workflow_definition, "run_check", side_effect=ValueError("declared install check")) as run_check:
-            errors = io.StringIO()
-            with redirect_stderr(errors), self.assertRaises(SystemExit) as result:
-                manage_findings.main(["batch", str(self.data), str(operations), "--render", str(self.root / "page.html")])
-        self.assertEqual(result.exception.code, 2)
-        self.assertIn("declared install check", errors.getvalue())
-        run_check.assert_called_once_with("install", plan, ["ISSUE-01"])
+        with self.assertRaisesRegex(ValueError, "codex.review_status must be one of"):
+            check_install_sessions.validate_group_codex({"id": "A", "codex": {"review_status": "complete"}})
 
     def test_plan_rejects_invalid_one_file_and_empty_session_fields(self):
         for codex, message in (({"one_file": 1}, "one_file"),

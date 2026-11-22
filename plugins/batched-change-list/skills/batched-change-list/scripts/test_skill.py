@@ -4,7 +4,7 @@ import statechart
 import workflow_definition
 
 SKILL=Path(__file__).resolve().parents[1]/'SKILL.md'; ROOT=SKILL.parent; REFS=ROOT/'references'
-EXPECTED={'collect.md':'New list or feedback','present.md':'After collection','plan-fix.md':'After Present or gate loop-back','review.md':"After a group's fix",'install.md':'After group review','verify.md':'After its install','introspect.md':"After every round's Verify",'gate.md':'After Introspect or checking rollover','report-rollover.md':'When gate is met','tracker.md':'Recovery','viewer.md':'Viewer use','principles.md':'Debugging, tests, sequencing, shared state, or proof','release.md':'Before a release or after shipping'}
+EXPECTED={'collect.md':'New list or feedback','present.md':'After collection','plan-fix.md':'After Present or gate loop-back','review.md':"After a group's fix",'install.md':'After group review','verify.md':'After its install','introspect.md':"After every round's Verify",'gate.md':'After Introspect or checking rollover','report-rollover.md':'When gate is met','tracker.md':'Recovery','viewer.md':'Viewer use','release.md':'Before a release or after shipping'}
 STEPS=[stage["label"] for stage in workflow_definition.STAGES]
 
 class SkillLayoutTests(unittest.TestCase):
@@ -13,7 +13,7 @@ class SkillLayoutTests(unittest.TestCase):
         self.assertNotRegex(body,r'(?m)^Workflow:|^\d+\. '); self.assertNotRegex(body,r'\b(?:15|16)\b')
         self.assertEqual(sum(line=='| Step | When | Load | Run |' for line in body.splitlines()),1); self.assertEqual(sum(line=='| When | Load |' for line in body.splitlines()),1)
         self.assertIn('\n\nSelf-validate:',body)
-        for phrase in ('so the fix and its review stay separate','so model and effort stay in one place','so the list and its history have one writer','so one fix does not break another','every “already present” item needs its own named test','so the gate count is the number the owner sees','Run Introspect after every Verify','python3 scripts/statechart.py','python3 -m unittest discover'):
+        for phrase in ('so the fix and its review stay separate','so model and effort stay in one place','so the list and its history have one writer','Editing this skill? Read [principles.md](principles.md) first','Every “already present” item needs its own named test','so the gate count is the number the owner sees','Run Introspect after every Verify','python3 scripts/statechart.py','python3 -m unittest discover'):
             self.assertIn(phrase,body)
 
     def test_router_names_each_step_and_side_reference_once_and_all_references(self):

@@ -1,3 +1,50 @@
+## 0.1.66
+
+- Only a post-fix review's declared CHANGES counts toward the two-failure lane cap. A failed fix job is recorded as an uncounted attempt and the lane stays in fix; three failed jobs in a row still block it (BCL-163).
+- The repository's pre-commit and post-merge hooks regenerate the state chart when its sources change, so a stale chart no longer fails the pre-push suite (BCL-155).
+- The issue list has a By plugin | By group toggle. By plugin shows one row per plugin with its open and verified counts, its plan groups nested inside and its verified issues in a Done row (BCL-167).
+
+## 0.1.65
+
+- One pre-push suite per lane through `scripts/check.py`; fix jobs run only the lane's tests, and lanes shipping together share one suite job (BCL-162).
+- Install readiness is `bcl release-check`: `set-activity install` and `set-stage install` refuse a lane without a passed fix, review and pre-push suite, or while another lane is in flight; the separate install-session check is gone (BCL-154).
+- `add` refuses an entry that looks like an open issue unless `--new` is passed; `--into ID` appends it to that issue instead (BCL-164).
+- The change-list page groups the issue list by plan group, one collapsed row per group with its issue count, and folds verified issues into a Done section (BCL-165).
+
+## 0.1.64
+
+- A lane gets one plan review. After it, a review CHANGES reply with ROOT CAUSE and FAILING TEST sections opens the next fix, and a further plan review is refused; a reply without them keeps the old plan-review route (BCL-153).
+
+## 0.1.63
+
+- Lane status is derived at render from the job receipt: a live job shows its phase, a dead unfinished one shows `Interrupted · resume at <phase>`, and a fix or review lane with no job shows `Paused · needs resume`. Chips, rows, the tally and `bcl status` share one state, and settled lanes keep their outcome (BCL-150).
+- `bcl pause --reason` and `bcl resume` pause the round and refuse new job, review, install and verify starts; repeats change nothing. Stale shows only for a live job with no heartbeat or progress past the limit (BCL-150).
+
+## 0.1.62
+
+- The gate badge shows the rollover target as the main count (for example 7/16) with the report gate as a secondary line (BCL-141).
+- The repository check runs at most six test processes by default, so timing tests stop failing under load (BCL-146).
+- The review chip sits under Review, not Install; the state chart is regenerated to match.
+
+## 0.1.61
+
+- `release-check --ids` counts a lane as settled once its fix and review passed and a presuite passed for every finding in the lane; a running or failed presuite, an unnamed lane finding, or an unfinished fix or review still blocks, and the output keeps its keys (BCL-136).
+- Restored the two legacy viewer command tests (BCL-138).
+- Skill: principles.md (skill-refine base plus bcl lines), read only when editing the skill, replacing the duplicate references/principles.md (its debugging and test rules now sit in plan-fix.md); Introspect skill edits name the principles they were checked against.
+
+## 0.1.60
+
+- A new round can be planned while carried lanes have counted failures: their requested pending or deferred status is kept and only their failure and review history is carried; dropping such a lane is still refused (BCL-143).
+
+## 0.1.59
+
+- Plan writes accept every review state that review jobs record (running, blocked, changes_requested), so a lane whose review asked for changes can be deferred or carried and new lanes can be added; install still needs a passed review and unknown states are still refused (BCL-135).
+
+## 0.1.58
+
+- Deleted unused commands: `bcl sync-main` (never run, BCL-123) and `bcl merge` (BCL-126); the README no longer lists them and a reference test rejects either name in the docs. Legacy viewer-record handling stays (BCL-124 deferred: removing it would orphan live viewers without an instance id).
+- Quieter, faster tests: five review-verdict CLI tests are one table-driven test (BCL-128), and tracker snapshot commits run quietly, so suite output drops from about 290 to 59 lines while git errors still reach stderr (BCL-129).
+
 ## 0.1.57
 
 - Skill release checks: before a release, include or defer in-flight lane fixes; after shipping, re-sort open failures so stale tool-fault blocks do not linger. A failed review or check is classified as a tool or code fault before it is counted. The old model-escalation ladder stays gone; quota-out and cut-off notes sit with the classify-before-count rule, and the review guide restores the quota-out fallback order (Codex, then free OpenCode, then ask the owner; BCL-86).

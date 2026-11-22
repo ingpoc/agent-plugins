@@ -10,7 +10,7 @@ Portable [Agent Plugin](https://agent-plugins.org/specification). Install: [`AGE
 
 **Requirements.** `python3` only, standard library. No MCP server, runtime dependency or credentials. The live tracker defaults to `~/.agents/state/batched-change-list`; set `BCL_STATE_DIR` to change it. `bcl` starts a per-list viewer on an available loopback port and records its port, pid, package version, live data path and start time in that state directory.
 
-**Workflow command.** Adopt the in-repo tracker once with `bcl --data FINDINGS.json adopt`, then use `bcl --data FINDINGS.json <stage>` for `start`, `plan --plan PLAN.json`, `fix`, `install`, `verify`, `introspect --sections SECTIONS.json`, `report`, `status` and `merge`. Successful stages write the live tracker, snapshot JSON and HTML, and commit the snapshot only in the adopting home worktree. `bcl merge` checks freshness but never merges branches. Install requires a plan for the current cycle; Verify requires Install. Run `bcl install-hooks` in a repository to add idempotent pre-commit and pre-push freshness checks. Existing hooks are chained.
+**Workflow command.** Adopt the in-repo tracker once with `bcl --data FINDINGS.json adopt`, then use `bcl --data FINDINGS.json <stage>` for `start`, `plan --plan PLAN.json`, `fix`, `install`, `verify`, `introspect --sections SECTIONS.json`, `report` and `status`. Successful stages write the live tracker, snapshot JSON and HTML, and commit the snapshot only in the adopting home worktree. Install requires a plan for the current cycle; Verify requires Install. Run `bcl install-hooks` in a repository to add idempotent pre-commit and pre-push freshness checks. Existing hooks are chained.
 
 **Install.**
 
@@ -18,7 +18,7 @@ Portable [Agent Plugin](https://agent-plugins.org/specification). Install: [`AGE
 2. Confirm the client lists the `batched-change-list` skill.
 3. Create the tracker in the product repo, then run `bcl --data <tracker.json> adopt`. The live copy is stored outside git; stage commands snapshot JSON and HTML into the adopting home worktree.
 
-**Configuration.** Set `BCL_STATE_DIR` only to change the live state location. `bcl merge` checks snapshot freshness and does not merge branches. Viewer state records its port, pid, package version, live data path and start time.
+**Configuration.** Set `BCL_STATE_DIR` only to change the live state location. Viewer state records its port, pid, package version, live data path and start time.
 
 **Network endpoints, permissions and credentials.** No outbound calls. The viewer binds loopback only and serves the generated page plus the evidence images embedded in it. Local evidence images are read from paths relative to the findings JSON.
 

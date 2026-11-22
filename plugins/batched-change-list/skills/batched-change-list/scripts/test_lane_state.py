@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).parent))
 import render
 import check_install_sessions
+import manage_findings
 import statechart
 import test_bcl
 sys.path.pop(0)
@@ -106,11 +107,11 @@ class LaneStateTests(unittest.TestCase):
             page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
         self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale', page)
 
-    def test_page_stale_when_job_dead_and_no_update(self):
+    def test_stale_hidden_when_job_dead_and_no_update(self):
         data = self.stale_data(12345)
         with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=False):
             page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
-        self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
 
     def test_dead_unfinished_review_job_renders_interrupted(self):
         data = self.stale_data(12345)
@@ -120,7 +121,7 @@ class LaneStateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=False):
             page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
         self.assertIn('class="grp interrupted"', page)
-        self.assertIn("Interrupted · resume needed", page)
+        self.assertIn("Interrupted · resume at review", page)
         self.assertNotIn("In review · ISSUE-01", page)
 
     def test_dead_unfinished_presuite_job_renders_interrupted(self):
@@ -131,7 +132,7 @@ class LaneStateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=False):
             page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
         self.assertIn('class="grp interrupted"', page)
-        self.assertIn("Interrupted · resume needed", page)
+        self.assertIn("Interrupted · resume at presuite", page)
         self.assertNotIn("In review · ISSUE-01", page)
 
     def test_recent_lane_heartbeat_prevents_stale(self):
@@ -155,43 +156,52 @@ class LaneStateTests(unittest.TestCase):
         self.assertLess(ids.index("review"), ids.index("install"))
         self.assertEqual(render.WF.TRANSITIONS["install"], ["review"])
 
-    def test_install_refuses_before_review(self):
-        group = self.lane("planned", reviewer_session="reviewer", review_status="pending")
-        with self.assertRaisesRegex(ValueError, "review_status='passed'"):
-            check_install_sessions.validate_install_sessions({"groups": [group]}, ["ISSUE-01"])
+    def install_ready(self, group):
+        document = {"findings": [{"id": "ISSUE-01"}], "tracking": {"plan": {"groups": [group]}}}
+        payload = manage_findings.release_check_payload(document, ["ISSUE-01"], require_presuite=True)
+        return payload["clear"] and payload["included"] == [{"id": "A", "finding_ids": ["ISSUE-01"]}]
+
+    def test_install_readiness_refuses_before_review(self):
+        group = self.lane("review", fix_status="passed", review_status="pending")
+        group.update(phase="review", presuite={"status": "passed"})
+        self.assertFalse(self.install_ready(group))
 
     def test_one_file_lane_skips_review(self):
         group = self.lane("planned", one_file=True, fix_status="passed")
         self.assertEqual(check_install_sessions.validate_review_sessions({"groups": [group]}, ["ISSUE-01"]), ["A"])
-        with self.assertRaises(ValueError):
-            check_install_sessions.validate_install_sessions({"groups": [group]}, ["ISSUE-01"])
+        group.update(status="review", phase="review")
+        self.assertFalse(self.install_ready(group))
         group["codex"]["review_status"] = "skipped_one_file"
         group["presuite"] = {"status": "passed"}
-        self.assertEqual(check_install_sessions.validate_install_sessions({"groups": [group]}, ["ISSUE-01"]), ["A"])
+        self.assertTrue(self.install_ready(group))
 
-    def test_exited_job_pid_reuse_does_not_prevent_stale(self):
+    def test_stale_hidden_for_completed_receipt_with_live_pid(self):
         data = self.stale_data(12345)
         data["tracking"]["plan"]["groups"][0]["codex"]["job"]["exit_code"] = 0
         with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=True):
             page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
-        self.assertIn('class="tag-stale" title="No update for over 10 minutes">Stale', page)
+        self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
 
     def test_dead_unfinished_fix_job_renders_as_interrupted_and_resume_needed(self):
         data = self.stale_data(87654321)
         with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=False):
             page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
             status = render.lane_issue_status(data["tracking"]["plan"]["groups"][0], 1)
-        self.assertEqual(status["copy"], "Interrupted · resume needed · A")
+        self.assertEqual(status["copy"], "Interrupted · resume at fix · A")
         self.assertIn('class="grp interrupted"', page)
-        self.assertIn('Interrupted · resume needed', page)
+        self.assertIn('Interrupted · resume at fix', page)
         self.assertNotIn('Fixing · ISSUE-01', page)
 
     def test_install_requires_passed_presuite(self):
-        group = self.lane("review", reviewer_session="reviewer", review_status="passed")
-        for suite in (None, {"status": "failed", "exit_code": 1}):
+        group = self.lane("review", fix_status="passed", review_status="passed")
+        group["phase"] = "review"
+        for suite in (None, {"status": "failed", "exit_code": 1}, {"status": "running"}):
+            group.pop("presuite", None)
             if suite is not None: group["presuite"] = suite
-            with self.subTest(suite=suite), self.assertRaisesRegex(ValueError, "pre-push suite"):
-                check_install_sessions.validate_install_sessions({"groups": [group]}, ["ISSUE-01"])
+            with self.subTest(suite=suite):
+                self.assertFalse(self.install_ready(group))
+        group["presuite"] = {"status": "passed"}
+        self.assertTrue(self.install_ready(group))
 
     def test_strip_and_chart_read_review_from_definition(self):
         stage = next(stage for stage in render.WF.LOOP if stage["id"] == "review")

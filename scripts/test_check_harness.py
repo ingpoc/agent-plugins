@@ -432,6 +432,10 @@ class HookEnvironmentTests(unittest.TestCase):
 
 
 class SelectionAndParallelTests(unittest.TestCase):
+    def test_default_parallelism_caps_cpu_count_at_six(self) -> None:
+        self.assertEqual(check.worker_count(None, 10), 6)
+        self.assertEqual(check.worker_count(None, 4), 4)
+
     def names(self, paths):
         plugins, reason = check.plugins_for_paths(paths)
         return [plugin.name for plugin in plugins], reason

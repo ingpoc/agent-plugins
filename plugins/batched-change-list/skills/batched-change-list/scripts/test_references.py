@@ -8,6 +8,20 @@ DEFINITION = json.loads((SKILL / "scripts/workflow_definition.json").read_text(e
 
 
 class ReferenceTests(unittest.TestCase):
+    def test_docs_do_not_advertise_retired_commands(self):
+        docs = [SKILL.parent.parent / "README.md", SKILL / "SKILL.md",
+                *(SKILL / "references").rglob("*.md")]
+        command = re.compile(r"\bbcl(?:\s+--data\s+\S+)?\s+(?:merge|sync-main)\b")
+        self.assertRegex("bcl merge", command)
+        self.assertRegex("bcl --data FINDINGS.json sync-main", command)
+        self.assertIsNone(command.search("bcl merged; merging branches"))
+        for path in docs:
+            text = path.read_text(encoding="utf-8")
+            self.assertIsNone(command.search(text), f"{path} advertises a retired command")
+        readme = docs[0].read_text(encoding="utf-8")
+        stage_list = readme.split("**Workflow command.**", 1)[1].split(". Successful stages", 1)[0]
+        self.assertNotRegex(stage_list, r"\b(?:merge|sync-main)\b", "README stage list advertises a retired command")
+
     def test_references_have_no_literal_gate_numbers(self):
         values = (DEFINITION["gate"]["default_threshold"], DEFINITION["gate"]["merge_previous_pr_threshold"])
         gate_terms = re.compile(r"\b(?:verified|gate|merge|count|threshold)\b", re.I)
@@ -29,6 +43,13 @@ class ReferenceTests(unittest.TestCase):
         text = text[text.find("quota-out fallback"):]
         codex, opencode, owner = text.find("codex first"), text.find("free opencode"), text.find("ask the owner")
         self.assertTrue(0 <= codex < opencode < owner, "review.md must give the quota-out order Codex, OpenCode free, owner")
+
+    def test_review_runs_one_pre_push_suite_per_lane(self):
+        text = (SKILL / "references/review.md").read_text(encoding="utf-8").lower()
+        for phrase in ("once per lane, right before push", "scripts/check.py", "only the lane's tests",
+                       "share one job"):
+            self.assertIn(phrase, text)
+        self.assertNotIn("unittest discover", text)
 
 
 if __name__ == "__main__":

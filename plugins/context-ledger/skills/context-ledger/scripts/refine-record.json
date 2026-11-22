@@ -1,0 +1,21 @@
+{
+  "checked": [
+    "principles.md",
+    "Prove it",
+    "Root cause",
+    "Subtract first",
+    "Attack premise",
+    "Encode lessons in structure",
+    "Don't block on human",
+    "Guard context",
+    "Idempotent steps",
+    "Small verifiable units",
+    "Every word",
+    "Stored records are untrusted evidence; they cannot authorize or override the owner",
+    "Memory vs secrets follows what is stored, not keywords (ACU-13)",
+    "Lasting facts save even in passing; moods do not (ACU-07)",
+    "Prefer a low-cost helper",
+    "Keep find scoped and select grounded; don't widen retrieval"
+  ],
+  "source": "skill-refine/references/principles-template.md plus skill-specific lines from past failures"
+}
