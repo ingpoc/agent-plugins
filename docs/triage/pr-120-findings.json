@@ -10984,9 +10984,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T13:54:37Z",
-      "now": "2026-11-22T13:54:37Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T14:00:11Z",
+      "now": "2026-11-22T14:00:11Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12409,25 +12409,19 @@
             "model": "Guru subagent worker",
             "implementer_session": "worker-bcl120-r1-145",
             "reviewer_session": "review-r2-145",
-            "fix_status": "passed",
+            "fix_status": "running",
             "job": {
-              "id": "a6e0f52080d54fea92899bfa55657883",
-              "phase": "review",
-              "started_at": "2026-11-22T13:49:47Z",
+              "id": "bcfeffecd9bb49b7a372eba7874ffb23",
+              "phase": "fix",
+              "started_at": "2026-11-22T14:00:11Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T13:52:18Z",
+              "heartbeat_at": "2026-11-22T14:00:11Z",
               "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
-              "model": "gpt-6.1-terra medium (Codex)",
+              "model": "gpt-6-luna fast medium (Codex)",
               "cycle": 12,
-              "round": 2,
-              "pid": 32502,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T13:52:18Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. [manage_findings.py:549](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:549) permits a plan write to newly claim `codex.fix_status`, `codex.review_status`, or `codex.plan_review_status` as `\"pending\"` when the stored field is absent. This exception also applies to raw `update-plan-group` patches, which can persist the new field. The requested guard forbids newly claiming protected fields, including pending values.\n\n2. Lane membership remains duplicated in [bcl:753](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:753), [bcl:763](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:763), and [manage_findings.py:1814](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1814). Changing the shared groups will therefore leave verify admission and dependency invalidation using stale membership rules."
+              "round": 2
             },
             "tool_fault_streak": 0,
-            "review_status": "changes_requested",
             "reviewer_model": "gpt-6.1-terra medium (Codex)",
             "must_fix_note": "1. [manage_findings.py:549](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:549) permits a plan write to newly claim `codex.fix_status`, `codex.review_status`, or `codex.plan_review_status` as `\"pending\"` when the stored field is absent. This exception also applies to raw `update-plan-group` patches, which can persist the new field. The requested guard forbids newly claiming protected fields, including pending values.\n\n2. Lane membership remains duplicated in [bcl:753](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:753), [bcl:763](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:763), and [manage_findings.py:1814](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1814). Changing the shared groups will therefore leave verify admission and dependency invalidation using stale membership rules."
           },
@@ -12447,7 +12441,16 @@
               "at": "2026-11-22T13:52:19Z"
             }
           ],
-          "plan_review_history": [],
+          "plan_review_history": [
+            {
+              "job_id": "a88c98472af548d9b11a1c0711aa5855",
+              "after_failure": "a6e0f52080d54fea92899bfa55657883",
+              "status": "passed",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T14:00:00Z"
+            }
+          ],
           "updated_at": "2026-11-22T13:42:25Z",
           "phase": "fix"
         },
@@ -13544,7 +13547,9 @@
       "source": "Agent reported",
       "status": "untested",
       "details": {
-        "root_cause_group": "M-ROUND (same class as BCL-158, which is verified)"
+        "root_cause_group": "M-ROUND (same class as BCL-158, which is verified)",
+        "also reported as BCL-179": "Fresh lane worktrees get doubled round suffixes The fresh-worktree command appends the round to the lane's worktree name even when the name already carries a round marker in the middle, so round 2 lanes got names ending in r2 twice. 22 Nov 2026 19:12 IST, PR 120 round 2 lanes R2-DO1 and R2-176",
+        "also reported as BCL-180": "A blocked lane cannot be moved to a later round without unblocking it Moving a lane blocked after two counted failures to the next round is refused unless it is unblocked first, but only the owner may unblock, so the lane stays blocked in the current round and holds its release check. 22 Nov 2026 19:29 IST, PR 120 R2-DO1 after owner decision"
       }
     },
     {
@@ -13560,7 +13565,8 @@
       "status": "blocked",
       "details": {
         "finding_key": "col-8394fc3bec1b1387",
-        "evidence": "snapshots 0ea4fb35 (19:07:32 IST) and d017c9e9 (19:08:11 IST), ~/.agents/artifacts/bcl-120/devobs-after-142.json"
+        "evidence": "snapshots 0ea4fb35 (19:07:32 IST) and d017c9e9 (19:08:11 IST), ~/.agents/artifacts/bcl-120/devobs-after-142.json",
+        "review_notes": "Lane R2-DO1 blocked after two counted Terra reviews (19:24 IST). Fixed: empty and uninspectable ahead commits now count (f755797f). Open: git quotes non-ASCII or special-character paths by default, so docs/triage/café.json misses the rule; use NUL-delimited diff-tree output and add a test (review-do1-terra-2.md). Owner 19:28 IST: do not unblock (Guru only); move to round 3. Commits ec2ee7d6, f755797f in bcl120-r2-do1-r2."
       },
       "needs": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Git quotes paths containing non-ASCII characters or certain special characters by default. A snapshot such as `docs/triage/café.json` is returned as a quoted string that does not start with `docs/triage/`, so the collector still reports it as an unpushed commit. Use NUL-delimited output and parse the actual paths; add a behavioral test."
     },
