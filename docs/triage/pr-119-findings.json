@@ -12089,9 +12089,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T12:12:32Z",
-      "now": "2026-11-22T12:12:32Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T12:18:16Z",
+      "now": "2026-11-22T12:18:16Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13699,7 +13699,7 @@
             }
           ],
           "status": "verified",
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13776,7 +13776,7 @@
               "at": "2026-11-22T11:02:40Z"
             }
           ],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13835,7 +13835,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13907,7 +13907,7 @@
               "at": "2026-11-22T11:44:27Z"
             }
           ],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13961,7 +13961,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -14015,7 +14015,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -14146,7 +14146,7 @@
             }
           ],
           "status": "deferred",
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "phase": "deferred",
           "reason": "Guru 16:04 IST: ship R2-150 now; parked at sub-lane b 9cbda612 for Codex Luna after 18:50 (plan review passed, a and b committed)",
           "parked_to": 4
@@ -14252,7 +14252,7 @@
             }
           ],
           "status": "deferred",
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "phase": "deferred",
           "reason": "Guru 16:04 IST: ship R2-150 now; parked for Codex Luna after 18:50 (plan review passed, no code yet)",
           "parked_to": 4
@@ -14292,7 +14292,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T12:07:25Z"
+          "updated_at": "2026-11-22T12:14:47Z"
         },
         {
           "id": "R1-ADD",
@@ -14331,7 +14331,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T12:07:25Z"
+          "updated_at": "2026-11-22T12:14:47Z"
         },
         {
           "id": "R2-144",
@@ -14371,7 +14371,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T12:07:25Z"
+          "updated_at": "2026-11-22T12:14:47Z"
         },
         {
           "id": "R1-DEAD",
@@ -14450,7 +14450,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T12:07:25Z"
+          "updated_at": "2026-11-22T12:14:47Z"
         },
         {
           "id": "R1-RELEASE",
@@ -14488,7 +14488,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T12:07:25Z"
+          "updated_at": "2026-11-22T12:14:47Z"
         },
         {
           "id": "R2-146",
@@ -14563,7 +14563,7 @@
           ],
           "status": "verified",
           "codex": {},
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "phase": "verify"
         },
         {
@@ -14603,7 +14603,7 @@
           ],
           "status": "verified",
           "codex": {},
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "phase": "verify"
         },
         {
@@ -14626,7 +14626,7 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "codex": {}
         },
         {
@@ -14649,7 +14649,7 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "codex": {}
         },
         {
@@ -14672,7 +14672,7 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "codex": {}
         },
         {
@@ -14694,7 +14694,7 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "codex": {}
         },
         {
@@ -14718,7 +14718,7 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "codex": {}
         },
         {
@@ -14740,7 +14740,7 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "codex": {}
         },
         {
@@ -14764,7 +14764,7 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "codex": {}
         },
         {
@@ -14787,7 +14787,7 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "codex": {}
         },
         {
@@ -14812,7 +14812,7 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "codex": {}
         },
         {
@@ -14834,7 +14834,7 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "codex": {}
         },
         {
@@ -14858,7 +14858,7 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "codex": {}
         },
         {
@@ -14903,7 +14903,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "phase": "review"
         },
         {
@@ -14936,16 +14936,58 @@
               "plan_sha256": "9c9711f1c21723d4d75850984cddcdf9e8ed4e2628dd3b427947803cf08a4632",
               "model": "grokbot-review-pass (separate pass; Codex out until 18:50)",
               "cycle": 11,
-              "round": 3
+              "round": 3,
+              "pid": 3287,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T12:12:32Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "grokbot-review-pass (separate pass; Codex out until 18:50)"
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:07:25Z",
+          "updated_at": "2026-11-22T12:14:47Z",
           "phase": "review"
+        },
+        {
+          "id": "R3-167",
+          "name": "Issue list by plugin with a group toggle (M-TRACKER)",
+          "finding_ids": [
+            "BCL-167"
+          ],
+          "label": "BCL-167",
+          "status": "running",
+          "worktree": "bcl119-r3-167",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-167.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
+            "implementer_session": "grokbot-self-119r3-167",
+            "reviewer_session": "grokbot-review-119r3-167",
+            "fix_status": "running",
+            "job": {
+              "id": "0d73931994ef42438f6a862f274190b2",
+              "phase": "fix",
+              "started_at": "2026-11-22T12:18:16Z",
+              "command": "self-lane.sh",
+              "heartbeat_at": "2026-11-22T12:18:16Z",
+              "plan_sha256": "fc34fb3368b49a7432e06303ef38844c2c84adf819dbc1a255988c86ec890dbd",
+              "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
+              "cycle": 11,
+              "round": 3
+            }
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T12:14:47Z",
+          "phase": "fix"
         }
       ],
       "cycle": 11
@@ -16840,6 +16882,24 @@
         "kind": "fix",
         "report": "bcl-119 progress.md",
         "evidence": "17:40 IST merge by class: 15 absorbed issues were folded via update and delete after bcl stop-verify on run r3-048c36c3-119.",
+        "root_cause_group": "M-TRACKER"
+      }
+    },
+    {
+      "id": "BCL-167",
+      "title": "The issue list cannot be grouped by plugin",
+      "summary": "Issues from several plugins share one list, so the owner cannot see at a glance which plugin each open issue belongs to or how many are left per plugin.",
+      "impact": "Reviewing one plugin's issues means scanning the whole list.",
+      "recommendation": "Add a By plugin | By group toggle to the issue list. By plugin shows one top-level row per plugin, derived from the issue's plugin field, then its ID prefix, then the plugin path it names, with its plan groups nested inside and verified issues folded into a Done row per plugin; use large readable fonts.",
+      "done_when": "The toggle switches between the two views and remembers the choice; By plugin rows show open and verified counts with groups nested and verified folded; a render test covers both views.",
+      "observed": "22 Nov 2026 17:40 IST, bcl 0.1.65, PR 119 round 3",
+      "priority": "medium",
+      "source": "User requested",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 17:40 IST (via parent)",
+        "kind": "fix",
+        "report": "bcl-119 progress.md",
         "root_cause_group": "M-TRACKER"
       }
     }
