@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.35
+
+- The change list's own tracker snapshot commits (only docs/triage/ paths) no longer show as unpushed-commit failures; paths are read NUL-delimited so non-ASCII and undecodable names are classified correctly, and empty or uninspectable commits still count (DO-1).
+
 ## 0.1.34
 
 - A failure with an empty message shows its exception type and says the message was empty, and a failed connect start borrows the exception type from the error logged for the same session (DEVOBS-05).

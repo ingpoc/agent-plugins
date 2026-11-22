@@ -1,3 +1,7 @@
+## 0.1.70
+
+- One lane-state table: lane states, moves and named groups are declared once in the workflow definition and every writer, the release check, the page and the chart read it; plan writes cannot claim protected runtime state, new lanes drop pending defaults, and verify admission and prerequisite checks follow the named groups (BCL-145).
+
 ## 0.1.69
 
 - Release guidance: a lane release runs presuite scoped with `check.py --changed-since <last release>` and records which plugins ran; merge to main and Origin CI still run the full suite (BCL-176).
