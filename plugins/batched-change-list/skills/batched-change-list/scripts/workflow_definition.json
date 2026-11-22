@@ -27,7 +27,218 @@
     "note": "Report at {threshold}+ verified or when no counted findings remain open. Rollover requires at least {merge_threshold}+ verified and the rollover threshold. Merge previous PR requires {merge_threshold}+ verified. No-open exception applies only to report."
   },
   "suggested_verdicts": {},
-  "lane_phase_rank": {"fix": 0, "plan_review": 1, "review": 1, "install": 2, "verify": 3, "introspect": 4},
+  "lane": {
+    "statuses": [
+      {
+        "id": "planned",
+        "label": "Planned"
+      },
+      {
+        "id": "running",
+        "label": "Fixing"
+      },
+      {
+        "id": "review",
+        "label": "In review"
+      },
+      {
+        "id": "installing",
+        "label": "Installing"
+      },
+      {
+        "id": "verifying",
+        "label": "Verifying"
+      },
+      {
+        "id": "verified",
+        "label": "Verified"
+      },
+      {
+        "id": "blocked",
+        "label": "Blocked"
+      },
+      {
+        "id": "failed",
+        "label": "Failed"
+      },
+      {
+        "id": "parked",
+        "label": "Parked"
+      }
+    ],
+    "status_aliases": {
+      "pending": "planned",
+      "queued": "planned",
+      "deferred": "parked",
+      "install": "planned",
+      "fixed": "planned",
+      "partial": "verifying"
+    },
+    "raw_statuses": [
+      "done"
+    ],
+    "phases": [
+      {
+        "id": "fix",
+        "label": "Plan & fix",
+        "rank": 0
+      },
+      {
+        "id": "plan_review",
+        "label": "Plan review",
+        "rank": 1
+      },
+      {
+        "id": "review",
+        "label": "Review",
+        "rank": 1
+      },
+      {
+        "id": "install",
+        "label": "Install",
+        "rank": 2
+      },
+      {
+        "id": "verify",
+        "label": "Verify",
+        "rank": 3
+      },
+      {
+        "id": "introspect",
+        "label": "Introspect",
+        "rank": 4
+      }
+    ],
+    "phase_aliases": {
+      "pending": "fix",
+      "done": "verify"
+    },
+    "special_phases": [
+      "blocked",
+      "deferred"
+    ],
+    "job_phases": [
+      "plan_review",
+      "fix",
+      "review",
+      "presuite"
+    ],
+    "review_phases": [
+      "plan_review",
+      "review"
+    ],
+    "fix_states": [
+      "pending",
+      "running",
+      "passed",
+      "failed"
+    ],
+    "review_states": [
+      "pending",
+      "running",
+      "passed",
+      "failed",
+      "changes_requested",
+      "incomplete",
+      "blocked",
+      "skipped_one_file"
+    ],
+    "presuite_states": [
+      "pending",
+      "running",
+      "passed",
+      "failed"
+    ],
+    "groups": {
+      "open": [
+        "running",
+        "failed",
+        "blocked",
+        "in_progress",
+        "planned",
+        "pending"
+      ],
+      "open_phases": [
+        "fix",
+        "review",
+        "install",
+        "verify",
+        "plan_review",
+        "pending"
+      ],
+      "released": [
+        "done",
+        "verified",
+        "deferred",
+        "parked"
+      ],
+      "settled": [
+        "verified",
+        "blocked",
+        "failed",
+        "parked"
+      ],
+      "carried": [
+        "pending",
+        "planned",
+        "queued",
+        "deferred",
+        "parked"
+      ],
+      "parked": [
+        "deferred",
+        "parked"
+      ],
+      "stale": [
+        "running",
+        "review",
+        "installing",
+        "verifying"
+      ],
+      "dependency": [
+        "running",
+        "review",
+        "installing",
+        "verifying",
+        "verified"
+      ],
+      "install": [
+        "review",
+        "installing"
+      ],
+      "verify_refused": [
+        "blocked",
+        "failed",
+        "parked",
+        "deferred"
+      ]
+    },
+    "protected_paths": [
+      "codex.job",
+      "codex.fix_status",
+      "codex.review_status",
+      "codex.plan_review_status",
+      "codex.reviewer_model",
+      "codex.must_fix_note",
+      "codex.tool_fault_streak",
+      "presuite",
+      "failure_history",
+      "plan_review_history",
+      "unblock_history",
+      "blocked_reason",
+      "failure_block_reason",
+      "install",
+      "verify_reruns",
+      "hotfix",
+      "plan_review_count",
+      "plan_review_passes"
+    ],
+    "pending_defaults": [
+      "codex.fix_status",
+      "codex.review_status",
+      "codex.plan_review_status"
+    ]
+  },
   "checks": {
     "review": {"module": "check_install_sessions", "function": "validate_review_sessions", "file": "check_install_sessions.py"},
     "introspect": {"module": "check_introspect", "function": "validate_introspect", "file": "check_introspect.py"},

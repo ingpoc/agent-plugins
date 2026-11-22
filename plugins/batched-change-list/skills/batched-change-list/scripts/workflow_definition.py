@@ -18,6 +18,46 @@ DEFAULT_ROLLOVER_THRESHOLD = DEFINITION["gate"]["default_threshold"]
 MERGE_PREVIOUS_PR_THRESHOLD = DEFINITION["gate"]["merge_previous_pr_threshold"]
 
 
+def _lane_contract(lane):
+    """One ordered lane table: statuses, phases, groups and protected runtime paths."""
+    statuses = [row["id"] for row in lane["statuses"]]
+    phases = [row["id"] for row in lane["phases"]]
+    aliases, phase_aliases = lane["status_aliases"], lane["phase_aliases"]
+    known = set(statuses) | set(aliases) | set(lane["raw_statuses"]) | {"in_progress"}
+    for name, members in lane["groups"].items():
+        unknown = [member for member in members if member not in known and member not in phases]
+        if unknown:
+            raise ValueError(f"lane group {name} names unknown members: {', '.join(unknown)}")
+    if any(target not in statuses for target in aliases.values()) or any(target not in phases for target in phase_aliases.values()):
+        raise ValueError("lane aliases must resolve to declared statuses and phases")
+    if not set(lane["pending_defaults"]) <= set(lane["protected_paths"]):
+        raise ValueError("lane pending defaults must be protected paths")
+    return {
+        "statuses": tuple(statuses),
+        "status_labels": {row["id"]: row["label"] for row in lane["statuses"]},
+        "status_aliases": dict(aliases),
+        "raw_statuses": frozenset(lane["raw_statuses"]),
+        "phases": tuple(phases),
+        "phase_labels": {row["id"]: row["label"] for row in lane["phases"]},
+        "phase_rank": {row["id"]: row["rank"] for row in lane["phases"]},
+        "phase_aliases": dict(phase_aliases),
+        "special_phases": frozenset(lane["special_phases"]),
+        "job_phases": tuple(lane["job_phases"]),
+        "review_phases": frozenset(lane["review_phases"]),
+        "fix_states": tuple(lane["fix_states"]),
+        "review_states": tuple(lane["review_states"]),
+        "presuite_states": tuple(lane["presuite_states"]),
+        "groups": {name: frozenset(members) for name, members in lane["groups"].items()},
+        "protected_paths": tuple(lane["protected_paths"]),
+        "pending_defaults": frozenset(lane["pending_defaults"]),
+    }
+
+
+LANE = _lane_contract(DEFINITION["lane"])
+# Consumers still reading the old top-level rank move to LANE["phase_rank"] in later sub-lanes.
+DEFINITION.setdefault("lane_phase_rank", LANE["phase_rank"])
+
+
 def run_check(name, *args, **kwargs):
     spec = REQUIRED_CHECKS[name]
     function = getattr(importlib.import_module(spec["module"]), spec["function"])
