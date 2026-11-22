@@ -11099,9 +11099,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T15:09:49Z",
-      "now": "2026-11-22T15:09:49Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T15:12:20Z",
+      "now": "2026-11-22T15:12:20Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12616,15 +12616,19 @@
               "phase": "review",
               "started_at": "2026-11-22T15:09:49Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T15:09:49Z",
+              "heartbeat_at": "2026-11-22T15:10:47Z",
               "plan_sha256": "4c8ba2892daa4abe2723328c5d64659bc57b221c19e8479973748d3cfcf2cf73",
               "model": "gpt-6.1-terra medium (Codex)",
               "cycle": 12,
-              "round": 3
+              "round": 3,
+              "pid": 38366,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T15:10:47Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "fix_status": "passed",
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (Codex)"
           },
           "files": [
@@ -12706,7 +12710,20 @@
           "codex": {
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "codex-luna-120-do1",
-            "reviewer_session": "codex-terra-120-do1"
+            "reviewer_session": "codex-terra-120-do1",
+            "job": {
+              "id": "7f8948ce1fa24d04815e731dda52747d",
+              "phase": "fix",
+              "started_at": "2026-11-22T15:12:20Z",
+              "command": "sh",
+              "heartbeat_at": "2026-11-22T15:12:20Z",
+              "plan_sha256": "4c8ba2892daa4abe2723328c5d64659bc57b221c19e8479973748d3cfcf2cf73",
+              "model": "gpt-6-luna fast medium (Codex, resume 01a2037e)",
+              "cycle": 12,
+              "round": 3
+            },
+            "tool_fault_streak": 0,
+            "fix_status": "running"
           },
           "files": [
             "plugins/developer-observability/runtime/collector/sources.py",
@@ -12749,6 +12766,14 @@
               "cycle": 12,
               "round": 2,
               "at": "2026-11-22T13:50:18Z"
+            },
+            {
+              "job_id": "84ed2b23b4db442f802a39aeea6d79ab",
+              "after_failure": "da6ebb99274244d1b7c92e594ab3ed34",
+              "status": "passed",
+              "cycle": 12,
+              "round": 3,
+              "at": "2026-11-22T15:11:59Z"
             }
           ],
           "unblock_history": [
@@ -12766,8 +12791,9 @@
               "owner_override": true
             }
           ],
-          "status": "planned",
-          "updated_at": "2026-11-22T15:02:44Z"
+          "status": "running",
+          "updated_at": "2026-11-22T15:02:44Z",
+          "phase": "fix"
         },
         {
           "id": "DEFER",
