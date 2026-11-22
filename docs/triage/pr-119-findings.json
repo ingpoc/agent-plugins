@@ -11691,9 +11691,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-22T10:49:11Z",
-      "now": "2026-11-22T10:49:11Z — Verify in progress"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T10:56:30Z",
+      "now": "2026-11-22T10:56:30Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13198,8 +13198,8 @@
           "worktree": "bcl119-r3-150",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-150.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -13300,8 +13300,8 @@
               "owner_override": true
             }
           ],
-          "status": "verifying",
-          "updated_at": "2026-11-22T10:49:11Z",
+          "status": "verified",
+          "updated_at": "2026-11-22T10:54:56Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13317,6 +13317,42 @@
             "model": "verify-150.sh",
             "at": "2026-11-22T10:49:11Z"
           }
+        },
+        {
+          "id": "R3-153",
+          "name": "One plan review per lane, folded into the post-fix review",
+          "finding_ids": [
+            "BCL-153"
+          ],
+          "label": "BCL-153",
+          "status": "running",
+          "worktree": "bcl119-r3-153",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-153.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
+            "fix_status": "running",
+            "job": {
+              "id": "e2583ff6ac8047a28d1d9c86c5f4e617",
+              "phase": "fix",
+              "started_at": "2026-11-22T10:56:30Z",
+              "command": "self-153.sh",
+              "heartbeat_at": "2026-11-22T10:56:30Z",
+              "plan_sha256": "4773f8ae9058d134ec54a1a17f82f9b5cad8fe436f003cd8c8514ccf24094f23",
+              "model": "Grok Bot self (Codex out until 18:50)",
+              "cycle": 11,
+              "round": 3
+            }
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T10:54:56Z",
+          "phase": "fix"
         },
         {
           "id": "R2-145",
@@ -13437,7 +13473,7 @@
             }
           ],
           "status": "deferred",
-          "updated_at": "2026-11-22T10:36:22Z",
+          "updated_at": "2026-11-22T10:54:56Z",
           "phase": "deferred",
           "reason": "Guru 16:04 IST: ship R2-150 now; parked at sub-lane b 9cbda612 for Codex Luna after 18:50 (plan review passed, a and b committed)",
           "parked_to": 4
@@ -13543,7 +13579,7 @@
             }
           ],
           "status": "deferred",
-          "updated_at": "2026-11-22T10:36:22Z",
+          "updated_at": "2026-11-22T10:54:56Z",
           "phase": "deferred",
           "reason": "Guru 16:04 IST: ship R2-150 now; parked for Codex Luna after 18:50 (plan review passed, no code yet)",
           "parked_to": 4
@@ -13567,23 +13603,23 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 4,
-          "updated_at": "2026-11-22T09:04:52Z"
+          "updated_at": "2026-11-22T10:54:56Z",
+          "codex": {}
         },
         {
           "id": "R3-AUDIT2",
           "name": "Leaner loop: one plan review, one readiness check, auto chart",
           "finding_ids": [
-            "BCL-153",
             "BCL-154",
             "BCL-155",
             "BCL-156"
           ],
-          "label": "BCL-153, BCL-154, BCL-155, BCL-156",
+          "label": "BCL-154, BCL-155, BCL-156",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 4
+            "total": 3
           },
           "status": "deferred",
           "phase": "deferred",
@@ -13591,7 +13627,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 4,
-          "updated_at": "2026-11-22T09:04:52Z"
+          "updated_at": "2026-11-22T10:54:56Z"
         },
         {
           "id": "R2-137",
@@ -13628,7 +13664,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T09:04:52Z"
+          "updated_at": "2026-11-22T10:54:56Z"
         },
         {
           "id": "R1-ADD",
@@ -13667,7 +13703,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T09:04:52Z"
+          "updated_at": "2026-11-22T10:54:56Z"
         },
         {
           "id": "R3-LOOP",
@@ -13688,7 +13724,8 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 4,
-          "updated_at": "2026-11-22T09:04:52Z"
+          "updated_at": "2026-11-22T10:54:56Z",
+          "codex": {}
         },
         {
           "id": "R3-RELEASE",
@@ -13710,7 +13747,8 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 4,
-          "updated_at": "2026-11-22T09:04:52Z"
+          "updated_at": "2026-11-22T10:54:56Z",
+          "codex": {}
         },
         {
           "id": "R3-CARRY",
@@ -13731,7 +13769,8 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 4,
-          "updated_at": "2026-11-22T09:04:52Z"
+          "updated_at": "2026-11-22T10:54:56Z",
+          "codex": {}
         },
         {
           "id": "R3-RECEIPTS",
@@ -13754,7 +13793,8 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 4,
-          "updated_at": "2026-11-22T09:04:52Z"
+          "updated_at": "2026-11-22T10:54:56Z",
+          "codex": {}
         },
         {
           "id": "R2-144",
@@ -13794,7 +13834,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T09:04:52Z"
+          "updated_at": "2026-11-22T10:54:56Z"
         },
         {
           "id": "R1-DEAD",
@@ -13873,7 +13913,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T09:04:52Z"
+          "updated_at": "2026-11-22T10:54:56Z"
         },
         {
           "id": "R1-RELEASE",
@@ -13911,7 +13951,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T09:04:52Z"
+          "updated_at": "2026-11-22T10:54:56Z"
         },
         {
           "id": "R2-146",
@@ -13986,7 +14026,7 @@
           ],
           "status": "verified",
           "codex": {},
-          "updated_at": "2026-11-22T09:05:09Z",
+          "updated_at": "2026-11-22T10:54:56Z",
           "phase": "verify"
         },
         {
@@ -14026,7 +14066,7 @@
           ],
           "status": "verified",
           "codex": {},
-          "updated_at": "2026-11-22T09:05:09Z",
+          "updated_at": "2026-11-22T10:54:56Z",
           "phase": "verify"
         }
       ],
@@ -14189,7 +14229,15 @@
           "state": "pending"
         },
         "BCL-150": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T10:50:39Z",
+          "started_at": "2026-11-22T10:50:32Z",
+          "updated_at": "2026-11-22T10:50:39Z",
+          "check_id": "27f8a1422a9841e29486cac9e8a39bed",
+          "evidence": "Checked: The installed version: its lane status, stale, pause and resume tests, and the live tracker page; Expected: A paused round shows Paused instead of Stale, no job starts while paused, resuming clears it, and Stale appears only for an overdue running job; Observed: All five installed checks passed and the live page shows lane rows with Stale hidden",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-150.log. Run r3-eadc2408-119.",
+          "finished_at": "2026-11-22T10:50:39.614768Z"
         },
         "BCL-151": {
           "state": "pending"
@@ -15393,14 +15441,32 @@
       "observed": "22 Nov 2026 12:29 IST, bcl 0.1.61, PR 119 round 2",
       "priority": "medium",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "PR 119 round 2",
         "kind": "fix",
         "report": "bcl-119 progress.md",
         "evidence": "Guru stopped the loop at 11:58 IST; R2-145 and R2-141 (in review) and R2-142 (fixing) had no updates afterwards and the page showed Stale. All their jobs had finished and were recorded by 12:03 IST; nothing was stuck."
       },
-      "needs": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:381) lets stored review outcomes override settled lane status. A verified or blocked lane retaining `review_status: passed` renders and counts as “Review passed” or “in review.” Preserve settled outcomes and test a verified lane with a realistic passed review receipt.\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:2739) still touches and writes the tracker when a repeated pause or resume reports a no-op. Return without mutation for those cases, and test that tracker contents remain unchanged."
+      "needs": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:381) lets stored review outcomes override settled lane status. A verified or blocked lane retaining `review_status: passed` renders and counts as “Review passed” or “in review.” Preserve settled outcomes and test a verified lane with a realistic passed review receipt.\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:2739) still touches and writes the tracker when a repeated pause or resume reports a no-op. Return without mutation for those cases, and test that tracker contents remain unchanged.",
+      "verification_evidence": [
+        {
+          "checked": "The installed version: its lane status, stale, pause and resume tests, and the live tracker page",
+          "expected": "A paused round shows Paused instead of Stale, no job starts while paused, resuming clears it, and Stale appears only for an overdue running job",
+          "observed": "All five installed checks passed and the live page shows lane rows with Stale hidden",
+          "verdict": "All five installed checks passed and the live page shows lane rows with Stale hidden",
+          "check_id": "bcl-150-0.1.63-eadc2408",
+          "build": "bcl 0.1.63",
+          "session": "r3-eadc2408-119",
+          "timestamp": "2026-11-22T10:50:39Z",
+          "reference": "eadc2408:BCL-150:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-150.log. Run r3-eadc2408-119."
+        }
+      ],
+      "verification": "All five installed checks passed and the live page shows lane rows with Stale hidden Log: ~/.agents/artifacts/bcl-119/r3/verify-150.log. Run r3-eadc2408-119.",
+      "verification_refs": [
+        "eadc2408:BCL-150:installed-check"
+      ]
     },
     {
       "id": "BCL-151",
@@ -15575,6 +15641,42 @@
         "queue": "with BCL-157 after BCL-145 (shares the page renderer)",
         "report": "bcl-119 progress.md",
         "evidence": "The R2-150 fix job started 14:50 IST through bcl job --phase fix (pid and heartbeat recorded, page showed Fixing). It ran OpenCode for sub-lanes a then b, and sub-lane a committed 3587f94a at 15:05. The page's latest line stayed at 'Fix started 14:50' for 27 min because no command records a step."
+      }
+    },
+    {
+      "id": "BCL-160",
+      "title": "A passing lane check records nothing",
+      "summary": "When the stored lane check passes, bcl verify exits without recording the result. The lane stays in Verifying and the finding stays in progress until a separate script records evidence and finishes the check.",
+      "impact": "Every release needs a hand-written recording script after the check, and a slip in it leaves a passed lane looking unfinished on the page.",
+      "recommendation": "On a zero exit, bcl verify records the finished check as fixed for each named finding, with the command, its output tail and the run id as evidence, and marks the lane verified.",
+      "done_when": "A passing bcl verify run leaves the lane verified and its findings verified fixed with evidence, with no further command; a test covers it.",
+      "observed": "22 Nov 2026 16:18 IST, bcl 0.1.63, PR 119 lane R2-150",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 16:21 IST (via parent)",
+        "kind": "fix",
+        "report": "bcl-119 progress.md",
+        "evidence": "bcl verify --then verify-150.sh printed 5/5 and exited 0, but the lane stayed verifying with 0 fixed and the finding stayed in progress; it became verified only after record_r2.py ran start-check, record-evidence, update and finish-check through the batch writer."
+      }
+    },
+    {
+      "id": "BCL-161",
+      "title": "Local install refuses when only the tracker's own snapshot changed",
+      "summary": "bcl install-local refuses whenever the checkout has any local change. The home checkout always carries the tracker's own snapshot and page files, which bcl rewrites on every stage, so the install is refused even though the plugin files match the merged commit.",
+      "impact": "Installing a release needs a throwaway clean worktree as a workaround.",
+      "recommendation": "Ignore the registered tracker snapshot and page paths when checking for local changes, and still refuse any change under the plugin folder or elsewhere.",
+      "done_when": "install-local succeeds when only the registered snapshot and page files differ, still refuses any other change, and a test covers both.",
+      "observed": "22 Nov 2026 16:16 IST, bcl 0.1.63, PR 119 lane R2-150",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 16:21 IST (via parent)",
+        "kind": "fix",
+        "report": "bcl-119 progress.md",
+        "evidence": "install-local from the home checkout at eadc2408 failed with 'plugin checkout has local changes'; the only changes were the tracker snapshot and page under docs/triage. It succeeded from a clean detached worktree at the same commit."
       }
     }
   ]
