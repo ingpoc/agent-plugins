@@ -10984,9 +10984,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-22T13:37:53Z",
-      "now": "2026-11-22T13:37:53Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-22T13:40:36Z",
+      "now": "2026-11-22T13:40:36Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 119,
@@ -12255,6 +12255,103 @@
           }
         },
         "source_task": "WF-21"
+      },
+      {
+        "result": "Tokens round 1: Codex Terra review R2-142 42,909 (from its own output; not in dev-obs task usage); Grok Bot self implementation and review of R1-ROUND, R1-134: no source; subagent workers R2-142, R2-145: no source; round-over-round comparison not possible (no recorded usage for #119 round 3). Missing sources filed as DO-2. Evidence quality: low signal for bcl - 1 relevant new finding was noise (DO-1), stale and unprojected findings mix (DO-3), bcl logs not sources (BCL-174).",
+        "at": "2026-11-22T13:40:36Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 3",
+          "Codex write: R1-ROUND",
+          "Codex review: R1-ROUND",
+          "Polling and rework review: R1-ROUND",
+          "Test command: R1-ROUND: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-round.sh",
+          "Codex write: R1-134",
+          "Codex review: R1-134",
+          "Polling and rework review: R1-134",
+          "Test command: R1-134: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-134.sh",
+          "Codex write: R2-142",
+          "Codex review: R2-142",
+          "Polling and rework review: R2-142",
+          "Test command: R2-142: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-142.sh"
+        ],
+        "none": [
+          "Codex write: R1-ROUND",
+          "Codex review: R1-ROUND",
+          "Polling and rework review: R1-ROUND",
+          "Test command: R1-ROUND: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-round.sh",
+          "Codex write: R1-134",
+          "Polling and rework review: R1-134",
+          "Test command: R1-134: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-134.sh",
+          "Codex review: R2-142",
+          "Polling and rework review: R2-142",
+          "Test command: R2-142: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-142.sh"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Codex review: R1-134",
+                "evidence": "FLAGGED, no dev-obs evidence (job logs are not collector sources, BCL-174): the first R1-134 review job reused an existing result file, was recorded incomplete as a tool fault and forced a repeat fix job; source ~/.agents/artifacts/bcl-120 job state, not observability",
+                "outcome": "issue",
+                "issue_id": "BCL-147"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Codex write: R2-142",
+                "evidence": "FLAGGED, no dev-obs evidence: the worker made its lane worktree by hand because the fresh-worktree command always writes the live list; source worker report 18:57 IST",
+                "outcome": "issue",
+                "issue_id": "BCL-175"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Stage: Review",
+                "evidence": "dev-obs snapshots 052d5b22 (18:55:18 IST), 0ea4fb35 (19:07:32), d017c9e9 (19:08:11); finding_key col-c56a5cccf80f5577 (Swift service suite p95 111.3 s), col-a6d1bba4b8ef188d (context ledger contract p95 69.4 s), col-77ecdb6e5fd5a2b1 (test_bcl slow); full suites 159 s and 145 s for change-list-only releases (presuite-r1.log, presuite-142.log)",
+                "outcome": "issue",
+                "issue_id": "BCL-176"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Stage: Verify",
+                "evidence": "dev-obs snapshots 052d5b22 (18:55:18 IST), 0ea4fb35 (19:07:32), d017c9e9 (19:08:11); finding_key col-8394fc3bec1b1387 was the only new finding between before and after snapshots of the R2-142 verify and is the verify's own snapshot commit (noise); evidence ~/.agents/artifacts/bcl-120/devobs-after-142.json",
+                "outcome": "issue",
+                "issue_id": "DO-1"
+              },
+              {
+                "item": "Stage: Plan & fix",
+                "evidence": "dev-obs snapshots 052d5b22 (18:55:18 IST), 0ea4fb35 (19:07:32), d017c9e9 (19:08:11); task usage store ~/.local/share/developer-observability/task-usage.sqlite3 holds 1 row; Terra review R2-142 used 42,909 tokens by its own output (review-142-terra.jsonl) and none was recorded; Grok Bot self work on R1-ROUND and R1-134 and both subagent workers have no token source",
+                "outcome": "issue",
+                "issue_id": "DO-2"
+              },
+              {
+                "item": "Parallel group count: 3",
+                "evidence": "dev-obs snapshots 052d5b22 (18:55:18 IST), 0ea4fb35 (19:07:32), d017c9e9 (19:08:11); snapshot d017c9e9: owner agent-plugins 20 findings, 17 stale from 14 and 20 Nov mixed with 3 active; no project field on any of 150 findings; no round window view",
+                "outcome": "issue",
+                "issue_id": "DO-3"
+              },
+              {
+                "item": "Stage: Install",
+                "evidence": "collector had not run since 20 Nov 16:41 IST until the manual run at 18:55:18 IST (052d5b22); Collect and Verify never call it",
+                "outcome": "issue",
+                "issue_id": "BCL-171"
+              }
+            ]
+          }
+        },
+        "round": 1,
+        "cycle": 12
       }
     ],
     "archive": {
@@ -12284,7 +12381,8 @@
       "plan_fix",
       "review",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 1,
@@ -12428,12 +12526,12 @@
             "BCL-142"
           ],
           "label": "BCL-142",
-          "status": "verifying",
+          "status": "verified",
           "worktree": "bcl120-r1-142",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-142.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -12554,7 +12652,8 @@
           "codex": {}
         }
       ],
-      "cycle": 12
+      "cycle": 12,
+      "status": "closed"
     },
     "verification_run": {
       "id": "r1-e5f518da-120",
@@ -12620,7 +12719,15 @@
           "state": "pending"
         },
         "BCL-142": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T13:38:34Z",
+          "started_at": "2026-11-22T13:38:34Z",
+          "updated_at": "2026-11-22T13:38:34Z",
+          "check_id": "c699ffe9024b47d78e1ce8c697301b41",
+          "evidence": "Checked: The installed version, its snapshot tests and guidance, and the snapshot command on the live list; Expected: One command saves a pending copy of the list, renders the page, commits it when it changed and then has nothing left to save; Observed: All four checks passed; on the live list the command committed the pending copy and a second run had nothing to save; the only new observability finding between the two snapshots was the unpushed snapshot commit itself",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r2-142.log; dev-obs before 0ea4fb35 (19:07:32 IST), after d017c9e9 (19:08:11 IST), same build. Run r1-e5f518da-120.",
+          "finished_at": "2026-11-22T13:38:34.418116Z"
         },
         "BCL-144": {
           "state": "pending"
@@ -12662,6 +12769,103 @@
           "state": "pending"
         }
       }
+    },
+    "introspect": {
+      "result": "Tokens round 1: Codex Terra review R2-142 42,909 (from its own output; not in dev-obs task usage); Grok Bot self implementation and review of R1-ROUND, R1-134: no source; subagent workers R2-142, R2-145: no source; round-over-round comparison not possible (no recorded usage for #119 round 3). Missing sources filed as DO-2. Evidence quality: low signal for bcl - 1 relevant new finding was noise (DO-1), stale and unprojected findings mix (DO-3), bcl logs not sources (BCL-174).",
+      "at": "2026-11-22T13:40:36Z",
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 3",
+        "Codex write: R1-ROUND",
+        "Codex review: R1-ROUND",
+        "Polling and rework review: R1-ROUND",
+        "Test command: R1-ROUND: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-round.sh",
+        "Codex write: R1-134",
+        "Codex review: R1-134",
+        "Polling and rework review: R1-134",
+        "Test command: R1-134: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-134.sh",
+        "Codex write: R2-142",
+        "Codex review: R2-142",
+        "Polling and rework review: R2-142",
+        "Test command: R2-142: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-142.sh"
+      ],
+      "none": [
+        "Codex write: R1-ROUND",
+        "Codex review: R1-ROUND",
+        "Polling and rework review: R1-ROUND",
+        "Test command: R1-ROUND: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-round.sh",
+        "Codex write: R1-134",
+        "Polling and rework review: R1-134",
+        "Test command: R1-134: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-134.sh",
+        "Codex review: R2-142",
+        "Polling and rework review: R2-142",
+        "Test command: R2-142: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-142.sh"
+      ],
+      "sections": {
+        "delete": {
+          "items": [
+            {
+              "item": "Codex review: R1-134",
+              "evidence": "FLAGGED, no dev-obs evidence (job logs are not collector sources, BCL-174): the first R1-134 review job reused an existing result file, was recorded incomplete as a tool fault and forced a repeat fix job; source ~/.agents/artifacts/bcl-120 job state, not observability",
+              "outcome": "issue",
+              "issue_id": "BCL-147"
+            }
+          ]
+        },
+        "simplify": {
+          "items": [
+            {
+              "item": "Codex write: R2-142",
+              "evidence": "FLAGGED, no dev-obs evidence: the worker made its lane worktree by hand because the fresh-worktree command always writes the live list; source worker report 18:57 IST",
+              "outcome": "issue",
+              "issue_id": "BCL-175"
+            }
+          ]
+        },
+        "optimize": {
+          "items": [
+            {
+              "item": "Stage: Review",
+              "evidence": "dev-obs snapshots 052d5b22 (18:55:18 IST), 0ea4fb35 (19:07:32), d017c9e9 (19:08:11); finding_key col-c56a5cccf80f5577 (Swift service suite p95 111.3 s), col-a6d1bba4b8ef188d (context ledger contract p95 69.4 s), col-77ecdb6e5fd5a2b1 (test_bcl slow); full suites 159 s and 145 s for change-list-only releases (presuite-r1.log, presuite-142.log)",
+              "outcome": "issue",
+              "issue_id": "BCL-176"
+            }
+          ]
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "Stage: Verify",
+              "evidence": "dev-obs snapshots 052d5b22 (18:55:18 IST), 0ea4fb35 (19:07:32), d017c9e9 (19:08:11); finding_key col-8394fc3bec1b1387 was the only new finding between before and after snapshots of the R2-142 verify and is the verify's own snapshot commit (noise); evidence ~/.agents/artifacts/bcl-120/devobs-after-142.json",
+              "outcome": "issue",
+              "issue_id": "DO-1"
+            },
+            {
+              "item": "Stage: Plan & fix",
+              "evidence": "dev-obs snapshots 052d5b22 (18:55:18 IST), 0ea4fb35 (19:07:32), d017c9e9 (19:08:11); task usage store ~/.local/share/developer-observability/task-usage.sqlite3 holds 1 row; Terra review R2-142 used 42,909 tokens by its own output (review-142-terra.jsonl) and none was recorded; Grok Bot self work on R1-ROUND and R1-134 and both subagent workers have no token source",
+              "outcome": "issue",
+              "issue_id": "DO-2"
+            },
+            {
+              "item": "Parallel group count: 3",
+              "evidence": "dev-obs snapshots 052d5b22 (18:55:18 IST), 0ea4fb35 (19:07:32), d017c9e9 (19:08:11); snapshot d017c9e9: owner agent-plugins 20 findings, 17 stale from 14 and 20 Nov mixed with 3 active; no project field on any of 150 findings; no round window view",
+              "outcome": "issue",
+              "issue_id": "DO-3"
+            },
+            {
+              "item": "Stage: Install",
+              "evidence": "collector had not run since 20 Nov 16:41 IST until the manual run at 18:55:18 IST (052d5b22); Collect and Verify never call it",
+              "outcome": "issue",
+              "issue_id": "BCL-171"
+            }
+          ]
+        }
+      },
+      "round": 1,
+      "cycle": 12
     }
   },
   "findings": [
@@ -13037,7 +13241,7 @@
       "observed": "22 Nov 2026 09:02 IST, bcl 0.1.59, closing round 1 of PR 119",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "PR 119 round 2 (Guru 09:05 IST: file missing bcl commands instead of calling internal code)",
         "report": "bcl-119 progress.md",
@@ -13046,7 +13250,24 @@
         "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)"
       },
       "needs": "1. [live_state.py:473](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:473) clears the pending marker after an ordinary same-stage snapshot even when it creates no commit. If that snapshot runs before the explicit `bcl snapshot`, the latter reports “nothing to save” and the pending change remains uncommitted. Preserve the pending marker until the explicit save commits it. The [concurrency test](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:199) checks for deadlock and marker removal but does not check that the pending change was committed; make the ordering deterministic and assert the saved commit.",
-      "verification": "Verifying the snapshot command on the live list"
+      "verification": "All four checks passed; on the live list the command committed the pending copy and a second run had nothing to save; the only new observability finding between the two snapshots was the unpushed snapshot commit itself Log: ~/.agents/artifacts/bcl-120/verify-r2-142.log; dev-obs before 0ea4fb35 (19:07:32 IST), after d017c9e9 (19:08:11 IST), same build. Run r1-e5f518da-120.",
+      "verification_evidence": [
+        {
+          "checked": "The installed version, its snapshot tests and guidance, and the snapshot command on the live list",
+          "expected": "One command saves a pending copy of the list, renders the page, commits it when it changed and then has nothing left to save",
+          "observed": "All four checks passed; on the live list the command committed the pending copy and a second run had nothing to save; the only new observability finding between the two snapshots was the unpushed snapshot commit itself",
+          "verdict": "All four checks passed; on the live list the command committed the pending copy and a second run had nothing to save; the only new observability finding between the two snapshots was the unpushed snapshot commit itself",
+          "check_id": "bcl-142-0.1.68-e5f518da",
+          "build": "bcl 0.1.68",
+          "session": "r1-e5f518da-120",
+          "timestamp": "2026-11-22T13:38:34Z",
+          "reference": "e5f518da:BCL-142:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r2-142.log; dev-obs before 0ea4fb35 (19:07:32 IST), after d017c9e9 (19:08:11 IST), same build. Run r1-e5f518da-120."
+        }
+      ],
+      "verification_refs": [
+        "e5f518da:BCL-142:installed-check"
+      ]
     },
     {
       "id": "BCL-144",
@@ -13337,6 +13558,68 @@
       "status": "untested",
       "details": {
         "root_cause_group": "M-ROUND (same class as BCL-158, which is verified)"
+      }
+    },
+    {
+      "id": "DO-1",
+      "title": "Snapshot commits made by the change list show as unpushed-commit failures",
+      "summary": "The collector reports an unpushed-commits failure for the pull request checkout whenever the change list has just committed its own tracker snapshot, which is expected and pushed minutes later.",
+      "impact": "The only new finding between the before and after snapshots of a verify was this noise, so verify evidence is diluted.",
+      "recommendation": "Treat unpushed commits that only touch the change list's own tracker snapshot files as expected, or report unpushed commits as a state rather than a failure.",
+      "done_when": "A verify that commits a tracker snapshot adds no failure finding; a test covers it.",
+      "observed": "22 Nov 2026 19:08 IST, round 1 introspect of PR 120",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "finding_key": "col-8394fc3bec1b1387",
+        "evidence": "snapshots 0ea4fb35 (19:07:32 IST) and d017c9e9 (19:08:11 IST), ~/.agents/artifacts/bcl-120/devobs-after-142.json"
+      }
+    },
+    {
+      "id": "DO-2",
+      "title": "Token use of Codex runs and Grok Bot subagents is not recorded per job",
+      "summary": "The task usage store holds one row; the round's Codex review used about 43 thousand tokens by its own output but nothing recorded it, and Grok Bot's own work and subagent workers have no token source at all.",
+      "impact": "Introspect cannot compare token use per round, group or job, so inefficiency cannot be shown from data.",
+      "recommendation": "Record usage for every agent-started Codex run through the existing usage capture keyed by lane and job, and add a token source for Grok Bot subagents and its own turns.",
+      "done_when": "After a round, token use per group and job is available from observability for Codex and Grok Bot work, and a missing source is reported by name.",
+      "observed": "22 Nov 2026 19:10 IST, round 1 introspect of PR 120",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "evidence": "~/.local/share/developer-observability/task-usage.sqlite3 task_usage 1 row; ~/.agents/artifacts/bcl-120/review-142-terra.jsonl line 10471 tokens used 42,909"
+      }
+    },
+    {
+      "id": "DO-3",
+      "title": "No per-round view: earlier rounds' findings mix with the current one",
+      "summary": "A snapshot lists every finding for a project with no round or window filter, so this round's view of the plugin repository mixed 3 active findings with 20 stale ones from 14 and 20 November, and no finding carries a project field for the change list.",
+      "impact": "An agent acting on the snapshot reads old failures as current and spends context on them.",
+      "recommendation": "Give a per-round or time-window view that shows only findings first or last seen in the window, with counts first and details on request, and set the project on each finding.",
+      "done_when": "Asking for a round window returns only that window's findings as a short summary with expandable details; a test covers stale findings being excluded.",
+      "observed": "22 Nov 2026 19:10 IST, round 1 introspect of PR 120; Guru asked for a per-round high-signal view with progressive disclosure",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "evidence": "snapshot d017c9e9: owner agent-plugins 20 findings of which 17 stale (last seen 14 and 20 Nov); project field empty on all 150"
+      }
+    },
+    {
+      "id": "BCL-176",
+      "title": "A change list only release runs every plugin's slowest suites",
+      "summary": "The full suite for a lane that changes only the change list plugin also runs the agent computer use Swift service tests and other plugins' slow suites, which dominate its two and a half minutes.",
+      "impact": "Each release waits on unrelated suites; three releases today spent about seven and a half minutes in full suites.",
+      "recommendation": "Keep the full suite for merge and CI parity, but let a lane's release suite run the changed plugins' tests plus the repository contract checks, and record which suites were skipped.",
+      "done_when": "A change list only release runs only its plugin's tests and the contract checks, shows the skipped suites, and the merge still runs everything.",
+      "observed": "22 Nov 2026 19:10 IST, round 1 introspect of PR 120",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "finding_key": "col-c56a5cccf80f5577; col-a6d1bba4b8ef188d; col-77ecdb6e5fd5a2b1",
+        "evidence": "snapshot d017c9e9 latency hotspots: Swift service p95 111.3 s, context ledger contract p95 69.4 s; presuite logs ~/.agents/artifacts/bcl-120/presuite-r1.log (159 s), presuite-142.log (145 s)"
       }
     }
   ]
