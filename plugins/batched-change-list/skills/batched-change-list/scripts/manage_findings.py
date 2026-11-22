@@ -554,7 +554,7 @@ def carry_plan_runtime_state(groups, previous, same_round):
 
 
 def _record_lane_failure(document, identifier, attempt_id, source, reason, tool_fault=False, tool_fault_reason=None,
-                         fault_kind="incomplete_review"):
+                         fault_kind="incomplete_review", plan_answered=False):
     if not isinstance(document.get("tracking", {}).get("plan"), dict):
         return
     tracking, plan, groups = _lane_groups(document, [identifier])
@@ -564,6 +564,8 @@ def _record_lane_failure(document, identifier, attempt_id, source, reason, tool_
         if not any(row.get("attempt_id") == attempt_id for row in rows):
             row = {"attempt_id": attempt_id, "source": source, "reason": reason,
                    "cycle": plan.get("cycle"), "round": plan.get("round"), "at": stamp}
+            if plan_answered:
+                row["plan_answered"] = True
             if tool_fault:
                 row["tool_fault"] = True
                 row["fault_kind"] = fault_kind
@@ -774,6 +776,13 @@ def resort_failures(document, operation):
     return {"applied": apply, "lanes": report}
 
 
+def _plan_folded_into_review(group, failures):
+    # One plan review per lane: once one has passed, a later failed review that answers ROOT CAUSE and
+    # FAILING TEST stands in for the next plan review.
+    return bool(failures and failures[-1].get("plan_answered") and any(
+        entry.get("status") == "passed" for entry in _lane_history(group, "plan_review_history")))
+
+
 def job_transition(document, operation):
     tracking, plan, groups = _lane_groups(document, operation.get("ids"))
     phase, action = operation.get("phase"), operation["action"]
@@ -825,7 +834,7 @@ def job_transition(document, operation):
                     reviews = _lane_history(group, "plan_review_history")
                     latest_at = _history_instant(failures[-1])
                     ambiguous = sum(_history_instant(row) == latest_at for row in failures) > 1 and latest_at is not None
-                    if not any(entry.get("status") == "passed" and entry.get("after_failure") == failures[-1].get("attempt_id")
+                    if not _plan_folded_into_review(group, failures) and not any(entry.get("status") == "passed" and entry.get("after_failure") == failures[-1].get("attempt_id")
                                and (not ambiguous or _history_instant(entry) and _history_instant(entry) > latest_at)
                                for entry in reviews):
                         raise ValueError(f"{group['id']} requires a passed plan_review after failure")
@@ -847,6 +856,9 @@ def job_transition(document, operation):
                     raise ValueError(f"presuite requires lane {group['id']} review to pass or be skipped_one_file")
                 group.update(status="review", phase="review")
             else:
+                if _plan_folded_into_review(group, failures):
+                    raise ValueError(f"{group['id']} already had its one plan review and its last review answered "
+                                     "ROOT CAUSE and FAILING TEST; start the fix")
                 group.update(status="review", phase="plan_review")
             codex["job"] = {**job, "phase": phase, "started_at": stamp, "cycle": cycle, "round": round_number}
         workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
@@ -918,7 +930,9 @@ def job_transition(document, operation):
                             _record_lane_failure(document, identifier, job_id, phase, reason,
                                                  tool_fault=tool_fault,
                                                  tool_fault_reason=reason if tool_fault else None,
-                                                 fault_kind="runner_exit" if runner_failed else "incomplete_review")
+                                                 fault_kind="runner_exit" if runner_failed else "incomplete_review",
+                                                 plan_answered=bool(not tool_fault and reply and _section_body(reply, "ROOT CAUSE")
+                                                                    and _section_body(reply, "FAILING TEST")))
             else:
                 passed = exit_code == 0
                 job["finished_phase_status"] = "passed" if passed else "failed"
