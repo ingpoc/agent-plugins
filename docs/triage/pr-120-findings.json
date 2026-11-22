@@ -11226,9 +11226,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-22T15:30:05Z",
-      "now": "2026-11-22T15:30:05Z — Verify in progress"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T15:32:04Z",
+      "now": "2026-11-22T15:32:04Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12728,11 +12728,12 @@
             "BCL-145"
           ],
           "label": "BCL-145",
+          "status": "verified",
           "worktree": "bcl120-r1-145",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -12755,10 +12756,10 @@
               "finished_at": "2026-11-22T15:25:32Z",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0,
             "fix_status": "passed",
             "review_status": "passed",
-            "reviewer_model": "gpt-6.1-terra medium (Codex)"
+            "reviewer_model": "gpt-6.1-terra medium (Codex)",
+            "tool_fault_streak": 0
           },
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -12766,6 +12767,12 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json",
             "plugins/batched-change-list/skills/batched-change-list/statechart.html"
           ],
+          "phase": "verify",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T15:25:32Z"
+          },
           "failure_history": [
             {
               "attempt_id": "a6e0f52080d54fea92899bfa55657883",
@@ -12817,18 +12824,11 @@
               "owner_override": true
             }
           ],
-          "status": "verifying",
-          "updated_at": "2026-11-22T15:30:05Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-22T15:25:32Z"
-          },
           "install": {
             "status": "running",
             "started_at": "2026-11-22T15:29:53Z"
-          }
+          },
+          "updated_at": "2026-11-22T15:31:34Z"
         },
         {
           "id": "R2-DO1",
@@ -12837,7 +12837,8 @@
             "DO-1"
           ],
           "label": "DO-1",
-          "worktree": "bcl120-r2-do1-r2",
+          "status": "deferred",
+          "worktree": "bcl120-r2-do1-r3",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-do1.sh",
             "status": "pending",
@@ -12864,15 +12865,22 @@
               "finished_at": "2026-11-22T15:25:32Z",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0,
             "fix_status": "passed",
             "review_status": "passed",
-            "reviewer_model": "gpt-6.1-terra medium (Codex)"
+            "reviewer_model": "gpt-6.1-terra medium (Codex)",
+            "tool_fault_streak": 0
           },
           "files": [
             "plugins/developer-observability/runtime/collector/sources.py",
             "plugins/developer-observability/tests/test_collector*.py"
           ],
+          "phase": "deferred",
+          "reason": "Fix and review passed and shipped in 5147fa97 (dev-obs 0.1.35); the dev-obs release script refused at its machine hygiene gate, so it waits for Guru.",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T15:25:32Z"
+          },
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -12935,16 +12943,54 @@
               "owner_override": true
             }
           ],
-          "status": "deferred",
-          "updated_at": "2026-11-22T15:29:52Z",
-          "phase": "deferred",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-22T15:25:32Z"
+          "parked_to": 4,
+          "updated_at": "2026-11-22T15:31:42Z"
+        },
+        {
+          "id": "R3-175",
+          "name": "Fresh lane worktrees without list writes; blocked lanes move to the next round",
+          "finding_ids": [
+            "BCL-175"
+          ],
+          "label": "BCL-175",
+          "status": "running",
+          "worktree": "bcl120-r3-175-r3",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r3-175.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
-          "reason": "Fix fb07a2ca and Terra review passed and shipped in 5147fa97 (dev-obs 0.1.35), but the dev-obs release script refused at its machine hygiene gate (local-only branches in the main checkout need owner approval; no override for this plugin). Waits for Guru; BCL-145 ships alone.",
-          "parked_to": 4
+          "codex": {
+            "model": "gpt-6-luna fast medium (Codex CLI)",
+            "implementer_session": "codex-luna-120-175",
+            "reviewer_session": "codex-terra-120-175",
+            "fix_status": "running",
+            "job": {
+              "id": "97f206956baf4e529a6840ffdf2fae14",
+              "phase": "fix",
+              "started_at": "2026-11-22T15:32:04Z",
+              "command": "sh",
+              "heartbeat_at": "2026-11-22T15:32:04Z",
+              "plan_sha256": "4257759c2f863172da02a3b4e61a43f3dc2eb47f13ca1511144b1393d76498d6",
+              "model": "gpt-6-luna fast medium (Codex)",
+              "cycle": 12,
+              "round": 3
+            }
+          },
+          "files": [
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/references/*.md",
+            "plugins/batched-change-list/skills/batched-change-list/statechart.html"
+          ],
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T15:31:42Z",
+          "phase": "fix"
         },
         {
           "id": "DEFER",
@@ -12976,23 +13022,22 @@
             "BCL-161",
             "BCL-166",
             "BCL-171",
-            "BCL-175",
             "DO-2",
             "DO-3"
           ],
           "label": "rest",
           "status": "deferred",
           "phase": "deferred",
-          "reason": "Round 3: BCL-175 (with BCL-179, BCL-180) and BCL-157 change bin/bcl and the writers that R2-145 still edits, so the file-overlap check holds them; BCL-175 joins this round right after R2-145 ships, and BCL-157 follows it because both change manage_findings.py. Guru 20:30 IST asked whether lanes this big should be split before fixing.",
+          "reason": "Round 3: BCL-157 changes manage_findings.py and render.py, which the BCL-175 lane also changes, so the file-overlap check holds it for round 4. Other issues wait for later rounds. Guru 20:30 IST asked whether lanes this big should be split before fixing.",
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 4,
-          "updated_at": "2026-11-22T15:02:44Z",
+          "updated_at": "2026-11-22T15:31:34Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 29
+            "total": 28
           }
         }
       ],
@@ -13068,7 +13113,15 @@
           "state": "pending"
         },
         "BCL-145": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T15:30:44Z",
+          "started_at": "2026-11-22T15:30:44Z",
+          "updated_at": "2026-11-22T15:30:44Z",
+          "check_id": "c5b06f773e8145098876083fb4f231f7",
+          "evidence": "Checked: The installed writer guards, the page and chart, the two review items from round 2, the consumer source files and every live lane on this machine; Expected: Lane states, moves and groups come from one table; plan writes cannot claim runtime state; verify admission and prerequisite checks follow the named groups; no consumer keeps its own state list; Observed: All five checks passed on the installed version, including absent pending claims refused, new-lane defaults dropped, one prerequisite group moving both decisions, and every live lane rendering with only declared fields; no new observability finding between the two snapshots",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r3-145.log; dev-obs before 63da447b (20:59:58 IST), after 1ab6cdcf (21:00:28 IST), same build. Run r3-5147fa97-120.",
+          "finished_at": "2026-11-22T15:30:44.655908Z"
         },
         "BCL-147": {
           "state": "pending"
@@ -13562,7 +13615,8 @@
         "report": "bcl-119/r1/adv-sol.md, r1/advrepro/f1.py",
         "evidence": "f1.py: sync-main, merge and an unknown stage exit 1 with a JSON decode traceback on 0.1.58; same for unknown stages on 0.1.57",
         "kind": "fix",
-        "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)"
+        "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)",
+        "also reported as BCL-181": "A viewer left running across a local install breaks every stage Local install replaced the scripts under a viewer started by the previous version; the viewer then failed each request on a stale import, its health check stopped answering, and install and verify both crashed with a traceback saying viewer ownership could not be verified, until stop-viewer was run by hand. 22 Nov 2026 20:58 IST, PR 120 install of 0.1.70 (viewer from 0.1.69 on its own port)"
       }
     },
     {
@@ -13635,7 +13689,7 @@
       "observed": "22 Nov 2026 09:45 IST, bcl 0.1.60, reliability pass over PR 117 to 119",
       "priority": "high",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "PR 119 round 2 reliability pass (Guru 09:41 IST); attack-the-premise",
         "report": "bcl-119 progress.md",
@@ -13646,7 +13700,25 @@
         "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)",
         "review_notes": "Round 2 second counted failure (Terra medium re-review of 70015383, 19:52 IST, review-145-2-terra.md). Fixed: pending claims on existing lanes refused, new-lane pending defaults stripped; bcl:753/763 and manage_findings:1814 read named groups; 506 tests, grep clean. Open: workflow_definition.json 'dependency' and new 'dependency_invalidated' duplicate the same states (use one group); test_bcl.py:2377 must assert both decisions under baseline and changed definitions. Commits in bcl120-r1-145; Luna session 01a2038e-ae20-71b1-97ce-5f4bde143c3c."
       },
-      "needs": "1. [workflow_definition.json:67](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json:67): `dependency` and `dependency_invalidated` independently declare the same states. Dependency validation and invalidation can therefore drift: changing one list can allow a lane to retain a state that the other check rejects after its prerequisite loses verification. Use one shared group for this invariant and test that changing it moves both decisions.\n\n2. [test_bcl.py:2377](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:2377): The new definition-change test does not establish both sides of either behavior. The changed verify call only checks that one error message is absent; it may have failed earlier for another reason. Invalidation checks only the modified definition, without showing the baseline blocks the dependent lane. Assert the actual decisions under both definitions."
+      "needs": "1. [workflow_definition.json:67](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json:67): `dependency` and `dependency_invalidated` independently declare the same states. Dependency validation and invalidation can therefore drift: changing one list can allow a lane to retain a state that the other check rejects after its prerequisite loses verification. Use one shared group for this invariant and test that changing it moves both decisions.\n\n2. [test_bcl.py:2377](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:2377): The new definition-change test does not establish both sides of either behavior. The changed verify call only checks that one error message is absent; it may have failed earlier for another reason. Invalidation checks only the modified definition, without showing the baseline blocks the dependent lane. Assert the actual decisions under both definitions.",
+      "verification_evidence": [
+        {
+          "checked": "The installed writer guards, the page and chart, the two review items from round 2, the consumer source files and every live lane on this machine",
+          "expected": "Lane states, moves and groups come from one table; plan writes cannot claim runtime state; verify admission and prerequisite checks follow the named groups; no consumer keeps its own state list",
+          "observed": "All five checks passed on the installed version, including absent pending claims refused, new-lane defaults dropped, one prerequisite group moving both decisions, and every live lane rendering with only declared fields; no new observability finding between the two snapshots",
+          "verdict": "All five checks passed on the installed version, including absent pending claims refused, new-lane defaults dropped, one prerequisite group moving both decisions, and every live lane rendering with only declared fields; no new observability finding between the two snapshots",
+          "check_id": "bcl-145-0.1.70-5147fa97",
+          "build": "bcl 0.1.70",
+          "session": "r3-5147fa97-120",
+          "timestamp": "2026-11-22T15:30:44Z",
+          "reference": "5147fa97:BCL-145:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r3-145.log; dev-obs before 63da447b (20:59:58 IST), after 1ab6cdcf (21:00:28 IST), same build. Run r3-5147fa97-120."
+        }
+      ],
+      "verification": "All five checks passed on the installed version, including absent pending claims refused, new-lane defaults dropped, one prerequisite group moving both decisions, and every live lane rendering with only declared fields; no new observability finding between the two snapshots Log: ~/.agents/artifacts/bcl-120/verify-r3-145.log; dev-obs before 63da447b (20:59:58 IST), after 1ab6cdcf (21:00:28 IST), same build. Run r3-5147fa97-120.",
+      "verification_refs": [
+        "5147fa97:BCL-145:installed-check"
+      ]
     },
     {
       "id": "BCL-147",
