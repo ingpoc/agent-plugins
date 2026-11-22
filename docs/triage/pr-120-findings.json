@@ -12716,15 +12716,19 @@
               "phase": "review",
               "started_at": "2026-11-22T15:17:16Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T15:17:16Z",
+              "heartbeat_at": "2026-11-22T15:18:18Z",
               "plan_sha256": "4c8ba2892daa4abe2723328c5d64659bc57b221c19e8479973748d3cfcf2cf73",
               "model": "gpt-6.1-terra medium (Codex)",
               "cycle": 12,
-              "round": 3
+              "round": 3,
+              "pid": 60244,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T15:18:18Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "fix_status": "passed",
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (Codex)"
           },
           "files": [
