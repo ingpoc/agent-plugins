@@ -1,3 +1,7 @@
+## 0.1.64
+
+- A lane gets one plan review. After it, a review CHANGES reply with ROOT CAUSE and FAILING TEST sections opens the next fix, and a further plan review is refused; a reply without them keeps the old plan-review route (BCL-153).
+
 ## 0.1.63
 
 - Lane status is derived at render from the job receipt: a live job shows its phase, a dead unfinished one shows `Interrupted · resume at <phase>`, and a fix or review lane with no job shows `Paused · needs resume`. Chips, rows, the tally and `bcl status` share one state, and settled lanes keep their outcome (BCL-150).
