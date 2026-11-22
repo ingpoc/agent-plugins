@@ -12396,7 +12396,7 @@
             "BCL-145"
           ],
           "label": "BCL-145",
-          "status": "review",
+          "status": "blocked",
           "worktree": "bcl120-r1-145",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
@@ -12415,16 +12415,21 @@
               "phase": "review",
               "started_at": "2026-11-22T14:14:40Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T14:14:40Z",
+              "heartbeat_at": "2026-11-22T14:16:31Z",
               "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
               "model": "gpt-6.1-terra medium (Codex)",
               "cycle": 12,
-              "round": 2
+              "round": 2,
+              "pid": 76364,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T14:16:31Z",
+              "finished_phase_status": "changes_requested",
+              "must_fix": "1. [workflow_definition.json:67](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json:67): `dependency` and `dependency_invalidated` independently declare the same states. Dependency validation and invalidation can therefore drift: changing one list can allow a lane to retain a state that the other check rejects after its prerequisite loses verification. Use one shared group for this invariant and test that changing it moves both decisions.\n\n2. [test_bcl.py:2377](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:2377): The new definition-change test does not establish both sides of either behavior. The changed verify call only checks that one error message is absent; it may have failed earlier for another reason. Invalidation checks only the modified definition, without showing the baseline blocks the dependent lane. Assert the actual decisions under both definitions."
             },
             "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra medium (Codex)",
-            "must_fix_note": "1. [manage_findings.py:549](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:549) permits a plan write to newly claim `codex.fix_status`, `codex.review_status`, or `codex.plan_review_status` as `\"pending\"` when the stored field is absent. This exception also applies to raw `update-plan-group` patches, which can persist the new field. The requested guard forbids newly claiming protected fields, including pending values.\n\n2. Lane membership remains duplicated in [bcl:753](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:753), [bcl:763](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:763), and [manage_findings.py:1814](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1814). Changing the shared groups will therefore leave verify admission and dependency invalidation using stale membership rules.",
-            "review_status": "running"
+            "must_fix_note": "1. [workflow_definition.json:67](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json:67): `dependency` and `dependency_invalidated` independently declare the same states. Dependency validation and invalidation can therefore drift: changing one list can allow a lane to retain a state that the other check rejects after its prerequisite loses verification. Use one shared group for this invariant and test that changing it moves both decisions.\n\n2. [test_bcl.py:2377](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:2377): The new definition-change test does not establish both sides of either behavior. The changed verify call only checks that one error message is absent; it may have failed earlier for another reason. Invalidation checks only the modified definition, without showing the baseline blocks the dependent lane. Assert the actual decisions under both definitions.",
+            "review_status": "blocked"
           },
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -12440,6 +12445,14 @@
               "cycle": 12,
               "round": 2,
               "at": "2026-11-22T13:52:19Z"
+            },
+            {
+              "attempt_id": "1098f0e97aa945eaafa9d292785ad8e0",
+              "source": "review",
+              "reason": "1. [workflow_definition.json:67](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json:67): `dependency` and `dependency_invalidated` independently declare the same states. Dependency validation and invalidation can therefore drift: changing one list can allow a lane to retain a state that the other check rejects after its prerequisite loses verification. Use one shared group for this invariant and test that changing it moves both decisions.\n\n2. [test_bcl.py:2377](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:2377): The new definition-change test does not establish both sides of either behavior. The changed verify call only checks that one error message is absent; it may have failed earlier for another reason. Invalidation checks only the modified definition, without showing the baseline blocks the dependent lane. Assert the actual decisions under both definitions.",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T14:16:31Z"
             }
           ],
           "plan_review_history": [
@@ -12453,7 +12466,9 @@
             }
           ],
           "updated_at": "2026-11-22T13:42:25Z",
-          "phase": "review"
+          "phase": "fix",
+          "blocked_reason": "Second failure",
+          "failure_block_reason": "1. [workflow_definition.json:67](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json:67): `dependency` and `dependency_invalidated` independently declare the same states. Dependency validation and invalidation can therefore drift: changing one list can allow a lane to retain a state that the other check rejects after its prerequisite loses verification. Use one shared group for this invariant and test that changing it moves both decisions.\n\n2. [test_bcl.py:2377](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:2377): The new definition-change test does not establish both sides of either behavior. The changed verify call only checks that one error message is absent; it may have failed earlier for another reason. Invalidation checks only the modified definition, without showing the baseline blocks the dependent lane. Assert the actual decisions under both definitions."
         },
         {
           "id": "R2-DO1",
@@ -13291,7 +13306,7 @@
       "observed": "22 Nov 2026 09:45 IST, bcl 0.1.60, reliability pass over PR 117 to 119",
       "priority": "high",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "blocked",
       "details": {
         "filed_by": "PR 119 round 2 reliability pass (Guru 09:41 IST); attack-the-premise",
         "report": "bcl-119 progress.md",
@@ -13301,7 +13316,7 @@
         "more_evidence": "Round 2: page shows deferred R2-137 as Changes requested, not Parked (render keeps its own state order); Sol plan reviews of R2-137 (cap marker) and R2-144 (hotfix key) both found a field one writer protects and another accepts; bcl install and verify reruns on one lane changed the plan hash and stranded two running jobs (also BCL-113/133)",
         "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)"
       },
-      "needs": "1. Literal lane-state groups remain in the consumers. For example, [manage_findings.py:1599](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1599) repeats the declared settled states, and [render.py:372](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:372) repeats the declared job phases. Read these from `workflow_definition` so changes to the declared groups reach every consumer."
+      "needs": "1. [workflow_definition.json:67](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json:67): `dependency` and `dependency_invalidated` independently declare the same states. Dependency validation and invalidation can therefore drift: changing one list can allow a lane to retain a state that the other check rejects after its prerequisite loses verification. Use one shared group for this invariant and test that changing it moves both decisions.\n\n2. [test_bcl.py:2377](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:2377): The new definition-change test does not establish both sides of either behavior. The changed verify call only checks that one error message is absent; it may have failed earlier for another reason. Invalidation checks only the modified definition, without showing the baseline blocks the dependent lane. Assert the actual decisions under both definitions."
     },
     {
       "id": "BCL-147",
