@@ -135,6 +135,52 @@ class JobLifecycleTests(unittest.TestCase):
         finish(doc, "fix", "fix-B", code=1)
         self.assertEqual(group["status"], "blocked")
 
+    def _second_review_failure(self, reply):
+        doc = document()
+        group = doc["tracking"]["plan"]["groups"][0]
+        manager._record_lane_failure(doc, "ISSUE-01", "review-1", "review", "first review failed")
+        transition(doc, "start-job", "plan_review", "plan-1")
+        finish(doc, "plan_review", "plan-1", reply=("VERDICT: PASS\n## Must-fix\nnone\n"
+               "## ROOT CAUSE\nwhy\n## FAILING TEST\ntest_lane"), timestamp="2026-11-21T00:00:01Z")
+        transition(doc, "start-job", "fix", "fix-2")
+        finish(doc, "fix", "fix-2")
+        transition(doc, "start-job", "review", "review-2")
+        finish(doc, "review", "review-2", reply=reply, timestamp="2026-11-21T00:00:02Z")
+        self.assertEqual(group["status"], "blocked")
+        manager.unblock_lane(doc, {"ids": ["ISSUE-01"], "reason": "owner authorized", "tool_faults": [],
+                                   "timestamp": "2026-11-21T00:00:03Z"})
+        return doc, group
+
+    def test_review_answering_root_cause_replaces_the_second_plan_review(self):
+        doc, group = self._second_review_failure("VERDICT: CHANGES\n## Must-fix\n1. guard the lane\n"
+                                                 "## ROOT CAUSE\nguard missing\n## FAILING TEST\ntest_guard")
+        self.assertTrue(group["failure_history"][-1]["plan_answered"])
+        with self.assertRaisesRegex(ValueError, "already had its one plan review"):
+            transition(doc, "start-job", "plan_review", "plan-2")
+        transition(doc, "start-job", "fix", "fix-3")
+        self.assertEqual(len(group["plan_review_history"]), 1)
+
+    def test_review_without_root_cause_still_needs_a_plan_review(self):
+        doc, group = self._second_review_failure("VERDICT: CHANGES\n## Must-fix\n1. guard the lane")
+        self.assertNotIn("plan_answered", group["failure_history"][-1])
+        with self.assertRaisesRegex(ValueError, "passed plan_review"):
+            transition(doc, "start-job", "fix", "fix-3")
+        transition(doc, "start-job", "plan_review", "plan-2")
+        finish(doc, "plan_review", "plan-2", reply=("VERDICT: PASS\n## Must-fix\nnone\n"
+               "## ROOT CAUSE\nwhy\n## FAILING TEST\ntest_lane"), timestamp="2099-01-01T00:00:00Z")
+        transition(doc, "start-job", "fix", "fix-3")
+
+    def test_first_failure_still_needs_its_plan_review_even_when_answered(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1")
+        transition(doc, "start-job", "review", "review-1")
+        finish(doc, "review", "review-1", reply=("VERDICT: CHANGES\n## Must-fix\n1. x\n"
+               "## ROOT CAUSE\nwhy\n## FAILING TEST\ntest_lane"))
+        with self.assertRaisesRegex(ValueError, "passed plan_review"):
+            transition(doc, "start-job", "fix", "fix-2")
+        transition(doc, "start-job", "plan_review", "plan-1")
+
     def test_legacy_sibling_histories_merge_chronologically_and_dedupe(self):
         group = {"id": "A", "failure_history": {
             "ISSUE-01": [{"attempt_id": "later", "at": "2026-11-21T00:00:02Z"},
