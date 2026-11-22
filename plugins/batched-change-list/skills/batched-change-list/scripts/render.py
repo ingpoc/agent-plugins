@@ -1224,8 +1224,12 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
                    if viewer else '<p class="viewer-footer">Viewer version not recorded</p>')
     timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow · last recorded</strong>{fresh_html}</div>'
                 f'{timeline_steps}{plan_view}{viewer_html}</section>')
+    group_of = {identifier: {"id": str(group.get("id")), "name": str(group.get("name") or group.get("label") or group.get("id"))}
+                for group in groups for identifier in group.get("finding_ids", []) if isinstance(identifier, str)}
     for item in output:
         item["_lane_status"] = lanes.get(item["id"], finding_lane_status(item, None, round_number))
+        if item["id"] in group_of:
+            item["_group"] = group_of[item["id"]]
     serialized = json.dumps([item for item in output if item["id"] not in excluded], ensure_ascii=True).replace("<", "\\u003c")
     run_view = {key: run[key] for key in ("id", "build", "revision", "installed_at", "status")} if run else None
     replacements = {"{{TITLE}}": html.escape(title), "{{FINDINGS_JSON}}": serialized,
