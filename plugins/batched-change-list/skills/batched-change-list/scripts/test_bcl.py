@@ -1042,7 +1042,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual((kept["state"], kept["evidence"]), ("fixed", "kept"))
         self.assertNotIn("stopped", kept)
 
-    def test_failed_fix_requires_plan_review_before_retry(self):
+    def test_failed_fix_job_retries_without_plan_review(self):
         self.assertEqual(self.call_without_viewer('start').returncode, 0)
         plan = self.root / 'retry-plan.json'
         plan.write_text(json.dumps({'round': 1, 'groups': [{'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'planned'}]}))
@@ -1052,15 +1052,8 @@ elif args[:2] != ['pr', 'edit']:
         failed = self.call_job_without_viewer(live, '--ids', 'ISSUE-01', '--phase', 'fix', 'job', '--',
                                                sys.executable, '-c', 'raise SystemExit(7)')
         self.assertEqual(failed.returncode, 7, failed.stderr)
-        retry = self.call_job_without_viewer(live, '--ids', 'ISSUE-01', '--phase', 'fix', 'job', '--',
-                                              sys.executable, '-c', 'pass')
-        self.assertNotEqual(retry.returncode, 0)
-        self.assertIn('passed plan_review', retry.stderr)
-        result = self.root / 'plan-review.txt'
-        command = f"from pathlib import Path; Path({str(result)!r}).write_text('VERDICT: PASS\\n## Must-fix\\nnone\\n## ROOT CAUSE\\nrecorded\\n## FAILING TEST\\ntest_fix\\n')"
-        review = self.call_job_without_viewer(live, '--ids', 'ISSUE-01', '--phase', 'plan_review',
-                                               '--result', result, 'job', '--', sys.executable, '-c', command)
-        self.assertEqual(review.returncode, 0, review.stderr)
+        group = json.loads(live.read_text())['tracking']['plan']['groups'][0]
+        self.assertTrue(group['failure_history'][-1]['tool_fault'])
         retried = self.call_job_without_viewer(live, '--ids', 'ISSUE-01', '--phase', 'fix', 'job', '--',
                                                 sys.executable, '-c', 'pass')
         self.assertEqual(retried.returncode, 0, retried.stderr)

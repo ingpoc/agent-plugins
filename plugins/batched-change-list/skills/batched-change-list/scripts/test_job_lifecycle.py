@@ -67,25 +67,58 @@ class JobLifecycleTests(unittest.TestCase):
     def test_first_failure_requires_plan_review_and_second_blocks_lane(self):
         doc = document()
         transition(doc, "start-job", "fix", "fix-1")
-        finish(doc, "fix", "fix-1", code=1)
+        finish(doc, "fix", "fix-1")
+        transition(doc, "start-job", "review", "review-1")
+        finish(doc, "review", "review-1", reply="VERDICT: CHANGES\n## Must-fix\n1. guard the lane")
         group = doc["tracking"]["plan"]["groups"][0]
         self.assertEqual(len(group["failure_history"]), 1)
-        manager._record_lane_failure(doc, "ISSUE-01", "fix-1", "fix", "duplicate")
+        manager._record_lane_failure(doc, "ISSUE-01", "review-1", "review", "duplicate")
         self.assertEqual(len(group["failure_history"]), 1)
         with self.assertRaisesRegex(ValueError, "passed plan_review"):
             transition(doc, "start-job", "fix", "fix-2")
         transition(doc, "start-job", "plan_review", "plan-1")
         finish(doc, "plan_review", "plan-1", reply=("VERDICT: PASS\n## Must-fix\nnone\n"
-               "## ROOT CAUSE\nmissing guard\n## FAILING TEST\ntest_guard"))
+               "## ROOT CAUSE\nmissing guard\n## FAILING TEST\ntest_guard"), timestamp="2026-11-21T00:00:01Z")
         transition(doc, "start-job", "fix", "fix-2")
-        finish(doc, "fix", "fix-2", code=1)
+        finish(doc, "fix", "fix-2")
+        transition(doc, "start-job", "review", "review-2")
+        finish(doc, "review", "review-2", reply="VERDICT: CHANGES\n## Must-fix\n1. still unguarded",
+               timestamp="2026-11-21T00:00:02Z")
         self.assertEqual(group["status"], "blocked")
         self.assertEqual(doc["findings"][0]["status"], "blocked")
 
-    def test_plan_review_changes_keeps_fix_gate_closed_without_counting_a_failure(self):
+    def test_failed_fix_job_is_an_uncounted_attempt_and_three_in_a_row_block(self):
         doc = document()
+        group = doc["tracking"]["plan"]["groups"][0]
         transition(doc, "start-job", "fix", "fix-1")
         finish(doc, "fix", "fix-1", code=1)
+        row = group["failure_history"][-1]
+        self.assertEqual((row["source"], row["tool_fault"], row["fault_kind"]), ("fix", True, "fix_job_exit"))
+        self.assertEqual(manager._counted_failures(group["failure_history"]), [])
+        self.assertEqual(group["phase"], "fix")
+        transition(doc, "start-job", "fix", "fix-2")
+        finish(doc, "fix", "fix-2", code=1)
+        self.assertNotEqual(group["status"], "blocked")
+        transition(doc, "start-job", "fix", "fix-3")
+        finish(doc, "fix", "fix-3", code=1)
+        self.assertEqual((group["status"], group["blocked_reason"]), ("blocked", "Repeated tool faults"))
+
+    def test_passed_fix_resets_the_failed_job_streak(self):
+        doc = document()
+        group = doc["tracking"]["plan"]["groups"][0]
+        for n in (1, 2):
+            transition(doc, "start-job", "fix", f"fix-{n}")
+            finish(doc, "fix", f"fix-{n}", code=1)
+        transition(doc, "start-job", "fix", "fix-3")
+        finish(doc, "fix", "fix-3")
+        self.assertEqual(group["codex"]["tool_fault_streak"], 0)
+        transition(doc, "start-job", "fix", "fix-4")
+        finish(doc, "fix", "fix-4", code=1)
+        self.assertNotEqual(group["status"], "blocked")
+
+    def test_plan_review_changes_keeps_fix_gate_closed_without_counting_a_failure(self):
+        doc = document()
+        manager._record_lane_failure(doc, "ISSUE-01", "review-1", "review", "review failed")
         group = doc["tracking"]["plan"]["groups"][0]
         for n in (1, 2):
             transition(doc, "start-job", "plan_review", f"plan-{n}")
@@ -132,7 +165,10 @@ class JobLifecycleTests(unittest.TestCase):
                "## ROOT CAUSE\nwhy\n## FAILING TEST\ntest_lane"))
         self.assertEqual(group["plan_review_history"][-1]["after_failure"], "failed-A")
         transition(doc, "start-job", "fix", "fix-B", ids=["ISSUE-02"])
-        finish(doc, "fix", "fix-B", code=1)
+        finish(doc, "fix", "fix-B")
+        transition(doc, "start-job", "review", "review-B", ids=["ISSUE-02"])
+        finish(doc, "review", "review-B", reply="VERDICT: CHANGES\n## Must-fix\n1. still broken",
+               timestamp="2026-11-21T00:00:02Z")
         self.assertEqual(group["status"], "blocked")
 
     def _second_review_failure(self, reply):
@@ -306,8 +342,7 @@ class JobLifecycleTests(unittest.TestCase):
 
     def test_repeated_plan_review_cut_offs_block_the_lane_without_counting(self):
         doc = document()
-        transition(doc, "start-job", "fix", "fix-1")
-        finish(doc, "fix", "fix-1", code=1)
+        manager._record_lane_failure(doc, "ISSUE-01", "review-1", "review", "review failed")
         group = doc["tracking"]["plan"]["groups"][0]
         for n in (1, 2):
             transition(doc, "start-job", "plan_review", f"plan-{n}")
