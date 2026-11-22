@@ -10860,8 +10860,8 @@
     },
     "workflow": {
       "stage": "introspect",
-      "updated_at": "2026-11-21T17:08:29Z",
-      "now": "2026-11-21T17:08:29Z — Introspection recorded"
+      "updated_at": "2026-11-22T03:32:26Z",
+      "now": "2026-11-22T03:32:26Z — Lane R1-ADD updated"
     },
     "rollover": {
       "source_pr": 118,
@@ -12238,7 +12238,7 @@
             "BCL-124",
             "BCL-126"
           ],
-          "status": "verifying",
+          "status": "verified",
           "worktree": "bcl119-direct",
           "label": "BCL-123, BCL-124, BCL-126",
           "verify": {
@@ -12309,8 +12309,8 @@
               "at": "2026-11-21T16:23:26Z"
             }
           ],
-          "updated_at": "2026-11-21T17:05:46Z",
-          "phase": "verify",
+          "updated_at": "2026-11-22T03:32:26Z",
+          "phase": "done",
           "unblock_history": [
             {
               "at": "2026-11-21T16:20:21Z",
@@ -12334,7 +12334,8 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-21T17:05:18Z"
-          }
+          },
+          "reason": "BCL-124 deletion reverted (Guru 2026-11-21); BCL-124 carried to round 2"
         },
         {
           "id": "R1-RELEASE",
@@ -12343,7 +12344,7 @@
             "BCL-125",
             "BCL-127"
           ],
-          "status": "review",
+          "status": "deferred",
           "worktree": "bcl119-direct",
           "label": "BCL-125, BCL-127",
           "verify": {
@@ -12391,8 +12392,10 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-21T14:17:11Z",
-          "phase": "plan_review"
+          "updated_at": "2026-11-22T03:32:26Z",
+          "phase": "deferred",
+          "reason": "Failed final Sol 6.2 plan review; carried to round 2 under Guru one-time release-check exception (BCL-135)",
+          "parked_to": 2
         },
         {
           "id": "R1-TESTS",
@@ -12457,7 +12460,7 @@
             "BCL-122",
             "BCL-94"
           ],
-          "status": "review",
+          "status": "deferred",
           "worktree": "bcl119-direct",
           "label": "BCL-121, BCL-122, BCL-94",
           "verify": {
@@ -12505,8 +12508,10 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-21T14:17:11Z",
-          "phase": "plan_review"
+          "updated_at": "2026-11-22T03:32:26Z",
+          "phase": "deferred",
+          "reason": "Failed final Sol 6.2 plan review; carried to round 2 under Guru one-time release-check exception (BCL-135)",
+          "parked_to": 2
         }
       ],
       "cycle": 11,
@@ -13189,7 +13194,7 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "untested",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
@@ -13489,6 +13494,78 @@
         "evidence": "Model rule PlanReviewsCapped breaks in 5 steps; real: bcl job accepted plan reviews 4 to 7 on R1-RELEASE and 4 to 6 on R1-ADD",
         "kind": "fix",
         "related": "BCL-121 covers work-done reviews only"
+      }
+    },
+    {
+      "id": "BCL-138",
+      "title": "Two old viewer tests were not restored with the viewer handling",
+      "summary": "The owner kept the old viewer record handling, and its three viewer start tests came back, but two command tests for the same handling stayed deleted: refusing to stop a viewer it cannot identify, and status reconciling an old viewer.",
+      "impact": "The kept behaviour has less test cover than in 0.1.57, so a later change could break it unnoticed.",
+      "recommendation": "Restore the two deleted command tests from 0.1.57 unchanged.",
+      "done_when": "Both tests exist again and pass on the installed version.",
+      "observed": "21 Nov 2026 22:45 IST, bcl 0.1.58 installed, interrogate review of the shipped change",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "interrogate skill review (Sol 6.2 adversary, rerun by orchestrator)",
+        "report": "bcl-119/r1/adv-sol.md",
+        "evidence": "git diff 7a2e709c 65c8dd9b on test_bcl.py removes test_legacy_viewer_is_not_stopped_without_identity and test_status_reconciles_legacy_viewer (deleted in 5b73ec7f, not reverted by fbe629dc)",
+        "kind": "fix"
+      }
+    },
+    {
+      "id": "BCL-139",
+      "title": "The merged verdict test no longer checks that review itself succeeds",
+      "summary": "The five verdict tests became one table test, but the new test writes a list that is already under review, so it no longer checks that the start, plan, fix and review steps succeed.",
+      "impact": "A broken review step would pass the suite; the claim that every check was kept is not true.",
+      "recommendation": "Keep the table test but drive one case through the real start, plan, fix and review steps and assert each succeeds.",
+      "done_when": "Injecting a failing review step makes the merged test fail, and the suite stays as fast.",
+      "observed": "21 Nov 2026 22:45 IST, bcl 0.1.58 installed, interrogate review of the shipped change",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "interrogate skill review (Sol 6.2 adversary, rerun by orchestrator)",
+        "report": "bcl-119/r1/adv-sol.md, r1/advrepro/f2.py",
+        "evidence": "f2.py: with the review stage forced to exit 9, test_review_job_verdicts passes while the 0.1.57 helper fails 9 != 0",
+        "kind": "fix"
+      }
+    },
+    {
+      "id": "BCL-140",
+      "title": "Unknown commands crash on a damaged viewer record instead of saying unknown",
+      "summary": "The command line opens the viewer state before it rejects an unknown or removed command, so a damaged viewer record prints a traceback instead of the unknown stage message.",
+      "impact": "An agent that tries a removed command can get a confusing crash and spend tokens reading it.",
+      "recommendation": "Reject unknown stages before any tracker or viewer setup.",
+      "done_when": "With a damaged viewer record, removed and unknown commands exit with the unknown stage message.",
+      "observed": "21 Nov 2026 22:45 IST, bcl 0.1.58 installed, interrogate review; also present in 0.1.57",
+      "priority": "low",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "interrogate skill review (Sol 6.2 adversary, rerun by orchestrator)",
+        "report": "bcl-119/r1/adv-sol.md, r1/advrepro/f1.py",
+        "evidence": "f1.py: sync-main, merge and an unknown stage exit 1 with a JSON decode traceback on 0.1.58; same for unknown stages on 0.1.57",
+        "kind": "fix"
+      }
+    },
+    {
+      "id": "BCL-141",
+      "title": "Gate badge shows 15 while rollover and merge need 16",
+      "summary": "The page badge counts toward the report gate of 15, but rollover and merging the previous PR need 16; the 16 appears only in a small note, so the owner reads the wrong target.",
+      "impact": "The owner and agents compare progress against 15 and think the list is closer to rolling over than it is.",
+      "recommendation": "Show the rollover target in the badge (for example 4/16), and keep the report gate as a secondary line.",
+      "done_when": "The page badge and bcl status show the rollover target as the main count, with the report gate shown separately.",
+      "observed": "22 Nov 2026 08:45 IST, bcl 0.1.58 installed, PR 119 page on the fixed port",
+      "priority": "medium",
+      "source": "User reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 22 Nov 08:45 IST question: why the gate shows /15 instead of /16",
+        "report": "bcl-119 progress.md",
+        "evidence": "Page badge Fixes 4/15 verified; workflow_definition gate default_threshold 15, merge_previous_pr_threshold 16; note text says rollover needs 16",
+        "kind": "fix"
       }
     }
   ]
