@@ -11226,9 +11226,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T15:56:35Z",
-      "now": "2026-11-22T15:56:35Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T16:03:57Z",
+      "now": "2026-11-22T16:03:57Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12953,7 +12953,7 @@
             "BCL-175"
           ],
           "label": "BCL-175",
-          "status": "review",
+          "status": "running",
           "worktree": "bcl120-r3-175-r3",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r3-175.sh",
@@ -12966,23 +12966,21 @@
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "codex-luna-120-175",
             "reviewer_session": "codex-terra-120-175",
-            "fix_status": "passed",
+            "fix_status": "running",
             "job": {
-              "id": "97f206956baf4e529a6840ffdf2fae14",
+              "id": "cb17414317414329b8ab41afd48a4dad",
               "phase": "fix",
-              "started_at": "2026-11-22T15:32:04Z",
-              "command": "sh",
-              "heartbeat_at": "2026-11-22T15:48:09Z",
+              "started_at": "2026-11-22T16:03:57Z",
+              "command": "run-luna-175-fix2.sh",
+              "heartbeat_at": "2026-11-22T16:03:57Z",
               "plan_sha256": "4257759c2f863172da02a3b4e61a43f3dc2eb47f13ca1511144b1393d76498d6",
               "model": "gpt-6-luna fast medium (Codex)",
               "cycle": 12,
-              "round": 3,
-              "pid": 6407,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T15:48:09Z",
-              "finished_phase_status": "passed"
+              "round": 3
             },
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "reviewer_model": "gpt-6.1-terra medium (Codex)",
+            "must_fix_note": "1. [manage_findings.py:608](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r3-175-r3/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:608) A parked lane with a `blocked_reason` but no counted failures is not considered gated, so it bypasses the new carry-forward logic. A lane blocked for a dependency can therefore be parked and return as `planned` in the next round, allowing a fix job without an unblock. Include parked lanes retaining a blocked reason in the gate and cover that case."
           },
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -12992,10 +12990,28 @@
             "plugins/batched-change-list/skills/batched-change-list/references/*.md",
             "plugins/batched-change-list/skills/batched-change-list/statechart.html"
           ],
-          "failure_history": [],
-          "plan_review_history": [],
+          "failure_history": [
+            {
+              "attempt_id": "bc3a54d34b52410a9c69f7edaccbfb50",
+              "source": "review",
+              "reason": "1. [manage_findings.py:608](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r3-175-r3/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:608) A parked lane with a `blocked_reason` but no counted failures is not considered gated, so it bypasses the new carry-forward logic. A lane blocked for a dependency can therefore be parked and return as `planned` in the next round, allowing a fix job without an unblock. Include parked lanes retaining a blocked reason in the gate and cover that case.",
+              "cycle": 12,
+              "round": 3,
+              "at": "2026-11-22T15:58:09Z"
+            }
+          ],
+          "plan_review_history": [
+            {
+              "job_id": "af7a1617d9d14f2793ceac19ab4a641b",
+              "after_failure": "bc3a54d34b52410a9c69f7edaccbfb50",
+              "status": "passed",
+              "cycle": 12,
+              "round": 3,
+              "at": "2026-11-22T16:03:28Z"
+            }
+          ],
           "updated_at": "2026-11-22T15:31:42Z",
-          "phase": "review"
+          "phase": "fix"
         },
         {
           "id": "DEFER",
