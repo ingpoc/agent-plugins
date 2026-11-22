@@ -11099,9 +11099,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-22T14:58:28Z",
-      "now": "2026-11-22T14:58:28Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-22T14:58:29Z",
+      "now": "2026-11-22T14:58:29Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -12500,7 +12500,8 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 2,
@@ -12709,7 +12710,7 @@
             "BCL-176"
           ],
           "label": "BCL-176",
-          "status": "installing",
+          "status": "verifying",
           "worktree": "bcl120-r2-176-r2",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-176.sh",
@@ -12747,8 +12748,8 @@
           ],
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T13:42:38Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T14:58:29Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
