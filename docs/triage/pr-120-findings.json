@@ -10984,9 +10984,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T13:42:25Z",
-      "now": "2026-11-22T13:42:25Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-22T13:46:59Z",
+      "now": "2026-11-22T13:46:59Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12396,7 +12396,7 @@
             "BCL-145"
           ],
           "label": "BCL-145",
-          "status": "planned",
+          "status": "running",
           "worktree": "bcl120-r1-145",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
@@ -12408,7 +12408,20 @@
           "codex": {
             "model": "Guru subagent worker",
             "implementer_session": "worker-bcl120-r1-145",
-            "reviewer_session": "review-r2-145"
+            "reviewer_session": "review-r2-145",
+            "fix_status": "running",
+            "job": {
+              "id": "15791f5a56e6405ea3dedf7c90d78c02",
+              "phase": "fix",
+              "started_at": "2026-11-22T13:46:28Z",
+              "command": "sh",
+              "heartbeat_at": "2026-11-22T13:46:28Z",
+              "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
+              "model": "Guru subagent worker (66396c6e)",
+              "cycle": 12,
+              "round": 2,
+              "pid": 20430
+            }
           },
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -12418,7 +12431,8 @@
           ],
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T13:42:25Z"
+          "updated_at": "2026-11-22T13:42:25Z",
+          "phase": "fix"
         },
         {
           "id": "R2-DO1",
@@ -12427,8 +12441,8 @@
             "DO-1"
           ],
           "label": "DO-1",
-          "status": "planned",
-          "worktree": "bcl120-r2-do1",
+          "status": "review",
+          "worktree": "bcl120-r2-do1-r2",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-do1.sh",
             "status": "pending",
@@ -12439,7 +12453,24 @@
           "codex": {
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "codex-luna-120-do1",
-            "reviewer_session": "codex-terra-120-do1"
+            "reviewer_session": "codex-terra-120-do1",
+            "fix_status": "passed",
+            "job": {
+              "id": "fecb56635a924c65a93b333aed93ed5b",
+              "phase": "fix",
+              "started_at": "2026-11-22T13:43:01Z",
+              "command": "sh",
+              "heartbeat_at": "2026-11-22T13:44:37Z",
+              "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
+              "model": "gpt-6-luna fast medium (Codex)",
+              "cycle": 12,
+              "round": 2,
+              "pid": 8086,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T13:44:37Z",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
           },
           "files": [
             "plugins/developer-observability/runtime/collector/sources.py",
@@ -12447,7 +12478,8 @@
           ],
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T13:42:25Z"
+          "updated_at": "2026-11-22T13:42:38Z",
+          "phase": "review"
         },
         {
           "id": "R2-176",
@@ -12456,8 +12488,8 @@
             "BCL-176"
           ],
           "label": "BCL-176",
-          "status": "planned",
-          "worktree": "bcl120-r2-176",
+          "status": "review",
+          "worktree": "bcl120-r2-176-r2",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-176.sh",
             "status": "pending",
@@ -12468,14 +12500,30 @@
           "codex": {
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "codex-luna-120-176",
-            "reviewer_session": "none-one-file"
+            "reviewer_session": "none-one-file",
+            "fix_status": "passed",
+            "job": {
+              "id": "7cc36f0740ce42aa985b4dfe0e5abfc0",
+              "phase": "review",
+              "started_at": "2026-11-22T13:46:59Z",
+              "command": "cp",
+              "heartbeat_at": "2026-11-22T13:46:59Z",
+              "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
+              "model": "Grok Bot review (one-file, Terra skipped)",
+              "cycle": 12,
+              "round": 2
+            },
+            "tool_fault_streak": 0,
+            "review_status": "running",
+            "reviewer_model": "Grok Bot review (one-file, Terra skipped)"
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/references/release.md"
           ],
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T13:42:25Z"
+          "updated_at": "2026-11-22T13:42:38Z",
+          "phase": "review"
         },
         {
           "id": "DEFER",
@@ -13472,7 +13520,7 @@
       "summary": "A snapshot lists every finding for a project with no round or window filter, so this round's view of the plugin repository mixed 3 active findings with 20 stale ones from 14 and 20 November, and no finding carries a project field for the change list.",
       "impact": "An agent acting on the snapshot reads old failures as current and spends context on them.",
       "recommendation": "Stamp each event with pull request, round, stage, plugin, group, job and run at capture, from the change list's event log; extend the existing issues query with those filters plus change class and a time window, returning a capped one-line summary first and rows, one finding, and evidence paths only on request; apply noise rules. No new tool, no dashboard.",
-      "done_when": "The ten acceptance checks in the spec pass: round queries return only that round's stamped rows with unstamped counts and gaps, change classes are correct, tier caps and noise rules hold, and the cursor is bound to the filters.",
+      "done_when": "The ten acceptance checks in the spec pass: round queries return only that round's stamped rows with unstamped counts and gaps, change classes are correct, tier caps and noise rules hold, and the cursor is bound to the filters. The app UI shows the same view, filters, drill-down and a per-round timeline of steps and jobs with tokens and outcomes, through the same query as the agent, with readable fonts and zoom and text-size controls.",
       "observed": "22 Nov 2026 19:10 IST, round 1 introspect of PR 120; Guru asked for a per-round high-signal view with progressive disclosure",
       "priority": "high",
       "source": "Agent reported",
@@ -13480,7 +13528,8 @@
       "details": {
         "evidence": "snapshot d017c9e9: owner agent-plugins 20 findings of which 17 stale (last seen 14 and 20 Nov); project field empty on all 150",
         "spec": "~/.agents/artifacts/bcl-120/devobs-round-view.md (19:15 IST, design only). Extend the issues query with pr, round, stage, plugin, kind, status, change (new, recurring, resolved, carried), since, until and tier; four tiers capped at 400 B, 2 KB, 4 KB, 300 B; noise rules drop stale, out-of-window, fixture and self-health rows; unknown dimensions counted as unstamped, never matched. Depends on the change list event stamping (BCL-147).",
-        "acceptance": "1 round+stage query returns only fully stamped rows (0 on 052d5b22, unstamped 8, gap pr120_ci_absent); 2 no cross-PR mixing; 3 AND law across filters, list is OR; 4 new/recurring/resolved/carried; 5 past-round rows absent from a round query; 6 tier caps hold on full snapshot; 7 fixture and storage rows hidden; 8 cursor bound to filters; 9 token coverage 1/2 names grokbot gap; 10 Introspect conclusion without issue@round flagged."
+        "acceptance": "1 round+stage query returns only fully stamped rows (0 on 052d5b22, unstamped 8, gap pr120_ci_absent); 2 no cross-PR mixing; 3 AND law across filters, list is OR; 4 new/recurring/resolved/carried; 5 past-round rows absent from a round query; 6 tier caps hold on full snapshot; 7 fixture and storage rows hidden; 8 cursor bound to filters; 9 token coverage 1/2 names grokbot gap; 10 Introspect conclusion without issue@round flagged.",
+        "ui_acceptance": "Guru 19:15 IST: 11 the observability app UI shows the same per-round view with the same combinable filters (round, pull request, stage, plugin, kind, status, change type); 12 same layered drill-down: summary, list, one finding's evidence, raw path; 13 a per-round timeline of workflow steps and jobs with tokens and outcomes; 14 UI and agent call one shared query, no separate logic (a test compares their results); 15 UI text 14 to 16 px or larger, with zoom and text-size controls."
       }
     },
     {
