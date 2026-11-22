@@ -11016,9 +11016,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T04:37:04Z",
-      "now": "2026-11-22T04:37:04Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T04:37:08Z",
+      "now": "2026-11-22T04:37:08Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12639,7 +12639,8 @@
               "plan_sha256": "7436bdd7c01a10aad2a070531016838baa509dfc7fcf2441c7e77129cd489ac4",
               "model": "gpt-6-luna medium fast (Codex CLI)",
               "cycle": 11,
-              "round": 2
+              "round": 2,
+              "pid": 79417
             },
             "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
@@ -12690,20 +12691,15 @@
             "reviewer_session": "codex-terra-6.1-119r2-137",
             "fix_status": "passed",
             "job": {
-              "id": "3de58ccaf3044459aa10284814f51507",
+              "id": "5f44fcbcc9a14f0eb27fd4d4aa89fa2c",
               "phase": "plan_review",
-              "started_at": "2026-11-22T04:30:35Z",
+              "started_at": "2026-11-22T04:37:08Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T04:31:42Z",
+              "heartbeat_at": "2026-11-22T04:37:08Z",
               "plan_sha256": "7436bdd7c01a10aad2a070531016838baa509dfc7fcf2441c7e77129cd489ac4",
               "model": "gpt-6.2-sol medium (Codex CLI)",
               "cycle": 11,
-              "round": 2,
-              "pid": 72613,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T04:31:42Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. Record the ledger position at unblock and check duplicate job IDs before the cap or reservation logic.\n2. Preserve the budget through same-round membership changes, or reject changes that would discard it.\n3. Authorize cap-only carry from protected runtime state. `update-plan-group` can edit `blocked_reason`."
+              "round": 2
             },
             "tool_fault_streak": 0,
             "review_status": "changes_requested",
