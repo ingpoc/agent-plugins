@@ -5,6 +5,8 @@ import json
 import sys
 from pathlib import Path
 
+REVIEW_STATUSES = ("pending", "running", "passed", "failed", "changes_requested", "blocked", "skipped_one_file")
+
 
 def validate_group_codex(group):
     codex = group.get("codex", {})
@@ -16,8 +18,8 @@ def validate_group_codex(group):
     for name in ("implementer_session", "reviewer_session"):
         if name in codex and (not isinstance(codex[name], str) or not codex[name].strip()):
             raise ValueError(f"{group.get('id', 'group')}: codex.{name} must be a nonempty string when present")
-    if "review_status" in codex and codex["review_status"] not in ("pending", "passed", "failed", "skipped_one_file"):
-        raise ValueError(f"{group.get('id', 'group')}: codex.review_status must be pending, passed, or failed")
+    if "review_status" in codex and codex["review_status"] not in REVIEW_STATUSES:
+        raise ValueError(f"{group.get('id', 'group')}: codex.review_status must be one of {', '.join(REVIEW_STATUSES)}")
 
 
 def install_groups(plan, finding_ids=None):

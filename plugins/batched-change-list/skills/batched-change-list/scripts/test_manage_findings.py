@@ -2325,6 +2325,39 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIn("review_status='passed'", result.stderr)
         self.assertEqual(self.data.read_bytes(), before)
 
+    def test_job_review_statuses_allow_defer_but_not_install_or_unknown_state(self):
+        for action in ("update-plan-group", "set-plan"):
+            with self.subTest(action=action):
+                document = copy.deepcopy(self.document)
+                document["findings"] = document["findings"][:1]
+                group = {"id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [],
+                         "status": "review", "phase": "review",
+                         "codex": {"review_status": "changes_requested", "reviewer_session": "reviewer"},
+                         "failure_history": [{"attempt": 1, "status": "failed"}]}
+                tracking = document.setdefault("tracking", {})
+                tracking.update(cycle=1, round=1, stages_reached=["plan_fix", "review"])
+                if action == "update-plan-group":
+                    tracking["plan"] = {"cycle": 1, "round": 1, "groups": [copy.deepcopy(group)]}
+                    operation = {"action": action, "id": "A", "patch": {"status": "deferred", "phase": "deferred"}}
+                else:
+                    group.update(status="deferred", phase="deferred")
+                    tracking["plan"] = {"cycle": 1, "round": 1, "groups": [copy.deepcopy(group)]}
+                    operation = {"action": action, "plan": {"round": 1, "groups": [group]}}
+                result = self._replay_batch(document, operation)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                saved = json.loads(self.data.read_text())
+                saved_group = saved["tracking"]["plan"]["groups"][0]
+                self.assertEqual((saved_group["status"], saved_group["phase"]), ("deferred", "deferred"))
+                self.assertEqual(saved_group["codex"]["review_status"], "changes_requested")
+                self.assertEqual(saved_group["failure_history"], [{"attempt": 1, "status": "failed"}])
+                self.assertEqual(manage_findings.release_check_payload(saved)["lanes"], [])
+                with self.assertRaisesRegex(ValueError, "install requires codex.review_status"):
+                    check_install_sessions.validate_install_sessions(saved["tracking"]["plan"], ["ISSUE-01"])
+
+        document = copy.deepcopy(self.document)
+        with self.assertRaisesRegex(ValueError, "codex.review_status must be one of"):
+            check_install_sessions.validate_group_codex({"id": "A", "codex": {"review_status": "complete"}})
+
     def test_set_activity_install_dispatches_through_declared_workflow_check(self):
         document = copy.deepcopy(self.document)
         document["findings"][0]["status"] = "in_progress"
