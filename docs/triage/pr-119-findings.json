@@ -11328,9 +11328,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T06:07:25Z",
-      "now": "2026-11-22T06:07:25Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T06:07:28Z",
+      "now": "2026-11-22T06:07:28Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13258,7 +13258,7 @@
           "finding_ids": [
             "BCL-142"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl119-r2-142",
           "label": "BCL-142",
           "verify": {
@@ -13274,20 +13274,15 @@
             "reviewer_session": "codex-terra-6.1-119r2-142",
             "fix_status": "passed",
             "job": {
-              "id": "fcde003316e84cabb4b5b71ef60b1d89",
-              "phase": "review",
-              "started_at": "2026-11-22T06:02:47Z",
+              "id": "7c3f94c338744caa88d20ea267489779",
+              "phase": "plan_review",
+              "started_at": "2026-11-22T06:07:28Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T06:03:54Z",
+              "heartbeat_at": "2026-11-22T06:07:28Z",
               "plan_sha256": "cd19055a4b931f2e57c4e3bf2731abc686026d00e58b215d487ef6840cb82480",
-              "model": "gpt-6.1-terra",
+              "model": "gpt-6.2-sol",
               "cycle": 11,
-              "round": 2,
-              "pid": 59435,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T06:03:54Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. [live_state.py:434](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:434) reads and commits the tracker before acquiring its lock. If another process holds the lock, `snapshot` can commit while that write is in progress, then block only after the commit. Acquire the tracker lock before capture and ensure a held lock or active job is handled safely; add coverage for both cases.\n\n2. [live_state.py:448](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:448) changes the shared snapshot path for **all callers**, so ordinary same-stage updates now create commits. The updated [test](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/test_live_state.py:320) removes the previous assertion that those updates do not commit. Preserve that behavior for existing callers while allowing the explicit snapshot stage to commit a changed copy.\n\nThe new stage does reuse the existing snapshot writer, and the marker is cleared after rendering and Git operations succeed and the captured tracker is checked. This review is based on source inspection; tests were not run in the read-only lane."
+              "round": 2
             },
             "tool_fault_streak": 0,
             "review_status": "changes_requested",
@@ -13306,7 +13301,7 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-22T05:52:07Z",
-          "phase": "fix"
+          "phase": "plan_review"
         },
         {
           "id": "R2-146",
@@ -13338,7 +13333,8 @@
               "plan_sha256": "cd19055a4b931f2e57c4e3bf2731abc686026d00e58b215d487ef6840cb82480",
               "model": "gpt-6-luna",
               "cycle": 11,
-              "round": 2
+              "round": 2,
+              "pid": 75080
             },
             "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra",
