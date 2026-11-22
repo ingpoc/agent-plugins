@@ -953,8 +953,13 @@ def job_transition(document, operation):
                     codex["fix_status"] = "passed" if passed else "failed"
                     group.update(status="review" if passed else "failed", phase="review" if passed else "fix")
                     if not passed:
+                        # Only a review's declared CHANGES counts toward the cap; a failed fix job is an
+                        # uncounted attempt, and three in a row still block through the tool-fault streak.
+                        job_tool_fault = True
                         for identifier in set(operation["ids"]).intersection(group.get("finding_ids", [])):
-                            _record_lane_failure(document, identifier, job_id, "fix", f"Fix job exited {exit_code}")
+                            _record_lane_failure(document, identifier, job_id, "fix", f"Fix job exited {exit_code}",
+                                                 tool_fault=True, tool_fault_reason="failed fix job, not a review finding",
+                                                 fault_kind="fix_job_exit")
                 elif phase == "presuite":
                     group["presuite"] = {"status": "passed" if passed else "failed",
                                          "exit_code": exit_code, "finished_at": stamp}
