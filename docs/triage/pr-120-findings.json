@@ -11226,9 +11226,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T16:19:26Z",
-      "now": "2026-11-22T16:19:26Z — Presuite started"
+      "stage": "install",
+      "updated_at": "2026-11-22T16:24:50Z",
+      "now": "2026-11-22T16:24:50Z — Install in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -12953,7 +12953,7 @@
             "BCL-175"
           ],
           "label": "BCL-175",
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl120-r3-175-r3",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r3-175.sh",
@@ -13016,11 +13016,15 @@
             }
           ],
           "updated_at": "2026-11-22T15:31:42Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-22T16:22:25Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T16:24:50Z"
           }
         },
         {
