@@ -11328,9 +11328,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T07:59:30Z",
-      "now": "2026-11-22T07:59:30Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-22T08:13:34Z",
+      "now": "2026-11-22T08:13:34Z — Install in progress"
     },
     "rollover": {
       "source_pr": 118,
@@ -12709,7 +12709,7 @@
           "finding_ids": [
             "BCL-150"
           ],
-          "status": "review",
+          "status": "blocked",
           "worktree": "bcl119-r2-150",
           "label": "BCL-150",
           "verify": {
@@ -12729,16 +12729,21 @@
               "phase": "review",
               "started_at": "2026-11-22T07:59:30Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T07:59:30Z",
+              "heartbeat_at": "2026-11-22T08:01:15Z",
               "plan_sha256": "2827e92f11444796c0f321afa307d55557fd687c86d679a86de2d9a6d2c1f23d",
               "model": "gpt-6.1-terra",
               "cycle": 11,
-              "round": 2
+              "round": 2,
+              "pid": 9866,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T08:01:15Z",
+              "finished_phase_status": "changes_requested",
+              "must_fix": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:381) lets stored review outcomes override settled lane status. A verified or blocked lane retaining `review_status: passed` renders and counts as “Review passed” or “in review.” Preserve settled outcomes and test a verified lane with a realistic passed review receipt.\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:2739) still touches and writes the tracker when a repeated pause or resume reports a no-op. Return without mutation for those cases, and test that tracker contents remain unchanged."
             },
             "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:473) still derives lane-row labels and counts from the stored status. A paused or jobless active lane can therefore show “Fixing” or “In review,” and a dead job shows “Interrupted · resume needed” rather than its phase. Derive the lane row from the same receipt and pause state as the finding.\n2. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:378) returns stored review outcomes before checking whether an active lane has no live job. For example, an active lane with a completed review receipt and `review_status: passed` shows “Review passed” instead of “Paused · needs resume.” Also render the interrupted `plan_review` phase as “plan review.”\n3. [test_lane_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/test_lane_state.py:68) checks for `>Stale</span>`, which also matches the **hidden** Stale element. Assert that the stale tag is visible, and cover the lane-row text and stored-review precedence above.",
-            "review_status": "running"
+            "must_fix_note": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:381) lets stored review outcomes override settled lane status. A verified or blocked lane retaining `review_status: passed` renders and counts as “Review passed” or “in review.” Preserve settled outcomes and test a verified lane with a realistic passed review receipt.\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:2739) still touches and writes the tracker when a repeated pause or resume reports a no-op. Return without mutation for those cases, and test that tracker contents remain unchanged.",
+            "review_status": "blocked"
           },
           "failure_history": [
             {
@@ -12748,6 +12753,14 @@
               "cycle": 11,
               "round": 2,
               "at": "2026-11-22T07:29:14Z"
+            },
+            {
+              "attempt_id": "096f23f32cd94210a8bbd1f5c0c363e8",
+              "source": "review",
+              "reason": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:381) lets stored review outcomes override settled lane status. A verified or blocked lane retaining `review_status: passed` renders and counts as “Review passed” or “in review.” Preserve settled outcomes and test a verified lane with a realistic passed review receipt.\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:2739) still touches and writes the tracker when a repeated pause or resume reports a no-op. Return without mutation for those cases, and test that tracker contents remain unchanged.",
+              "cycle": 11,
+              "round": 2,
+              "at": "2026-11-22T08:01:15Z"
             }
           ],
           "plan_review_history": [
@@ -12761,7 +12774,9 @@
             }
           ],
           "updated_at": "2026-11-22T07:59:30Z",
-          "phase": "review"
+          "phase": "fix",
+          "blocked_reason": "Second failure",
+          "failure_block_reason": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:381) lets stored review outcomes override settled lane status. A verified or blocked lane retaining `review_status: passed` renders and counts as “Review passed” or “in review.” Preserve settled outcomes and test a verified lane with a realistic passed review receipt.\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:2739) still touches and writes the tracker when a repeated pause or resume reports a no-op. Return without mutation for those cases, and test that tracker contents remain unchanged."
         },
         {
           "id": "R2-145",
@@ -13131,19 +13146,19 @@
             "reviewer_session": "codex-terra-6.1-119r2-146",
             "fix_status": "passed",
             "job": {
-              "id": "a412825970b74d1f8fe787cd786a9fcc",
+              "id": "a54bad77791843ccb5545f474f300800",
               "phase": "presuite",
-              "started_at": "2026-11-22T07:05:33Z",
+              "started_at": "2026-11-22T08:04:54Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-22T07:08:05Z",
-              "plan_sha256": "162d148653b4a7f003cb6789972a80c4b3b48e95131d110c0721acdae3a4eb6e",
+              "heartbeat_at": "2026-11-22T08:09:37Z",
+              "plan_sha256": "2827e92f11444796c0f321afa307d55557fd687c86d679a86de2d9a6d2c1f23d",
               "model": "none",
               "cycle": 11,
               "round": 2,
-              "pid": 86146,
-              "exit_code": 1,
-              "finished_at": "2026-11-22T07:08:05Z",
-              "finished_phase_status": "failed"
+              "pid": 15570,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T08:09:37Z",
+              "finished_phase_status": "passed"
             },
             "reviewer_model": "gpt-6.1-terra",
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
@@ -13209,9 +13224,9 @@
             }
           ],
           "presuite": {
-            "status": "failed",
-            "exit_code": 1,
-            "finished_at": "2026-11-22T07:08:05Z"
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T08:09:37Z"
           }
         },
         {
@@ -13220,7 +13235,7 @@
           "finding_ids": [
             "BCL-141"
           ],
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl119-r2-141",
           "label": "BCL-141",
           "verify": {
@@ -13237,19 +13252,19 @@
             "one_file": true,
             "fix_status": "passed",
             "job": {
-              "id": "a412825970b74d1f8fe787cd786a9fcc",
+              "id": "a54bad77791843ccb5545f474f300800",
               "phase": "presuite",
-              "started_at": "2026-11-22T07:05:33Z",
+              "started_at": "2026-11-22T08:04:54Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-22T07:08:05Z",
-              "plan_sha256": "162d148653b4a7f003cb6789972a80c4b3b48e95131d110c0721acdae3a4eb6e",
+              "heartbeat_at": "2026-11-22T08:09:37Z",
+              "plan_sha256": "2827e92f11444796c0f321afa307d55557fd687c86d679a86de2d9a6d2c1f23d",
               "model": "none",
               "cycle": 11,
               "round": 2,
-              "pid": 86146,
-              "exit_code": 1,
-              "finished_at": "2026-11-22T07:08:05Z",
-              "finished_phase_status": "failed"
+              "pid": 15570,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T08:09:37Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "review_status": "skipped_one_file"
@@ -13257,11 +13272,15 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T07:59:30Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
-            "status": "failed",
-            "exit_code": 1,
-            "finished_at": "2026-11-22T07:08:05Z"
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T08:09:37Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T08:13:34Z"
           }
         },
         {
@@ -14887,7 +14906,8 @@
         "filed_by": "PR 119 round 2",
         "kind": "fix",
         "report": "bcl-119 progress.md",
-        "exception_record": "Guru approved 11:18 IST (his own words via approval card): one-time release-check exception for bcl 0.1.61 only. release-check --ids BCL-136 --ids BCL-138 at 11:19 IST: rc 2, clear false, R2-136 and R2-138 shown in flight at review because installed 0.1.60 has BCL-136. Presuite for both lanes passed at 11:11 IST (r9 db43c514). Covers 0.1.61 only."
+        "exception_record": "Guru approved 11:18 IST (his own words via approval card): one-time release-check exception for bcl 0.1.61 only. release-check --ids BCL-136 --ids BCL-138 at 11:19 IST: rc 2, clear false, R2-136 and R2-138 shown in flight at review because installed 0.1.60 has BCL-136. Presuite for both lanes passed at 11:11 IST (r9 db43c514). Covers 0.1.61 only.",
+        "exception_record_2": "Guru approved 13:42 IST (his own words via widget): Approve a one-time release-check exception for 0.1.62. Covers 0.1.62 only (BCL-141, BCL-146 plus display fix 3fe72f60 and chart regeneration). release-check --ids BCL-141 --ids BCL-146 at 13:40 IST: rc 2, clear false, blocking lanes R2-150 and R2-142 (both blocked after a second counted failure; they stay blocked). Presuite for both lanes passed 13:39 IST (r9 4f1763d4)."
       }
     },
     {
@@ -14918,13 +14938,14 @@
       "observed": "22 Nov 2026 12:29 IST, bcl 0.1.61, PR 119 round 2",
       "priority": "medium",
       "source": "User reported",
-      "status": "untested",
+      "status": "blocked",
       "details": {
         "filed_by": "PR 119 round 2",
         "kind": "fix",
         "report": "bcl-119 progress.md",
         "evidence": "Guru stopped the loop at 11:58 IST; R2-145 and R2-141 (in review) and R2-142 (fixing) had no updates afterwards and the page showed Stale. All their jobs had finished and were recorded by 12:03 IST; nothing was stuck."
-      }
+      },
+      "needs": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:381) lets stored review outcomes override settled lane status. A verified or blocked lane retaining `review_status: passed` renders and counts as “Review passed” or “in review.” Preserve settled outcomes and test a verified lane with a realistic passed review receipt.\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:2739) still touches and writes the tracker when a repeated pause or resume reports a no-op. Return without mutation for those cases, and test that tracker contents remain unchanged."
     },
     {
       "id": "BCL-151",
