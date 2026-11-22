@@ -2543,36 +2543,46 @@ elif args[:2] != ['pr', 'edit']:
         return subprocess.run([sys.executable, str(manager), "batch", str(live), "-", "--render", str(self.page)],
                               input=json.dumps(operations), text=True, capture_output=True, env=self.env)
 
-    def test_definition_controls_verify_refusal_and_dependency_invalidation(self):
-        root = self._lane_copy(lambda lane: lane["groups"]["verify_refused"].remove("blocked"))
-        definition = root / "skills/batched-change-list/scripts/workflow_definition.json"
-        data = json.loads(definition.read_text())
-        data["lane"]["groups"]["dependency_invalidated"].remove("running")
-        definition.write_text(json.dumps(data, indent=2))
-
+    def test_definition_controls_verify_admission(self):
         live, command = self._lane_ready()
+        marker = self.root / "lane-ran"
+        (self.root / "lane.py").write_text(f"from pathlib import Path; Path({str(marker)!r}).touch()\n")
         document = json.loads(live.read_text())
-        lane = document["tracking"]["plan"]["groups"][0]
-        lane.update(status="blocked", phase="verify")
+        document["tracking"]["plan"]["groups"][0].update(status="blocked", phase="verify")
         live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
         baseline = self._run_bcl(BCL, "verify", "--ids", "ISSUE-01", "--then", command)
         self.assertNotEqual(baseline.returncode, 0)
         self.assertIn("verify cannot start a blocked, failed, or parked lane", baseline.stderr)
+        self.assertFalse(marker.exists())
+        root = self._lane_copy(lambda lane: lane["groups"]["verify_refused"].remove("blocked"))
         changed = self._run_bcl(root / "bin/bcl", "verify", "--ids", "ISSUE-01", "--then", command)
-        self.assertNotIn("verify cannot start a blocked, failed, or parked lane", changed.stderr)
+        self.assertEqual(changed.returncode, 0, changed.stderr)
+        self.assertTrue(marker.exists())
 
-        script = ("import json, manage_findings as m; "
-                  "d={'findings':[{'id':'B','status':'in_progress'}], 'tracking':{'round':1,'plan':{'round':1,'groups':["
-                  "{'id':'A','finding_ids':['A'],'status':'verified','phase':'verify'},"
-                  "{'id':'B','finding_ids':['B'],'status':'running','phase':'fix','depends_on':['A']}]},"
-                  "'verification_run':{'checks':{'A':{'state':'passed'}}}}}; "
-                  "p=json.loads(json.dumps(d)); p['findings']=[{'id':'A','status':'verified_fixed','verification_refs':['receipt']},"
-                  "{'id':'B','status':'in_progress'}]; m.invalidate_dependents(d,p); print(d['tracking']['plan']['groups'][1]['status'])")
-        scripts = root / "skills/batched-change-list/scripts"
-        env = {**self.env, "PYTHONPATH": str(scripts)}
-        invalidation = subprocess.run([sys.executable, "-c", script], cwd=scripts, env=env, capture_output=True, text=True)
-        self.assertEqual(invalidation.returncode, 0, invalidation.stderr)
-        self.assertEqual(invalidation.stdout.strip(), "running")
+    def test_one_dependency_group_controls_validation_and_invalidation(self):
+        script = ("import json, manage_findings as m\n"
+                  "groups=[{'id':'A','finding_ids':['A'],'status':'verified','phase':'verify'},"
+                  "{'id':'B','finding_ids':['B'],'status':'running','phase':'fix','depends_on':['A']}]\n"
+                  "try:\n"
+                  "    waiting=json.loads(json.dumps(groups)); waiting[0]['status']='review'; waiting[0]['phase']='review'\n"
+                  "    m.validate_dependencies(waiting, [{'id':'A','status':'in_progress'},{'id':'B','status':'in_progress'}], {})\n"
+                  "    print('accepted')\n"
+                  "except ValueError as error:\n"
+                  "    print('refused' if 'must wait for verified dependencies' in str(error) else 'other:'+str(error).replace(' ','_'))\n"
+                  "d={'findings':[{'id':'A','status':'in_progress'},{'id':'B','status':'in_progress'}],"
+                  "'tracking':{'round':1,'plan':{'round':1,'groups':json.loads(json.dumps(groups))}}}\n"
+                  "p={'findings':[{'id':'A','status':'verified_fixed','verification_refs':['receipt']},{'id':'B','status':'in_progress'}],"
+                  "'tracking':{'round':1,'verification_run':{'checks':{'A':{'state':'passed'}}}}}\n"
+                  "m.invalidate_dependents(d,p)\n"
+                  "print(d['tracking']['plan']['groups'][1]['status'])\n")
+        def decisions(root):
+            scripts = root / "skills/batched-change-list/scripts"
+            run = subprocess.run([sys.executable, "-c", script], cwd=scripts, env={**self.env, "PYTHONPATH": str(scripts)},
+                                 capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            return run.stdout.split()
+        self.assertEqual(decisions(PLUGIN), ["refused", "blocked"])
+        self.assertEqual(decisions(self._lane_copy(lambda lane: lane["groups"]["dependency"].remove("running"))), ["accepted", "running"])
 
     def _one_lane(self):
         live = self._runtime_identity_setup()

@@ -1819,7 +1819,7 @@ def invalidate_dependents(document, previous_document):
     for group in groups:
         status = RENDERER.plan_status(group)
         if (group['id'] in invalid and status == 'verified') or (
-                group['id'] in affected - invalid and status in LANE["groups"]["dependency_invalidated"]):
+                group['id'] in affected - invalid and status in LANE["groups"]["dependency"]):
             group['phase'] = RENDERER.plan_phase(group)
             group['status'] = 'blocked'
             group['blocked_reason'] = 'Prerequisite verification changed'
