@@ -11499,9 +11499,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T09:04:52Z",
-      "now": "2026-11-22T09:04:52Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-22T09:06:17Z",
+      "now": "2026-11-22T09:06:17Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13013,7 +13013,18 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r3-150",
             "reviewer_session": "codex-terra-6.1-119r3-150",
-            "review_status": "pending"
+            "review_status": "pending",
+            "job": {
+              "id": "3c4f88f07b53423e9f7ee20df9b922ae",
+              "phase": "plan_review",
+              "started_at": "2026-11-22T09:06:17Z",
+              "command": "env",
+              "heartbeat_at": "2026-11-22T09:06:17Z",
+              "plan_sha256": "764d59965200f25faf82156584b8bf8d687051853674e439b83e4f06de1c8eb2",
+              "model": "gpt-6.2-astra",
+              "cycle": 11,
+              "round": 3
+            }
           },
           "failure_history": [
             {
@@ -13058,8 +13069,9 @@
               "owner_override": true
             }
           ],
-          "status": "planned",
-          "updated_at": "2026-11-22T09:04:52Z"
+          "status": "review",
+          "updated_at": "2026-11-22T09:04:52Z",
+          "phase": "plan_review"
         },
         {
           "id": "R2-145",
@@ -13642,9 +13654,10 @@
               "round": 2
             }
           ],
-          "status": "planned",
+          "status": "verified",
           "codex": {},
-          "updated_at": "2026-11-22T09:04:52Z"
+          "updated_at": "2026-11-22T09:05:09Z",
+          "phase": "verify"
         },
         {
           "id": "R2-136",
@@ -13681,9 +13694,10 @@
               "at": "2026-11-22T04:31:12Z"
             }
           ],
-          "status": "planned",
+          "status": "verified",
           "codex": {},
-          "updated_at": "2026-11-22T09:04:52Z"
+          "updated_at": "2026-11-22T09:05:09Z",
+          "phase": "verify"
         }
       ],
       "cycle": 11
@@ -15197,6 +15211,24 @@
         "queue": "right after BCL-145 (shares the page renderer)",
         "report": "bcl-119 progress.md",
         "design": "Guru 14:08 IST: deterministic, never agent-written. The bcl stage-transition code path itself stamps stage_entered_at on every lane stage change (single writer, protected runtime field); render derives the duration from it at load. No agent-set fields, no manual edits. Tests: retries and heartbeats do not reset it; a stage change does; page text shows it."
+      }
+    },
+    {
+      "id": "BCL-158",
+      "title": "Plan jobs can start before the round changes, and a new round reopens verified lanes",
+      "summary": "bcl lets planning and plan-review jobs start while the previous round is still at Introspect, so the page shows the old round while next-round work runs. When the next round is planned, verified lanes that had a counted failure must be kept and come back as Planned until corrected by hand.",
+      "impact": "The page shows the wrong round and verified lanes look open in the new round.",
+      "recommendation": "Refuse plan and fix jobs until the round transition is recorded; when a new round is planned, keep verified lanes with failure history as Verified (or archive them) instead of reopening them.",
+      "done_when": "Starting a plan job before the round transition is refused with a message naming bcl plan; a new round keeps verified lanes Verified; tests cover both.",
+      "observed": "22 Nov 2026 14:32 IST, bcl 0.1.62, PR 119 round 2 to 3",
+      "priority": "high",
+      "source": "User requested",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 14:32 IST (via parent)",
+        "kind": "fix",
+        "report": "bcl-119 progress.md",
+        "evidence": "Round-3 Astra planning ran from 14:30 IST while the page still showed Round 2 Introspect (the planning ran outside bcl because no bcl stage covers it; bcl did not and could not refuse). The round-3 bcl plan refused to rename gated lanes (R2-150 must stay R2-150) and required gated verified lanes R2-146 and R2-136, which came back Planned and were set back to Verified with update-plan-group."
       }
     }
   ]
