@@ -1,3 +1,7 @@
+## 0.1.69
+
+- Release guidance: a lane release runs presuite scoped with `check.py --changed-since <last release>` and records which plugins ran; merge to main and Origin CI still run the full suite (BCL-176).
+
 ## 0.1.68
 
 - `bcl snapshot` saves a pending tracker copy on its own: it saves the live list, renders the page, commits when the saved copy differs, and clears the pending mark (BCL-142).
