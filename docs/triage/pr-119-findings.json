@@ -11677,6 +11677,202 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "r3-eadc2408-119",
+        "build": "0.1.63",
+        "revision": "eadc2408afdd82bc93f5fb751355b817be8bf555",
+        "installed_at": "2026-11-22T10:47:19Z",
+        "install_evidence": "bcl install-local from clean detached worktree at eadc2408: plugin sha 01cf2d0d (5 copies), skill sha abd4edc8",
+        "cycle": 11,
+        "status": "interrupted",
+        "checks": {
+          "ACU-10": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "ACU-21": {
+            "state": "pending"
+          },
+          "BCL-94": {
+            "state": "pending"
+          },
+          "BCL-96": {
+            "state": "pending"
+          },
+          "BCL-97": {
+            "state": "pending"
+          },
+          "BCL-100": {
+            "state": "pending"
+          },
+          "BCL-103": {
+            "state": "pending"
+          },
+          "BCL-106": {
+            "state": "pending"
+          },
+          "BCL-108": {
+            "state": "pending"
+          },
+          "BCL-110": {
+            "state": "pending"
+          },
+          "BCL-111": {
+            "state": "pending"
+          },
+          "BCL-112": {
+            "state": "pending"
+          },
+          "BCL-113": {
+            "state": "pending"
+          },
+          "BCL-114": {
+            "state": "pending"
+          },
+          "BCL-115": {
+            "state": "pending"
+          },
+          "BCL-117": {
+            "state": "pending"
+          },
+          "BCL-118": {
+            "state": "pending"
+          },
+          "BCL-119": {
+            "state": "pending"
+          },
+          "BCL-120": {
+            "state": "pending"
+          },
+          "BCL-121": {
+            "state": "pending"
+          },
+          "BCL-122": {
+            "state": "pending"
+          },
+          "BCL-123": {
+            "state": "pending"
+          },
+          "BCL-124": {
+            "state": "pending"
+          },
+          "BCL-125": {
+            "state": "pending"
+          },
+          "BCL-126": {
+            "state": "pending"
+          },
+          "BCL-127": {
+            "state": "pending"
+          },
+          "BCL-128": {
+            "state": "pending"
+          },
+          "BCL-129": {
+            "state": "pending"
+          },
+          "BCL-130": {
+            "state": "pending"
+          },
+          "BCL-131": {
+            "state": "pending"
+          },
+          "BCL-132": {
+            "state": "pending"
+          },
+          "BCL-133": {
+            "state": "pending"
+          },
+          "BCL-134": {
+            "state": "pending"
+          },
+          "BCL-135": {
+            "state": "pending"
+          },
+          "BCL-136": {
+            "state": "pending"
+          },
+          "BCL-137": {
+            "state": "pending"
+          },
+          "BCL-138": {
+            "state": "pending"
+          },
+          "BCL-139": {
+            "state": "pending"
+          },
+          "BCL-140": {
+            "state": "pending"
+          },
+          "BCL-141": {
+            "state": "pending"
+          },
+          "BCL-142": {
+            "state": "pending"
+          },
+          "BCL-143": {
+            "state": "pending"
+          },
+          "BCL-144": {
+            "state": "pending"
+          },
+          "BCL-145": {
+            "state": "pending"
+          },
+          "BCL-146": {
+            "state": "pending"
+          },
+          "BCL-147": {
+            "state": "pending"
+          },
+          "BCL-148": {
+            "state": "pending"
+          },
+          "BCL-149": {
+            "state": "pending"
+          },
+          "BCL-150": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-22T10:50:39Z",
+            "started_at": "2026-11-22T10:50:32Z",
+            "updated_at": "2026-11-22T10:50:39Z",
+            "check_id": "27f8a1422a9841e29486cac9e8a39bed",
+            "evidence": "Checked: The installed version: its lane status, stale, pause and resume tests, and the live tracker page; Expected: A paused round shows Paused instead of Stale, no job starts while paused, resuming clears it, and Stale appears only for an overdue running job; Observed: All five installed checks passed and the live page shows lane rows with Stale hidden",
+            "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-150.log. Run r3-eadc2408-119.",
+            "finished_at": "2026-11-22T10:50:39.614768Z"
+          },
+          "BCL-151": {
+            "state": "pending"
+          },
+          "BCL-152": {
+            "state": "pending"
+          },
+          "BCL-153": {
+            "state": "pending"
+          },
+          "BCL-154": {
+            "state": "pending"
+          },
+          "BCL-155": {
+            "state": "pending"
+          },
+          "BCL-156": {
+            "state": "pending"
+          },
+          "BCL-157": {
+            "state": "pending"
+          },
+          "BCL-158": {
+            "state": "pending"
+          },
+          "BCL-159": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -11691,9 +11887,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-22T11:12:20Z",
-      "now": "2026-11-22T11:12:20Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-22T11:12:21Z",
+      "now": "2026-11-22T11:12:21Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 118,
@@ -13325,7 +13521,7 @@
             "BCL-153"
           ],
           "label": "BCL-153",
-          "status": "installing",
+          "status": "verifying",
           "worktree": "bcl119-r3-153",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-153.sh",
@@ -13378,8 +13574,8 @@
               "at": "2026-11-22T11:02:40Z"
             }
           ],
-          "updated_at": "2026-11-22T11:06:03Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T11:12:21Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -13390,9 +13586,9 @@
             "started_at": "2026-11-22T11:12:20Z"
           },
           "stage_model": {
-            "stage": "install",
-            "model": "scripted install",
-            "at": "2026-11-22T11:12:20Z"
+            "stage": "verify",
+            "model": "verify-153.sh",
+            "at": "2026-11-22T11:12:21Z"
           }
         },
         {
@@ -14114,11 +14310,11 @@
       "cycle": 11
     },
     "verification_run": {
-      "id": "r3-eadc2408-119",
-      "build": "0.1.63",
-      "revision": "eadc2408afdd82bc93f5fb751355b817be8bf555",
-      "installed_at": "2026-11-22T10:47:19Z",
-      "install_evidence": "bcl install-local from clean detached worktree at eadc2408: plugin sha 01cf2d0d (5 copies), skill sha abd4edc8",
+      "id": "r3-574955fb-119",
+      "build": "0.1.64",
+      "revision": "574955fbdaded062c29c44a344f6526dbba7d238",
+      "installed_at": "2026-11-22T11:12:06Z",
+      "install_evidence": "bcl install-local from clean detached worktree at 574955fb: plugin sha 94068e73 (5 copies), skill sha e2a5d548",
       "cycle": 11,
       "status": "active",
       "checks": {
@@ -14270,15 +14466,7 @@
           "state": "pending"
         },
         "BCL-150": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-22T10:50:39Z",
-          "started_at": "2026-11-22T10:50:32Z",
-          "updated_at": "2026-11-22T10:50:39Z",
-          "check_id": "27f8a1422a9841e29486cac9e8a39bed",
-          "evidence": "Checked: The installed version: its lane status, stale, pause and resume tests, and the live tracker page; Expected: A paused round shows Paused instead of Stale, no job starts while paused, resuming clears it, and Stale appears only for an overdue running job; Observed: All five installed checks passed and the live page shows lane rows with Stale hidden",
-          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-150.log. Run r3-eadc2408-119.",
-          "finished_at": "2026-11-22T10:50:39.614768Z"
+          "state": "pending"
         },
         "BCL-151": {
           "state": "pending"
@@ -14305,6 +14493,12 @@
           "state": "pending"
         },
         "BCL-159": {
+          "state": "pending"
+        },
+        "BCL-160": {
+          "state": "pending"
+        },
+        "BCL-161": {
           "state": "pending"
         }
       }
