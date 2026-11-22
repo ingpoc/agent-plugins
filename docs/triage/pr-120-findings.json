@@ -10984,9 +10984,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T14:00:11Z",
-      "now": "2026-11-22T14:00:11Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T14:14:40Z",
+      "now": "2026-11-22T14:14:40Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12396,7 +12396,7 @@
             "BCL-145"
           ],
           "label": "BCL-145",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl120-r1-145",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
@@ -12409,22 +12409,22 @@
             "model": "Guru subagent worker",
             "implementer_session": "worker-bcl120-r1-145",
             "reviewer_session": "review-r2-145",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "bcfeffecd9bb49b7a372eba7874ffb23",
-              "phase": "fix",
-              "started_at": "2026-11-22T14:00:11Z",
+              "id": "1098f0e97aa945eaafa9d292785ad8e0",
+              "phase": "review",
+              "started_at": "2026-11-22T14:14:40Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T14:00:11Z",
+              "heartbeat_at": "2026-11-22T14:14:40Z",
               "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
-              "model": "gpt-6-luna fast medium (Codex)",
+              "model": "gpt-6.1-terra medium (Codex)",
               "cycle": 12,
-              "round": 2,
-              "pid": 48356
+              "round": 2
             },
             "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra medium (Codex)",
-            "must_fix_note": "1. [manage_findings.py:549](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:549) permits a plan write to newly claim `codex.fix_status`, `codex.review_status`, or `codex.plan_review_status` as `\"pending\"` when the stored field is absent. This exception also applies to raw `update-plan-group` patches, which can persist the new field. The requested guard forbids newly claiming protected fields, including pending values.\n\n2. Lane membership remains duplicated in [bcl:753](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:753), [bcl:763](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:763), and [manage_findings.py:1814](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1814). Changing the shared groups will therefore leave verify admission and dependency invalidation using stale membership rules."
+            "must_fix_note": "1. [manage_findings.py:549](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:549) permits a plan write to newly claim `codex.fix_status`, `codex.review_status`, or `codex.plan_review_status` as `\"pending\"` when the stored field is absent. This exception also applies to raw `update-plan-group` patches, which can persist the new field. The requested guard forbids newly claiming protected fields, including pending values.\n\n2. Lane membership remains duplicated in [bcl:753](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:753), [bcl:763](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:763), and [manage_findings.py:1814](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1814). Changing the shared groups will therefore leave verify admission and dependency invalidation using stale membership rules.",
+            "review_status": "running"
           },
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -12453,7 +12453,7 @@
             }
           ],
           "updated_at": "2026-11-22T13:42:25Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "R2-DO1",
