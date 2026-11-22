@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-22T13:16:52Z",
-      "now": "2026-11-22T13:16:52Z — Verify in progress"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T13:28:03Z",
+      "now": "2026-11-22T13:28:03Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12303,7 +12303,7 @@
             "BCL-142"
           ],
           "label": "BCL-142",
-          "status": "deferred",
+          "status": "running",
           "worktree": "bcl120-r1-142",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-142.sh",
@@ -12313,15 +12313,26 @@
             "total": 1
           },
           "codex": {
-            "model": "Guru's subagent (parent-dispatched worker)",
+            "model": "Guru subagent worker",
             "implementer_session": "worker-bcl120-r1-142",
-            "reviewer_session": "review-r2-142"
+            "fix_status": "running",
+            "job": {
+              "id": "3fa77b69339d4841a27f21b722f7f83d",
+              "phase": "fix",
+              "started_at": "2026-11-22T13:28:03Z",
+              "command": "sh",
+              "heartbeat_at": "2026-11-22T13:28:03Z",
+              "plan_sha256": "1aea6f3ce95b1c0a37be81b22dd9edc85d7924fedc058d4be84fb9a62c12ae0e",
+              "model": "Guru subagent worker (78efdcf0)",
+              "cycle": 12,
+              "round": 1
+            }
           },
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 2,
-          "updated_at": "2026-11-22T13:17:47Z",
-          "phase": "deferred"
+          "updated_at": "2026-11-22T13:18:04Z",
+          "phase": "fix"
         },
         {
           "id": "R2-145",
@@ -12330,7 +12341,7 @@
             "BCL-145"
           ],
           "label": "BCL-145",
-          "status": "deferred",
+          "status": "planned",
           "worktree": "bcl120-r1-145",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
@@ -12340,15 +12351,14 @@
             "total": 1
           },
           "codex": {
-            "model": "Guru's subagent (parent-dispatched worker)",
-            "implementer_session": "worker-bcl120-r1-145",
-            "reviewer_session": "review-r2-145"
+            "model": "Guru subagent worker",
+            "implementer_session": "worker-bcl120-r1-145"
           },
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 2,
-          "updated_at": "2026-11-22T13:17:47Z",
-          "phase": "deferred"
+          "updated_at": "2026-11-22T13:18:04Z",
+          "phase": "pending"
         },
         {
           "id": "DEFER",
@@ -12715,20 +12725,21 @@
       "title": "Introspect does not look across rounds and PRs for repeated waste",
       "summary": "Introspect does not scan across rounds for repeated waste, and no workflow-level Introspect runs after a merge to gate the next Collect.",
       "impact": "Patterns that repeat across lanes and rounds (review loops, interrupted runs, retries, token-heavy steps, hand work outside bcl) are never reviewed as a whole, so they recur in the next PR.",
-      "recommendation": "Add a cross-round scan to the Introspect draft that requires a workflow change when a kind repeats, replacing free-form repeat notes; add a post-merge Introspect over the whole PR's measured job data that names repeating patterns, records cuts in the order delete, simplify, optimize, automate, and gates the next Collect.",
-      "done_when": "Introspect flags repeats across rounds with a required change, and the next PR's Collect is refused until the post-merge Introspect is recorded; tests cover both.",
+      "recommendation": "Add a cross-round scan to the Introspect draft that requires a workflow change when a kind repeats, replacing free-form repeat notes; add a post-merge Introspect over the whole PR's measured job data that names repeating patterns, records cuts in the order delete, simplify, optimize, automate, and gates the next Collect. Seed the draft from the observability issues of the round's verify window and require a finding key or evidence path on every item, flagging or dropping items without one. Report tokens used per round and per group, step and job from observability task usage, compared with the previous round; name any missing token source (Codex or Grok Bot subagents) and include adding it. Judge whether the observability evidence was correct and useful (missing kinds, noise, stale data, wrong attribution) and file needed observability fixes as DO issues through add or into.",
+      "done_when": "Introspect flags repeats across rounds with a required change, and the next PR's Collect is refused until the post-merge Introspect is recorded; tests cover both. Each Introspect item cites a finding key or evidence path or is flagged; the Introspect shows tokens per round and per group, step and job with the previous round's figures, or names the missing source; it records an evidence-quality verdict and files or appends DO issues for gaps; tests cover each.",
       "observed": "21 Nov 2026 08:46 to about 10:25 IST, PR 118 round 3 ran nine plan reviews in a row on the same two lanes, and the orchestrating run was interrupted and resumed three times; nothing in bcl reviews that pattern across the PR.",
       "priority": "medium",
       "source": "Agent reported",
       "status": "untested",
       "details": {
         "filed_by": "Guru 10:21 IST t1605u (north star goal, via parent)",
-        "carry_to_round": "4",
+        "carry_to_round": "4 | Acceptance added Guru 18:52-18:57 IST 22 Nov: evidence on every conclusion, tokens per round/group/step/job vs previous round, evidence-quality verdict filing DO issues. Snapshot 052d5b22, 18:55:18 IST.",
         "kind": "goal",
         "related": "BCL-118 timeline, BCL-119 token and time data",
         "refined_by": "Guru 10:24 IST t1606u (evidence bar, via parent)",
         "root_cause_group": "M-INTROSPECT (merged by class, Guru 17:33)",
-        "merged_from": "BCL-100: Introspect does not look across rounds for repeated waste"
+        "merged_from": "BCL-100: Introspect does not look across rounds for repeated waste",
+        "also reported as BCL-173": "Introspect conclusions carry no observability evidence The Introspect draft is built from the agent's own step list; nothing seeds it from recorded observability issues for the verify window, and conclusions need no evidence. 22 Nov 2026 18:54 IST, Guru rule and read-only audit; last collector run before today 20 Nov 16:41 IST; fresh snapshot 052d5b22 taken 18:55 IST"
       }
     },
     {
@@ -12968,7 +12979,8 @@
         "evidence": "R2-144 fix run 1 explored and stopped without a commit, exit 0; bcl set fix passed and the lane showed In review; the wrapper now exits 3 when the head is unchanged",
         "kind": "fix",
         "root_cause_group": "M-RECEIPTS (merged by class, Guru 17:33)",
-        "merged_from": "BCL-119: Goal: every job records tokens and wall time, and Introspect ranks the costliest steps"
+        "merged_from": "BCL-119: Goal: every job records tokens and wall time, and Introspect ranks the costliest steps",
+        "also reported as BCL-174": "Change list job and verify logs are not observability sources The logs of verify, the full suite and lane jobs are not registered as collector sources, so failures and slow steps in the change list workflow never reach observability. 22 Nov 2026 18:54 IST, Guru rule and read-only audit; last collector run before today 20 Nov 16:41 IST; fresh snapshot 052d5b22 taken 18:55 IST"
       }
     },
     {
@@ -13128,7 +13140,8 @@
         "report": "bcl-119 progress.md",
         "evidence": "bcl verify --then verify-150.sh printed 5/5 and exited 0, but the lane stayed verifying with 0 fixed and the finding stayed in progress; it became verified only after record_r2.py ran start-check, record-evidence, update and finish-check through the batch writer.",
         "root_cause_group": "M-VERIFY (merged by class, Guru 17:33)",
-        "merged_from": "BCL-97: Rechecks fold into an issue's verdict"
+        "merged_from": "BCL-97: Rechecks fold into an issue's verdict",
+        "also reported as BCL-172": "Verify does not take or cite observability snapshots Verify guidance asks for observability snapshots, but no step takes one; checks record no finding key or session reference, and an old snapshot could be cited as proof. 22 Nov 2026 18:54 IST, Guru rule and read-only audit; last collector run before today 20 Nov 16:41 IST; fresh snapshot 052d5b22 taken 18:55 IST"
       }
     },
     {
@@ -13167,6 +13180,33 @@
         "report": "bcl-119 progress.md",
         "evidence": "17:40 IST merge by class: 15 absorbed issues were folded via update and delete after bcl stop-verify on run r3-048c36c3-119.",
         "root_cause_group": "M-TRACKER"
+      }
+    },
+    {
+      "id": "BCL-171",
+      "title": "Collect never reads developer observability findings",
+      "summary": "The Collect stage asks for an observability snapshot but nothing runs one; the last collection before today was two days old and none of the 30 open issues on this list carries observability evidence.",
+      "impact": "Issues are filed from memory and chat instead of recorded failures, and repeats are missed.",
+      "recommendation": "At Collect, run the observability collector when the snapshot is stale, read its diagnosis and issue list for the project, and file or append each relevant finding with its finding key through the normal add and into path. Keep the dashboard and the decider off this path, and do not grow the main skill file.",
+      "done_when": "Collect runs the collector when stale, every issue it files carries a finding key and evidence path, and a test covers a stale snapshot triggering a run.",
+      "observed": "22 Nov 2026 18:54 IST, Guru rule and read-only audit; last collector run before today 20 Nov 16:41 IST; fresh snapshot 052d5b22 taken 18:55 IST",
+      "priority": "high",
+      "source": "User reported",
+      "status": "untested"
+    },
+    {
+      "id": "BCL-175",
+      "title": "Making a fresh lane worktree always rewrites the live list",
+      "summary": "The new fresh-worktree command creates the worktree and records the new worktree name on the lane in one step, so a worker who only needs a worktree for a lane has to make it by hand to avoid changing the live list.",
+      "impact": "The R2-142 worker made its worktree by hand on top of the list head, so the command added in this round was skipped on its first real use.",
+      "recommendation": "Add a dry-run that prints what the command would do, and let a lane's worktree be made without writing the list; record the name only when the lane's next job starts.",
+      "done_when": "A worker can make a lane's fresh worktree without changing the live list, the lane records it when its next job starts, and a test covers both.",
+      "observed": "22 Nov 2026 18:57 IST, PR 120 R2-142 worker (commit 78efdcf0 on base 871800c0)",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "root_cause_group": "M-ROUND (same class as BCL-158, which is verified)"
       }
     }
   ]
