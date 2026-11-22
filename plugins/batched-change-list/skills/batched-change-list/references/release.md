@@ -1,5 +1,7 @@
 # Release checks
 
+Ship every round: release verified fixes as a patch (`release-check --ids`); carry the rest. 16 gate = rollover/merge only.
+
 Before pushing or installing a release, run `bcl release-check --ids ID` for each finding shipped in this version (repeat `--ids` as needed). A named lane is included only after its fix and review pass; every other in-flight lane remains listed until included or deferred, so do not ship a version that silently drops lane work.
 
 After `bcl install-local`, or any install of a newly shipped tool version, run `bcl resort-failures`. It lists counted failures whose tool-recorded fault kind (cut-off or incomplete review, quota-out) makes them tool faults, and `ambiguous` legacy rows whose old reason text cannot tell a cut-off from a CHANGES reply; reviewer text is never classified. Apply with `bcl resort-failures --apply --reason "why"` to uncount the tool faults and reopen lanes that no longer meet the two-failure block; an ambiguous row is uncounted only when you read its reply and name it with `--tool-fault ATTEMPT`. Leave real code failures counted. For a single already-blocked lane, `bcl unblock --ids ID --reason "why" --tool-fault ATTEMPT` still uncounts a named attempt. This sort is not Introspect and not rollover: a new list still carries existing `failing` and `blocked` statuses until this check runs.

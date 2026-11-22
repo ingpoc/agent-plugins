@@ -358,7 +358,7 @@ def main():
     parser.add_argument("--phase", choices=("plan_review", "fix", "review", "presuite"))
     parser.add_argument("--model", help="job, install or verify: who runs this step, shown in the lane model column")
     parser.add_argument("--round", type=int, help="correct-round: the real round number")
-    parser.add_argument("--reason", help="why an override, verify rerun, cleanup failure, stopped run, or resort-failures apply is recorded")
+    parser.add_argument("--reason", help="why an override, verify rerun, cleanup failure, stopped run, resort-failures apply, or hotfix applies")
     parser.add_argument("--tool-fault", action="append", default=[], help="unblock or resort-failures --apply: failure attempt ID recorded as a tool fault; repeat for each attempt")
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
     parser.add_argument("--shared", action="store_true")
@@ -470,6 +470,17 @@ def main():
         payload = manage_findings.release_check_payload(data, args.ids)
         print(json.dumps(payload, indent=2))
         raise SystemExit(0 if payload["clear"] else 2)
+    if args.stage == "hotfix":
+        if len(args.ids) != 1 or not args.ids[0].startswith("BCL-"):
+            parser.error("hotfix requires exactly one BCL- finding ID via --ids")
+        try:
+            reason = manage_findings.require_override_reason(args.reason, "hotfix")
+            report, base = live_state.report_paths(record, live)
+            _job_write(record, live, report, base, [{"action": "add-hotfix-lane", "id": args.ids[0],
+                         "reason": reason, "at": _utc_now()}])
+        except (OSError, RuntimeError, ValueError) as error:
+            parser.error(str(error))
+        return
     if args.stage == "resort-failures":
         if args.apply:
             try:

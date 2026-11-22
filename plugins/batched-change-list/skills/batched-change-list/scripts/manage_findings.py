@@ -640,7 +640,7 @@ def in_flight_lanes(document, included_ids=None):
     groups = plan.get("groups") if isinstance(plan.get("groups"), list) else []
     lanes = []
     for group in groups:
-        if not isinstance(group, dict):
+        if not isinstance(group, dict) or group.get("hotfix"):
             continue
         if _included_for_release(group, included_ids):
             continue
@@ -1523,7 +1523,7 @@ def validate_plan_groups(plan: dict) -> None:
     if not isinstance(groups, list):
         return
     # count lanes as the page does; finished, deferred, parked, blocked and failed lanes do not take a slot
-    active = [g for g in groups if isinstance(g, dict)
+    active = [g for g in groups if isinstance(g, dict) and not g.get("hotfix")
               and RENDERER.plan_status(g) not in {"verified", "deferred", "parked", "blocked", "failed"}]
     if len(active) > MAX_ROUND_LANES:
         raise ValueError(f"a round runs at most {MAX_ROUND_LANES} lanes (plan has {len(active)}); defer the rest to the next round")
@@ -2168,6 +2168,23 @@ def run(args, parser):
                 if not isinstance(operation, dict):
                     raise ValueError("batch operation must be an object")
                 action = operation.get("action")
+                if action == "add-hotfix-lane":
+                    tracking = store["document"].setdefault("tracking", {})
+                    plan = tracking.get("plan")
+                    identifier, reason = operation.get("id"), operation.get("reason")
+                    if not isinstance(identifier, str) or not identifier.startswith("BCL-"):
+                        raise ValueError("hotfix requires a BCL- finding ID")
+                    if not isinstance(reason, str) or not reason.strip():
+                        raise ValueError("hotfix requires --reason \"why\"")
+                    if not isinstance(plan, dict) or not isinstance(plan.get("groups"), list) or plan.get("round") != RENDERER.rollover_round(tracking):
+                        raise ValueError("hotfix requires a plan for the current round")
+                    if any(g.get("hotfix") and RENDERER.plan_status(g) not in {"verified", "deferred", "parked"} for g in plan["groups"] if isinstance(g, dict)):
+                        raise ValueError("an open hotfix lane already exists")
+                    item = findings[find_index(findings, identifier)]
+                    plan["groups"].append({"id": f"HOTFIX-{identifier}", "finding_ids": [identifier],
+                                           "status": "planned", "hotfix": {"reason": reason.strip(),
+                                           "at": operation.get("at")}})
+                    continue
                 if action in ("start-job", "attach-job", "heartbeat-job", "finish-job"):
                     job_transition(store["document"], operation)
                     continue
