@@ -1968,4 +1968,33 @@ elif args[:2] != ['pr', 'edit']:
         signal_process.assert_called_once_with(state['pid'], 0)
         self.assertEqual(state_path.read_bytes(), previous)
 
+    def test_legacy_viewer_is_not_stopped_without_identity(self):
+        records = json.loads((self.state / "registry.json").read_text())
+        key, record = next(iter(records.items()))
+        path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        state = {"pid": 28743, "port": 53367, "version": "old", "data": record["live"]}
+        path.write_text(json.dumps(state))
+        unchanged = path.read_bytes()
+        with patch.object(live_state, "STATE", self.state), \
+             patch.object(live_state.os, "kill") as signal_process, \
+             patch.object(live_state.urllib.request, "urlopen") as request:
+            with self.assertRaisesRegex(RuntimeError, "cannot verify viewer ownership"):
+                live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
+        signal_process.assert_called_once_with(state['pid'], 0)
+        request.assert_called_once_with(f"http://127.0.0.1:{state['port']}/__bcl_health", timeout=0.5)
+        self.assertEqual(path.read_bytes(), unchanged)
+
+    def test_status_reconciles_legacy_viewer(self):
+        self.assertEqual(self.call("start").returncode, 0)
+        state = self.viewer_state_path()
+        before = json.loads(state.read_text())
+        before.pop('instance')
+        state.write_text(json.dumps(before))
+        result = self.call('status')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(json.loads(result.stdout)['adopted'])
+        after = json.loads(state.read_text())
+        self.assertNotEqual(after['pid'], before['pid'])
+        self.assertTrue(after.get('instance'))
+
 if __name__ == "__main__": unittest.main()
