@@ -11226,9 +11226,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T15:32:04Z",
-      "now": "2026-11-22T15:32:04Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T15:56:35Z",
+      "now": "2026-11-22T15:56:35Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12953,7 +12953,7 @@
             "BCL-175"
           ],
           "label": "BCL-175",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl120-r3-175-r3",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r3-175.sh",
@@ -12966,18 +12966,23 @@
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "codex-luna-120-175",
             "reviewer_session": "codex-terra-120-175",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
               "id": "97f206956baf4e529a6840ffdf2fae14",
               "phase": "fix",
               "started_at": "2026-11-22T15:32:04Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T15:32:04Z",
+              "heartbeat_at": "2026-11-22T15:48:09Z",
               "plan_sha256": "4257759c2f863172da02a3b4e61a43f3dc2eb47f13ca1511144b1393d76498d6",
               "model": "gpt-6-luna fast medium (Codex)",
               "cycle": 12,
-              "round": 3
-            }
+              "round": 3,
+              "pid": 6407,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T15:48:09Z",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
           },
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -12990,7 +12995,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T15:31:42Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "DEFER",
@@ -13963,7 +13968,7 @@
       "observed": "22 Nov 2026 18:57 IST, PR 120 R2-142 worker (commit 78efdcf0 on base 871800c0)",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "root_cause_group": "M-ROUND (same class as BCL-158, which is verified)",
         "also reported as BCL-179": "Fresh lane worktrees get doubled round suffixes The fresh-worktree command appends the round to the lane's worktree name even when the name already carries a round marker in the middle, so round 2 lanes got names ending in r2 twice. 22 Nov 2026 19:12 IST, PR 120 round 2 lanes R2-DO1 and R2-176",
