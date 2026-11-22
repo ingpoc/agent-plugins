@@ -709,6 +709,26 @@ elif args[:2] != ['pr', 'edit']:
                 self.assertEqual(payload["lanes"], [])
                 self.assertEqual(payload["included"], [{"id": "A", "finding_ids": ["ISSUE-01", "ISSUE-02"]}])
 
+    def test_release_check_blocks_named_lane_with_running_or_failed_presuite(self):
+        cases = (
+            {"status": "running"},
+            {"status": "failed", "job": {"exit_code": 1}},
+        )
+        for presuite in cases:
+            with self.subTest(presuite=presuite):
+                group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "review",
+                         "codex": {"fix_status": "passed", "review_status": "passed", "job": {"exit_code": 0}},
+                         "presuite": presuite}
+                result = self.release_check_for_groups([group], "--ids", "ISSUE-01")
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertEqual(json.loads(result.stdout)["lanes"][0]["id"], "A")
+
+    def test_release_check_without_ids_preserves_payload_keys(self):
+        group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "review",
+                 "codex": {"fix_status": "passed", "review_status": "passed"}}
+        result = self.release_check_for_groups([group])
+        self.assertEqual(set(json.loads(result.stdout)), {"clear", "lanes"})
+
     def test_release_check_keeps_unnamed_reviewed_lane_in_flight(self):
         group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "review",
                  "codex": {"fix_status": "passed", "review_status": "passed"}}
