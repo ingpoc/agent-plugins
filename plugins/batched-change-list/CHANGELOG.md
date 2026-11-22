@@ -1,3 +1,7 @@
+## 0.1.72
+
+- Stage timestamps follow the lane's real progress, including a same-ID replan, and a finished review shows "Review passed" rather than "Paused · needs resume"; plan writes cannot supply `stage_entered_at`; review guides assign version and changelog bumps to integration (BCL-157, BCL-103). Parked and deferred lanes stay parked when another lane is updated.
+
 ## 0.1.71
 
 - Fresh lane worktrees can be planned with `--dry-run` and created without writing the live list (`--no-record`); the next job from that worktree records the name; a fresh name replaces one existing `-rN` marker; a blocked lane can be parked for a later round with a reason and stays blocked until unblock (BCL-175, BCL-179, BCL-180).
