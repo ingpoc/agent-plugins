@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T12:53:48Z",
-      "now": "2026-11-22T12:53:48Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T12:53:50Z",
+      "now": "2026-11-22T12:53:50Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12195,7 +12195,7 @@
             "BCL-134"
           ],
           "label": "BCL-134",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl120-r1-134",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-134.sh",
@@ -12208,21 +12208,22 @@
             "model": "Grok Bot self-implementation (before 18:50 Codex window)",
             "implementer_session": "grokbot-self-120-134",
             "reviewer_session": "grokbot-review-120-134",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "2d1de324447a4de0b4ff1de8d78fc68f",
-              "phase": "fix",
-              "started_at": "2026-11-22T12:53:48Z",
-              "command": "python3",
-              "heartbeat_at": "2026-11-22T12:53:48Z",
+              "id": "757f43c0f9fc400886890d2fe6595d89",
+              "phase": "review",
+              "started_at": "2026-11-22T12:53:50Z",
+              "command": "cp",
+              "heartbeat_at": "2026-11-22T12:53:50Z",
               "plan_sha256": "b44ea4ea4102d4833a4717cc496c930b0e2d478f0685a7e3364f61a91d0c6bcc",
-              "model": "Grok Bot self",
+              "model": "Grok Bot self review",
               "cycle": 12,
               "round": 1
             },
-            "tool_fault_streak": 1,
+            "tool_fault_streak": 0,
             "reviewer_model": "Grok Bot self review",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
+            "review_status": "running"
           },
           "failure_history": [
             {
@@ -12239,7 +12240,7 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-22T12:50:21Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "R2-142",
