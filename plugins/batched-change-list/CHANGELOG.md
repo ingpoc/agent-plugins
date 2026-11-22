@@ -1,3 +1,7 @@
+## 0.1.68
+
+- `bcl snapshot` saves a pending tracker copy on its own: it saves the live list, renders the page, commits when the saved copy differs, and clears the pending mark (BCL-142).
+
 ## 0.1.67
 
 - A new round starts cleanly: plan and fix jobs are refused after the round's introspect until the next plan is recorded; verified lanes stay verified and need not be re-planned; `bcl refresh-worktrees` gives each unverified lane a fresh worktree at the list head with its commits replayed, naming conflicting files; rollover carries gated lanes so the next list must plan them under the same id (BCL-158).

@@ -12321,14 +12321,18 @@
               "phase": "review",
               "started_at": "2026-11-22T13:28:30Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T13:28:30Z",
+              "heartbeat_at": "2026-11-22T13:30:07Z",
               "plan_sha256": "1aea6f3ce95b1c0a37be81b22dd9edc85d7924fedc058d4be84fb9a62c12ae0e",
               "model": "gpt-6.1-terra medium (Codex)",
               "cycle": 12,
-              "round": 1
+              "round": 1,
+              "pid": 68879,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T13:30:07Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (Codex)"
           },
           "failure_history": [],
