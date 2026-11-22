@@ -11887,9 +11887,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T11:25:55Z",
-      "now": "2026-11-22T11:25:55Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T11:44:00Z",
+      "now": "2026-11-22T11:44:00Z — Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13497,7 +13497,7 @@
             }
           ],
           "status": "verified",
-          "updated_at": "2026-11-22T11:14:49Z",
+          "updated_at": "2026-11-22T11:40:43Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13574,7 +13574,7 @@
               "at": "2026-11-22T11:02:40Z"
             }
           ],
-          "updated_at": "2026-11-22T11:14:49Z",
+          "updated_at": "2026-11-22T11:40:43Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13633,7 +13633,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T11:14:49Z",
+          "updated_at": "2026-11-22T11:40:43Z",
           "phase": "review"
         },
         {
@@ -13643,7 +13643,7 @@
             "BCL-154"
           ],
           "label": "BCL-154",
-          "status": "running",
+          "status": "failed",
           "worktree": "bcl119-r3-154",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-154.sh",
@@ -13656,7 +13656,7 @@
             "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
             "implementer_session": "grokbot-self-119r3-154",
             "reviewer_session": "grokbot-review-119r3-154",
-            "fix_status": "running",
+            "fix_status": "failed",
             "job": {
               "id": "628478c0d64443be828d7dd6c7b491eb",
               "phase": "fix",
@@ -13666,13 +13666,93 @@
               "plan_sha256": "8ae022fb90f12ff7f6c2db1aa8f907b06ffa54fd2160ba03df1a036766d74474",
               "model": "Grok Bot self (Codex out until 18:50)",
               "cycle": 11,
-              "round": 3
+              "round": 3,
+              "pid": 3954,
+              "exit_code": 1,
+              "finished_at": "2026-11-22T11:25:55Z",
+              "finished_phase_status": "failed"
+            },
+            "tool_fault_streak": 0
+          },
+          "failure_history": [
+            {
+              "attempt_id": "628478c0d64443be828d7dd6c7b491eb",
+              "source": "fix",
+              "reason": "Fix job exited 1",
+              "cycle": 11,
+              "round": 3,
+              "at": "2026-11-22T11:25:55Z"
             }
+          ],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T11:40:43Z",
+          "phase": "fix"
+        },
+        {
+          "id": "R3-164",
+          "name": "Add refuses near-duplicates; append into an open issue",
+          "finding_ids": [
+            "BCL-164"
+          ],
+          "label": "BCL-164",
+          "status": "review",
+          "worktree": "bcl119-r3-164",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-164.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
+            "implementer_session": "grokbot-self-119r3-164",
+            "reviewer_session": "grokbot-review-119r3-164",
+            "fix_status": "passed",
+            "job": {
+              "id": "236ea164e24c4a6c804809eca2418219",
+              "phase": "review",
+              "started_at": "2026-11-22T11:44:00Z",
+              "command": "cp",
+              "heartbeat_at": "2026-11-22T11:44:00Z",
+              "plan_sha256": "89de7cc4999f092fec593b3e69089eee7cf4bca86afc24e87dea4e683faa59b4",
+              "model": "grokbot-review-pass (separate pass; Codex out until 18:50)",
+              "cycle": 11,
+              "round": 3
+            },
+            "tool_fault_streak": 0,
+            "review_status": "running",
+            "reviewer_model": "grokbot-review-pass (separate pass; Codex out until 18:50)"
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T11:14:49Z",
-          "phase": "fix"
+          "updated_at": "2026-11-22T11:40:43Z",
+          "phase": "review"
+        },
+        {
+          "id": "R3-165",
+          "name": "Issue list grouped by plan group (M-TRACKER)",
+          "finding_ids": [
+            "BCL-165"
+          ],
+          "label": "BCL-165",
+          "status": "pending",
+          "worktree": "bcl119-r3-165",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-165.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
+            "implementer_session": "grokbot-self-119r3-165",
+            "reviewer_session": "grokbot-review-119r3-165"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T11:40:43Z"
         },
         {
           "id": "R2-145",
@@ -13793,7 +13873,7 @@
             }
           ],
           "status": "deferred",
-          "updated_at": "2026-11-22T11:14:49Z",
+          "updated_at": "2026-11-22T11:40:43Z",
           "phase": "deferred",
           "reason": "Guru 16:04 IST: ship R2-150 now; parked at sub-lane b 9cbda612 for Codex Luna after 18:50 (plan review passed, a and b committed)",
           "parked_to": 4
@@ -13899,54 +13979,10 @@
             }
           ],
           "status": "deferred",
-          "updated_at": "2026-11-22T11:14:49Z",
+          "updated_at": "2026-11-22T11:40:43Z",
           "phase": "deferred",
           "reason": "Guru 16:04 IST: ship R2-150 now; parked for Codex Luna after 18:50 (plan review passed, no code yet)",
           "parked_to": 4
-        },
-        {
-          "id": "R3-STAGE",
-          "name": "Time in stage on lane rows",
-          "finding_ids": [
-            "BCL-157"
-          ],
-          "label": "BCL-157",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
-          },
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 14:06 IST: status accuracy; right after BCL-145 (shares the page renderer)",
-          "failure_history": [],
-          "plan_review_history": [],
-          "parked_to": 4,
-          "updated_at": "2026-11-22T11:14:49Z",
-          "codex": {}
-        },
-        {
-          "id": "R3-AUDIT2",
-          "name": "Leaner loop: one plan review, one readiness check, auto chart",
-          "finding_ids": [
-            "BCL-155",
-            "BCL-156"
-          ],
-          "label": "BCL-155, BCL-156",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 2
-          },
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 13:14 IST: audit block right after BCL-145; each measured against its round-2 baseline and reverted if no gain",
-          "failure_history": [],
-          "plan_review_history": [],
-          "parked_to": 4,
-          "updated_at": "2026-11-22T11:14:49Z"
         },
         {
           "id": "R2-137",
@@ -13983,7 +14019,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T11:14:49Z"
+          "updated_at": "2026-11-22T11:40:43Z"
         },
         {
           "id": "R1-ADD",
@@ -14022,98 +14058,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T11:14:49Z"
-        },
-        {
-          "id": "R3-LOOP",
-          "name": "Review loop: tool-fault review keeps the lane in review",
-          "finding_ids": [
-            "BCL-149"
-          ],
-          "label": "BCL-149",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
-          },
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 12:54 order: review loop after BCL-145 (depends on its state table)",
-          "failure_history": [],
-          "plan_review_history": [],
-          "parked_to": 4,
-          "updated_at": "2026-11-22T11:14:49Z",
-          "codex": {}
-        },
-        {
-          "id": "R3-RELEASE",
-          "name": "Presuite and release-check gaps",
-          "finding_ids": [
-            "BCL-134",
-            "BCL-148"
-          ],
-          "label": "BCL-134, BCL-148",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 2
-          },
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 12:54 order: presuite/release-check after the review loop; depends on BCL-145",
-          "failure_history": [],
-          "plan_review_history": [],
-          "parked_to": 4,
-          "updated_at": "2026-11-22T11:14:49Z",
-          "codex": {}
-        },
-        {
-          "id": "R3-CARRY",
-          "name": "Rollover keeps unresolved findings gated",
-          "finding_ids": [
-            "BCL-111"
-          ],
-          "label": "BCL-111",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
-          },
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 12:54 order: carry after release-check items",
-          "failure_history": [],
-          "plan_review_history": [],
-          "parked_to": 4,
-          "updated_at": "2026-11-22T11:14:49Z",
-          "codex": {}
-        },
-        {
-          "id": "R3-RECEIPTS",
-          "name": "Job receipts: no-commit fix, tokens and time, Updated stamp",
-          "finding_ids": [
-            "BCL-147",
-            "BCL-119",
-            "BCL-117"
-          ],
-          "label": "BCL-147, BCL-119, BCL-117",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 3
-          },
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 12:54 order: receipts after carry",
-          "failure_history": [],
-          "plan_review_history": [],
-          "parked_to": 4,
-          "updated_at": "2026-11-22T11:14:49Z",
-          "codex": {}
+          "updated_at": "2026-11-22T11:40:43Z"
         },
         {
           "id": "R2-144",
@@ -14153,7 +14098,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T11:14:49Z"
+          "updated_at": "2026-11-22T11:40:43Z"
         },
         {
           "id": "R1-DEAD",
@@ -14232,7 +14177,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T11:14:49Z"
+          "updated_at": "2026-11-22T11:40:43Z"
         },
         {
           "id": "R1-RELEASE",
@@ -14270,7 +14215,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T11:14:49Z"
+          "updated_at": "2026-11-22T11:40:43Z"
         },
         {
           "id": "R2-146",
@@ -14345,7 +14290,7 @@
           ],
           "status": "verified",
           "codex": {},
-          "updated_at": "2026-11-22T11:14:49Z",
+          "updated_at": "2026-11-22T11:40:43Z",
           "phase": "verify"
         },
         {
@@ -14385,8 +14330,279 @@
           ],
           "status": "verified",
           "codex": {},
-          "updated_at": "2026-11-22T11:14:49Z",
+          "updated_at": "2026-11-22T11:40:43Z",
           "phase": "verify"
+        },
+        {
+          "id": "M-LIVE",
+          "name": "Page shows the real live state",
+          "finding_ids": [
+            "BCL-157",
+            "BCL-159",
+            "BCL-117",
+            "BCL-118"
+          ],
+          "label": "BCL-157, BCL-159, BCL-117, BCL-118",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers nothing else; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 4
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T11:40:43Z",
+          "codex": {}
+        },
+        {
+          "id": "M-ROUND",
+          "name": "One round-start command",
+          "finding_ids": [
+            "BCL-151",
+            "BCL-156",
+            "BCL-158",
+            "BCL-111",
+            "BCL-143",
+            "BCL-152"
+          ],
+          "label": "BCL-151, BCL-156, BCL-158, BCL-111, BCL-143, BCL-152",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers nothing else; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 6
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T11:40:43Z",
+          "codex": {}
+        },
+        {
+          "id": "M-GATES",
+          "name": "Fewer gates and an honest failure cap",
+          "finding_ids": [
+            "BCL-163",
+            "BCL-131",
+            "BCL-149",
+            "BCL-103"
+          ],
+          "label": "BCL-163, BCL-131, BCL-149, BCL-103",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers BCL-154 in R3-154, BCL-162 in R3-162, BCL-121 in R1-ADD, BCL-125 in R1-RELEASE, BCL-127 in R1-RELEASE, BCL-137 in R2-137; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 4
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T11:40:43Z",
+          "codex": {}
+        },
+        {
+          "id": "M-CHART",
+          "name": "The state chart is always current",
+          "finding_ids": [
+            "BCL-155",
+            "BCL-134"
+          ],
+          "label": "BCL-155, BCL-134",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers BCL-122 in R1-ADD; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T11:40:43Z",
+          "codex": {}
+        },
+        {
+          "id": "M-RELEASE",
+          "name": "Release and install path",
+          "finding_ids": [
+            "BCL-148",
+            "BCL-161",
+            "BCL-130"
+          ],
+          "label": "BCL-148, BCL-161, BCL-130",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers BCL-144 in R2-144; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 3
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T11:40:43Z",
+          "codex": {}
+        },
+        {
+          "id": "M-RECEIPTS",
+          "name": "Job receipts record what ran",
+          "finding_ids": [
+            "BCL-147",
+            "BCL-119"
+          ],
+          "label": "BCL-147, BCL-119",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers nothing else; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T11:40:43Z",
+          "codex": {}
+        },
+        {
+          "id": "M-VERIFY",
+          "name": "Verify records and reuses its checks",
+          "finding_ids": [
+            "BCL-160",
+            "BCL-96",
+            "BCL-97",
+            "BCL-106",
+            "BCL-139"
+          ],
+          "label": "BCL-160, BCL-96, BCL-97, BCL-106, BCL-139",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers nothing else; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 5
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T11:40:43Z",
+          "codex": {}
+        },
+        {
+          "id": "M-WRITERS",
+          "name": "One owner for lane state",
+          "finding_ids": [
+            "BCL-110",
+            "BCL-112",
+            "BCL-113",
+            "BCL-114",
+            "BCL-132",
+            "BCL-133"
+          ],
+          "label": "BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers BCL-145 in R2-145; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 6
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T11:40:43Z",
+          "codex": {}
+        },
+        {
+          "id": "M-TRACKER",
+          "name": "Tracker and viewer upkeep",
+          "finding_ids": [
+            "BCL-108",
+            "BCL-115",
+            "BCL-140"
+          ],
+          "label": "BCL-108, BCL-115, BCL-140",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers BCL-94 in R1-ADD, BCL-124 in R1-DEAD, BCL-142 in R2-142; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 3
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T11:40:43Z",
+          "codex": {}
+        },
+        {
+          "id": "M-INTROSPECT",
+          "name": "Introspect looks across rounds",
+          "finding_ids": [
+            "BCL-100",
+            "BCL-120"
+          ],
+          "label": "BCL-100, BCL-120",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers nothing else; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T11:40:43Z",
+          "codex": {}
+        },
+        {
+          "id": "M-ACU",
+          "name": "Agent computer use items",
+          "finding_ids": [
+            "ACU-10",
+            "ACU-20",
+            "ACU-21"
+          ],
+          "label": "ACU-10, ACU-20, ACU-21",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers nothing else; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 3
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T11:40:43Z",
+          "codex": {}
         }
       ],
       "cycle": 11
@@ -14725,7 +14941,8 @@
       "status": "blocked",
       "details": {
         "Technical wording": "usage rows provider=xai model=grok-voice-latest input_tokens=0 output_tokens=0; no usage rows with model=gpt-live-1.",
-        "Dev-obs evidence": "Dev-obs sums these rows (col-ffa528ff4fa3470c) without flagging that every Grok row is zero."
+        "Dev-obs evidence": "Dev-obs sums these rows (col-ffa528ff4fa3470c) without flagging that every Grok row is zero.",
+        "root_cause_group": "M-ACU: Agent computer use items (ACU-10, ACU-20, ACU-21)"
       }
     },
     {
@@ -14740,7 +14957,8 @@
       "recommendation": "Find a supported, credential-free record of Grok Bot subagent runs and feed it to the island the way Codex runs are fed.",
       "status": "untested",
       "details": {
-        "Planned round": "Round 7; recorded only in round 6, not part of the round 6 plan or gate."
+        "Planned round": "Round 7; recorded only in round 6, not part of the round 6 plan or gate.",
+        "root_cause_group": "M-ACU: Agent computer use items (ACU-10, ACU-20, ACU-21)"
       }
     },
     {
@@ -14753,7 +14971,10 @@
       "done_when": "Both tests pass 50 runs in a row under four busy CPU loops, and the pre-push suite passes first time.",
       "observed": "20 Nov 2026 13:34 and 13:41 IST: test_connected_but_unresponsive_service_times_out_on_runtime_contract (one probe call in 0.01 s) and test_background_jobs_track_and_stop_only_the_returned_job_id (stop had no status; 1 failure in 12 runs alone). Both are on main.",
       "recommendation": "Wait on a condition instead of a fixed short time in both tests.",
-      "status": "untested"
+      "status": "untested",
+      "details": {
+        "root_cause_group": "M-ACU: Agent computer use items (ACU-10, ACU-20, ACU-21)"
+      }
     },
     {
       "id": "BCL-94",
@@ -14769,7 +14990,8 @@
       "details": {
         "ports": "PR 117 :52432, PR 118 :59151",
         "stopped_by_owner": "pid 73523",
-        "test_projects": "example--project--123, repo--1"
+        "test_projects": "example--project--123, repo--1",
+        "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)"
       }
     },
     {
@@ -14784,7 +15006,8 @@
       "recommendation": "Run one self-test step inside the verify start and replace the separate manual preflight steps it covers.",
       "status": "untested",
       "details": {
-        "approved": "Guru 21:24 IST t1579u"
+        "approved": "Guru 21:24 IST t1579u",
+        "root_cause_group": "M-VERIFY: Verify records and reuses its checks (BCL-160, BCL-96, BCL-97, BCL-106, BCL-139)"
       }
     },
     {
@@ -14799,7 +15022,8 @@
       "recommendation": "Record rechecks under their own issue entries and keep the lane verdict to its named issues.",
       "status": "untested",
       "details": {
-        "approved": "Guru 21:24 IST t1579u"
+        "approved": "Guru 21:24 IST t1579u",
+        "root_cause_group": "M-VERIFY: Verify records and reuses its checks (BCL-160, BCL-96, BCL-97, BCL-106, BCL-139)"
       }
     },
     {
@@ -14814,7 +15038,8 @@
       "recommendation": "Add a cross round scan to the introspect draft and require a workflow change section when a kind repeats; keep it lean by replacing the current free form repeat notes.",
       "status": "untested",
       "details": {
-        "approved": "Guru 21:24 IST t1579u"
+        "approved": "Guru 21:24 IST t1579u",
+        "root_cause_group": "M-INTROSPECT: Introspect looks across rounds (BCL-100, BCL-120)"
       }
     },
     {
@@ -14832,7 +15057,8 @@
         "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 1",
         "filed_by": "Guru 00:33 IST t1597u",
         "ci_range_note": "0.1.57 attempt (045979c5, 6017f4db) reverted in f0ce0b4f/20a363a1 after Terra 6.1 reviews 5 and 6: a bump check against origin/main passes on a push to main (base equals HEAD), and a HEAD^1 fallback misjudges multi-commit pushes. Needs the pushed range from the CI event (github.event.before..after) passed via AGENT_PLUGINS_RELEASE_BASE in ci.yml, plus untracked shipped files, with tests. Review guide line also reverted with it.",
-        "carry_to_round": "4"
+        "carry_to_round": "4",
+        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
       }
     },
     {
@@ -14848,7 +15074,8 @@
       "status": "untested",
       "details": {
         "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 7",
-        "filed_by": "Guru 00:33 IST t1597u"
+        "filed_by": "Guru 00:33 IST t1597u",
+        "root_cause_group": "M-VERIFY: Verify records and reuses its checks (BCL-160, BCL-96, BCL-97, BCL-106, BCL-139)"
       }
     },
     {
@@ -14864,7 +15091,8 @@
       "status": "untested",
       "details": {
         "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 9",
-        "filed_by": "Guru 00:33 IST t1597u"
+        "filed_by": "Guru 00:33 IST t1597u",
+        "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)"
       }
     },
     {
@@ -14883,7 +15111,8 @@
         "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 1",
         "carry_to_round": "4",
         "technical": "Standalone and batch delete, archive, park, unpark, and add with a reused finding ID move or remove a lane member without its failure and plan-review history.",
-        "commit": "0fac47be"
+        "commit": "0fac47be",
+        "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)"
       }
     },
     {
@@ -14902,7 +15131,8 @@
         "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 2",
         "carry_to_round": "4",
         "technical": "prepare_rollover drops tracking.plan but keeps unresolved findings, so their failure history and block are lost in the successor.",
-        "commit": "0fac47be"
+        "commit": "0fac47be",
+        "root_cause_group": "M-ROUND: One round-start command (BCL-151, BCL-156, BCL-158, BCL-111, BCL-143, BCL-152)"
       }
     },
     {
@@ -14921,7 +15151,8 @@
         "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 3",
         "carry_to_round": "4",
         "technical": "update-plan-group blocked_reason, sync_plan_verify, skip-review, set-activity and raw verify activity can replace a blocked status, so the job guard sees an open lane.",
-        "commit": "0fac47be"
+        "commit": "0fac47be",
+        "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)"
       }
     },
     {
@@ -14940,7 +15171,8 @@
         "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 4",
         "carry_to_round": "4",
         "technical": "A second reservation, a plan or group edit changing the candidate hash, replacing codex, or correct-round can drop a running job's only receipt; a plan-review PASS is not checked against failures recorded during the review.",
-        "commit": "0fac47be"
+        "commit": "0fac47be",
+        "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)"
       }
     },
     {
@@ -14959,7 +15191,8 @@
         "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 5",
         "carry_to_round": "4",
         "technical": "Old per-finding history is not fully converted before gate decisions; the four-open-lane cap is not rechecked after unblock or retry; the restore-main check is missing from standalone finding updates.",
-        "commit": "0fac47be"
+        "commit": "0fac47be",
+        "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)"
       }
     },
     {
@@ -14978,7 +15211,8 @@
         "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 6",
         "carry_to_round": "4",
         "technical": "A new adopt key can overwrite an existing sanitized destination, and report, draft and progress outputs can resolve to a tracker or snapshot.",
-        "commit": "0fac47be"
+        "commit": "0fac47be",
+        "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)"
       }
     },
     {
@@ -14995,7 +15229,8 @@
       "details": {
         "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
         "report": "bcl-118 progress.md open item",
-        "carry_to_round": "4"
+        "carry_to_round": "4",
+        "root_cause_group": "M-LIVE: Page shows the real live state (BCL-157, BCL-159, BCL-117, BCL-118)"
       }
     },
     {
@@ -15012,7 +15247,8 @@
       "details": {
         "filed_by": "Guru 10:20 IST t1604u (north star goal, via parent)",
         "carry_to_round": "4",
-        "kind": "goal"
+        "kind": "goal",
+        "root_cause_group": "M-LIVE: Page shows the real live state (BCL-157, BCL-159, BCL-117, BCL-118)"
       }
     },
     {
@@ -15033,7 +15269,8 @@
         "evidence": "bcl-118 direct luna-lanefix jsonl turn.completed usage (cumulative) and Codex rollout token_count deltas 03:33-04:08 UTC",
         "measurement_note": "Measure per job as the difference in session totals, never the cumulative turn total.",
         "comparison": "Same lane, fresh session with a token-discipline brief, 21 Nov 10:32-10:56 IST: 165 model calls, 13,976,327 input (13,799,808 cached), 48,322 output, about 23.5 min, for code +59/-17 and tests +98/-6. Resumed session at 09:03-09:37 IST: 161 calls, 22,018,770 input (21,814,400 cached), 62,229 output, about 34 min, for code +82/-50 and tests +105/-16. Input down about 37 percent.",
-        "comparison_2": "Resumed fresh session 01a1fc7c for the one-item fix, 21 Nov 11:25-11:34 IST: 28 model calls, 4,842,069 input (4,817,920 cached), 8,959 output, for code +12/-4 and tests +25. Measured as the session-total difference."
+        "comparison_2": "Resumed fresh session 01a1fc7c for the one-item fix, 21 Nov 11:25-11:34 IST: 28 model calls, 4,842,069 input (4,817,920 cached), 8,959 output, for code +12/-4 and tests +25. Measured as the session-total difference.",
+        "root_cause_group": "M-RECEIPTS: Job receipts record what ran (BCL-147, BCL-119)"
       }
     },
     {
@@ -15052,7 +15289,8 @@
         "carry_to_round": "4",
         "kind": "goal",
         "related": "BCL-118 timeline, BCL-119 token and time data",
-        "refined_by": "Guru 10:24 IST t1606u (evidence bar, via parent)"
+        "refined_by": "Guru 10:24 IST t1606u (evidence bar, via parent)",
+        "root_cause_group": "M-INTROSPECT: Introspect looks across rounds (BCL-100, BCL-120)"
       }
     },
     {
@@ -15069,7 +15307,8 @@
       "details": {
         "filed_by": "Workflow Introspect after PR 118 merge (evidence rule: 2 loops in one PR)",
         "evidence": "bcl-118/direct planreview-int..int12 (12 files) and review-0157..0157-6 (6 files), file times 05:30-11:20 and 12:30-13:29 IST; revert commits f0ce0b4f and 20a363a1",
-        "kind": "workflow"
+        "kind": "workflow",
+        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
       }
     },
     {
@@ -15086,7 +15325,8 @@
       "details": {
         "filed_by": "Workflow Introspect after PR 118 merge (evidence rule: 3 recurrences)",
         "evidence": "bcl-118 progress.md lines 34, 82, 175; direct/presuite-0157.log",
-        "kind": "workflow"
+        "kind": "workflow",
+        "root_cause_group": "M-CHART: The state chart is always current (BCL-155, BCL-122, BCL-134)"
       }
     },
     {
@@ -15142,7 +15382,8 @@
         "report": "bcl-119 quality-audit.md",
         "evidence": "viewer state 107 and 110 lack instance, both dead; ensure_viewer pid 87005 special case; _legacy_viewer_matches 10 lines",
         "kind": "delete",
-        "deferred": "Round 2 (owner t1627u 21:49 IST): Terra 2 found deleting it orphans live instance-less viewers; deletion reverted in fbe629dc"
+        "deferred": "Round 2 (owner t1627u 21:49 IST): Terra 2 found deleting it orphans live instance-less viewers; deletion reverted in fbe629dc",
+        "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)"
       },
       "needs": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it."
     },
@@ -15161,7 +15402,8 @@
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
         "evidence": "0 uses in #117/#118; one_file only in 115/116 trackers; bcl job runs run_stage_check review at line 576",
-        "kind": "delete"
+        "kind": "delete",
+        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
       }
     },
     {
@@ -15216,7 +15458,8 @@
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
         "evidence": "release-check 1x, resort-failures 3x in #118, all empty; fault_kind and resort rows 0 in 115-119",
-        "kind": "delete"
+        "kind": "delete",
+        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
       }
     },
     {
@@ -15306,7 +15549,8 @@
         "filed_by": "PR 119 round 1 reviews",
         "report": "r1/planreview-release-2.md, -7.md",
         "evidence": "Sol plan reviews release-2 and release-7 reproduced the in-memory change at e922ca0f",
-        "kind": "fix"
+        "kind": "fix",
+        "root_cause_group": "M-RELEASE: Release and install path (BCL-148, BCL-161, BCL-144, BCL-130)"
       }
     },
     {
@@ -15324,7 +15568,8 @@
         "filed_by": "PR 119 round 1 reviews",
         "report": "r1/review-release-1.md, planreview-release-4.md, -7.md",
         "evidence": "Terra review release-1; Sol release-4 and release-7 reproductions",
-        "kind": "fix"
+        "kind": "fix",
+        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
       }
     },
     {
@@ -15342,7 +15587,8 @@
         "filed_by": "PR 119 round 1 reviews",
         "report": "r1/planreview-release-5.md, -6.md",
         "evidence": "Sol plan reviews release-5 and release-6 reproduced it in memory",
-        "kind": "fix"
+        "kind": "fix",
+        "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)"
       }
     },
     {
@@ -15361,7 +15607,8 @@
         "report": "r1/planreview-add-3.md, -4.md, -5.md",
         "evidence": "Sol plan reviews add-3, add-4 and add-5 reproduced the stale completion",
         "kind": "fix",
-        "merged_with": "BCL-113 (same root cause: plan edits invalidate a running job); fix in the same lane"
+        "merged_with": "BCL-113 (same root cause: plan edits invalidate a running job); fix in the same lane",
+        "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)"
       }
     },
     {
@@ -15380,7 +15627,8 @@
         "report": "r1/planreview-add-2.md, -6.md",
         "evidence": "Sol plan reviews add-2 and add-6",
         "kind": "fix",
-        "merged_with": "BCL-122 (same pre-push chart check); fix in the same lane"
+        "merged_with": "BCL-122 (same pre-push chart check); fix in the same lane",
+        "root_cause_group": "M-CHART: The state chart is always current (BCL-155, BCL-122, BCL-134)"
       }
     },
     {
@@ -15474,7 +15722,8 @@
         "evidence": "Model rule PlanReviewsCapped breaks in 5 steps; real: bcl job accepted plan reviews 4 to 7 on R1-RELEASE and 4 to 6 on R1-ADD",
         "kind": "fix",
         "related": "BCL-121 covers work-done reviews only",
-        "merged_with": "BCL-121 (one review budget for plan and work reviews); fix in the same lane"
+        "merged_with": "BCL-121 (one review budget for plan and work reviews); fix in the same lane",
+        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
       }
     },
     {
@@ -15528,7 +15777,8 @@
         "filed_by": "interrogate skill review (Sol 6.2 adversary, rerun by orchestrator)",
         "report": "bcl-119/r1/adv-sol.md, r1/advrepro/f2.py",
         "evidence": "f2.py: with the review stage forced to exit 9, test_review_job_verdicts passes while the 0.1.57 helper fails 9 != 0",
-        "kind": "fix"
+        "kind": "fix",
+        "root_cause_group": "M-VERIFY: Verify records and reuses its checks (BCL-160, BCL-96, BCL-97, BCL-106, BCL-139)"
       }
     },
     {
@@ -15546,7 +15796,8 @@
         "filed_by": "interrogate skill review (Sol 6.2 adversary, rerun by orchestrator)",
         "report": "bcl-119/r1/adv-sol.md, r1/advrepro/f1.py",
         "evidence": "f1.py: sync-main, merge and an unknown stage exit 1 with a JSON decode traceback on 0.1.58; same for unknown stages on 0.1.57",
-        "kind": "fix"
+        "kind": "fix",
+        "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)"
       }
     },
     {
@@ -15600,7 +15851,8 @@
         "filed_by": "PR 119 round 2 (Guru 09:05 IST: file missing bcl commands instead of calling internal code)",
         "report": "bcl-119 progress.md",
         "evidence": "No bcl stage saves without a tracker change; live_state.snapshot was called directly at 09:02 IST and skipped the commit because stage and cycle were unchanged, so the snapshot was committed by hand as 4047089b",
-        "kind": "fix"
+        "kind": "fix",
+        "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)"
       },
       "needs": "1. [live_state.py:473](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:473) clears the pending marker after an ordinary same-stage snapshot even when it creates no commit. If that snapshot runs before the explicit `bcl snapshot`, the latter reports “nothing to save” and the pending change remains uncommitted. Preserve the pending marker until the explicit save commits it. The [concurrency test](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:199) checks for deadlock and marker removal but does not check that the pending change was committed; make the ordering deterministic and assert the saved commit."
     },
@@ -15620,7 +15872,8 @@
         "report": "bcl-119 progress.md",
         "evidence": "set-plan round 2 on a copy: omitting R1-DEAD gives cannot change gated lane; keeping it as pending or deferred gives plan group R1-DEAD has invalid status (carry_plan_runtime_state drops status for carried lanes in a new round unless blocked)",
         "kind": "fix",
-        "blocks": "round 2 plan"
+        "blocks": "round 2 plan",
+        "root_cause_group": "M-ROUND: One round-start command (BCL-151, BCL-156, BCL-158, BCL-111, BCL-143, BCL-152)"
       }
     },
     {
@@ -15640,7 +15893,8 @@
         "depends_on": "BCL-136 (release check must clear for reviewed fixes)",
         "round2_order": "right after BCL-136",
         "evidence": "Round 1 and 2 of PR 119 needed a one-time release-check exception (0.1.58) and two fixes built outside lanes (BCL-135 in 0.1.59, BCL-143 in 0.1.60)",
-        "kind": "fix"
+        "kind": "fix",
+        "root_cause_group": "M-RELEASE: Release and install path (BCL-148, BCL-161, BCL-144, BCL-130)"
       }
     },
     {
@@ -15660,7 +15914,8 @@
         "evidence": "Six separate lane state sets (render PLAN_STATUSES, PLAN_PHASES, STALE_LANE_STATUSES; manage_findings IN_FLIGHT and SETTLED sets; check_install_sessions REVIEW_STATUSES) plus about 24 inline status checks; BCL-135, 136, 143 were each a state one path writes and another refuses",
         "kind": "fix",
         "root_cause_for": "BCL-110, BCL-112, BCL-132, BCL-135, BCL-136, BCL-143",
-        "more_evidence": "Round 2: page shows deferred R2-137 as Changes requested, not Parked (render keeps its own state order); Sol plan reviews of R2-137 (cap marker) and R2-144 (hotfix key) both found a field one writer protects and another accepts; bcl install and verify reruns on one lane changed the plan hash and stranded two running jobs (also BCL-113/133)"
+        "more_evidence": "Round 2: page shows deferred R2-137 as Changes requested, not Parked (render keeps its own state order); Sol plan reviews of R2-137 (cap marker) and R2-144 (hotfix key) both found a field one writer protects and another accepts; bcl install and verify reruns on one lane changed the plan hash and stranded two running jobs (also BCL-113/133)",
+        "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)"
       },
       "needs": "1. Literal lane-state groups remain in the consumers. For example, [manage_findings.py:1599](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1599) repeats the declared settled states, and [render.py:372](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:372) repeats the declared job phases. Read these from `workflow_definition` so changes to the declared groups reach every consumer."
     },
@@ -15716,7 +15971,8 @@
         "filed_by": "PR 119 round 2",
         "report": "bcl-119 progress.md",
         "evidence": "R2-144 fix run 1 explored and stopped without a commit, exit 0; bcl set fix passed and the lane showed In review; the wrapper now exits 3 when the head is unchanged",
-        "kind": "fix"
+        "kind": "fix",
+        "root_cause_group": "M-RECEIPTS: Job receipts record what ran (BCL-147, BCL-119)"
       }
     },
     {
@@ -15735,7 +15991,8 @@
         "kind": "fix",
         "report": "bcl-119 progress.md",
         "exception_record": "Guru approved 11:18 IST (his own words via approval card): one-time release-check exception for bcl 0.1.61 only. release-check --ids BCL-136 --ids BCL-138 at 11:19 IST: rc 2, clear false, R2-136 and R2-138 shown in flight at review because installed 0.1.60 has BCL-136. Presuite for both lanes passed at 11:11 IST (r9 db43c514). Covers 0.1.61 only.",
-        "exception_record_2": "Guru approved 13:42 IST (his own words via widget): Approve a one-time release-check exception for 0.1.62. Covers 0.1.62 only (BCL-141, BCL-146 plus display fix 3fe72f60 and chart regeneration). release-check --ids BCL-141 --ids BCL-146 at 13:40 IST: rc 2, clear false, blocking lanes R2-150 and R2-142 (both blocked after a second counted failure; they stay blocked). Presuite for both lanes passed 13:39 IST (r9 4f1763d4)."
+        "exception_record_2": "Guru approved 13:42 IST (his own words via widget): Approve a one-time release-check exception for 0.1.62. Covers 0.1.62 only (BCL-141, BCL-146 plus display fix 3fe72f60 and chart regeneration). release-check --ids BCL-141 --ids BCL-146 at 13:40 IST: rc 2, clear false, blocking lanes R2-150 and R2-142 (both blocked after a second counted failure; they stay blocked). Presuite for both lanes passed 13:39 IST (r9 4f1763d4).",
+        "root_cause_group": "M-RELEASE: Release and install path (BCL-148, BCL-161, BCL-144, BCL-130)"
       }
     },
     {
@@ -15753,7 +16010,8 @@
         "filed_by": "PR 119 round 2",
         "kind": "fix",
         "report": "bcl-119 progress.md",
-        "evidence": "R2-146 Terra review 2 replied PASS with prose after Must-fix none; rejected as incomplete (tool fault); lane went to running/fix; review job refused (require fix and enter review); a scripted fix-confirm job failed on a checker slip, was counted, blocked the lane, and was uncounted with bcl unblock --tool-fault"
+        "evidence": "R2-146 Terra review 2 replied PASS with prose after Must-fix none; rejected as incomplete (tool fault); lane went to running/fix; review job refused (require fix and enter review); a scripted fix-confirm job failed on a checker slip, was counted, blocked the lane, and was uncounted with bcl unblock --tool-fault",
+        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
       }
     },
     {
@@ -15808,7 +16066,8 @@
         "filed_by": "PR 119 round 2",
         "kind": "fix",
         "report": "bcl-119 progress.md",
-        "evidence": "Guru 12:54 IST put the workflow-audit issues at the top: BCL-150, BCL-145, review loop (121, 137, 149), presuite and release check (122, 134, 146, 148), carry (111), receipts (147, 119, 117, 142), then 141. No bcl command stores that order; it was shown through plan lane order instead."
+        "evidence": "Guru 12:54 IST put the workflow-audit issues at the top: BCL-150, BCL-145, review loop (121, 137, 149), presuite and release check (122, 134, 146, 148), carry (111), receipts (147, 119, 117, 142), then 141. No bcl command stores that order; it was shown through plan lane order instead.",
+        "root_cause_group": "M-ROUND: One round-start command (BCL-151, BCL-156, BCL-158, BCL-111, BCL-143, BCL-152)"
       }
     },
     {
@@ -15826,7 +16085,8 @@
         "filed_by": "PR 119 round 2",
         "kind": "fix",
         "report": "bcl-119 progress.md",
-        "evidence": "Guru 12:59 IST: until BCL-145 lands, fixes touching the writer or the page renderer run one lane at a time; parallel lanes only with disjoint files. In round 2, R2-141 and R2-150 both change the page renderer, and R2-144 and R2-137 both changed plan writes."
+        "evidence": "Guru 12:59 IST: until BCL-145 lands, fixes touching the writer or the page renderer run one lane at a time; parallel lanes only with disjoint files. In round 2, R2-141 and R2-150 both change the page renderer, and R2-144 and R2-137 both changed plan writes.",
+        "root_cause_group": "M-ROUND: One round-start command (BCL-151, BCL-156, BCL-158, BCL-111, BCL-143, BCL-152)"
       }
     },
     {
@@ -15884,7 +16144,8 @@
         "queue": "audit block after BCL-145",
         "report": "bcl-119 progress.md",
         "baseline": "round 2: install readiness checked by bcl install and again by release-check before each push (0.1.60, 0.1.61); 2 release-check refusals at 0.1.61 handled by exception",
-        "success": "install and release decide readiness from one check; no new refusals or reruns per verified fix versus round 2; else revert and record why"
+        "success": "install and release decide readiness from one check; no new refusals or reruns per verified fix versus round 2; else revert and record why",
+        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
       }
     },
     {
@@ -15905,7 +16166,8 @@
         "report": "bcl-119 progress.md",
         "related": "BCL-122, BCL-134",
         "baseline": "round 2: 1 presuite failure from a stale chart (12:35 IST, about 5 minutes of a 5-minute run) plus a manual regenerate commit",
-        "success": "zero stale-chart presuite failures over the next round; else revert and record why"
+        "success": "zero stale-chart presuite failures over the next round; else revert and record why",
+        "root_cause_group": "M-CHART: The state chart is always current (BCL-155, BCL-122, BCL-134)"
       }
     },
     {
@@ -15926,7 +16188,8 @@
         "report": "bcl-119 progress.md",
         "baseline": "round 2: 4 manual lane-worktree merges (R2-144 base with principles a53dcda3, int merge of R2-136/138/144 with statechart conflicts, int2 merges of R2-141/146, R2-145 reopen merge 26d64a6f with a workflow definition and chart conflict), about 10 minutes of conflict handling plus one stale-chart presuite failure",
         "success": "zero manual lane merges in the next round; conflicts reported by bcl with files named; else revert and record why",
-        "design": "Guru 14:02 IST: at each new round every carried lane gets a fresh worktree cut from the list branch head; its unverified commits are replayed on top; a conflict stops the lane with a clear message; the old worktree is removed afterwards (supersede rule)."
+        "design": "Guru 14:02 IST: at each new round every carried lane gets a fresh worktree cut from the list branch head; its unverified commits are replayed on top; a conflict stops the lane with a clear message; the old worktree is removed afterwards (supersede rule).",
+        "root_cause_group": "M-ROUND: One round-start command (BCL-151, BCL-156, BCL-158, BCL-111, BCL-143, BCL-152)"
       }
     },
     {
@@ -15945,7 +16208,8 @@
         "kind": "fix",
         "queue": "right after BCL-145 (shares the page renderer)",
         "report": "bcl-119 progress.md",
-        "design": "Guru 14:08 IST: deterministic, never agent-written. The bcl stage-transition code path itself stamps stage_entered_at on every lane stage change (single writer, protected runtime field); render derives the duration from it at load. No agent-set fields, no manual edits. Tests: retries and heartbeats do not reset it; a stage change does; page text shows it."
+        "design": "Guru 14:08 IST: deterministic, never agent-written. The bcl stage-transition code path itself stamps stage_entered_at on every lane stage change (single writer, protected runtime field); render derives the duration from it at load. No agent-set fields, no manual edits. Tests: retries and heartbeats do not reset it; a stage change does; page text shows it.",
+        "root_cause_group": "M-LIVE: Page shows the real live state (BCL-157, BCL-159, BCL-117, BCL-118)"
       }
     },
     {
@@ -15964,7 +16228,8 @@
         "kind": "fix",
         "report": "bcl-119 progress.md",
         "evidence": "Round-3 Astra planning ran from 14:30 IST while the page still showed Round 2 Introspect (the planning ran outside bcl because no bcl stage covers it; bcl did not and could not refuse). The round-3 bcl plan refused to rename gated lanes (R2-150 must stay R2-150) and required gated verified lanes R2-146 and R2-136, which came back Planned and were set back to Verified with update-plan-group.",
-        "more_evidence": "Guru 14:39 IST: a new round must never include verified lanes; they show only in their own round and the gate. No supported bcl command removes R2-146 and R2-136 from the round-3 plan (set-plan refuses dropping gated lanes; archive covers findings only), so they stay listed as Verified in Round 3."
+        "more_evidence": "Guru 14:39 IST: a new round must never include verified lanes; they show only in their own round and the gate. No supported bcl command removes R2-146 and R2-136 from the round-3 plan (set-plan refuses dropping gated lanes; archive covers findings only), so they stay listed as Verified in Round 3.",
+        "root_cause_group": "M-ROUND: One round-start command (BCL-151, BCL-156, BCL-158, BCL-111, BCL-143, BCL-152)"
       }
     },
     {
@@ -15983,7 +16248,8 @@
         "kind": "fix",
         "queue": "with BCL-157 after BCL-145 (shares the page renderer)",
         "report": "bcl-119 progress.md",
-        "evidence": "The R2-150 fix job started 14:50 IST through bcl job --phase fix (pid and heartbeat recorded, page showed Fixing). It ran OpenCode for sub-lanes a then b, and sub-lane a committed 3587f94a at 15:05. The page's latest line stayed at 'Fix started 14:50' for 27 min because no command records a step."
+        "evidence": "The R2-150 fix job started 14:50 IST through bcl job --phase fix (pid and heartbeat recorded, page showed Fixing). It ran OpenCode for sub-lanes a then b, and sub-lane a committed 3587f94a at 15:05. The page's latest line stayed at 'Fix started 14:50' for 27 min because no command records a step.",
+        "root_cause_group": "M-LIVE: Page shows the real live state (BCL-157, BCL-159, BCL-117, BCL-118)"
       }
     },
     {
@@ -16001,7 +16267,8 @@
         "filed_by": "Guru 16:21 IST (via parent)",
         "kind": "fix",
         "report": "bcl-119 progress.md",
-        "evidence": "bcl verify --then verify-150.sh printed 5/5 and exited 0, but the lane stayed verifying with 0 fixed and the finding stayed in progress; it became verified only after record_r2.py ran start-check, record-evidence, update and finish-check through the batch writer."
+        "evidence": "bcl verify --then verify-150.sh printed 5/5 and exited 0, but the lane stayed verifying with 0 fixed and the finding stayed in progress; it became verified only after record_r2.py ran start-check, record-evidence, update and finish-check through the batch writer.",
+        "root_cause_group": "M-VERIFY: Verify records and reuses its checks (BCL-160, BCL-96, BCL-97, BCL-106, BCL-139)"
       }
     },
     {
@@ -16019,7 +16286,8 @@
         "filed_by": "Guru 16:21 IST (via parent)",
         "kind": "fix",
         "report": "bcl-119 progress.md",
-        "evidence": "install-local from the home checkout at eadc2408 failed with 'plugin checkout has local changes'; the only changes were the tracker snapshot and page under docs/triage. It succeeded from a clean detached worktree at the same commit."
+        "evidence": "install-local from the home checkout at eadc2408 failed with 'plugin checkout has local changes'; the only changes were the tracker snapshot and page under docs/triage. It succeeded from a clean detached worktree at the same commit.",
+        "root_cause_group": "M-RELEASE: Release and install path (BCL-148, BCL-161, BCL-144, BCL-130)"
       }
     },
     {
@@ -16037,7 +16305,8 @@
         "filed_by": "Guru 16:07 IST (via parent)",
         "kind": "fix",
         "report": "bcl-119 progress.md",
-        "evidence": "R3-153: fix job full suite 485 tests 160 s; pre-push suite 301 s = skill suite 159 s plus repository check, which ran the same 19 skill test files again (test_bcl 134 s)."
+        "evidence": "R3-153: fix job full suite 485 tests 160 s; pre-push suite 301 s = skill suite 159 s plus repository check, which ran the same 19 skill test files again (test_bcl 134 s).",
+        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
       }
     },
     {
@@ -16055,7 +16324,46 @@
         "filed_by": "Guru 16:07 IST (via parent)",
         "kind": "fix",
         "report": "bcl-119 progress.md",
-        "evidence": "R3-153 fix job 1 exited 1 because the runner ran the full suite before regenerating the chart; it was counted as failure 1 of 2 although no reviewer had found a code fault."
+        "evidence": "R3-153 fix job 1 exited 1 because the runner ran the full suite before regenerating the chart; it was counted as failure 1 of 2 although no reviewer had found a code fault.",
+        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
+      }
+    },
+    {
+      "id": "BCL-164",
+      "title": "Adding an issue never checks for an open one with the same cause",
+      "summary": "The add command takes any new entry without looking at open issues, so the same root cause is filed several times and there is no supported way to fold a new report into an existing issue.",
+      "impact": "Open issues pile up as near-duplicates, the owner has to merge them by hand, and lanes split work that shares one cause.",
+      "recommendation": "Make add compare the new entry with open issues and refuse a near-duplicate, naming the matches, unless it is marked new; add an into option that appends the report to a named open issue instead of creating one.",
+      "done_when": "Adding a near-duplicate is refused with the matching issue ids, adding it as new or into an open issue works, the gate count is unchanged by an append, and tests cover all three; measured against today's six adds.",
+      "observed": "22 Nov 2026 16:56 IST, bcl 0.1.64, PR 119",
+      "priority": "high",
+      "source": "User reported",
+      "status": "in_progress",
+      "details": {
+        "filed_by": "Guru 16:56 IST (via parent)",
+        "kind": "fix",
+        "report": "bcl-119 progress.md",
+        "evidence": "Round 3 filed BCL-160 to BCL-163 within an hour; BCL-162 repeats BCL-122's cause and BCL-163 BCL-149's. Grouping 52 open issues by root cause needed a hand-built plan and a details note on each issue because no merge command exists.",
+        "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)"
+      }
+    },
+    {
+      "id": "BCL-165",
+      "title": "The issue list shows every finding as its own row instead of by merged group",
+      "summary": "After issues are merged by root cause into plan groups, the page still lists each finding separately, so a long list hides which issues share a cause and verified issues stay mixed in with open ones.",
+      "impact": "The owner cannot see the merged groups on the page and has to scroll past dozens of rows, including finished ones.",
+      "recommendation": "Render the issue list by plan group: one row per group with its name and child count and collapsed children, ungrouped issues as plain rows, and verified issues collapsed into a done section; search and selection open the right group.",
+      "done_when": "The page lists one collapsed row per plan group with a child count, verified issues sit in a collapsed done section, search and selecting an issue open its group, and a test checks the rendered page.",
+      "observed": "22 Nov 2026 17:06 IST, bcl 0.1.64, PR 119 after the root-cause merge",
+      "priority": "high",
+      "source": "User reported",
+      "status": "in_progress",
+      "details": {
+        "filed_by": "Guru 17:06 IST (via parent)",
+        "kind": "fix",
+        "report": "bcl-119 progress.md",
+        "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)",
+        "evidence": "The root-cause merge put 40 issues into 11 M-* plan groups, but the page still rendered all 64 findings one row each."
       }
     }
   ]
