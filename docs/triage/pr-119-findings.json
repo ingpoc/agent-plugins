@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
+      "stage": "review",
       "updated_at": "2026-11-22T04:15:26Z",
-      "now": "2026-11-22T04:15:26Z — Install in progress"
+      "now": "2026-11-22T04:15:26Z — Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12558,7 +12558,8 @@
               "finished_at": "2026-11-22T04:14:31Z",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "review_status": "skipped_one_file"
           },
           "failure_history": [],
           "plan_review_history": [],
@@ -13560,7 +13561,7 @@
       "observed": "21 Nov 2026 22:45 IST, bcl 0.1.58 installed, interrogate review of the shipped change",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "interrogate skill review (Sol 6.2 adversary, rerun by orchestrator)",
         "report": "bcl-119/r1/adv-sol.md",
