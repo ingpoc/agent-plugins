@@ -11499,9 +11499,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T08:30:08Z",
-      "now": "2026-11-22T08:30:08Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T08:53:41Z",
+      "now": "2026-11-22T08:53:41Z — Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12944,7 +12944,7 @@
               "at": "2026-11-22T07:35:14Z"
             }
           ],
-          "updated_at": "2026-11-22T07:59:30Z",
+          "updated_at": "2026-11-22T08:53:40Z",
           "phase": "fix",
           "blocked_reason": "Second failure",
           "failure_block_reason": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:381) lets stored review outcomes override settled lane status. A verified or blocked lane retaining `review_status: passed` renders and counts as “Review passed” or “in review.” Preserve settled outcomes and test a verified lane with a realistic passed review receipt.\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:2739) still touches and writes the tracker when a repeated pause or resume reports a no-op. Return without mutation for those cases, and test that tracker contents remain unchanged."
@@ -12955,7 +12955,7 @@
           "finding_ids": [
             "BCL-145"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl119-r2-145",
           "label": "BCL-145",
           "verify": {
@@ -12969,21 +12969,22 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r2-145",
             "reviewer_session": "codex-terra-6.1-119r2-145",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "e36934730c2b4195837160e256ddaffd",
-              "phase": "fix",
-              "started_at": "2026-11-22T08:30:08Z",
+              "id": "30745247200347efb8ebc88357088142",
+              "phase": "review",
+              "started_at": "2026-11-22T08:53:41Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T08:30:08Z",
-              "plan_sha256": "1582e93171705e103bf359b759ee2f1454d3cf633fd71d7f5806d9ed49481781",
-              "model": "gpt-6-luna",
+              "heartbeat_at": "2026-11-22T08:53:41Z",
+              "plan_sha256": "d7917005a75a7540400bee0b8f4263c507f7799b06a228af6df11ed948422d45",
+              "model": "gpt-6.1-terra",
               "cycle": 11,
               "round": 2
             },
             "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1540) protects runtime fields only when a lane already exists. A new lane can supply fields such as `failure_history`, `install`, or `verify_reruns` through `set-plan`; the later claim check covers only a subset. Apply the declared protection to new lanes too.\n\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1528) accepts `pending` even when a stored status differs, then silently restores the stored value. A caller’s attempted change must be refused; permit `pending` as a default only when no value was stored.\n\n3. Literal lane-state lists remain in [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:618), including the in-flight states and the list at line 624. The stated single-definition requirement is therefore incomplete.\n\n4. Add CLI behavior coverage for new-lane runtime claims, attempts to replace stored values with `pending`, and `bcl plan` without `--plan` resubmitting unchanged stored runtime values. The added tests exercise batch operations but do not cover those paths."
+            "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1540) protects runtime fields only when a lane already exists. A new lane can supply fields such as `failure_history`, `install`, or `verify_reruns` through `set-plan`; the later claim check covers only a subset. Apply the declared protection to new lanes too.\n\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1528) accepts `pending` even when a stored status differs, then silently restores the stored value. A caller’s attempted change must be refused; permit `pending` as a default only when no value was stored.\n\n3. Literal lane-state lists remain in [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:618), including the in-flight states and the list at line 624. The stated single-definition requirement is therefore incomplete.\n\n4. Add CLI behavior coverage for new-lane runtime claims, attempts to replace stored values with `pending`, and `bcl plan` without `--plan` resubmitting unchanged stored runtime values. The added tests exercise batch operations but do not cover those paths.",
+            "review_status": "running"
           },
           "failure_history": [
             {
@@ -13016,10 +13017,31 @@
               "at": "2026-11-22T08:25:51Z"
             }
           ],
-          "updated_at": "2026-11-22T08:14:57Z",
-          "phase": "fix",
+          "updated_at": "2026-11-22T08:53:40Z",
+          "phase": "review",
           "reason": "Guru 13:42 IST: continue with R2-145 now that 0.1.62 shipped; serial (only writer/renderer lane open)",
           "parked_to": 3
+        },
+        {
+          "id": "R3-STAGE",
+          "name": "Time in stage on lane rows",
+          "finding_ids": [
+            "BCL-157"
+          ],
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 14:06 IST: status accuracy; right after BCL-145 (shares the page renderer)",
+          "label": "BCL-157",
+          "failure_history": [],
+          "plan_review_history": [],
+          "parked_to": 3,
+          "updated_at": "2026-11-22T08:53:40Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          }
         },
         {
           "id": "R3-AUDIT2",
@@ -13027,21 +13049,22 @@
           "finding_ids": [
             "BCL-153",
             "BCL-154",
-            "BCL-155"
+            "BCL-155",
+            "BCL-156"
           ],
           "status": "deferred",
           "phase": "deferred",
           "reason": "Guru 13:14 IST: audit block right after BCL-145; each measured against its round-2 baseline and reverted if no gain",
-          "label": "BCL-153, BCL-154, BCL-155",
+          "label": "BCL-153, BCL-154, BCL-155, BCL-156",
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 3,
-          "updated_at": "2026-11-22T07:59:30Z",
+          "updated_at": "2026-11-22T08:53:40Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 3
+            "total": 4
           }
         },
         {
@@ -13098,7 +13121,7 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T07:59:30Z",
+          "updated_at": "2026-11-22T08:53:40Z",
           "phase": "deferred",
           "reason": "3 plan reviews used (cap); final Sol CHANGES: cap marker must be protected on every plan write path, which is BCL-145 (one state table). Carried to round 3 after BCL-145",
           "parked_to": 3
@@ -13140,7 +13163,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 3,
-          "updated_at": "2026-11-22T07:59:30Z"
+          "updated_at": "2026-11-22T08:53:40Z"
         },
         {
           "id": "R3-LOOP",
@@ -13155,7 +13178,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 3,
-          "updated_at": "2026-11-22T07:59:30Z",
+          "updated_at": "2026-11-22T08:53:40Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13178,7 +13201,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 3,
-          "updated_at": "2026-11-22T07:59:30Z",
+          "updated_at": "2026-11-22T08:53:40Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13200,7 +13223,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 3,
-          "updated_at": "2026-11-22T07:59:30Z",
+          "updated_at": "2026-11-22T08:53:40Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13224,7 +13247,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 3,
-          "updated_at": "2026-11-22T07:59:30Z",
+          "updated_at": "2026-11-22T08:53:40Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13303,7 +13326,7 @@
               "at": "2026-11-22T06:17:13Z"
             }
           ],
-          "updated_at": "2026-11-22T07:59:30Z",
+          "updated_at": "2026-11-22T08:53:40Z",
           "phase": "fix",
           "blocked_reason": "Second failure",
           "failure_block_reason": "1. [live_state.py:473](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:473) clears the pending marker after an ordinary same-stage snapshot even when it creates no commit. If that snapshot runs before the explicit `bcl snapshot`, the latter reports “nothing to save” and the pending change remains uncommitted. Preserve the pending marker until the explicit save commits it. The [concurrency test](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:199) checks for deadlock and marker removal but does not check that the pending change was committed; make the ordering deterministic and assert the saved commit."
@@ -13390,7 +13413,7 @@
               "at": "2026-11-22T06:03:14Z"
             }
           ],
-          "updated_at": "2026-11-22T08:13:48Z",
+          "updated_at": "2026-11-22T08:53:40Z",
           "phase": "verify",
           "unblock_history": [
             {
@@ -13459,7 +13482,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T08:13:47Z",
+          "updated_at": "2026-11-22T08:53:40Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13548,7 +13571,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 3,
-          "updated_at": "2026-11-22T07:59:30Z"
+          "updated_at": "2026-11-22T08:53:40Z"
         },
         {
           "id": "R1-RELEASE",
@@ -13586,7 +13609,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 3,
-          "updated_at": "2026-11-22T07:59:30Z"
+          "updated_at": "2026-11-22T08:53:40Z"
         },
         {
           "id": "R2-135",
@@ -13630,7 +13653,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T07:59:30Z",
+          "updated_at": "2026-11-22T08:53:40Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13711,7 +13734,7 @@
               "at": "2026-11-22T04:31:12Z"
             }
           ],
-          "updated_at": "2026-11-22T07:59:30Z",
+          "updated_at": "2026-11-22T08:53:40Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13765,7 +13788,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T07:59:30Z",
+          "updated_at": "2026-11-22T08:53:40Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13834,7 +13857,7 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T07:59:30Z",
+          "updated_at": "2026-11-22T08:53:40Z",
           "phase": "deferred",
           "reason": "3 plan reviews used (cap); final Sol CHANGES: named hotfix must need a passed presuite, and same-round replans must keep an open hotfix id and findings. Both are plan-write trust rules, BCL-145 (one state table). Carried to round 3 after BCL-145",
           "parked_to": 3
@@ -15287,6 +15310,46 @@
         "related": "BCL-122, BCL-134",
         "baseline": "round 2: 1 presuite failure from a stale chart (12:35 IST, about 5 minutes of a 5-minute run) plus a manual regenerate commit",
         "success": "zero stale-chart presuite failures over the next round; else revert and record why"
+      }
+    },
+    {
+      "id": "BCL-156",
+      "title": "A carried or reopened lane works on an old copy of the code",
+      "summary": "When a lane is carried to a later round or reopened, its worktree stays on the commit it was created from, so the next fix is written against code without the fixes verified since; the agent has to merge the list branch in by hand.",
+      "impact": "Fixes are written on stale code, merges and conflicts are handled by hand, and a review can judge code that is already out of date.",
+      "recommendation": "At each new round, give every carried lane a fresh worktree cut from the list branch head, replay its unverified commits on top, stop the lane with a clear message naming the files on conflict, and remove the old worktree afterwards.",
+      "done_when": "At a new round each carried lane runs in a fresh worktree from the list branch head with its unverified commits replayed, a conflict stops the lane with the files named, and the old worktree is gone; measured against this round, no manual lane merges remain; a test covers it.",
+      "observed": "22 Nov 2026 13:45 IST, bcl 0.1.62, PR 119 lane R2-145",
+      "priority": "high",
+      "source": "User requested",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 14:00 IST (via parent)",
+        "kind": "fix",
+        "queue": "audit block after BCL-145",
+        "report": "bcl-119 progress.md",
+        "baseline": "round 2: 4 manual lane-worktree merges (R2-144 base with principles a53dcda3, int merge of R2-136/138/144 with statechart conflicts, int2 merges of R2-141/146, R2-145 reopen merge 26d64a6f with a workflow definition and chart conflict), about 10 minutes of conflict handling plus one stale-chart presuite failure",
+        "success": "zero manual lane merges in the next round; conflicts reported by bcl with files named; else revert and record why",
+        "design": "Guru 14:02 IST: at each new round every carried lane gets a fresh worktree cut from the list branch head; its unverified commits are replayed on top; a conflict stops the lane with a clear message; the old worktree is removed afterwards (supersede rule)."
+      }
+    },
+    {
+      "id": "BCL-157",
+      "title": "Lane rows do not show how long a lane has been in its stage",
+      "summary": "Each lane row shows a stage pill such as Fixing but not how long the lane has been there, so the owner cannot see where a round slowed.",
+      "impact": "A slow or stuck stage looks the same as one that just started; the owner has to ask the agent for timings.",
+      "recommendation": "Show time in the current stage on each lane row next to the pill (for example Fixing · 42 min), in a large readable font, derived at render time from the last stage change of that lane; it resets only when the lane changes stage, not on job retries or heartbeats.",
+      "done_when": "Each active lane row shows its stage with minutes in that stage, the count resets only on a stage change, retries and heartbeats leave it unchanged, and a test asserts the visible text.",
+      "observed": "22 Nov 2026 14:06 IST, bcl 0.1.62, PR 119 lane R2-145",
+      "priority": "high",
+      "source": "User requested",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 14:06 IST (via parent)",
+        "kind": "fix",
+        "queue": "right after BCL-145 (shares the page renderer)",
+        "report": "bcl-119 progress.md",
+        "design": "Guru 14:08 IST: deterministic, never agent-written. The bcl stage-transition code path itself stamps stage_entered_at on every lane stage change (single writer, protected runtime field); render derives the duration from it at load. No agent-set fields, no manual edits. Tests: retries and heartbeats do not reset it; a stage change does; page text shows it."
       }
     }
   ]
