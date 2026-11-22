@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Regenerate and stage the batched-change-list state chart when its sources change (BCL-155).
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+exec python3 "$ROOT/scripts/precommit_chart.py"

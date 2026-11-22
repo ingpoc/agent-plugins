@@ -8,5 +8,5 @@ if ! git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
   exit 1
 fi
 git -C "$ROOT" config core.hooksPath .githooks
-chmod +x "$ROOT/.githooks/pre-push" "$ROOT/scripts/prepush.py" "$ROOT/scripts/check.py"
-echo "core.hooksPath=.githooks: pre-push runs scripts/prepush.py (format, lint, compile, manifest contract)"
+chmod +x "$ROOT/.githooks/pre-push" "$ROOT/.githooks/pre-commit" "$ROOT/.githooks/post-merge" "$ROOT/scripts/prepush.py" "$ROOT/scripts/check.py" "$ROOT/scripts/precommit_chart.py"
+echo "core.hooksPath=.githooks: pre-push runs scripts/prepush.py (format, lint, compile, manifest contract); pre-commit and post-merge keep the bcl state chart current"
