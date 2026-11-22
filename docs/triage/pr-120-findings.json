@@ -12972,16 +12972,20 @@
               "phase": "review",
               "started_at": "2026-11-22T16:16:00Z",
               "command": "run-review-175-2.sh",
-              "heartbeat_at": "2026-11-22T16:16:00Z",
+              "heartbeat_at": "2026-11-22T16:17:11Z",
               "plan_sha256": "4257759c2f863172da02a3b4e61a43f3dc2eb47f13ca1511144b1393d76498d6",
               "model": "gpt-6.1-terra medium (Codex)",
               "cycle": 12,
-              "round": 3
+              "round": 3,
+              "pid": 88160,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T16:17:11Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra medium (Codex)",
             "must_fix_note": "1. [manage_findings.py:608](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r3-175-r3/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:608) A parked lane with a `blocked_reason` but no counted failures is not considered gated, so it bypasses the new carry-forward logic. A lane blocked for a dependency can therefore be parked and return as `planned` in the next round, allowing a fix job without an unblock. Include parked lanes retaining a blocked reason in the gate and cover that case.",
-            "review_status": "running"
+            "review_status": "passed"
           },
           "files": [
             "plugins/batched-change-list/bin/bcl",
