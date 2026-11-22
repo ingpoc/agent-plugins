@@ -11480,9 +11480,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-22T18:24:24Z",
-      "now": "2026-11-22T18:24:24Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-22T18:25:27Z",
+      "now": "2026-11-22T18:25:27Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -13053,7 +13053,8 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 4,
@@ -13065,7 +13066,7 @@
             "BCL-157"
           ],
           "label": "BCL-157",
-          "status": "installing",
+          "status": "verifying",
           "worktree": "samantha-next-r10",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-157.sh",
@@ -13138,8 +13139,8 @@
               "at": "2026-11-22T17:16:25Z"
             }
           ],
-          "updated_at": "2026-11-22T16:38:10Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T18:25:27Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -13149,7 +13150,7 @@
             "status": "running",
             "started_at": "2026-11-22T18:24:24Z"
           },
-          "stage_entered_at": "2026-11-22T18:24:24Z"
+          "stage_entered_at": "2026-11-22T18:25:27Z"
         },
         {
           "id": "R4-171",
@@ -13605,7 +13606,11 @@
           "state": "pending"
         },
         "BCL-157": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Checking the installed 0.1.72 now",
+          "observed_at": "2026-11-22T18:25:20Z",
+          "started_at": "2026-11-22T18:25:20Z",
+          "updated_at": "2026-11-22T18:25:20Z"
         },
         "BCL-158": {
           "state": "pending"
@@ -13724,7 +13729,7 @@
       "round": 3,
       "cycle": 12
     },
-    "last_written_at": "2026-11-22T18:24:58Z"
+    "last_written_at": "2026-11-22T18:25:27Z"
   },
   "findings": [
     {
