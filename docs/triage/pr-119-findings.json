@@ -11499,9 +11499,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T10:26:50Z",
-      "now": "2026-11-22T10:26:50Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T10:36:53Z",
+      "now": "2026-11-22T10:36:53Z — Presuite started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13014,19 +13014,15 @@
             "implementer_session": "codex-luna-119r3-150",
             "reviewer_session": "codex-terra-6.1-119r3-150",
             "job": {
-              "id": "d7236ea549aa47e9903fa3d6783942e5",
-              "phase": "review",
-              "started_at": "2026-11-22T10:25:08Z",
-              "command": "cp",
-              "heartbeat_at": "2026-11-22T10:25:08Z",
-              "plan_sha256": "764d59965200f25faf82156584b8bf8d687051853674e439b83e4f06de1c8eb2",
-              "model": "grokbot-review-pass (Guru 15:22; Codex quota out)",
+              "id": "d6c28fe4ef3a4e1185390254b779ebdf",
+              "phase": "presuite",
+              "started_at": "2026-11-22T10:36:53Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-22T10:36:53Z",
+              "plan_sha256": "c81f4a2d99d981e1a2a531467693ca88af0d08b1bbb368b92d00b75799603e3f",
+              "model": "scripted presuite",
               "cycle": 11,
-              "round": 3,
-              "pid": 76431,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T10:25:08Z",
-              "finished_phase_status": "passed"
+              "round": 3
             },
             "tool_fault_streak": 0,
             "fix_status": "passed",
@@ -13134,11 +13130,12 @@
               "phase": "fix",
               "started_at": "2026-11-22T10:26:50Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-22T10:26:50Z",
+              "heartbeat_at": "2026-11-22T10:35:51Z",
               "plan_sha256": "764d59965200f25faf82156584b8bf8d687051853674e439b83e4f06de1c8eb2",
               "model": "grokbot-subagent (Guru 15:22; Codex and OpenCode quota out)",
               "cycle": 11,
-              "round": 3
+              "round": 3,
+              "pid": 78396
             },
             "tool_fault_streak": 0,
             "fix_status": "running"
@@ -13227,9 +13224,11 @@
               "owner_override": true
             }
           ],
-          "status": "running",
-          "updated_at": "2026-11-22T09:04:52Z",
-          "phase": "fix"
+          "status": "deferred",
+          "updated_at": "2026-11-22T10:36:22Z",
+          "phase": "deferred",
+          "reason": "Guru 16:04 IST: ship R2-150 now; parked at sub-lane b 9cbda612 for Codex Luna after 18:50 (plan review passed, a and b committed)",
+          "parked_to": 4
         },
         {
           "id": "R2-142",
@@ -13331,9 +13330,11 @@
               "owner_override": true
             }
           ],
-          "status": "review",
-          "updated_at": "2026-11-22T09:04:52Z",
-          "phase": "plan_review"
+          "status": "deferred",
+          "updated_at": "2026-11-22T10:36:22Z",
+          "phase": "deferred",
+          "reason": "Guru 16:04 IST: ship R2-150 now; parked for Codex Luna after 18:50 (plan review passed, no code yet)",
+          "parked_to": 4
         },
         {
           "id": "R3-STAGE",
