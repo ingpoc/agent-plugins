@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T12:50:21Z",
-      "now": "2026-11-22T12:50:21Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-22T12:52:36Z",
+      "now": "2026-11-22T12:52:36Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12156,7 +12156,8 @@
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix"
+      "plan_fix",
+      "review"
     ],
     "plan": {
       "round": 1,
@@ -12194,7 +12195,7 @@
             "BCL-134"
           ],
           "label": "BCL-134",
-          "status": "planned",
+          "status": "review",
           "worktree": "bcl120-r1-134",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-134.sh",
@@ -12206,11 +12207,27 @@
           "codex": {
             "model": "Grok Bot self-implementation (before 18:50 Codex window)",
             "implementer_session": "grokbot-self-120-134",
-            "reviewer_session": "grokbot-review-120-134"
+            "reviewer_session": "grokbot-review-120-134",
+            "fix_status": "passed",
+            "job": {
+              "id": "d4e172624e774ba4a39d7b8c351c5104",
+              "phase": "review",
+              "started_at": "2026-11-22T12:52:36Z",
+              "command": "test",
+              "heartbeat_at": "2026-11-22T12:52:36Z",
+              "plan_sha256": "b44ea4ea4102d4833a4717cc496c930b0e2d478f0685a7e3364f61a91d0c6bcc",
+              "model": "Grok Bot self review",
+              "cycle": 12,
+              "round": 1
+            },
+            "tool_fault_streak": 0,
+            "review_status": "running",
+            "reviewer_model": "Grok Bot self review"
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:50:21Z"
+          "updated_at": "2026-11-22T12:50:21Z",
+          "phase": "review"
         },
         {
           "id": "R2-142",
