@@ -11099,9 +11099,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-22T15:01:43Z",
-      "now": "2026-11-22T15:01:43Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T15:02:44Z",
+      "now": "2026-11-22T15:02:44Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 119,
@@ -11183,7 +11183,7 @@
       }
     },
     "cycle": 12,
-    "round": 2,
+    "round": 3,
     "round_history": [
       {
         "round": 2,
@@ -11364,6 +11364,11 @@
         "round": 1,
         "fixed": 4,
         "ended_at": "2026-11-22T13:42:25Z"
+      },
+      {
+        "round": 2,
+        "fixed": 5,
+        "ended_at": "2026-11-22T15:02:44Z"
       }
     ],
     "introspect_history": [
@@ -12582,22 +12587,18 @@
       "collect",
       "present",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "round": 2,
+      "round": 3,
       "groups": [
         {
           "id": "R2-145",
-          "name": "One lane-state table for every writer",
+          "name": "One lane-state table: last two review items",
           "finding_ids": [
             "BCL-145"
           ],
           "label": "BCL-145",
-          "status": "deferred",
           "worktree": "bcl120-r1-145",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
@@ -12607,28 +12608,9 @@
             "total": 1
           },
           "codex": {
-            "model": "Guru subagent worker",
-            "implementer_session": "worker-bcl120-r1-145",
-            "reviewer_session": "review-r2-145",
-            "fix_status": "passed",
-            "job": {
-              "id": "1098f0e97aa945eaafa9d292785ad8e0",
-              "phase": "review",
-              "started_at": "2026-11-22T14:14:40Z",
-              "command": "sh",
-              "heartbeat_at": "2026-11-22T14:16:31Z",
-              "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
-              "model": "gpt-6.1-terra medium (Codex)",
-              "cycle": 12,
-              "round": 2,
-              "pid": 76364,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T14:16:31Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. [workflow_definition.json:67](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json:67): `dependency` and `dependency_invalidated` independently declare the same states. Dependency validation and invalidation can therefore drift: changing one list can allow a lane to retain a state that the other check rejects after its prerequisite loses verification. Use one shared group for this invariant and test that changing it moves both decisions.\n\n2. [test_bcl.py:2377](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:2377): The new definition-change test does not establish both sides of either behavior. The changed verify call only checks that one error message is absent; it may have failed earlier for another reason. Invalidation checks only the modified definition, without showing the baseline blocks the dependent lane. Assert the actual decisions under both definitions."
-            },
-            "reviewer_model": "gpt-6.1-terra medium (Codex)",
-            "must_fix_note": "1. [workflow_definition.json:67](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json:67): `dependency` and `dependency_invalidated` independently declare the same states. Dependency validation and invalidation can therefore drift: changing one list can allow a lane to retain a state that the other check rejects after its prerequisite loses verification. Use one shared group for this invariant and test that changing it moves both decisions.\n\n2. [test_bcl.py:2377](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:2377): The new definition-change test does not establish both sides of either behavior. The changed verify call only checks that one error message is absent; it may have failed earlier for another reason. Invalidation checks only the modified definition, without showing the baseline blocks the dependent lane. Assert the actual decisions under both definitions."
+            "model": "Grok Bot direct (small fix)",
+            "implementer_session": "grokbot-r3-145",
+            "reviewer_session": "codex-terra-120-145-r3"
           },
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -12664,8 +12646,6 @@
               "at": "2026-11-22T14:00:00Z"
             }
           ],
-          "updated_at": "2026-11-22T14:56:37Z",
-          "phase": "deferred",
           "unblock_history": [
             {
               "at": "2026-11-22T14:56:27Z",
@@ -12681,8 +12661,8 @@
               "owner_override": true
             }
           ],
-          "reason": "Guru approved 2026-11-22 20:26 IST: defer to round 3 so R2-176 can ship; open must-fix in BCL-145 review_notes",
-          "parked_to": 3
+          "status": "planned",
+          "updated_at": "2026-11-22T15:02:44Z"
         },
         {
           "id": "R2-DO1",
@@ -12691,7 +12671,6 @@
             "DO-1"
           ],
           "label": "DO-1",
-          "status": "deferred",
           "worktree": "bcl120-r2-do1-r2",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-do1.sh",
@@ -12703,26 +12682,7 @@
           "codex": {
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "codex-luna-120-do1",
-            "reviewer_session": "codex-terra-120-do1",
-            "fix_status": "passed",
-            "job": {
-              "id": "da6ebb99274244d1b7c92e594ab3ed34",
-              "phase": "review",
-              "started_at": "2026-11-22T13:54:37Z",
-              "command": "sh",
-              "heartbeat_at": "2026-11-22T13:56:04Z",
-              "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
-              "model": "gpt-6.1-terra medium (Codex)",
-              "cycle": 12,
-              "round": 2,
-              "pid": 41037,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T13:56:04Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Git quotes paths containing non-ASCII characters or certain special characters by default. A snapshot such as `docs/triage/café.json` is returned as a quoted string that does not start with `docs/triage/`, so the collector still reports it as an unpushed commit. Use NUL-delimited output and parse the actual paths; add a behavioral test."
-            },
-            "reviewer_model": "gpt-6.1-terra medium (Codex)",
-            "must_fix_note": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Git quotes paths containing non-ASCII characters or certain special characters by default. A snapshot such as `docs/triage/café.json` is returned as a quoted string that does not start with `docs/triage/`, so the collector still reports it as an unpushed commit. Use NUL-delimited output and parse the actual paths; add a behavioral test."
+            "reviewer_session": "codex-terra-120-do1"
           },
           "files": [
             "plugins/developer-observability/runtime/collector/sources.py",
@@ -12767,8 +12727,6 @@
               "at": "2026-11-22T13:50:18Z"
             }
           ],
-          "updated_at": "2026-11-22T14:56:37Z",
-          "phase": "deferred",
           "unblock_history": [
             {
               "at": "2026-11-22T14:56:28Z",
@@ -12784,65 +12742,8 @@
               "owner_override": true
             }
           ],
-          "reason": "Guru approved 2026-11-22 20:26 IST: defer to round 3 so R2-176 can ship; open must-fix in DO-1 review_notes",
-          "parked_to": 3
-        },
-        {
-          "id": "R2-176",
-          "name": "Release suite scoped to changed plugins",
-          "finding_ids": [
-            "BCL-176"
-          ],
-          "label": "BCL-176",
-          "status": "verified",
-          "worktree": "bcl120-r2-176-r2",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-176.sh",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "codex": {
-            "model": "gpt-6-luna fast medium (Codex CLI)",
-            "implementer_session": "codex-luna-120-176",
-            "reviewer_session": "none-one-file",
-            "fix_status": "passed",
-            "job": {
-              "id": "65000f35f53447c088e7170957ab800b",
-              "phase": "presuite",
-              "started_at": "2026-11-22T14:19:41Z",
-              "command": "sh",
-              "heartbeat_at": "2026-11-22T14:21:50Z",
-              "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
-              "model": "none (script)",
-              "cycle": 12,
-              "round": 2,
-              "pid": 81985,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T14:21:50Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "review_status": "passed",
-            "reviewer_model": "Grok Bot review (one-file, Terra skipped)"
-          },
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/references/release.md"
-          ],
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-22T14:58:29Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-22T14:21:50Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-22T14:58:28Z"
-          }
+          "status": "planned",
+          "updated_at": "2026-11-22T15:02:44Z"
         },
         {
           "id": "DEFER",
@@ -12851,6 +12752,7 @@
             "ACU-10",
             "ACU-20",
             "ACU-21",
+            "BCL-94",
             "BCL-103",
             "BCL-106",
             "BCL-108",
@@ -12874,18 +12776,17 @@
             "BCL-166",
             "BCL-171",
             "BCL-175",
-            "BCL-94",
             "DO-2",
             "DO-3"
           ],
           "label": "rest",
           "status": "deferred",
           "phase": "deferred",
-          "reason": "Round 2: page status (BCL-157/170), BCL-175, Collect and Verify observability (BCL-171, BCL-160) and event stamping (BCL-177) all change the bcl core files R2-145 is rewriting, so the file-overlap check holds them for round 3; the per-round view (DO-3) waits for the stamping",
+          "reason": "Round 3: BCL-175 (with BCL-179, BCL-180) and BCL-157 change bin/bcl and the writers that R2-145 still edits, so the file-overlap check holds them; BCL-175 joins this round right after R2-145 ships, and BCL-157 follows it because both change manage_findings.py. Guru 20:30 IST asked whether lanes this big should be split before fixing.",
           "failure_history": [],
           "plan_review_history": [],
-          "parked_to": 3,
-          "updated_at": "2026-11-22T13:42:25Z",
+          "parked_to": 4,
+          "updated_at": "2026-11-22T15:02:44Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -12894,8 +12795,7 @@
           }
         }
       ],
-      "cycle": 12,
-      "status": "closed"
+      "cycle": 12
     },
     "verification_run": {
       "id": "r2-3f9d178c-120",
