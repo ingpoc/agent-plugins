@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T12:56:38Z",
-      "now": "2026-11-22T12:56:38Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T13:10:14Z",
+      "now": "2026-11-22T13:10:14Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12170,7 +12170,7 @@
             "BCL-151"
           ],
           "label": "BCL-158, BCL-151",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl120-r1-round",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-round.sh",
@@ -12183,23 +12183,26 @@
             "model": "Grok Bot self-implementation (before 18:50 Codex window)",
             "implementer_session": "grokbot-self-120-round",
             "reviewer_session": "grokbot-review-120-round",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "6615448155e7460f9b02f3170cc7324a",
-              "phase": "fix",
-              "started_at": "2026-11-22T12:56:38Z",
-              "command": "python3",
-              "heartbeat_at": "2026-11-22T12:56:38Z",
+              "id": "b02b937c50e143929ce8b58eb7da5daa",
+              "phase": "review",
+              "started_at": "2026-11-22T13:10:14Z",
+              "command": "cp",
+              "heartbeat_at": "2026-11-22T13:10:14Z",
               "plan_sha256": "b44ea4ea4102d4833a4717cc496c930b0e2d478f0685a7e3364f61a91d0c6bcc",
-              "model": "Grok Bot self",
+              "model": "Grok Bot self review",
               "cycle": 12,
               "round": 1
-            }
+            },
+            "tool_fault_streak": 0,
+            "review_status": "running",
+            "reviewer_model": "Grok Bot self review"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T12:50:21Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "R1-134",
