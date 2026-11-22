@@ -11328,9 +11328,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T07:39:21Z",
-      "now": "2026-11-22T07:39:21Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T07:59:30Z",
+      "now": "2026-11-22T07:59:30Z — Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12709,7 +12709,7 @@
           "finding_ids": [
             "BCL-150"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl119-r2-150",
           "label": "BCL-150",
           "verify": {
@@ -12723,21 +12723,22 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r2-150",
             "reviewer_session": "codex-terra-6.1-119r2-150",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "83684574464a493989e013b8fe3df3b8",
-              "phase": "fix",
-              "started_at": "2026-11-22T07:39:21Z",
+              "id": "096f23f32cd94210a8bbd1f5c0c363e8",
+              "phase": "review",
+              "started_at": "2026-11-22T07:59:30Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T07:39:21Z",
-              "plan_sha256": "fd09123e0cdd1a40aa7ce1a1299f5746e93842bfe46190b4f4b612f1e54d3147",
-              "model": "gpt-6-luna",
+              "heartbeat_at": "2026-11-22T07:59:30Z",
+              "plan_sha256": "2827e92f11444796c0f321afa307d55557fd687c86d679a86de2d9a6d2c1f23d",
+              "model": "gpt-6.1-terra",
               "cycle": 11,
               "round": 2
             },
             "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:473) still derives lane-row labels and counts from the stored status. A paused or jobless active lane can therefore show “Fixing” or “In review,” and a dead job shows “Interrupted · resume needed” rather than its phase. Derive the lane row from the same receipt and pause state as the finding.\n2. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:378) returns stored review outcomes before checking whether an active lane has no live job. For example, an active lane with a completed review receipt and `review_status: passed` shows “Review passed” instead of “Paused · needs resume.” Also render the interrupted `plan_review` phase as “plan review.”\n3. [test_lane_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/test_lane_state.py:68) checks for `>Stale</span>`, which also matches the **hidden** Stale element. Assert that the stale tag is visible, and cover the lane-row text and stored-review precedence above."
+            "must_fix_note": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:473) still derives lane-row labels and counts from the stored status. A paused or jobless active lane can therefore show “Fixing” or “In review,” and a dead job shows “Interrupted · resume needed” rather than its phase. Derive the lane row from the same receipt and pause state as the finding.\n2. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:378) returns stored review outcomes before checking whether an active lane has no live job. For example, an active lane with a completed review receipt and `review_status: passed` shows “Review passed” instead of “Paused · needs resume.” Also render the interrupted `plan_review` phase as “plan review.”\n3. [test_lane_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/test_lane_state.py:68) checks for `>Stale</span>`, which also matches the **hidden** Stale element. Assert that the stale tag is visible, and cover the lane-row text and stored-review precedence above.",
+            "review_status": "running"
           },
           "failure_history": [
             {
@@ -12759,8 +12760,8 @@
               "at": "2026-11-22T07:35:14Z"
             }
           ],
-          "updated_at": "2026-11-22T07:30:13Z",
-          "phase": "fix"
+          "updated_at": "2026-11-22T07:59:30Z",
+          "phase": "review"
         },
         {
           "id": "R2-145",
@@ -12816,10 +12817,33 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T07:30:13Z",
+          "updated_at": "2026-11-22T07:59:30Z",
           "phase": "deferred",
           "reason": "Guru 12:32 IST: status hotfix R2-150 goes ahead of BCL-145. Terra 1 CHANGES (counted 1) and Sol plan review 1 CHANGES recorded; carried to round 3 with plan v3 from planreview-145-1.md",
           "parked_to": 3
+        },
+        {
+          "id": "R3-AUDIT2",
+          "name": "Leaner loop: one plan review, one readiness check, auto chart",
+          "finding_ids": [
+            "BCL-153",
+            "BCL-154",
+            "BCL-155"
+          ],
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 13:14 IST: audit block right after BCL-145; each measured against its round-2 baseline and reverted if no gain",
+          "label": "BCL-153, BCL-154, BCL-155",
+          "failure_history": [],
+          "plan_review_history": [],
+          "parked_to": 3,
+          "updated_at": "2026-11-22T07:59:30Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 3
+          }
         },
         {
           "id": "R2-137",
@@ -12875,7 +12899,7 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T07:30:13Z",
+          "updated_at": "2026-11-22T07:59:30Z",
           "phase": "deferred",
           "reason": "3 plan reviews used (cap); final Sol CHANGES: cap marker must be protected on every plan write path, which is BCL-145 (one state table). Carried to round 3 after BCL-145",
           "parked_to": 3
@@ -12917,7 +12941,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 3,
-          "updated_at": "2026-11-22T07:30:13Z"
+          "updated_at": "2026-11-22T07:59:30Z"
         },
         {
           "id": "R3-LOOP",
@@ -12932,13 +12956,14 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 3,
-          "updated_at": "2026-11-22T07:30:13Z",
+          "updated_at": "2026-11-22T07:59:30Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 1
-          }
+          },
+          "codex": {}
         },
         {
           "id": "R3-RELEASE",
@@ -12954,13 +12979,14 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 3,
-          "updated_at": "2026-11-22T07:30:13Z",
+          "updated_at": "2026-11-22T07:59:30Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 2
-          }
+          },
+          "codex": {}
         },
         {
           "id": "R3-CARRY",
@@ -12975,13 +13001,14 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 3,
-          "updated_at": "2026-11-22T07:30:13Z",
+          "updated_at": "2026-11-22T07:59:30Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 1
-          }
+          },
+          "codex": {}
         },
         {
           "id": "R3-RECEIPTS",
@@ -12998,13 +13025,14 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 3,
-          "updated_at": "2026-11-22T07:30:13Z",
+          "updated_at": "2026-11-22T07:59:30Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 3
-          }
+          },
+          "codex": {}
         },
         {
           "id": "R2-142",
@@ -13076,7 +13104,7 @@
               "at": "2026-11-22T06:17:13Z"
             }
           ],
-          "updated_at": "2026-11-22T07:30:13Z",
+          "updated_at": "2026-11-22T07:59:30Z",
           "phase": "fix",
           "blocked_reason": "Second failure",
           "failure_block_reason": "1. [live_state.py:473](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:473) clears the pending marker after an ordinary same-stage snapshot even when it creates no commit. If that snapshot runs before the explicit `bcl snapshot`, the latter reports “nothing to save” and the pending change remains uncommitted. Preserve the pending marker until the explicit save commits it. The [concurrency test](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:199) checks for deadlock and marker removal but does not check that the pending change was committed; make the ordering deterministic and assert the saved commit."
@@ -13163,7 +13191,7 @@
               "at": "2026-11-22T06:03:14Z"
             }
           ],
-          "updated_at": "2026-11-22T07:30:13Z",
+          "updated_at": "2026-11-22T07:59:30Z",
           "phase": "review",
           "unblock_history": [
             {
@@ -13228,7 +13256,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T07:30:13Z",
+          "updated_at": "2026-11-22T07:59:30Z",
           "phase": "review",
           "presuite": {
             "status": "failed",
@@ -13313,7 +13341,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 3,
-          "updated_at": "2026-11-22T07:30:13Z"
+          "updated_at": "2026-11-22T07:59:30Z"
         },
         {
           "id": "R1-RELEASE",
@@ -13351,7 +13379,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 3,
-          "updated_at": "2026-11-22T07:30:13Z"
+          "updated_at": "2026-11-22T07:59:30Z"
         },
         {
           "id": "R2-135",
@@ -13395,7 +13423,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T07:30:13Z",
+          "updated_at": "2026-11-22T07:59:30Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13476,7 +13504,7 @@
               "at": "2026-11-22T04:31:12Z"
             }
           ],
-          "updated_at": "2026-11-22T07:30:13Z",
+          "updated_at": "2026-11-22T07:59:30Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13530,7 +13558,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T07:30:13Z",
+          "updated_at": "2026-11-22T07:59:30Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13599,7 +13627,7 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T07:30:13Z",
+          "updated_at": "2026-11-22T07:59:30Z",
           "phase": "deferred",
           "reason": "3 plan reviews used (cap); final Sol CHANGES: named hotfix must need a passed presuite, and same-round replans must keep an open hotfix id and findings. Both are plan-write trust rules, BCL-145 (one state table). Carried to round 3 after BCL-145",
           "parked_to": 3
@@ -14932,6 +14960,67 @@
         "kind": "fix",
         "report": "bcl-119 progress.md",
         "evidence": "Guru 12:59 IST: until BCL-145 lands, fixes touching the writer or the page renderer run one lane at a time; parallel lanes only with disjoint files. In round 2, R2-141 and R2-150 both change the page renderer, and R2-144 and R2-137 both changed plan writes."
+      }
+    },
+    {
+      "id": "BCL-153",
+      "title": "Plan review runs as a separate step instead of inside the post-fix review",
+      "summary": "After a failed review, each lane runs separate plan reviews before the next fix, then a full review after it. Guru asked to merge the plan check into the post-fix review and keep a plan review only after the first failed review of a lane.",
+      "impact": "Round 2 ran 15 plan reviews (11 asked for changes, 4 passed) using about 5.3 million input tokens and 18 thousand output tokens, about 4 to 5 minutes each, and three lanes hit the 3-review cap and were deferred.",
+      "recommendation": "Run at most one plan review per lane, only after its first failed review; fold the plan questions into the next post-fix review instead of further plan reviews.",
+      "done_when": "Measured over the next round against round 2 (15 plan reviews, 5.3 million input tokens, 3 cap deferrals): fewer plan reviews and tokens per verified fix with no more counted review failures; if not, the change is reverted and the reason recorded.",
+      "observed": "22 Nov 2026 13:14 IST, bcl 0.1.61, PR 119 round 2",
+      "priority": "high",
+      "source": "User requested",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 13:14 IST (via parent)",
+        "kind": "fix",
+        "queue": "audit block after BCL-145",
+        "report": "bcl-119 progress.md",
+        "baseline": "round 2: 15 plan reviews (R2-136 x2, R2-137 x3, R2-144 x3, R2-146 x1, R2-142 x3, R2-145 x1, R2-150 x2), 11 changes / 4 pass, 5,330,155 input and 18,471 output tokens, 3 lanes deferred at the cap",
+        "success": "next round: plan reviews per verified fix and tokens per verified fix both lower, counted review failures per lane not higher; else revert and record why"
+      }
+    },
+    {
+      "id": "BCL-154",
+      "title": "Install runs its own precheck that repeats the release check",
+      "summary": "bcl install checks lane readiness separately from bcl release-check, so the same conditions are kept and evaluated in two places (raised by the Astra plan reviewer).",
+      "impact": "Two copies of the same gate drift apart and cost an extra step and rerun when they disagree.",
+      "recommendation": "Delete the separate install precheck and have install rely on release-check for the named lanes.",
+      "done_when": "Install uses release-check for its readiness decision with the separate precheck deleted; measured over the next round against round 2 (install steps and reruns per verified fix), no extra refusals or reruns; else reverted and the reason recorded.",
+      "observed": "22 Nov 2026 13:14 IST, bcl 0.1.61, PR 119 round 2",
+      "priority": "medium",
+      "source": "User requested",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 13:14 IST (via parent)",
+        "kind": "fix",
+        "queue": "audit block after BCL-145",
+        "report": "bcl-119 progress.md",
+        "baseline": "round 2: install readiness checked by bcl install and again by release-check before each push (0.1.60, 0.1.61); 2 release-check refusals at 0.1.61 handled by exception",
+        "success": "install and release decide readiness from one check; no new refusals or reruns per verified fix versus round 2; else revert and record why"
+      }
+    },
+    {
+      "id": "BCL-155",
+      "title": "A workflow definition change without a regenerated chart fails the presuite",
+      "summary": "When the workflow definition changes and the state chart is not regenerated, the presuite fails late on the stale chart instead of the chart being regenerated as part of the change.",
+      "impact": "A full presuite run (about 5 minutes) is spent and rerun; at 12:35 IST today the 0.1.62 presuite failed only for this reason after a display fix changed the definition.",
+      "recommendation": "Regenerate the chart automatically whenever the workflow definition changes (in the commit hook or the bcl write that changes it), so presuite never fails on a stale chart.",
+      "done_when": "Changing the workflow definition regenerates the chart in the same commit and the presuite no longer fails on a stale chart; measured against round 2 (1 presuite failure, about 5 minutes lost); else reverted and the reason recorded.",
+      "observed": "22 Nov 2026 12:40 IST, bcl 0.1.61, PR 119 round 2",
+      "priority": "medium",
+      "source": "User requested",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 13:14 IST (via parent)",
+        "kind": "fix",
+        "queue": "audit block after BCL-145",
+        "report": "bcl-119 progress.md",
+        "related": "BCL-122, BCL-134",
+        "baseline": "round 2: 1 presuite failure from a stale chart (12:35 IST, about 5 minutes of a 5-minute run) plus a manual regenerate commit",
+        "success": "zero stale-chart presuite failures over the next round; else revert and record why"
       }
     }
   ]
