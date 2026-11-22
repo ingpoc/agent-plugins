@@ -2149,4 +2149,13 @@ elif args[:2] != ['pr', 'edit']:
         self.assertTrue(marker.exists())
         self.assertNotIn("paused", json.loads(live.read_text())["tracking"]["workflow"])
 
+    def test_paused_round_refuses_only_work_starting_stages(self):
+        self.pause_lane()
+        self.assertEqual(self.call_without_viewer("pause", "--reason", "maintenance").returncode, 0)
+        install = self.call_without_viewer("install", "--ids", "ISSUE-01")
+        self.assertNotEqual(install.returncode, 0)
+        self.assertIn("round paused; run bcl resume", install.stderr)
+        stopped = self.call_without_viewer("stop-viewer")
+        self.assertNotIn("round paused", stopped.stderr)
+
 if __name__ == "__main__": unittest.main()

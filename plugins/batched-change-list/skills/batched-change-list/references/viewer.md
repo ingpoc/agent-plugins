@@ -4,7 +4,7 @@ Every adopted-list `bcl` call ensures its per-list viewer, except a new list cre
 
 The live page footer shows `reading <path>, viewer <version>, started <IST>` only when the viewer is live. Default `render.py` output stays deterministic and has no footer. Times on the page are IST; never leave visible ISO timestamps in the user view.
 
-The page polls with `HEAD` and reloads only when the ETag or fingerprint changes. That interval is a change check, not a full-reload timer. Local-file views still require a manual refresh.
+The page polls with `HEAD` and reloads only when the ETag or fingerprint changes. That interval is a change check, not a full-reload timer. Local-file views still require a manual refresh. Lane status is derived at render from the job receipt: a live job shows its phase, a dead unfinished one `Interrupted · resume at <phase>`, and a fix or review lane with no job `Paused · needs resume`. `bcl pause --reason "why"` pauses the round and refuses new jobs until `bcl resume`; repeats are no-ops. Stale shows only for a live job with no heartbeat or progress past the stale limit.
 
 Use 53366 when it is free and not reserved by another list. Reuse a recorded port when this list owns it and it is available. A different list's reservation or a service occupying the port is left untouched; choose another available port and report a 53366 conflict when applicable. Never move or kill another list's viewer. A rollover does not retarget the viewer; `bcl start` on the new list performs that list's first viewer start.
 

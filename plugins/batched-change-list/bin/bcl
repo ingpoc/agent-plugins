@@ -510,7 +510,7 @@ def main():
         return
     if record.get("rollover_pending") and (args.stage != "start" or not begins_collect):
         parser.error("run bcl start to begin Collect before using the new list")
-    if manage_findings.pause_record(tracking) is not None and args.stage not in ("pause", "resume"):
+    if manage_findings.pause_record(tracking) is not None and args.stage in ("job", "review", "install", "verify"):
         parser.error("round paused; run bcl resume")
     load_override = _require_machine_load(parser, args) if args.stage in ("job", "verify") else None
     if args.stage == "job":
