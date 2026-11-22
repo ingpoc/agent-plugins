@@ -1359,6 +1359,24 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(next_round[0]["status"], "blocked")
         self.assertEqual([row["attempt_id"] for row in next_round[0]["failure_history"]], ["failure-1", "failure-2"])
 
+    def test_bcl180_parked_dependency_blocked_reason_carries_as_blocked(self):
+        parked = {"cycle": 1, "round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "status": "parked", "phase": "fix",
+            "blocked_reason": "Dependency blocked", "failure_history": [],
+        }]}
+        next_round = [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned"}]
+        manage_findings.carry_plan_runtime_state(next_round, parked, False)
+
+        self.assertEqual(next_round[0]["status"], "blocked")
+        document = copy.deepcopy(self.document)
+        document["tracking"] = {"cycle": 1, "round": 2, "plan": {"cycle": 1, "round": 2,
+            "groups": next_round}}
+        with self.assertRaisesRegex(ValueError, "bcl unblock --reason"):
+            manage_findings.job_transition(document, {"action": "start-job", "phase": "fix",
+                "ids": ["ISSUE-01"], "cycle": 1, "round": 2, "timestamp": "2026-11-22T00:00:00Z",
+                "job": {"id": "fix-before-unblock",
+                        "plan_sha256": manage_findings.plan_candidate_sha256(document["tracking"]["plan"])}})
+
     def test_gated_lane_carries_its_gate_across_round_re_record(self):
         prior = {"groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "blocked",
                              "failure_history": [{"attempt_id": "failed", "at": "2026-11-21T00:00:00Z"}],

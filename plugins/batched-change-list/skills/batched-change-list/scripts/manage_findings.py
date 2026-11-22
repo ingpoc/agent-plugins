@@ -580,7 +580,9 @@ def carry_plan_runtime_state(groups, previous, same_round):
         _lane_history(prior, "failure_history")
         _lane_history(prior, "plan_review_history")
     def gated(group):
-        return group.get("status") == "blocked" or bool(_counted_failures(_lane_history(group, "failure_history")))
+        return (group.get("status") == "blocked" or
+                group.get("status") == "parked" and bool(group.get("blocked_reason")) or
+                bool(_counted_failures(_lane_history(group, "failure_history"))))
 
     def settled(group):
         # BCL-158: a lane verified in an earlier round stays verified and need not be re-planned
