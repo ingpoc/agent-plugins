@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-22T13:16:43Z",
-      "now": "2026-11-22T13:16:43Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-22T13:16:44Z",
+      "now": "2026-11-22T13:16:44Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -12158,7 +12158,8 @@
       "present",
       "plan_fix",
       "review",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 1,
@@ -12171,7 +12172,7 @@
             "BCL-151"
           ],
           "label": "BCL-158, BCL-151",
-          "status": "installing",
+          "status": "verifying",
           "worktree": "bcl120-r1-round",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-round.sh",
@@ -12206,8 +12207,8 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:50:21Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T13:16:44Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12218,9 +12219,9 @@
             "started_at": "2026-11-22T13:16:43Z"
           },
           "stage_model": {
-            "stage": "install",
-            "model": "install-local 9748fa4a",
-            "at": "2026-11-22T13:16:43Z"
+            "stage": "verify",
+            "model": "Grok Bot verify",
+            "at": "2026-11-22T13:16:44Z"
           }
         },
         {
@@ -12398,6 +12399,107 @@
         }
       ],
       "cycle": 12
+    },
+    "verification_run": {
+      "id": "r1-9748fa4a-120",
+      "build": "0.1.67",
+      "revision": "9748fa4a26d977334342e86ab5d18f42301e20a3",
+      "installed_at": "2026-11-22T13:16:43Z",
+      "install_evidence": "bcl install-local from clean detached worktree at 9748fa4a: plugin sha 8f0efc81 (cache copies), skill sha 5e5d4f6d",
+      "cycle": 12,
+      "status": "active",
+      "checks": {
+        "ACU-10": {
+          "state": "pending"
+        },
+        "ACU-20": {
+          "state": "pending"
+        },
+        "ACU-21": {
+          "state": "pending"
+        },
+        "BCL-94": {
+          "state": "pending"
+        },
+        "BCL-103": {
+          "state": "pending"
+        },
+        "BCL-106": {
+          "state": "pending"
+        },
+        "BCL-108": {
+          "state": "pending"
+        },
+        "BCL-110": {
+          "state": "pending"
+        },
+        "BCL-113": {
+          "state": "pending"
+        },
+        "BCL-115": {
+          "state": "pending"
+        },
+        "BCL-120": {
+          "state": "pending"
+        },
+        "BCL-121": {
+          "state": "pending"
+        },
+        "BCL-124": {
+          "state": "pending"
+        },
+        "BCL-125": {
+          "state": "pending"
+        },
+        "BCL-130": {
+          "state": "pending"
+        },
+        "BCL-134": {
+          "state": "pending"
+        },
+        "BCL-139": {
+          "state": "pending"
+        },
+        "BCL-140": {
+          "state": "pending"
+        },
+        "BCL-142": {
+          "state": "pending"
+        },
+        "BCL-144": {
+          "state": "pending"
+        },
+        "BCL-145": {
+          "state": "pending"
+        },
+        "BCL-147": {
+          "state": "pending"
+        },
+        "BCL-149": {
+          "state": "pending"
+        },
+        "BCL-151": {
+          "state": "pending"
+        },
+        "BCL-157": {
+          "state": "pending"
+        },
+        "BCL-158": {
+          "state": "pending"
+        },
+        "BCL-159": {
+          "state": "pending"
+        },
+        "BCL-160": {
+          "state": "pending"
+        },
+        "BCL-161": {
+          "state": "pending"
+        },
+        "BCL-166": {
+          "state": "pending"
+        }
+      }
     }
   },
   "findings": [
