@@ -11873,6 +11873,208 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "r3-574955fb-119",
+        "build": "0.1.64",
+        "revision": "574955fbdaded062c29c44a344f6526dbba7d238",
+        "installed_at": "2026-11-22T11:12:06Z",
+        "install_evidence": "bcl install-local from clean detached worktree at 574955fb: plugin sha 94068e73 (5 copies), skill sha e2a5d548",
+        "cycle": 11,
+        "status": "interrupted",
+        "checks": {
+          "ACU-10": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "ACU-21": {
+            "state": "pending"
+          },
+          "BCL-94": {
+            "state": "pending"
+          },
+          "BCL-96": {
+            "state": "pending"
+          },
+          "BCL-97": {
+            "state": "pending"
+          },
+          "BCL-100": {
+            "state": "pending"
+          },
+          "BCL-103": {
+            "state": "pending"
+          },
+          "BCL-106": {
+            "state": "pending"
+          },
+          "BCL-108": {
+            "state": "pending"
+          },
+          "BCL-110": {
+            "state": "pending"
+          },
+          "BCL-111": {
+            "state": "pending"
+          },
+          "BCL-112": {
+            "state": "pending"
+          },
+          "BCL-113": {
+            "state": "pending"
+          },
+          "BCL-114": {
+            "state": "pending"
+          },
+          "BCL-115": {
+            "state": "pending"
+          },
+          "BCL-117": {
+            "state": "pending"
+          },
+          "BCL-118": {
+            "state": "pending"
+          },
+          "BCL-119": {
+            "state": "pending"
+          },
+          "BCL-120": {
+            "state": "pending"
+          },
+          "BCL-121": {
+            "state": "pending"
+          },
+          "BCL-122": {
+            "state": "pending"
+          },
+          "BCL-123": {
+            "state": "pending"
+          },
+          "BCL-124": {
+            "state": "pending"
+          },
+          "BCL-125": {
+            "state": "pending"
+          },
+          "BCL-126": {
+            "state": "pending"
+          },
+          "BCL-127": {
+            "state": "pending"
+          },
+          "BCL-128": {
+            "state": "pending"
+          },
+          "BCL-129": {
+            "state": "pending"
+          },
+          "BCL-130": {
+            "state": "pending"
+          },
+          "BCL-131": {
+            "state": "pending"
+          },
+          "BCL-132": {
+            "state": "pending"
+          },
+          "BCL-133": {
+            "state": "pending"
+          },
+          "BCL-134": {
+            "state": "pending"
+          },
+          "BCL-135": {
+            "state": "pending"
+          },
+          "BCL-136": {
+            "state": "pending"
+          },
+          "BCL-137": {
+            "state": "pending"
+          },
+          "BCL-138": {
+            "state": "pending"
+          },
+          "BCL-139": {
+            "state": "pending"
+          },
+          "BCL-140": {
+            "state": "pending"
+          },
+          "BCL-141": {
+            "state": "pending"
+          },
+          "BCL-142": {
+            "state": "pending"
+          },
+          "BCL-143": {
+            "state": "pending"
+          },
+          "BCL-144": {
+            "state": "pending"
+          },
+          "BCL-145": {
+            "state": "pending"
+          },
+          "BCL-146": {
+            "state": "pending"
+          },
+          "BCL-147": {
+            "state": "pending"
+          },
+          "BCL-148": {
+            "state": "pending"
+          },
+          "BCL-149": {
+            "state": "pending"
+          },
+          "BCL-150": {
+            "state": "pending"
+          },
+          "BCL-151": {
+            "state": "pending"
+          },
+          "BCL-152": {
+            "state": "pending"
+          },
+          "BCL-153": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-22T11:12:30Z",
+            "started_at": "2026-11-22T11:12:30Z",
+            "updated_at": "2026-11-22T11:12:30Z",
+            "check_id": "ea21b06f263f4894adeb501ceaa77c92",
+            "evidence": "Checked: The installed version: its plan review rules, the lane job tests, the plan guidance and the chart; Expected: After a lane's one plan review, a failed review that names the root cause and failing test opens the next fix and a second plan review is refused; without them the old route stays; Observed: All five installed checks passed: the answered, unanswered and first failure cases behave as planned",
+            "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-153.log. Run r3-574955fb-119.",
+            "finished_at": "2026-11-22T11:12:30.995744Z"
+          },
+          "BCL-154": {
+            "state": "pending"
+          },
+          "BCL-155": {
+            "state": "pending"
+          },
+          "BCL-156": {
+            "state": "pending"
+          },
+          "BCL-157": {
+            "state": "pending"
+          },
+          "BCL-158": {
+            "state": "pending"
+          },
+          "BCL-159": {
+            "state": "pending"
+          },
+          "BCL-160": {
+            "state": "pending"
+          },
+          "BCL-161": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -11887,9 +12089,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-22T11:56:19Z",
-      "now": "2026-11-22T11:56:19Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-22T11:56:41Z",
+      "now": "2026-11-22T11:56:41Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 118,
@@ -13598,7 +13800,7 @@
             "BCL-162"
           ],
           "label": "BCL-162",
-          "status": "installing",
+          "status": "verifying",
           "worktree": "bcl119-r3-162",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-162.sh",
@@ -13633,8 +13835,8 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T11:40:43Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T11:56:41Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -14679,11 +14881,11 @@
       "cycle": 11
     },
     "verification_run": {
-      "id": "r3-574955fb-119",
-      "build": "0.1.64",
-      "revision": "574955fbdaded062c29c44a344f6526dbba7d238",
-      "installed_at": "2026-11-22T11:12:06Z",
-      "install_evidence": "bcl install-local from clean detached worktree at 574955fb: plugin sha 94068e73 (5 copies), skill sha e2a5d548",
+      "id": "r3-048c36c3-119",
+      "build": "0.1.65",
+      "revision": "048c36c36b1d9170f761d737b530dab99657657e",
+      "installed_at": "2026-11-22T11:54:12Z",
+      "install_evidence": "bcl install-local from clean detached worktree at 048c36c3: plugin sha 558add16 (4 cache copies), skill sha be55f8de",
       "cycle": 11,
       "status": "active",
       "checks": {
@@ -14844,15 +15046,7 @@
           "state": "pending"
         },
         "BCL-153": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-22T11:12:30Z",
-          "started_at": "2026-11-22T11:12:30Z",
-          "updated_at": "2026-11-22T11:12:30Z",
-          "check_id": "ea21b06f263f4894adeb501ceaa77c92",
-          "evidence": "Checked: The installed version: its plan review rules, the lane job tests, the plan guidance and the chart; Expected: After a lane's one plan review, a failed review that names the root cause and failing test opens the next fix and a second plan review is refused; without them the old route stays; Observed: All five installed checks passed: the answered, unanswered and first failure cases behave as planned",
-          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-153.log. Run r3-574955fb-119.",
-          "finished_at": "2026-11-22T11:12:30.995744Z"
+          "state": "pending"
         },
         "BCL-154": {
           "state": "pending"
@@ -14876,6 +15070,18 @@
           "state": "pending"
         },
         "BCL-161": {
+          "state": "pending"
+        },
+        "BCL-162": {
+          "state": "pending"
+        },
+        "BCL-163": {
+          "state": "pending"
+        },
+        "BCL-164": {
+          "state": "pending"
+        },
+        "BCL-165": {
           "state": "pending"
         }
       }
