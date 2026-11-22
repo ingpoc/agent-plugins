@@ -1,0 +1,21 @@
+{
+  "checked": [
+    "principles.md",
+    "Prove it",
+    "Root cause",
+    "Subtract first",
+    "Attack premise",
+    "Encode lessons in structure",
+    "Don't block on human",
+    "Guard context",
+    "Idempotent steps",
+    "Small verifiable units",
+    "Every word",
+    "Act-first",
+    "Never browser DOM or terminal-only for native-app actions",
+    "Never stop another user's active voice session",
+    "Dispatch ok is not proof; mutating act needs expect and settled AX",
+    "Failed Samantha start stays visible until retry or success (ACU-01)"
+  ],
+  "source": "skill-refine/references/principles-template.md plus skill-specific lines from past failures"
+}

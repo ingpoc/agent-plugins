@@ -27,4 +27,5 @@ Never use browser DOM or terminal-only commands for native-app actions because t
 | 3 | When reporting task status, requesting approval, saving a credential, using generic MCP activity hooks, or verifying Samantha | `references/dynamic-island.md`, `references/lifecycle.md`, `references/island-polish-bar.md`, `references/safety.md`, `../../docs/island-plugin-hooks.md`, `../../runtime/voice-cua/verify/SKILL.md` | |
 | 4 | When a site/app choice may use a saved preference or the user states a durable preference | `references/context-ledger.md` | |
 
-WhatsApp send/attach → `$whatsapp`; this skill does not send messages. Run `./scripts/validate.sh` from this directory after edits. Install and release instructions belong to the [plugin guide](../../AGENTS.md).
+WhatsApp send/attach → `$whatsapp`; this skill does not send messages.
+Editing this skill? Read [principles.md](principles.md) first so edits pass it.
