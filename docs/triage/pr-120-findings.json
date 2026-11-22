@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "present",
-      "updated_at": "2026-11-22T12:49:04Z",
-      "now": "2026-11-22T12:49:04Z — Started collection"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T12:50:21Z",
+      "now": "2026-11-22T12:50:21Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 119,
@@ -12155,8 +12155,167 @@
     ],
     "stages_reached": [
       "collect",
-      "present"
-    ]
+      "present",
+      "plan_fix"
+    ],
+    "plan": {
+      "round": 1,
+      "groups": [
+        {
+          "id": "R1-ROUND",
+          "name": "One round-start command: carried lanes, fix order, file overlap",
+          "finding_ids": [
+            "BCL-158",
+            "BCL-151"
+          ],
+          "label": "BCL-158, BCL-151",
+          "status": "planned",
+          "worktree": "bcl120-r1-round",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-round.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "codex": {
+            "model": "Grok Bot self-implementation (before 18:50 Codex window)",
+            "implementer_session": "grokbot-self-120-round",
+            "reviewer_session": "grokbot-review-120-round"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T12:50:21Z"
+        },
+        {
+          "id": "R1-134",
+          "name": "Fast pre-push chart check from the pushed commit",
+          "finding_ids": [
+            "BCL-134"
+          ],
+          "label": "BCL-134",
+          "status": "planned",
+          "worktree": "bcl120-r1-134",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-134.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "Grok Bot self-implementation (before 18:50 Codex window)",
+            "implementer_session": "grokbot-self-120-134",
+            "reviewer_session": "grokbot-review-120-134"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T12:50:21Z"
+        },
+        {
+          "id": "R2-142",
+          "name": "bcl snapshot command",
+          "finding_ids": [
+            "BCL-142"
+          ],
+          "label": "BCL-142",
+          "status": "deferred",
+          "worktree": "bcl120-r1-142",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-142.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "gpt-6-luna medium fast (Codex CLI), review Terra 6.1 medium",
+            "implementer_session": "codex-luna-120-142",
+            "reviewer_session": "codex-terra-120-142"
+          },
+          "phase": "deferred",
+          "reason": "Shares bin/bcl or manage_findings.py with R1-ROUND, and a dependency must be verified first; runs in round 2 on Codex once R1-ROUND ships",
+          "failure_history": [],
+          "plan_review_history": [],
+          "parked_to": 2,
+          "updated_at": "2026-11-22T12:50:21Z"
+        },
+        {
+          "id": "R2-145",
+          "name": "One lane-state table for every writer",
+          "finding_ids": [
+            "BCL-145"
+          ],
+          "label": "BCL-145",
+          "status": "deferred",
+          "worktree": "bcl120-r1-145",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "gpt-6-luna medium fast (Codex CLI), review Terra 6.1 medium",
+            "implementer_session": "codex-luna-120-145",
+            "reviewer_session": "codex-terra-120-145"
+          },
+          "phase": "deferred",
+          "reason": "Shares bin/bcl or manage_findings.py with R1-ROUND, and a dependency must be verified first; runs in round 2 on Codex once R1-ROUND ships",
+          "failure_history": [],
+          "plan_review_history": [],
+          "parked_to": 2,
+          "updated_at": "2026-11-22T12:50:21Z"
+        },
+        {
+          "id": "DEFER",
+          "name": "Later rounds",
+          "finding_ids": [
+            "ACU-10",
+            "ACU-20",
+            "ACU-21",
+            "BCL-103",
+            "BCL-106",
+            "BCL-108",
+            "BCL-110",
+            "BCL-113",
+            "BCL-115",
+            "BCL-120",
+            "BCL-121",
+            "BCL-124",
+            "BCL-125",
+            "BCL-130",
+            "BCL-139",
+            "BCL-140",
+            "BCL-144",
+            "BCL-147",
+            "BCL-149",
+            "BCL-157",
+            "BCL-159",
+            "BCL-160",
+            "BCL-161",
+            "BCL-166",
+            "BCL-94"
+          ],
+          "label": "rest",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Round 1 holds four lanes (max 4, disjoint files); the rest wait for round 2",
+          "failure_history": [],
+          "plan_review_history": [],
+          "parked_to": 2,
+          "updated_at": "2026-11-22T12:50:21Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 25
+          }
+        }
+      ],
+      "cycle": 12
+    }
   },
   "findings": [
     {
@@ -12366,11 +12525,11 @@
     },
     {
       "id": "BCL-121",
-      "title": "Reviews loop on one change with no cap and scope grows mid-review",
-      "summary": "In PR 118 one lane fix took twelve plan reviews and the release took six work-done reviews, five asking for changes; a new item added during review cost two more reviews and a revert.",
+      "title": "Reviews and plan reviews loop with no cap, and scope grows mid-review",
+      "summary": "Reviews can loop on one change with no cap and new scope can be added mid-review; plan reviews had no per-lane limit (now one plan review per lane since 0.1.64, but post-fix reviews are still uncapped).",
       "impact": "Hours of review time on a single change and a release that waits on items that were never in its scope.",
-      "recommendation": "Cap reviews at three per change. On a third request for changes, file the remaining items as findings and ship only the reviewed part; never add new scope to a change already under review.",
-      "done_when": "A fourth review of the same change is refused until its open items are filed, and adding a finding to a lane under review is refused.",
+      "recommendation": "Cap post-fix reviews at three per change; on a third request for changes, file the remaining items as findings and ship only the reviewed part; refuse adding a finding to a lane under review; keep the one-plan-review rule.",
+      "done_when": "A fourth review of the same change is refused until its open items are filed, adding a finding to a lane under review is refused, and a second plan review stays refused; tests cover each.",
       "observed": "21 Nov 2026 IST: twelve plan reviews between 05:30 and 11:20; six work-done reviews between 12:30 and 13:29 with five asking for changes; the version bump item added at 13:10 was reverted at 13:37 after two reviews.",
       "priority": "high",
       "source": "Agent reported",
@@ -12379,25 +12538,8 @@
         "filed_by": "Workflow Introspect after PR 118 merge (evidence rule: 2 loops in one PR)",
         "evidence": "bcl-118/direct planreview-int..int12 (12 files) and review-0157..0157-6 (6 files), file times 05:30-11:20 and 12:30-13:29 IST; revert commits f0ce0b4f and 20a363a1",
         "kind": "workflow",
-        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
-      }
-    },
-    {
-      "id": "BCL-122",
-      "title": "A stale state chart is caught only by the full pre-push suite",
-      "summary": "Three times a skill edit left the generated state chart out of date, and each time only the long suite caught it.",
-      "impact": "Each miss costs a full suite run, about ten minutes, plus a fix and a rerun.",
-      "recommendation": "Run the quick chart check in the fast pre-push gate whenever the change list skill changes.",
-      "done_when": "Pushing a change list skill edit with a stale chart is refused by the fast gate within seconds, and a test proves it.",
-      "observed": "20 Nov 22:22 IST presuite failed on a stale chart; 21 Nov 03:25 IST a stale chart in a broken tree; 21 Nov 13:44 IST presuite failed one of 464 tests on a stale chart after a revert.",
-      "priority": "medium",
-      "source": "Agent reported",
-      "status": "untested",
-      "details": {
-        "filed_by": "Workflow Introspect after PR 118 merge (evidence rule: 3 recurrences)",
-        "evidence": "bcl-118 progress.md lines 34, 82, 175; direct/presuite-0157.log",
-        "kind": "workflow",
-        "root_cause_group": "M-CHART: The state chart is always current (BCL-155, BCL-122, BCL-134)"
+        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)",
+        "merged_from": "BCL-137: Plan reviews have no limit per lane"
       }
     },
     {
@@ -12423,11 +12565,11 @@
     },
     {
       "id": "BCL-125",
-      "title": "Delete the separate review command; the review job already does it",
-      "summary": "The review command only sets the stage and a one-file review skip that has not been used since PR 116; the review job runs the same stage check.",
+      "title": "Duplicate commands for review and failure re-sorting",
+      "summary": "A separate review command duplicates the review job, and a separate failure re-sort command duplicates what the release check and unblock already do.",
       "impact": "The skill tells agents to run two commands for one step.",
-      "recommendation": "Delete the review command, the skip-review action and the one-file skip; point the skill at the review job.",
-      "done_when": "The skill names one review command, the deleted paths are gone, and the suite passes.",
+      "recommendation": "Delete the review command, skip-review and the one-file skip, pointing the skill at the review job; make the release check also list counted failures that look like tool faults, make unblock with a named tool fault the only uncount path, and delete the re-sort command.",
+      "done_when": "The skill names one review command and one uncount path, the deleted commands are gone, the release check lists tool-fault candidates, and the suite passes.",
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
@@ -12437,26 +12579,8 @@
         "report": "bcl-119 quality-audit.md",
         "evidence": "0 uses in #117/#118; one_file only in 115/116 trackers; bcl job runs run_stage_check review at line 576",
         "kind": "delete",
-        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
-      }
-    },
-    {
-      "id": "BCL-127",
-      "title": "Fold the failure re-sort into the release check and the unblock command",
-      "summary": "Release check and failure re-sort are two commands around one release, and re-sort apply duplicates unblock; neither found anything to do in PR 118.",
-      "impact": "Two extra commands and a second unblock path to keep correct.",
-      "recommendation": "Release check also lists counted failures that look like tool faults; uncounting goes through unblock with a named tool fault; delete the re-sort command.",
-      "done_when": "One release check lists in-flight lanes and tool-fault candidates, unblock is the only path that uncounts, and real use on a list copy shows both.",
-      "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
-      "priority": "medium",
-      "source": "Agent reported",
-      "status": "untested",
-      "details": {
-        "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
-        "report": "bcl-119 quality-audit.md",
-        "evidence": "release-check 1x, resort-failures 3x in #118, all empty; fault_kind and resort rows 0 in 115-119",
-        "kind": "delete",
-        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
+        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)",
+        "merged_from": "BCL-127: Fold the failure re-sort into the release check and the unblock command"
       }
     },
     {
@@ -12480,43 +12604,23 @@
     },
     {
       "id": "BCL-134",
-      "title": "Pre-push chart check misses deleted files and checks the wrong tree",
-      "summary": "The pre-push hook drops deleted and renamed-out paths and runs the chart check on the checkout instead of the pushed commit.",
+      "title": "The chart check before push is slow, misses deleted files and checks the wrong tree",
+      "summary": "A stale state chart is caught only by the full pre-push suite, and the pre-push chart check misses deleted files and checks the working tree instead of the pushed commit.",
       "impact": "A push can carry a stale workflow chart.",
-      "recommendation": "Trigger on all pushed paths and check the chart from the pushed commit.",
-      "done_when": "Deleting a chart input without regenerating fails the push; unrelated pushes skip the check.",
+      "recommendation": "Run the quick chart check in the fast pre-push gate whenever the change list skill changes, triggered on all pushed paths including deletes, and check the chart from the pushed commit.",
+      "done_when": "Pushing a skill edit or a deleted chart input with a stale chart is refused by the fast gate within seconds, unrelated pushes skip it; tests cover each.",
       "observed": "21 Nov 2026 22:20 IST, PR 119 round 1 reviews (bcl 0.1.57 source)",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "PR 119 round 1 reviews",
         "report": "r1/planreview-add-2.md, -6.md",
         "evidence": "Sol plan reviews add-2 and add-6",
         "kind": "fix",
         "merged_with": "BCL-122 (same pre-push chart check); fix in the same lane",
-        "root_cause_group": "M-CHART: The state chart is always current (BCL-155, BCL-122, BCL-134)"
-      }
-    },
-    {
-      "id": "BCL-137",
-      "title": "Plan reviews have no limit per lane",
-      "summary": "A plan review that asks for changes is not counted and has no cap, so a lane can loop on plan reviews forever without blocking or reaching the owner.",
-      "impact": "In PR 119 two lanes ran seven and six plan reviews, about nine million tokens, before the owner had to step in by hand.",
-      "recommendation": "Cap plan reviews per lane per round at three; the fourth start is refused until a reasoned unblock or the lane is carried to the next round.",
-      "done_when": "The fourth plan review start for a lane in a round is refused with a message naming unblock or carry, and a test covers it.",
-      "observed": "21 Nov 2026 21:15 IST, bcl 0.1.57 installed, PR 119 round 1",
-      "priority": "high",
-      "source": "Agent reported",
-      "status": "untested",
-      "details": {
-        "filed_by": "statechart skill review of bcl 0.1.58",
-        "report": "bcl-119/statechart-review.tgz out1/report.md",
-        "evidence": "Model rule PlanReviewsCapped breaks in 5 steps; real: bcl job accepted plan reviews 4 to 7 on R1-RELEASE and 4 to 6 on R1-ADD",
-        "kind": "fix",
-        "related": "BCL-121 covers work-done reviews only",
-        "merged_with": "BCL-121 (one review budget for plan and work reviews); fix in the same lane",
-        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
+        "root_cause_group": "M-CHART: The state chart is always current (BCL-155, BCL-122, BCL-134)",
+        "merged_from": "BCL-122: A stale state chart is caught only by the full pre-push suite"
       }
     },
     {
@@ -12579,11 +12683,11 @@
     },
     {
       "id": "BCL-144",
-      "title": "Ship every round, with a recorded hotfix route for tool bugs",
-      "summary": "Verified fixes wait for the rollover gate before they ship, and when a tool bug blocks the loop the only way forward is manual exception steps and fixes built outside any lane.",
+      "title": "Rounds do not ship by default and release exceptions have no recorded route",
+      "summary": "Verified fixes wait for the 16-fix gate instead of shipping each round, there is no recorded hotfix route for tool bugs, and no command records an approved release-check exception.",
       "impact": "Finished fixes sit unshipped between rounds, and tool-bug fixes skip the recorded loop, needing owner exceptions each time.",
-      "recommendation": "At the end of every round, release every verified fix as a patch version whatever the count and carry the rest; keep the 16 verified gate only for rollover and merge to main. Add one bcl command that runs a single tool-bug fix as a recorded one-lane mini round (fix, tests, release check, install, verify), allowed only when the blocker is a tool bug and logged with a reason, replacing the manual exception steps rather than adding to them.",
-      "done_when": "The release and rollover guides and the statechart say every round ships its verified fixes and the 16 gate applies only to rollover and merge; a bcl hotfix command records a one-lane mini round end to end with a reason, is refused for non-tool blockers, and the manual exception steps it replaces are deleted; tests cover it.",
+      "recommendation": "Release every verified fix at the end of each round as a patch version and keep the 16 gate only for rollover and merge to main; add one bcl hotfix command that runs a single tool-bug fix as a recorded one-lane mini round, recording approver, reason and release-check output, which replaces ad hoc release exceptions.",
+      "done_when": "The guides and chart say every round ships and the gate applies only to rollover and merge; a hotfix records a one-lane round with approver and reason; tests cover both.",
       "observed": "22 Nov 2026 09:40 IST, bcl 0.1.60, PR 119 round 2",
       "priority": "high",
       "source": "User requested",
@@ -12595,7 +12699,8 @@
         "round2_order": "right after BCL-136",
         "evidence": "Round 1 and 2 of PR 119 needed a one-time release-check exception (0.1.58) and two fixes built outside lanes (BCL-135 in 0.1.59, BCL-143 in 0.1.60)",
         "kind": "fix",
-        "root_cause_group": "M-RELEASE: Release and install path (BCL-148, BCL-161, BCL-144, BCL-130)"
+        "root_cause_group": "M-RELEASE: Release and install path (BCL-148, BCL-161, BCL-144, BCL-130)",
+        "merged_from": "BCL-148: No bcl command records an approved release-check exception"
       }
     },
     {
@@ -12641,26 +12746,6 @@
       }
     },
     {
-      "id": "BCL-148",
-      "title": "No bcl command records an approved release-check exception",
-      "summary": "When the owner approves shipping past a release-check refusal, bcl has no command to record that approval, so the exception lives only in chat and progress notes.",
-      "impact": "An approved exception is not on the tracker, so later rounds cannot see why a release went out past a refusal.",
-      "recommendation": "Add a bcl command that records a one-time release exception (version, ids, approver, time, reason, release-check output) without changing lane state; later superseded by the bcl hotfix route (BCL-144).",
-      "done_when": "bcl records a one-time exception for one version with approver and reason, the tracker page shows it, and a test covers it.",
-      "observed": "22 Nov 2026 11:18 IST, bcl 0.1.60, PR 119 release 0.1.61",
-      "priority": "medium",
-      "source": "Agent reported",
-      "status": "untested",
-      "details": {
-        "filed_by": "PR 119 round 2",
-        "kind": "fix",
-        "report": "bcl-119 progress.md",
-        "exception_record": "Guru approved 11:18 IST (his own words via approval card): one-time release-check exception for bcl 0.1.61 only. release-check --ids BCL-136 --ids BCL-138 at 11:19 IST: rc 2, clear false, R2-136 and R2-138 shown in flight at review because installed 0.1.60 has BCL-136. Presuite for both lanes passed at 11:11 IST (r9 db43c514). Covers 0.1.61 only.",
-        "exception_record_2": "Guru approved 13:42 IST (his own words via widget): Approve a one-time release-check exception for 0.1.62. Covers 0.1.62 only (BCL-141, BCL-146 plus display fix 3fe72f60 and chart regeneration). release-check --ids BCL-141 --ids BCL-146 at 13:40 IST: rc 2, clear false, blocking lanes R2-150 and R2-142 (both blocked after a second counted failure; they stay blocked). Presuite for both lanes passed 13:39 IST (r9 4f1763d4).",
-        "root_cause_group": "M-RELEASE: Release and install path (BCL-148, BCL-161, BCL-144, BCL-130)"
-      }
-    },
-    {
       "id": "BCL-149",
       "title": "Tool faults are handled as code failures",
       "summary": "A tool-fault review sends the lane back to fix, and listed tool faults often cannot be uncounted.",
@@ -12690,7 +12775,7 @@
       "observed": "22 Nov 2026 12:54 IST, bcl 0.1.61, PR 119 round 2",
       "priority": "high",
       "source": "User requested",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "PR 119 round 2",
         "kind": "fix",
@@ -12731,7 +12816,7 @@
       "observed": "22 Nov 2026 14:32 IST, bcl 0.1.62, PR 119 round 2 to 3",
       "priority": "high",
       "source": "User requested",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 14:32 IST (via parent)",
         "kind": "fix",
