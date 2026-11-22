@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T04:08:01Z",
-      "now": "2026-11-22T04:08:01Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T04:09:15Z",
+      "now": "2026-11-22T04:09:15Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12412,19 +12412,15 @@
             "one_file": true,
             "fix_status": "passed",
             "job": {
-              "id": "4dcca70fc1d24fbdbceabd2636fb40da",
-              "phase": "fix",
-              "started_at": "2026-11-22T04:08:00Z",
+              "id": "059a167323d24aee8bdb492fc7e44b56",
+              "phase": "presuite",
+              "started_at": "2026-11-22T04:08:21Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-22T04:08:00Z",
+              "heartbeat_at": "2026-11-22T04:08:21Z",
               "plan_sha256": "8e2b7aecec13d072b201703b8d0fcfabcb027274ffd896b173c87450e48b61f2",
-              "model": "scripted (bootstrap fix 46ef08eb, 0 tokens)",
               "cycle": 11,
               "round": 2,
-              "pid": 90799,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T04:08:00Z",
-              "finished_phase_status": "passed"
+              "pid": 91523
             },
             "tool_fault_streak": 0,
             "review_status": "skipped_one_file"
@@ -12440,7 +12436,7 @@
           "finding_ids": [
             "BCL-136"
           ],
-          "status": "pending",
+          "status": "running",
           "worktree": "bcl119-r2-136",
           "label": "BCL-136",
           "verify": {
@@ -12454,11 +12450,23 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r2-136",
             "reviewer_session": "codex-terra-6.1-119r2-136",
-            "review_status": "pending"
+            "fix_status": "running",
+            "job": {
+              "id": "055232b258564eb992443de8fe1ecdd3",
+              "phase": "fix",
+              "started_at": "2026-11-22T04:09:15Z",
+              "command": "env",
+              "heartbeat_at": "2026-11-22T04:09:15Z",
+              "plan_sha256": "8e2b7aecec13d072b201703b8d0fcfabcb027274ffd896b173c87450e48b61f2",
+              "model": "gpt-6-luna medium fast (Codex CLI)",
+              "cycle": 11,
+              "round": 2
+            }
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T04:07:33Z"
+          "updated_at": "2026-11-22T04:07:33Z",
+          "phase": "fix"
         },
         {
           "id": "R2-137",
