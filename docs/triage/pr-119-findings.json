@@ -11887,9 +11887,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T11:15:31Z",
-      "now": "2026-11-22T11:15:31Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T11:15:55Z",
+      "now": "2026-11-22T11:15:55Z — Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13598,7 +13598,7 @@
             "BCL-162"
           ],
           "label": "BCL-162",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl119-r3-162",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-162.sh",
@@ -13611,23 +13611,26 @@
             "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
             "implementer_session": "grokbot-self-119r3-162",
             "reviewer_session": "grokbot-review-119r3-162",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "f817209f2ba5417abb2b7f8a1e963f3e",
-              "phase": "fix",
-              "started_at": "2026-11-22T11:15:31Z",
-              "command": "self-lane.sh",
-              "heartbeat_at": "2026-11-22T11:15:31Z",
+              "id": "bc7bf8bd46f04184bb5fa45a9e961186",
+              "phase": "review",
+              "started_at": "2026-11-22T11:15:55Z",
+              "command": "cp",
+              "heartbeat_at": "2026-11-22T11:15:55Z",
               "plan_sha256": "8ae022fb90f12ff7f6c2db1aa8f907b06ffa54fd2160ba03df1a036766d74474",
-              "model": "Grok Bot self (Codex out until 18:50)",
+              "model": "grokbot-review-pass (separate pass; Codex out until 18:50)",
               "cycle": 11,
               "round": 3
-            }
+            },
+            "tool_fault_streak": 0,
+            "review_status": "running",
+            "reviewer_model": "grokbot-review-pass (separate pass; Codex out until 18:50)"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T11:14:49Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "R3-154",
