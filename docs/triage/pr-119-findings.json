@@ -11887,9 +11887,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-22T11:12:21Z",
-      "now": "2026-11-22T11:12:21Z — Verify in progress"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T11:15:31Z",
+      "now": "2026-11-22T11:15:31Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13497,7 +13497,7 @@
             }
           ],
           "status": "verified",
-          "updated_at": "2026-11-22T10:54:56Z",
+          "updated_at": "2026-11-22T11:14:49Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13521,12 +13521,12 @@
             "BCL-153"
           ],
           "label": "BCL-153",
-          "status": "verifying",
+          "status": "verified",
           "worktree": "bcl119-r3-153",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-153.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -13574,7 +13574,7 @@
               "at": "2026-11-22T11:02:40Z"
             }
           ],
-          "updated_at": "2026-11-22T11:12:21Z",
+          "updated_at": "2026-11-22T11:14:49Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13590,6 +13590,69 @@
             "model": "verify-153.sh",
             "at": "2026-11-22T11:12:21Z"
           }
+        },
+        {
+          "id": "R3-162",
+          "name": "One pre-push suite per lane",
+          "finding_ids": [
+            "BCL-162"
+          ],
+          "label": "BCL-162",
+          "status": "running",
+          "worktree": "bcl119-r3-162",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-162.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
+            "implementer_session": "grokbot-self-119r3-162",
+            "reviewer_session": "grokbot-review-119r3-162",
+            "fix_status": "running",
+            "job": {
+              "id": "f817209f2ba5417abb2b7f8a1e963f3e",
+              "phase": "fix",
+              "started_at": "2026-11-22T11:15:31Z",
+              "command": "self-lane.sh",
+              "heartbeat_at": "2026-11-22T11:15:31Z",
+              "plan_sha256": "8ae022fb90f12ff7f6c2db1aa8f907b06ffa54fd2160ba03df1a036766d74474",
+              "model": "Grok Bot self (Codex out until 18:50)",
+              "cycle": 11,
+              "round": 3
+            }
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T11:14:49Z",
+          "phase": "fix"
+        },
+        {
+          "id": "R3-154",
+          "name": "Install relies on release-check",
+          "finding_ids": [
+            "BCL-154"
+          ],
+          "label": "BCL-154",
+          "status": "pending",
+          "worktree": "bcl119-r3-154",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-154.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
+            "implementer_session": "grokbot-self-119r3-154",
+            "reviewer_session": "grokbot-review-119r3-154"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T11:14:49Z"
         },
         {
           "id": "R2-145",
@@ -13710,7 +13773,7 @@
             }
           ],
           "status": "deferred",
-          "updated_at": "2026-11-22T10:54:56Z",
+          "updated_at": "2026-11-22T11:14:49Z",
           "phase": "deferred",
           "reason": "Guru 16:04 IST: ship R2-150 now; parked at sub-lane b 9cbda612 for Codex Luna after 18:50 (plan review passed, a and b committed)",
           "parked_to": 4
@@ -13816,7 +13879,7 @@
             }
           ],
           "status": "deferred",
-          "updated_at": "2026-11-22T10:54:56Z",
+          "updated_at": "2026-11-22T11:14:49Z",
           "phase": "deferred",
           "reason": "Guru 16:04 IST: ship R2-150 now; parked for Codex Luna after 18:50 (plan review passed, no code yet)",
           "parked_to": 4
@@ -13840,23 +13903,22 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 4,
-          "updated_at": "2026-11-22T10:54:56Z",
+          "updated_at": "2026-11-22T11:14:49Z",
           "codex": {}
         },
         {
           "id": "R3-AUDIT2",
           "name": "Leaner loop: one plan review, one readiness check, auto chart",
           "finding_ids": [
-            "BCL-154",
             "BCL-155",
             "BCL-156"
           ],
-          "label": "BCL-154, BCL-155, BCL-156",
+          "label": "BCL-155, BCL-156",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 3
+            "total": 2
           },
           "status": "deferred",
           "phase": "deferred",
@@ -13864,7 +13926,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 4,
-          "updated_at": "2026-11-22T10:54:56Z"
+          "updated_at": "2026-11-22T11:14:49Z"
         },
         {
           "id": "R2-137",
@@ -13901,7 +13963,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T10:54:56Z"
+          "updated_at": "2026-11-22T11:14:49Z"
         },
         {
           "id": "R1-ADD",
@@ -13940,7 +14002,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T10:54:56Z"
+          "updated_at": "2026-11-22T11:14:49Z"
         },
         {
           "id": "R3-LOOP",
@@ -13961,7 +14023,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 4,
-          "updated_at": "2026-11-22T10:54:56Z",
+          "updated_at": "2026-11-22T11:14:49Z",
           "codex": {}
         },
         {
@@ -13984,7 +14046,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 4,
-          "updated_at": "2026-11-22T10:54:56Z",
+          "updated_at": "2026-11-22T11:14:49Z",
           "codex": {}
         },
         {
@@ -14006,7 +14068,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 4,
-          "updated_at": "2026-11-22T10:54:56Z",
+          "updated_at": "2026-11-22T11:14:49Z",
           "codex": {}
         },
         {
@@ -14030,7 +14092,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 4,
-          "updated_at": "2026-11-22T10:54:56Z",
+          "updated_at": "2026-11-22T11:14:49Z",
           "codex": {}
         },
         {
@@ -14071,7 +14133,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T10:54:56Z"
+          "updated_at": "2026-11-22T11:14:49Z"
         },
         {
           "id": "R1-DEAD",
@@ -14150,7 +14212,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T10:54:56Z"
+          "updated_at": "2026-11-22T11:14:49Z"
         },
         {
           "id": "R1-RELEASE",
@@ -14188,7 +14250,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T10:54:56Z"
+          "updated_at": "2026-11-22T11:14:49Z"
         },
         {
           "id": "R2-146",
@@ -14263,7 +14325,7 @@
           ],
           "status": "verified",
           "codex": {},
-          "updated_at": "2026-11-22T10:54:56Z",
+          "updated_at": "2026-11-22T11:14:49Z",
           "phase": "verify"
         },
         {
@@ -14303,7 +14365,7 @@
           ],
           "status": "verified",
           "codex": {},
-          "updated_at": "2026-11-22T10:54:56Z",
+          "updated_at": "2026-11-22T11:14:49Z",
           "phase": "verify"
         }
       ],
@@ -14475,7 +14537,15 @@
           "state": "pending"
         },
         "BCL-153": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T11:12:30Z",
+          "started_at": "2026-11-22T11:12:30Z",
+          "updated_at": "2026-11-22T11:12:30Z",
+          "check_id": "ea21b06f263f4894adeb501ceaa77c92",
+          "evidence": "Checked: The installed version: its plan review rules, the lane job tests, the plan guidance and the chart; Expected: After a lane's one plan review, a failed review that names the root cause and failing test opens the next fix and a second plan review is refused; without them the old route stays; Observed: All five installed checks passed: the answered, unanswered and first failure cases behave as planned",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-153.log. Run r3-574955fb-119.",
+          "finished_at": "2026-11-22T11:12:30.995744Z"
         },
         "BCL-154": {
           "state": "pending"
@@ -15749,7 +15819,7 @@
       "observed": "22 Nov 2026 13:14 IST, bcl 0.1.61, PR 119 round 2",
       "priority": "high",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 13:14 IST (via parent)",
         "kind": "fix",
@@ -15757,7 +15827,25 @@
         "report": "bcl-119 progress.md",
         "baseline": "round 2: 15 plan reviews (R2-136 x2, R2-137 x3, R2-144 x3, R2-146 x1, R2-142 x3, R2-145 x1, R2-150 x2), 11 changes / 4 pass, 5,330,155 input and 18,471 output tokens, 3 lanes deferred at the cap",
         "success": "next round: plan reviews per verified fix and tokens per verified fix both lower, counted review failures per lane not higher; else revert and record why"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The installed version: its plan review rules, the lane job tests, the plan guidance and the chart",
+          "expected": "After a lane's one plan review, a failed review that names the root cause and failing test opens the next fix and a second plan review is refused; without them the old route stays",
+          "observed": "All five installed checks passed: the answered, unanswered and first failure cases behave as planned",
+          "verdict": "All five installed checks passed: the answered, unanswered and first failure cases behave as planned",
+          "check_id": "bcl-153-0.1.64-574955fb",
+          "build": "bcl 0.1.64",
+          "session": "r3-574955fb-119",
+          "timestamp": "2026-11-22T11:12:30Z",
+          "reference": "574955fb:BCL-153:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-153.log. Run r3-574955fb-119."
+        }
+      ],
+      "verification": "All five installed checks passed: the answered, unanswered and first failure cases behave as planned Log: ~/.agents/artifacts/bcl-119/r3/verify-153.log. Run r3-574955fb-119.",
+      "verification_refs": [
+        "574955fb:BCL-153:installed-check"
+      ]
     },
     {
       "id": "BCL-154",
@@ -15912,6 +16000,42 @@
         "kind": "fix",
         "report": "bcl-119 progress.md",
         "evidence": "install-local from the home checkout at eadc2408 failed with 'plugin checkout has local changes'; the only changes were the tracker snapshot and page under docs/triage. It succeeded from a clean detached worktree at the same commit."
+      }
+    },
+    {
+      "id": "BCL-162",
+      "title": "The full suite runs three times for one lane",
+      "summary": "Each lane runs the skill's full test suite in its fix job, again as the first step of the pre-push suite, and a third time inside the repository check that the pre-push suite also runs.",
+      "impact": "About five minutes of repeated testing per lane, and every rerun of a step repeats it.",
+      "recommendation": "Run the repository check once per lane, right before push, as the pre-push suite; it already covers the skill suite, the chart and the strict shape checks. Fix jobs run only the lane's tests, and lanes shipping together share one pre-push suite job.",
+      "done_when": "The guidance names one pre-push suite per lane (shared by lanes shipping together) and lane tests only in fix jobs; the next lane's fix plus pre-push time is lower than BCL-153's (fix 160 s full suite, pre-push 301 s) with no missed failure; else reverted and the reason recorded.",
+      "observed": "22 Nov 2026 16:41 IST, bcl 0.1.64, PR 119 lane R3-153",
+      "priority": "high",
+      "source": "User reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 16:07 IST (via parent)",
+        "kind": "fix",
+        "report": "bcl-119 progress.md",
+        "evidence": "R3-153: fix job full suite 485 tests 160 s; pre-push suite 301 s = skill suite 159 s plus repository check, which ran the same 19 skill test files again (test_bcl 134 s)."
+      }
+    },
+    {
+      "id": "BCL-163",
+      "title": "Failures that are not code review findings count toward the lane cap",
+      "summary": "A fix job that exits non-zero is counted as a code failure, even when it failed on a runner slip or a stale generated file rather than on a reviewer finding about the code.",
+      "impact": "Lanes reach the two-failure cap and block on process mistakes, and each one needs an owner unblock.",
+      "recommendation": "Count only declared CHANGES from a post-fix code review toward the cap. Record a failed fix job as a failed attempt that keeps the lane in fix without counting, and keep the three-in-a-row tool-fault block for repeated failed jobs.",
+      "done_when": "A failed fix job leaves the lane in fix with an uncounted failure row, a review CHANGES still counts, two review CHANGES still block, and three failed jobs in a row still block; tests cover each.",
+      "observed": "22 Nov 2026 16:29 IST, bcl 0.1.63, PR 119 lane R3-153",
+      "priority": "high",
+      "source": "User reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 16:07 IST (via parent)",
+        "kind": "fix",
+        "report": "bcl-119 progress.md",
+        "evidence": "R3-153 fix job 1 exited 1 because the runner ran the full suite before regenerating the chart; it was counted as failure 1 of 2 although no reviewer had found a code fault."
       }
     }
   ]
