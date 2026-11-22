@@ -149,6 +149,37 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
 """).replace('PAYLOAD', json.dumps(payload))
         subprocess.run(['node','-e',program],check=True)
 
+    @unittest.skipUnless(shutil.which('node'), 'node is needed to execute rendered page JavaScript')
+    def test_issue_list_renders_one_collapsed_row_per_plan_group_and_a_done_section(self):
+        data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
+        extra = dict(data['findings'][0], id='ISSUE-03', title='Ungrouped issue')
+        data['findings'].append(extra)
+        data.setdefault('tracking', {})['plan'] = {'round': 1, 'groups': [
+            {'id': 'M-ONE', 'name': 'Shared cause', 'finding_ids': ['ISSUE-01', 'ISSUE-02'], 'status': 'deferred', 'phase': 'deferred'}]}
+        page = renderer.render(data, Path(__file__).parent.parent)
+        payload = re.search(r'<script type="application/json" id="findings-data">(.*?)</script>', page).group(1)
+        rows = json.loads(payload)
+        self.assertEqual(rows[0]['_group'], {'id': 'M-ONE', 'name': 'Shared cause'})
+        self.assertNotIn('_group', rows[2])
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        start = template.index('const navGroups=')
+        build = template[start:template.index('\n', template.index('function addNavItem', start))]
+        program = (r"""
+class Element { constructor(tag,text='',cls=''){this.tag=tag;this.text=text||'';this.cls=cls||'';this.children=[];this.dataset={}} append(...children){this.children.push(...children)} setAttribute(){} }
+const node=(tag,text,cls)=>new Element(tag,text,cls);
+const findings=JSON.parse(PAYLOAD),labels={verified_fixed:'Verified fixed',untested:'Untested'},run=null,checkLabels={},markStale=()=>{};
+const nav=new Element('ul'),document={createTextNode:text=>text};
+""" + build + r"""
+const text=el=>(el?.text||'')+(el?.children||[]).map(text).join('');
+const [group,plain,done]=nav.children;
+if(nav.children.length!==3)process.exit(1);
+if(group.cls!=='nav-group'||group.children[0].tag!=='details'||text(group.children[0].children[0])!=='Shared cause · 1 issue')process.exit(2);
+if(!text(group).includes('ISSUE-01')||text(group).includes('ISSUE-02'))process.exit(3);
+if(plain.cls!=='nav-item'||!text(plain).includes('ISSUE-03'))process.exit(4);
+if(done.cls!=='nav-group nav-done'||text(done.children[0].children[0])!=='Done · 1 verified'||!text(done).includes('ISSUE-02'))process.exit(5);
+""").replace('PAYLOAD', json.dumps(payload))
+        subprocess.run(['node', '-e', program], check=True)
+
     def test_review_sublabel_is_separated_in_rendered_text(self):
         workflow = renderer.render_workflow('review', [], 0, 15, False, 0, 1)
         text = html.unescape(re.sub(r'<[^>]+>', ' ', workflow))
