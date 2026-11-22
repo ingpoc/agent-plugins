@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / 'runtime'))
 from backend.observability_api import ObservabilityAPI  # noqa: E402
 from collector.analyze import _junit_owns_pytest_failures, build, percentile  # noqa: E402
 from collector.cli import collect, parse_source  # noqa: E402
+from collector import sources as collector_sources  # noqa: E402
 from collector.scrub import scrub  # noqa: E402
 from collector.sources import discover_project, iter_checklog, iter_git, iter_hygiene, iter_jsonl, iter_junit, iter_textlog  # noqa: E402
 
@@ -238,6 +239,66 @@ class CollectorTests(unittest.TestCase):
         events = list(iter_git(repo, 'r', 'r:git', {}))
         event = next(event for event in events if event['step'] == 'unpushed_commits')
         self.assertEqual(event['message'], '1 local-only commit(s)')
+
+    def test_git_state_reports_empty_commit_ahead_of_upstream(self):
+        repo = self._git_repo_with_upstream('empty-commit')
+        subprocess.run(['git', '-C', str(repo), 'commit', '--allow-empty', '-q', '-m', 'empty'], check=True)
+        events = list(iter_git(repo, 'r', 'r:git', {}))
+        event = next(event for event in events if event['step'] == 'unpushed_commits')
+        self.assertEqual(event['message'], '1 local-only commit(s)')
+
+    def test_git_state_counts_commit_mixing_snapshot_and_source_paths(self):
+        repo = self._git_repo_with_upstream('mixed-change')
+        (repo / 'docs/triage').mkdir(parents=True)
+        (repo / 'docs/triage/snapshot.json').write_text('{}\n')
+        (repo / 'src').mkdir()
+        (repo / 'src/change.py').write_text('value = 1\n')
+        self._git_commit(repo, 'mixed change')
+        events = list(iter_git(repo, 'r', 'r:git', {}))
+        event = next(event for event in events if event['step'] == 'unpushed_commits')
+        self.assertEqual(event['message'], '1 local-only commit(s)')
+
+    def test_git_state_counts_merge_commit_and_its_ahead_parents(self):
+        repo = self._git_repo_with_upstream('merge-change')
+        main = subprocess.run(['git', '-C', str(repo), 'branch', '--show-current'], check=True,
+                              capture_output=True, text=True).stdout.strip()
+        subprocess.run(['git', '-C', str(repo), 'checkout', '-q', '-b', 'feature'], check=True)
+        (repo / 'feature.py').write_text('feature = True\n')
+        self._git_commit(repo, 'feature change')
+        subprocess.run(['git', '-C', str(repo), 'checkout', '-q', main], check=True)
+        (repo / 'main.py').write_text('main = True\n')
+        self._git_commit(repo, 'main change')
+        subprocess.run(['git', '-C', str(repo), 'merge', '-q', '--no-ff', 'feature', '-m', 'merge feature'], check=True)
+        events = list(iter_git(repo, 'r', 'r:git', {}))
+        event = next(event for event in events if event['step'] == 'unpushed_commits')
+        self.assertEqual(event['message'], '3 local-only commit(s)')
+
+    def test_git_state_counts_commit_when_diff_tree_inspection_fails(self):
+        repo = self._git_repo_with_upstream('inspection-failure')
+        (repo / 'src').mkdir()
+        (repo / 'src/change.py').write_text('value = 1\n')
+        self._git_commit(repo, 'source change')
+        original_git = collector_sources._git
+
+        def fail_diff_tree(path, *args):
+            if args and args[0] == 'diff-tree':
+                return None
+            return original_git(path, *args)
+
+        with patch.object(collector_sources, '_git', side_effect=fail_diff_tree):
+            events = list(iter_git(repo, 'r', 'r:git', {}))
+        event = next(event for event in events if event['step'] == 'unpushed_commits')
+        self.assertEqual(event['message'], '1 local-only commit(s)')
+
+    def test_git_state_with_missing_upstream_does_not_report_unpushed_commits(self):
+        repo = self.tmp / 'missing-upstream'
+        subprocess.run(['git', 'init', '-q', str(repo)], check=True)
+        subprocess.run(['git', '-C', str(repo), 'config', 'user.name', 'Test'], check=True)
+        subprocess.run(['git', '-C', str(repo), 'config', 'user.email', 'test@example.com'], check=True)
+        (repo / 'README.md').write_text('initial\n')
+        self._git_commit(repo, 'initial')
+        events = list(iter_git(repo, 'r', 'r:git', {}))
+        self.assertNotIn('unpushed_commits', [event['step'] for event in events])
 
     def _git_repo_with_upstream(self, name):
         bare = self.tmp / f'{name}-remote.git'

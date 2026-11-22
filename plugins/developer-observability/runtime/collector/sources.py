@@ -768,8 +768,9 @@ def iter_git(repo, project, source, stats):
     if commits is not None:
         for commit in commits.splitlines():
             changed = _git(repo, 'diff-tree', '--root', '--no-commit-id', '--name-only', '-r', '-m', commit)
-            if changed is not None and any(
-                    path and not path.startswith(GIT_EXPECTED_PATHS) for path in changed.splitlines()):
+            paths = changed.splitlines() if changed is not None else []
+            if changed is None or not paths or any(
+                    path and not path.startswith(GIT_EXPECTED_PATHS) for path in paths):
                 unexpected += 1
     if unexpected:
         yield _event(stats, project=project, source=source, kind='git_state', step='unpushed_commits', error=True, ts=now,
