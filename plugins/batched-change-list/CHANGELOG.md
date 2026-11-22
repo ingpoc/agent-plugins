@@ -1,3 +1,8 @@
+## 0.1.63
+
+- Lane status is derived at render from the job receipt: a live job shows its phase, a dead unfinished one shows `Interrupted · resume at <phase>`, and a fix or review lane with no job shows `Paused · needs resume`. Chips, rows, the tally and `bcl status` share one state, and settled lanes keep their outcome (BCL-150).
+- `bcl pause --reason` and `bcl resume` pause the round and refuse new job, review, install and verify starts; repeats change nothing. Stale shows only for a live job with no heartbeat or progress past the limit (BCL-150).
+
 ## 0.1.62
 
 - The gate badge shows the rollover target as the main count (for example 7/16) with the report gate as a secondary line (BCL-141).
