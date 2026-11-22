@@ -574,6 +574,8 @@ def refuse_protected_claims(groups, eligible_prior, action="set-plan"):
             claimed = _protected_value(group, path)
             if claimed is _MISSING:
                 continue
+            if path == "stage_entered_at":
+                raise ValueError(f"{action} cannot write {path} for lane {group.get('id')}; it is runtime state")
             if path in ("failure_history", "plan_review_history"):
                 claimed = _lane_history(copy.deepcopy({"id": group.get("id"), path: claimed}), path)
             stored = _protected_value(prior, path) if prior is not None else _MISSING
@@ -626,6 +628,8 @@ def carry_plan_runtime_state(groups, previous, same_round):
         if prior and set(group.get("finding_ids", [])) == set(prior.get("finding_ids", [])) and (same_round or gated(prior)):
             eligible_prior[group.get("id")] = prior
     refuse_protected_claims(groups, eligible_prior)
+    prior_stages = canonical_lane_stages({"tracking": {"plan": previous}})
+    replacement_stages = canonical_lane_stages({"tracking": {"plan": {"groups": groups}}})
     for group in groups:
         prior = old.get(group.get("id"))
         unchanged = prior and set(group.get("finding_ids", [])) == set(prior.get("finding_ids", []))
@@ -663,6 +667,11 @@ def carry_plan_runtime_state(groups, previous, same_round):
             continue
         if RENDERER.plan_status(group) == "verified":
             raise ValueError("set-plan cannot claim completed job state; run bcl job for the current lane")
+    for group in groups:
+        prior = old.get(group.get("id"))
+        if (prior is not None and "stage_entered_at" in prior and
+                prior_stages.get(group.get("id")) == replacement_stages.get(group.get("id"))):
+            group["stage_entered_at"] = copy.deepcopy(prior["stage_entered_at"])
 
 
 def _record_lane_failure(document, identifier, attempt_id, source, reason, tool_fault=False, tool_fault_reason=None,
