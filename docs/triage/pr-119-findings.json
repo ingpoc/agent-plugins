@@ -11499,9 +11499,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T09:06:17Z",
-      "now": "2026-11-22T09:06:17Z — Plan Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T09:19:45Z",
+      "now": "2026-11-22T09:19:45Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13013,18 +13013,19 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r3-150",
             "reviewer_session": "codex-terra-6.1-119r3-150",
-            "review_status": "pending",
             "job": {
-              "id": "3c4f88f07b53423e9f7ee20df9b922ae",
-              "phase": "plan_review",
-              "started_at": "2026-11-22T09:06:17Z",
-              "command": "env",
-              "heartbeat_at": "2026-11-22T09:06:17Z",
+              "id": "26308feb46f14320bdc3ef6c278dbc21",
+              "phase": "fix",
+              "started_at": "2026-11-22T09:19:45Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-22T09:19:45Z",
               "plan_sha256": "764d59965200f25faf82156584b8bf8d687051853674e439b83e4f06de1c8eb2",
-              "model": "gpt-6.2-astra",
+              "model": "opencode/deepseek-v4.1-flash-free (OpenCode free, Codex quota out)",
               "cycle": 11,
               "round": 3
-            }
+            },
+            "tool_fault_streak": 0,
+            "fix_status": "running"
           },
           "failure_history": [
             {
@@ -13042,6 +13043,28 @@
               "cycle": 11,
               "round": 2,
               "at": "2026-11-22T08:01:15Z"
+            },
+            {
+              "attempt_id": "3c4f88f07b53423e9f7ee20df9b922ae",
+              "source": "plan_review",
+              "reason": "Reviewer exited 1",
+              "cycle": 11,
+              "round": 3,
+              "at": "2026-11-22T09:07:57Z",
+              "tool_fault": true,
+              "fault_kind": "runner_exit",
+              "tool_fault_reason": "Reviewer exited 1"
+            },
+            {
+              "attempt_id": "b59d140dfdfd4f519aae2e289a23cf45",
+              "source": "plan_review",
+              "reason": "Review incomplete: strict verdict or Must-fix section missing",
+              "cycle": 11,
+              "round": 3,
+              "at": "2026-11-22T09:14:02Z",
+              "tool_fault": true,
+              "fault_kind": "incomplete_review",
+              "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
             }
           ],
           "plan_review_history": [
@@ -13052,6 +13075,14 @@
               "cycle": 11,
               "round": 2,
               "at": "2026-11-22T07:35:14Z"
+            },
+            {
+              "job_id": "6bc51cbb41ca45a28e66116fcc7f8a99",
+              "after_failure": "096f23f32cd94210a8bbd1f5c0c363e8",
+              "status": "passed",
+              "cycle": 11,
+              "round": 3,
+              "at": "2026-11-22T09:15:08Z"
             }
           ],
           "unblock_history": [
@@ -13069,9 +13100,9 @@
               "owner_override": true
             }
           ],
-          "status": "review",
+          "status": "running",
           "updated_at": "2026-11-22T09:04:52Z",
-          "phase": "plan_review"
+          "phase": "fix"
         },
         {
           "id": "R2-145",
@@ -13092,7 +13123,24 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r3-145",
             "reviewer_session": "codex-terra-6.1-119r3-145",
-            "review_status": "pending"
+            "review_status": "pending",
+            "job": {
+              "id": "189f94f0e6144187847f88f2a66b4bda",
+              "phase": "plan_review",
+              "started_at": "2026-11-22T09:15:08Z",
+              "command": "cp",
+              "heartbeat_at": "2026-11-22T09:15:08Z",
+              "plan_sha256": "764d59965200f25faf82156584b8bf8d687051853674e439b83e4f06de1c8eb2",
+              "model": "grokbot-subagent (Guru 14:42; Codex quota out)",
+              "cycle": 11,
+              "round": 3,
+              "pid": 47070,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T09:15:08Z",
+              "finished_phase_status": "passed"
+            },
+            "plan_review_status": "passed",
+            "tool_fault_streak": 0
           },
           "failure_history": [
             {
@@ -13121,6 +13169,28 @@
               "cycle": 11,
               "round": 2,
               "at": "2026-11-22T08:55:17Z"
+            },
+            {
+              "attempt_id": "7c793abe4bbc452382be41ec0b5cb03f",
+              "source": "plan_review",
+              "reason": "Reviewer exited 1",
+              "cycle": 11,
+              "round": 3,
+              "at": "2026-11-22T09:07:51Z",
+              "tool_fault": true,
+              "fault_kind": "runner_exit",
+              "tool_fault_reason": "Reviewer exited 1"
+            },
+            {
+              "attempt_id": "c8b852a604b44f7babc8a26487a3144b",
+              "source": "plan_review",
+              "reason": "Review incomplete: strict verdict or Must-fix section missing",
+              "cycle": 11,
+              "round": 3,
+              "at": "2026-11-22T09:14:03Z",
+              "tool_fault": true,
+              "fault_kind": "incomplete_review",
+              "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
             }
           ],
           "plan_review_history": [
@@ -13131,6 +13201,14 @@
               "cycle": 11,
               "round": 2,
               "at": "2026-11-22T08:25:51Z"
+            },
+            {
+              "job_id": "189f94f0e6144187847f88f2a66b4bda",
+              "after_failure": "30745247200347efb8ebc88357088142",
+              "status": "passed",
+              "cycle": 11,
+              "round": 3,
+              "at": "2026-11-22T09:15:08Z"
             }
           ],
           "unblock_history": [
@@ -13148,8 +13226,9 @@
               "owner_override": true
             }
           ],
-          "status": "planned",
-          "updated_at": "2026-11-22T09:04:52Z"
+          "status": "review",
+          "updated_at": "2026-11-22T09:04:52Z",
+          "phase": "plan_review"
         },
         {
           "id": "R2-142",
@@ -13170,7 +13249,24 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r3-142",
             "reviewer_session": "codex-terra-6.1-119r3-142",
-            "review_status": "pending"
+            "review_status": "pending",
+            "job": {
+              "id": "0ad170cee0f44be3b5fa8b5b8c25d7bf",
+              "phase": "plan_review",
+              "started_at": "2026-11-22T09:14:33Z",
+              "command": "cp",
+              "heartbeat_at": "2026-11-22T09:14:33Z",
+              "plan_sha256": "764d59965200f25faf82156584b8bf8d687051853674e439b83e4f06de1c8eb2",
+              "model": "grokbot-subagent (Guru 14:42; Codex quota out)",
+              "cycle": 11,
+              "round": 3,
+              "pid": 46162,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T09:14:33Z",
+              "finished_phase_status": "passed"
+            },
+            "plan_review_status": "passed",
+            "tool_fault_streak": 0
           },
           "failure_history": [
             {
@@ -13188,6 +13284,17 @@
               "cycle": 11,
               "round": 2,
               "at": "2026-11-22T07:02:04Z"
+            },
+            {
+              "attempt_id": "252e66bd3ca64e0b93f930c8d44c1667",
+              "source": "plan_review",
+              "reason": "Review incomplete: strict verdict or Must-fix section missing",
+              "cycle": 11,
+              "round": 3,
+              "at": "2026-11-22T09:14:03Z",
+              "tool_fault": true,
+              "fault_kind": "incomplete_review",
+              "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
             }
           ],
           "plan_review_history": [
@@ -13198,6 +13305,14 @@
               "cycle": 11,
               "round": 2,
               "at": "2026-11-22T06:17:13Z"
+            },
+            {
+              "job_id": "0ad170cee0f44be3b5fa8b5b8c25d7bf",
+              "after_failure": "2f8fdbc5600a497583c134b947d7f8eb",
+              "status": "passed",
+              "cycle": 11,
+              "round": 3,
+              "at": "2026-11-22T09:14:33Z"
             }
           ],
           "unblock_history": [
@@ -13215,8 +13330,9 @@
               "owner_override": true
             }
           ],
-          "status": "planned",
-          "updated_at": "2026-11-22T09:04:52Z"
+          "status": "review",
+          "updated_at": "2026-11-22T09:04:52Z",
+          "phase": "plan_review"
         },
         {
           "id": "R3-STAGE",
@@ -15219,7 +15335,7 @@
       "summary": "bcl lets planning and plan-review jobs start while the previous round is still at Introspect, so the page shows the old round while next-round work runs. When the next round is planned, verified lanes that had a counted failure must be kept and come back as Planned until corrected by hand.",
       "impact": "The page shows the wrong round and verified lanes look open in the new round.",
       "recommendation": "Refuse plan and fix jobs until the round transition is recorded; when a new round is planned, keep verified lanes with failure history as Verified (or archive them) instead of reopening them.",
-      "done_when": "Starting a plan job before the round transition is refused with a message naming bcl plan; a new round keeps verified lanes Verified; tests cover both.",
+      "done_when": "Starting a plan job before the round transition is refused with a message naming bcl plan; a new round never includes lanes verified in an earlier round (they show only in their own round and the gate); tests cover both.",
       "observed": "22 Nov 2026 14:32 IST, bcl 0.1.62, PR 119 round 2 to 3",
       "priority": "high",
       "source": "User requested",
@@ -15228,7 +15344,8 @@
         "filed_by": "Guru 14:32 IST (via parent)",
         "kind": "fix",
         "report": "bcl-119 progress.md",
-        "evidence": "Round-3 Astra planning ran from 14:30 IST while the page still showed Round 2 Introspect (the planning ran outside bcl because no bcl stage covers it; bcl did not and could not refuse). The round-3 bcl plan refused to rename gated lanes (R2-150 must stay R2-150) and required gated verified lanes R2-146 and R2-136, which came back Planned and were set back to Verified with update-plan-group."
+        "evidence": "Round-3 Astra planning ran from 14:30 IST while the page still showed Round 2 Introspect (the planning ran outside bcl because no bcl stage covers it; bcl did not and could not refuse). The round-3 bcl plan refused to rename gated lanes (R2-150 must stay R2-150) and required gated verified lanes R2-146 and R2-136, which came back Planned and were set back to Verified with update-plan-group.",
+        "more_evidence": "Guru 14:39 IST: a new round must never include verified lanes; they show only in their own round and the gate. No supported bcl command removes R2-146 and R2-136 from the round-3 plan (set-plan refuses dropping gated lanes; archive covers findings only), so they stay listed as Verified in Round 3."
       }
     }
   ]
