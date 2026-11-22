@@ -10845,6 +10845,131 @@
           "exit_code": 0,
           "finished_at": "2026-11-20T17:18:55Z"
         }
+      },
+      {
+        "id": "r1-9748fa4a-120",
+        "build": "0.1.67",
+        "revision": "9748fa4a26d977334342e86ab5d18f42301e20a3",
+        "installed_at": "2026-11-22T13:16:43Z",
+        "install_evidence": "bcl install-local from clean detached worktree at 9748fa4a: plugin sha 8f0efc81 (cache copies), skill sha 5e5d4f6d",
+        "cycle": 12,
+        "status": "interrupted",
+        "checks": {
+          "ACU-10": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "ACU-21": {
+            "state": "pending"
+          },
+          "BCL-94": {
+            "state": "pending"
+          },
+          "BCL-103": {
+            "state": "pending"
+          },
+          "BCL-106": {
+            "state": "pending"
+          },
+          "BCL-108": {
+            "state": "pending"
+          },
+          "BCL-110": {
+            "state": "pending"
+          },
+          "BCL-113": {
+            "state": "pending"
+          },
+          "BCL-115": {
+            "state": "pending"
+          },
+          "BCL-120": {
+            "state": "pending"
+          },
+          "BCL-121": {
+            "state": "pending"
+          },
+          "BCL-124": {
+            "state": "pending"
+          },
+          "BCL-125": {
+            "state": "pending"
+          },
+          "BCL-130": {
+            "state": "pending"
+          },
+          "BCL-134": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-22T13:17:34Z",
+            "started_at": "2026-11-22T13:17:34Z",
+            "updated_at": "2026-11-22T13:17:34Z",
+            "check_id": "22caef441d58442d8c0d0720c2cdde24",
+            "evidence": "Checked: The pre-push gate in the pull request's checkout, its tests, and a real stale chart commit; Expected: Pushing a skill change with a stale chart is refused by the fast gate within seconds, from the pushed commit, deletes included; Observed: All three checks passed; the gate refused the stale commit in under a second, against the full suite's 159 seconds",
+            "details": "Log: ~/.agents/artifacts/bcl-120/verify-r1-round.log and verify-r1-134.log. Run r1-9748fa4a-120.",
+            "finished_at": "2026-11-22T13:17:34.803910Z"
+          },
+          "BCL-139": {
+            "state": "pending"
+          },
+          "BCL-140": {
+            "state": "pending"
+          },
+          "BCL-142": {
+            "state": "pending"
+          },
+          "BCL-144": {
+            "state": "pending"
+          },
+          "BCL-145": {
+            "state": "pending"
+          },
+          "BCL-147": {
+            "state": "pending"
+          },
+          "BCL-149": {
+            "state": "pending"
+          },
+          "BCL-151": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-22T13:17:34Z",
+            "started_at": "2026-11-22T13:17:34Z",
+            "updated_at": "2026-11-22T13:17:34Z",
+            "check_id": "b4ac20181ab142cda1e0e8eb20b8d3ae",
+            "evidence": "Checked: The installed fix order and file overlap tests, and a scratch copy of the live tracker; Expected: One command records the fix order and the page shows issues in that order; two open lanes changing the same files are refused; Observed: All installed checks passed; on the copy of the live tracker overlapping lanes were refused and the page listed the ordered issues first",
+            "details": "Log: ~/.agents/artifacts/bcl-120/verify-r1-round.log and verify-r1-134.log. Run r1-9748fa4a-120.",
+            "finished_at": "2026-11-22T13:17:34.801860Z"
+          },
+          "BCL-157": {
+            "state": "pending"
+          },
+          "BCL-158": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-22T13:17:34Z",
+            "started_at": "2026-11-22T13:17:34Z",
+            "updated_at": "2026-11-22T13:17:34Z",
+            "check_id": "9aafd9366587443f8a2bc974dec1b458",
+            "evidence": "Checked: The installed version, its round start tests and guidance, and a scratch copy of the live tracker; Expected: A closed round refuses plan and fix jobs until the next plan; verified lanes stay verified; carried lanes keep history and status and get fresh worktrees with conflicts named; rollover carries a gated lane; Observed: All installed checks passed; on the copy of the live tracker a fix job after the round's introspect was refused",
+            "details": "Log: ~/.agents/artifacts/bcl-120/verify-r1-round.log and verify-r1-134.log. Run r1-9748fa4a-120.",
+            "finished_at": "2026-11-22T13:17:34.799313Z"
+          },
+          "BCL-159": {
+            "state": "pending"
+          },
+          "BCL-160": {
+            "state": "pending"
+          },
+          "BCL-161": {
+            "state": "pending"
+          },
+          "BCL-166": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -10859,9 +10984,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-22T13:37:52Z",
-      "now": "2026-11-22T13:37:52Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-22T13:37:53Z",
+      "now": "2026-11-22T13:37:53Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -12303,7 +12428,7 @@
             "BCL-142"
           ],
           "label": "BCL-142",
-          "status": "installing",
+          "status": "verifying",
           "worktree": "bcl120-r1-142",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-142.sh",
@@ -12338,8 +12463,8 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 2,
-          "updated_at": "2026-11-22T13:18:04Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T13:37:53Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12350,9 +12475,9 @@
             "started_at": "2026-11-22T13:37:52Z"
           },
           "stage_model": {
-            "stage": "install",
-            "model": "install-local e5f518da",
-            "at": "2026-11-22T13:37:52Z"
+            "stage": "verify",
+            "model": "Grok Bot verify",
+            "at": "2026-11-22T13:37:53Z"
           }
         },
         {
@@ -12432,11 +12557,11 @@
       "cycle": 12
     },
     "verification_run": {
-      "id": "r1-9748fa4a-120",
-      "build": "0.1.67",
-      "revision": "9748fa4a26d977334342e86ab5d18f42301e20a3",
-      "installed_at": "2026-11-22T13:16:43Z",
-      "install_evidence": "bcl install-local from clean detached worktree at 9748fa4a: plugin sha 8f0efc81 (cache copies), skill sha 5e5d4f6d",
+      "id": "r1-e5f518da-120",
+      "build": "0.1.68",
+      "revision": "e5f518dabc95b24e533f88f65e08a1de0edf60f9",
+      "installed_at": "2026-11-22T13:37:52Z",
+      "install_evidence": "bcl install-local from clean detached worktree at e5f518da: plugin sha 925ea4e8, skill sha 7a60b11f; dev-obs before snapshot 0ea4fb35 (19:07:32 IST)",
       "cycle": 12,
       "status": "active",
       "checks": {
@@ -12486,15 +12611,7 @@
           "state": "pending"
         },
         "BCL-134": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-22T13:17:34Z",
-          "started_at": "2026-11-22T13:17:34Z",
-          "updated_at": "2026-11-22T13:17:34Z",
-          "check_id": "22caef441d58442d8c0d0720c2cdde24",
-          "evidence": "Checked: The pre-push gate in the pull request's checkout, its tests, and a real stale chart commit; Expected: Pushing a skill change with a stale chart is refused by the fast gate within seconds, from the pushed commit, deletes included; Observed: All three checks passed; the gate refused the stale commit in under a second, against the full suite's 159 seconds",
-          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r1-round.log and verify-r1-134.log. Run r1-9748fa4a-120.",
-          "finished_at": "2026-11-22T13:17:34.803910Z"
+          "state": "pending"
         },
         "BCL-139": {
           "state": "pending"
@@ -12518,29 +12635,13 @@
           "state": "pending"
         },
         "BCL-151": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-22T13:17:34Z",
-          "started_at": "2026-11-22T13:17:34Z",
-          "updated_at": "2026-11-22T13:17:34Z",
-          "check_id": "b4ac20181ab142cda1e0e8eb20b8d3ae",
-          "evidence": "Checked: The installed fix order and file overlap tests, and a scratch copy of the live tracker; Expected: One command records the fix order and the page shows issues in that order; two open lanes changing the same files are refused; Observed: All installed checks passed; on the copy of the live tracker overlapping lanes were refused and the page listed the ordered issues first",
-          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r1-round.log and verify-r1-134.log. Run r1-9748fa4a-120.",
-          "finished_at": "2026-11-22T13:17:34.801860Z"
+          "state": "pending"
         },
         "BCL-157": {
           "state": "pending"
         },
         "BCL-158": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-22T13:17:34Z",
-          "started_at": "2026-11-22T13:17:34Z",
-          "updated_at": "2026-11-22T13:17:34Z",
-          "check_id": "9aafd9366587443f8a2bc974dec1b458",
-          "evidence": "Checked: The installed version, its round start tests and guidance, and a scratch copy of the live tracker; Expected: A closed round refuses plan and fix jobs until the next plan; verified lanes stay verified; carried lanes keep history and status and get fresh worktrees with conflicts named; rollover carries a gated lane; Observed: All installed checks passed; on the copy of the live tracker a fix job after the round's introspect was refused",
-          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r1-round.log and verify-r1-134.log. Run r1-9748fa4a-120.",
-          "finished_at": "2026-11-22T13:17:34.799313Z"
+          "state": "pending"
         },
         "BCL-159": {
           "state": "pending"
@@ -12552,6 +12653,12 @@
           "state": "pending"
         },
         "BCL-166": {
+          "state": "pending"
+        },
+        "BCL-171": {
+          "state": "pending"
+        },
+        "BCL-175": {
           "state": "pending"
         }
       }
