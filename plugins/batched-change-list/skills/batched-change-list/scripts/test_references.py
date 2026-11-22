@@ -44,6 +44,13 @@ class ReferenceTests(unittest.TestCase):
         codex, opencode, owner = text.find("codex first"), text.find("free opencode"), text.find("ask the owner")
         self.assertTrue(0 <= codex < opencode < owner, "review.md must give the quota-out order Codex, OpenCode free, owner")
 
+    def test_review_runs_one_pre_push_suite_per_lane(self):
+        text = (SKILL / "references/review.md").read_text(encoding="utf-8").lower()
+        for phrase in ("once per lane, right before push", "scripts/check.py", "only the lane's tests",
+                       "share one job"):
+            self.assertIn(phrase, text)
+        self.assertNotIn("unittest discover", text)
+
 
 if __name__ == "__main__":
     unittest.main()
