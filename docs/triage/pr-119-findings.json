@@ -11691,9 +11691,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T11:06:04Z",
-      "now": "2026-11-22T11:06:04Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-22T11:12:20Z",
+      "now": "2026-11-22T11:12:20Z — Install in progress"
     },
     "rollover": {
       "source_pr": 118,
@@ -13325,7 +13325,7 @@
             "BCL-153"
           ],
           "label": "BCL-153",
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl119-r3-153",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-153.sh",
@@ -13338,20 +13338,24 @@
             "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
             "fix_status": "passed",
             "job": {
-              "id": "eb5d31c5c4494c9885e5956cb995136f",
-              "phase": "review",
-              "started_at": "2026-11-22T11:06:04Z",
-              "command": "cp",
-              "heartbeat_at": "2026-11-22T11:06:04Z",
+              "id": "e2abe883d23f43e288784a6477ba9bab",
+              "phase": "presuite",
+              "started_at": "2026-11-22T11:06:38Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-22T11:11:39Z",
               "plan_sha256": "412887d8acf489860cb33ba81ddd6c1696f2d3df7d8cd70a0247ffe405caea36",
-              "model": "grokbot-review-pass (separate pass; Codex out until 18:50)",
+              "model": "scripted presuite",
               "cycle": 11,
-              "round": 3
+              "round": 3,
+              "pid": 58087,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T11:11:39Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "implementer_session": "grokbot-self-119r3-153",
             "reviewer_session": "grokbot-review-119r3-153",
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "grokbot-review-pass (separate pass; Codex out until 18:50)"
           },
           "failure_history": [
@@ -13375,7 +13379,21 @@
             }
           ],
           "updated_at": "2026-11-22T11:06:03Z",
-          "phase": "review"
+          "phase": "install",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T11:11:39Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T11:12:20Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "scripted install",
+            "at": "2026-11-22T11:12:20Z"
+          }
         },
         {
           "id": "R2-145",
@@ -15537,7 +15555,7 @@
       "observed": "22 Nov 2026 13:14 IST, bcl 0.1.61, PR 119 round 2",
       "priority": "high",
       "source": "User requested",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 13:14 IST (via parent)",
         "kind": "fix",
