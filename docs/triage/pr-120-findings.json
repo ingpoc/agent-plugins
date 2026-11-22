@@ -11481,8 +11481,8 @@
     },
     "workflow": {
       "stage": "verify",
-      "updated_at": "2026-11-22T18:25:27Z",
-      "now": "2026-11-22T18:25:27Z — Verify in progress"
+      "updated_at": "2026-11-22T18:27:02Z",
+      "now": "2026-11-22T18:27:02Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -13066,12 +13066,12 @@
             "BCL-157"
           ],
           "label": "BCL-157",
-          "status": "verifying",
+          "status": "verified",
           "worktree": "samantha-next-r10",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-157.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -13150,7 +13150,7 @@
             "status": "running",
             "started_at": "2026-11-22T18:24:24Z"
           },
-          "stage_entered_at": "2026-11-22T18:25:27Z"
+          "stage_entered_at": "2026-11-22T18:29:21Z"
         },
         {
           "id": "R4-171",
@@ -13244,12 +13244,12 @@
             "BCL-103"
           ],
           "label": "BCL-103",
-          "status": "installing",
+          "status": "verified",
           "worktree": "samantha-next-r10",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-103.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -13286,8 +13286,8 @@
           "reason": "Carried to round 4. Split: this lane is the review guide and handoff only, plus a test that reviews must not list version or changelog as a must-fix, and must not regress the existing integrated-head bump refusal. The CI event-range check and main-branch structure/principles work (notes filed as BCL-168 and BCL-169) stay out; those were reverted after Terra reviews 5 and 6 and would push this lane over 150k. Estimate about 80k tokens.",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T16:38:10Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T18:27:02Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -13297,7 +13297,15 @@
             "status": "running",
             "started_at": "2026-11-22T18:24:24Z"
           },
-          "stage_entered_at": "2026-11-22T18:24:24Z"
+          "stage_entered_at": "2026-11-22T18:29:21Z",
+          "verify_reruns": [
+            {
+              "round": 4,
+              "reason": "The bump-refusal tests were invoked with a module path the test loader cannot import; rerunning them from the scripts directory.",
+              "at": "2026-11-22T18:27:02Z",
+              "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+            }
+          ]
         },
         {
           "id": "R4-106",
@@ -13546,7 +13554,28 @@
           "state": "pending"
         },
         "BCL-103": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Rechecking the installed review guides after correcting the test command",
+          "observed_at": "2026-11-22T18:28:37Z",
+          "started_at": "2026-11-22T18:29:21Z",
+          "updated_at": "2026-11-22T18:29:21Z",
+          "previous_checks": [
+            {
+              "state": "inconclusive",
+              "observation": "Checking the installed 0.1.72 review guides now",
+              "observed_at": "2026-11-22T18:25:44Z",
+              "started_at": "2026-11-22T18:25:44Z",
+              "updated_at": "2026-11-22T18:25:44Z",
+              "check_id": "20fa072a6e8644f187bd73d0bb735f50",
+              "evidence": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1",
+              "details": "Command: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-103.sh\nChecked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1",
+              "finished_at": "2026-11-22T18:25:46.043842Z"
+            }
+          ],
+          "check_id": "aca90fa5eee24cb2acbfec2c80887178",
+          "evidence": "Checked: The review and plan-fix guides, the must-fix reference test, and the existing integrated-head bump refusal\nExpected: No lane review lists the version or changelog as a must-fix, and the integrated head still refuses a missing bump\nObserved: All three checks passed on the installed copy after the test command was pointed at the scripts directory",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r4-103.log; installed batched-change-list 0.1.72 from 1f866e81; plugin sha 75a56173, skill sha adde971e; first verify exited 1 because the bump tests were invoked with an unloadable module path, then passed on rerun from the scripts directory; dev-obs before 9c8c1e1e, after 3dd53e40. Run r4-1f866e81-120.",
+          "finished_at": "2026-11-22T18:29:21.348979Z"
         },
         "BCL-106": {
           "state": "pending"
@@ -13606,11 +13635,15 @@
           "state": "pending"
         },
         "BCL-157": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Checking the installed 0.1.72 now",
           "observed_at": "2026-11-22T18:25:20Z",
           "started_at": "2026-11-22T18:25:20Z",
-          "updated_at": "2026-11-22T18:25:20Z"
+          "updated_at": "2026-11-22T18:25:20Z",
+          "check_id": "4f204fcd9ab6422eafbcb0af6c11ab90",
+          "evidence": "Checked: Time in the current stage on each lane row, the page Updated stamp, and the label after a review has passed\nExpected: Time in stage resets only when the stage changes, Updated moves on every tracker write including a finding write, and a finished review reads Review passed rather than Paused and needs resume\nObserved: All four checks passed on the installed copy; the live page shows time in stage and Review passed for the two reviewed lanes, with no Paused and needs resume label",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r4-157.log; installed batched-change-list 0.1.72 from 1f866e81; plugin sha 75a56173, skill sha adde971e; dev-obs before 9c8c1e1e (collected 150 findings), after 3dd53e40 (151 findings). Run r4-1f866e81-120. Also covers BCL-170 (filed into BCL-157).",
+          "finished_at": "2026-11-22T18:29:21.337135Z"
         },
         "BCL-158": {
           "state": "pending"
@@ -13729,7 +13762,7 @@
       "round": 3,
       "cycle": 12
     },
-    "last_written_at": "2026-11-22T18:25:27Z"
+    "last_written_at": "2026-11-22T18:29:21Z"
   },
   "findings": [
     {
@@ -13808,7 +13841,7 @@
       "done_when": "No lane review lists the version or changelog as a must-fix, and the integrated head still refuses a missing bump.",
       "observed": "21 Nov 2026 00:19 IST, every PR 118 round 3 lane still showed the old version while two lanes failed review partly for it.",
       "recommendation": "Say once in the review guide and handoff that version and changelog belong to integration; let the pre-push check enforce it on the integrated head.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 1",
         "filed_by": "Guru 00:33 IST t1597u",
@@ -13817,7 +13850,25 @@
         "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)",
         "also reported as BCL-168": "CI fails a version bump the local checks never test The agent-computer-use release check compares against HEAD locally but against main in CI, so a skill-doc change carried in an earlier commit passed every local suite and failed only on the PR's CI. 22 Nov 2026 18:00 IST, PR 119 CI at 4915cf0b",
         "also reported as BCL-169": "Main does not pass the structure check that CI runs CI runs the strict skill structure check installed on the build machine, which requires a principles file in every plugin skill, but the main branch's agent computer use skills have none, so main itself would fail CI and removing a change to match main cannot pass. 22 Nov 2026 18:05 IST, PR 119 local CI-mode check"
-      }
+      },
+      "verification": "The review guides assign version and changelog bumps to integration, and the integrated head still refuses a missing bump.",
+      "verification_refs": [
+        "1f866e81:BCL-103:installed-check"
+      ],
+      "verification_evidence": [
+        {
+          "checked": "The review and plan-fix guides, the must-fix reference test, and the existing integrated-head bump refusal",
+          "expected": "No lane review lists the version or changelog as a must-fix, and the integrated head still refuses a missing bump",
+          "observed": "All three checks passed on the installed copy after the test command was pointed at the scripts directory",
+          "verdict": "All three checks passed on the installed copy",
+          "check_id": "bcl-103-0.1.72-1f866e81",
+          "build": "bcl 0.1.72",
+          "session": "r4-1f866e81-120",
+          "timestamp": "2026-11-22T18:28:37Z",
+          "reference": "1f866e81:BCL-103:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r4-103.log; first command used an unloadable module path and was rerun from the scripts directory; dev-obs before 9c8c1e1e, after 3dd53e40. Run r4-1f866e81-120."
+        }
+      ]
     },
     {
       "id": "BCL-106",
@@ -14288,7 +14339,7 @@
       "observed": "22 Nov 2026 14:06 IST, bcl 0.1.62, PR 119 lane R2-145",
       "priority": "high",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 14:06 IST (via parent)",
         "kind": "fix",
@@ -14298,7 +14349,25 @@
         "root_cause_group": "M-LIVE (merged by class, Guru 17:33)",
         "merged_from": "BCL-117: The page's Updated stamp does not move on finding writes",
         "also reported as BCL-170": "A lane whose review passed shows as paused and needing resume After a review passes and before the full suite starts, the lane pill reads Paused and needs resume, although nothing is paused and the next step is the full suite. 22 Nov 2026 18:42 IST, PR 120 round 1 lanes after their reviews passed"
-      }
+      },
+      "verification": "Time in stage, the Updated stamp, and the Review passed label all checked out on the installed copy.",
+      "verification_refs": [
+        "1f866e81:BCL-157:installed-check"
+      ],
+      "verification_evidence": [
+        {
+          "checked": "Time in the current stage on each lane row, the page Updated stamp, and the label after a review has passed",
+          "expected": "Time in stage resets only when the stage changes, Updated moves on every tracker write including a finding write, and a finished review reads Review passed rather than Paused and needs resume",
+          "observed": "All four checks passed on the installed copy; the live page shows time in stage and Review passed for the two reviewed lanes, with no Paused and needs resume label",
+          "verdict": "All four checks passed on the installed copy",
+          "check_id": "bcl-157-0.1.72-1f866e81",
+          "build": "bcl 0.1.72",
+          "session": "r4-1f866e81-120",
+          "timestamp": "2026-11-22T18:28:37Z",
+          "reference": "1f866e81:BCL-157:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r4-157.log; plugin sha 75a56173, skill sha adde971e; dev-obs before 9c8c1e1e, after 3dd53e40. Run r4-1f866e81-120. Also covers BCL-170 (filed into BCL-157)."
+        }
+      ]
     },
     {
       "id": "BCL-158",
