@@ -1,3 +1,7 @@
+## 0.2.162
+
+- Skill-only change: the macos-cua and voice-cua verify skills gain their principles files (the template base plus a few skill lines) and link them for skill edits. No app code changed and no new app build is published; the Island has no update prompt, so it offers nothing for this version. Installing it restamps the local app with this version, like any package change.
+
 ## 0.2.161
 
 - After Samantha closes a Comet page she opened for you, she now tells you what you asked for from that page (for example its heading) before saying the window is closed. On Grok Voice the heading was being dropped from that final reply (ACU-22).
