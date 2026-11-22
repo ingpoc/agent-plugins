@@ -230,5 +230,21 @@ class LaneStateTests(unittest.TestCase):
         self.assertIn("bcl job", row["run"])
 
 
+
+    def test_renderer_reads_lane_copy_tally_and_step_chips_from_the_lane_table(self):
+        group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": "installing", "phase": "install",
+                 "install": {"started_at": "2026-11-18T08:00:00Z"}, "codex": {}}
+        self.assertEqual(render.lane_display(group, 1)["copy"], "In install · A")
+        with patch.dict(render.LANE["status_copy"], {"installing": "Shipping"}), \
+                patch.dict(render.LANE, {"tally": (("installing", "shipping now", ""),)}):
+            self.assertEqual(render.lane_display(group, 1)["copy"], "Shipping · A")
+            page = render.render_plan({"findings": []}, {}, {"round": 1, "groups": [group]}, 1, None)
+            self.assertIn("<b>1</b> shipping now", page)
+        deferred = {"id": "B", "finding_ids": ["ISSUE-02"], "status": "deferred", "parked_to": 2,
+                    "codex": {"review_status": "changes_requested"}}
+        self.assertEqual(render.lane_display(deferred, 1)["copy"], "Parked → Round 2")
+        with patch.dict(render.LANE["groups"], {"busy": frozenset()}):
+            self.assertNotIn('class="spinner"', render.render_plan({"findings": []}, {}, {"round": 1, "groups": [group]}, 1, None))
+
 if __name__ == "__main__":
     unittest.main()

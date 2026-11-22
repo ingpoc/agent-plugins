@@ -34,8 +34,8 @@ def performed_round_steps(tracking):
             raise ValueError("tracking.plan must contain groups for Introspect")
         if plan.get("round", current_round) == current_round and plan.get("cycle", current_cycle) == current_cycle:
             groups = [group for group in plan["groups"] if isinstance(group, dict)
-                      and group.get("status") not in ("deferred", "parked")
-                      and group.get("phase") not in ("deferred", "parked")]
+                      and group.get("status") not in WF.LANE["groups"]["parked"]
+                      and group.get("phase") not in WF.LANE["groups"]["parked"]]
             if groups:
                 steps.append(f"Parallel group count: {len(groups)}")
                 for group in groups:

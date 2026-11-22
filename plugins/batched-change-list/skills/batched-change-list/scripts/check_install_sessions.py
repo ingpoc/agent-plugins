@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Validate per-group Codex sessions before a BCL review; install readiness is bcl release-check."""
 
-REVIEW_STATUSES = ("pending", "running", "passed", "failed", "changes_requested", "blocked", "skipped_one_file")
+from workflow_definition import LANE
+
+REVIEW_STATUSES = LANE["review_states"]
 
 
 def validate_group_codex(group):
@@ -35,8 +37,8 @@ def install_groups(plan, finding_ids=None):
         if not selected or not ids.issubset(covered):
             raise ValueError("install IDs must be covered by current plan groups")
         return selected
-    return [group for group in groups if group.get("status") not in {"parked", "deferred", "done", "verified"}
-            and group.get("phase") not in {"parked", "deferred", "done"}]
+    refused = LANE["groups"]["install_refused"]
+    return [group for group in groups if group.get("status") not in refused and group.get("phase") not in refused]
 
 
 def validate_review_sessions(plan, finding_ids=None):
