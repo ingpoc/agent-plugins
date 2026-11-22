@@ -9,6 +9,8 @@ checks the files each pushed range changes:
   changed .py; `bash -n` and `shellcheck -S error` on changed .sh
 - typecheck: `python -m py_compile` on changed .py (no type checker is configured)
 - contract: `scripts/check.py --validate-only` (manifests, catalogs, strict skill shape)
+- chart: when a pushed range touches the change-list skill (deletes included),
+  `statechart.py --check` runs on that skill as it is in the pushed commit
 - placement: the pushing checkout is the canonical one or a worktree under
   `worktree_root` (scripts/placement.py; override AGENT_PLUGINS_ALLOW_PLACEMENT=1)
 
@@ -23,7 +25,10 @@ import argparse
 import json
 import shutil
 import subprocess
+import io
 import sys
+import tarfile
+import tempfile
 import time
 from pathlib import Path
 
@@ -31,6 +36,7 @@ ROOT = Path(__file__).resolve().parent.parent
 ZERO = "0" * 40
 BUDGET_SECONDS = 15.0
 RUFF_RULES = "E9,F63,F7,F82"
+CHART_SKILL = "plugins/batched-change-list/skills/batched-change-list"
 
 
 def git(*args: str) -> subprocess.CompletedProcess:
@@ -71,6 +77,34 @@ def changed_files(ranges: list[tuple[str, str]]) -> list[str]:
     return [name for name in seen if (ROOT / name).is_file()]
 
 
+def chart_heads(ranges: list[tuple[str, str]]) -> list[str]:
+    """Pushed heads whose range adds, changes or deletes anything under the change-list skill."""
+    heads = []
+    for base, head in ranges:
+        names = git("diff", "--name-only", "-z", base, head, "--", CHART_SKILL).stdout.split("\0")
+        if any(names) and head not in heads:
+            heads.append(head)
+    return heads
+
+
+def chart_step(head: str) -> tuple[str, int, str]:
+    """Check the state chart against the skill as committed in `head`, not the working tree."""
+    name = f"chart: statechart.py --check at {head[:8]}"
+    with tempfile.TemporaryDirectory(prefix="prepush-chart-") as tmp:
+        archive = subprocess.run(["git", "archive", "--format=tar", head, CHART_SKILL], cwd=ROOT,
+                                 capture_output=True, check=False)
+        if archive.returncode != 0:
+            return name, 0, "skill not in the pushed commit; nothing to check"
+        with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
+            tar.extractall(tmp, filter="data")
+        script = Path(tmp) / CHART_SKILL / "scripts" / "statechart.py"
+        if not script.is_file():
+            return name, 0, "no chart generator in the pushed commit"
+        proc = subprocess.run([sys.executable, str(script), "--check"], cwd=tmp, capture_output=True, text=True,
+                              check=False)
+        return name, proc.returncode, (proc.stdout + proc.stderr).strip()
+
+
 def step(name: str, cmd: list[str]) -> tuple[str, int, str]:
     proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=False)
     return name, proc.returncode, (proc.stdout + proc.stderr).strip()
@@ -108,6 +142,8 @@ def run(files: list[str], ranges: list[tuple[str, str]]) -> int:
                                 [shellcheck, "-S", "error", *sh]))
         else:
             notes.append("shellcheck not installed: shell lint skipped")
+    for head in chart_heads(ranges):
+        results.append(chart_step(head))
     results.append(step("contract: check.py --validate-only",
                         [sys.executable, str(ROOT / "scripts" / "check.py"), "--validate-only"]))
     failed = [r for r in results if r[1] != 0]
