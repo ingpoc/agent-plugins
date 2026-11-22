@@ -11353,9 +11353,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T17:39:32Z",
-      "now": "2026-11-22T17:39:32Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T17:54:09Z",
+      "now": "2026-11-22T17:54:09Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12937,7 +12937,7 @@
             "BCL-157"
           ],
           "label": "BCL-157",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl120-r4-157",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-157.sh",
@@ -12951,21 +12951,22 @@
             "implementer_session": "codex-luna-120-157",
             "reviewer_session": "codex-terra-120-157",
             "job": {
-              "id": "87f8a4484ea84953989574ea248aedaa",
-              "phase": "fix",
-              "started_at": "2026-11-22T17:39:32Z",
-              "command": "run-luna-157-fix3.sh",
-              "heartbeat_at": "2026-11-22T17:39:32Z",
+              "id": "92183f084f2e480092a7760bf90b857e",
+              "phase": "review",
+              "started_at": "2026-11-22T17:54:09Z",
+              "command": "run-review-157-3-job.sh",
+              "heartbeat_at": "2026-11-22T17:54:09Z",
               "plan_sha256": "8dbb428df40993cd3f3867cc093b95dc6dd311b530e33d76408378e9eda24da5",
               "worktree": "bcl120-r4-157",
-              "model": "gpt-6-luna fast medium",
+              "model": "gpt-6.1-terra medium (review)",
               "cycle": 12,
               "round": 4
             },
             "tool_fault_streak": 0,
-            "fix_status": "running",
+            "fix_status": "passed",
             "reviewer_model": "gpt-6.1-terra medium (review)",
-            "must_fix_note": "1. [manage_findings.py:523](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:523) and [manage_findings.py:625](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:625): Replanning a lane with the same ID but different findings drops `stage_entered_at`. If its canonical pair remains unchanged, the stamp helper does not restore it, so the lane shows no duration. I reproduced this in memory; add a regression test for the plan-write path.\n\n2. [manage_findings.py:573](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:573): Plan writes accept a supplied `stage_entered_at` when it equals the stored value. The requested contract forbids supplying the field, including an equal value."
+            "must_fix_note": "1. [manage_findings.py:523](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:523) and [manage_findings.py:625](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:625): Replanning a lane with the same ID but different findings drops `stage_entered_at`. If its canonical pair remains unchanged, the stamp helper does not restore it, so the lane shows no duration. I reproduced this in memory; add a regression test for the plan-write path.\n\n2. [manage_findings.py:573](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:573): Plan writes accept a supplied `stage_entered_at` when it equals the stored value. The requested contract forbids supplying the field, including an equal value.",
+            "review_status": "running"
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -13006,7 +13007,7 @@
             }
           ],
           "updated_at": "2026-11-22T16:38:10Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "R4-171",
