@@ -11353,9 +11353,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T16:40:47Z",
-      "now": "2026-11-22T16:40:47Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T16:45:48Z",
+      "now": "2026-11-22T16:45:48Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12951,18 +12951,19 @@
             "implementer_session": "codex-luna-120-157",
             "reviewer_session": "codex-terra-120-157",
             "job": {
-              "id": "035bca1162754931adc57ff0c843ce49",
+              "id": "e05a8d42d55d453a81410c5973af6a1d",
               "phase": "plan_review",
-              "started_at": "2026-11-22T16:40:45Z",
-              "command": "run-planreview-157-job.sh",
-              "heartbeat_at": "2026-11-22T16:40:45Z",
+              "started_at": "2026-11-22T16:45:48Z",
+              "command": "run-planreview-157-2-job.sh",
+              "heartbeat_at": "2026-11-22T16:45:48Z",
               "plan_sha256": "8dbb428df40993cd3f3867cc093b95dc6dd311b530e33d76408378e9eda24da5",
               "worktree": "bcl120-r4-157",
               "model": "gpt-6.1-terra low (plan review)",
               "cycle": 12,
-              "round": 4,
-              "pid": 35830
-            }
+              "round": 4
+            },
+            "plan_review_status": "changes_requested",
+            "tool_fault_streak": 0
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -12986,7 +12987,7 @@
             "BCL-171"
           ],
           "label": "BCL-171",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl120-r4-171",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-171.sh",
@@ -12999,19 +13000,24 @@
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "codex-luna-120-171",
             "reviewer_session": "codex-terra-120-171",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
               "id": "fa648d6017e14944bd8dc9bb925988eb",
               "phase": "fix",
               "started_at": "2026-11-22T16:40:47Z",
               "command": "run-luna-171.sh",
-              "heartbeat_at": "2026-11-22T16:40:47Z",
+              "heartbeat_at": "2026-11-22T16:45:39Z",
               "plan_sha256": "8dbb428df40993cd3f3867cc093b95dc6dd311b530e33d76408378e9eda24da5",
               "worktree": "bcl120-r4-171",
               "model": "gpt-6-luna fast medium",
               "cycle": 12,
-              "round": 4
-            }
+              "round": 4,
+              "pid": 36556,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T16:45:39Z",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py",
@@ -13022,7 +13028,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T16:38:10Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "R4-103",
@@ -13031,7 +13037,7 @@
             "BCL-103"
           ],
           "label": "BCL-103",
-          "status": "planned",
+          "status": "running",
           "worktree": "bcl120-r4-103",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-103.sh",
@@ -13043,7 +13049,21 @@
           "codex": {
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "codex-luna-120-103",
-            "reviewer_session": "codex-terra-120-103"
+            "reviewer_session": "codex-terra-120-103",
+            "fix_status": "running",
+            "job": {
+              "id": "28252fa2743a448a89b9d8eea089e4be",
+              "phase": "fix",
+              "started_at": "2026-11-22T16:40:48Z",
+              "command": "run-luna-103.sh",
+              "heartbeat_at": "2026-11-22T16:44:49Z",
+              "plan_sha256": "8dbb428df40993cd3f3867cc093b95dc6dd311b530e33d76408378e9eda24da5",
+              "worktree": "bcl120-r4-103",
+              "model": "gpt-6-luna fast medium",
+              "cycle": 12,
+              "round": 4,
+              "pid": 36703
+            }
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/references/review.md",
@@ -13053,7 +13073,8 @@
           "reason": "Carried to round 4. Split: this lane is the review guide and handoff only, plus a test that reviews must not list version or changelog as a must-fix, and must not regress the existing integrated-head bump refusal. The CI event-range check and main-branch structure/principles work (notes filed as BCL-168 and BCL-169) stay out; those were reverted after Terra reviews 5 and 6 and would push this lane over 150k. Estimate about 80k tokens.",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T16:38:10Z"
+          "updated_at": "2026-11-22T16:38:10Z",
+          "phase": "fix"
         },
         {
           "id": "R4-106",
@@ -13062,7 +13083,7 @@
             "BCL-106"
           ],
           "label": "BCL-106",
-          "status": "planned",
+          "status": "running",
           "worktree": "bcl120-r4-106",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-106.sh",
@@ -13074,7 +13095,21 @@
           "codex": {
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "codex-luna-120-106",
-            "reviewer_session": "codex-terra-120-106"
+            "reviewer_session": "codex-terra-120-106",
+            "fix_status": "running",
+            "job": {
+              "id": "300459fc74614fbeb07f263ca94a8bdf",
+              "phase": "fix",
+              "started_at": "2026-11-22T16:40:49Z",
+              "command": "run-luna-106.sh",
+              "heartbeat_at": "2026-11-22T16:44:50Z",
+              "plan_sha256": "8dbb428df40993cd3f3867cc093b95dc6dd311b530e33d76408378e9eda24da5",
+              "worktree": "bcl120-r4-106",
+              "model": "gpt-6-luna fast medium",
+              "cycle": 12,
+              "round": 4,
+              "pid": 37764
+            }
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py",
@@ -13086,7 +13121,8 @@
           "reason": "Next highest independent product item. One tested driver for shared checks, lane checks, cleanup and judging; cleanup stays out of the verdict; verify start runs the self-test. Existing per-round scripts become thin wrappers or are deleted if that stays in budget. Split if the delete-all-copies rewrite would exceed 150k: keep thin wrappers and leave full deletion for a later lane. Estimate about 120k tokens.",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T16:38:10Z"
+          "updated_at": "2026-11-22T16:38:10Z",
+          "phase": "fix"
         },
         {
           "id": "R2-DO1",
