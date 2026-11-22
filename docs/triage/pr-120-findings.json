@@ -11099,9 +11099,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T15:03:59Z",
-      "now": "2026-11-22T15:03:59Z — Plan Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T15:06:12Z",
+      "now": "2026-11-22T15:06:12Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12612,16 +12612,18 @@
             "implementer_session": "grokbot-r3-145",
             "reviewer_session": "codex-terra-120-145-r3",
             "job": {
-              "id": "ec3db222e756401b95a116c8961ec882",
-              "phase": "plan_review",
-              "started_at": "2026-11-22T15:03:59Z",
+              "id": "8a746d9602ff4de59787acdf38b6e45f",
+              "phase": "fix",
+              "started_at": "2026-11-22T15:06:12Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T15:03:59Z",
+              "heartbeat_at": "2026-11-22T15:06:12Z",
               "plan_sha256": "4c8ba2892daa4abe2723328c5d64659bc57b221c19e8479973748d3cfcf2cf73",
-              "model": "gpt-6.1-terra low (Codex; astra unsupported)",
+              "model": "Grok Bot direct (small fix)",
               "cycle": 12,
               "round": 3
-            }
+            },
+            "tool_fault_streak": 0,
+            "fix_status": "running"
           },
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -12655,6 +12657,14 @@
               "cycle": 12,
               "round": 2,
               "at": "2026-11-22T14:00:00Z"
+            },
+            {
+              "job_id": "ec3db222e756401b95a116c8961ec882",
+              "after_failure": "1098f0e97aa945eaafa9d292785ad8e0",
+              "status": "passed",
+              "cycle": 12,
+              "round": 3,
+              "at": "2026-11-22T15:05:00Z"
             }
           ],
           "unblock_history": [
@@ -12672,9 +12682,9 @@
               "owner_override": true
             }
           ],
-          "status": "review",
+          "status": "running",
           "updated_at": "2026-11-22T15:02:44Z",
-          "phase": "plan_review"
+          "phase": "fix"
         },
         {
           "id": "R2-DO1",
