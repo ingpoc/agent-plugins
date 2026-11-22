@@ -11499,9 +11499,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-22T08:13:47Z",
-      "now": "2026-11-22T08:13:47Z — Verify in progress"
+      "stage": "review",
+      "updated_at": "2026-11-22T08:15:48Z",
+      "now": "2026-11-22T08:15:48Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12955,7 +12955,7 @@
           "finding_ids": [
             "BCL-145"
           ],
-          "status": "deferred",
+          "status": "review",
           "worktree": "bcl119-r2-145",
           "label": "BCL-145",
           "verify": {
@@ -12971,20 +12971,15 @@
             "reviewer_session": "codex-terra-6.1-119r2-145",
             "fix_status": "passed",
             "job": {
-              "id": "a5e1ac87799844988c6917bd2cfaa275",
+              "id": "7972b502e5384adc989ef39ff5eb0a29",
               "phase": "plan_review",
-              "started_at": "2026-11-22T07:00:53Z",
+              "started_at": "2026-11-22T08:15:48Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T07:01:51Z",
-              "plan_sha256": "cd19055a4b931f2e57c4e3bf2731abc686026d00e58b215d487ef6840cb82480",
-              "model": "gpt-6.2-sol",
+              "heartbeat_at": "2026-11-22T08:15:48Z",
+              "plan_sha256": "1582e93171705e103bf359b759ee2f1454d3cf633fd71d7f5806d9ed49481781",
+              "model": "gpt-6.2-astra",
               "cycle": 11,
-              "round": 2,
-              "pid": 74155,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T07:01:51Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. Apply the declared field check to new and replaced lanes. Remove only `claims_runtime` and retain the separate `verified` guard. Test new-lane rejection through `bcl plan --plan`. For `update-plan-group`, test a protected field absent from an existing lane.\n2. Scope the `pending` exception to `codex.fix_status`, `codex.review_status`, and `codex.plan_review_status` when the stored field is absent. Preserve the top-level status and phase transitions used by `bcl verify`.\n3. Use the existing stale group for the renderer’s busy predicate, preserve chip order, and replace the remaining literal settled-state check in `validate_plan_groups`."
+              "round": 2
             },
             "tool_fault_streak": 0,
             "review_status": "changes_requested",
@@ -13003,9 +12998,9 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T07:59:30Z",
-          "phase": "deferred",
-          "reason": "Guru 12:32 IST: status hotfix R2-150 goes ahead of BCL-145. Terra 1 CHANGES (counted 1) and Sol plan review 1 CHANGES recorded; carried to round 3 with plan v3 from planreview-145-1.md",
+          "updated_at": "2026-11-22T08:14:57Z",
+          "phase": "plan_review",
+          "reason": "Guru 13:42 IST: continue with R2-145 now that 0.1.62 shipped; serial (only writer/renderer lane open)",
           "parked_to": 3
         },
         {
@@ -13301,13 +13296,13 @@
           "finding_ids": [
             "BCL-146"
           ],
-          "status": "installing",
+          "status": "verified",
           "worktree": "bcl119-r2-146",
           "label": "BCL-146",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-146.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -13377,8 +13372,8 @@
               "at": "2026-11-22T06:03:14Z"
             }
           ],
-          "updated_at": "2026-11-22T07:59:30Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T08:13:48Z",
+          "phase": "verify",
           "unblock_history": [
             {
               "at": "2026-11-22T06:27:48Z",
@@ -13410,13 +13405,13 @@
           "finding_ids": [
             "BCL-141"
           ],
-          "status": "verifying",
+          "status": "verified",
           "worktree": "bcl119-r2-141",
           "label": "BCL-141",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-141.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -13959,7 +13954,15 @@
           "state": "pending"
         },
         "BCL-141": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T08:14:21Z",
+          "started_at": "2026-11-22T08:14:07Z",
+          "updated_at": "2026-11-22T08:14:21Z",
+          "check_id": "7ee799b0ff534eca9e3177d5ce94f9ca",
+          "evidence": "Checked: The live page gate badge on viewer 0.1.62 and the installed render tests; Expected: The badge shows the rollover target of 16 as the main count, with the report gate of 15 as a secondary line; Observed: The live page shows the verified count out of 16 with the report count out of 15 below it; render tests pass on the installed copy",
+          "details": "Log: bcl-119/progress.md; r2/verify-141.sh; r2/verify-146.sh. Run r2-4f1763d4-119.",
+          "finished_at": "2026-11-22T08:14:21.641545Z"
         },
         "BCL-142": {
           "state": "pending"
@@ -13974,7 +13977,15 @@
           "state": "pending"
         },
         "BCL-146": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T08:14:21Z",
+          "started_at": "2026-11-22T08:14:07Z",
+          "updated_at": "2026-11-22T08:14:21Z",
+          "check_id": "0d051ed805764d439597a6ae486cc704",
+          "evidence": "Checked: The repository check default number of test processes on the pushed branch, and its harness test; Expected: The default is at most six test processes; smaller machines and an explicit setting are still respected; Observed: Six on a ten-core count, four on a four-core count, eight when eight is asked for; the harness test passes",
+          "details": "Log: bcl-119/progress.md; r2/verify-141.sh; r2/verify-146.sh. Run r2-4f1763d4-119.",
+          "finished_at": "2026-11-22T08:14:21.643299Z"
         },
         "BCL-147": {
           "state": "pending"
@@ -14948,13 +14959,31 @@
       "observed": "22 Nov 2026 08:45 IST, bcl 0.1.58 installed, PR 119 page on the fixed port",
       "priority": "medium",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 22 Nov 08:45 IST question: why the gate shows /15 instead of /16",
         "report": "bcl-119 progress.md",
         "evidence": "Page badge Fixes 4/15 verified; workflow_definition gate default_threshold 15, merge_previous_pr_threshold 16; note text says rollover needs 16",
         "kind": "fix"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The live page gate badge on viewer 0.1.62 and the installed render tests",
+          "expected": "The badge shows the rollover target of 16 as the main count, with the report gate of 15 as a secondary line",
+          "observed": "The live page shows the verified count out of 16 with the report count out of 15 below it; render tests pass on the installed copy",
+          "verdict": "The live page shows the verified count out of 16 with the report count out of 15 below it; render tests pass on the installed copy",
+          "check_id": "bcl-141-0.1.62-4f1763d4",
+          "build": "batched-change-list 0.1.62",
+          "session": "r2-4f1763d4-119",
+          "timestamp": "2026-11-22T08:14:21Z",
+          "reference": "4f1763d4:BCL-141:installed-check",
+          "details": "Log: bcl-119/progress.md; r2/verify-141.sh; r2/verify-146.sh. Run r2-4f1763d4-119."
+        }
+      ],
+      "verification": "The live page shows the verified count out of 16 with the report count out of 15 below it; render tests pass on the installed copy Log: bcl-119/progress.md; r2/verify-141.sh; r2/verify-146.sh. Run r2-4f1763d4-119.",
+      "verification_refs": [
+        "4f1763d4:BCL-141:installed-check"
+      ]
     },
     {
       "id": "BCL-142",
@@ -15044,14 +15073,32 @@
       "observed": "22 Nov 2026 09:45 IST, PR 117 to 119 pre-push runs",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "PR 119 round 2 reliability pass",
         "report": "bcl-117 and bcl-118 progress.md",
         "evidence": "117 16:47, 22:07, 13:41 and 17:17; 118 08:19; 119 22:14 and 22:26: timing tests failed under about ten-way load and passed alone or with six workers",
         "kind": "fix"
       },
-      "needs": "Fix job exited 1"
+      "needs": "Fix job exited 1",
+      "verification_evidence": [
+        {
+          "checked": "The repository check default number of test processes on the pushed branch, and its harness test",
+          "expected": "The default is at most six test processes; smaller machines and an explicit setting are still respected",
+          "observed": "Six on a ten-core count, four on a four-core count, eight when eight is asked for; the harness test passes",
+          "verdict": "Six on a ten-core count, four on a four-core count, eight when eight is asked for; the harness test passes",
+          "check_id": "bcl-146-0.1.62-4f1763d4",
+          "build": "batched-change-list 0.1.62",
+          "session": "r2-4f1763d4-119",
+          "timestamp": "2026-11-22T08:14:21Z",
+          "reference": "4f1763d4:BCL-146:installed-check",
+          "details": "Log: bcl-119/progress.md; r2/verify-141.sh; r2/verify-146.sh. Run r2-4f1763d4-119."
+        }
+      ],
+      "verification": "Six on a ten-core count, four on a four-core count, eight when eight is asked for; the harness test passes Log: bcl-119/progress.md; r2/verify-141.sh; r2/verify-146.sh. Run r2-4f1763d4-119.",
+      "verification_refs": [
+        "4f1763d4:BCL-146:installed-check"
+      ]
     },
     {
       "id": "BCL-147",
