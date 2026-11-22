@@ -32,7 +32,7 @@ Operate on the live file (or a test copy under `BCL_STATE_DIR`), not a stale in-
 
 `update` applies a JSON Merge Patch: nested objects merge, arrays replace, `null` removes a field, and `id` cannot change. JSON mutations validate the whole findings file before an atomic write; deleting the last finding is supported. HTML mutations replace only the selected embedded array, so use the JSON source whenever it exists and keep any separately authored summaries in sync.
 
-When adding a finding, write `summary`, `impact`, and `done_when` in plain words for a non-technical reader. Put commands, SHAs, counts, timestamps, and log quotes in `observed` or `details`. Add/update and batch warn on log-like summaries; add also warns when `summary` is missing.
+When adding a finding, write `summary`, `impact`, and `done_when` in plain words for a non-technical reader. Put commands, SHAs, counts, timestamps, and log quotes in `observed` or `details`. Add/update and batch warn on log-like summaries; add also warns when `summary` is missing. Add refuses an entry that shares most title, summary and recommendation words with an open finding and names the matches: append it with `--into ID` (batch `into`) or, for a different cause, pass `--new` (batch `new: true`).
 
 `record-evidence` appends to the authoritative JSON only. Supply six nonempty string fields: `check`, `outcome`, `build`, `session`, `timestamp`, and `reference`; use `unknown` when a field is unavailable. Timestamps use ISO 8601 with a timezone. The manager retains the latest passing, failing, and blocked/inconclusive evidence, any record cited by `verification_refs`, and the only record for an outcome, dropping older unreferenced records on append. Records never change status automatically.
 
