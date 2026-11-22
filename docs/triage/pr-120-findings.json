@@ -11227,8 +11227,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-22T16:16:00Z",
-      "now": "2026-11-22T16:16:00Z — Review started"
+      "updated_at": "2026-11-22T16:19:26Z",
+      "now": "2026-11-22T16:19:26Z — Presuite started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12968,18 +12968,18 @@
             "reviewer_session": "codex-terra-120-175",
             "fix_status": "passed",
             "job": {
-              "id": "a21873cb01d142f7b7e1681060aefae4",
-              "phase": "review",
-              "started_at": "2026-11-22T16:16:00Z",
-              "command": "run-review-175-2.sh",
-              "heartbeat_at": "2026-11-22T16:17:11Z",
+              "id": "4808a597490e493ba5aa6b995622ae77",
+              "phase": "presuite",
+              "started_at": "2026-11-22T16:19:26Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-22T16:22:25Z",
               "plan_sha256": "4257759c2f863172da02a3b4e61a43f3dc2eb47f13ca1511144b1393d76498d6",
-              "model": "gpt-6.1-terra medium (Codex)",
+              "model": "none (script)",
               "cycle": 12,
               "round": 3,
-              "pid": 88160,
+              "pid": 92565,
               "exit_code": 0,
-              "finished_at": "2026-11-22T16:17:11Z",
+              "finished_at": "2026-11-22T16:22:25Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -13016,7 +13016,12 @@
             }
           ],
           "updated_at": "2026-11-22T15:31:42Z",
-          "phase": "review"
+          "phase": "review",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T16:22:25Z"
+          }
         },
         {
           "id": "DEFER",
