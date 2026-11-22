@@ -11016,9 +11016,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T04:59:38Z",
-      "now": "2026-11-22T04:59:38Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-22T05:49:27Z",
+      "now": "2026-11-22T05:49:27Z — Install in progress"
     },
     "rollover": {
       "source_pr": 118,
@@ -12615,7 +12615,7 @@
           "finding_ids": [
             "BCL-136"
           ],
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl119-r2-136",
           "label": "BCL-136",
           "verify": {
@@ -12631,18 +12631,18 @@
             "reviewer_session": "codex-terra-6.1-119r2-136",
             "fix_status": "passed",
             "job": {
-              "id": "99f19cadcd424e7faed4c8df1d261200",
-              "phase": "review",
-              "started_at": "2026-11-22T04:42:54Z",
-              "command": "env",
-              "heartbeat_at": "2026-11-22T04:43:33Z",
-              "plan_sha256": "515dcbc24403def37401a0544bedc3181e8386dbd695c96acefab8a7338deb60",
-              "model": "gpt-6.1-terra medium (Codex CLI)",
+              "id": "3306053d8df84019859a4aa97801df43",
+              "phase": "presuite",
+              "started_at": "2026-11-22T05:36:59Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-22T05:41:40Z",
+              "plan_sha256": "c648366fa7f6ad7f090acf237a5485198e2dd594277208136e45c3a2451de6c6",
+              "model": "none",
               "cycle": 11,
               "round": 2,
-              "pid": 91148,
+              "pid": 79267,
               "exit_code": 0,
-              "finished_at": "2026-11-22T04:43:33Z",
+              "finished_at": "2026-11-22T05:41:40Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -12671,7 +12671,16 @@
             }
           ],
           "updated_at": "2026-11-22T04:21:44Z",
-          "phase": "review"
+          "phase": "install",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T05:41:40Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T05:49:27Z"
+          }
         },
         {
           "id": "R2-137",
@@ -12755,18 +12764,18 @@
             "one_file": true,
             "fix_status": "passed",
             "job": {
-              "id": "d2c2acab70dd40e6b854e9d465e96001",
-              "phase": "fix",
-              "started_at": "2026-11-22T04:09:21Z",
-              "command": "env",
-              "heartbeat_at": "2026-11-22T04:14:31Z",
-              "plan_sha256": "8e2b7aecec13d072b201703b8d0fcfabcb027274ffd896b173c87450e48b61f2",
-              "model": "gpt-6-luna medium fast (Codex CLI)",
+              "id": "3306053d8df84019859a4aa97801df43",
+              "phase": "presuite",
+              "started_at": "2026-11-22T05:36:59Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-22T05:41:40Z",
+              "plan_sha256": "c648366fa7f6ad7f090acf237a5485198e2dd594277208136e45c3a2451de6c6",
+              "model": "none",
               "cycle": 11,
               "round": 2,
-              "pid": 96612,
+              "pid": 79267,
               "exit_code": 0,
-              "finished_at": "2026-11-22T04:14:31Z",
+              "finished_at": "2026-11-22T05:41:40Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -12775,7 +12784,12 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T04:21:44Z",
-          "phase": "review"
+          "phase": "review",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T05:41:40Z"
+          }
         },
         {
           "id": "R2-144",
@@ -12786,7 +12800,7 @@
           "depends_on": [
             "R2-136"
           ],
-          "status": "review",
+          "status": "deferred",
           "worktree": "bcl119-r2-144",
           "label": "BCL-144",
           "verify": {
@@ -12802,24 +12816,42 @@
             "reviewer_session": "codex-terra-6.1-119r2-144",
             "fix_status": "passed",
             "job": {
-              "id": "65951d33ee4e4bd4b2f941dc42a2dd58",
-              "phase": "review",
-              "started_at": "2026-11-22T04:59:38Z",
-              "command": "env",
-              "heartbeat_at": "2026-11-22T04:59:38Z",
+              "id": "4f031c771da4413883df0e8465914e6b",
+              "phase": "plan_review",
+              "started_at": "2026-11-22T05:20:09Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-22T05:21:19Z",
               "plan_sha256": "515dcbc24403def37401a0544bedc3181e8386dbd695c96acefab8a7338deb60",
-              "model": "gpt-6.1-terra medium (Codex CLI)",
+              "model": "gpt-6.2-sol",
               "cycle": 11,
-              "round": 2
+              "round": 2,
+              "pid": 52473,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T05:21:19Z",
+              "finished_phase_status": "changes_requested",
+              "must_fix": "1. Require `presuite.status == \"passed\"` to include a named hotfix. Preserve the existing ordinary-lane release behavior.\n2. Require same-round replans to retain an open hotfix’s lane ID and finding IDs."
             },
             "tool_fault_streak": 0,
-            "review_status": "running",
-            "reviewer_model": "gpt-6.1-terra medium (Codex CLI)"
+            "review_status": "changes_requested",
+            "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
+            "must_fix_note": "1. [manage_findings.py:643](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-144/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:643) excludes every hotfix from `release-check`, so an unfinished hotfix cannot block a release. Apply the normal release gate to hotfix lanes.\n\n2. [manage_findings.py:1526](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-144/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1526) trusts any truthy `hotfix` field. `set-plan` accepts that field on ordinary lanes, allowing them to bypass both the four-lane cap and release check. Restrict the exemption to validated hotfix lanes created through the hotfix operation.",
+            "plan_review_status": "changes_requested"
           },
-          "failure_history": [],
+          "failure_history": [
+            {
+              "attempt_id": "65951d33ee4e4bd4b2f941dc42a2dd58",
+              "source": "review",
+              "reason": "1. [manage_findings.py:643](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-144/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:643) excludes every hotfix from `release-check`, so an unfinished hotfix cannot block a release. Apply the normal release gate to hotfix lanes.\n\n2. [manage_findings.py:1526](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-144/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1526) trusts any truthy `hotfix` field. `set-plan` accepts that field on ordinary lanes, allowing them to bypass both the four-lane cap and release check. Restrict the exemption to validated hotfix lanes created through the hotfix operation.",
+              "cycle": 11,
+              "round": 2,
+              "at": "2026-11-22T05:00:52Z"
+            }
+          ],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T04:21:44Z",
-          "phase": "review"
+          "updated_at": "2026-11-22T05:25:34Z",
+          "phase": "deferred",
+          "reason": "3 plan reviews used (cap); final Sol CHANGES: named hotfix must need a passed presuite, and same-round replans must keep an open hotfix id and findings. Both are plan-write trust rules, BCL-145 (one state table). Carried to round 3 after BCL-145",
+          "parked_to": 3
         }
       ],
       "cycle": 11
@@ -13796,7 +13828,7 @@
       "observed": "21 Nov 2026 22:00 IST, bcl 0.1.57 installed, PR 119 release check before shipping 0.1.58",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "statechart skill review of bcl 0.1.58",
         "report": "bcl-119/statechart-review.tgz out1/report.md",
@@ -13969,7 +14001,8 @@
         "report": "bcl-119 progress.md",
         "evidence": "Six separate lane state sets (render PLAN_STATUSES, PLAN_PHASES, STALE_LANE_STATUSES; manage_findings IN_FLIGHT and SETTLED sets; check_install_sessions REVIEW_STATUSES) plus about 24 inline status checks; BCL-135, 136, 143 were each a state one path writes and another refuses",
         "kind": "fix",
-        "root_cause_for": "BCL-110, BCL-112, BCL-132, BCL-135, BCL-136, BCL-143"
+        "root_cause_for": "BCL-110, BCL-112, BCL-132, BCL-135, BCL-136, BCL-143",
+        "more_evidence": "Round 2: page shows deferred R2-137 as Changes requested, not Parked (render keeps its own state order); Sol plan reviews of R2-137 (cap marker) and R2-144 (hotfix key) both found a field one writer protects and another accepts; bcl install and verify reruns on one lane changed the plan hash and stranded two running jobs (also BCL-113/133)"
       }
     },
     {
@@ -13988,6 +14021,42 @@
         "report": "bcl-117 and bcl-118 progress.md",
         "evidence": "117 16:47, 22:07, 13:41 and 17:17; 118 08:19; 119 22:14 and 22:26: timing tests failed under about ten-way load and passed alone or with six workers",
         "kind": "fix"
+      }
+    },
+    {
+      "id": "BCL-147",
+      "title": "A fix job passes when the coding run made no commit",
+      "summary": "bcl marks a fix passed when the job command exits 0, even when the coding run stopped early and the lane worktree has no new commit, so the lane moves to review with nothing to review.",
+      "impact": "Lanes show fixed and in review with no change; a review then fails and is counted against the lane.",
+      "recommendation": "When a lane names a worktree, fail the fix job unless the worktree head moved and the tree is clean.",
+      "done_when": "A fix job whose worktree head did not move is recorded failed as a tool fault (not counted), and a test covers it.",
+      "observed": "22 Nov 2026 10:20 IST, bcl 0.1.60, PR 119 lane R2-144",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "PR 119 round 2",
+        "report": "bcl-119 progress.md",
+        "evidence": "R2-144 fix run 1 explored and stopped without a commit, exit 0; bcl set fix passed and the lane showed In review; the wrapper now exits 3 when the head is unchanged",
+        "kind": "fix"
+      }
+    },
+    {
+      "id": "BCL-148",
+      "title": "No bcl command records an approved release-check exception",
+      "summary": "When the owner approves shipping past a release-check refusal, bcl has no command to record that approval, so the exception lives only in chat and progress notes.",
+      "impact": "An approved exception is not on the tracker, so later rounds cannot see why a release went out past a refusal.",
+      "recommendation": "Add a bcl command that records a one-time release exception (version, ids, approver, time, reason, release-check output) without changing lane state; later superseded by the bcl hotfix route (BCL-144).",
+      "done_when": "bcl records a one-time exception for one version with approver and reason, the tracker page shows it, and a test covers it.",
+      "observed": "22 Nov 2026 11:18 IST, bcl 0.1.60, PR 119 release 0.1.61",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "PR 119 round 2",
+        "kind": "fix",
+        "report": "bcl-119 progress.md",
+        "exception_record": "Guru approved 11:18 IST (his own words via approval card): one-time release-check exception for bcl 0.1.61 only. release-check --ids BCL-136 --ids BCL-138 at 11:19 IST: rc 2, clear false, R2-136 and R2-138 shown in flight at review because installed 0.1.60 has BCL-136. Presuite for both lanes passed at 11:11 IST (r9 db43c514). Covers 0.1.61 only."
       }
     }
   ]
