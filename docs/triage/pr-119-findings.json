@@ -11691,9 +11691,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T10:56:30Z",
-      "now": "2026-11-22T10:56:30Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T11:02:40Z",
+      "now": "2026-11-22T11:02:40Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13325,7 +13325,7 @@
             "BCL-153"
           ],
           "label": "BCL-153",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl119-r3-153",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-153.sh",
@@ -13336,23 +13336,33 @@
           },
           "codex": {
             "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
-            "fix_status": "running",
+            "fix_status": "failed",
             "job": {
-              "id": "e2583ff6ac8047a28d1d9c86c5f4e617",
-              "phase": "fix",
-              "started_at": "2026-11-22T10:56:30Z",
-              "command": "self-153.sh",
-              "heartbeat_at": "2026-11-22T10:56:30Z",
+              "id": "e9463391a6ce4c7f85049a410b31ebe8",
+              "phase": "plan_review",
+              "started_at": "2026-11-22T11:02:40Z",
+              "command": "cp",
+              "heartbeat_at": "2026-11-22T11:02:40Z",
               "plan_sha256": "4773f8ae9058d134ec54a1a17f82f9b5cad8fe436f003cd8c8514ccf24094f23",
-              "model": "Grok Bot self (Codex out until 18:50)",
+              "model": "grokbot-review-pass (separate pass; Codex out until 18:50)",
               "cycle": 11,
               "round": 3
-            }
+            },
+            "tool_fault_streak": 0
           },
-          "failure_history": [],
+          "failure_history": [
+            {
+              "attempt_id": "e2583ff6ac8047a28d1d9c86c5f4e617",
+              "source": "fix",
+              "reason": "Fix job exited 1",
+              "cycle": 11,
+              "round": 3,
+              "at": "2026-11-22T10:59:10Z"
+            }
+          ],
           "plan_review_history": [],
           "updated_at": "2026-11-22T10:54:56Z",
-          "phase": "fix"
+          "phase": "plan_review"
         },
         {
           "id": "R2-145",
