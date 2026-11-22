@@ -1208,7 +1208,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(batch({'action':'start-verification','run':run}).returncode, 0)
         added = copy.deepcopy(json.loads(self.data.read_text())['findings'][0])
         added.update(id='ISSUE-03', title='Added after start')
-        self.assertEqual(batch({'action':'add','entry':added}).returncode, 0)
+        self.assertEqual(batch({'action':'add','entry':added,'new':True}).returncode, 0)
         self.assertIn('Not checked this install', page.read_text())
         for issue in ('ISSUE-01', 'ISSUE-02'):
             self.assertEqual(batch({'action':'start-check','id':issue,'run_id':'cohort-run','observation':'Initial state','observed_at':'2026-11-06T00:01:00Z'}).returncode, 0)
@@ -1231,7 +1231,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(batch({'action':'complete-verification','run_id':'completed-run'}).returncode, 0)
         added = copy.deepcopy(json.loads(self.data.read_text())['findings'][0])
         added.update(id='ISSUE-03', title='Added after completion')
-        result = batch({'action':'add','entry':added})
+        result = batch({'action':'add','entry':added,'new':True})
         self.assertEqual(result.returncode, 0, result.stderr)
         tracking = json.loads(self.data.read_text())['tracking']
         self.assertEqual(tracking['verification_run']['status'], 'complete')
@@ -1400,7 +1400,7 @@ class ManageFindingsTests(unittest.TestCase):
     def test_batch_add_delete_and_render_failure_reports_committed_json(self):
         operations = self.root / 'batch.json'
         entry = dict(self.document['findings'][0], id='ISSUE-03')
-        operations.write_text(json.dumps([{'action':'add','entry':entry},
+        operations.write_text(json.dumps([{'action':'add','entry':entry,'new':True},
                                           {'action':'delete','id':'ISSUE-02'}]))
         result = self.cli('batch', self.data, operations, '--render', self.root / 'missing' / 'page.html')
         self.assertNotEqual(result.returncode, 0)
@@ -1630,7 +1630,7 @@ class ManageFindingsTests(unittest.TestCase):
         entry.write_text(json.dumps({'id':'ISSUE-03','title':'A control does not open','source':'User reported',
             'status':'untested','observed':'The control stays closed.','recommendation':'Restore the open action.',
             'impact':'Readers cannot continue.','done_when':'The control opens when selected.'}))
-        added = self.cli('add', self.data, entry)
+        added = self.cli('add', self.data, entry, '--new')
         self.assertEqual(added.returncode, 0, added.stderr)
         self.assertIn('add summary, impact and done_when in plain words', added.stderr)
         patch = self.root / 'patch.json'
@@ -1772,6 +1772,39 @@ class ManageFindingsTests(unittest.TestCase):
         if force:
             args.append("--force")
         return self.cli(*args)
+
+    def test_add_refuses_near_duplicate_unless_new_or_into(self):
+        document = copy.deepcopy(self.document)
+        original = document["findings"][0]
+        original["status"] = "untested"
+        twin = {key: original[key] for key in ("title", "summary", "impact", "recommendation", "done_when",
+                                              "priority", "source", "observed") if key in original}
+        twin.update(id="ISSUE-99", status="untested")
+        refused = self._replay_batch(document, {"action": "add", "entry": twin})
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn(f"looks like open {original['id']}", refused.stderr)
+        added = self._replay_batch(document, {"action": "add", "entry": twin, "new": True})
+        self.assertEqual(added.returncode, 0, added.stderr)
+        self.assertIn("ISSUE-99", [item["id"] for item in json.loads(self.data.read_text())["findings"]])
+        count = len(document["findings"])
+        appended = self._replay_batch(document, {"action": "add", "entry": twin, "into": original["id"]})
+        self.assertEqual(appended.returncode, 0, appended.stderr)
+        saved = json.loads(self.data.read_text())
+        self.assertEqual(len(saved["findings"]), count)
+        target = next(item for item in saved["findings"] if item["id"] == original["id"])
+        self.assertIn(original["title"], target["details"]["also reported as ISSUE-99"])
+
+    def test_add_accepts_unrelated_entry_and_ignores_closed_twins(self):
+        document = copy.deepcopy(self.document)
+        original = document["findings"][0]
+        twin = {key: original[key] for key in ("title", "summary", "impact", "recommendation", "done_when",
+                                              "priority", "source") if key in original}
+        twin.update(id="ISSUE-98", status="untested")
+        original["status"] = "verified_fixed"
+        self.assertEqual(manage_findings.near_duplicates([original], twin), [])
+        unrelated = {"id": "ISSUE-97", "title": "Voice input drops the first syllable",
+                     "summary": "Microphone capture starts late after wake.", "recommendation": "Prime the audio buffer."}
+        self.assertEqual(manage_findings.near_duplicates(document["findings"][1:], unrelated), [])
 
     def _blocked_lane(self):
         document = copy.deepcopy(self.document)

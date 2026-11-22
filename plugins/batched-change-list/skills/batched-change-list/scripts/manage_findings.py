@@ -993,6 +993,61 @@ def detail_key_denied(key):
     return isinstance(key, str) and any(pattern.search(key) for pattern in DETAIL_DENY_PATTERNS)
 
 
+DUPLICATE_STOP_WORDS = frozenset(("that this with when from into have does each only before after than then they their "
+                                  "there which while about every lane lanes runs bcl page shows show issue issues still "
+                                  "other same without").split())
+DUPLICATE_THRESHOLD = 0.35
+
+
+def _duplicate_words(item):
+    words = set()
+    for key in ("title", "summary", "recommendation"):
+        for word in re.findall(r"[a-z]{4,}", str(item.get(key) or "").lower()):
+            if word in DUPLICATE_STOP_WORDS:
+                continue
+            for suffix in ("ing", "ed", "es", "s"):
+                if word.endswith(suffix) and len(word) - len(suffix) >= 4:
+                    word = word[:-len(suffix)]
+                    break
+            words.add(word)
+    return words
+
+
+def near_duplicates(findings, item):
+    """Open findings whose title, summary and recommendation share most words with the new entry."""
+    words = _duplicate_words(item)
+    matches = []
+    for other in findings:
+        other_words = _duplicate_words(other)
+        if (other.get("status") in CLOSED_STATUSES or other.get("id") == item.get("id") or not words or not other_words):
+            continue
+        shared = words & other_words
+        if len(shared) >= 3 and len(shared) / min(len(words), len(other_words)) >= DUPLICATE_THRESHOLD:
+            matches.append(other["id"])
+    return matches
+
+
+def place_new_finding(findings, item, new=False, into=None):
+    """Append a new finding, or fold it into an open one; refuse a near-duplicate unless marked new."""
+    if into is not None:
+        target = findings[find_index(findings, into)]
+        if target.get("status") in CLOSED_STATUSES:
+            raise ValueError(f"cannot append to closed finding {into}; add it as new")
+        details = dict(target.get("details") or {})
+        key = f"also reported as {item.get('id', 'new entry')}"
+        details[key] = " ".join(str(item.get(field) or "") for field in ("title", "summary", "observed")).strip()[:MAX_DETAIL_CHARS]
+        target["details"] = details
+        validate_detail_limits(target)
+        return False
+    matches = near_duplicates(findings, item)
+    if matches and new is not True:
+        raise ValueError(f"{item.get('id', 'entry')} looks like open {', '.join(matches)}; "
+                         "append with into ID, or pass new true if it has a different cause")
+    validate_ids(findings + [item])
+    findings.append(item)
+    return True
+
+
 def validate_detail_limits(item):
     details = item.get("details", {})
     if not isinstance(details, dict) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in details.items()):
@@ -2053,6 +2108,8 @@ def parser_for():
     add.add_argument("data", type=Path)
     add.add_argument("entry", help="JSON object path, or - for stdin")
     add.add_argument("--collection", default="findings")
+    add.add_argument("--new", action="store_true", help="add even when an open finding looks the same")
+    add.add_argument("--into", help="append the report to this open finding instead of adding one")
 
     update = commands.add_parser("update", help="merge a JSON patch into one finding")
     update.add_argument("data", type=Path)
@@ -2729,8 +2786,7 @@ def run(args, parser):
                     warn_summary(item, adding=True)
                     validate_detail_limits(item)
                     trim_verification_evidence(item)
-                    validate_ids(findings + [item])
-                    findings.append(item)
+                    place_new_finding(findings, item, operation.get("new"), operation.get("into"))
                     continue
                 index = find_index(findings, operation.get("id"))
                 if action == "update":
@@ -2861,8 +2917,10 @@ def run(args, parser):
             trim_verification_evidence(item)
             if store["kind"] == "json":
                 run = store["document"].get("tracking", {}).get("verification_run", {})
-            validate_ids(findings + [item])
-            findings.append(item)
+            if not place_new_finding(findings, item, args.new, args.into):
+                write(path, original, store, findings)
+                print(f"Appended {item.get('id', 'entry')} to {args.into}")
+                return 0
             if store["kind"] == "json" and run.get("status") in ("active", "complete"):
                 run["status"] = "active"
                 run["checks"][item["id"]] = {"state":"pending"}
