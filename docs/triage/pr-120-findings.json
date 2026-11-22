@@ -12419,7 +12419,8 @@
               "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
               "model": "gpt-6-luna fast medium (Codex)",
               "cycle": 12,
-              "round": 2
+              "round": 2,
+              "pid": 48356
             },
             "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra medium (Codex)",
