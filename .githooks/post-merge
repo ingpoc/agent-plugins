@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# After a merge, commit the regenerated batched-change-list state chart if the merge left it stale (BCL-155).
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+exec python3 "$ROOT/scripts/precommit_chart.py" post-merge
