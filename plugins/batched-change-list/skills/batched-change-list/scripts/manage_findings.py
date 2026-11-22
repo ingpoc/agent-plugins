@@ -22,6 +22,9 @@ import check_install_sessions
 import workflow_definition
 import check_gate_count
 
+# One lane table drives every membership decision below (workflow_definition.json "lane").
+LANE = workflow_definition.LANE
+SETTLED_LANE_STATES = LANE["groups"]["settled"]
 RENDERER_PATH = Path(__file__).with_name("render.py")
 SPEC = importlib.util.spec_from_file_location("change_list_renderer", RENDERER_PATH)
 RENDERER = importlib.util.module_from_spec(SPEC)
@@ -301,10 +304,10 @@ def store_verification_evidence(document, item, record):
 
 def validate_plan_group_fields(group, round_number):
     status = group.get("status")
-    valid_statuses = RENDERER.PLAN_STATUSES | set(RENDERER.PLAN_STATUS_ALIASES) | {"done"}
+    valid_statuses = set(LANE["statuses"]) | set(LANE["status_aliases"]) | LANE["raw_statuses"]
     if status not in valid_statuses:
         raise ValueError(f"plan group {group.get('id')} has invalid status")
-    valid_phases = RENDERER.PLAN_PHASES | set(RENDERER.PLAN_PHASE_ALIASES) | {"blocked", "deferred"}
+    valid_phases = set(LANE["phases"]) | set(LANE["phase_aliases"]) | LANE["special_phases"]
     if "phase" in group and group["phase"] not in valid_phases:
         raise ValueError(f"plan group {group.get('id')} has invalid phase")
     if status in ("blocked", "failed") and group.get("phase") not in RENDERER.PLAN_PHASES:
@@ -534,7 +537,7 @@ def carry_plan_runtime_state(groups, previous, same_round):
                 else:
                     group.pop(field, None)
             if not same_round and prior.get("status") != "blocked":
-                if requested_status in {"pending", "planned", "queued", "deferred", "parked"} and requested_phase in (None, "deferred"):
+                if requested_status in LANE["groups"]["carried"] and requested_phase in (None, "deferred"):
                     group["status"] = "planned" if requested_status == "pending" else requested_status
                     if requested_phase == "deferred":
                         group["phase"] = requested_phase
@@ -650,9 +653,9 @@ def unblock_lane(document, operation):
             if item.get("id") in group.get("finding_ids", []) and item.get("status") == "blocked":
                 item["status"] = "in_progress"
 
-IN_FLIGHT_STATUSES = {"running", "failed", "blocked", "in_progress", "planned", "pending"}
-IN_FLIGHT_PHASES = {"fix", "review", "install", "verify", "plan_review", "pending"}
-SETTLED_STATUSES = {"done", "verified", "deferred", "parked"}
+IN_FLIGHT_STATUSES = LANE["groups"]["open"]
+IN_FLIGHT_PHASES = LANE["groups"]["open_phases"]
+SETTLED_STATUSES = LANE["groups"]["released"]
 INCOMPLETE_REVIEW_REASON = "Review incomplete: strict verdict or Must-fix section missing"
 # Fault provenance is the structured fault_kind the tool records, never reason text.
 TOOL_FAULT_KINDS = {"incomplete_review", "quota_out", "cut_off", "runner_exit"}
@@ -808,8 +811,8 @@ def _plan_folded_into_review(group, failures):
 def job_transition(document, operation):
     tracking, plan, groups = _lane_groups(document, operation.get("ids"))
     phase, action = operation.get("phase"), operation["action"]
-    if phase not in ("plan_review", "fix", "review", "presuite"):
-        raise ValueError("job phase must be plan_review, fix, review, or presuite")
+    if phase not in LANE["job_phases"]:
+        raise ValueError(f"job phase must be {', '.join(LANE['job_phases'])}")
     cycle = plan.get("cycle", tracking.get("cycle", 1))
     round_number = plan.get("round", tracking.get("round", 1))
     if operation.get("cycle") != cycle or operation.get("round") != round_number:
@@ -847,7 +850,7 @@ def job_transition(document, operation):
             raise ValueError("job reservation belongs to a stale plan candidate")
         for group in groups:
             codex = group.setdefault("codex", {})
-            if group.get("status") in ("blocked", "parked", "deferred") or (
+            if group.get("status") in {"blocked"} | LANE["groups"]["parked"] or (
                     group.get("status") == "failed" and phase not in ("fix", "plan_review")):
                 recovery = "; run bcl unblock --reason" if group.get("status") == "blocked" else ""
                 raise ValueError(f"job cannot start blocked, parked, deferred, or failed lane {group['id']}{recovery}")
@@ -1653,7 +1656,7 @@ def validate_plan_groups(plan: dict) -> None:
         return
     # count lanes as the page does; finished, deferred, parked, blocked and failed lanes do not take a slot
     active = [g for g in groups if isinstance(g, dict)
-              and RENDERER.plan_status(g) not in {"verified", "deferred", "parked", "blocked", "failed"}]
+              and RENDERER.plan_status(g) not in SETTLED_LANE_STATES]
     if len(active) > MAX_ROUND_LANES:
         raise ValueError(f"a round runs at most {MAX_ROUND_LANES} lanes (plan has {len(active)}); defer the rest to the next round")
     claimed = []
@@ -1674,7 +1677,7 @@ def validate_plan_groups(plan: dict) -> None:
         if not isinstance(group, dict):
             continue
         state = group["status"] if "status" in group else group.get("phase")
-        if state in {"deferred", "done", "verified", "parked"}:
+        if state in LANE["groups"]["released"]:
             continue
         ids = group.get("finding_ids") or group.get("ids") or []
         if isinstance(ids, list) and len(ids) > MAX_GROUP_ISSUES:
@@ -1726,7 +1729,7 @@ def validate_dependencies(groups, findings, tracking):
             if not ids or any(not finding_verified(by_finding.get(i, {}), tracking) for i in ids):
                 raise ValueError(f"{identifier} requires verified findings with verification references")
     for group in groups:
-        if RENDERER.plan_status(group) in {'running', 'review', 'installing', 'verifying', 'verified'}:
+        if RENDERER.plan_status(group) in LANE["groups"]["dependency"]:
             pending = [dep for dep in group.get('depends_on', []) if RENDERER.plan_status(by_id[dep]) != 'verified']
             if pending:
                 raise ValueError(f"{group['id']} must wait for verified dependencies: {', '.join(pending)}")
@@ -1975,7 +1978,7 @@ def should_advance_plan_round(tracking, previous_stage):
         return False
     groups = RENDERER.plan_groups_for_round(
         tracking.get("plan"), RENDERER.rollover_round(tracking))
-    return bool(groups) and all(RENDERER.plan_status(group) in ("verified", "blocked", "failed", "parked")
+    return bool(groups) and all(RENDERER.plan_status(group) in SETTLED_LANE_STATES
                                 for group in groups)
 
 
@@ -2540,7 +2543,7 @@ def run(args, parser):
                                 require_current_round_introspect(tracking, f"starting round {requested_plan['round']}")
                                 groups = RENDERER.plan_groups_for_round(current_plan, current_round)
                                 open_lanes = [f"{group['id']} ({RENDERER.plan_status(group)})" for group in groups
-                                              if RENDERER.plan_status(group) not in ("verified", "blocked", "failed", "parked")]
+                                              if RENDERER.plan_status(group) not in SETTLED_LANE_STATES]
                                 if open_lanes:
                                     raise ValueError(f"cannot start round {requested_plan['round']}: round {current_round} has open lanes: {', '.join(open_lanes)}")
                             raise ValueError(f"set-plan plan.round must be {expected_round}; got {requested_plan['round']}")

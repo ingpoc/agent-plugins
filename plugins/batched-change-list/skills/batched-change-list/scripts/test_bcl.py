@@ -2222,4 +2222,49 @@ elif args[:2] != ['pr', 'edit']:
         stopped = self.call_without_viewer("stop-viewer")
         self.assertNotIn("round paused", stopped.stderr)
 
+    def _definition_copy(self, group, members):
+        """Copy the package under test, change one lane group, return the copy's bcl."""
+        copy_root = self.root / "pkg"
+        shutil.copytree(BCL.parent.parent, copy_root, ignore=shutil.ignore_patterns("__pycache__", ".build"))
+        definition = copy_root / "skills/batched-change-list/scripts/workflow_definition.json"
+        data = json.loads(definition.read_text())
+        data["lane"]["groups"][group] = members
+        definition.write_text(json.dumps(data, indent=2))
+        return copy_root / "bin/bcl"
+
+    def _run_bcl(self, bcl, *args):
+        return subprocess.run([sys.executable, str(bcl), "--data", str(self.data), *map(str, args)],
+                              env=self.env, capture_output=True, text=True)
+
+    def test_definition_controls_manager(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        data = json.loads(live.read_text())
+        extra = [dict(data["findings"][0], id=f"ISSUE-X{index}") for index in range(5)]
+        data["findings"].extend(extra); live.write_text(json.dumps(data)); self.data.write_text(json.dumps(data))
+        plan = self.root / "five.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "status": "planned",
+            "finding_ids": [item["id"] for item in extra]}]}))
+        refused = self._run_bcl(BCL, "--plan", plan, "--ids", extra[0]["id"], "plan")
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("cap a parallel fix group", refused.stderr)
+        released = sorted(__import__("workflow_definition").LANE["groups"]["released"] | {"planned"})
+        accepted = self._run_bcl(self._definition_copy("released", released), "--plan", plan, "--ids", extra[0]["id"], "plan")
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        self.assertEqual(len(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["finding_ids"]), 5)
+
+    def test_definition_controls_release_check_open_group(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        data = json.loads(live.read_text())
+        data.setdefault("tracking", {})["plan"] = {"round": 1, "groups": [
+            {"id": "A", "finding_ids": ["ISSUE-01"], "status": "verifying"}]}
+        live.write_text(json.dumps(data)); self.data.write_text(json.dumps(data))
+        base = self._run_bcl(BCL, "release-check")
+        self.assertEqual(json.loads(base.stdout)["lanes"], [])
+        opened = sorted(__import__("workflow_definition").LANE["groups"]["open"] | {"verifying"})
+        changed = self._run_bcl(self._definition_copy("open", opened), "release-check")
+        self.assertEqual(changed.returncode, 2, changed.stderr)
+        self.assertEqual([lane["id"] for lane in json.loads(changed.stdout)["lanes"]], ["A"])
+
 if __name__ == "__main__": unittest.main()
