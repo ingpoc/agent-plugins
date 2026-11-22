@@ -512,6 +512,32 @@ def plan_candidate_sha256(plan):
     return hashlib.sha256(json.dumps(candidate, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
 
 
+def canonical_lane_stages(document):
+    tracking = document.get("tracking", {}) if isinstance(document, dict) else {}
+    plan = tracking.get("plan", {}) if isinstance(tracking, dict) else {}
+    groups = plan.get("groups", []) if isinstance(plan, dict) else []
+    return {group.get("id"): (RENDERER.plan_status(group), RENDERER.plan_phase(group))
+            for group in groups if isinstance(group, dict) and isinstance(group.get("id"), str)}
+
+
+def stamp_changed_stages(before_document, after_document, timestamp=None):
+    """Stamp a lane after a complete mutation only when its canonical stage changes."""
+    before, after = canonical_lane_stages(before_document), canonical_lane_stages(after_document)
+    stamp = timestamp or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    groups = after_document.get("tracking", {}).get("plan", {}).get("groups", [])
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        lane_id = group.get("id")
+        if lane_id not in before or before[lane_id] != after.get(lane_id):
+            group["stage_entered_at"] = stamp
+
+
+def touch_last_written(document, timestamp=None):
+    document.setdefault("tracking", {})["last_written_at"] = (
+        timestamp or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
+
+
 _MISSING = object()
 
 
@@ -569,7 +595,7 @@ def refuse_protected_claims(groups, eligible_prior, action="set-plan"):
 
 def _has_runtime_receipt(group):
     return any(_protected_value(group, path) not in (_MISSING, None, "pending", [], {})
-               for path in LANE["protected_paths"])
+               for path in LANE["protected_paths"] if path != "stage_entered_at")
 
 
 def carry_plan_runtime_state(groups, previous, same_round):
@@ -2147,6 +2173,7 @@ def prepare_rollover(document, operation, force=False):
     for item in document["findings"]:
         if item.get("status") == "in_progress":
             item["status"] = "untested"
+    touch_last_written(document)
     return document, archived
 
 
@@ -2214,7 +2241,7 @@ def missing_report_file(error, base):
     return filename.is_absolute() and filename.resolve().is_relative_to(Path(base).resolve())
 
 
-def write(path, original, store, findings, validate=True, touch=True):
+def write(path, original, store, findings, validate=True, touch=True, *, stage_stamped=False, last_written_at=None):
     missing_capture = None
     if store["kind"] == "json":
         document = store["document"]
@@ -2222,6 +2249,10 @@ def write(path, original, store, findings, validate=True, touch=True):
         if touch and store['collection'] == 'findings':
             invalidate_dependents(document, json.loads(original))
             sync_plan_verify(document)
+        if store["collection"] == "findings":
+            if not stage_stamped:
+                stamp_changed_stages(json.loads(original), document)
+            touch_last_written(document, last_written_at)
         if validate and store["collection"] == "findings":
             base = live_state.evidence_base(path)
             try:
@@ -2371,6 +2402,8 @@ def run(args, parser):
                 raise ValueError("render output must differ from input and template")
             compact_document(store["document"])
             touch_workflow(store["document"])
+            stamp_changed_stages(json.loads(original), store["document"])
+            touch_last_written(store["document"])
             inventory = RENDERER.load_inventory(args.inventory) if args.inventory else None
             rendered = RENDERER.render(store["document"], path.parent, inventory) if args.render else None
             content = (json.dumps(store["document"], ensure_ascii=False, indent=2) + "\n").encode("utf-8")
@@ -2432,7 +2465,13 @@ def run(args, parser):
                                       "initial": copy.deepcopy(rows), "rows": rows, "additions": []}
                 return sidecars[name]
 
+            _pending_stage_snapshot = None
+            _pending_stage_timestamp = None
             for operation in operations:
+                if _pending_stage_snapshot is not None:
+                    stamp_changed_stages(_pending_stage_snapshot, store["document"], _pending_stage_timestamp)
+                _pending_stage_snapshot = copy.deepcopy(store["document"])
+                _pending_stage_timestamp = operation.get("timestamp") if isinstance(operation, dict) else None
                 if not isinstance(operation, dict):
                     raise ValueError("batch operation must be an object")
                 action = operation.get("action")
@@ -3005,14 +3044,21 @@ def run(args, parser):
                     trim_verification_evidence(findings[index])
                 else:
                     raise ValueError("unknown batch action")
+            if _pending_stage_snapshot is not None:
+                stamp_changed_stages(_pending_stage_snapshot, store["document"], _pending_stage_timestamp)
             validate_ids(findings)
             store["document"]["findings"] = findings
+            before_sync_stage = copy.deepcopy(store["document"])
             invalidate_dependents(store["document"], json.loads(original))
             sync_plan_verify(store["document"])
+            sync_stage_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+            stamp_changed_stages(before_sync_stage, store["document"], sync_stage_at)
             refuse_lane_moves(original_plan, store["document"].get("tracking", {}).get("plan"))
             if args.render and (args.render.resolve() == path.resolve() or args.render.resolve() == RENDERER.TEMPLATE.resolve()):
                 raise ValueError("render output must differ from input and template")
             touch_workflow(store["document"])
+            batch_write_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+            touch_last_written(store["document"], batch_write_at)
             inventory = RENDERER.load_inventory(args.inventory) if args.inventory else None
             base = args.base or live_state.evidence_base(path)
             try:
@@ -3033,7 +3079,8 @@ def run(args, parser):
                 parked_after_prewrite = append_parked_entries(state["initial"], state["additions"])
                 if parked_after_prewrite != state["initial"]:
                     atomic_write(state["path"], state["original"], sibling_json_bytes(parked_after_prewrite), tracker=False)
-            write(path, original, store, findings, validate=False, touch=False)
+            write(path, original, store, findings, validate=False, touch=False,
+                  stage_stamped=True, last_written_at=batch_write_at)
             if ("parked" in sidecars and parked_after_prewrite is not None
                     and sidecars["parked"]["rows"] != parked_after_prewrite):
                 state = sidecars["parked"]

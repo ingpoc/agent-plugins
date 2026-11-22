@@ -247,6 +247,13 @@ def plan_duration(group, now):
     return f"{max(1, round(seconds / 60))} min"
 
 
+def stage_duration(group, now):
+    entered = parse_instant(group.get("stage_entered_at"))
+    if not entered or not now:
+        return "—"
+    return f"{max(0, int((now - entered).total_seconds()) // 60)} min"
+
+
 def plan_status(group):
     codex = group.get("codex", {}) if isinstance(group.get("codex"), dict) else {}
     verify = group.get("verify", {}) if isinstance(group.get("verify"), dict) else {}
@@ -418,6 +425,8 @@ def lane_display(group, round_number, paused=None):
     # 4. A job-driven lane (fix or review) without an unfinished job is stopped, not working.
     #    Install and verify run as stage commands without a job receipt, so they keep stored copy.
     if status in LANE_GROUPS["job_driven"]:
+        if codex.get("review_status") == "passed":
+            return display(f"Review passed · {group_id}", "ok", "review", "Review passed")
         return display(f"Paused · needs resume · {group_id}", "warn", "paused",
                        "Paused · needs resume")
 
@@ -580,7 +589,7 @@ def render_plan(data, tracking, plan, round_number, now, displays=None):
                 if state == "blocked" else "")
         rows.append(f'<details class="grp {state}"><summary><span class="g-name"><code>{group_id}</code><span>{name}{dependency}</span></span>'
                     f'<span class="g-chips">{"".join(chips)}</span>{row_phase_track(group, plan_status(group))}'
-                    f'<span class="g-min">{html.escape(plan_duration(group, now))}</span>'
+                    f'<span class="g-min">{html.escape(stage_duration(group, now))}</span>'
                     f'<span class="g-model">{html.escape(model or "—")}</span><span class="g-note">{html.escape(note)}</span>'
                     f'<span class="pill {state}">{spinner}{icon}{html.escape(pill_label)}</span>'
                     '<svg class="chev" viewBox="0 0 14 14" aria-hidden="true"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
@@ -1032,17 +1041,14 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
         merge_timestamp = required_text(merged.get("merged_at"), "tracking.merged.merged_at")
         if parse_instant(merge_timestamp) is None:
             raise ValueError("tracking.merged.merged_at must be an ISO 8601 timestamp")
-    reported = parse_instant(merge_timestamp if merged else workflow.get("updated_at")) if workflow else None
+    reported = (parse_instant(tracking_data.get("last_written_at")) or
+                (parse_instant(workflow.get("updated_at")) if workflow else None))
     if workflow and reported is None:
         raise ValueError("tracking.workflow.updated_at must be an ISO 8601 timestamp")
-    now_record = workflow.get("now", "") or "" if isinstance(workflow, dict) else ""
-    if now_record is not None and not isinstance(now_record, str):
-        raise ValueError("tracking.workflow.now must be a string")
-    match = re.search(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)", now_record)
-    reference = now or (parse_instant(match.group()) if match else None)
+    reference = now or datetime.now(timezone.utc)
     if reference is not None and reference.tzinfo is None:
         raise ValueError("now must include a timezone")
-    render_now = reference or reported
+    render_now = reference
     # Stale only for overdue live work: unfinished, PID-live jobs of unsettled lanes in an
     # unpaused round. Each job's freshness is its latest heartbeat or lane progress (else its
     # start); the oldest of those decides, so one fresh job cannot mask an overdue one.

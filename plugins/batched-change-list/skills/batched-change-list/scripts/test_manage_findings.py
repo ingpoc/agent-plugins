@@ -26,6 +26,70 @@ RENDERER = Path(__file__).with_name("render.py")
 
 
 class ManageFindingsTests(unittest.TestCase):
+    def test_stage_stamp_tracks_complete_derived_transitions_and_ignores_heartbeat(self):
+        before = {"tracking": {"plan": {"groups": [{"id": "A", "status": "running", "phase": "fix",
+            "codex": {"job": {"phase": "plan_review"}}}]}}}
+        group = before["tracking"]["plan"]["groups"][0]
+        started = copy.deepcopy(before)
+        started["tracking"]["plan"]["groups"][0]["codex"]["job"]["pid"] = 123
+        manage_findings.stamp_changed_stages(before, started, "2026-11-22T10:00:00Z")
+        self.assertNotIn("stage_entered_at", started["tracking"]["plan"]["groups"][0])
+        finished = copy.deepcopy(started)
+        finished["tracking"]["plan"]["groups"][0]["codex"]["job"]["exit_code"] = 0
+        manage_findings.stamp_changed_stages(started, finished, "2026-11-22T10:01:00Z")
+        self.assertEqual(finished["tracking"]["plan"]["groups"][0]["stage_entered_at"], "2026-11-22T10:01:00Z")
+        start_before = {"tracking": {"plan": {"groups": [{"id":"B","status":"planned","phase":"fix"}]}}}
+        start_after = copy.deepcopy(start_before)
+        start_after["tracking"]["plan"]["groups"][0].update(status="running", phase="fix",
+            codex={"job":{"phase":"fix","pid":123}})
+        manage_findings.stamp_changed_stages(start_before, start_after, "2026-11-22T10:02:00Z")
+        self.assertEqual(start_after["tracking"]["plan"]["groups"][0]["stage_entered_at"], "2026-11-22T10:02:00Z")
+
+    def test_each_settled_transition_stamps(self):
+        for status in ("verified", "blocked", "parked", "failed"):
+            before = {"tracking":{"plan":{"groups":[{"id":"A","status":"running","phase":"fix"}]}}}
+            after = copy.deepcopy(before)
+            after["tracking"]["plan"]["groups"][0]["status"] = status
+            manage_findings.stamp_changed_stages(before, after, "2026-11-22T10:00:00Z")
+            with self.subTest(status=status):
+                self.assertEqual(after["tracking"]["plan"]["groups"][0]["stage_entered_at"], "2026-11-22T10:00:00Z")
+
+    def test_new_lane_and_settled_transition_stamp_and_hash_excludes_field(self):
+        before = {"tracking": {"plan": {"groups": []}}}
+        after = {"tracking": {"plan": {"groups": [{"id":"A","status":"verified","phase":"verify"}]}}}
+        manage_findings.stamp_changed_stages(before, after, "2026-11-22T10:00:00Z")
+        group = after["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["stage_entered_at"], "2026-11-22T10:00:00Z")
+        plan = {"groups": [group]}
+        changed = copy.deepcopy(plan)
+        changed["groups"][0]["stage_entered_at"] = "2026-11-22T11:00:00Z"
+        self.assertEqual(manage_findings.plan_candidate_sha256(plan), manage_findings.plan_candidate_sha256(changed))
+        with self.assertRaisesRegex(ValueError, "runtime state"):
+            manage_findings.refuse_protected_claims([{"id":"A","status":"verified","phase":"verify",
+                "stage_entered_at":"2026-11-22T11:00:00Z"}], {"A": group})
+
+    def test_finding_write_stamps_authoritative_updated_time(self):
+        document = {"title":"Tracker", "tracking":{"workflow":{"stage":"verify","updated_at":"2026-11-22T09:00:00Z"}},
+                    "findings":[{"id":"A","title":"before"}]}
+        path = self.root / "write.json"
+        original = json.dumps(document).encode()
+        path.write_bytes(original)
+        store = {"kind":"json", "document":document, "collection":"findings"}
+        findings = copy.deepcopy(document["findings"])
+        findings[0]["title"] = "after"
+        manage_findings.write(path, original, store, findings, validate=False)
+        saved = json.loads(path.read_text())
+        self.assertTrue(saved["tracking"]["last_written_at"])
+        self.assertEqual(saved["findings"][0]["title"], "after")
+
+    def test_compact_write_timestamp_matches_rendered_updated_line(self):
+        page = self.root / "compact.html"
+        result = self.cli("compact", self.data, "--render", page)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved = json.loads(self.data.read_text())
+        stamp = saved["tracking"]["last_written_at"]
+        self.assertIn(f'data-page-updated="{stamp.replace("Z", "+00:00")}"', page.read_text())
+
     def evidence_record(self, **overrides):
         return {'checked':'Checked 7 scenarios', 'expected':'Version 0.1.42 works', 'observed':'All 7 passed',
                 'verdict':'Passed all cases', 'check_id':'check-1', 'build':'0.1.42', 'session':'run 7',
