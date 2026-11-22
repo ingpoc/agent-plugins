@@ -22,6 +22,7 @@ if not BCL.is_file():
 EXAMPLE = PLUGIN / "skills/batched-change-list/examples/findings.json"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import live_state
+import tracker_lock
 import viewer_test_guard
 import check_introspect
 loader = SourceFileLoader("bcl_entrypoint", str(BCL))
@@ -154,6 +155,174 @@ elif args[:2] != ['pr', 'edit']:
             self.cleanup_viewers()
             proc.wait(timeout=5)
         self.assertFalse(live_state._pid_is_running(proc.pid), "orphan process still running")
+
+    def _live_record(self):
+        record = next(iter(json.loads((self.state / "registry.json").read_text()).values()))
+        return record, Path(record["live"])
+
+    def _run_snapshot(self, live, timeout=5, extra=()):
+        return subprocess.run(
+            [sys.executable, str(BCL), "--data", str(live), *map(str, extra), "snapshot"],
+            env=self.env, capture_output=True, text=True, timeout=timeout,
+        )
+
+    def _pending_edit(self, live, text="pending-snapshot-edit-BCL-142"):
+        document = json.loads(live.read_text())
+        document["findings"][0]["description"] = text
+        live.write_text(json.dumps(document))
+        marker = live.with_suffix(".unsnapshotted")
+        marker.write_text(__import__("hashlib").sha256(live.read_bytes()).hexdigest() + "\n")
+        return marker, text
+
+    def test_snapshot_pending_save(self):
+        record, live = self._live_record()
+        baseline = self.git(self.home, "rev-parse", "HEAD").stdout.strip()
+        marker, edit = self._pending_edit(live)
+        unrelated = self.home / "unrelated-bcl-142.txt"
+        unrelated.write_text("staged but unrelated\n")
+        self.git(self.home, "add", "--", str(unrelated))
+        result = self.call_without_viewer("snapshot", live)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        after = self.git(self.home, "rev-parse", "HEAD").stdout.strip()
+        self.assertNotEqual(after, baseline)
+        self.assertEqual(self.git(self.home, "rev-list", "--count", f"{baseline}..HEAD").stdout.strip(), "1")
+        committed = self.git(self.home, "show", f"HEAD:{record['snapshot']}").stdout
+        self.assertEqual(committed.encode(), live.read_bytes())
+        html = self.git(self.home, "show", f"HEAD:{record['html']}").stdout
+        self.assertIn(edit, html)
+        staged = self.git(self.home, "diff", "--cached", "--name-only").stdout
+        self.assertIn(unrelated.name, staged)
+        self.assertFalse(marker.exists())
+        again = self.call_without_viewer("snapshot", live)
+        self.assertEqual(again.returncode, 0, again.stderr)
+        self.assertIn("nothing to save", again.stdout)
+        self.assertEqual(self.git(self.home, "rev-parse", "HEAD").stdout.strip(), after)
+        marker.write_text("pending\n")
+        already = self.call_without_viewer("snapshot", live)
+        self.assertEqual(already.returncode, 0, already.stderr)
+        self.assertIn("already saved", already.stdout)
+        self.assertEqual(self.git(self.home, "rev-parse", "HEAD").stdout.strip(), after)
+        self.assertFalse(marker.exists())
+
+    def test_snapshot_rejects_draft(self):
+        record, live = self._live_record()
+        marker, _ = self._pending_edit(live)
+        before = self.git(self.home, "rev-parse", "HEAD").stdout.strip()
+        draft = self.root / "snapshot-draft.json"
+        draft.write_text("{}\n")
+        result = self.call_without_viewer("snapshot", live, "--draft", str(draft))
+        self.assertEqual(result.returncode, 2, result.stderr + result.stdout)
+        self.assertEqual(self.git(self.home, "rev-parse", "HEAD").stdout.strip(), before)
+        self.assertTrue(marker.exists())
+
+    def test_snapshot_guard_contention(self):
+        record, live = self._live_record()
+        marker, _ = self._pending_edit(live)
+        before = self.git(self.home, "rev-parse", "HEAD").stdout.strip()
+        before_json = (self.home / record["snapshot"]).read_bytes() if (self.home / record["snapshot"]).exists() else b""
+        before_html = (self.home / record["html"]).read_bytes() if (self.home / record["html"]).exists() else b""
+        locks = (
+            ("home", live_state.snapshot_lock_path(record["home"])),
+            ("tracker", tracker_lock.tracker_lock_path(live)),
+        )
+        for name, path in locks:
+            with self.subTest(lock=name):
+                with tracker_lock.exclusive_lock(path):
+                    result = self._run_snapshot(live, timeout=5)
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertIn("busy", result.stderr)
+                    self.assertTrue(marker.exists())
+                    self.assertEqual(self.git(self.home, "rev-parse", "HEAD").stdout.strip(), before)
+                    current_json = (self.home / record["snapshot"]).read_bytes() if (self.home / record["snapshot"]).exists() else b""
+                    current_html = (self.home / record["html"]).read_bytes() if (self.home / record["html"]).exists() else b""
+                    self.assertEqual(current_json, before_json)
+                    self.assertEqual(current_html, before_html)
+
+    def test_snapshot_guard_ordinary_first(self):
+        record, live = self._live_record()
+        # Commit a same-stage baseline so the ordinary snapshot will skip Git.
+        with patch("render.render", return_value="baseline-page"):
+            live_state.snapshot(record, live)
+        baseline = self.git(self.home, "rev-parse", "HEAD").stdout.strip()
+        marker, edit = self._pending_edit(live, "ordinary-first-pending-BCL-142")
+        entered = threading.Event()
+        release = threading.Event()
+        errors = []
+
+        def render_wait(document, base):
+            entered.set()
+            if not release.wait(5):
+                raise RuntimeError("test timed out waiting to release ordinary render")
+            return json.dumps(document)
+
+        def ordinary():
+            try:
+                with patch("render.render", side_effect=render_wait):
+                    live_state.snapshot(record, live)
+            except Exception as error:
+                errors.append(str(error))
+
+        thread = threading.Thread(target=ordinary)
+        thread.start()
+        self.assertTrue(entered.wait(5))
+        result = self._run_snapshot(live, timeout=5)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("busy", result.stderr)
+        release.set()
+        thread.join(10)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(errors, [])
+        self.assertEqual(self.git(self.home, "rev-parse", "HEAD").stdout.strip(), baseline)
+        self.assertIn(edit, (self.home / record["html"]).read_text())
+        self.assertTrue(marker.exists())
+        saved = self.call_without_viewer("snapshot", live)
+        self.assertEqual(saved.returncode, 0, saved.stderr)
+        after = self.git(self.home, "rev-parse", "HEAD").stdout.strip()
+        parent = self.git(self.home, "rev-parse", "HEAD^").stdout.strip()
+        self.assertEqual(parent, baseline)
+        self.assertEqual(self.git(self.home, "rev-list", "--count", f"{baseline}..HEAD").stdout.strip(), "1")
+        committed_json = self.git(self.home, "show", f"{after}:{record['snapshot']}").stdout
+        self.assertIn(edit, committed_json)
+        committed_html = self.git(self.home, "show", f"{after}:{record['html']}").stdout
+        self.assertIn(edit, committed_html)
+        self.assertFalse(marker.exists())
+
+    def test_snapshot_guard_start_job(self):
+        record, live = self._live_record()
+        document = json.loads(live.read_text())
+        issue_id = document["findings"][0]["id"]
+        plan = {"cycle": 1, "round": 1, "groups": [{"id": "LANE-A", "finding_ids": [issue_id], "status": "planned"}]}
+        document.setdefault("tracking", {}).update(cycle=1, round=1, plan=plan)
+        job = {"id": "start-before-pid", "plan_sha256": bcl_entrypoint.manage_findings.plan_candidate_sha256(plan)}
+        bcl_entrypoint.manage_findings.job_transition(document, {
+            "action": "start-job", "phase": "fix", "ids": [issue_id],
+            "cycle": 1, "round": 1, "timestamp": "2026-11-22T00:00:00Z", "job": job,
+        })
+        receipt = document["tracking"]["plan"]["groups"][0]["codex"]["job"]
+        self.assertNotIn("exit_code", receipt)
+        self.assertNotIn("finished_at", receipt)
+        self.assertNotIn("pid", receipt)
+        live.write_text(json.dumps(document))
+        marker = live.with_suffix(".unsnapshotted")
+        marker.write_text("pending\n")
+        before = self.git(self.home, "rev-parse", "HEAD").stdout.strip()
+        result = self.call_without_viewer("snapshot", live)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("active codex.job", result.stderr)
+        self.assertTrue(marker.exists())
+        self.assertEqual(self.git(self.home, "rev-parse", "HEAD").stdout.strip(), before)
+        bcl_entrypoint.manage_findings.job_transition(document, {
+            "action": "finish-job", "phase": "fix", "ids": [issue_id],
+            "cycle": 1, "round": 1, "timestamp": "2026-11-22T00:00:01Z",
+            "job_id": job["id"], "exit_code": 0,
+            "plan_sha256": job["plan_sha256"],
+        })
+        live.write_text(json.dumps(document))
+        marker.write_text("pending\n")
+        saved = self.call_without_viewer("snapshot", live)
+        self.assertEqual(saved.returncode, 0, saved.stderr)
+        self.assertFalse(marker.exists())
+        self.assertNotEqual(self.git(self.home, "rev-parse", "HEAD").stdout.strip(), before)
 
     @staticmethod
     def merge_ready(document):
