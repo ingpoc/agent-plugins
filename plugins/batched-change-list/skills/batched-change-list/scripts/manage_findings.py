@@ -22,6 +22,9 @@ import check_install_sessions
 import workflow_definition
 import check_gate_count
 
+# One lane table drives every membership decision below (workflow_definition.json "lane").
+LANE = workflow_definition.LANE
+SETTLED_LANE_STATES = LANE["groups"]["settled"]
 RENDERER_PATH = Path(__file__).with_name("render.py")
 SPEC = importlib.util.spec_from_file_location("change_list_renderer", RENDERER_PATH)
 RENDERER = importlib.util.module_from_spec(SPEC)
@@ -301,13 +304,13 @@ def store_verification_evidence(document, item, record):
 
 def validate_plan_group_fields(group, round_number):
     status = group.get("status")
-    valid_statuses = RENDERER.PLAN_STATUSES | set(RENDERER.PLAN_STATUS_ALIASES) | {"done"}
+    valid_statuses = set(LANE["statuses"]) | set(LANE["status_aliases"]) | LANE["raw_statuses"]
     if status not in valid_statuses:
         raise ValueError(f"plan group {group.get('id')} has invalid status")
-    valid_phases = RENDERER.PLAN_PHASES | set(RENDERER.PLAN_PHASE_ALIASES) | {"blocked", "deferred"}
+    valid_phases = set(LANE["phases"]) | set(LANE["phase_aliases"]) | LANE["special_phases"]
     if "phase" in group and group["phase"] not in valid_phases:
         raise ValueError(f"plan group {group.get('id')} has invalid phase")
-    if status in ("blocked", "failed") and group.get("phase") not in RENDERER.PLAN_PHASES:
+    if status in LANE["groups"]["attention"] and group.get("phase") not in LANE["phases"]:
         raise ValueError(f"plan group {group.get('id')} requires a phase when {status}")
     reason = group.get("blocked_reason")
     if reason is not None and (not isinstance(reason, str) or len(reason.split()) > 6):
@@ -476,33 +479,98 @@ def _unblock_covers_failures(group, failures):
     return False
 
 
+def refuse_lane_moves(before, after):
+    """Every batch write passes here: a lane status may only take a move the lane table allows.
+
+    Moves are compared within one cycle and round; carry_plan_runtime_state owns round changes."""
+    if not isinstance(before, dict) or not isinstance(after, dict):
+        return
+    if before.get("cycle") != after.get("cycle") or before.get("round") != after.get("round"):
+        return
+    previous = {group.get("id"): group for group in before.get("groups", []) if isinstance(group, dict)}
+    for group in after.get("groups", []):
+        prior = previous.get(group.get("id")) if isinstance(group, dict) else None
+        if prior is not None and set(prior.get("finding_ids", [])) == set(group.get("finding_ids", [])):
+            workflow_definition.refuse_lane_move(group.get("id"), prior.get("status"), group.get("status"))
+
+
 def plan_candidate_sha256(plan):
     candidate = copy.deepcopy(plan)
     for group in candidate.get("groups", []):
-        for field in ("status", "phase", "presuite", "updated_at", "failure_history", "unblock_history",
-                      "plan_review_history", "blocked_reason", "failure_block_reason"):
-            group.pop(field, None)
-        verify = group.get("verify")
-        if isinstance(verify, dict):
-            for field in ("status", "fixed", "failed", "total", "failure"):
-                verify.pop(field, None)
-            if not verify:
-                group.pop("verify", None)
-        codex = group.get("codex")
-        if isinstance(codex, dict):
-            for field in ("job", "fix_status", "review_status", "plan_review_status", "reviewer_model", "must_fix_note",
-                          "tool_fault_streak"):
-                codex.pop(field, None)
-            if not codex:
-                group.pop("codex", None)
+        for path in LANE["hash_excluded"]:
+            parent, _, field = path.rpartition(".")
+            node = group.get(parent) if parent else group
+            if isinstance(node, dict):
+                node.pop(field, None)
+                if parent and not node:
+                    group.pop(parent, None)
     return hashlib.sha256(json.dumps(candidate, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+
+
+_MISSING = object()
+
+
+def _protected_value(group, path):
+    node = group
+    for part in path.split("."):
+        if not isinstance(node, dict) or part not in node:
+            return _MISSING
+        node = node[part]
+    return node
+
+
+def _undeclared_paths(group):
+    """Lane fields the lane table lists neither as plan fields nor as protected runtime paths."""
+    codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+    paths = [key for key in group if key not in LANE["plan_fields"] and key not in LANE["protected_paths"]]
+    return paths + [f"codex.{key}" for key in codex
+                    if key not in LANE["codex_fields"] and f"codex.{key}" not in LANE["protected_paths"]]
+
+
+def refuse_protected_claims(groups, eligible_prior, action="set-plan"):
+    """Compare explicit protected values with the eligible stored lane before anything is copied.
+
+    Missing input keeps stored data; equal input is accepted; any other value, including null,
+    is refused. New lanes may submit pending defaults, which are stripped before persistence. Runtime-looking
+    fields the lane table does not declare are refused outright."""
+    for group in groups:
+        prior = eligible_prior.get(group.get("id"))
+        unknown = [path for path in _undeclared_paths(group)
+                   if prior is None or _protected_value(prior, path) != _protected_value(group, path)]
+        if unknown:
+            raise ValueError(f"{action} cannot write undeclared runtime field {', '.join(unknown)} for lane {group.get('id')}")
+        for path in LANE["protected_paths"]:
+            claimed = _protected_value(group, path)
+            if claimed is _MISSING:
+                continue
+            if path in ("failure_history", "plan_review_history"):
+                claimed = _lane_history(copy.deepcopy({"id": group.get("id"), path: claimed}), path)
+            stored = _protected_value(prior, path) if prior is not None else _MISSING
+            if stored is _MISSING:
+                if path in LANE["pending_defaults"] and claimed == "pending":
+                    if prior is not None:
+                        raise ValueError(f"{action} cannot claim completed job state ({path}) for lane {group.get('id')}; run bcl job for the current lane")
+                    node = group
+                    parts = path.split(".")
+                    for part in parts[:-1]:
+                        node = node.get(part) if isinstance(node, dict) else None
+                    if isinstance(node, dict):
+                        node.pop(parts[-1], None)
+                    continue
+                raise ValueError(f"{action} cannot claim completed job state ({path}) for lane {group.get('id')}; run bcl job for the current lane")
+            if claimed != stored:
+                raise ValueError(f"{action} cannot change {path} for lane {group.get('id')}; it is runtime state")
+
+
+def _has_runtime_receipt(group):
+    return any(_protected_value(group, path) not in (_MISSING, None, "pending", [], {})
+               for path in LANE["protected_paths"])
 
 
 def carry_plan_runtime_state(groups, previous, same_round):
     old = {group.get("id"): group for group in previous.get("groups", [])} if isinstance(previous, dict) else {}
-    protected_codex = ("job", "fix_status", "review_status", "plan_review_status", "reviewer_model", "must_fix_note",
-                       "tool_fault_streak")
-    protected_group = ("status", "phase", "presuite", "failure_history", "plan_review_history", "unblock_history", "blocked_reason", "failure_block_reason")
+    protected_codex = tuple(path.split(".", 1)[1] for path in LANE["protected_paths"] if path.startswith("codex."))
+    protected_group = ("status", "phase") + tuple(path for path in LANE["protected_paths"] if "." not in path)
     for prior in old.values():
         _lane_history(prior, "failure_history")
         _lane_history(prior, "plan_review_history")
@@ -519,6 +587,12 @@ def carry_plan_runtime_state(groups, previous, same_round):
             replacement = replacements.get(identifier)
             if not replacement or set(replacement.get("finding_ids", [])) != set(prior.get("finding_ids", [])):
                 raise ValueError(f"set-plan cannot change gated lane {identifier}; keep its id and findings")
+    eligible_prior = {}
+    for group in groups:
+        prior = old.get(group.get("id"))
+        if prior and set(group.get("finding_ids", [])) == set(prior.get("finding_ids", [])) and (same_round or gated(prior)):
+            eligible_prior[group.get("id")] = prior
+    refuse_protected_claims(groups, eligible_prior)
     for group in groups:
         prior = old.get(group.get("id"))
         unchanged = prior and set(group.get("finding_ids", [])) == set(prior.get("finding_ids", []))
@@ -529,12 +603,12 @@ def carry_plan_runtime_state(groups, previous, same_round):
         if prior and unchanged and (same_round or gated(prior)):
             requested_status, requested_phase = group.get("status"), group.get("phase")
             for field in protected_group:
-                if field in prior and (same_round or field in ("failure_history", "plan_review_history", "unblock_history", "blocked_reason", "failure_block_reason") or prior.get("status") == "blocked" and field == "status"):
+                if field in prior and (same_round or field in LANE["gate_paths"] or prior.get("status") == "blocked" and field == "status"):
                     group[field] = copy.deepcopy(prior[field])
                 else:
                     group.pop(field, None)
             if not same_round and prior.get("status") != "blocked":
-                if requested_status in {"pending", "planned", "queued", "deferred", "parked"} and requested_phase in (None, "deferred"):
+                if requested_status in LANE["groups"]["carried"] and requested_phase in (None, "deferred"):
                     group["status"] = "planned" if requested_status == "pending" else requested_status
                     if requested_phase == "deferred":
                         group["phase"] = requested_phase
@@ -550,15 +624,7 @@ def carry_plan_runtime_state(groups, previous, same_round):
             if group.get("status") == "blocked" and not group.get("phase"):
                 group["phase"] = prior.get("phase") or "fix"
             continue
-        codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
-        claims_runtime = (
-            "job" in codex or codex.get("fix_status") not in (None, "pending")
-            or codex.get("review_status") not in (None, "pending")
-            or codex.get("plan_review_status") not in (None, "pending")
-            or bool(codex.get("reviewer_model")) or bool(codex.get("must_fix_note"))
-            or (isinstance(group.get("presuite"), dict) and group["presuite"].get("status") not in (None, "pending"))
-        )
-        if RENDERER.plan_status(group) == "verified" or claims_runtime:
+        if RENDERER.plan_status(group) == "verified":
             raise ValueError("set-plan cannot claim completed job state; run bcl job for the current lane")
 
 
@@ -650,9 +716,9 @@ def unblock_lane(document, operation):
             if item.get("id") in group.get("finding_ids", []) and item.get("status") == "blocked":
                 item["status"] = "in_progress"
 
-IN_FLIGHT_STATUSES = {"running", "failed", "blocked", "in_progress", "planned", "pending"}
-IN_FLIGHT_PHASES = {"fix", "review", "install", "verify", "plan_review", "pending"}
-SETTLED_STATUSES = {"done", "verified", "deferred", "parked"}
+IN_FLIGHT_STATUSES = LANE["groups"]["open"]
+IN_FLIGHT_PHASES = LANE["groups"]["open_phases"]
+SETTLED_STATUSES = LANE["groups"]["released"]
 INCOMPLETE_REVIEW_REASON = "Review incomplete: strict verdict or Must-fix section missing"
 # Fault provenance is the structured fault_kind the tool records, never reason text.
 TOOL_FAULT_KINDS = {"incomplete_review", "quota_out", "cut_off", "runner_exit"}
@@ -665,12 +731,12 @@ def _included_for_release(group, included_ids, require_presuite=False):
     job = codex.get("job")
     presuite = group.get("presuite") if isinstance(group.get("presuite"), dict) else {}
     return (bool(included_ids) and bool(finding_ids) and set(finding_ids).issubset(included_ids)
-            and group.get("phase") == "review" and group.get("status") not in {"failed", "blocked"}
+            and group.get("phase") == "review" and group.get("status") not in LANE["groups"]["attention"]
             and codex.get("fix_status") == "passed"
-            and codex.get("review_status") in {"passed", "skipped_one_file"}
+            and codex.get("review_status") in LANE["review_cleared"]
             and (job is None or (isinstance(job, dict) and "exit_code" in job))
             and (presuite.get("status") == "passed" if require_presuite
-                 else presuite.get("status") not in {"failed", "running"}))
+                 else presuite.get("status") not in LANE["presuite_blocking"]))
 
 
 def in_flight_lanes(document, included_ids=None, require_presuite=False):
@@ -808,8 +874,8 @@ def _plan_folded_into_review(group, failures):
 def job_transition(document, operation):
     tracking, plan, groups = _lane_groups(document, operation.get("ids"))
     phase, action = operation.get("phase"), operation["action"]
-    if phase not in ("plan_review", "fix", "review", "presuite"):
-        raise ValueError("job phase must be plan_review, fix, review, or presuite")
+    if phase not in LANE["job_phases"]:
+        raise ValueError(f"job phase must be {', '.join(LANE['job_phases'])}")
     cycle = plan.get("cycle", tracking.get("cycle", 1))
     round_number = plan.get("round", tracking.get("round", 1))
     if operation.get("cycle") != cycle or operation.get("round") != round_number:
@@ -833,7 +899,7 @@ def job_transition(document, operation):
     if action == "start-job":
         if pause_record(tracking) is not None:
             raise ValueError("round paused; run bcl resume")
-        if phase in ("plan_review", "fix") and introspect_covers_current_round(tracking):
+        if phase in LANE["groups"]["work_phases"] and introspect_covers_current_round(tracking):
             raise ValueError(f"round {round_number} is closed (introspect recorded); "
                              "record the next round's plan (bcl plan) before plan or fix jobs")
         job = operation.get("job")
@@ -847,8 +913,8 @@ def job_transition(document, operation):
             raise ValueError("job reservation belongs to a stale plan candidate")
         for group in groups:
             codex = group.setdefault("codex", {})
-            if group.get("status") in ("blocked", "parked", "deferred") or (
-                    group.get("status") == "failed" and phase not in ("fix", "plan_review")):
+            if group.get("status") in LANE["groups"]["fix_refused"] or (
+                    group.get("status") == "failed" and phase not in LANE["groups"]["work_phases"]):
                 recovery = "; run bcl unblock --reason" if group.get("status") == "blocked" else ""
                 raise ValueError(f"job cannot start blocked, parked, deferred, or failed lane {group['id']}{recovery}")
             failures = _counted_failures(_lane_history(group, "failure_history"))
@@ -877,7 +943,7 @@ def job_transition(document, operation):
                     codex["reviewer_model"] = job["model"]
             elif phase == "presuite":
                 if (codex.get("fix_status") != "passed" or
-                        codex.get("review_status") not in ("passed", "skipped_one_file")):
+                        codex.get("review_status") not in LANE["review_cleared"]):
                     raise ValueError(f"presuite requires lane {group['id']} review to pass or be skipped_one_file")
                 group.update(status="review", phase="review")
             else:
@@ -887,7 +953,7 @@ def job_transition(document, operation):
                 group.update(status="review", phase="plan_review")
             codex["job"] = {**job, "phase": phase, "started_at": stamp, "cycle": cycle, "round": round_number}
         workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
-        tracking["workflow"] = {**workflow, "stage": "review" if phase in ("plan_review", "review", "presuite") else "plan_fix",
+        tracking["workflow"] = {**workflow, "stage": "review" if phase in LANE["groups"]["review_stage_phases"] else "plan_fix",
                                  "updated_at": stamp, "now": f"{stamp} — {phase.replace('_', ' ').title()} started"}
         stages = tracking.setdefault("stages_reached", [])
         global_stage = tracking["workflow"]["stage"]
@@ -907,13 +973,13 @@ def job_transition(document, operation):
                     or group.get("status") == "blocked" or "exit_code" in job):
                 raise ValueError(f"stale {phase} completion for lane {group['id']}")
         reply = operation.get("reply")
-        verdict, must_fix = parse_review_reply(reply) if phase in ("review", "plan_review") else (None, None)
+        verdict, must_fix = parse_review_reply(reply) if phase in LANE["review_phases"] else (None, None)
         for group in groups:
             codex = group.setdefault("codex", {})
             job = codex.get("job")
             job.update(exit_code=exit_code, finished_at=stamp)
             job_tool_fault = False
-            if phase in ("review", "plan_review"):
+            if phase in LANE["review_phases"]:
                 status = verdict if exit_code == 0 else None
                 if status == "PASS":
                     job["finished_phase_status"] = "passed"
@@ -1653,7 +1719,7 @@ def validate_plan_groups(plan: dict) -> None:
         return
     # count lanes as the page does; finished, deferred, parked, blocked and failed lanes do not take a slot
     active = [g for g in groups if isinstance(g, dict)
-              and RENDERER.plan_status(g) not in {"verified", "deferred", "parked", "blocked", "failed"}]
+              and RENDERER.plan_status(g) not in SETTLED_LANE_STATES]
     if len(active) > MAX_ROUND_LANES:
         raise ValueError(f"a round runs at most {MAX_ROUND_LANES} lanes (plan has {len(active)}); defer the rest to the next round")
     claimed = []
@@ -1674,7 +1740,7 @@ def validate_plan_groups(plan: dict) -> None:
         if not isinstance(group, dict):
             continue
         state = group["status"] if "status" in group else group.get("phase")
-        if state in {"deferred", "done", "verified", "parked"}:
+        if state in LANE["groups"]["released"]:
             continue
         ids = group.get("finding_ids") or group.get("ids") or []
         if isinstance(ids, list) and len(ids) > MAX_GROUP_ISSUES:
@@ -1726,7 +1792,7 @@ def validate_dependencies(groups, findings, tracking):
             if not ids or any(not finding_verified(by_finding.get(i, {}), tracking) for i in ids):
                 raise ValueError(f"{identifier} requires verified findings with verification references")
     for group in groups:
-        if RENDERER.plan_status(group) in {'running', 'review', 'installing', 'verifying', 'verified'}:
+        if RENDERER.plan_status(group) in LANE["groups"]["dependency"]:
             pending = [dep for dep in group.get('depends_on', []) if RENDERER.plan_status(by_id[dep]) != 'verified']
             if pending:
                 raise ValueError(f"{group['id']} must wait for verified dependencies: {', '.join(pending)}")
@@ -1753,7 +1819,7 @@ def invalidate_dependents(document, previous_document):
     for group in groups:
         status = RENDERER.plan_status(group)
         if (group['id'] in invalid and status == 'verified') or (
-                group['id'] in affected - invalid and status in {'running', 'review', 'installing', 'verifying', 'verified'}):
+                group['id'] in affected - invalid and status in LANE["groups"]["dependency"]):
             group['phase'] = RENDERER.plan_phase(group)
             group['status'] = 'blocked'
             group['blocked_reason'] = 'Prerequisite verification changed'
@@ -1975,7 +2041,7 @@ def should_advance_plan_round(tracking, previous_stage):
         return False
     groups = RENDERER.plan_groups_for_round(
         tracking.get("plan"), RENDERER.rollover_round(tracking))
-    return bool(groups) and all(RENDERER.plan_status(group) in ("verified", "blocked", "failed", "parked")
+    return bool(groups) and all(RENDERER.plan_status(group) in SETTLED_LANE_STATES
                                 for group in groups)
 
 
@@ -2540,7 +2606,7 @@ def run(args, parser):
                                 require_current_round_introspect(tracking, f"starting round {requested_plan['round']}")
                                 groups = RENDERER.plan_groups_for_round(current_plan, current_round)
                                 open_lanes = [f"{group['id']} ({RENDERER.plan_status(group)})" for group in groups
-                                              if RENDERER.plan_status(group) not in ("verified", "blocked", "failed", "parked")]
+                                              if RENDERER.plan_status(group) not in SETTLED_LANE_STATES]
                                 if open_lanes:
                                     raise ValueError(f"cannot start round {requested_plan['round']}: round {current_round} has open lanes: {', '.join(open_lanes)}")
                             raise ValueError(f"set-plan plan.round must be {expected_round}; got {requested_plan['round']}")
@@ -2559,7 +2625,7 @@ def run(args, parser):
                         if len(ids) != len(groups) or any(not isinstance(i, str) or not i.strip() for i in ids) or len(ids) != len(set(ids)):
                             raise ValueError("plan groups require unique nonempty ids")
                         finding_ids = {item["id"] for item in findings}
-                        states = RENDERER.PLAN_STATUSES | set(RENDERER.PLAN_STATUS_ALIASES) | {"done"}
+                        states = set(LANE["statuses"]) | set(LANE["status_aliases"]) | LANE["raw_statuses"]
                         for key in ("merge", "build", "verify"):
                             if key in plan and not isinstance(plan[key], dict):
                                 raise ValueError(f"plan.{key} must be an object")
@@ -2619,7 +2685,7 @@ def run(args, parser):
                                 raise ValueError('plan group changed; refusing group update')
                         group = next((g for g in plan.get("groups", []) if g.get("id") == operation.get("id")), None)
                         patch = operation.get("patch")
-                        if group is None or not isinstance(patch, dict) or set(patch) - {"status", "codex", "verify", "label", "verify_summary", "name", "worktree", "finding_ids", "depends_on", "reason", "files", "file_notes", "phase", "blocked_reason", "parked_to", "build", "updated_at", "presuite", "quota_wait_until", "retry_cause"}:
+                        if group is None or not isinstance(patch, dict) or "id" in patch:
                             raise ValueError("update-plan-group requires id and a valid group patch")
                         if group.get("status") == "blocked" and patch.get("status", "blocked") != "blocked":
                             raise ValueError(f"blocked lane {group.get('id')} can only be reopened with bcl unblock --reason")
@@ -2635,10 +2701,18 @@ def run(args, parser):
                             raise ValueError("depends_on must reference plan groups")
                         if "verify" in patch and not isinstance(patch["verify"], dict) or "codex" in patch and not isinstance(patch["codex"], dict):
                             raise ValueError("codex and verify patches must be objects")
-                        if any(key in patch.get("codex", {}) for key in ("job", "fix_status", "review_status", "plan_review_status", "must_fix_note")):
-                            raise ValueError("job receipts and review state can only change through bcl job")
+                        if "finding_ids" in patch and set(patch["finding_ids"]) != set(group.get("finding_ids", [])) and _has_runtime_receipt(group):
+                            raise ValueError(f"update-plan-group cannot reassign lane {group.get('id')} findings; it carries a job receipt")
+                        try:
+                            refuse_protected_claims([{**patch, "id": group.get("id")}], {group.get("id"): group}, "update-plan-group")
+                        except ValueError as error:
+                            raise ValueError(f"{error}; job receipts and review state can only change through bcl job") from None
+                        if "codex" in patch and not operation.get("merge_codex"):
+                            stored_codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+                            patch["codex"] = {**{key: value for key, value in stored_codex.items()
+                                                 if f"codex.{key}" in LANE["protected_paths"]}, **patch["codex"]}
                         if ((patch.get("status") == "running" and patch.get("phase", group.get("phase")) == "fix")
-                                or (patch.get("status") == "review" and patch.get("phase", group.get("phase")) in ("review", "plan_review"))):
+                                or (patch.get("status") == "review" and patch.get("phase", group.get("phase")) in LANE["review_phases"])):
                             raise ValueError("use bcl job to start a lane phase")
                         if "verify" in patch and patch["verify"].get("summary") is not None and (not isinstance(patch["verify"]["summary"], str) or len(patch["verify"]["summary"].split()) > 10):
                             raise ValueError("verify.summary must be at most 10 words")
@@ -2917,6 +2991,7 @@ def run(args, parser):
             store["document"]["findings"] = findings
             invalidate_dependents(store["document"], json.loads(original))
             sync_plan_verify(store["document"])
+            refuse_lane_moves(original_plan, store["document"].get("tracking", {}).get("plan"))
             if args.render and (args.render.resolve() == path.resolve() or args.render.resolve() == RENDERER.TEMPLATE.resolve()):
                 raise ValueError("render output must differ from input and template")
             touch_workflow(store["document"])

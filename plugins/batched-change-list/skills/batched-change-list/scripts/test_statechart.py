@@ -130,5 +130,19 @@ class StatechartTests(unittest.TestCase):
         self.assertIn('changed 15 label', chart)
 
 
+
+    def test_chart_lists_lane_states_and_moves_from_the_lane_table(self):
+        page = statechart.render()
+        self.assertIn("Parked can move to Planned<", page)
+        data = statechart.definition()
+        data["lane"]["statuses"][-1]["label"] = "On hold"
+        data["lane"]["moves"]["parked"] = ["planned", "running"]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "workflow_definition.json"
+            path.write_text(json.dumps(data))
+            changed = statechart.render(definition_path=path)
+        self.assertIn("On hold can move to Planned, Fixing<", changed)
+        self.assertNotIn("Parked can move to Planned<", changed)
+
 if __name__ == '__main__':
     unittest.main()

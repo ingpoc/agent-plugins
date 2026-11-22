@@ -1,3 +1,4 @@
+import json
 import re
 import unittest
 from unittest.mock import patch
@@ -11,6 +12,32 @@ REFERENCES = SKILL.parent / "references"
 SCRIPTS = Path(__file__).resolve().parent
 
 class WorkflowDefinitionTests(unittest.TestCase):
+
+    def test_lane_contract(self):
+        lane = workflow.LANE
+        self.assertEqual(lane["statuses"], ("planned", "running", "review", "installing", "verifying", "verified", "blocked", "failed", "parked"))
+        self.assertEqual(lane["phases"], ("fix", "plan_review", "review", "install", "verify", "introspect"))
+        self.assertEqual(lane["phase_rank"]["install"], 2)
+        self.assertEqual(lane["phase_labels"]["fix"], "Plan & fix")
+        for alias, target in lane["status_aliases"].items():
+            self.assertIn(target, lane["statuses"], alias)
+        for alias, target in lane["phase_aliases"].items():
+            self.assertIn(target, lane["phases"], alias)
+        self.assertEqual(lane["job_phases"], ("plan_review", "fix", "review", "presuite"))
+        self.assertIn("incomplete", lane["review_states"]); self.assertIn("failed", lane["review_states"])
+        self.assertIn("done", lane["raw_statuses"]); self.assertNotIn("done", lane["statuses"])
+        self.assertEqual(lane["groups"]["settled"], {"verified", "blocked", "failed", "parked"})
+        self.assertEqual(lane["groups"]["stale"], {"running", "review", "installing", "verifying"})
+        for path in ("codex.job", "presuite", "failure_history", "install", "verify_reruns", "hotfix", "plan_review_passes"):
+            self.assertIn(path, lane["protected_paths"])
+        self.assertEqual(lane["pending_defaults"], {"codex.fix_status", "codex.review_status", "codex.plan_review_status"})
+        self.assertNotIn("lane_phase_rank", json.loads(Path(workflow.__file__).with_name("workflow_definition.json").read_text()))
+
+    def test_lane_contract_rejects_unknown_group_member(self):
+        lane = json.loads(json.dumps(workflow.DEFINITION["lane"]))
+        lane["groups"]["settled"].append("finished")
+        with self.assertRaisesRegex(ValueError, "lane group settled names unknown members: finished"):
+            workflow._lane_contract(lane)
     def test_viewer_stage_order_comes_from_definition(self):
         page = render.render_workflow("gate", [], 0, 15, False, 0, 1)
         self.assertEqual(re.findall(r'data-stage="([^"]+)"', page), [stage["id"] for stage in workflow.STAGES])

@@ -131,7 +131,7 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
     plan = tracking.get("plan", {})
     cycle, round_number = plan.get("cycle", 1), plan.get("round", 1)
     started_at = _utc_now()
-    result_path = Path(result_file) if phase in ("review", "plan_review") and result_file else None
+    result_path = Path(result_file) if phase in workflow_definition.LANE["review_phases"] and result_file else None
     try:
         previous_result = result_path.stat() if result_path else None
     except OSError:
@@ -172,7 +172,7 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
                 print(f"bcl: job heartbeat write failed; will retry: {error}", file=sys.stderr)
     finished_at = _utc_now()
     reply = None
-    if phase in ("review", "plan_review") and code == 0 and result_path:
+    if phase in workflow_definition.LANE["review_phases"] and code == 0 and result_path:
         try:
             current_result = result_path.stat()
             if previous_result is None or (current_result.st_ino, current_result.st_size, current_result.st_mtime_ns) != (previous_result.st_ino, previous_result.st_size, previous_result.st_mtime_ns):
@@ -397,7 +397,7 @@ def main():
     parser.add_argument("--progress", type=Path); parser.add_argument("--now")
     parser.add_argument("--ids", action="append", default=[]); parser.add_argument("--plan", type=Path)
     parser.add_argument("--result"); parser.add_argument("--issues", type=Path); parser.add_argument("--sections", type=Path); parser.add_argument("--draft", type=Path)
-    parser.add_argument("--phase", choices=("plan_review", "fix", "review", "presuite"))
+    parser.add_argument("--phase", choices=workflow_definition.LANE["job_phases"])
     parser.add_argument("--model", help="job, install or verify: who runs this step, shown in the lane model column")
     parser.add_argument("--round", type=int, help="correct-round: the real round number")
     parser.add_argument("--by", help="fix-order: who set the order")
@@ -569,9 +569,9 @@ def main():
         parser.error("round paused; run bcl resume")
     load_override = _require_machine_load(parser, args) if args.stage in ("job", "verify") else None
     if args.stage == "job":
-        if args.phase not in ("plan_review", "fix", "review", "presuite") or not args.ids or not command_args:
+        if args.phase not in workflow_definition.LANE["job_phases"] or not args.ids or not command_args:
             parser.error("job requires --ids ID, --phase plan_review|fix|review|presuite, and -- <command>")
-        if args.phase in ("review", "plan_review") and not args.result:
+        if args.phase in workflow_definition.LANE["review_phases"] and not args.result:
             parser.error(f"{args.phase} job requires --result FILE for its reply")
         if len(args.ids) != len(set(args.ids)):
             parser.error("job IDs must be unique")
@@ -581,9 +581,9 @@ def main():
         if not groups or not set(args.ids).issubset(covered):
             parser.error("job IDs must be covered by current plan groups")
         if args.phase == "fix":
-            if any(group.get("status") in ("blocked", "parked", "deferred") for group in groups):
+            if any(group.get("status") in workflow_definition.LANE["groups"]["fix_refused"] for group in groups):
                 parser.error("fix job cannot start a blocked, parked, or deferred lane; run bcl unblock --reason for blocked lanes")
-        if args.phase in ("review", "presuite") and any(group.get("phase") != "review" or (group.get("codex") or {}).get("fix_status") != "passed" for group in groups):
+        if args.phase in workflow_definition.LANE["groups"]["post_fix_job_phases"] and any(group.get("phase") != "review" or (group.get("codex") or {}).get("fix_status") != "passed" for group in groups):
             parser.error("review and presuite jobs require each lane to finish fix and enter review")
         elif args.phase == "review":
             try:
@@ -762,7 +762,7 @@ def main():
             failed_lanes = [g['id'] for g in groups if g.get('status') == 'failed']
             if args.reason and not failed_lanes:
                 parser.error("--reason reruns a failed lane's check; none of these lanes failed")
-            if failed_lanes and args.reason and not any(g.get('status') in ('blocked', 'parked', 'deferred') for g in groups):
+            if failed_lanes and args.reason and not any(g.get('status') in workflow_definition.LANE["groups"]["verify_rerun_excluded"] for g in groups):
                 # Preview only: the rerun is written in the same batch that starts verify, after
                 # every check below and under the verification lock, so a refusal spends nothing.
                 rerun_op = {"action":"rerun-verify", "ids":failed_lanes, "reason":args.reason}
@@ -772,7 +772,7 @@ def main():
                 except ValueError as error:
                     parser.error(str(error))
                 groups = [g for g in preview.get("tracking", {}).get("plan", {}).get("groups", []) if set(ids).intersection(g.get("finding_ids", []))]
-            if any(g.get('status') in ('blocked', 'failed', 'parked', 'deferred') for g in groups):
+            if any(g.get('status') in workflow_definition.LANE["groups"]["verify_refused"] for g in groups):
                 parser.error("verify cannot start a blocked, failed, or parked lane; rerun a failed lane's check once with --reason \"why\"")
             values = [g.get("verify", {}).get("command", "") for g in groups]
             if any(not isinstance(value, str) for value in values):

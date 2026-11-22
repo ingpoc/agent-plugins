@@ -1099,6 +1099,8 @@ elif args[:2] != ['pr', 'edit']:
         fail = self.root / 'fail.py'; fail.write_text('raise SystemExit(7)\n')
         command = f'"{sys.executable}" "{fail}"'
         plan['groups'][0]['verify']['command'] = command
+        # BCL-145: resubmitting the lane restates its stored review result instead of claiming pending
+        plan['groups'][0]['codex'] = {'review_status': 'passed'}
         path.write_text(json.dumps(plan))
         self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
         result = self.call('verify','--ids','ISSUE-01','--then',command)
@@ -2390,5 +2392,249 @@ elif args[:2] != ['pr', 'edit']:
         self.assertIn("round paused; run bcl resume", install.stderr)
         stopped = self.call_without_viewer("stop-viewer")
         self.assertNotIn("round paused", stopped.stderr)
+
+    def _definition_copy(self, group, members):
+        """Copy the package under test, change one lane group, return the copy's bcl."""
+        copy_root = self.root / "pkg"
+        shutil.copytree(BCL.parent.parent, copy_root, ignore=shutil.ignore_patterns("__pycache__", ".build"))
+        definition = copy_root / "skills/batched-change-list/scripts/workflow_definition.json"
+        data = json.loads(definition.read_text())
+        data["lane"]["groups"][group] = members
+        definition.write_text(json.dumps(data, indent=2))
+        return copy_root / "bin/bcl"
+
+    def _run_bcl(self, bcl, *args):
+        return subprocess.run([sys.executable, str(bcl), "--data", str(self.data), *map(str, args)],
+                              env=self.env, capture_output=True, text=True)
+
+    def test_definition_controls_manager(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        data = json.loads(live.read_text())
+        extra = [dict(data["findings"][0], id=f"ISSUE-X{index}") for index in range(5)]
+        data["findings"].extend(extra); live.write_text(json.dumps(data)); self.data.write_text(json.dumps(data))
+        plan = self.root / "five.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "status": "planned",
+            "finding_ids": [item["id"] for item in extra]}]}))
+        refused = self._run_bcl(BCL, "--plan", plan, "--ids", extra[0]["id"], "plan")
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("cap a parallel fix group", refused.stderr)
+        released = sorted(__import__("workflow_definition").LANE["groups"]["released"] | {"planned"})
+        accepted = self._run_bcl(self._definition_copy("released", released), "--plan", plan, "--ids", extra[0]["id"], "plan")
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        self.assertEqual(len(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["finding_ids"]), 5)
+
+    def test_definition_controls_release_check_open_group(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        data = json.loads(live.read_text())
+        data.setdefault("tracking", {})["plan"] = {"round": 1, "groups": [
+            {"id": "A", "finding_ids": ["ISSUE-01"], "status": "verifying"}]}
+        live.write_text(json.dumps(data)); self.data.write_text(json.dumps(data))
+        base = self._run_bcl(BCL, "release-check")
+        self.assertEqual(json.loads(base.stdout)["lanes"], [])
+        opened = sorted(__import__("workflow_definition").LANE["groups"]["open"] | {"verifying"})
+        changed = self._run_bcl(self._definition_copy("open", opened), "release-check")
+        self.assertEqual(changed.returncode, 2, changed.stderr)
+        self.assertEqual([lane["id"] for lane in json.loads(changed.stdout)["lanes"]], ["A"])
+
+    def _runtime_identity_setup(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        first = self.root / "identity-plan.json"
+        first.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned"}]}))
+        self.assertEqual(self._run_bcl(BCL, "--plan", first, "--ids", "ISSUE-01", "plan").returncode, 0)
+        data = json.loads(live.read_text())
+        group = data["tracking"]["plan"]["groups"][0]
+        group.update(status="review", phase="review")
+        group["codex"] = {"fix_status": "passed", "review_status": "passed",
+                          "job": {"id": "j1", "phase": "review", "exit_code": 0, "pid": 1}}
+        live.write_text(json.dumps(data)); self.data.write_text(json.dumps(data))
+        return live
+
+    def _submit_plan(self, groups):
+        plan = self.root / "identity-next.json"
+        plan.write_text(json.dumps({"round": 1, "groups": groups}))
+        return self._run_bcl(BCL, "--plan", plan, "--ids", "ISSUE-01", "plan")
+
+    def test_plan_runtime_identity(self):
+        live = self._runtime_identity_setup()
+        stored = json.loads(live.read_text())["tracking"]["plan"]
+        for claim in ({"failure_history": [{"attempt_id": "x", "counted": True}]}, {"install": {"started_at": "2026-11-18T08:00:00Z"}},
+                      {"verify_reruns": [{"reason": "x"}]}, {"codex": {"fix_status": "passed"}}):
+            with self.subTest(claim=sorted(claim)):
+                result = self._submit_plan([json.loads(json.dumps(stored["groups"][0])),
+                                            {"id": "B", "finding_ids": ["ISSUE-02"], "status": "planned", **claim}])
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("set-plan cannot claim", result.stderr)
+                self.assertEqual(json.loads(live.read_text())["tracking"]["plan"], stored)
+        changed = json.loads(json.dumps(stored["groups"][0])); changed["codex"]["review_status"] = "pending"
+        result = self._submit_plan([changed])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("set-plan cannot change codex.review_status", result.stderr)
+        nulled = json.loads(json.dumps(stored["groups"][0])); nulled["codex"]["job"] = None
+        self.assertIn("set-plan cannot change codex.job", self._submit_plan([nulled]).stderr)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["plan"], stored)
+
+    def test_plan_runtime_identity_controls(self):
+        live = self._runtime_identity_setup()
+        stored = json.loads(live.read_text())["tracking"]["plan"]
+        self.assertEqual(self._run_bcl(BCL, "--ids", "ISSUE-01", "plan").returncode, 0)
+        equal = self._submit_plan([json.loads(json.dumps(stored["groups"][0]))])
+        self.assertEqual(equal.returncode, 0, equal.stderr)
+        omitted = self._submit_plan([{"id": "A", "finding_ids": ["ISSUE-01"], "status": "review", "phase": "review"},
+            {"id": "B", "finding_ids": ["ISSUE-02"], "status": "planned",
+             "codex": {"fix_status": "pending", "review_status": "pending", "plan_review_status": "pending"}}])
+        self.assertEqual(omitted.returncode, 0, omitted.stderr)
+        kept = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["codex"]
+        self.assertEqual((kept["fix_status"], kept["review_status"], kept["job"]["id"]), ("passed", "passed", "j1"))
+        replaced = self._submit_plan([{"id": "A", "finding_ids": ["ISSUE-02"], "status": "planned"},
+                                      {"id": "B", "finding_ids": ["ISSUE-01"], "status": "planned"}])
+        self.assertEqual(replaced.returncode, 0, replaced.stderr)
+        fresh = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertNotIn("job", fresh.get("codex") or {})
+        self.assertNotIn("fix_status", fresh.get("codex") or {})
+
+    def test_plan_refuses_pending_claim_when_existing_protected_value_is_absent(self):
+        live = self._runtime_identity_setup()
+        data = json.loads(live.read_text())
+        group = data["tracking"]["plan"]["groups"][0]
+        group.setdefault("codex", {}).pop("fix_status", None)
+        live.write_text(json.dumps(data)); self.data.write_text(json.dumps(data))
+        before = live.read_bytes()
+        result = self._submit_plan([{"id": "A", "finding_ids": ["ISSUE-01"], "status": "review",
+                                     "phase": "review", "codex": {"fix_status": "pending"}}])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("set-plan cannot claim completed job state (codex.fix_status)", result.stderr)
+        self.assertEqual(live.read_bytes(), before)
+
+    def test_update_plan_group_refuses_pending_claim_when_existing_value_is_absent(self):
+        live = self._one_lane()
+        before = live.read_bytes()
+        result = self._lane_batch(live, [{"action": "update-plan-group", "id": "A",
+                                          "patch": {"codex": {"review_status": "pending"}}}])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("update-plan-group cannot claim completed job state (codex.review_status)", result.stderr)
+        self.assertEqual(live.read_bytes(), before)
+
+    def test_new_plan_lane_strips_pending_protected_defaults(self):
+        live = self._runtime_identity_setup()
+        result = self._submit_plan([
+            {"id": "A", "finding_ids": ["ISSUE-01"], "status": "review", "phase": "review"},
+            {"id": "B", "finding_ids": ["ISSUE-02"], "status": "planned",
+             "codex": {"fix_status": "pending", "review_status": "pending", "plan_review_status": "pending"}},
+        ])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        new_lane = next(group for group in json.loads(live.read_text())["tracking"]["plan"]["groups"] if group["id"] == "B")
+        for field in ("fix_status", "review_status", "plan_review_status"):
+            self.assertNotIn(field, new_lane.get("codex") or {})
+
+    def _lane_copy(self, mutate):
+        """Copy the package under test, let mutate change its lane table, return the copy's root."""
+        copy_root = self.root / "lanepkg"
+        shutil.copytree(BCL.parent.parent, copy_root, ignore=shutil.ignore_patterns("__pycache__", ".build"))
+        definition = copy_root / "skills/batched-change-list/scripts/workflow_definition.json"
+        data = json.loads(definition.read_text()); mutate(data["lane"])
+        definition.write_text(json.dumps(data, indent=2))
+        return copy_root
+
+    def _lane_batch(self, live, operations, root=None):
+        manager = (root or PLUGIN) / "skills/batched-change-list/scripts/manage_findings.py"
+        return subprocess.run([sys.executable, str(manager), "batch", str(live), "-", "--render", str(self.page)],
+                              input=json.dumps(operations), text=True, capture_output=True, env=self.env)
+
+    def test_definition_controls_verify_admission(self):
+        live, command = self._lane_ready()
+        marker = self.root / "lane-ran"
+        (self.root / "lane.py").write_text(f"from pathlib import Path; Path({str(marker)!r}).touch()\n")
+        document = json.loads(live.read_text())
+        document["tracking"]["plan"]["groups"][0].update(status="blocked", phase="verify")
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+        baseline = self._run_bcl(BCL, "verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertNotEqual(baseline.returncode, 0)
+        self.assertIn("verify cannot start a blocked, failed, or parked lane", baseline.stderr)
+        self.assertFalse(marker.exists())
+        root = self._lane_copy(lambda lane: lane["groups"]["verify_refused"].remove("blocked"))
+        changed = self._run_bcl(root / "bin/bcl", "verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertEqual(changed.returncode, 0, changed.stderr)
+        self.assertTrue(marker.exists())
+
+    def test_one_dependency_group_controls_validation_and_invalidation(self):
+        script = ("import json, manage_findings as m\n"
+                  "groups=[{'id':'A','finding_ids':['A'],'status':'verified','phase':'verify'},"
+                  "{'id':'B','finding_ids':['B'],'status':'running','phase':'fix','depends_on':['A']}]\n"
+                  "try:\n"
+                  "    waiting=json.loads(json.dumps(groups)); waiting[0]['status']='review'; waiting[0]['phase']='review'\n"
+                  "    m.validate_dependencies(waiting, [{'id':'A','status':'in_progress'},{'id':'B','status':'in_progress'}], {})\n"
+                  "    print('accepted')\n"
+                  "except ValueError as error:\n"
+                  "    print('refused' if 'must wait for verified dependencies' in str(error) else 'other:'+str(error).replace(' ','_'))\n"
+                  "d={'findings':[{'id':'A','status':'in_progress'},{'id':'B','status':'in_progress'}],"
+                  "'tracking':{'round':1,'plan':{'round':1,'groups':json.loads(json.dumps(groups))}}}\n"
+                  "p={'findings':[{'id':'A','status':'verified_fixed','verification_refs':['receipt']},{'id':'B','status':'in_progress'}],"
+                  "'tracking':{'round':1,'verification_run':{'checks':{'A':{'state':'passed'}}}}}\n"
+                  "m.invalidate_dependents(d,p)\n"
+                  "print(d['tracking']['plan']['groups'][1]['status'])\n")
+        def decisions(root):
+            scripts = root / "skills/batched-change-list/scripts"
+            run = subprocess.run([sys.executable, "-c", script], cwd=scripts, env={**self.env, "PYTHONPATH": str(scripts)},
+                                 capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            return run.stdout.split()
+        self.assertEqual(decisions(PLUGIN), ["refused", "blocked"])
+        self.assertEqual(decisions(self._lane_copy(lambda lane: lane["groups"]["dependency"].remove("running"))), ["accepted", "running"])
+
+    def _one_lane(self):
+        live = self._runtime_identity_setup()
+        data = json.loads(live.read_text())
+        data["tracking"]["plan"]["groups"][0].update(status="planned", phase="fix", codex={})
+        live.write_text(json.dumps(data)); self.data.write_text(json.dumps(data))
+        return live
+
+    def test_lane_table_refuses_moves_it_does_not_declare(self):
+        live = self._one_lane()
+        parked = self._lane_batch(live, [{"action": "update-plan-group", "id": "A", "patch": {"status": "deferred", "parked_to": 2}}])
+        self.assertEqual(parked.returncode, 0, parked.stderr)
+        stored = live.read_bytes()
+        jump = [{"action": "update-plan-group", "id": "A", "patch": {"status": "verifying", "phase": "verify"}}]
+        refused = self._lane_batch(live, jump)
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("lane A cannot move from parked to verifying", refused.stderr)
+        self.assertEqual(live.read_bytes(), stored)
+        widened = self._lane_copy(lambda lane: lane["moves"]["parked"].append("verifying"))
+        allowed = self._lane_batch(live, jump, widened)
+        self.assertEqual(allowed.returncode, 0, allowed.stderr)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["status"], "verifying")
+
+    def test_plan_writes_refuse_runtime_fields_the_table_does_not_declare(self):
+        live = self._runtime_identity_setup()
+        stored = json.loads(live.read_text())["tracking"]["plan"]
+        for extra in ({"codex": {**stored["groups"][0]["codex"], "exit_code": 0}}, {"attempts": 3}):
+            with self.subTest(extra=sorted(extra)):
+                result = self._submit_plan([{**json.loads(json.dumps(stored["groups"][0])), **extra}])
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("cannot write undeclared runtime field", result.stderr)
+                self.assertEqual(json.loads(live.read_text())["tracking"]["plan"], stored)
+        resubmit = self._run_bcl(BCL, "--ids", "ISSUE-01", "plan")
+        self.assertEqual(resubmit.returncode, 0, resubmit.stderr)
+        declared = self._lane_copy(lambda lane: lane["plan_fields"].append("attempts"))
+        plan = self.root / "declared.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{**json.loads(json.dumps(stored["groups"][0])), "attempts": 3}]}))
+        accepted = self._run_bcl(declared / "bin/bcl", "--plan", plan, "--ids", "ISSUE-01", "plan")
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+
+    def test_update_plan_group_guards_declared_runtime_paths(self):
+        live = self._runtime_identity_setup()
+        stored = live.read_bytes()
+        for patch in ({"presuite": {"status": "passed"}}, {"codex": {"review_status": "pending"}},
+                      {"codex": {"tool_fault_streak": 0}}, {"finding_ids": ["ISSUE-02"]}):
+            with self.subTest(patch=patch):
+                refused = self._lane_batch(live, [{"action": "update-plan-group", "id": "A", "patch": patch}])
+                self.assertNotEqual(refused.returncode, 0)
+                self.assertEqual(live.read_bytes(), stored)
+        session = self._lane_batch(live, [{"action": "update-plan-group", "id": "A", "patch": {"codex": {"implementer_session": "s2"}}}])
+        self.assertEqual(session.returncode, 0, session.stderr)
+        codex = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["codex"]
+        self.assertEqual((codex["implementer_session"], codex["review_status"], codex["job"]["id"]), ("s2", "passed", "j1"))
 
 if __name__ == "__main__": unittest.main()

@@ -1310,9 +1310,12 @@ class ManageFindingsTests(unittest.TestCase):
                  "failure_history": {"ISSUE-01": [{"attempt_id": "a", "source": "review"}],
                                      "ISSUE-02": [{"attempt_id": "b", "source": "review"}]},
                  "plan_review_history": {"ISSUE-01": [{"job_id": "p", "after_failure": "b"}]}}
-        result = self._replay_batch(copy.deepcopy(self.document), {"action": "set-plan", "plan": {"round": 1, "groups": [group]}})
+        result = self._replay_batch(copy.deepcopy(self.document), {"action": "set-plan", "plan": {"round": 1, "groups": [
+            {"id": "A", "finding_ids": ["ISSUE-01", "ISSUE-02"], "depends_on": [], "status": "planned"}]}})
         self.assertEqual(result.returncode, 0, result.stderr)
         blocked = json.loads(self.data.read_bytes())
+        # Gates come from job and verify writers; a plan write cannot claim them (BCL-145), so seed the stored lane.
+        blocked["tracking"]["plan"]["groups"][0].update(copy.deepcopy(group))
         for changed in (
             {**copy.deepcopy(group), "finding_ids": ["ISSUE-01"]},
             {**copy.deepcopy(group), "id": "RENAMED"},
