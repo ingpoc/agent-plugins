@@ -438,7 +438,8 @@ def _lane_history(group, field):
     group[field] = unique
     if field == "failure_history":
         failures = _counted_failures(unique)
-        if len(failures) >= 2 and not _unblock_covers_failures(group, failures):
+        if (len(failures) >= 2 and group.get("status") not in ("parked", "deferred")
+                and not _unblock_covers_failures(group, failures)):
             group.update(status="blocked", phase=group.get("phase", "fix"))
             group.setdefault("blocked_reason", "Two counted lane failures require an owner unblock")
             group.setdefault("failure_block_reason", group["blocked_reason"])

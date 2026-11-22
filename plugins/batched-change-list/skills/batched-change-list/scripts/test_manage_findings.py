@@ -1424,6 +1424,40 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(next_round[0]["status"], "blocked")
         self.assertEqual([row["attempt_id"] for row in next_round[0]["failure_history"]], ["failure-1", "failure-2"])
 
+    def test_bcl180_multiple_blocked_lanes_stay_parked_until_next_round(self):
+        blocked = copy.deepcopy(self.document)
+        blocked["tracking"] = {"cycle": 1, "round": 1, "plan": {"cycle": 1, "round": 1, "groups": []}}
+        for lane_id, finding_id in (("A", "ISSUE-01"), ("B", "ISSUE-02")):
+            blocked["tracking"]["plan"]["groups"].append({
+                "id": lane_id, "finding_ids": [finding_id], "status": "blocked", "phase": "fix",
+                "failure_history": [
+                    {"attempt_id": f"{lane_id}-failure-1", "at": "2026-11-21T00:00:00Z"},
+                    {"attempt_id": f"{lane_id}-failure-2", "at": "2026-11-21T00:01:00Z"},
+                ],
+                "plan_review_history": [{"job_id": f"{lane_id}-review", "after_failure": f"{lane_id}-failure-2"}],
+                "blocked_reason": "two counted failures",
+            })
+
+        first = self._replay_batch(blocked, {"action": "update-plan-group", "id": "A",
+            "patch": {"status": "parked", "parked_to": 2, "reason": "defer A to next round"}})
+        self.assertEqual(first.returncode, 0, first.stderr)
+        current = json.loads(self.data.read_text())
+        self.assertEqual(current["tracking"]["plan"]["groups"][0]["status"], "parked")
+
+        second = self._replay_batch(current, {"action": "update-plan-group", "id": "B",
+            "patch": {"status": "parked", "parked_to": 2, "reason": "defer B to next round"}})
+        self.assertEqual(second.returncode, 0, second.stderr)
+        current = json.loads(self.data.read_text())
+        self.assertEqual([lane["status"] for lane in current["tracking"]["plan"]["groups"]], ["parked", "parked"])
+        self.assertTrue(manage_findings.release_check_payload(current)["clear"])
+
+        later = self._replay_batch(current, {"action": "update-plan-group", "id": "A",
+            "patch": {"label": "Parked until next round"}})
+        self.assertEqual(later.returncode, 0, later.stderr)
+        current = json.loads(self.data.read_text())
+        self.assertEqual([lane["status"] for lane in current["tracking"]["plan"]["groups"]], ["parked", "parked"])
+        self.assertTrue(manage_findings.release_check_payload(current)["clear"])
+
     def test_bcl180_parked_dependency_blocked_reason_carries_as_blocked(self):
         parked = {"cycle": 1, "round": 1, "groups": [{
             "id": "A", "finding_ids": ["ISSUE-01"], "status": "parked", "phase": "fix",
