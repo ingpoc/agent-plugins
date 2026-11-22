@@ -11016,9 +11016,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T04:43:22Z",
-      "now": "2026-11-22T04:43:22Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T04:59:38Z",
+      "now": "2026-11-22T04:59:38Z — Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12635,17 +12635,20 @@
               "phase": "review",
               "started_at": "2026-11-22T04:42:54Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T04:42:54Z",
+              "heartbeat_at": "2026-11-22T04:43:33Z",
               "plan_sha256": "515dcbc24403def37401a0544bedc3181e8386dbd695c96acefab8a7338deb60",
               "model": "gpt-6.1-terra medium (Codex CLI)",
               "cycle": 11,
               "round": 2,
-              "pid": 91148
+              "pid": 91148,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T04:43:33Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
             "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-136/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:623) treats a named lane as clear while its presuite job is running. Starting presuite leaves the lane in `phase=\"review\"` with both fix and review passed, so `_included_for_release` accepts it even though the lane has unfinished work. Keep an active presuite blocking and cover it through the CLI.\n\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-136/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:657) adds an `included` field even when `--ids` is absent. That changes the JSON output despite the requirement that the command behave exactly as before without `--ids`. Preserve the previous payload shape in that case and test it through the CLI.",
-            "review_status": "running"
+            "review_status": "passed"
           },
           "failure_history": [
             {
@@ -12783,7 +12786,7 @@
           "depends_on": [
             "R2-136"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl119-r2-144",
           "label": "BCL-144",
           "verify": {
@@ -12797,23 +12800,26 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r2-144",
             "reviewer_session": "codex-terra-6.1-119r2-144",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "bd78b7e63f4b4d6aa3564cd8443a5d48",
-              "phase": "fix",
-              "started_at": "2026-11-22T04:43:22Z",
+              "id": "65951d33ee4e4bd4b2f941dc42a2dd58",
+              "phase": "review",
+              "started_at": "2026-11-22T04:59:38Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T04:43:22Z",
+              "heartbeat_at": "2026-11-22T04:59:38Z",
               "plan_sha256": "515dcbc24403def37401a0544bedc3181e8386dbd695c96acefab8a7338deb60",
-              "model": "gpt-6-luna medium fast (Codex CLI)",
+              "model": "gpt-6.1-terra medium (Codex CLI)",
               "cycle": 11,
               "round": 2
-            }
+            },
+            "tool_fault_streak": 0,
+            "review_status": "running",
+            "reviewer_model": "gpt-6.1-terra medium (Codex CLI)"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T04:21:44Z",
-          "phase": "fix"
+          "phase": "review"
         }
       ],
       "cycle": 11
