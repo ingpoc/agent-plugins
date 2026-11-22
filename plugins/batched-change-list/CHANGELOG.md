@@ -1,3 +1,9 @@
+## 0.1.67
+
+- A new round starts cleanly: plan and fix jobs are refused after the round's introspect until the next plan is recorded; verified lanes stay verified and need not be re-planned; `bcl refresh-worktrees` gives each unverified lane a fresh worktree at the list head with its commits replayed, naming conflicting files; rollover carries gated lanes so the next list must plan them under the same id (BCL-158).
+- `bcl fix-order --ids A --ids B --reason` records the fix order (who, when, why), shown on the page in that order; `bcl plan` refuses two open lanes whose declared `files` overlap (BCL-151).
+- The fast pre-push gate checks the state chart from the pushed commit whenever the change-list skill changes, deletes included (BCL-134).
+
 ## 0.1.66
 
 - Only a post-fix review's declared CHANGES counts toward the two-failure lane cap. A failed fix job is recorded as an uncounted attempt and the lane stays in fix; three failed jobs in a row still block it (BCL-163).
