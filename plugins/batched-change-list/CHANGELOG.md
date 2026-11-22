@@ -1,3 +1,7 @@
+## 0.1.59
+
+- Plan writes accept every review state that review jobs record (running, blocked, changes_requested), so a lane whose review asked for changes can be deferred or carried and new lanes can be added; install still needs a passed review and unknown states are still refused (BCL-135).
+
 ## 0.1.58
 
 - Deleted unused commands: `bcl sync-main` (never run, BCL-123) and `bcl merge` (BCL-126); the README no longer lists them and a reference test rejects either name in the docs. Legacy viewer-record handling stays (BCL-124 deferred: removing it would orphan live viewers without an instance id).
