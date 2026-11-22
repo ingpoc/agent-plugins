@@ -11099,9 +11099,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T15:12:20Z",
-      "now": "2026-11-22T15:12:20Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T15:17:16Z",
+      "now": "2026-11-22T15:17:16Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12712,19 +12712,20 @@
             "implementer_session": "codex-luna-120-do1",
             "reviewer_session": "codex-terra-120-do1",
             "job": {
-              "id": "7f8948ce1fa24d04815e731dda52747d",
-              "phase": "fix",
-              "started_at": "2026-11-22T15:12:20Z",
+              "id": "c7741f6ead1e4891ab5cecf75d2a3af9",
+              "phase": "review",
+              "started_at": "2026-11-22T15:17:16Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T15:13:20Z",
+              "heartbeat_at": "2026-11-22T15:17:16Z",
               "plan_sha256": "4c8ba2892daa4abe2723328c5d64659bc57b221c19e8479973748d3cfcf2cf73",
-              "model": "gpt-6-luna fast medium (Codex, resume 01a2037e)",
+              "model": "gpt-6.1-terra medium (Codex)",
               "cycle": 12,
-              "round": 3,
-              "pid": 44148
+              "round": 3
             },
             "tool_fault_streak": 0,
-            "fix_status": "running"
+            "fix_status": "passed",
+            "review_status": "running",
+            "reviewer_model": "gpt-6.1-terra medium (Codex)"
           },
           "files": [
             "plugins/developer-observability/runtime/collector/sources.py",
@@ -12792,9 +12793,9 @@
               "owner_override": true
             }
           ],
-          "status": "running",
+          "status": "review",
           "updated_at": "2026-11-22T15:02:44Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "DEFER",
