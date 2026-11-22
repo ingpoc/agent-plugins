@@ -10860,8 +10860,8 @@
     },
     "workflow": {
       "stage": "verify",
-      "updated_at": "2026-11-22T13:16:44Z",
-      "now": "2026-11-22T13:16:44Z — Verify in progress"
+      "updated_at": "2026-11-22T13:16:52Z",
+      "now": "2026-11-22T13:16:52Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -12172,12 +12172,12 @@
             "BCL-151"
           ],
           "label": "BCL-158, BCL-151",
-          "status": "verifying",
+          "status": "verified",
           "worktree": "bcl120-r1-round",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-round.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 2,
             "failed": 0,
             "total": 2
           },
@@ -12207,7 +12207,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T13:16:44Z",
+          "updated_at": "2026-11-22T13:17:47Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -12231,12 +12231,12 @@
             "BCL-134"
           ],
           "label": "BCL-134",
-          "status": "installing",
+          "status": "verified",
           "worktree": "bcl120-r1-134",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-134.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -12279,8 +12279,8 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:50:21Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T13:17:47Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12291,9 +12291,9 @@
             "started_at": "2026-11-22T13:16:43Z"
           },
           "stage_model": {
-            "stage": "install",
-            "model": "install-local 9748fa4a",
-            "at": "2026-11-22T13:16:43Z"
+            "stage": "verify",
+            "model": "Grok Bot verify",
+            "at": "2026-11-22T13:16:52Z"
           }
         },
         {
@@ -12313,16 +12313,15 @@
             "total": 1
           },
           "codex": {
-            "model": "gpt-6-luna medium fast (Codex CLI), review Terra 6.1 medium",
-            "implementer_session": "codex-luna-120-142",
-            "reviewer_session": "codex-terra-120-142"
+            "model": "Guru's subagent (parent-dispatched worker)",
+            "implementer_session": "worker-bcl120-r1-142",
+            "reviewer_session": "review-r2-142"
           },
-          "phase": "deferred",
-          "reason": "Shares bin/bcl or manage_findings.py with R1-ROUND, and a dependency must be verified first; runs in round 2 on Codex once R1-ROUND ships",
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 2,
-          "updated_at": "2026-11-22T12:50:21Z"
+          "updated_at": "2026-11-22T13:17:47Z",
+          "phase": "deferred"
         },
         {
           "id": "R2-145",
@@ -12341,16 +12340,15 @@
             "total": 1
           },
           "codex": {
-            "model": "gpt-6-luna medium fast (Codex CLI), review Terra 6.1 medium",
-            "implementer_session": "codex-luna-120-145",
-            "reviewer_session": "codex-terra-120-145"
+            "model": "Guru's subagent (parent-dispatched worker)",
+            "implementer_session": "worker-bcl120-r1-145",
+            "reviewer_session": "review-r2-145"
           },
-          "phase": "deferred",
-          "reason": "Shares bin/bcl or manage_findings.py with R1-ROUND, and a dependency must be verified first; runs in round 2 on Codex once R1-ROUND ships",
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 2,
-          "updated_at": "2026-11-22T12:50:21Z"
+          "updated_at": "2026-11-22T13:17:47Z",
+          "phase": "deferred"
         },
         {
           "id": "DEFER",
@@ -12389,13 +12387,14 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 2,
-          "updated_at": "2026-11-22T12:50:21Z",
+          "updated_at": "2026-11-22T13:17:47Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 25
-          }
+          },
+          "codex": {}
         }
       ],
       "cycle": 12
@@ -12455,7 +12454,15 @@
           "state": "pending"
         },
         "BCL-134": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T13:17:34Z",
+          "started_at": "2026-11-22T13:17:34Z",
+          "updated_at": "2026-11-22T13:17:34Z",
+          "check_id": "22caef441d58442d8c0d0720c2cdde24",
+          "evidence": "Checked: The pre-push gate in the pull request's checkout, its tests, and a real stale chart commit; Expected: Pushing a skill change with a stale chart is refused by the fast gate within seconds, from the pushed commit, deletes included; Observed: All three checks passed; the gate refused the stale commit in under a second, against the full suite's 159 seconds",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r1-round.log and verify-r1-134.log. Run r1-9748fa4a-120.",
+          "finished_at": "2026-11-22T13:17:34.803910Z"
         },
         "BCL-139": {
           "state": "pending"
@@ -12479,13 +12486,29 @@
           "state": "pending"
         },
         "BCL-151": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T13:17:34Z",
+          "started_at": "2026-11-22T13:17:34Z",
+          "updated_at": "2026-11-22T13:17:34Z",
+          "check_id": "b4ac20181ab142cda1e0e8eb20b8d3ae",
+          "evidence": "Checked: The installed fix order and file overlap tests, and a scratch copy of the live tracker; Expected: One command records the fix order and the page shows issues in that order; two open lanes changing the same files are refused; Observed: All installed checks passed; on the copy of the live tracker overlapping lanes were refused and the page listed the ordered issues first",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r1-round.log and verify-r1-134.log. Run r1-9748fa4a-120.",
+          "finished_at": "2026-11-22T13:17:34.801860Z"
         },
         "BCL-157": {
           "state": "pending"
         },
         "BCL-158": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T13:17:34Z",
+          "started_at": "2026-11-22T13:17:34Z",
+          "updated_at": "2026-11-22T13:17:34Z",
+          "check_id": "9aafd9366587443f8a2bc974dec1b458",
+          "evidence": "Checked: The installed version, its round start tests and guidance, and a scratch copy of the live tracker; Expected: A closed round refuses plan and fix jobs until the next plan; verified lanes stay verified; carried lanes keep history and status and get fresh worktrees with conflicts named; rollover carries a gated lane; Observed: All installed checks passed; on the copy of the live tracker a fix job after the round's introspect was refused",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r1-round.log and verify-r1-134.log. Run r1-9748fa4a-120.",
+          "finished_at": "2026-11-22T13:17:34.799313Z"
         },
         "BCL-159": {
           "state": "pending"
@@ -12797,7 +12820,7 @@
       "observed": "21 Nov 2026 22:20 IST, PR 119 round 1 reviews (bcl 0.1.57 source)",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "PR 119 round 1 reviews",
         "report": "r1/planreview-add-2.md, -6.md",
@@ -12806,7 +12829,25 @@
         "merged_with": "BCL-122 (same pre-push chart check); fix in the same lane",
         "root_cause_group": "M-CHART: The state chart is always current (BCL-155, BCL-122, BCL-134)",
         "merged_from": "BCL-122: A stale state chart is caught only by the full pre-push suite"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The pre-push gate in the pull request's checkout, its tests, and a real stale chart commit",
+          "expected": "Pushing a skill change with a stale chart is refused by the fast gate within seconds, from the pushed commit, deletes included",
+          "observed": "All three checks passed; the gate refused the stale commit in under a second, against the full suite's 159 seconds",
+          "verdict": "All three checks passed; the gate refused the stale commit in under a second, against the full suite's 159 seconds",
+          "check_id": "bcl-134-0.1.67-9748fa4a",
+          "build": "bcl 0.1.67",
+          "session": "r1-9748fa4a-120",
+          "timestamp": "2026-11-22T13:17:34Z",
+          "reference": "9748fa4a:BCL-134:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r1-round.log and verify-r1-134.log. Run r1-9748fa4a-120."
+        }
+      ],
+      "verification": "All three checks passed; the gate refused the stale commit in under a second, against the full suite's 159 seconds Log: ~/.agents/artifacts/bcl-120/verify-r1-round.log and verify-r1-134.log. Run r1-9748fa4a-120.",
+      "verification_refs": [
+        "9748fa4a:BCL-134:installed-check"
+      ]
     },
     {
       "id": "BCL-139",
@@ -12960,7 +13001,7 @@
       "observed": "22 Nov 2026 12:54 IST, bcl 0.1.61, PR 119 round 2",
       "priority": "high",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "PR 119 round 2",
         "kind": "fix",
@@ -12968,7 +13009,25 @@
         "evidence": "Guru 12:54 IST put the workflow-audit issues at the top: BCL-150, BCL-145, review loop (121, 137, 149), presuite and release check (122, 134, 146, 148), carry (111), receipts (147, 119, 117, 142), then 141. No bcl command stores that order; it was shown through plan lane order instead.",
         "root_cause_group": "M-ROUND (merged by class, Guru 17:33)",
         "merged_from": "BCL-152: The plan check allows parallel lanes that change the same files"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The installed fix order and file overlap tests, and a scratch copy of the live tracker",
+          "expected": "One command records the fix order and the page shows issues in that order; two open lanes changing the same files are refused",
+          "observed": "All installed checks passed; on the copy of the live tracker overlapping lanes were refused and the page listed the ordered issues first",
+          "verdict": "All installed checks passed; on the copy of the live tracker overlapping lanes were refused and the page listed the ordered issues first",
+          "check_id": "bcl-151-0.1.67-9748fa4a",
+          "build": "bcl 0.1.67",
+          "session": "r1-9748fa4a-120",
+          "timestamp": "2026-11-22T13:17:34Z",
+          "reference": "9748fa4a:BCL-151:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r1-round.log and verify-r1-134.log. Run r1-9748fa4a-120."
+        }
+      ],
+      "verification": "All installed checks passed; on the copy of the live tracker overlapping lanes were refused and the page listed the ordered issues first Log: ~/.agents/artifacts/bcl-120/verify-r1-round.log and verify-r1-134.log. Run r1-9748fa4a-120.",
+      "verification_refs": [
+        "9748fa4a:BCL-151:installed-check"
+      ]
     },
     {
       "id": "BCL-157",
@@ -13002,7 +13061,7 @@
       "observed": "22 Nov 2026 14:32 IST, bcl 0.1.62, PR 119 round 2 to 3",
       "priority": "high",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 14:32 IST (via parent)",
         "kind": "fix",
@@ -13011,7 +13070,25 @@
         "more_evidence": "Guru 14:39 IST: a new round must never include verified lanes; they show only in their own round and the gate. No supported bcl command removes R2-146 and R2-136 from the round-3 plan (set-plan refuses dropping gated lanes; archive covers findings only), so they stay listed as Verified in Round 3.",
         "root_cause_group": "M-ROUND (merged by class, Guru 17:33)",
         "merged_from": "BCL-143: A new round cannot be planned while a carried lane has counted failures; BCL-156: A carried or reopened lane works on an old copy of the code; BCL-111: Rollover hands unresolved findings a clean lane in the next PR"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The installed version, its round start tests and guidance, and a scratch copy of the live tracker",
+          "expected": "A closed round refuses plan and fix jobs until the next plan; verified lanes stay verified; carried lanes keep history and status and get fresh worktrees with conflicts named; rollover carries a gated lane",
+          "observed": "All installed checks passed; on the copy of the live tracker a fix job after the round's introspect was refused",
+          "verdict": "All installed checks passed; on the copy of the live tracker a fix job after the round's introspect was refused",
+          "check_id": "bcl-158-0.1.67-9748fa4a",
+          "build": "bcl 0.1.67",
+          "session": "r1-9748fa4a-120",
+          "timestamp": "2026-11-22T13:17:34Z",
+          "reference": "9748fa4a:BCL-158:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r1-round.log and verify-r1-134.log. Run r1-9748fa4a-120."
+        }
+      ],
+      "verification": "All installed checks passed; on the copy of the live tracker a fix job after the round's introspect was refused Log: ~/.agents/artifacts/bcl-120/verify-r1-round.log and verify-r1-134.log. Run r1-9748fa4a-120.",
+      "verification_refs": [
+        "9748fa4a:BCL-158:installed-check"
+      ]
     },
     {
       "id": "BCL-159",
