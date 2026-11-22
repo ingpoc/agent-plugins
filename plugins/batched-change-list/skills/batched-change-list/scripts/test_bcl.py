@@ -1132,7 +1132,7 @@ elif args[:2] != ['pr', 'edit']:
         fail.write_text(f"import json\nfrom pathlib import Path\np=Path({str(live)!r})\nd=json.loads(p.read_text())\nd['tracking']['plan']['groups'][1]['status']='review'\np.write_text(json.dumps(d))\nraise SystemExit(7)\n")
         command = f'"{sys.executable}" "{fail}"'
         plan = {'round':1,'groups':[{'id':'A','finding_ids':['ISSUE-01'],'status':'pending','verify':{'command':command}},
-                                    {'id':'B','finding_ids':['ISSUE-02'],'status':'pending','verify':{'command':'python3 test.py'}}]}
+                                    {'id':'B','finding_ids':['ISSUE-02'],'status':'deferred','phase':'deferred','verify':{'command':'python3 test.py'}}]}
         path = self.root / 'plan.json'; path.write_text(json.dumps(plan))
         self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
         self.assertEqual(self.install_after_review('--ids','ISSUE-01').returncode, 0)

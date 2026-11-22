@@ -1,6 +1,6 @@
 # Install
 
-Run `python3 <skill-dir>/scripts/check_install_sessions.py --data <live-tracker.json> --ids ID` before Install; repeat `--ids ID` for each finding in the group. It requires `codex.review_status: passed`; a group marked `codex.one_file: true` may skip the reviewer. `bcl install` runs the same check and refuses until Review passes. Start Install with `bcl install --ids ID` (repeat the flag per finding); other groups still fixing or reviewing do not block it. The tracker also requires a nonempty current-cycle plan. Installs and builds share one queue. `bcl install` updates the stage and live page before an optional `--then` command.
+Start Install with `bcl install --ids ID` (repeat the flag per finding). Its readiness is `bcl release-check` for the named lanes: each needs a passed fix, a passed review (or a one-file skip on a `codex.one_file: true` group) and a passed pre-push suite, and no other lane may be in flight. The tracker also requires a nonempty current-cycle plan. Installs and builds share one queue. `bcl install` updates the stage and live page before an optional `--then` command.
 
 An authorized PR is created or updated before installing when project policy requires an open PR head; install that exact head and verify its identity. Do not merge, publish, install, send messages, or run intrusive tests unless authorized by the user or applicable instructions.
 

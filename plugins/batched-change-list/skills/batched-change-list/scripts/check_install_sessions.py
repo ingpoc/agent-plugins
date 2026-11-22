@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Validate per-group Codex sessions before a BCL install."""
-import argparse
-import json
-import sys
-from pathlib import Path
+"""Validate per-group Codex sessions before a BCL review; install readiness is bcl release-check."""
 
 REVIEW_STATUSES = ("pending", "running", "passed", "failed", "changes_requested", "blocked", "skipped_one_file")
 
@@ -43,22 +39,6 @@ def install_groups(plan, finding_ids=None):
             and group.get("phase") not in {"parked", "deferred", "done"}]
 
 
-def validate_install_sessions(plan, finding_ids=None):
-    selected = install_groups(plan, finding_ids)
-    for group in selected:
-        validate_group_codex(group)
-        codex = group.get("codex", {})
-        name = group.get("id", "group")
-        if not (codex.get("review_status") == "passed" or codex.get("one_file") and codex.get("review_status") == "skipped_one_file"):
-
-            raise ValueError(f"{name}: install requires codex.review_status='passed' or a recorded one-file skip")
-        if not (codex.get("one_file") and codex.get("review_status") == "skipped_one_file") and not codex.get("reviewer_session"):
-            raise ValueError(f"{name}: install requires codex.reviewer_session; record the session with bcl plan")
-        if group.get("presuite", {}).get("status") != "passed":
-            raise ValueError(f"{name}: install requires a passed pre-push suite")
-    return [group.get("id", "group") for group in selected]
-
-
 def validate_review_sessions(plan, finding_ids=None):
     selected = install_groups(plan, finding_ids)
     for group in selected:
@@ -74,22 +54,3 @@ def validate_review_sessions(plan, finding_ids=None):
         if codex.get("review_status") == "passed":
             raise ValueError(f"{name}: review has already passed")
     return [group.get("id", "group") for group in selected]
-
-
-def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data", required=True, type=Path, help="live BCL tracker JSON")
-    parser.add_argument("--ids", action="append", default=[], help="finding ID to install; repeat for each ID")
-    args = parser.parse_args(argv)
-    try:
-        data = json.loads(args.data.read_text(encoding="utf-8"))
-        groups = validate_install_sessions(data.get("tracking", {}).get("plan"), args.ids or None)
-    except (OSError, ValueError, json.JSONDecodeError) as error:
-        print(f"FAIL: {error}; fix: record valid group session fields and retry install", file=sys.stderr)
-        return 1
-    print("Install sessions valid: " + ", ".join(groups))
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

@@ -18,7 +18,7 @@ description: Use when collecting findings one at a time, managing build-install-
 | Present | After collection | `references/present.md` | `bcl start` |
 | Plan & fix | After Present or gate loop-back | `references/plan-fix.md` | `bcl plan`, `bcl job --phase fix` |
 | Review | After a group's fix | `references/review.md` | `bcl review; bcl job` |
-| Install | After group review | `references/install.md` | `bcl install`, `check_install_sessions.py` |
+| Install | After group review | `references/install.md` | `bcl install`, `bcl release-check` |
 | Verify | After its install | `references/verify.md` | `bcl verify` |
 | Introspect | After every round's Verify | `references/introspect.md` | `bcl introspect`, `check_introspect.py` |
 | Gate | After Introspect or checking rollover | `references/gate.md` | `bcl status`, `check_gate_count.py` |
