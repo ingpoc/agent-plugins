@@ -2187,6 +2187,58 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(tracking["round_history"][0]["round"], 1)
         self.assertEqual(len(tracking["round_history"]), 1)
 
+    def test_new_round_keeps_requested_status_for_gated_lane(self):
+        none = {
+            "delete": {"none": "No deletions this cycle."},
+            "simplify": {"none": "No simplifications this cycle."},
+            "optimize": {"none": "No optimizations this cycle."},
+            "automate": {"none": "No automations this cycle."},
+        }
+        document = self._path1_pre()
+        for number in (3, 4):
+            finding = copy.deepcopy(document["findings"][0])
+            finding.update(id=f"ISSUE-0{number}", status="in_progress")
+            document["findings"].append(finding)
+        plan = document["tracking"]["plan"]
+        plan["groups"] = [
+            {"id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "deferred",
+             "codex": {"review_status": "changes_requested"},
+             "failure_history": [{"attempt_id": "failed-a", "source": "review", "reason": "Changes requested"}]},
+            {"id": "B", "finding_ids": ["ISSUE-02"], "depends_on": [], "status": "verified"},
+        ]
+        next_plan = {"round": 2, "groups": [
+            {"id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "deferred"},
+            {"id": "C", "finding_ids": ["ISSUE-03"], "depends_on": [], "status": "pending"},
+            {"id": "D", "finding_ids": ["ISSUE-04"], "depends_on": [], "status": "pending"},
+        ]}
+        result = self._replay_batch(document,
+            {"action": "introspect", "sections": none, "result": "round 1 done"},
+            {"action": "set-plan", "plan": next_plan})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved = json.loads(self.data.read_text())["tracking"]["plan"]
+        lane_a = next(group for group in saved["groups"] if group["id"] == "A")
+        self.assertEqual(lane_a["status"], "deferred")
+        self.assertEqual(lane_a["parked_to"], 3)
+        self.assertEqual(len(manage_findings._counted_failures(lane_a["failure_history"])), 1)
+
+        pending_plan = copy.deepcopy(next_plan)
+        pending_plan["groups"][0]["status"] = "pending"
+        result = self._replay_batch(document,
+            {"action": "introspect", "sections": none, "result": "round 1 done"},
+            {"action": "set-plan", "plan": pending_plan})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved = json.loads(self.data.read_text())["tracking"]["plan"]
+        lane_a = next(group for group in saved["groups"] if group["id"] == "A")
+        self.assertEqual(lane_a["status"], "planned")
+        self.assertEqual(len(manage_findings._counted_failures(lane_a["failure_history"])), 1)
+
+        dropped_plan = {"round": 2, "groups": [group for group in next_plan["groups"] if group["id"] != "A"]}
+        result = self._replay_batch(document,
+            {"action": "introspect", "sections": none, "result": "round 1 done"},
+            {"action": "set-plan", "plan": dropped_plan})
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("cannot change gated lane A", result.stderr)
+
     def test_set_plan_rejects_round_mismatch_after_introspect(self):
         none = {
             "delete": {"none": "No deletions this cycle."},

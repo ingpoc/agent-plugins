@@ -490,11 +490,19 @@ def carry_plan_runtime_state(groups, previous, same_round):
         prior = old.get(group.get("id"))
         unchanged = prior and set(group.get("finding_ids", [])) == set(prior.get("finding_ids", []))
         if prior and unchanged and (same_round or gated(prior)):
+            requested_status, requested_phase = group.get("status"), group.get("phase")
             for field in protected_group:
                 if field in prior and (same_round or field in ("failure_history", "plan_review_history", "unblock_history", "blocked_reason", "failure_block_reason") or prior.get("status") == "blocked" and field == "status"):
                     group[field] = copy.deepcopy(prior[field])
                 else:
                     group.pop(field, None)
+            if not same_round and prior.get("status") != "blocked":
+                if requested_status in {"pending", "planned", "queued", "deferred", "parked"} and requested_phase in (None, "deferred"):
+                    group["status"] = "planned" if requested_status == "pending" else requested_status
+                    if requested_phase == "deferred":
+                        group["phase"] = requested_phase
+                else:
+                    group["status"] = "planned"
             codex = group.setdefault("codex", {})
             previous_codex = prior.get("codex") if isinstance(prior.get("codex"), dict) else {}
             for field in protected_codex if same_round else ():
