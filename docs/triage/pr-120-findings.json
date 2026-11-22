@@ -12716,11 +12716,12 @@
               "phase": "fix",
               "started_at": "2026-11-22T15:12:20Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T15:12:20Z",
+              "heartbeat_at": "2026-11-22T15:13:20Z",
               "plan_sha256": "4c8ba2892daa4abe2723328c5d64659bc57b221c19e8479973748d3cfcf2cf73",
               "model": "gpt-6-luna fast medium (Codex, resume 01a2037e)",
               "cycle": 12,
-              "round": 3
+              "round": 3,
+              "pid": 44148
             },
             "tool_fault_streak": 0,
             "fix_status": "running"
