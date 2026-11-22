@@ -1,3 +1,7 @@
+## 0.1.71
+
+- Fresh lane worktrees can be planned with `--dry-run` and created without writing the live list (`--no-record`); the next job from that worktree records the name; a fresh name replaces one existing `-rN` marker; a blocked lane can be parked for a later round with a reason and stays blocked until unblock (BCL-175, BCL-179, BCL-180).
+
 ## 0.1.70
 
 - One lane-state table: lane states, moves and named groups are declared once in the workflow definition and every writer, the release check, the page and the chart read it; plan writes cannot claim protected runtime state, new lanes drop pending defaults, and verify admission and prerequisite checks follow the named groups (BCL-145).
