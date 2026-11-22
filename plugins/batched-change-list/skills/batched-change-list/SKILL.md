@@ -7,7 +7,7 @@ description: Use when collecting findings one at a time, managing build-install-
 - The orchestrator does not write fix code, so the fix and its review stay separate.
 - Codex routing lives in the `codex-cli` skill, so model and effort stay in one place.
 - Only the orchestrator writes the tracker and commits, so the list and its history have one writer.
-- Run only 3 or 4 independent groups and defer dependent ones, so one fix does not break another mid-round.
+- Load `principles.md` first; it rules every step.
 - Status accuracy comes first; every “already present” item needs its own named test, so fixed or present claims are proved.
 - Show one fix total with no product/process split, so the gate count is the number the owner sees.
 - Run Introspect after every Verify, so each round is reviewed in delete, simplify, optimize, automate order before the gate.
