@@ -10860,8 +10860,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-22T13:28:30Z",
-      "now": "2026-11-22T13:28:30Z — Review started"
+      "updated_at": "2026-11-22T13:33:26Z",
+      "now": "2026-11-22T13:33:26Z — Presuite started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12317,18 +12317,18 @@
             "implementer_session": "worker-bcl120-r1-142",
             "fix_status": "passed",
             "job": {
-              "id": "9d6b71e1064b4492a17164fdeccfce01",
-              "phase": "review",
-              "started_at": "2026-11-22T13:28:30Z",
-              "command": "sh",
-              "heartbeat_at": "2026-11-22T13:30:07Z",
+              "id": "029d1aa9e5d744c89513e9f3eded5f4f",
+              "phase": "presuite",
+              "started_at": "2026-11-22T13:33:26Z",
+              "command": "env",
+              "heartbeat_at": "2026-11-22T13:35:51Z",
               "plan_sha256": "1aea6f3ce95b1c0a37be81b22dd9edc85d7924fedc058d4be84fb9a62c12ae0e",
-              "model": "gpt-6.1-terra medium (Codex)",
+              "model": "check.py CI mode",
               "cycle": 12,
               "round": 1,
-              "pid": 68879,
+              "pid": 75218,
               "exit_code": 0,
-              "finished_at": "2026-11-22T13:30:07Z",
+              "finished_at": "2026-11-22T13:35:51Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -12339,7 +12339,12 @@
           "plan_review_history": [],
           "parked_to": 2,
           "updated_at": "2026-11-22T13:18:04Z",
-          "phase": "review"
+          "phase": "review",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T13:35:51Z"
+          }
         },
         {
           "id": "R2-145",
