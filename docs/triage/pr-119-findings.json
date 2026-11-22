@@ -12608,9 +12608,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-22T12:21:58Z",
-      "now": "2026-11-22T12:21:58Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-22T12:23:16Z",
+      "now": "2026-11-22T12:23:16Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 118,
@@ -14071,6 +14071,166 @@
         },
         "round": 2,
         "cycle": 11
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-22T12:23:16Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 11",
+          "Codex write: R2-150",
+          "Codex review: R2-150",
+          "Polling and rework review: R2-150",
+          "Test command: R2-150: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-150.sh",
+          "Codex write: R3-153",
+          "Codex review: R3-153",
+          "Polling and rework review: R3-153",
+          "Test command: R3-153: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-153.sh",
+          "Codex write: R3-162",
+          "Codex review: R3-162",
+          "Polling and rework review: R3-162",
+          "Test command: R3-162: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-162.sh",
+          "Codex write: R3-154",
+          "Codex review: R3-154",
+          "Polling and rework review: R3-154",
+          "Test command: R3-154: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-154.sh",
+          "Codex write: R3-164",
+          "Codex review: R3-164",
+          "Polling and rework review: R3-164",
+          "Test command: R3-164: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-164.sh",
+          "Codex write: R3-165",
+          "Codex review: R3-165",
+          "Polling and rework review: R3-165",
+          "Test command: R3-165: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-165.sh",
+          "Codex write: R2-146",
+          "Codex review: R2-146",
+          "Polling and rework review: R2-146",
+          "Test command: R2-146: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-146.sh",
+          "Codex write: R2-136",
+          "Codex review: R2-136",
+          "Polling and rework review: R2-136",
+          "Test command: R2-136: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-136.sh",
+          "Codex write: R3-163",
+          "Codex review: R3-163",
+          "Polling and rework review: R3-163",
+          "Test command: R3-163: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-163.sh",
+          "Codex write: R3-155",
+          "Codex review: R3-155",
+          "Polling and rework review: R3-155",
+          "Test command: R3-155: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-155.sh",
+          "Codex write: R3-167",
+          "Codex review: R3-167",
+          "Polling and rework review: R3-167",
+          "Test command: R3-167: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-167.sh",
+          "Codex quota out until 18:50: every round-3 lane self-implemented and self-reviewed in a separate pass",
+          "Merge by root cause (Guru 16:56) and by class (Guru 17:33): M-group issues 38 to 23"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Parallel group count: 11",
+          "Codex write: R2-150",
+          "Codex review: R2-150",
+          "Polling and rework review: R2-150",
+          "Test command: R2-150: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-150.sh",
+          "Codex write: R3-153",
+          "Codex review: R3-153",
+          "Test command: R3-153: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-153.sh",
+          "Codex write: R3-162",
+          "Codex review: R3-162",
+          "Polling and rework review: R3-162",
+          "Test command: R3-162: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-162.sh",
+          "Codex review: R3-154",
+          "Polling and rework review: R3-154",
+          "Test command: R3-154: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-154.sh",
+          "Codex write: R3-164",
+          "Codex review: R3-164",
+          "Polling and rework review: R3-164",
+          "Test command: R3-164: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-164.sh",
+          "Codex write: R3-165",
+          "Codex review: R3-165",
+          "Polling and rework review: R3-165",
+          "Test command: R3-165: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-165.sh",
+          "Codex write: R2-146",
+          "Codex review: R2-146",
+          "Polling and rework review: R2-146",
+          "Test command: R2-146: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-146.sh",
+          "Codex write: R2-136",
+          "Codex review: R2-136",
+          "Polling and rework review: R2-136",
+          "Test command: R2-136: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-136.sh",
+          "Codex write: R3-163",
+          "Codex review: R3-163",
+          "Polling and rework review: R3-163",
+          "Test command: R3-163: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-163.sh",
+          "Codex review: R3-155",
+          "Polling and rework review: R3-155",
+          "Test command: R3-155: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-155.sh",
+          "Codex write: R3-167",
+          "Codex review: R3-167",
+          "Polling and rework review: R3-167",
+          "Test command: R3-167: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-167.sh",
+          "Codex quota out until 18:50: every round-3 lane self-implemented and self-reviewed in a separate pass",
+          "Merge by root cause (Guru 16:56) and by class (Guru 17:33): M-group issues 38 to 23"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Polling and rework review: R3-153",
+                "evidence": "R3-153 fix 1 counted as failure 1 of 2 because the runner ran the suite before regenerating the chart; R3-154 fix 1 counted for a runner ImportError; 4 of 38 counted failures on #119 were fix-job exits, not review findings",
+                "outcome": "issue",
+                "issue_id": "BCL-163"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Stage: Review",
+                "evidence": "Round 2 ran one 301 s pre-push suite per lane on top of a 160 s full suite in each fix job; in round 3 one shared check.py job covered four lanes in 141 s and three lanes in 142 s",
+                "outcome": "issue",
+                "issue_id": "BCL-162"
+              },
+              {
+                "item": "Codex write: R3-154",
+                "evidence": "Install had its own session precheck that duplicated release-check and refused separately; deleted, install now asks release-check",
+                "outcome": "issue",
+                "issue_id": "BCL-154"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Stage: Install",
+                "evidence": "install-local refused three times on a checkout dirty only with the tracker snapshot files, so every install needed a clean detached worktree",
+                "outcome": "issue",
+                "issue_id": "BCL-161"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Stage: Verify",
+                "evidence": "bcl verify passed 7 lanes in round 3 but recorded nothing; each pass needed a separate record_r2.py write of start-check, evidence and finish-check",
+                "outcome": "issue",
+                "issue_id": "BCL-160"
+              },
+              {
+                "item": "Codex write: R3-155",
+                "evidence": "Three merges today conflicted only on statechart.html and needed a manual regenerate commit; the commit hooks now regenerate it",
+                "outcome": "issue",
+                "issue_id": "BCL-155"
+              }
+            ]
+          }
+        },
+        "round": 3,
+        "cycle": 11
       }
     ],
     "archive": {
@@ -14100,7 +14260,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 3,
@@ -15387,12 +15548,12 @@
             "BCL-163"
           ],
           "label": "BCL-163",
-          "status": "verifying",
+          "status": "verified",
           "worktree": "bcl119-r3-163",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-163.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -15441,12 +15602,12 @@
             "BCL-155"
           ],
           "label": "BCL-155",
-          "status": "installing",
+          "status": "verified",
           "worktree": "bcl119-r3-155",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-155.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -15476,8 +15637,8 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:14:47Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T12:21:59Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -15495,12 +15656,12 @@
             "BCL-167"
           ],
           "label": "BCL-167",
-          "status": "installing",
+          "status": "verified",
           "worktree": "bcl119-r3-167",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-167.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -15530,8 +15691,8 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:14:47Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T12:22:02Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -15543,7 +15704,8 @@
           }
         }
       ],
-      "cycle": 11
+      "cycle": 11,
+      "status": "closed"
     },
     "verification_run": {
       "id": "r3-29de680d-119",
@@ -15675,7 +15837,15 @@
           "state": "pending"
         },
         "BCL-155": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T12:22:14Z",
+          "started_at": "2026-11-22T12:22:14Z",
+          "updated_at": "2026-11-22T12:22:14Z",
+          "check_id": "d6851a2418d24518954ff1643f3dac20",
+          "evidence": "Checked: The commit hooks in the pull request's checkout, their tests, and a real commit in a scratch checkout; Expected: A commit or merge that changes the state chart's sources carries the regenerated chart; Observed: All three checks passed; a real reference edit commit carried the regenerated chart",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-163.log. Run r3-29de680d-119.",
+          "finished_at": "2026-11-22T12:22:15.024760Z"
         },
         "BCL-157": {
           "state": "pending"
@@ -15696,7 +15866,15 @@
           "state": "pending"
         },
         "BCL-163": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T12:22:14Z",
+          "started_at": "2026-11-22T12:22:14Z",
+          "updated_at": "2026-11-22T12:22:14Z",
+          "check_id": "bdeee50688e143c491cdbc889c288710",
+          "evidence": "Checked: The installed version, its lane cap tests and guidance, and a scratch copy of the live tracker; Expected: Only a review's declared changes count toward the lane cap; a failed fix job is an uncounted attempt that keeps the lane in fix, and three in a row still block; Observed: All five installed checks passed; on the copy of the live tracker a failed fix job left the lane in fix with nothing counted",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-163.log. Run r3-29de680d-119.",
+          "finished_at": "2026-11-22T12:22:15.022851Z"
         },
         "BCL-164": {
           "state": "pending"
@@ -15708,80 +15886,143 @@
           "state": "pending"
         },
         "BCL-167": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T12:22:14Z",
+          "started_at": "2026-11-22T12:22:14Z",
+          "updated_at": "2026-11-22T12:22:14Z",
+          "check_id": "3317195ba2184defa7666de258771b43",
+          "evidence": "Checked: The installed view tests, the page template, and the live viewer page; Expected: The issue list has a By plugin and By group switch; plugin rows nest their groups and fold verified issues; Observed: All three checks passed; the live page serves the switch with issues tagged by plugin",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-163.log. Run r3-29de680d-119.",
+          "finished_at": "2026-11-22T12:22:15.026267Z"
         }
       }
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-22T08:59:43Z",
+      "at": "2026-11-22T12:23:16Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 5",
+        "Parallel group count: 11",
+        "Codex write: R2-150",
+        "Codex review: R2-150",
+        "Polling and rework review: R2-150",
+        "Test command: R2-150: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-150.sh",
+        "Codex write: R3-153",
+        "Codex review: R3-153",
+        "Polling and rework review: R3-153",
+        "Test command: R3-153: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-153.sh",
+        "Codex write: R3-162",
+        "Codex review: R3-162",
+        "Polling and rework review: R3-162",
+        "Test command: R3-162: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-162.sh",
+        "Codex write: R3-154",
+        "Codex review: R3-154",
+        "Polling and rework review: R3-154",
+        "Test command: R3-154: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-154.sh",
+        "Codex write: R3-164",
+        "Codex review: R3-164",
+        "Polling and rework review: R3-164",
+        "Test command: R3-164: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-164.sh",
+        "Codex write: R3-165",
+        "Codex review: R3-165",
+        "Polling and rework review: R3-165",
+        "Test command: R3-165: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-165.sh",
         "Codex write: R2-146",
         "Codex review: R2-146",
         "Polling and rework review: R2-146",
         "Test command: R2-146: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-146.sh",
-        "Codex write: R2-141",
-        "One-file review exemption: R2-141",
-        "Polling and rework review: R2-141",
-        "Test command: R2-141: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-141.sh",
-        "Codex write: R2-135",
-        "One-file review exemption: R2-135",
-        "Polling and rework review: R2-135",
-        "Test command: R2-135: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-135.sh",
         "Codex write: R2-136",
         "Codex review: R2-136",
         "Polling and rework review: R2-136",
         "Test command: R2-136: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-136.sh",
-        "Codex write: R2-138",
-        "One-file review exemption: R2-138",
-        "Polling and rework review: R2-138",
-        "Test command: R2-138: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-138.sh",
-        "Carried lanes: R2-137, R2-144, R2-145, R2-150, R2-142 deferred to round 3 after the review cap or a second counted failure",
-        "Release exceptions: 0.1.61 and 0.1.62 shipped past release-check refusals with Guru approval"
+        "Codex write: R3-163",
+        "Codex review: R3-163",
+        "Polling and rework review: R3-163",
+        "Test command: R3-163: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-163.sh",
+        "Codex write: R3-155",
+        "Codex review: R3-155",
+        "Polling and rework review: R3-155",
+        "Test command: R3-155: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-155.sh",
+        "Codex write: R3-167",
+        "Codex review: R3-167",
+        "Polling and rework review: R3-167",
+        "Test command: R3-167: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-167.sh",
+        "Codex quota out until 18:50: every round-3 lane self-implemented and self-reviewed in a separate pass",
+        "Merge by root cause (Guru 16:56) and by class (Guru 17:33): M-group issues 38 to 23"
       ],
       "none": [
-        "Stage: Verify",
+        "Stage: Plan & fix",
+        "Parallel group count: 11",
+        "Codex write: R2-150",
+        "Codex review: R2-150",
+        "Polling and rework review: R2-150",
+        "Test command: R2-150: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-150.sh",
+        "Codex write: R3-153",
+        "Codex review: R3-153",
+        "Test command: R3-153: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-153.sh",
+        "Codex write: R3-162",
+        "Codex review: R3-162",
+        "Polling and rework review: R3-162",
+        "Test command: R3-162: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-162.sh",
+        "Codex review: R3-154",
+        "Polling and rework review: R3-154",
+        "Test command: R3-154: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-154.sh",
+        "Codex write: R3-164",
+        "Codex review: R3-164",
+        "Polling and rework review: R3-164",
+        "Test command: R3-164: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-164.sh",
+        "Codex write: R3-165",
+        "Codex review: R3-165",
+        "Polling and rework review: R3-165",
+        "Test command: R3-165: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-165.sh",
         "Codex write: R2-146",
         "Codex review: R2-146",
         "Polling and rework review: R2-146",
         "Test command: R2-146: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-146.sh",
-        "Codex write: R2-141",
-        "One-file review exemption: R2-141",
-        "Polling and rework review: R2-141",
-        "Test command: R2-141: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-141.sh",
-        "Codex write: R2-135",
-        "One-file review exemption: R2-135",
-        "Polling and rework review: R2-135",
-        "Test command: R2-135: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-135.sh",
         "Codex write: R2-136",
         "Codex review: R2-136",
+        "Polling and rework review: R2-136",
         "Test command: R2-136: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-136.sh",
-        "Codex write: R2-138",
-        "One-file review exemption: R2-138",
-        "Polling and rework review: R2-138",
-        "Test command: R2-138: /Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-138.sh"
+        "Codex write: R3-163",
+        "Codex review: R3-163",
+        "Polling and rework review: R3-163",
+        "Test command: R3-163: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-163.sh",
+        "Codex review: R3-155",
+        "Polling and rework review: R3-155",
+        "Test command: R3-155: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-155.sh",
+        "Codex write: R3-167",
+        "Codex review: R3-167",
+        "Polling and rework review: R3-167",
+        "Test command: R3-167: /Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-167.sh",
+        "Codex quota out until 18:50: every round-3 lane self-implemented and self-reviewed in a separate pass",
+        "Merge by root cause (Guru 16:56) and by class (Guru 17:33): M-group issues 38 to 23"
       ],
       "sections": {
         "delete": {
           "items": [
             {
-              "item": "Polling and rework review: R2-136",
-              "evidence": "R2-136 needed Terra 1 CHANGES, two Sol plan reviews, fix 2 and Terra 2; round 2 ran 15 plan reviews (11 CHANGES) using about 5.3 million input tokens",
+              "item": "Polling and rework review: R3-153",
+              "evidence": "R3-153 fix 1 counted as failure 1 of 2 because the runner ran the suite before regenerating the chart; R3-154 fix 1 counted for a runner ImportError; 4 of 38 counted failures on #119 were fix-job exits, not review findings",
               "outcome": "issue",
-              "issue_id": "BCL-153"
+              "issue_id": "BCL-163"
             }
           ]
         },
         "simplify": {
           "items": [
             {
-              "item": "Stage: Install",
-              "evidence": "bcl install checks lane readiness separately from release-check; both releases needed an exception because the two gates disagreed with blocked or reviewed lanes",
+              "item": "Stage: Review",
+              "evidence": "Round 2 ran one 301 s pre-push suite per lane on top of a 160 s full suite in each fix job; in round 3 one shared check.py job covered four lanes in 141 s and three lanes in 142 s",
+              "outcome": "issue",
+              "issue_id": "BCL-162"
+            },
+            {
+              "item": "Codex write: R3-154",
+              "evidence": "Install had its own session precheck that duplicated release-check and refused separately; deleted, install now asks release-check",
               "outcome": "issue",
               "issue_id": "BCL-154"
             }
@@ -15790,43 +16031,31 @@
         "optimize": {
           "items": [
             {
-              "item": "Parallel group count: 5",
-              "evidence": "Parallel lanes R2-141 and R2-150 changed the page renderer and R2-137 and R2-144 changed plan writes; merges conflicted and reviews hit changes from other lanes",
+              "item": "Stage: Install",
+              "evidence": "install-local refused three times on a checkout dirty only with the tracker snapshot files, so every install needed a clean detached worktree",
               "outcome": "issue",
-              "issue_id": "BCL-152"
-            },
-            {
-              "item": "Carried lanes: R2-137, R2-144, R2-145, R2-150, R2-142 deferred to round 3 after the review cap or a second counted failure",
-              "evidence": "Five lanes ended blocked or deferred; the root cause is lane states and runtime fields kept separately in each writer",
-              "outcome": "issue",
-              "issue_id": "BCL-145"
+              "issue_id": "BCL-161"
             }
           ]
         },
         "automate": {
           "items": [
             {
-              "item": "Stage: Review",
-              "evidence": "The 0.1.62 presuite failed only because a definition change was committed without regenerating the chart; about 5 minutes lost",
+              "item": "Stage: Verify",
+              "evidence": "bcl verify passed 7 lanes in round 3 but recorded nothing; each pass needed a separate record_r2.py write of start-check, evidence and finish-check",
+              "outcome": "issue",
+              "issue_id": "BCL-160"
+            },
+            {
+              "item": "Codex write: R3-155",
+              "evidence": "Three merges today conflicted only on statechart.html and needed a manual regenerate commit; the commit hooks now regenerate it",
               "outcome": "issue",
               "issue_id": "BCL-155"
-            },
-            {
-              "item": "Stage: Plan & fix",
-              "evidence": "Reopened R2-145 and integration branches needed 4 manual merges onto the list branch head with definition and chart conflicts",
-              "outcome": "issue",
-              "issue_id": "BCL-156"
-            },
-            {
-              "item": "Release exceptions: 0.1.61 and 0.1.62 shipped past release-check refusals with Guru approval",
-              "evidence": "No bcl command records an approved exception; both were recorded in finding details",
-              "outcome": "issue",
-              "issue_id": "BCL-148"
             }
           ]
         }
       },
-      "round": 2,
+      "round": 3,
       "cycle": 11
     }
   },
@@ -16823,7 +17052,7 @@
       "observed": "22 Nov 2026 12:40 IST, bcl 0.1.61, PR 119 round 2",
       "priority": "medium",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 13:14 IST (via parent)",
         "kind": "fix",
@@ -16833,7 +17062,25 @@
         "baseline": "round 2: 1 presuite failure from a stale chart (12:35 IST, about 5 minutes of a 5-minute run) plus a manual regenerate commit",
         "success": "zero stale-chart presuite failures over the next round; else revert and record why",
         "root_cause_group": "M-CHART: The state chart is always current (BCL-155, BCL-122, BCL-134)"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The commit hooks in the pull request's checkout, their tests, and a real commit in a scratch checkout",
+          "expected": "A commit or merge that changes the state chart's sources carries the regenerated chart",
+          "observed": "All three checks passed; a real reference edit commit carried the regenerated chart",
+          "verdict": "All three checks passed; a real reference edit commit carried the regenerated chart",
+          "check_id": "bcl-155-0.1.66-29de680d",
+          "build": "bcl 0.1.66",
+          "session": "r3-29de680d-119",
+          "timestamp": "2026-11-22T12:22:14Z",
+          "reference": "29de680d:BCL-155:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-163.log. Run r3-29de680d-119."
+        }
+      ],
+      "verification": "All three checks passed; a real reference edit commit carried the regenerated chart Log: ~/.agents/artifacts/bcl-119/r3/verify-163.log. Run r3-29de680d-119.",
+      "verification_refs": [
+        "29de680d:BCL-155:installed-check"
+      ]
     },
     {
       "id": "BCL-157",
@@ -16984,14 +17231,32 @@
       "observed": "22 Nov 2026 16:29 IST, bcl 0.1.63, PR 119 lane R3-153",
       "priority": "high",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 16:07 IST (via parent)",
         "kind": "fix",
         "report": "bcl-119 progress.md",
         "evidence": "R3-153 fix job 1 exited 1 because the runner ran the full suite before regenerating the chart; it was counted as failure 1 of 2 although no reviewer had found a code fault.",
         "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The installed version, its lane cap tests and guidance, and a scratch copy of the live tracker",
+          "expected": "Only a review's declared changes count toward the lane cap; a failed fix job is an uncounted attempt that keeps the lane in fix, and three in a row still block",
+          "observed": "All five installed checks passed; on the copy of the live tracker a failed fix job left the lane in fix with nothing counted",
+          "verdict": "All five installed checks passed; on the copy of the live tracker a failed fix job left the lane in fix with nothing counted",
+          "check_id": "bcl-163-0.1.66-29de680d",
+          "build": "bcl 0.1.66",
+          "session": "r3-29de680d-119",
+          "timestamp": "2026-11-22T12:22:14Z",
+          "reference": "29de680d:BCL-163:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-163.log. Run r3-29de680d-119."
+        }
+      ],
+      "verification": "All five installed checks passed; on the copy of the live tracker a failed fix job left the lane in fix with nothing counted Log: ~/.agents/artifacts/bcl-119/r3/verify-163.log. Run r3-29de680d-119.",
+      "verification_refs": [
+        "29de680d:BCL-163:installed-check"
+      ]
     },
     {
       "id": "BCL-164",
@@ -17096,13 +17361,31 @@
       "observed": "22 Nov 2026 17:40 IST, bcl 0.1.65, PR 119 round 3",
       "priority": "medium",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 17:40 IST (via parent)",
         "kind": "fix",
         "report": "bcl-119 progress.md",
         "root_cause_group": "M-TRACKER"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The installed view tests, the page template, and the live viewer page",
+          "expected": "The issue list has a By plugin and By group switch; plugin rows nest their groups and fold verified issues",
+          "observed": "All three checks passed; the live page serves the switch with issues tagged by plugin",
+          "verdict": "All three checks passed; the live page serves the switch with issues tagged by plugin",
+          "check_id": "bcl-167-0.1.66-29de680d",
+          "build": "bcl 0.1.66",
+          "session": "r3-29de680d-119",
+          "timestamp": "2026-11-22T12:22:14Z",
+          "reference": "29de680d:BCL-167:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-163.log. Run r3-29de680d-119."
+        }
+      ],
+      "verification": "All three checks passed; the live page serves the switch with issues tagged by plugin Log: ~/.agents/artifacts/bcl-119/r3/verify-163.log. Run r3-29de680d-119.",
+      "verification_refs": [
+        "29de680d:BCL-167:installed-check"
+      ]
     }
   ]
 }
