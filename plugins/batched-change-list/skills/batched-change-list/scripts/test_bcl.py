@@ -687,6 +687,69 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
         self.assertIn('"adopted": false', result.stdout)
 
+    def release_check_for_groups(self, groups, *args):
+        record = json.loads((self.state / "registry.json").read_text())["example/project/123"]
+        live = Path(record["live"])
+        tracker = json.loads(live.read_text())
+        tracker["tracking"]["plan"] = {"groups": groups}
+        serialized = json.dumps(tracker)
+        live.write_text(serialized)
+        self.data.write_text(serialized)
+        return self.call("release-check", *args)
+
+    def test_release_check_includes_named_reviewed_lane(self):
+        for review_status in ("passed", "skipped_one_file"):
+            with self.subTest(review_status=review_status):
+                group = {"id": "A", "finding_ids": ["ISSUE-01", "ISSUE-02"], "status": "running", "phase": "review",
+                         "codex": {"fix_status": "passed", "review_status": review_status}}
+                result = self.release_check_for_groups([group], "--ids", "ISSUE-01", "--ids", "ISSUE-02")
+
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                payload = json.loads(result.stdout)
+                self.assertEqual(payload["lanes"], [])
+                self.assertEqual(payload["included"], [{"id": "A", "finding_ids": ["ISSUE-01", "ISSUE-02"]}])
+
+    def test_release_check_keeps_unnamed_reviewed_lane_in_flight(self):
+        group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "review",
+                 "codex": {"fix_status": "passed", "review_status": "passed"}}
+        result = self.release_check_for_groups([group])
+
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout)["lanes"][0]["id"], "A")
+
+    def test_release_check_requires_every_lane_finding_to_be_named(self):
+        group = {"id": "A", "finding_ids": ["ISSUE-01", "ISSUE-02"], "status": "running", "phase": "review",
+                 "codex": {"fix_status": "passed", "review_status": "passed"}}
+        result = self.release_check_for_groups([group], "--ids", "ISSUE-01")
+
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout)["lanes"][0]["finding_ids"], ["ISSUE-01", "ISSUE-02"])
+
+    def test_release_check_keeps_named_lane_in_flight_until_fix_and_review_pass(self):
+        cases = (("running", {"fix_status": "passed", "review_status": "changes_requested"}),
+                 ("running", {"fix_status": "running", "review_status": "running"}),
+                 ("blocked", {"fix_status": "passed", "review_status": "passed"}),
+                 ("failed", {"fix_status": "passed", "review_status": "passed"}))
+        for status, codex in cases:
+            with self.subTest(status=status, codex=codex):
+                group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": status, "phase": "review",
+                         "codex": codex}
+                result = self.release_check_for_groups([group], "--ids", "ISSUE-01")
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertEqual(json.loads(result.stdout)["lanes"][0]["id"], "A")
+
+    def test_release_check_keeps_other_unfinished_lane_in_flight(self):
+        ready = {"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "review",
+                 "codex": {"fix_status": "passed", "review_status": "passed"}}
+        unfinished = {"id": "B", "finding_ids": ["ISSUE-02"], "status": "running", "phase": "fix",
+                      "codex": {"fix_status": "running", "review_status": "pending"}}
+        result = self.release_check_for_groups([ready, unfinished], "--ids", "ISSUE-01")
+
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual([lane["id"] for lane in payload["lanes"]], ["B"])
+        self.assertEqual([lane["id"] for lane in payload["included"]], ["A"])
+
     def test_workflow_cycle_uses_live_tracker_and_snapshots_each_stage(self):
         result = self.call_without_viewer("start")
         self.assertEqual(result.returncode, 0, result.stderr)

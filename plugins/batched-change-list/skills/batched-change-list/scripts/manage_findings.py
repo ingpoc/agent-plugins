@@ -620,13 +620,25 @@ TOOL_FAULT_KINDS = {"incomplete_review", "quota_out", "cut_off", "runner_exit"}
 TOOL_FAULT_STREAK_LIMIT = 3
 
 
-def in_flight_lanes(document):
+def _included_for_release(group, included_ids):
+    finding_ids = list(group.get("finding_ids") or [])
+    codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+    return (bool(included_ids) and bool(finding_ids) and set(finding_ids).issubset(included_ids)
+            and group.get("phase") == "review" and group.get("status") not in {"failed", "blocked"}
+            and codex.get("fix_status") == "passed"
+            and codex.get("review_status") in {"passed", "skipped_one_file"})
+
+
+def in_flight_lanes(document, included_ids=None):
+    included_ids = set(included_ids or [])
     tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else {}
     plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
     groups = plan.get("groups") if isinstance(plan.get("groups"), list) else []
     lanes = []
     for group in groups:
         if not isinstance(group, dict):
+            continue
+        if _included_for_release(group, included_ids):
             continue
         status, phase = group.get("status"), group.get("phase")
         if status in SETTLED_STATUSES or phase in SETTLED_STATUSES:
@@ -636,9 +648,16 @@ def in_flight_lanes(document):
     return lanes
 
 
-def release_check_payload(document):
-    lanes = in_flight_lanes(document)
+def release_check_payload(document, included_ids=None):
+    included_ids = set(included_ids or [])
+    tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else {}
+    plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
+    groups = plan.get("groups") if isinstance(plan.get("groups"), list) else []
+    included = [group for group in groups if isinstance(group, dict) and _included_for_release(group, included_ids)]
+    lanes = in_flight_lanes(document, included_ids)
     return {"clear": not lanes,
+            "included": [{"id": group.get("id"), "finding_ids": list(group.get("finding_ids") or [])}
+                         for group in included],
             "lanes": [{"id": group.get("id"), "status": group.get("status"), "phase": group.get("phase"),
                        "finding_ids": list(group.get("finding_ids") or [])} for group in lanes]}
 
