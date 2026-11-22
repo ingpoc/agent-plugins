@@ -11099,9 +11099,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T15:06:12Z",
-      "now": "2026-11-22T15:06:12Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T15:09:49Z",
+      "now": "2026-11-22T15:09:49Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12612,18 +12612,20 @@
             "implementer_session": "grokbot-r3-145",
             "reviewer_session": "codex-terra-120-145-r3",
             "job": {
-              "id": "8a746d9602ff4de59787acdf38b6e45f",
-              "phase": "fix",
-              "started_at": "2026-11-22T15:06:12Z",
+              "id": "ff8694b2db63413c83511b40409dffb5",
+              "phase": "review",
+              "started_at": "2026-11-22T15:09:49Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T15:06:12Z",
+              "heartbeat_at": "2026-11-22T15:09:49Z",
               "plan_sha256": "4c8ba2892daa4abe2723328c5d64659bc57b221c19e8479973748d3cfcf2cf73",
-              "model": "Grok Bot direct (small fix)",
+              "model": "gpt-6.1-terra medium (Codex)",
               "cycle": 12,
               "round": 3
             },
             "tool_fault_streak": 0,
-            "fix_status": "running"
+            "fix_status": "passed",
+            "review_status": "running",
+            "reviewer_model": "gpt-6.1-terra medium (Codex)"
           },
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -12682,9 +12684,9 @@
               "owner_override": true
             }
           ],
-          "status": "running",
+          "status": "review",
           "updated_at": "2026-11-22T15:02:44Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "R2-DO1",
