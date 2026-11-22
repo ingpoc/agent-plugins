@@ -130,42 +130,6 @@ elif args[:2] != ['pr', 'edit']:
             proc.wait(timeout=5)
         self.assertFalse(live_state._pid_is_running(proc.pid), "orphan process still running")
 
-    def test_hotfix_adds_lane_outside_plan_limits_and_runs_fix(self):
-        registry = json.loads((self.state / "registry.json").read_text())
-        live = Path(registry["example/project/123"]["live"])
-        doc = json.loads(live.read_text())
-        doc["findings"][0]["id"] = "BCL-119"
-        doc["tracking"].update(cycle=1, round=1, workflow={"stage": "gate", "updated_at": "2026-11-14T12:00:00Z"}, plan={"cycle": 1, "round": 1,
-            "groups": [{"id": f"LANE-{i}", "finding_ids": ["ISSUE-02"], "status": "planned"} for i in range(4)]})
-        live.write_text(json.dumps(doc))
-        self.data.write_text(live.read_text())
-        result = self.call_without_viewer("hotfix", "--ids", "BCL-119", "--reason", "Fix loop blocker")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        doc = json.loads(live.read_text())
-        lane = doc["tracking"]["plan"]["groups"][-1]
-        self.assertEqual(lane["id"], "HOTFIX-BCL-119")
-        self.assertEqual(lane["finding_ids"], ["BCL-119"])
-        self.assertEqual(lane["status"], "planned")
-        self.assertEqual(lane["hotfix"]["reason"], "Fix loop blocker")
-        job = self.call_job_without_viewer(live, "--ids", "BCL-119", "--phase", "fix", "job", "--", sys.executable, "-c", "pass")
-        self.assertEqual(job.returncode, 0, job.stderr)
-
-    def test_hotfix_rejects_invalid_and_second_open_lane(self):
-        missing = self.call_without_viewer("hotfix", "--ids", "BCL-119")
-        self.assertNotEqual(missing.returncode, 0)
-        invalid = self.call_without_viewer("hotfix", "--ids", "ISSUE-01", "--reason", "why")
-        self.assertNotEqual(invalid.returncode, 0)
-        registry = json.loads((self.state / "registry.json").read_text())
-        live = Path(registry["example/project/123"]["live"])
-        doc = json.loads(live.read_text())
-        doc["findings"][0]["id"] = "BCL-119"
-        doc["tracking"].update(cycle=1, round=1, plan={"cycle": 1, "round": 1, "groups": [
-            {"id": "HOTFIX-BCL-OTHER", "finding_ids": ["BCL-119"], "status": "planned", "hotfix": {"reason": "existing"}}]})
-        live.write_text(json.dumps(doc))
-        self.data.write_text(live.read_text())
-        second = self.call_without_viewer("hotfix", "--ids", "BCL-119", "--reason", "again")
-        self.assertNotEqual(second.returncode, 0)
-
     @staticmethod
     def merge_ready(document):
         template = document["findings"][0]

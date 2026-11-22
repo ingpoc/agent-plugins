@@ -8,4 +8,4 @@ Start a new list with `bcl rollover --new-pr N --worktree NAME` (add `--new-url 
 
 The new list's page is not published during rollover. Run `bcl --data NEW_FINDINGS.json start` (or use its new live path) to begin Collect and switch that list's viewer. Only findings started on the new list should then show work in progress.
 
-A bcl bug blocking the loop: `bcl hotfix`. This package does not authorize merging a product PR. Follow the product repository's merge authorization and gate before running `bcl merged`.
+This package does not authorize merging a product PR. Follow the product repository's merge authorization and gate before running `bcl merged`.

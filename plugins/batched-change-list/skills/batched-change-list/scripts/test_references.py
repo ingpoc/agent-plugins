@@ -27,8 +27,6 @@ class ReferenceTests(unittest.TestCase):
         gate_terms = re.compile(r"\b(?:verified|gate|merge|count|threshold)\b", re.I)
         for path in [*(p for p in (SKILL / "references").rglob("*") if p.is_file()), SKILL / "SKILL.md"]:
             text = path.read_text(encoding="utf-8")
-            if path.name == "release.md":
-                text = text.replace("Ship every round: release verified fixes as a patch (`release-check --ids`); carry the rest. 16 gate = rollover/merge only.", "")
             for value in values:
                 for match in re.finditer(rf"\b{value}\b", text):
                     excerpt = text[max(0, match.start() - 80):match.end() + 80]
