@@ -11499,9 +11499,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-22T08:59:43Z",
-      "now": "2026-11-22T08:59:43Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T09:04:52Z",
+      "now": "2026-11-22T09:04:52Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 118,
@@ -11569,7 +11569,7 @@
       }
     },
     "cycle": 11,
-    "round": 2,
+    "round": 3,
     "round_history": [
       {
         "round": 2,
@@ -11735,6 +11735,11 @@
         "round": 1,
         "fixed": 4,
         "ended_at": "2026-11-22T04:07:33Z"
+      },
+      {
+        "round": 2,
+        "fixed": 9,
+        "ended_at": "2026-11-22T09:04:52Z"
       }
     ],
     "introspect_history": [
@@ -12984,13 +12989,10 @@
       "collect",
       "present",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "round": 2,
+      "round": 3,
       "groups": [
         {
           "id": "R2-150",
@@ -12998,11 +13000,10 @@
           "finding_ids": [
             "BCL-150"
           ],
-          "status": "deferred",
-          "worktree": "bcl119-r2-150",
           "label": "BCL-150",
+          "worktree": "bcl119-r3-150",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-150.sh",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-150.sh",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
@@ -13010,27 +13011,9 @@
           },
           "codex": {
             "model": "gpt-6-luna medium fast (Codex CLI)",
-            "implementer_session": "codex-luna-119r2-150",
-            "reviewer_session": "codex-terra-6.1-119r2-150",
-            "fix_status": "passed",
-            "job": {
-              "id": "096f23f32cd94210a8bbd1f5c0c363e8",
-              "phase": "review",
-              "started_at": "2026-11-22T07:59:30Z",
-              "command": "env",
-              "heartbeat_at": "2026-11-22T08:01:15Z",
-              "plan_sha256": "2827e92f11444796c0f321afa307d55557fd687c86d679a86de2d9a6d2c1f23d",
-              "model": "gpt-6.1-terra",
-              "cycle": 11,
-              "round": 2,
-              "pid": 9866,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T08:01:15Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:381) lets stored review outcomes override settled lane status. A verified or blocked lane retaining `review_status: passed` renders and counts as “Review passed” or “in review.” Preserve settled outcomes and test a verified lane with a realistic passed review receipt.\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:2739) still touches and writes the tracker when a repeated pause or resume reports a no-op. Return without mutation for those cases, and test that tracker contents remain unchanged."
-            },
-            "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:381) lets stored review outcomes override settled lane status. A verified or blocked lane retaining `review_status: passed` renders and counts as “Review passed” or “in review.” Preserve settled outcomes and test a verified lane with a realistic passed review receipt.\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-150/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:2739) still touches and writes the tracker when a repeated pause or resume reports a no-op. Return without mutation for those cases, and test that tracker contents remain unchanged."
+            "implementer_session": "codex-luna-119r3-150",
+            "reviewer_session": "codex-terra-6.1-119r3-150",
+            "review_status": "pending"
           },
           "failure_history": [
             {
@@ -13060,8 +13043,6 @@
               "at": "2026-11-22T07:35:14Z"
             }
           ],
-          "updated_at": "2026-11-22T08:58:57Z",
-          "phase": "deferred",
           "unblock_history": [
             {
               "at": "2026-11-22T08:58:56Z",
@@ -13077,8 +13058,8 @@
               "owner_override": true
             }
           ],
-          "reason": "Guru 14:27 IST: carry to round 3; Astra writes an implementer-ready plan split into 1-3 file sub-lanes covering Terra must-fixes (review-150-1, review-150-2)",
-          "parked_to": 3
+          "status": "planned",
+          "updated_at": "2026-11-22T09:04:52Z"
         },
         {
           "id": "R2-145",
@@ -13086,11 +13067,10 @@
           "finding_ids": [
             "BCL-145"
           ],
-          "status": "deferred",
-          "worktree": "bcl119-r2-145",
           "label": "BCL-145",
+          "worktree": "bcl119-r3-145",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-145.sh",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-145.sh",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
@@ -13098,27 +13078,9 @@
           },
           "codex": {
             "model": "gpt-6-luna medium fast (Codex CLI)",
-            "implementer_session": "codex-luna-119r2-145",
-            "reviewer_session": "codex-terra-6.1-119r2-145",
-            "fix_status": "passed",
-            "job": {
-              "id": "30745247200347efb8ebc88357088142",
-              "phase": "review",
-              "started_at": "2026-11-22T08:53:41Z",
-              "command": "env",
-              "heartbeat_at": "2026-11-22T08:55:17Z",
-              "plan_sha256": "d7917005a75a7540400bee0b8f4263c507f7799b06a228af6df11ed948422d45",
-              "model": "gpt-6.1-terra",
-              "cycle": 11,
-              "round": 2,
-              "pid": 4475,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T08:55:17Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. Literal lane-state groups remain in the consumers. For example, [manage_findings.py:1599](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1599) repeats the declared settled states, and [render.py:372](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:372) repeats the declared job phases. Read these from `workflow_definition` so changes to the declared groups reach every consumer."
-            },
-            "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. Literal lane-state groups remain in the consumers. For example, [manage_findings.py:1599](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1599) repeats the declared settled states, and [render.py:372](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:372) repeats the declared job phases. Read these from `workflow_definition` so changes to the declared groups reach every consumer."
+            "implementer_session": "codex-luna-119r3-145",
+            "reviewer_session": "codex-terra-6.1-119r3-145",
+            "review_status": "pending"
           },
           "failure_history": [
             {
@@ -13159,10 +13121,6 @@
               "at": "2026-11-22T08:25:51Z"
             }
           ],
-          "updated_at": "2026-11-22T08:58:57Z",
-          "phase": "deferred",
-          "reason": "Guru 14:27 IST: carry to round 3; Astra re-plan split into 1-3 file sub-lanes covering Terra must-fixes (review-145-1, review-145-2: remaining literal state groups)",
-          "parked_to": 3,
           "unblock_history": [
             {
               "at": "2026-11-22T08:58:56Z",
@@ -13177,241 +13135,9 @@
               "round": 2,
               "owner_override": true
             }
-          ]
-        },
-        {
-          "id": "R3-STAGE",
-          "name": "Time in stage on lane rows",
-          "finding_ids": [
-            "BCL-157"
           ],
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 14:06 IST: status accuracy; right after BCL-145 (shares the page renderer)",
-          "label": "BCL-157",
-          "failure_history": [],
-          "plan_review_history": [],
-          "parked_to": 3,
-          "updated_at": "2026-11-22T08:53:40Z",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
-          }
-        },
-        {
-          "id": "R3-AUDIT2",
-          "name": "Leaner loop: one plan review, one readiness check, auto chart",
-          "finding_ids": [
-            "BCL-153",
-            "BCL-154",
-            "BCL-155",
-            "BCL-156"
-          ],
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 13:14 IST: audit block right after BCL-145; each measured against its round-2 baseline and reverted if no gain",
-          "label": "BCL-153, BCL-154, BCL-155, BCL-156",
-          "failure_history": [],
-          "plan_review_history": [],
-          "parked_to": 3,
-          "updated_at": "2026-11-22T08:53:40Z",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 4
-          }
-        },
-        {
-          "id": "R2-137",
-          "name": "Cap plan reviews at three per lane per round",
-          "finding_ids": [
-            "BCL-137"
-          ],
-          "status": "deferred",
-          "worktree": "bcl119-r2-137",
-          "label": "BCL-137",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-137.sh",
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
-          },
-          "codex": {
-            "model": "gpt-6-luna medium fast (Codex CLI)",
-            "implementer_session": "codex-luna-119r2-137",
-            "reviewer_session": "codex-terra-6.1-119r2-137",
-            "fix_status": "passed",
-            "job": {
-              "id": "5f44fcbcc9a14f0eb27fd4d4aa89fa2c",
-              "phase": "plan_review",
-              "started_at": "2026-11-22T04:37:08Z",
-              "command": "env",
-              "heartbeat_at": "2026-11-22T04:37:50Z",
-              "plan_sha256": "7436bdd7c01a10aad2a070531016838baa509dfc7fcf2441c7e77129cd489ac4",
-              "model": "gpt-6.2-sol medium (Codex CLI)",
-              "cycle": 11,
-              "round": 2,
-              "pid": 80350,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T04:37:50Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. Reject caller-supplied cap markers on both plan write paths and preserve the stored marker across `codex` replacement. Set it only when the fourth start causes the block, and clear it on unblock or carry."
-            },
-            "tool_fault_streak": 0,
-            "review_status": "changes_requested",
-            "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "must_fix_note": "1. The cap counts completed PASS and CHANGES history rows, not **job starts**. A failed, incomplete, or interrupted plan review can therefore consume a start without advancing the cap, allowing a fourth start. Record each start per lane and round, including tool-fault and interrupted attempts. See [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-137/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:762).\n\n2. The prescribed reset cannot be used when the cap alone is reached: the cap raises an error without blocking the lane, while `unblock_lane` accepts only lanes already marked blocked. Make the advertised unblock recovery work for a capped lane and test that path from three reviews through unblock and a new start. See [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-137/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:575).",
-            "plan_review_status": "changes_requested"
-          },
-          "failure_history": [
-            {
-              "attempt_id": "f796a1ea75674892b8649b15aa0aa14d",
-              "source": "review",
-              "reason": "1. The cap counts completed PASS and CHANGES history rows, not **job starts**. A failed, incomplete, or interrupted plan review can therefore consume a start without advancing the cap, allowing a fourth start. Record each start per lane and round, including tool-fault and interrupted attempts. See [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-137/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:762).\n\n2. The prescribed reset cannot be used when the cap alone is reached: the cap raises an error without blocking the lane, while `unblock_lane` accepts only lanes already marked blocked. Make the advertised unblock recovery work for a capped lane and test that path from three reviews through unblock and a new start. See [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-137/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:575).",
-              "cycle": 11,
-              "round": 2,
-              "at": "2026-11-22T04:23:18Z"
-            }
-          ],
-          "plan_review_history": [],
-          "updated_at": "2026-11-22T08:53:40Z",
-          "phase": "deferred",
-          "reason": "3 plan reviews used (cap); final Sol CHANGES: cap marker must be protected on every plan write path, which is BCL-145 (one state table). Carried to round 3 after BCL-145",
-          "parked_to": 3
-        },
-        {
-          "id": "R1-ADD",
-          "name": "Review cap, fast chart check, fixed viewer port",
-          "finding_ids": [
-            "BCL-121",
-            "BCL-122",
-            "BCL-94"
-          ],
-          "worktree": "bcl119-direct",
-          "label": "BCL-121, BCL-122, BCL-94",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-add.sh",
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 3
-          },
-          "codex": {
-            "model": "gpt-6-luna medium fast (Codex CLI)",
-            "implementer_session": "codex-luna-119r1-add",
-            "reviewer_session": "codex-terra-6.1-119r1-add"
-          },
-          "reason": "Carried to round 3: round 2 runs BCL-135 to 138 first (max 4 open lanes); handoff order keeps the carried lanes after them",
-          "failure_history": [
-            {
-              "attempt_id": "3f61a1e773c044dda78746f2a99e24ce",
-              "source": "review",
-              "reason": "1. **Existing live viewers are orphaned on upgrade.** [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-add/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:245) switches from a per-list state filename to a per-project filename without discovering the old record. An existing viewer remains running while a second viewer starts on another port. Add a migration test with a live legacy record and verify ownership before replacing it.\n\n2. **Concurrent starts can create duplicate viewers.** [ensure_viewer](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-add/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:245) has no project-level lock around reading state, choosing a port, starting the process, and writing state. Two callers can both see no viewer and start one; the last state write leaves the other unmanaged. Add a concurrent-start test.\n\n3. **Replacing a lane ID can bypass the review cap and scope lock.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-add/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:480) protects removal only for blocked lanes or lanes with counted failures. A same-round plan can replace a reviewed lane with a new ID, losing its review count and lock. Preserve or reject replacement of a lane under review, with a test covering the replacement path.\n\n4. **The requested gate boundaries are not fully tested.** `test_fourth_review_is_refused_until_reasoned_unblock_resets_count` covers the cap and reset, and `test_plan_reviews_do_not_count_toward_work_done_review_cap` covers plan reviews before the cap. Add checks that `plan_review` and `fix` remain available after the cap. The pre-push test covers a positive skill-file match, but needs a negative unrelated-file case and a timing measurement to establish the requested fast-path behavior.",
-              "cycle": 11,
-              "round": 1,
-              "at": "2026-11-21T15:26:39Z"
-            }
-          ],
-          "plan_review_history": [],
-          "status": "deferred",
-          "phase": "deferred",
-          "parked_to": 3,
-          "updated_at": "2026-11-22T08:53:40Z"
-        },
-        {
-          "id": "R3-LOOP",
-          "name": "Review loop: tool-fault review keeps the lane in review",
-          "finding_ids": [
-            "BCL-149"
-          ],
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 12:54 order: review loop after BCL-145 (depends on its state table)",
-          "label": "BCL-149",
-          "failure_history": [],
-          "plan_review_history": [],
-          "parked_to": 3,
-          "updated_at": "2026-11-22T08:53:40Z",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
-          },
-          "codex": {}
-        },
-        {
-          "id": "R3-RELEASE",
-          "name": "Presuite and release-check gaps",
-          "finding_ids": [
-            "BCL-134",
-            "BCL-148"
-          ],
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 12:54 order: presuite/release-check after the review loop; depends on BCL-145",
-          "label": "BCL-134, BCL-148",
-          "failure_history": [],
-          "plan_review_history": [],
-          "parked_to": 3,
-          "updated_at": "2026-11-22T08:53:40Z",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 2
-          },
-          "codex": {}
-        },
-        {
-          "id": "R3-CARRY",
-          "name": "Rollover keeps unresolved findings gated",
-          "finding_ids": [
-            "BCL-111"
-          ],
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 12:54 order: carry after release-check items",
-          "label": "BCL-111",
-          "failure_history": [],
-          "plan_review_history": [],
-          "parked_to": 3,
-          "updated_at": "2026-11-22T08:53:40Z",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
-          },
-          "codex": {}
-        },
-        {
-          "id": "R3-RECEIPTS",
-          "name": "Job receipts: no-commit fix, tokens and time, Updated stamp",
-          "finding_ids": [
-            "BCL-147",
-            "BCL-119",
-            "BCL-117"
-          ],
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 12:54 order: receipts after carry",
-          "label": "BCL-147, BCL-119, BCL-117",
-          "failure_history": [],
-          "plan_review_history": [],
-          "parked_to": 3,
-          "updated_at": "2026-11-22T08:53:40Z",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 3
-          },
-          "codex": {}
+          "status": "planned",
+          "updated_at": "2026-11-22T09:04:52Z"
         },
         {
           "id": "R2-142",
@@ -13419,11 +13145,10 @@
           "finding_ids": [
             "BCL-142"
           ],
-          "status": "deferred",
-          "worktree": "bcl119-r2-142",
           "label": "BCL-142",
+          "worktree": "bcl119-r3-142",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-142.sh",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-142.sh",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
@@ -13431,27 +13156,9 @@
           },
           "codex": {
             "model": "gpt-6-luna medium fast (Codex CLI)",
-            "implementer_session": "codex-luna-119r2-142",
-            "reviewer_session": "codex-terra-6.1-119r2-142",
-            "fix_status": "passed",
-            "job": {
-              "id": "2f8fdbc5600a497583c134b947d7f8eb",
-              "phase": "review",
-              "started_at": "2026-11-22T07:00:50Z",
-              "command": "env",
-              "heartbeat_at": "2026-11-22T07:02:04Z",
-              "plan_sha256": "cd19055a4b931f2e57c4e3bf2731abc686026d00e58b215d487ef6840cb82480",
-              "model": "gpt-6.1-terra",
-              "cycle": 11,
-              "round": 2,
-              "pid": 73263,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T07:02:04Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. [live_state.py:473](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:473) clears the pending marker after an ordinary same-stage snapshot even when it creates no commit. If that snapshot runs before the explicit `bcl snapshot`, the latter reports “nothing to save” and the pending change remains uncommitted. Preserve the pending marker until the explicit save commits it. The [concurrency test](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:199) checks for deadlock and marker removal but does not check that the pending change was committed; make the ordering deterministic and assert the saved commit."
-            },
-            "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. [live_state.py:473](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:473) clears the pending marker after an ordinary same-stage snapshot even when it creates no commit. If that snapshot runs before the explicit `bcl snapshot`, the latter reports “nothing to save” and the pending change remains uncommitted. Preserve the pending marker until the explicit save commits it. The [concurrency test](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:199) checks for deadlock and marker removal but does not check that the pending change was committed; make the ordering deterministic and assert the saved commit."
+            "implementer_session": "codex-luna-119r3-142",
+            "reviewer_session": "codex-terra-6.1-119r3-142",
+            "review_status": "pending"
           },
           "failure_history": [
             {
@@ -13481,8 +13188,6 @@
               "at": "2026-11-22T06:17:13Z"
             }
           ],
-          "updated_at": "2026-11-22T08:58:57Z",
-          "phase": "deferred",
           "unblock_history": [
             {
               "at": "2026-11-22T08:58:57Z",
@@ -13498,171 +13203,256 @@
               "owner_override": true
             }
           ],
-          "reason": "Guru 14:27 IST: carry to round 3; Astra re-plan covering Terra must-fixes (review-142-1, review-142-2: pending marker cleared without commit)",
-          "parked_to": 3
+          "status": "planned",
+          "updated_at": "2026-11-22T09:04:52Z"
         },
         {
-          "id": "R2-146",
-          "name": "Six workers by default for the repo check",
+          "id": "R3-STAGE",
+          "name": "Time in stage on lane rows",
           "finding_ids": [
-            "BCL-146"
+            "BCL-157"
           ],
-          "status": "verified",
-          "worktree": "bcl119-r2-146",
-          "label": "BCL-146",
+          "label": "BCL-157",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-146.sh",
-            "status": "verified",
-            "fixed": 1,
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           },
-          "codex": {
-            "model": "gpt-6-luna medium fast (Codex CLI)",
-            "implementer_session": "codex-luna-119r2-146",
-            "reviewer_session": "codex-terra-6.1-119r2-146",
-            "fix_status": "passed",
-            "job": {
-              "id": "a54bad77791843ccb5545f474f300800",
-              "phase": "presuite",
-              "started_at": "2026-11-22T08:04:54Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-22T08:09:37Z",
-              "plan_sha256": "2827e92f11444796c0f321afa307d55557fd687c86d679a86de2d9a6d2c1f23d",
-              "model": "none",
-              "cycle": 11,
-              "round": 2,
-              "pid": 15570,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T08:09:37Z",
-              "finished_phase_status": "passed"
-            },
-            "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
-            "tool_fault_streak": 0,
-            "review_status": "passed"
-          },
-          "failure_history": [
-            {
-              "attempt_id": "033bfea051cd4f2fabd65b164bc0a67c",
-              "source": "review",
-              "reason": "1. [scripts/check.py:23](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-146/scripts/check.py:23) still says the default is CPU count. Update the docstring to say `min(6, CPU count)`.\n\nThe source preserves explicit `--jobs` and environment overrides, serial execution with `1`, and the CPU cap. No added code stood out as needing deletion.",
-              "cycle": 11,
-              "round": 2,
-              "at": "2026-11-22T05:58:47Z"
-            },
-            {
-              "attempt_id": "cdceb76afd2b43e181595b4ee37e642d",
-              "source": "review",
-              "reason": "Review incomplete: strict verdict or Must-fix section missing",
-              "cycle": 11,
-              "round": 2,
-              "at": "2026-11-22T06:12:50Z",
-              "tool_fault": true,
-              "fault_kind": "incomplete_review",
-              "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
-            },
-            {
-              "attempt_id": "9ffb4e01b0e848c3a8b63c062f9ddd02",
-              "source": "fix",
-              "reason": "Fix job exited 1",
-              "cycle": 11,
-              "round": 2,
-              "at": "2026-11-22T06:27:16Z",
-              "tool_fault": true,
-              "tool_fault_reason": "Checker fault, not a code fault: my scripted fix-confirm ran the harness test with a unittest path form that errors outside the coding session (Ran 1 test, errors=1); the same commit ad8e75be passes test_check_harness via discover (OK). The fix job only re-recorded an existing reviewed commit after a tool-fault review sent the lane back to fix."
-            }
-          ],
-          "plan_review_history": [
-            {
-              "job_id": "e692f90f6aaf41c9be42637c1c55c90b",
-              "after_failure": "033bfea051cd4f2fabd65b164bc0a67c",
-              "status": "passed",
-              "cycle": 11,
-              "round": 2,
-              "at": "2026-11-22T06:03:14Z"
-            }
-          ],
-          "updated_at": "2026-11-22T08:53:40Z",
-          "phase": "verify",
-          "unblock_history": [
-            {
-              "at": "2026-11-22T06:27:48Z",
-              "reason": "Checker fault, not a code fault: my scripted fix-confirm ran the harness test with a unittest path form that errors outside the coding session (Ran 1 test, errors=1); the same commit ad8e75be passes test_check_harness via discover (OK). The fix job only re-recorded an existing reviewed commit after a tool-fault review sent the lane back to fix.",
-              "tool_faults": [
-                "9ffb4e01b0e848c3a8b63c062f9ddd02"
-              ],
-              "covered_attempts": [
-                "033bfea051cd4f2fabd65b164bc0a67c"
-              ],
-              "rows_seen": 3,
-              "by_cycle": 11,
-              "round": 2
-            }
-          ],
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-22T08:09:37Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-22T08:13:34Z"
-          }
-        },
-        {
-          "id": "R2-141",
-          "name": "Gate badge shows the rollover target",
-          "finding_ids": [
-            "BCL-141"
-          ],
-          "status": "verified",
-          "worktree": "bcl119-r2-141",
-          "label": "BCL-141",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-141.sh",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "codex": {
-            "model": "gpt-6-luna medium fast (Codex CLI)",
-            "implementer_session": "codex-luna-119r2-141",
-            "reviewer_session": "codex-terra-6.1-119r2-141",
-            "one_file": true,
-            "fix_status": "passed",
-            "job": {
-              "id": "a54bad77791843ccb5545f474f300800",
-              "phase": "presuite",
-              "started_at": "2026-11-22T08:04:54Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-22T08:09:37Z",
-              "plan_sha256": "2827e92f11444796c0f321afa307d55557fd687c86d679a86de2d9a6d2c1f23d",
-              "model": "none",
-              "cycle": 11,
-              "round": 2,
-              "pid": 15570,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T08:09:37Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "review_status": "skipped_one_file"
-          },
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 14:06 IST: status accuracy; right after BCL-145 (shares the page renderer)",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T08:53:40Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-22T08:09:37Z"
+          "parked_to": 4,
+          "updated_at": "2026-11-22T09:04:52Z"
+        },
+        {
+          "id": "R3-AUDIT2",
+          "name": "Leaner loop: one plan review, one readiness check, auto chart",
+          "finding_ids": [
+            "BCL-153",
+            "BCL-154",
+            "BCL-155",
+            "BCL-156"
+          ],
+          "label": "BCL-153, BCL-154, BCL-155, BCL-156",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 4
           },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-22T08:13:34Z"
-          }
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 13:14 IST: audit block right after BCL-145; each measured against its round-2 baseline and reverted if no gain",
+          "failure_history": [],
+          "plan_review_history": [],
+          "parked_to": 4,
+          "updated_at": "2026-11-22T09:04:52Z"
+        },
+        {
+          "id": "R2-137",
+          "name": "Cap plan reviews at three per lane per round",
+          "finding_ids": [
+            "BCL-137"
+          ],
+          "label": "BCL-137",
+          "worktree": "bcl119-r2-137",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-137.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "gpt-6-luna medium fast (Codex CLI)",
+            "implementer_session": "codex-luna-119r2-137",
+            "reviewer_session": "codex-terra-6.1-119r2-137"
+          },
+          "reason": "3 plan reviews used (cap); final Sol CHANGES: cap marker must be protected on every plan write path, which is BCL-145 (one state table). Carried to round 3 after BCL-145",
+          "failure_history": [
+            {
+              "attempt_id": "f796a1ea75674892b8649b15aa0aa14d",
+              "source": "review",
+              "reason": "1. The cap counts completed PASS and CHANGES history rows, not **job starts**. A failed, incomplete, or interrupted plan review can therefore consume a start without advancing the cap, allowing a fourth start. Record each start per lane and round, including tool-fault and interrupted attempts. See [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-137/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:762).\n\n2. The prescribed reset cannot be used when the cap alone is reached: the cap raises an error without blocking the lane, while `unblock_lane` accepts only lanes already marked blocked. Make the advertised unblock recovery work for a capped lane and test that path from three reviews through unblock and a new start. See [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-137/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:575).",
+              "cycle": 11,
+              "round": 2,
+              "at": "2026-11-22T04:23:18Z"
+            }
+          ],
+          "plan_review_history": [],
+          "status": "deferred",
+          "phase": "deferred",
+          "parked_to": 4,
+          "updated_at": "2026-11-22T09:04:52Z"
+        },
+        {
+          "id": "R1-ADD",
+          "name": "Review cap, fast chart check, fixed viewer port",
+          "finding_ids": [
+            "BCL-121",
+            "BCL-122",
+            "BCL-94"
+          ],
+          "label": "BCL-121, BCL-122, BCL-94",
+          "worktree": "bcl119-direct",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-add.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 3
+          },
+          "codex": {
+            "model": "gpt-6-luna medium fast (Codex CLI)",
+            "implementer_session": "codex-luna-119r1-add",
+            "reviewer_session": "codex-terra-6.1-119r1-add"
+          },
+          "reason": "Carried to round 3: round 2 runs BCL-135 to 138 first (max 4 open lanes); handoff order keeps the carried lanes after them",
+          "failure_history": [
+            {
+              "attempt_id": "3f61a1e773c044dda78746f2a99e24ce",
+              "source": "review",
+              "reason": "1. **Existing live viewers are orphaned on upgrade.** [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-add/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:245) switches from a per-list state filename to a per-project filename without discovering the old record. An existing viewer remains running while a second viewer starts on another port. Add a migration test with a live legacy record and verify ownership before replacing it.\n\n2. **Concurrent starts can create duplicate viewers.** [ensure_viewer](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-add/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:245) has no project-level lock around reading state, choosing a port, starting the process, and writing state. Two callers can both see no viewer and start one; the last state write leaves the other unmanaged. Add a concurrent-start test.\n\n3. **Replacing a lane ID can bypass the review cap and scope lock.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-add/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:480) protects removal only for blocked lanes or lanes with counted failures. A same-round plan can replace a reviewed lane with a new ID, losing its review count and lock. Preserve or reject replacement of a lane under review, with a test covering the replacement path.\n\n4. **The requested gate boundaries are not fully tested.** `test_fourth_review_is_refused_until_reasoned_unblock_resets_count` covers the cap and reset, and `test_plan_reviews_do_not_count_toward_work_done_review_cap` covers plan reviews before the cap. Add checks that `plan_review` and `fix` remain available after the cap. The pre-push test covers a positive skill-file match, but needs a negative unrelated-file case and a timing measurement to establish the requested fast-path behavior.",
+              "cycle": 11,
+              "round": 1,
+              "at": "2026-11-21T15:26:39Z"
+            }
+          ],
+          "plan_review_history": [],
+          "status": "deferred",
+          "phase": "deferred",
+          "parked_to": 4,
+          "updated_at": "2026-11-22T09:04:52Z"
+        },
+        {
+          "id": "R3-LOOP",
+          "name": "Review loop: tool-fault review keeps the lane in review",
+          "finding_ids": [
+            "BCL-149"
+          ],
+          "label": "BCL-149",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 12:54 order: review loop after BCL-145 (depends on its state table)",
+          "failure_history": [],
+          "plan_review_history": [],
+          "parked_to": 4,
+          "updated_at": "2026-11-22T09:04:52Z"
+        },
+        {
+          "id": "R3-RELEASE",
+          "name": "Presuite and release-check gaps",
+          "finding_ids": [
+            "BCL-134",
+            "BCL-148"
+          ],
+          "label": "BCL-134, BCL-148",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 12:54 order: presuite/release-check after the review loop; depends on BCL-145",
+          "failure_history": [],
+          "plan_review_history": [],
+          "parked_to": 4,
+          "updated_at": "2026-11-22T09:04:52Z"
+        },
+        {
+          "id": "R3-CARRY",
+          "name": "Rollover keeps unresolved findings gated",
+          "finding_ids": [
+            "BCL-111"
+          ],
+          "label": "BCL-111",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 12:54 order: carry after release-check items",
+          "failure_history": [],
+          "plan_review_history": [],
+          "parked_to": 4,
+          "updated_at": "2026-11-22T09:04:52Z"
+        },
+        {
+          "id": "R3-RECEIPTS",
+          "name": "Job receipts: no-commit fix, tokens and time, Updated stamp",
+          "finding_ids": [
+            "BCL-147",
+            "BCL-119",
+            "BCL-117"
+          ],
+          "label": "BCL-147, BCL-119, BCL-117",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 3
+          },
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 12:54 order: receipts after carry",
+          "failure_history": [],
+          "plan_review_history": [],
+          "parked_to": 4,
+          "updated_at": "2026-11-22T09:04:52Z"
+        },
+        {
+          "id": "R2-144",
+          "name": "Ship every round and a recorded hotfix route",
+          "finding_ids": [
+            "BCL-144"
+          ],
+          "label": "BCL-144",
+          "depends_on": [
+            "R2-136"
+          ],
+          "worktree": "bcl119-r2-144",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-144.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "gpt-6-luna medium fast (Codex CLI)",
+            "implementer_session": "codex-luna-119r2-144",
+            "reviewer_session": "codex-terra-6.1-119r2-144"
+          },
+          "reason": "3 plan reviews used (cap); final Sol CHANGES: named hotfix must need a passed presuite, and same-round replans must keep an open hotfix id and findings. Both are plan-write trust rules, BCL-145 (one state table). Carried to round 3 after BCL-145",
+          "failure_history": [
+            {
+              "attempt_id": "65951d33ee4e4bd4b2f941dc42a2dd58",
+              "source": "review",
+              "reason": "1. [manage_findings.py:643](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-144/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:643) excludes every hotfix from `release-check`, so an unfinished hotfix cannot block a release. Apply the normal release gate to hotfix lanes.\n\n2. [manage_findings.py:1526](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-144/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1526) trusts any truthy `hotfix` field. `set-plan` accepts that field on ordinary lanes, allowing them to bypass both the four-lane cap and release check. Restrict the exemption to validated hotfix lanes created through the hotfix operation.",
+              "cycle": 11,
+              "round": 2,
+              "at": "2026-11-22T05:00:52Z"
+            }
+          ],
+          "plan_review_history": [],
+          "status": "deferred",
+          "phase": "deferred",
+          "parked_to": 4,
+          "updated_at": "2026-11-22T09:04:52Z"
         },
         {
           "id": "R1-DEAD",
@@ -13672,8 +13462,8 @@
             "BCL-124",
             "BCL-126"
           ],
-          "worktree": "bcl119-direct",
           "label": "BCL-123, BCL-124, BCL-126",
+          "worktree": "bcl119-direct",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-dead.sh",
             "status": "partial",
@@ -13740,8 +13530,8 @@
           ],
           "status": "deferred",
           "phase": "deferred",
-          "parked_to": 3,
-          "updated_at": "2026-11-22T08:53:40Z"
+          "parked_to": 4,
+          "updated_at": "2026-11-22T09:04:52Z"
         },
         {
           "id": "R1-RELEASE",
@@ -13750,8 +13540,8 @@
             "BCL-125",
             "BCL-127"
           ],
-          "worktree": "bcl119-direct",
           "label": "BCL-125, BCL-127",
+          "worktree": "bcl119-direct",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-release.sh",
             "status": "pending",
@@ -13778,70 +13568,83 @@
           "plan_review_history": [],
           "status": "deferred",
           "phase": "deferred",
-          "parked_to": 3,
-          "updated_at": "2026-11-22T08:53:40Z"
+          "parked_to": 4,
+          "updated_at": "2026-11-22T09:04:52Z"
         },
         {
-          "id": "R2-135",
-          "name": "Carried lanes can be deferred after a review asked for changes",
+          "id": "R2-146",
+          "name": "Six workers by default for the repo check",
           "finding_ids": [
-            "BCL-135"
+            "BCL-146"
           ],
-          "status": "verified",
-          "worktree": "bcl119-r2-135",
-          "label": "BCL-135",
-          "reason": "Shipped in 0.1.59 (46ef08eb) as a bootstrap fix: the bug blocked every plan write, so the fix ran before this plan could be recorded",
+          "label": "BCL-146",
+          "worktree": "bcl119-r2-146",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-135.sh",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-146.sh",
             "status": "verified",
             "fixed": 1,
             "failed": 0,
             "total": 1
           },
-          "codex": {
-            "model": "gpt-6-luna medium fast (Codex CLI)",
-            "implementer_session": "codex-luna-119r2-135",
-            "reviewer_session": "codex-terra-6.1-119r2-135",
-            "one_file": true,
-            "fix_status": "passed",
-            "job": {
-              "id": "059a167323d24aee8bdb492fc7e44b56",
-              "phase": "presuite",
-              "started_at": "2026-11-22T04:08:21Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-22T04:13:35Z",
-              "plan_sha256": "8e2b7aecec13d072b201703b8d0fcfabcb027274ffd896b173c87450e48b61f2",
+          "failure_history": [
+            {
+              "attempt_id": "033bfea051cd4f2fabd65b164bc0a67c",
+              "source": "review",
+              "reason": "1. [scripts/check.py:23](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-146/scripts/check.py:23) still says the default is CPU count. Update the docstring to say `min(6, CPU count)`.\n\nThe source preserves explicit `--jobs` and environment overrides, serial execution with `1`, and the CPU cap. No added code stood out as needing deletion.",
               "cycle": 11,
               "round": 2,
-              "pid": 91523,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T04:13:35Z",
-              "finished_phase_status": "passed"
+              "at": "2026-11-22T05:58:47Z"
             },
-            "tool_fault_streak": 0,
-            "review_status": "skipped_one_file"
-          },
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-22T08:53:40Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-22T04:13:35Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-22T04:15:26Z"
-          },
-          "verify_reruns": [
             {
+              "attempt_id": "cdceb76afd2b43e181595b4ee37e642d",
+              "source": "review",
+              "reason": "Review incomplete: strict verdict or Must-fix section missing",
+              "cycle": 11,
               "round": 2,
-              "reason": "Checker fault: the first check expected the carried lanes to keep their old review state, but a new round clears it by design; check now looks for the carried failure history",
-              "at": "2026-11-22T04:16:21Z",
-              "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+              "at": "2026-11-22T06:12:50Z",
+              "tool_fault": true,
+              "fault_kind": "incomplete_review",
+              "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
+            },
+            {
+              "attempt_id": "9ffb4e01b0e848c3a8b63c062f9ddd02",
+              "source": "fix",
+              "reason": "Fix job exited 1",
+              "cycle": 11,
+              "round": 2,
+              "at": "2026-11-22T06:27:16Z",
+              "tool_fault": true,
+              "tool_fault_reason": "Checker fault, not a code fault: my scripted fix-confirm ran the harness test with a unittest path form that errors outside the coding session (Ran 1 test, errors=1); the same commit ad8e75be passes test_check_harness via discover (OK). The fix job only re-recorded an existing reviewed commit after a tool-fault review sent the lane back to fix."
             }
-          ]
+          ],
+          "plan_review_history": [
+            {
+              "job_id": "e692f90f6aaf41c9be42637c1c55c90b",
+              "after_failure": "033bfea051cd4f2fabd65b164bc0a67c",
+              "status": "passed",
+              "cycle": 11,
+              "round": 2,
+              "at": "2026-11-22T06:03:14Z"
+            }
+          ],
+          "unblock_history": [
+            {
+              "at": "2026-11-22T06:27:48Z",
+              "reason": "Checker fault, not a code fault: my scripted fix-confirm ran the harness test with a unittest path form that errors outside the coding session (Ran 1 test, errors=1); the same commit ad8e75be passes test_check_harness via discover (OK). The fix job only re-recorded an existing reviewed commit after a tool-fault review sent the lane back to fix.",
+              "tool_faults": [
+                "9ffb4e01b0e848c3a8b63c062f9ddd02"
+              ],
+              "covered_attempts": [
+                "033bfea051cd4f2fabd65b164bc0a67c"
+              ],
+              "rows_seen": 3,
+              "by_cycle": 11,
+              "round": 2
+            }
+          ],
+          "status": "planned",
+          "codex": {},
+          "updated_at": "2026-11-22T09:04:52Z"
         },
         {
           "id": "R2-136",
@@ -13849,40 +13652,14 @@
           "finding_ids": [
             "BCL-136"
           ],
-          "status": "verified",
-          "worktree": "bcl119-r2-136",
           "label": "BCL-136",
+          "worktree": "bcl119-r2-136",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-136.sh",
             "status": "verified",
             "fixed": 1,
             "failed": 0,
             "total": 1
-          },
-          "codex": {
-            "model": "gpt-6-luna medium fast (Codex CLI)",
-            "implementer_session": "codex-luna-119r2-136",
-            "reviewer_session": "codex-terra-6.1-119r2-136",
-            "fix_status": "passed",
-            "job": {
-              "id": "3306053d8df84019859a4aa97801df43",
-              "phase": "presuite",
-              "started_at": "2026-11-22T05:36:59Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-22T05:41:40Z",
-              "plan_sha256": "c648366fa7f6ad7f090acf237a5485198e2dd594277208136e45c3a2451de6c6",
-              "model": "none",
-              "cycle": 11,
-              "round": 2,
-              "pid": 79267,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T05:41:40Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-136/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:623) treats a named lane as clear while its presuite job is running. Starting presuite leaves the lane in `phase=\"review\"` with both fix and review passed, so `_included_for_release` accepts it even though the lane has unfinished work. Keep an active presuite blocking and cover it through the CLI.\n\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-136/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:657) adds an `included` field even when `--ids` is absent. That changes the JSON output despite the requirement that the command behave exactly as before without `--ids`. Preserve the previous payload shape in that case and test it through the CLI.",
-            "review_status": "passed"
           },
           "failure_history": [
             {
@@ -13904,137 +13681,12 @@
               "at": "2026-11-22T04:31:12Z"
             }
           ],
-          "updated_at": "2026-11-22T08:53:40Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-22T05:41:40Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-22T05:49:27Z"
-          }
-        },
-        {
-          "id": "R2-138",
-          "name": "Restore the two old viewer command tests",
-          "finding_ids": [
-            "BCL-138"
-          ],
-          "status": "verified",
-          "worktree": "bcl119-r2-138",
-          "label": "BCL-138",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-138.sh",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "codex": {
-            "model": "gpt-6-luna medium fast (Codex CLI)",
-            "implementer_session": "codex-luna-119r2-138",
-            "reviewer_session": "codex-terra-6.1-119r2-138",
-            "one_file": true,
-            "fix_status": "passed",
-            "job": {
-              "id": "3306053d8df84019859a4aa97801df43",
-              "phase": "presuite",
-              "started_at": "2026-11-22T05:36:59Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-22T05:41:40Z",
-              "plan_sha256": "c648366fa7f6ad7f090acf237a5485198e2dd594277208136e45c3a2451de6c6",
-              "model": "none",
-              "cycle": 11,
-              "round": 2,
-              "pid": 79267,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T05:41:40Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "review_status": "skipped_one_file"
-          },
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-22T08:53:40Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-22T05:41:40Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-22T05:49:28Z"
-          }
-        },
-        {
-          "id": "R2-144",
-          "name": "Ship every round and a recorded hotfix route",
-          "finding_ids": [
-            "BCL-144"
-          ],
-          "depends_on": [
-            "R2-136"
-          ],
-          "status": "deferred",
-          "worktree": "bcl119-r2-144",
-          "label": "BCL-144",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-144.sh",
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
-          },
-          "codex": {
-            "model": "gpt-6-luna medium fast (Codex CLI)",
-            "implementer_session": "codex-luna-119r2-144",
-            "reviewer_session": "codex-terra-6.1-119r2-144",
-            "fix_status": "passed",
-            "job": {
-              "id": "4f031c771da4413883df0e8465914e6b",
-              "phase": "plan_review",
-              "started_at": "2026-11-22T05:20:09Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-22T05:21:19Z",
-              "plan_sha256": "515dcbc24403def37401a0544bedc3181e8386dbd695c96acefab8a7338deb60",
-              "model": "gpt-6.2-sol",
-              "cycle": 11,
-              "round": 2,
-              "pid": 52473,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T05:21:19Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. Require `presuite.status == \"passed\"` to include a named hotfix. Preserve the existing ordinary-lane release behavior.\n2. Require same-round replans to retain an open hotfix’s lane ID and finding IDs."
-            },
-            "tool_fault_streak": 0,
-            "review_status": "changes_requested",
-            "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
-            "must_fix_note": "1. [manage_findings.py:643](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-144/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:643) excludes every hotfix from `release-check`, so an unfinished hotfix cannot block a release. Apply the normal release gate to hotfix lanes.\n\n2. [manage_findings.py:1526](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-144/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1526) trusts any truthy `hotfix` field. `set-plan` accepts that field on ordinary lanes, allowing them to bypass both the four-lane cap and release check. Restrict the exemption to validated hotfix lanes created through the hotfix operation.",
-            "plan_review_status": "changes_requested"
-          },
-          "failure_history": [
-            {
-              "attempt_id": "65951d33ee4e4bd4b2f941dc42a2dd58",
-              "source": "review",
-              "reason": "1. [manage_findings.py:643](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-144/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:643) excludes every hotfix from `release-check`, so an unfinished hotfix cannot block a release. Apply the normal release gate to hotfix lanes.\n\n2. [manage_findings.py:1526](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-144/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1526) trusts any truthy `hotfix` field. `set-plan` accepts that field on ordinary lanes, allowing them to bypass both the four-lane cap and release check. Restrict the exemption to validated hotfix lanes created through the hotfix operation.",
-              "cycle": 11,
-              "round": 2,
-              "at": "2026-11-22T05:00:52Z"
-            }
-          ],
-          "plan_review_history": [],
-          "updated_at": "2026-11-22T08:53:40Z",
-          "phase": "deferred",
-          "reason": "3 plan reviews used (cap); final Sol CHANGES: named hotfix must need a passed presuite, and same-round replans must keep an open hotfix id and findings. Both are plan-write trust rules, BCL-145 (one state table). Carried to round 3 after BCL-145",
-          "parked_to": 3
+          "status": "planned",
+          "codex": {},
+          "updated_at": "2026-11-22T09:04:52Z"
         }
       ],
-      "cycle": 11,
-      "status": "closed"
+      "cycle": 11
     },
     "verification_run": {
       "id": "r2-4f1763d4-119",
