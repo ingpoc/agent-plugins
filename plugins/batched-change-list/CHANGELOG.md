@@ -1,3 +1,9 @@
+## 0.1.66
+
+- Only a post-fix review's declared CHANGES counts toward the two-failure lane cap. A failed fix job is recorded as an uncounted attempt and the lane stays in fix; three failed jobs in a row still block it (BCL-163).
+- The repository's pre-commit and post-merge hooks regenerate the state chart when its sources change, so a stale chart no longer fails the pre-push suite (BCL-155).
+- The issue list has a By plugin | By group toggle. By plugin shows one row per plugin with its open and verified counts, its plan groups nested inside and its verified issues in a Done row (BCL-167).
+
 ## 0.1.65
 
 - One pre-push suite per lane through `scripts/check.py`; fix jobs run only the lane's tests, and lanes shipping together share one suite job (BCL-162).
