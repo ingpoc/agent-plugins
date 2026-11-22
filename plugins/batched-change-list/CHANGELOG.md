@@ -1,3 +1,9 @@
+## 0.1.62
+
+- The gate badge shows the rollover target as the main count (for example 7/16) with the report gate as a secondary line (BCL-141).
+- The repository check runs at most six test processes by default, so timing tests stop failing under load (BCL-146).
+- The review chip sits under Review, not Install; the state chart is regenerated to match.
+
 ## 0.1.61
 
 - `release-check --ids` counts a lane as settled once its fix and review passed and a presuite passed for every finding in the lane; a running or failed presuite, an unnamed lane finding, or an unfinished fix or review still blocks, and the output keeps its keys (BCL-136).
