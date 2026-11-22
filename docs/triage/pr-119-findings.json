@@ -11314,6 +11314,177 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "r2-db43c514-119b",
+        "build": "batched-change-list 0.1.61",
+        "revision": "db43c514ad27a445b3253fd077ab7a2353522e87",
+        "installed_at": "2026-11-22T05:49:17Z",
+        "install_evidence": "bcl install-local from db43c514 at 11:19:17 IST (replaces run r2-db43c514-119, which had an estimated install time): plugin sha256 e2a8540f (5 copies matched), skill sha256 3b31f83c; plugin.json 0.1.61; presuite job for R2-136 and R2-138 passed 11:11 IST (460 OK, strict 6/6, check.py ok); pushed under Guru one-time release-check exception 11:18 IST (BCL-148)",
+        "cycle": 11,
+        "status": "interrupted",
+        "checks": {
+          "ACU-10": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "ACU-21": {
+            "state": "pending"
+          },
+          "BCL-94": {
+            "state": "pending"
+          },
+          "BCL-96": {
+            "state": "pending"
+          },
+          "BCL-97": {
+            "state": "pending"
+          },
+          "BCL-100": {
+            "state": "pending"
+          },
+          "BCL-103": {
+            "state": "pending"
+          },
+          "BCL-106": {
+            "state": "pending"
+          },
+          "BCL-108": {
+            "state": "pending"
+          },
+          "BCL-110": {
+            "state": "pending"
+          },
+          "BCL-111": {
+            "state": "pending"
+          },
+          "BCL-112": {
+            "state": "pending"
+          },
+          "BCL-113": {
+            "state": "pending"
+          },
+          "BCL-114": {
+            "state": "pending"
+          },
+          "BCL-115": {
+            "state": "pending"
+          },
+          "BCL-117": {
+            "state": "pending"
+          },
+          "BCL-118": {
+            "state": "pending"
+          },
+          "BCL-119": {
+            "state": "pending"
+          },
+          "BCL-120": {
+            "state": "pending"
+          },
+          "BCL-121": {
+            "state": "pending"
+          },
+          "BCL-122": {
+            "state": "pending"
+          },
+          "BCL-123": {
+            "state": "pending"
+          },
+          "BCL-124": {
+            "state": "pending"
+          },
+          "BCL-125": {
+            "state": "pending"
+          },
+          "BCL-126": {
+            "state": "pending"
+          },
+          "BCL-127": {
+            "state": "pending"
+          },
+          "BCL-128": {
+            "state": "pending"
+          },
+          "BCL-129": {
+            "state": "pending"
+          },
+          "BCL-130": {
+            "state": "pending"
+          },
+          "BCL-131": {
+            "state": "pending"
+          },
+          "BCL-132": {
+            "state": "pending"
+          },
+          "BCL-133": {
+            "state": "pending"
+          },
+          "BCL-134": {
+            "state": "pending"
+          },
+          "BCL-135": {
+            "state": "pending"
+          },
+          "BCL-136": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-22T05:50:50Z",
+            "started_at": "2026-11-22T05:50:50Z",
+            "updated_at": "2026-11-22T05:50:50Z",
+            "check_id": "8d27c35c795a4ab89cfe719e70a6991f",
+            "evidence": "Checked: The installed release check and its seven lane tests; Expected: A named lane whose fix and review passed and whose presuite passed counts as settled; running or failed presuite, unnamed lane findings and unfinished lanes still block; Observed: All seven release-check lane tests exist and pass on the installed 0.1.61 copy",
+            "details": "Log: bcl-119/progress.md; r2/verify-136.sh; r2/verify-138.sh. Run r2-db43c514-119b.",
+            "finished_at": "2026-11-22T05:50:50.936503Z"
+          },
+          "BCL-137": {
+            "state": "pending"
+          },
+          "BCL-138": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-22T05:50:50Z",
+            "started_at": "2026-11-22T05:50:50Z",
+            "updated_at": "2026-11-22T05:50:50Z",
+            "check_id": "e1da4d59e1bb4152a3787bda7eba6d75",
+            "evidence": "Checked: The installed test suite for the legacy viewer commands; Expected: Both removed legacy viewer command tests are back and pass; Observed: Both tests exist and pass on the installed 0.1.61 copy",
+            "details": "Log: bcl-119/progress.md; r2/verify-136.sh; r2/verify-138.sh. Run r2-db43c514-119b.",
+            "finished_at": "2026-11-22T05:50:50.938191Z"
+          },
+          "BCL-139": {
+            "state": "pending"
+          },
+          "BCL-140": {
+            "state": "pending"
+          },
+          "BCL-141": {
+            "state": "pending"
+          },
+          "BCL-142": {
+            "state": "pending"
+          },
+          "BCL-143": {
+            "state": "pending"
+          },
+          "BCL-144": {
+            "state": "pending"
+          },
+          "BCL-145": {
+            "state": "pending"
+          },
+          "BCL-146": {
+            "state": "pending"
+          },
+          "BCL-147": {
+            "state": "pending"
+          },
+          "BCL-148": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -11328,9 +11499,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-22T08:13:34Z",
-      "now": "2026-11-22T08:13:34Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-22T08:13:47Z",
+      "now": "2026-11-22T08:13:47Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 118,
@@ -13130,7 +13301,7 @@
           "finding_ids": [
             "BCL-146"
           ],
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl119-r2-146",
           "label": "BCL-146",
           "verify": {
@@ -13207,7 +13378,7 @@
             }
           ],
           "updated_at": "2026-11-22T07:59:30Z",
-          "phase": "review",
+          "phase": "install",
           "unblock_history": [
             {
               "at": "2026-11-22T06:27:48Z",
@@ -13227,6 +13398,10 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-22T08:09:37Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T08:13:34Z"
           }
         },
         {
@@ -13235,7 +13410,7 @@
           "finding_ids": [
             "BCL-141"
           ],
-          "status": "installing",
+          "status": "verifying",
           "worktree": "bcl119-r2-141",
           "label": "BCL-141",
           "verify": {
@@ -13271,8 +13446,8 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T07:59:30Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T08:13:47Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -13655,11 +13830,11 @@
       "cycle": 11
     },
     "verification_run": {
-      "id": "r2-db43c514-119b",
-      "build": "batched-change-list 0.1.61",
-      "revision": "db43c514ad27a445b3253fd077ab7a2353522e87",
-      "installed_at": "2026-11-22T05:49:17Z",
-      "install_evidence": "bcl install-local from db43c514 at 11:19:17 IST (replaces run r2-db43c514-119, which had an estimated install time): plugin sha256 e2a8540f (5 copies matched), skill sha256 3b31f83c; plugin.json 0.1.61; presuite job for R2-136 and R2-138 passed 11:11 IST (460 OK, strict 6/6, check.py ok); pushed under Guru one-time release-check exception 11:18 IST (BCL-148)",
+      "id": "r2-4f1763d4-119",
+      "build": "batched-change-list 0.1.62",
+      "revision": "4f1763d4b7823bf15ed31d0033fa6affbdc5daad",
+      "installed_at": "2026-11-22T08:13:30Z",
+      "install_evidence": "bcl install-local from 4f1763d4 at 13:43 IST: plugin sha256 5bd14a52, skill sha256 99bc26bc; plugin.json 0.1.62; presuite for R2-141 and R2-146 passed 13:39 IST (bcl 461 OK, strict PASS, check.py ok); pushed db43c514..4f1763d4 under Guru one-time release-check exception 13:42 IST (BCL-148 exception_record_2)",
       "cycle": 11,
       "status": "active",
       "checks": {
@@ -13769,29 +13944,13 @@
           "state": "pending"
         },
         "BCL-136": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-22T05:50:50Z",
-          "started_at": "2026-11-22T05:50:50Z",
-          "updated_at": "2026-11-22T05:50:50Z",
-          "check_id": "8d27c35c795a4ab89cfe719e70a6991f",
-          "evidence": "Checked: The installed release check and its seven lane tests; Expected: A named lane whose fix and review passed and whose presuite passed counts as settled; running or failed presuite, unnamed lane findings and unfinished lanes still block; Observed: All seven release-check lane tests exist and pass on the installed 0.1.61 copy",
-          "details": "Log: bcl-119/progress.md; r2/verify-136.sh; r2/verify-138.sh. Run r2-db43c514-119b.",
-          "finished_at": "2026-11-22T05:50:50.936503Z"
+          "state": "pending"
         },
         "BCL-137": {
           "state": "pending"
         },
         "BCL-138": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-22T05:50:50Z",
-          "started_at": "2026-11-22T05:50:50Z",
-          "updated_at": "2026-11-22T05:50:50Z",
-          "check_id": "e1da4d59e1bb4152a3787bda7eba6d75",
-          "evidence": "Checked: The installed test suite for the legacy viewer commands; Expected: Both removed legacy viewer command tests are back and pass; Observed: Both tests exist and pass on the installed 0.1.61 copy",
-          "details": "Log: bcl-119/progress.md; r2/verify-136.sh; r2/verify-138.sh. Run r2-db43c514-119b.",
-          "finished_at": "2026-11-22T05:50:50.938191Z"
+          "state": "pending"
         },
         "BCL-139": {
           "state": "pending"
@@ -13821,6 +13980,27 @@
           "state": "pending"
         },
         "BCL-148": {
+          "state": "pending"
+        },
+        "BCL-149": {
+          "state": "pending"
+        },
+        "BCL-150": {
+          "state": "pending"
+        },
+        "BCL-151": {
+          "state": "pending"
+        },
+        "BCL-152": {
+          "state": "pending"
+        },
+        "BCL-153": {
+          "state": "pending"
+        },
+        "BCL-154": {
+          "state": "pending"
+        },
+        "BCL-155": {
           "state": "pending"
         }
       }
