@@ -558,12 +558,13 @@ def _undeclared_paths(group):
                     if key not in LANE["codex_fields"] and f"codex.{key}" not in LANE["protected_paths"]]
 
 
-def refuse_protected_claims(groups, eligible_prior, action="set-plan"):
+def refuse_protected_claims(groups, eligible_prior, action="set-plan", existing_by_id=None):
     """Compare explicit protected values with the eligible stored lane before anything is copied.
 
     Missing input keeps stored data; equal input is accepted; any other value, including null,
     is refused. New lanes may submit pending defaults, which are stripped before persistence. Runtime-looking
     fields the lane table does not declare are refused outright."""
+    existing_by_id = existing_by_id or eligible_prior
     for group in groups:
         prior = eligible_prior.get(group.get("id"))
         unknown = [path for path in _undeclared_paths(group)
@@ -575,7 +576,10 @@ def refuse_protected_claims(groups, eligible_prior, action="set-plan"):
             if claimed is _MISSING:
                 continue
             if path == "stage_entered_at":
-                raise ValueError(f"{action} cannot write {path} for lane {group.get('id')}; it is runtime state")
+                stored = _protected_value(existing_by_id.get(group.get("id")), path)
+                if stored is _MISSING or claimed != stored:
+                    raise ValueError(f"{action} cannot write {path} for lane {group.get('id')}; it is runtime state")
+                continue
             if path in ("failure_history", "plan_review_history"):
                 claimed = _lane_history(copy.deepcopy({"id": group.get("id"), path: claimed}), path)
             stored = _protected_value(prior, path) if prior is not None else _MISSING
@@ -627,7 +631,7 @@ def carry_plan_runtime_state(groups, previous, same_round):
         prior = old.get(group.get("id"))
         if prior and set(group.get("finding_ids", [])) == set(prior.get("finding_ids", [])) and (same_round or gated(prior)):
             eligible_prior[group.get("id")] = prior
-    refuse_protected_claims(groups, eligible_prior)
+    refuse_protected_claims(groups, eligible_prior, existing_by_id=old)
     prior_stages = canonical_lane_stages({"tracking": {"plan": previous}})
     replacement_stages = canonical_lane_stages({"tracking": {"plan": {"groups": groups}}})
     for group in groups:

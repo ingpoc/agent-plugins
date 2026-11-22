@@ -1925,7 +1925,20 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(lane["finding_ids"], ["ISSUE-02"])
         self.assertEqual(lane["stage_entered_at"], "2026-11-22T10:00:00Z")
 
-    def test_set_plan_refuses_equal_supplied_stage_entered_at_without_tracker_change(self):
+    def test_replan_same_id_different_findings_accepts_equal_stage_entered_at(self):
+        document = copy.deepcopy(self.document)
+        document.setdefault("tracking", {}).update(cycle=1, round=1, plan={"cycle": 1, "round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "planned",
+            "phase": "fix", "stage_entered_at": "2026-11-22T10:00:00Z"}]})
+        result = self._replay_batch(document, {"action": "set-plan", "plan": {"round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-02"], "depends_on": [], "status": "planned", "phase": "fix",
+            "stage_entered_at": "2026-11-22T10:00:00Z"}]}})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        lane = json.loads(self.data.read_bytes())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(lane["finding_ids"], ["ISSUE-02"])
+        self.assertEqual(lane["stage_entered_at"], "2026-11-22T10:00:00Z")
+
+    def test_set_plan_accepts_equal_supplied_stage_entered_at(self):
         document = copy.deepcopy(self.document)
         document.setdefault("tracking", {}).update(cycle=1, round=1, plan={"cycle": 1, "round": 1, "groups": [{
             "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "planned",
@@ -1933,8 +1946,28 @@ class ManageFindingsTests(unittest.TestCase):
         result = self._replay_batch(document, {"action": "set-plan", "plan": {"round": 1, "groups": [{
             "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "planned", "phase": "fix",
             "stage_entered_at": "2026-11-22T10:00:00Z"}]}})
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("cannot write stage_entered_at", result.stderr)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(self.data.read_bytes())["tracking"]["plan"]["groups"][0]["stage_entered_at"],
+                         "2026-11-22T10:00:00Z")
+
+    def test_set_plan_refuses_changed_or_new_stage_entered_at(self):
+        document = copy.deepcopy(self.document)
+        document.setdefault("tracking", {}).update(cycle=1, round=1, plan={"round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "planned",
+            "phase": "fix", "stage_entered_at": "2026-11-22T10:00:00Z"}]})
+        changed = self._replay_batch(document, {"action": "set-plan", "plan": {"round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "planned", "phase": "fix",
+            "stage_entered_at": "2026-11-22T11:00:00Z"}]}})
+        self.assertNotEqual(changed.returncode, 0)
+        self.assertIn("cannot write stage_entered_at", changed.stderr)
+        self.assertEqual(json.loads(self.data.read_bytes()), document)
+
+        document["tracking"]["plan"]["groups"][0].pop("stage_entered_at")
+        claimed = self._replay_batch(document, {"action": "set-plan", "plan": {"round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "planned", "phase": "fix",
+            "stage_entered_at": "2026-11-22T11:00:00Z"}]}})
+        self.assertNotEqual(claimed.returncode, 0)
+        self.assertIn("cannot write stage_entered_at", claimed.stderr)
         self.assertEqual(json.loads(self.data.read_bytes()), document)
 
     def test_install_readiness_is_release_check_for_named_lanes(self):

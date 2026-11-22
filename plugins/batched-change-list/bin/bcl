@@ -826,6 +826,7 @@ def main():
             manage_findings.start_verification_lanes(expected_document, ids, verification_started_at,
                                                      manage_findings.validate_stage_model(args.model))
             manage_findings.sync_plan_verify(expected_document)
+            manage_findings.stamp_changed_stages(data, expected_document, verification_started_at)
             expected_verify_plan = expected_document['tracking']['plan']
     elif stage == "introspect":
         if not args.sections or args.draft: parser.error("introspect requires --sections FILE.json (use --draft FILE.json to prepare an editable draft)")
