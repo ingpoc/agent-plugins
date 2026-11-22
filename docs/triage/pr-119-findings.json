@@ -11016,9 +11016,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T04:21:07Z",
-      "now": "2026-11-22T04:21:07Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T04:22:12Z",
+      "now": "2026-11-22T04:22:12Z — Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12468,7 +12468,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 3,
-          "updated_at": "2026-11-22T04:07:33Z"
+          "updated_at": "2026-11-22T04:21:44Z"
         },
         {
           "id": "R1-RELEASE",
@@ -12506,7 +12506,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 3,
-          "updated_at": "2026-11-22T04:07:33Z"
+          "updated_at": "2026-11-22T04:21:44Z"
         },
         {
           "id": "R1-ADD",
@@ -12545,7 +12545,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 3,
-          "updated_at": "2026-11-22T04:07:33Z"
+          "updated_at": "2026-11-22T04:21:44Z"
         },
         {
           "id": "R2-135",
@@ -12589,7 +12589,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T04:16:21Z",
+          "updated_at": "2026-11-22T04:21:44Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -12615,7 +12615,7 @@
           "finding_ids": [
             "BCL-136"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl119-r2-136",
           "label": "BCL-136",
           "verify": {
@@ -12629,24 +12629,26 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r2-136",
             "reviewer_session": "codex-terra-6.1-119r2-136",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "055232b258564eb992443de8fe1ecdd3",
-              "phase": "fix",
-              "started_at": "2026-11-22T04:09:15Z",
+              "id": "11bd746b06474c73ae9a7140d490f4f9",
+              "phase": "review",
+              "started_at": "2026-11-22T04:22:12Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T04:19:16Z",
-              "plan_sha256": "8e2b7aecec13d072b201703b8d0fcfabcb027274ffd896b173c87450e48b61f2",
-              "model": "gpt-6-luna medium fast (Codex CLI)",
+              "heartbeat_at": "2026-11-22T04:22:12Z",
+              "plan_sha256": "7436bdd7c01a10aad2a070531016838baa509dfc7fcf2441c7e77129cd489ac4",
+              "model": "gpt-6.1-terra medium (Codex CLI)",
               "cycle": 11,
-              "round": 2,
-              "pid": 94572
-            }
+              "round": 2
+            },
+            "tool_fault_streak": 0,
+            "review_status": "running",
+            "reviewer_model": "gpt-6.1-terra medium (Codex CLI)"
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T04:07:33Z",
-          "phase": "fix"
+          "updated_at": "2026-11-22T04:21:44Z",
+          "phase": "review"
         },
         {
           "id": "R2-137",
@@ -12654,7 +12656,7 @@
           "finding_ids": [
             "BCL-137"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl119-r2-137",
           "label": "BCL-137",
           "verify": {
@@ -12668,7 +12670,7 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r2-137",
             "reviewer_session": "codex-terra-6.1-119r2-137",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
               "id": "6bfdde17edfb4f34b2b3df54ee95852f",
               "phase": "fix",
@@ -12678,13 +12680,18 @@
               "plan_sha256": "160f70ab0fe2f38c1408ea63e8cdd2df8838de56572b2f25ff7abe5b6ffa40de",
               "model": "scripted confirm of Luna commit c927e759 (stranded job, 0 tokens)",
               "cycle": 11,
-              "round": 2
-            }
+              "round": 2,
+              "pid": 57150,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T04:21:07Z",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T04:07:33Z",
-          "phase": "fix"
+          "updated_at": "2026-11-22T04:21:44Z",
+          "phase": "review"
         },
         {
           "id": "R2-138",
@@ -12728,8 +12735,37 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T04:07:33Z",
+          "updated_at": "2026-11-22T04:21:44Z",
           "phase": "review"
+        },
+        {
+          "id": "R2-144",
+          "name": "Ship every round and a recorded hotfix route",
+          "finding_ids": [
+            "BCL-144"
+          ],
+          "depends_on": [
+            "R2-136"
+          ],
+          "status": "pending",
+          "worktree": "bcl119-r2-144",
+          "label": "BCL-144",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-144.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "gpt-6-luna medium fast (Codex CLI)",
+            "implementer_session": "codex-luna-119r2-144",
+            "reviewer_session": "codex-terra-6.1-119r2-144",
+            "review_status": "pending"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T04:21:44Z"
         }
       ],
       "cycle": 11
