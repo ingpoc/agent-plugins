@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T04:07:33Z",
-      "now": "2026-11-22T04:07:33Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-22T04:08:01Z",
+      "now": "2026-11-22T04:08:01Z — Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12394,7 +12394,7 @@
           "finding_ids": [
             "BCL-135"
           ],
-          "status": "pending",
+          "status": "review",
           "worktree": "bcl119-r2-135",
           "label": "BCL-135",
           "reason": "Shipped in 0.1.59 (46ef08eb) as a bootstrap fix: the bug blocked every plan write, so the fix ran before this plan could be recorded",
@@ -12409,12 +12409,30 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r2-135",
             "reviewer_session": "codex-terra-6.1-119r2-135",
-            "review_status": "pending",
-            "one_file": true
+            "one_file": true,
+            "fix_status": "passed",
+            "job": {
+              "id": "4dcca70fc1d24fbdbceabd2636fb40da",
+              "phase": "fix",
+              "started_at": "2026-11-22T04:08:00Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-22T04:08:00Z",
+              "plan_sha256": "8e2b7aecec13d072b201703b8d0fcfabcb027274ffd896b173c87450e48b61f2",
+              "model": "scripted (bootstrap fix 46ef08eb, 0 tokens)",
+              "cycle": 11,
+              "round": 2,
+              "pid": 90799,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T04:08:00Z",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0,
+            "review_status": "skipped_one_file"
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T04:07:33Z"
+          "updated_at": "2026-11-22T04:07:33Z",
+          "phase": "review"
         },
         {
           "id": "R2-136",
@@ -13430,7 +13448,7 @@
       "observed": "21 Nov 2026 22:25 IST, bcl 0.1.57 installed, deferring R1-RELEASE and R1-ADD in PR 119",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "PR 119 round 1 integration",
         "report": "r1/ops-round2.json",
