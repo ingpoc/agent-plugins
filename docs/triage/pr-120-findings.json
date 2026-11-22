@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T13:11:37Z",
-      "now": "2026-11-22T13:11:37Z — Presuite started"
+      "stage": "install",
+      "updated_at": "2026-11-22T13:16:43Z",
+      "now": "2026-11-22T13:16:43Z — Install in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -12157,7 +12157,8 @@
       "collect",
       "present",
       "plan_fix",
-      "review"
+      "review",
+      "install"
     ],
     "plan": {
       "round": 1,
@@ -12170,7 +12171,7 @@
             "BCL-151"
           ],
           "label": "BCL-158, BCL-151",
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl120-r1-round",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-round.sh",
@@ -12206,11 +12207,20 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T12:50:21Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-22T13:14:15Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T13:16:43Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "install-local 9748fa4a",
+            "at": "2026-11-22T13:16:43Z"
           }
         },
         {
@@ -12220,7 +12230,7 @@
             "BCL-134"
           ],
           "label": "BCL-134",
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl120-r1-134",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-134.sh",
@@ -12269,11 +12279,20 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-22T12:50:21Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-22T13:14:15Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T13:16:43Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "install-local 9748fa4a",
+            "at": "2026-11-22T13:16:43Z"
           }
         },
         {
