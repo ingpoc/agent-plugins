@@ -11085,6 +11085,133 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "r2-3f9d178c-120",
+        "build": "0.1.69",
+        "revision": "3f9d178cf1c8d0f8be376fd3676c7acfd2f89c4a",
+        "installed_at": "2026-11-22T14:57:00Z",
+        "install_evidence": "bcl install-local from clean detached worktree at 3f9d178c: plugin sha 93be7156 (cache copies), skill sha 7ec64a72",
+        "cycle": 12,
+        "status": "interrupted",
+        "checks": {
+          "ACU-10": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "ACU-21": {
+            "state": "pending"
+          },
+          "BCL-94": {
+            "state": "pending"
+          },
+          "BCL-103": {
+            "state": "pending"
+          },
+          "BCL-106": {
+            "state": "pending"
+          },
+          "BCL-108": {
+            "state": "pending"
+          },
+          "BCL-110": {
+            "state": "pending"
+          },
+          "BCL-113": {
+            "state": "pending"
+          },
+          "BCL-115": {
+            "state": "pending"
+          },
+          "BCL-120": {
+            "state": "pending"
+          },
+          "BCL-121": {
+            "state": "pending"
+          },
+          "BCL-124": {
+            "state": "pending"
+          },
+          "BCL-125": {
+            "state": "pending"
+          },
+          "BCL-130": {
+            "state": "pending"
+          },
+          "BCL-134": {
+            "state": "pending"
+          },
+          "BCL-139": {
+            "state": "pending"
+          },
+          "BCL-140": {
+            "state": "pending"
+          },
+          "BCL-142": {
+            "state": "pending"
+          },
+          "BCL-144": {
+            "state": "pending"
+          },
+          "BCL-145": {
+            "state": "pending"
+          },
+          "BCL-147": {
+            "state": "pending"
+          },
+          "BCL-149": {
+            "state": "pending"
+          },
+          "BCL-151": {
+            "state": "pending"
+          },
+          "BCL-157": {
+            "state": "pending"
+          },
+          "BCL-158": {
+            "state": "pending"
+          },
+          "BCL-159": {
+            "state": "pending"
+          },
+          "BCL-160": {
+            "state": "pending"
+          },
+          "BCL-161": {
+            "state": "pending"
+          },
+          "BCL-166": {
+            "state": "pending"
+          },
+          "BCL-171": {
+            "state": "pending"
+          },
+          "BCL-175": {
+            "state": "pending"
+          },
+          "DO-1": {
+            "state": "pending"
+          },
+          "DO-2": {
+            "state": "pending"
+          },
+          "DO-3": {
+            "state": "pending"
+          },
+          "BCL-176": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-22T14:59:18Z",
+            "started_at": "2026-11-22T14:59:04Z",
+            "updated_at": "2026-11-22T14:59:18Z",
+            "check_id": "5ea7791c2374454fa94166c545b075b0",
+            "evidence": "Checked: The installed release guidance, this release's presuite log and the scoped test selection in the repo checker; Expected: A lane release runs a presuite scoped to changed plugins and says the full suite still runs at merge and in CI; Observed: All three checks passed; the 0.1.69 presuite ran scoped in 129 s against 145 to 159 s for the full suite; the only new observability finding was the unpushed snapshot commit",
+            "details": "Log: ~/.agents/artifacts/bcl-120/verify-r2-176.log; dev-obs before b758ed33 (20:27:18 IST), after 95e60008 (20:28:45 IST), same build. Run r2-3f9d178c-120.",
+            "finished_at": "2026-11-22T14:59:18.218072Z"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -11099,9 +11226,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T15:22:46Z",
-      "now": "2026-11-22T15:22:46Z — Presuite started"
+      "stage": "install",
+      "updated_at": "2026-11-22T15:29:53Z",
+      "now": "2026-11-22T15:29:53Z — Install in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -12587,7 +12714,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "round": 3,
@@ -12688,13 +12816,17 @@
               "owner_override": true
             }
           ],
-          "status": "review",
+          "status": "installing",
           "updated_at": "2026-11-22T15:02:44Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-22T15:25:32Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T15:29:53Z"
           }
         },
         {
@@ -12802,14 +12934,16 @@
               "owner_override": true
             }
           ],
-          "status": "review",
-          "updated_at": "2026-11-22T15:02:44Z",
-          "phase": "review",
+          "status": "deferred",
+          "updated_at": "2026-11-22T15:29:52Z",
+          "phase": "deferred",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-22T15:25:32Z"
-          }
+          },
+          "reason": "Fix fb07a2ca and Terra review passed and shipped in 5147fa97 (dev-obs 0.1.35), but the dev-obs release script refused at its machine hygiene gate (local-only branches in the main checkout need owner approval; no override for this plugin). Waits for Guru; BCL-145 ships alone.",
+          "parked_to": 4
         },
         {
           "id": "DEFER",
@@ -12864,11 +12998,11 @@
       "cycle": 12
     },
     "verification_run": {
-      "id": "r2-3f9d178c-120",
-      "build": "0.1.69",
-      "revision": "3f9d178cf1c8d0f8be376fd3676c7acfd2f89c4a",
-      "installed_at": "2026-11-22T14:57:00Z",
-      "install_evidence": "bcl install-local from clean detached worktree at 3f9d178c: plugin sha 93be7156 (cache copies), skill sha 7ec64a72",
+      "id": "r3-5147fa97-120",
+      "build": "0.1.70",
+      "revision": "5147fa974cd9ff12799f97c24f766a8cdcd58751",
+      "installed_at": "2026-11-22T15:27:44Z",
+      "install_evidence": "bcl install-local from clean detached worktree at 5147fa97: plugin sha 782bc257 (cache copies), skill sha 2b9cc5d6",
       "cycle": 12,
       "status": "active",
       "checks": {
@@ -12978,15 +13112,7 @@
           "state": "pending"
         },
         "BCL-176": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-22T14:59:18Z",
-          "started_at": "2026-11-22T14:59:04Z",
-          "updated_at": "2026-11-22T14:59:18Z",
-          "check_id": "5ea7791c2374454fa94166c545b075b0",
-          "evidence": "Checked: The installed release guidance, this release's presuite log and the scoped test selection in the repo checker; Expected: A lane release runs a presuite scoped to changed plugins and says the full suite still runs at merge and in CI; Observed: All three checks passed; the 0.1.69 presuite ran scoped in 129 s against 145 to 159 s for the full suite; the only new observability finding was the unpushed snapshot commit",
-          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r2-176.log; dev-obs before b758ed33 (20:27:18 IST), after 95e60008 (20:28:45 IST), same build. Run r2-3f9d178c-120.",
-          "finished_at": "2026-11-22T14:59:18.218072Z"
+          "state": "pending"
         }
       }
     },
