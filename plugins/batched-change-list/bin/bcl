@@ -451,7 +451,7 @@ def main():
         report.write_text(render.render(json.loads(live.read_text()), base))
     drafting_introspect = args.stage == "introspect" and args.draft is not None
     if (record and record.get("home") and not record.get("rollover_pending")
-            and args.stage not in ("stop-viewer", "merged") and not drafting_introspect):
+            and args.stage not in ("stop-viewer", "merged", "snapshot") and not drafting_introspect):
         _ensure_viewer(parser, key, record, live, plugin_version, args.stage)
     if args.stage == "adopt":
         if not record: parser.error("could not register tracker")
@@ -479,6 +479,18 @@ def main():
         except (OSError, ValueError) as error:
             parser.error(str(error))
         print(args.draft)
+        return
+    if args.stage == "snapshot":
+        try:
+            print(live_state.snapshot(record, live, pending_only=True))
+        except tracker_lock.LockBusyError:
+            print("bcl: snapshot refused; home-worktree or tracker lock is busy", file=sys.stderr)
+            raise SystemExit(2)
+        except RuntimeError as error:
+            if "active codex.job" in str(error):
+                print(f"bcl: snapshot refused; {error}", file=sys.stderr)
+                raise SystemExit(2)
+            raise
         return
     begins_collect = args.stage == "start" and ("collect" not in stages or record.get("rollover_pending"))
     stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")

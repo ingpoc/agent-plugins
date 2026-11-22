@@ -419,17 +419,45 @@ def _viewer_ready(proc, port, expected):
         time.sleep(0.05)
     return False
 
-def snapshot(record, live):
+def snapshot_lock_path(home):
+    home = Path(home)
+    lock_path = Path(git(home, "rev-parse", "--git-path", "bcl-snapshot.lock"))
+    return lock_path if lock_path.is_absolute() else home / lock_path
+
+def _active_snapshot_jobs(document):
+    tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else {}
+    plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
+    groups = plan.get("groups") if isinstance(plan.get("groups"), list) else []
+    active = []
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        job = (group.get("codex") or {}).get("job")
+        if not isinstance(job, dict):
+            continue
+        finished_at = job.get("finished_at")
+        if job.get("exit_code") is None and not (isinstance(finished_at, str) and finished_at.strip()):
+            active.append(str(group.get("id", "unknown")))
+    return active
+
+def snapshot(record, live, *, pending_only=False):
     home = Path(record["home"])
     snapshot_path = home / record["snapshot"]; html_path = home / record["html"]
     marker = live.with_suffix(".unsnapshotted")
     if not home.exists():
         marker.write_text(hashlib.sha256(live.read_bytes()).hexdigest() + "\n")
         raise RuntimeError(f"snapshot home worktree missing: {home}; restore it and retry")
-    lock_path = Path(git(home, "rev-parse", "--git-path", "bcl-snapshot.lock"))
-    if not lock_path.is_absolute():
-        lock_path = home / lock_path
-    with tracker_lock.exclusive_lock(lock_path):
+    home_lock = snapshot_lock_path(home)
+    tracker_path = tracker_lock.tracker_lock_path(live)
+
+    def body():
+        if pending_only and not marker.exists():
+            return "nothing to save"
+        if pending_only:
+            active = _active_snapshot_jobs(json.loads(live.read_bytes()))
+            if active:
+                raise RuntimeError("active codex.job receipt(s): " + ", ".join(active))
+        existed = marker.exists()
         import render
         captured = live.read_bytes()
         marker.write_text(hashlib.sha256(captured).hexdigest() + "\n")
@@ -445,24 +473,48 @@ def snapshot(record, live):
             raise RuntimeError(f"snapshot capture missing: {missing}; restore it and retry") from error
         snapshot_path.write_bytes(captured)
         html_path.write_text(rendered)
-        previous = subprocess.run(["git", "-C", str(home), "show", f"HEAD:{record['snapshot']}"], capture_output=True, text=True)
-        current_tracking = doc.get("tracking", {})
-        current_identity = (current_tracking.get("workflow", {}).get("stage"), current_tracking.get("cycle", 1))
-        try:
-            previous_tracking = json.loads(previous.stdout).get("tracking", {}) if previous.returncode == 0 else None
-            previous_identity = (previous_tracking.get("workflow", {}).get("stage"), previous_tracking.get("cycle", 1))
-        except (ValueError, AttributeError):
-            previous_identity = None
-        if previous_identity is None or current_identity != previous_identity:
+        should_stage = pending_only
+        if not pending_only:
+            previous = subprocess.run(["git", "-C", str(home), "show", f"HEAD:{record['snapshot']}"], capture_output=True, text=True)
+            current_tracking = doc.get("tracking", {})
+            current_identity = (current_tracking.get("workflow", {}).get("stage"), current_tracking.get("cycle", 1))
+            try:
+                previous_tracking = json.loads(previous.stdout).get("tracking", {}) if previous.returncode == 0 else None
+                previous_identity = (previous_tracking.get("workflow", {}).get("stage"), previous_tracking.get("cycle", 1))
+            except (ValueError, AttributeError):
+                previous_identity = None
+            should_stage = previous_identity is None or current_identity != previous_identity
+        committed = False
+        if should_stage:
             subprocess.run(["git", "-C", str(home), "add", record["snapshot"], record["html"]], check=True)
             changed = subprocess.run(["git", "-C", str(home), "diff", "--cached", "HEAD", "--quiet", "--", record["snapshot"], record["html"]])
             if changed.returncode not in (0, 1):
                 raise RuntimeError(f"snapshot diff failed with exit {changed.returncode}")
             if changed.returncode == 1:
                 subprocess.run(["git", "-C", str(home), "commit", "--quiet", "--only", "-m", "Change list: snapshot live tracker", "--", record["snapshot"], record["html"]], check=True)
-        with tracker_lock.exclusive_lock(tracker_lock.tracker_lock_path(live)):
+                committed = True
+        def finalize():
             current = live.read_bytes()
             if current != captured:
                 marker.write_text(hashlib.sha256(current).hexdigest() + "\n")
                 raise RuntimeError("live tracker changed during snapshot; retry")
+            if pending_only:
+                marker.unlink(missing_ok=True)
+                if committed:
+                    return subprocess.run(["git", "-C", str(home), "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+                return "already saved"
+            if existed and not committed:
+                return None
             marker.unlink(missing_ok=True)
+            return None
+        if pending_only:
+            return finalize()
+        with tracker_lock.exclusive_lock(tracker_path):
+            return finalize()
+
+    if pending_only:
+        with tracker_lock.exclusive_lock(home_lock, blocking=False):
+            with tracker_lock.exclusive_lock(tracker_path, blocking=False):
+                return body()
+    with tracker_lock.exclusive_lock(home_lock):
+        return body()

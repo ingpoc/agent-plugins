@@ -380,6 +380,13 @@ class SnapshotTests(unittest.TestCase):
         self.assertIn('changed during snapshot', errors[0])
         self.assertEqual(json.loads((self.home / 'report/data.json').read_text())['title'], 'second')
         self.assertEqual((self.home / 'report/page.html').read_text(), 'second')
+        self.assertTrue(self.live.with_suffix('.unsnapshotted').exists())
+        committed = subprocess.check_output(['git', '-C', str(self.home), 'show', 'HEAD:report/data.json'], text=True)
+        self.assertIn('first', committed)
+        with patch.object(render, 'render', side_effect=lambda document, base: document['title']):
+            live_state.snapshot(self.record, self.live, pending_only=True)
+        committed = subprocess.check_output(['git', '-C', str(self.home), 'show', 'HEAD:report/data.json'], text=True)
+        self.assertIn('second', committed)
         self.assertFalse(self.live.with_suffix('.unsnapshotted').exists())
 
     def test_final_comparison_and_marker_removal_hold_writer_lock(self):
