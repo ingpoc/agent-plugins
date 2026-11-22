@@ -1,3 +1,7 @@
+## 0.2.162
+
+- Plugin skills (macos-cua and verify-samantha) now have a terse principles.md for editors, linked from SKILL.md, without growing the always-loaded skill text.
+
 ## 0.2.161
 
 - After Samantha closes a Comet page she opened for you, she now tells you what you asked for from that page (for example its heading) before saying the window is closed. On Grok Voice the heading was being dropped from that final reply (ACU-22).

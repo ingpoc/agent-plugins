@@ -1,13 +1,12 @@
 ---
 name: verify-samantha
-description: Use when testing Samantha, investigating a reported failure, or validating an installed voice, browser, credential, Dynamic Island, or Kindle change.
+description: Use when testing Samantha, investigating a reported failure, or validating a voice, browser, credential, Island, or Kindle change.
 ---
 
 # verify-samantha
-
-Use the test-run workflow for end-to-end checks. Keep one driver per live surface.
-
-Never put credential values in prompts, transcripts, tool arguments, screenshots, or logs because those records may persist. Live API tests require operator authorization because they can use external services.
+Editing this skill? Read [principles.md](principles.md) first so edits pass it.
+Keep one driver per live surface.
+Never put credentials in prompts, transcripts, tool args, screenshots, or logs because those records may persist. Live API tests need operator authorization because they can use external services.
 
 | Step | Trigger | Reference | Script |
 | --- | --- | --- | --- |

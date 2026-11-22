@@ -1,0 +1,21 @@
+{
+  "checked": [
+    "principles.md",
+    "Prove it",
+    "Root cause",
+    "Subtract first",
+    "Attack premise",
+    "Encode lessons in structure",
+    "Don't block on human",
+    "Guard context",
+    "Idempotent steps",
+    "Small verifiable units",
+    "Every word",
+    "One leased visible Comet window per agent",
+    "Never expose lease tokens; they authorize control",
+    "API-first when JSON or file data is known",
+    "Closeout must reap lease harness daemons; leftover pid/sock is a stale lease",
+    "Never dual-drive Comet; one driver per live surface"
+  ],
+  "source": "skill-refine/references/principles-template.md plus skill-specific lines from past failures"
+}

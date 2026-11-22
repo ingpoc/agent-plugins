@@ -1,0 +1,21 @@
+{
+  "checked": [
+    "principles.md",
+    "Prove it",
+    "Root cause",
+    "Subtract first",
+    "Attack premise",
+    "Encode lessons in structure",
+    "Don't block on human",
+    "Guard context",
+    "Idempotent steps",
+    "Small verifiable units",
+    "Every word",
+    "Use the MCP directly",
+    "Task X",
+    "One finding per failing test",
+    "Attribute to the observed project and version; no unscoped snapshots",
+    "Incomplete Codex usage evidence is not a comparison"
+  ],
+  "source": "skill-refine/references/principles-template.md plus skill-specific lines from past failures"
+}

@@ -1,0 +1,21 @@
+{
+  "checked": [
+    "principles.md",
+    "Prove it",
+    "Root cause",
+    "Subtract first",
+    "Attack premise",
+    "Encode lessons in structure",
+    "Don't block on human",
+    "Guard context",
+    "Idempotent steps",
+    "Small verifiable units",
+    "Every word",
+    "One driver per live surface; never dual-drive voice, Comet, or CUA",
+    "Never put credential values in prompts, transcripts, tool args, screenshots, or logs",
+    "Live API tests need operator authorization",
+    "Dummy credentials only; delete the exact test item after",
+    "Masking is not proof of login; verify the target field and outcome"
+  ],
+  "source": "skill-refine/references/principles-template.md plus skill-specific lines from past failures"
+}
