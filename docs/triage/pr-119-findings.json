@@ -10845,6 +10845,163 @@
           "exit_code": 0,
           "finished_at": "2026-11-20T17:18:55Z"
         }
+      },
+      {
+        "id": "r1-65c8dd9b-119",
+        "build": "batched-change-list 0.1.58",
+        "revision": "65c8dd9b1a4d0d1f10cb741b8be07f95fad61009",
+        "installed_at": "2026-11-21T16:46:00Z",
+        "install_evidence": "bcl install-local from 65c8dd9b at 22:16 IST: ~/.agents/plugins plus cursor and codex caches sha256 96346af3 (plugin, 5 copies matched), skill sha256 556117d6; plugin.json 0.1.58; installed-copy suite 449 OK; presuite job 2 passed",
+        "cycle": 11,
+        "status": "interrupted",
+        "checks": {
+          "ACU-10": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "ACU-21": {
+            "state": "pending"
+          },
+          "BCL-94": {
+            "state": "pending"
+          },
+          "BCL-96": {
+            "state": "pending"
+          },
+          "BCL-97": {
+            "state": "pending"
+          },
+          "BCL-100": {
+            "state": "pending"
+          },
+          "BCL-103": {
+            "state": "pending"
+          },
+          "BCL-106": {
+            "state": "pending"
+          },
+          "BCL-108": {
+            "state": "pending"
+          },
+          "BCL-110": {
+            "state": "pending"
+          },
+          "BCL-111": {
+            "state": "pending"
+          },
+          "BCL-112": {
+            "state": "pending"
+          },
+          "BCL-113": {
+            "state": "pending"
+          },
+          "BCL-114": {
+            "state": "pending"
+          },
+          "BCL-115": {
+            "state": "pending"
+          },
+          "BCL-117": {
+            "state": "pending"
+          },
+          "BCL-118": {
+            "state": "pending"
+          },
+          "BCL-119": {
+            "state": "pending"
+          },
+          "BCL-120": {
+            "state": "pending"
+          },
+          "BCL-121": {
+            "state": "pending"
+          },
+          "BCL-122": {
+            "state": "pending"
+          },
+          "BCL-123": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-21T17:07:32Z",
+            "started_at": "2026-11-21T17:06:53Z",
+            "updated_at": "2026-11-21T17:07:32Z",
+            "check_id": "b207f31235aa4fd8a764d48566260839",
+            "evidence": "Checked: The removed sync main command, run on a dummy list with the installed version; Expected: Refused as unknown and missing from the guides; Observed: Refused as an unknown stage; the readme, skill and guides no longer mention it; full suite passes on the installed copy",
+            "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
+            "finished_at": "2026-11-21T17:07:32.605218Z"
+          },
+          "BCL-124": {
+            "state": "blocked",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-21T17:07:32Z",
+            "started_at": "2026-11-21T17:06:53Z",
+            "updated_at": "2026-11-21T17:07:32Z",
+            "check_id": "e0a327bd73e84edf85022a755ab7cae2",
+            "evidence": "Checked: the installed viewer start code; Expected: old viewer records still handled, per the owner; Observed: the handling and its three tests are present",
+            "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
+            "blocker": "Owner decision 21 Nov 21:49 IST: keep old viewer record handling; deletion moves to round 2",
+            "finished_at": "2026-11-21T17:07:32.610077Z"
+          },
+          "BCL-125": {
+            "state": "pending"
+          },
+          "BCL-126": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-21T17:07:32Z",
+            "started_at": "2026-11-21T17:06:53Z",
+            "updated_at": "2026-11-21T17:07:32Z",
+            "check_id": "1f46d10e1a70497bb9fbfb9adcb72641",
+            "evidence": "Checked: The removed merge command, run on a dummy list with the installed version; Expected: Refused as unknown and missing from the guides; Observed: Refused as an unknown stage; the guides are clean and a reference test rejects the name; the merged command still works",
+            "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
+            "finished_at": "2026-11-21T17:07:32.607023Z"
+          },
+          "BCL-127": {
+            "state": "pending"
+          },
+          "BCL-128": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-21T17:07:32Z",
+            "started_at": "2026-11-21T17:06:53Z",
+            "updated_at": "2026-11-21T17:07:32Z",
+            "check_id": "e9c46ceac53f43e08bae018f90f4dbce",
+            "evidence": "Checked: The installed test file and a focused run of the verdict test; Expected: One table test that keeps all five verdict cases; Observed: One verdict test passes on the installed copy; the review confirmed every check was kept",
+            "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
+            "finished_at": "2026-11-21T17:07:32.608549Z"
+          },
+          "BCL-129": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-21T17:07:32Z",
+            "started_at": "2026-11-21T17:06:53Z",
+            "updated_at": "2026-11-21T17:07:32Z",
+            "check_id": "5c081b943a7241258b0d8d998a114f34",
+            "evidence": "Checked: Test output on the installed version and the full suite output; Expected: No snapshot commit noise, with git errors still shown; Observed: No snapshot lines in test output; suite output fell from 290 to 59 lines; failed commits still raise",
+            "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
+            "finished_at": "2026-11-21T17:07:32.610047Z"
+          },
+          "BCL-130": {
+            "state": "pending"
+          },
+          "BCL-131": {
+            "state": "pending"
+          },
+          "BCL-132": {
+            "state": "pending"
+          },
+          "BCL-133": {
+            "state": "pending"
+          },
+          "BCL-134": {
+            "state": "pending"
+          },
+          "BCL-135": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -10859,9 +11016,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T04:15:26Z",
-      "now": "2026-11-22T04:15:26Z — Review started"
+      "stage": "verify",
+      "updated_at": "2026-11-22T04:15:51Z",
+      "now": "2026-11-22T04:15:51Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 118,
@@ -12228,7 +12385,8 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 2,
@@ -12395,7 +12553,7 @@
           "finding_ids": [
             "BCL-135"
           ],
-          "status": "installing",
+          "status": "verifying",
           "worktree": "bcl119-r2-135",
           "label": "BCL-135",
           "reason": "Shipped in 0.1.59 (46ef08eb) as a bootstrap fix: the bug blocked every plan write, so the fix ran before this plan could be recorded",
@@ -12431,8 +12589,8 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T04:07:33Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T04:15:51Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12570,11 +12728,11 @@
       "cycle": 11
     },
     "verification_run": {
-      "id": "r1-65c8dd9b-119",
-      "build": "batched-change-list 0.1.58",
-      "revision": "65c8dd9b1a4d0d1f10cb741b8be07f95fad61009",
-      "installed_at": "2026-11-21T16:46:00Z",
-      "install_evidence": "bcl install-local from 65c8dd9b at 22:16 IST: ~/.agents/plugins plus cursor and codex caches sha256 96346af3 (plugin, 5 copies matched), skill sha256 556117d6; plugin.json 0.1.58; installed-copy suite 449 OK; presuite job 2 passed",
+      "id": "r2-8719fcc4-119",
+      "build": "batched-change-list 0.1.60",
+      "revision": "8719fcc4ff571f204c3ef0dcaaffc6c9905a0341",
+      "installed_at": "2026-11-22T04:07:00Z",
+      "install_evidence": "bcl install-local from 8719fcc4 at 09:37 IST: plugin sha256 cdee4413 (5 copies matched), skill sha256 c30ef761; plugin.json 0.1.60; presuite job for R2-135 passed (451 OK, strict 6/6, check.py --jobs 6 ok)",
       "cycle": 11,
       "status": "active",
       "checks": {
@@ -12645,66 +12803,25 @@
           "state": "pending"
         },
         "BCL-123": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-21T17:07:32Z",
-          "started_at": "2026-11-21T17:06:53Z",
-          "updated_at": "2026-11-21T17:07:32Z",
-          "check_id": "b207f31235aa4fd8a764d48566260839",
-          "evidence": "Checked: The removed sync main command, run on a dummy list with the installed version; Expected: Refused as unknown and missing from the guides; Observed: Refused as an unknown stage; the readme, skill and guides no longer mention it; full suite passes on the installed copy",
-          "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
-          "finished_at": "2026-11-21T17:07:32.605218Z"
+          "state": "pending"
         },
         "BCL-124": {
-          "state": "blocked",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-21T17:07:32Z",
-          "started_at": "2026-11-21T17:06:53Z",
-          "updated_at": "2026-11-21T17:07:32Z",
-          "check_id": "e0a327bd73e84edf85022a755ab7cae2",
-          "evidence": "Checked: the installed viewer start code; Expected: old viewer records still handled, per the owner; Observed: the handling and its three tests are present",
-          "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
-          "blocker": "Owner decision 21 Nov 21:49 IST: keep old viewer record handling; deletion moves to round 2",
-          "finished_at": "2026-11-21T17:07:32.610077Z"
+          "state": "pending"
         },
         "BCL-125": {
           "state": "pending"
         },
         "BCL-126": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-21T17:07:32Z",
-          "started_at": "2026-11-21T17:06:53Z",
-          "updated_at": "2026-11-21T17:07:32Z",
-          "check_id": "1f46d10e1a70497bb9fbfb9adcb72641",
-          "evidence": "Checked: The removed merge command, run on a dummy list with the installed version; Expected: Refused as unknown and missing from the guides; Observed: Refused as an unknown stage; the guides are clean and a reference test rejects the name; the merged command still works",
-          "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
-          "finished_at": "2026-11-21T17:07:32.607023Z"
+          "state": "pending"
         },
         "BCL-127": {
           "state": "pending"
         },
         "BCL-128": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-21T17:07:32Z",
-          "started_at": "2026-11-21T17:06:53Z",
-          "updated_at": "2026-11-21T17:07:32Z",
-          "check_id": "e9c46ceac53f43e08bae018f90f4dbce",
-          "evidence": "Checked: The installed test file and a focused run of the verdict test; Expected: One table test that keeps all five verdict cases; Observed: One verdict test passes on the installed copy; the review confirmed every check was kept",
-          "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
-          "finished_at": "2026-11-21T17:07:32.608549Z"
+          "state": "pending"
         },
         "BCL-129": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-21T17:07:32Z",
-          "started_at": "2026-11-21T17:06:53Z",
-          "updated_at": "2026-11-21T17:07:32Z",
-          "check_id": "5c081b943a7241258b0d8d998a114f34",
-          "evidence": "Checked: Test output on the installed version and the full suite output; Expected: No snapshot commit noise, with git errors still shown; Observed: No snapshot lines in test output; suite output fell from 290 to 59 lines; failed commits still raise",
-          "details": "Log: bcl-119/progress.md; r1/verify-dead.sh, r1/verify-tests.sh. Run r1-65c8dd9b-119.",
-          "finished_at": "2026-11-21T17:07:32.610047Z"
+          "state": "pending"
         },
         "BCL-130": {
           "state": "pending"
@@ -12722,6 +12839,39 @@
           "state": "pending"
         },
         "BCL-135": {
+          "state": "pending"
+        },
+        "BCL-136": {
+          "state": "pending"
+        },
+        "BCL-137": {
+          "state": "pending"
+        },
+        "BCL-138": {
+          "state": "pending"
+        },
+        "BCL-139": {
+          "state": "pending"
+        },
+        "BCL-140": {
+          "state": "pending"
+        },
+        "BCL-141": {
+          "state": "pending"
+        },
+        "BCL-142": {
+          "state": "pending"
+        },
+        "BCL-143": {
+          "state": "pending"
+        },
+        "BCL-144": {
+          "state": "pending"
+        },
+        "BCL-145": {
+          "state": "pending"
+        },
+        "BCL-146": {
           "state": "pending"
         }
       }
