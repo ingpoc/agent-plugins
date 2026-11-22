@@ -11354,8 +11354,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-22T17:54:09Z",
-      "now": "2026-11-22T17:54:09Z — Review started"
+      "updated_at": "2026-11-22T18:03:56Z",
+      "now": "2026-11-22T18:03:56Z — Lane R4-106 updated"
     },
     "rollover": {
       "source_pr": 119,
@@ -13061,7 +13061,7 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_collect_observability.py",
             "plugins/batched-change-list/skills/batched-change-list/references/collect.md"
           ],
-          "reason": "Next highest independent product item. Helper plus collect guide only; no bin/bcl or manage_findings.py so it does not overlap 157 or 106. Do not grow SKILL.md. Estimate about 80k tokens.",
+          "reason": "Second counted review CHANGES; park for a later round so 0.1.72 can ship BCL-103 and BCL-157. Lane stays blocked until owner unblock.",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -13091,10 +13091,11 @@
               "at": "2026-11-22T16:55:46Z"
             }
           ],
-          "updated_at": "2026-11-22T16:38:10Z",
+          "updated_at": "2026-11-22T18:03:56Z",
           "phase": "fix",
           "blocked_reason": "Second failure",
-          "failure_block_reason": "1. [collect_observability.py:90](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:90): A fresh collector snapshot is reused without checking whether it covers the requested `--project-dir`. The collector adds that directory only when it runs, so a snapshot collected for another directory can produce an incomplete result for the requested project without warning. Preserve the fresh-snapshot rule, but detect and report insufficient coverage."
+          "failure_block_reason": "1. [collect_observability.py:90](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:90): A fresh collector snapshot is reused without checking whether it covers the requested `--project-dir`. The collector adds that directory only when it runs, so a snapshot collected for another directory can produce an incomplete result for the requested project without warning. Preserve the fresh-snapshot rule, but detect and report insufficient coverage.",
+          "parked_to": 5
         },
         {
           "id": "R4-103",
@@ -13155,7 +13156,7 @@
             "BCL-106"
           ],
           "label": "BCL-106",
-          "status": "blocked",
+          "status": "parked",
           "worktree": "bcl120-r4-106",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-106.sh",
@@ -13198,7 +13199,7 @@
             "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
           ],
-          "reason": "Next highest independent product item. One tested driver for shared checks, lane checks, cleanup and judging; cleanup stays out of the verdict; verify start runs the self-test. Existing per-round scripts become thin wrappers or are deleted if that stays in budget. Split if the delete-all-copies rewrite would exceed 150k: keep thin wrappers and leave full deletion for a later lane. Estimate about 120k tokens.",
+          "reason": "Second counted review CHANGES; park for a later round so 0.1.72 can ship BCL-103 and BCL-157. Lane stays blocked until owner unblock.",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -13228,10 +13229,11 @@
               "at": "2026-11-22T16:55:41Z"
             }
           ],
-          "updated_at": "2026-11-22T16:38:10Z",
+          "updated_at": "2026-11-22T18:03:56Z",
           "phase": "fix",
           "blocked_reason": "Second failure",
-          "failure_block_reason": "1. [verify_driver.py:73](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:73): Make the self-test detect a skipped shared check. I replaced `run_round` in memory with a wrapper that drops the shared command; `self_test()` still passed."
+          "failure_block_reason": "1. [verify_driver.py:73](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:73): Make the self-test detect a skipped shared check. I replaced `run_round` in memory with a wrapper that drops the shared command; `self_test()` still passed.",
+          "parked_to": 5
         },
         {
           "id": "R2-DO1",
