@@ -358,7 +358,7 @@ def main():
     parser.add_argument("--phase", choices=("plan_review", "fix", "review", "presuite"))
     parser.add_argument("--model", help="job, install or verify: who runs this step, shown in the lane model column")
     parser.add_argument("--round", type=int, help="correct-round: the real round number")
-    parser.add_argument("--reason", help="why an override, verify rerun, cleanup failure, stopped run, or resort-failures apply is recorded")
+    parser.add_argument("--reason", help="why an override, verify rerun, cleanup failure, stopped run, resort-failures apply, or pause is recorded")
     parser.add_argument("--tool-fault", action="append", default=[], help="unblock or resort-failures --apply: failure attempt ID recorded as a tool fault; repeat for each attempt")
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
     parser.add_argument("--shared", action="store_true")
@@ -457,6 +457,29 @@ def main():
             raise SystemExit(result.returncode)
         live_state.snapshot(record, live)
         return
+    if args.stage in ("pause", "resume"):
+        if args.stage == "pause":
+            try:
+                reason = manage_findings.require_override_reason(args.reason, "pause")
+            except ValueError as error:
+                parser.error(str(error))
+            operation = {"action": "pause", "reason": reason, "timestamp": stamp}
+        else:
+            operation = {"action": "resume", "timestamp": stamp}
+        report, base = live_state.report_paths(record, live)
+        command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
+        result = subprocess.run(command, input=json.dumps([operation]), text=True, capture_output=True)
+        if result.returncode:
+            sys.stderr.write(result.stderr or result.stdout)
+            raise SystemExit(result.returncode)
+        print(result.stdout, end="")
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            payload = {}
+        if payload.get("changed", True):
+            live_state.snapshot(record, live)
+        return
     if args.stage == "status":
         recorded_stage = tracking.get("workflow", {}).get("stage")
         plan = tracking.get("plan")
@@ -487,6 +510,8 @@ def main():
         return
     if record.get("rollover_pending") and (args.stage != "start" or not begins_collect):
         parser.error("run bcl start to begin Collect before using the new list")
+    if manage_findings.pause_record(tracking) is not None and args.stage not in ("pause", "resume"):
+        parser.error("round paused; run bcl resume")
     load_override = _require_machine_load(parser, args) if args.stage in ("job", "verify") else None
     if args.stage == "job":
         if args.phase not in ("plan_review", "fix", "review", "presuite") or not args.ids or not command_args:

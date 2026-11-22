@@ -335,6 +335,34 @@ def require_override_reason(reason, action):
     return reason.strip()
 
 
+def pause_record(tracking):
+    workflow = tracking.get("workflow") if isinstance(tracking, dict) and isinstance(tracking.get("workflow"), dict) else {}
+    paused = workflow.get("paused")
+    return paused if isinstance(paused, dict) else None
+
+
+def set_pause_control(document, operation):
+    """Pause or resume the current round; the caller writes only when changed."""
+    action = operation.get("action")
+    tracking = document.setdefault("tracking", {})
+    paused = pause_record(tracking)
+    if action == "pause":
+        reason = require_override_reason(operation.get("reason"), "pause")
+        stamp = operation.get("timestamp")
+        if not isinstance(stamp, str) or RENDERER.parse_instant(stamp) is None:
+            raise ValueError("pause timestamp must be an ISO 8601 instant")
+        if paused is not None and paused.get("reason") == reason:
+            return False, {"changed": False, "paused": True, "reason": reason, "message": "already paused"}
+        tracking.setdefault("workflow", {})["paused"] = {"reason": reason, "at": stamp}
+        return True, {"changed": True, "paused": True, "reason": reason, "at": stamp}
+    if action != "resume":
+        raise ValueError("pause control must be pause or resume")
+    if paused is None:
+        return False, {"changed": False, "paused": False, "message": "not paused"}
+    tracking["workflow"].pop("paused", None)
+    return True, {"changed": True, "paused": False, "message": "resumed"}
+
+
 def parse_review_reply(reply):
     if not isinstance(reply, str):
         return None, None
@@ -772,6 +800,8 @@ def job_transition(document, operation):
             job["heartbeat_at"] = stamp
         return
     if action == "start-job":
+        if pause_record(tracking) is not None:
+            raise ValueError("round paused; run bcl resume")
         job = operation.get("job")
         if not isinstance(job, dict) or not isinstance(job.get("id"), str) or not job["id"].strip():
             raise ValueError("job reservation requires an id")
@@ -2145,6 +2175,9 @@ def run(args, parser):
                 new_live = rollover_live(path, operations[0], args.force)
                 print(f"Created new live list {new_live}; the current viewer stays on the old list until bcl start begins Collect")
                 return 0
+            if any(isinstance(op, dict) and op.get("action") in ("pause", "resume") for op in operations) and (
+                    len(operations) != 1 or not isinstance(operations[0], dict)):
+                raise ValueError("pause and resume must be the only batch operation")
             existing_run = store["document"].get("tracking", {}).get("verification_run")
             original_plan = copy.deepcopy(store['document'].get('tracking', {}).get('plan'))
             run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "stop-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify", "start-job", "attach-job", "heartbeat-job", "finish-job", "skip-review", "record-cleanup", "archive-history", "unblock-lane", "resort-failures"}
@@ -2152,6 +2185,7 @@ def run(args, parser):
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()
             sidecars = {}
+            pause_result = None
 
             def sidecar(name):
                 if name not in sidecars:
@@ -2168,6 +2202,13 @@ def run(args, parser):
                 if not isinstance(operation, dict):
                     raise ValueError("batch operation must be an object")
                 action = operation.get("action")
+                if action in ("pause", "resume"):
+                    changed, payload = set_pause_control(store["document"], operation)
+                    if not changed:
+                        print(json.dumps(payload, ensure_ascii=False))
+                        return 0
+                    pause_result = payload
+                    continue
                 if action in ("start-job", "attach-job", "heartbeat-job", "finish-job"):
                     job_transition(store["document"], operation)
                     continue
@@ -2394,6 +2435,8 @@ def run(args, parser):
                             workflow = {"stage": "plan_fix", "updated_at": stamp, "now": f"{stamp} — Plan recorded"}
                             if current_workflow.get("stale_after_min") is not None:
                                 workflow["stale_after_min"] = current_workflow["stale_after_min"]
+                            if not starting_new_round and isinstance(current_workflow.get("paused"), dict):
+                                workflow["paused"] = current_workflow["paused"]
                             tracking["workflow"] = workflow
                             if "plan_fix" not in tracking.setdefault("stages_reached", []):
                                 tracking["stages_reached"].append("plan_fix")
@@ -2572,6 +2615,8 @@ def run(args, parser):
                     tracking["workflow"] = {"stage": stage, "updated_at": updated_at}
                     if stale_after is not None:
                         tracking["workflow"]["stale_after_min"] = stale_after
+                    if isinstance(current_workflow.get("paused"), dict):
+                        tracking["workflow"]["paused"] = current_workflow["paused"]
                     continue
                 if action == "set-activity":
                     stage, ids, activity = operation.get("stage"), operation.get("ids"), operation.get("now")
@@ -2653,6 +2698,8 @@ def run(args, parser):
                     tracking["workflow"] = {"stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
                     if stale_after is not None:
                         tracking["workflow"]["stale_after_min"] = stale_after
+                    if isinstance(current_workflow.get("paused"), dict):
+                        tracking["workflow"]["paused"] = current_workflow["paused"]
                     continue
                 if action in run_actions:
                     if action == "finish-check" and operation.get("id") in started_checks:
@@ -2759,7 +2806,10 @@ def run(args, parser):
                     (live_write if run else report_write)(args.render, html_original, rendered.encode("utf-8"))
                 except (OSError, ValueError) as error:
                     raise ValueError(f"JSON updated but render failed: {error}") from error
-            print(f"Applied {len(operations)} operations" + (f"; rendered {args.render}" if args.render else ""))
+            if pause_result is not None:
+                print(json.dumps(pause_result, ensure_ascii=False))
+            else:
+                print(f"Applied {len(operations)} operations" + (f"; rendered {args.render}" if args.render else ""))
             return 0
         if store["kind"] == "json" and store["document"].get("tracking", {}).get("verification_run", {}).get("status") == "active":
             raise ValueError("use batch with --render while verification is active")
