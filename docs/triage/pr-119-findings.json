@@ -11328,9 +11328,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T06:26:32Z",
-      "now": "2026-11-22T06:26:32Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T06:27:16Z",
+      "now": "2026-11-22T06:27:16Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13337,27 +13337,21 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r2-146",
             "reviewer_session": "codex-terra-6.1-119r2-146",
-            "fix_status": "passed",
+            "fix_status": "running",
             "job": {
-              "id": "cdceb76afd2b43e181595b4ee37e642d",
-              "phase": "review",
-              "started_at": "2026-11-22T06:11:58Z",
-              "command": "env",
-              "heartbeat_at": "2026-11-22T06:12:50Z",
+              "id": "9ffb4e01b0e848c3a8b63c062f9ddd02",
+              "phase": "fix",
+              "started_at": "2026-11-22T06:27:16Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-22T06:27:16Z",
               "plan_sha256": "cd19055a4b931f2e57c4e3bf2731abc686026d00e58b215d487ef6840cb82480",
-              "model": "gpt-6.1-terra",
+              "model": "none",
               "cycle": 11,
-              "round": 2,
-              "pid": 84852,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T06:12:50Z",
-              "finished_phase_status": "incomplete",
-              "must_fix": "Review incomplete: strict verdict or Must-fix section missing"
+              "round": 2
             },
             "tool_fault_streak": 1,
             "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
-            "review_status": "failed"
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
           },
           "failure_history": [
             {
@@ -14585,7 +14579,7 @@
       "observed": "22 Nov 2026 09:45 IST, bcl 0.1.60, reliability pass over PR 117 to 119",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "PR 119 round 2 reliability pass (Guru 09:41 IST); attack-the-premise",
         "report": "bcl-119 progress.md",
@@ -14605,7 +14599,7 @@
       "observed": "22 Nov 2026 09:45 IST, PR 117 to 119 pre-push runs",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "PR 119 round 2 reliability pass",
         "report": "bcl-117 and bcl-118 progress.md",
