@@ -358,7 +358,7 @@ def main():
     parser.add_argument("--phase", choices=("plan_review", "fix", "review", "presuite"))
     parser.add_argument("--model", help="job, install or verify: who runs this step, shown in the lane model column")
     parser.add_argument("--round", type=int, help="correct-round: the real round number")
-    parser.add_argument("--reason", help="why an override, verify rerun, cleanup failure, stopped run, or resort-failures apply is recorded")
+    parser.add_argument("--reason", help="why an override, verify rerun, cleanup failure, stopped run, resort-failures apply, or pause is recorded")
     parser.add_argument("--tool-fault", action="append", default=[], help="unblock or resort-failures --apply: failure attempt ID recorded as a tool fault; repeat for each attempt")
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
     parser.add_argument("--shared", action="store_true")
@@ -457,6 +457,29 @@ def main():
             raise SystemExit(result.returncode)
         live_state.snapshot(record, live)
         return
+    if args.stage in ("pause", "resume"):
+        if args.stage == "pause":
+            try:
+                reason = manage_findings.require_override_reason(args.reason, "pause")
+            except ValueError as error:
+                parser.error(str(error))
+            operation = {"action": "pause", "reason": reason, "timestamp": stamp}
+        else:
+            operation = {"action": "resume", "timestamp": stamp}
+        report, base = live_state.report_paths(record, live)
+        command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
+        result = subprocess.run(command, input=json.dumps([operation]), text=True, capture_output=True)
+        if result.returncode:
+            sys.stderr.write(result.stderr or result.stdout)
+            raise SystemExit(result.returncode)
+        print(result.stdout, end="")
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            payload = {}
+        if payload.get("changed", True):
+            live_state.snapshot(record, live)
+        return
     if args.stage == "status":
         recorded_stage = tracking.get("workflow", {}).get("stage")
         plan = tracking.get("plan")
@@ -465,7 +488,7 @@ def main():
         fixed, threshold, report_met = workflow_definition.run_check("gate", data)
         verified_fixed, verified_threshold, verified_met = manage_findings.check_gate_count.verified_gate_count(data)
         _, rollover_threshold, rollover_met = manage_findings.check_gate_count.rollover_gate_count(data)
-        print(json.dumps({"adopted": True, "live": str(live), "stage": current_stage, "recorded_stage": recorded_stage, "cycle": tracking.get("cycle", 1), "report_gate": {"fixed": fixed, "threshold": threshold, "met": report_met}, "verified_gate": {"fixed": verified_fixed, "threshold": verified_threshold, "met": verified_met}, "rollover_gate": {"fixed": fixed, "threshold": rollover_threshold, "met": rollover_met}, "plan": [{"id": g.get("id"), "status": g.get("status"), "message": lane_render.lane_issue_status(g, tracking.get("cycle", 1)).get("copy")} for g in tracking.get("plan", {}).get("groups", [])]}, indent=2)); return
+        print(json.dumps({"adopted": True, "live": str(live), "stage": current_stage, "recorded_stage": recorded_stage, "cycle": tracking.get("cycle", 1), "report_gate": {"fixed": fixed, "threshold": threshold, "met": report_met}, "verified_gate": {"fixed": verified_fixed, "threshold": verified_threshold, "met": verified_met}, "rollover_gate": {"fixed": fixed, "threshold": rollover_threshold, "met": rollover_met}, "plan": [{"id": g.get("id"), "status": g.get("status"), "message": lane_render.lane_issue_status(g, lane_render.rollover_round(tracking), (tracking.get("workflow") or {}).get("paused")).get("copy")} for g in tracking.get("plan", {}).get("groups", [])]}, indent=2)); return
     if args.stage == "release-check":
         payload = manage_findings.release_check_payload(data, args.ids)
         print(json.dumps(payload, indent=2))
@@ -487,6 +510,8 @@ def main():
         return
     if record.get("rollover_pending") and (args.stage != "start" or not begins_collect):
         parser.error("run bcl start to begin Collect before using the new list")
+    if manage_findings.pause_record(tracking) is not None and args.stage in ("job", "review", "install", "verify"):
+        parser.error("round paused; run bcl resume")
     load_override = _require_machine_load(parser, args) if args.stage in ("job", "verify") else None
     if args.stage == "job":
         if args.phase not in ("plan_review", "fix", "review", "presuite") or not args.ids or not command_args:

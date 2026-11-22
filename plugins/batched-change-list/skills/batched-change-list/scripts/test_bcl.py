@@ -68,7 +68,32 @@ class BclTests(unittest.TestCase):
                                         env=self.env, capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 lane = json.loads(result.stdout)["plan"][0]
-                self.assertEqual(lane["message"], "Interrupted · resume needed · A")
+                self.assertEqual(lane["message"], f"Interrupted · resume at {phase} · A")
+
+    def test_status_labels_paused_round_and_keeps_stored_status(self):
+        registry = json.loads((self.state / "registry.json").read_text())
+        live = Path(registry["example/project/123"]["live"])
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+        self.addCleanup(child.wait); self.addCleanup(child.terminate)
+        for status, phase, job in (("running", "fix", {"pid": child.pid, "phase": "fix", "started_at": "2026-11-18T08:00:00Z"}),
+                                   ("review", "review", None)):
+            with self.subTest(status=status):
+                data = json.loads(live.read_text())
+                tracking = data.setdefault("tracking", {})
+                tracking.setdefault("workflow", {"stage": "plan_fix", "updated_at": "2026-11-18T08:00:00Z"})
+                tracking["workflow"]["paused"] = {"reason": "maintenance", "at": "2026-11-18T08:00:00Z"}
+                group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": status, "phase": phase}
+                if job:
+                    group["codex"] = {"job": job}
+                tracking["plan"] = {"round": 1, "groups": [group]}
+                live.write_text(json.dumps(data))
+                self.data.write_text(json.dumps(data))
+                result = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "status"],
+                                        env=self.env, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                lane = json.loads(result.stdout)["plan"][0]
+                self.assertEqual(lane["message"], "Paused · maintenance · A")
+                self.assertEqual(lane["status"], status)
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
@@ -1996,5 +2021,141 @@ elif args[:2] != ['pr', 'edit']:
         after = json.loads(state.read_text())
         self.assertNotEqual(after['pid'], before['pid'])
         self.assertTrue(after.get('instance'))
+
+    def pause_lane(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        script = self.root / "pause-verify.sh"
+        script.write_text("#!/bin/sh\nexit 0\n"); script.chmod(0o755)
+        plan = self.root / "pause-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"],
+            "status": "planned", "verify": {"command": str(script)}}]}))
+        self.assertEqual(self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        return Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+
+    def pause_job(self, child, live=None):
+        return subprocess.run([sys.executable, str(BCL), "--data", str(live or self.data), "--ids", "ISSUE-01",
+            "--phase", "fix", "job", "--", sys.executable, "-c", child], env=self.env, capture_output=True, text=True)
+
+    def test_pause_and_resume_repeat_without_rewriting_the_live_tracker(self):
+        live = self.pause_lane()
+        first = self.call_without_viewer("pause", "--reason", "maintenance", "--now", "2026-11-22T10:00:00Z")
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertIn('"paused": true', first.stdout)
+        stored = json.loads(live.read_text())["tracking"]["workflow"]["paused"]
+        self.assertEqual(stored, {"reason": "maintenance", "at": "2026-11-22T10:00:00Z"})
+        before, before_mtime = live.read_bytes(), live.stat().st_mtime_ns
+        again = self.call_without_viewer("pause", "--reason", " maintenance ", "--now", "2026-11-22T11:00:00Z")
+        self.assertEqual(again.returncode, 0, again.stderr)
+        self.assertIn("already paused", again.stdout)
+        self.assertEqual(live.read_bytes(), before)
+        self.assertEqual(live.stat().st_mtime_ns, before_mtime)
+        changed = self.call_without_viewer("pause", "--reason", "release freeze", "--now", "2026-11-22T12:00:00Z")
+        self.assertEqual(changed.returncode, 0, changed.stderr)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["workflow"]["paused"],
+                         {"reason": "release freeze", "at": "2026-11-22T12:00:00Z"})
+        resumed = self.call_without_viewer("resume")
+        self.assertEqual(resumed.returncode, 0, resumed.stderr)
+        self.assertIn('"paused": false', resumed.stdout)
+        self.assertNotIn("paused", json.loads(live.read_text())["tracking"]["workflow"])
+        before, before_mtime = live.read_bytes(), live.stat().st_mtime_ns
+        again = self.call_without_viewer("resume")
+        self.assertEqual(again.returncode, 0, again.stderr)
+        self.assertIn("not paused", again.stdout)
+        self.assertEqual(live.read_bytes(), before)
+        self.assertEqual(live.stat().st_mtime_ns, before_mtime)
+
+    def test_pause_requires_a_nonblank_reason_and_leaves_the_tracker(self):
+        live = self.pause_lane()
+        before, before_mtime = live.read_bytes(), live.stat().st_mtime_ns
+        for extra in ((), ("--reason", "   ")):
+            with self.subTest(extra=extra):
+                result = self.call_without_viewer("pause", *extra)
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn("--reason", result.stderr)
+                self.assertEqual(live.read_bytes(), before)
+                self.assertEqual(live.stat().st_mtime_ns, before_mtime)
+                self.assertNotIn("paused", json.loads(live.read_text())["tracking"].get("workflow", {}))
+
+    def test_pause_survives_a_same_round_workflow_replacement(self):
+        live = self.pause_lane()
+        self.assertEqual(self.call_without_viewer("pause", "--reason", "maintenance").returncode, 0)
+        manager = PLUGIN / "skills/batched-change-list/scripts/manage_findings.py"
+        result = subprocess.run([sys.executable, str(manager), "batch", str(live), "-", "--render", str(self.page)],
+            input=json.dumps([{"action": "set-stage", "stage": "review"}]), text=True, capture_output=True, env=self.env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        workflow = json.loads(live.read_text())["tracking"]["workflow"]
+        self.assertEqual(workflow["stage"], "review")
+        self.assertEqual(workflow["paused"]["reason"], "maintenance")
+
+    def test_pause_while_a_job_runs_keeps_its_receipt_and_lets_it_finish(self):
+        live = self.pause_lane()
+        marker = self.root / "running-marker"
+        release = self.root / "release-running-child"
+        child = (f"import time\nfrom pathlib import Path\n"
+                 f"while not Path({str(release)!r}).exists():\n    time.sleep(0.02)\n"
+                 f"Path({str(marker)!r}).write_text('done')\n")
+        process = subprocess.Popen([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
+            "--phase", "fix", "job", "--", sys.executable, "-c", child], env=self.env,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            deadline = time.monotonic() + 15
+            receipt = None
+            while time.monotonic() < deadline:
+                try:
+                    receipt = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["codex"].get("job")
+                except (OSError, ValueError, KeyError, IndexError):
+                    receipt = None
+                if isinstance(receipt, dict) and isinstance(receipt.get("pid"), int):
+                    break
+                time.sleep(0.05)
+            self.assertIsInstance(receipt, dict)
+            self.assertIsInstance(receipt.get("pid"), int)
+            self.assertNotIn("exit_code", receipt)
+            job_id, pid = receipt["id"], receipt["pid"]
+            paused = self.call_without_viewer("pause", "--reason", "maintenance")
+            self.assertEqual(paused.returncode, 0, paused.stderr)
+            stored = json.loads(live.read_text())
+            self.assertEqual(stored["tracking"]["workflow"]["paused"]["reason"], "maintenance")
+            running = stored["tracking"]["plan"]["groups"][0]["codex"]["job"]
+            self.assertEqual((running["id"], running["pid"]), (job_id, pid))
+            self.assertNotIn("exit_code", running)
+            release.write_text("go")
+            _, stderr = process.communicate(timeout=30)
+            self.assertEqual(process.returncode, 0, stderr)
+            self.assertTrue(marker.exists())
+            finished = json.loads(live.read_text())
+            receipt = finished["tracking"]["plan"]["groups"][0]["codex"]["job"]
+            self.assertEqual((receipt["id"], receipt["pid"], receipt["exit_code"]), (job_id, pid, 0))
+            self.assertEqual(finished["tracking"]["workflow"]["paused"]["reason"], "maintenance")
+        finally:
+            if process.poll() is None:
+                process.kill(); process.wait()
+
+    def test_paused_lane_refuses_a_new_job_until_resume(self):
+        live = self.pause_lane()
+        self.assertEqual(self.call_without_viewer("pause", "--reason", "maintenance").returncode, 0)
+        before = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertNotIn("job", before.get("codex") or {})
+        marker = self.root / "paused-child-marker"
+        child = f"from pathlib import Path\nPath({str(marker)!r}).write_text('ran')\n"
+        refused = self.pause_job(child)
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("round paused; run bcl resume", refused.stderr)
+        self.assertFalse(marker.exists())
+        self.assertEqual(json.loads(live.read_text())["tracking"]["plan"]["groups"][0], before)
+        self.assertEqual(self.call_without_viewer("resume").returncode, 0)
+        ran = self.pause_job(child)
+        self.assertEqual(ran.returncode, 0, ran.stderr)
+        self.assertTrue(marker.exists())
+        self.assertNotIn("paused", json.loads(live.read_text())["tracking"]["workflow"])
+
+    def test_paused_round_refuses_only_work_starting_stages(self):
+        self.pause_lane()
+        self.assertEqual(self.call_without_viewer("pause", "--reason", "maintenance").returncode, 0)
+        install = self.call_without_viewer("install", "--ids", "ISSUE-01")
+        self.assertNotEqual(install.returncode, 0)
+        self.assertIn("round paused; run bcl resume", install.stderr)
+        stopped = self.call_without_viewer("stop-viewer")
+        self.assertNotIn("round paused", stopped.stderr)
 
 if __name__ == "__main__": unittest.main()
