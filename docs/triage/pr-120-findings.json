@@ -12396,7 +12396,7 @@
             "BCL-145"
           ],
           "label": "BCL-145",
-          "status": "blocked",
+          "status": "running",
           "worktree": "bcl120-r1-145",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
@@ -12426,10 +12426,8 @@
               "finished_phase_status": "changes_requested",
               "must_fix": "1. [workflow_definition.json:67](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json:67): `dependency` and `dependency_invalidated` independently declare the same states. Dependency validation and invalidation can therefore drift: changing one list can allow a lane to retain a state that the other check rejects after its prerequisite loses verification. Use one shared group for this invariant and test that changing it moves both decisions.\n\n2. [test_bcl.py:2377](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:2377): The new definition-change test does not establish both sides of either behavior. The changed verify call only checks that one error message is absent; it may have failed earlier for another reason. Invalidation checks only the modified definition, without showing the baseline blocks the dependent lane. Assert the actual decisions under both definitions."
             },
-            "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra medium (Codex)",
-            "must_fix_note": "1. [workflow_definition.json:67](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json:67): `dependency` and `dependency_invalidated` independently declare the same states. Dependency validation and invalidation can therefore drift: changing one list can allow a lane to retain a state that the other check rejects after its prerequisite loses verification. Use one shared group for this invariant and test that changing it moves both decisions.\n\n2. [test_bcl.py:2377](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:2377): The new definition-change test does not establish both sides of either behavior. The changed verify call only checks that one error message is absent; it may have failed earlier for another reason. Invalidation checks only the modified definition, without showing the baseline blocks the dependent lane. Assert the actual decisions under both definitions.",
-            "review_status": "blocked"
+            "must_fix_note": "1. [workflow_definition.json:67](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json:67): `dependency` and `dependency_invalidated` independently declare the same states. Dependency validation and invalidation can therefore drift: changing one list can allow a lane to retain a state that the other check rejects after its prerequisite loses verification. Use one shared group for this invariant and test that changing it moves both decisions.\n\n2. [test_bcl.py:2377](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:2377): The new definition-change test does not establish both sides of either behavior. The changed verify call only checks that one error message is absent; it may have failed earlier for another reason. Invalidation checks only the modified definition, without showing the baseline blocks the dependent lane. Assert the actual decisions under both definitions."
           },
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -12467,8 +12465,21 @@
           ],
           "updated_at": "2026-11-22T13:42:25Z",
           "phase": "fix",
-          "blocked_reason": "Second failure",
-          "failure_block_reason": "1. [workflow_definition.json:67](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json:67): `dependency` and `dependency_invalidated` independently declare the same states. Dependency validation and invalidation can therefore drift: changing one list can allow a lane to retain a state that the other check rejects after its prerequisite loses verification. Use one shared group for this invariant and test that changing it moves both decisions.\n\n2. [test_bcl.py:2377](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:2377): The new definition-change test does not establish both sides of either behavior. The changed verify call only checks that one error message is absent; it may have failed earlier for another reason. Invalidation checks only the modified definition, without showing the baseline blocks the dependent lane. Assert the actual decisions under both definitions."
+          "unblock_history": [
+            {
+              "at": "2026-11-22T14:56:27Z",
+              "reason": "Guru approved 2026-11-22 20:26 IST: defer to round 3 so R2-176 can ship",
+              "tool_faults": [],
+              "covered_attempts": [
+                "a6e0f52080d54fea92899bfa55657883",
+                "1098f0e97aa945eaafa9d292785ad8e0"
+              ],
+              "rows_seen": 2,
+              "by_cycle": 12,
+              "round": 2,
+              "owner_override": true
+            }
+          ]
         },
         {
           "id": "R2-DO1",
@@ -12477,7 +12488,7 @@
             "DO-1"
           ],
           "label": "DO-1",
-          "status": "blocked",
+          "status": "running",
           "worktree": "bcl120-r2-do1-r2",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-do1.sh",
@@ -12507,10 +12518,8 @@
               "finished_phase_status": "changes_requested",
               "must_fix": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Git quotes paths containing non-ASCII characters or certain special characters by default. A snapshot such as `docs/triage/café.json` is returned as a quoted string that does not start with `docs/triage/`, so the collector still reports it as an unpushed commit. Use NUL-delimited output and parse the actual paths; add a behavioral test."
             },
-            "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra medium (Codex)",
-            "must_fix_note": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Git quotes paths containing non-ASCII characters or certain special characters by default. A snapshot such as `docs/triage/café.json` is returned as a quoted string that does not start with `docs/triage/`, so the collector still reports it as an unpushed commit. Use NUL-delimited output and parse the actual paths; add a behavioral test.",
-            "review_status": "blocked"
+            "must_fix_note": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Git quotes paths containing non-ASCII characters or certain special characters by default. A snapshot such as `docs/triage/café.json` is returned as a quoted string that does not start with `docs/triage/`, so the collector still reports it as an unpushed commit. Use NUL-delimited output and parse the actual paths; add a behavioral test."
           },
           "files": [
             "plugins/developer-observability/runtime/collector/sources.py",
@@ -12557,8 +12566,21 @@
           ],
           "updated_at": "2026-11-22T13:42:38Z",
           "phase": "fix",
-          "blocked_reason": "Second failure",
-          "failure_block_reason": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Git quotes paths containing non-ASCII characters or certain special characters by default. A snapshot such as `docs/triage/café.json` is returned as a quoted string that does not start with `docs/triage/`, so the collector still reports it as an unpushed commit. Use NUL-delimited output and parse the actual paths; add a behavioral test."
+          "unblock_history": [
+            {
+              "at": "2026-11-22T14:56:28Z",
+              "reason": "Guru approved 2026-11-22 20:26 IST: defer to round 3 so R2-176 can ship",
+              "tool_faults": [],
+              "covered_attempts": [
+                "3c9e094c725a400b95a22641c1cf7369",
+                "da6ebb99274244d1b7c92e594ab3ed34"
+              ],
+              "rows_seen": 3,
+              "by_cycle": 12,
+              "round": 2,
+              "owner_override": true
+            }
+          ]
         },
         {
           "id": "R2-176",
@@ -13311,7 +13333,7 @@
       "observed": "22 Nov 2026 09:45 IST, bcl 0.1.60, reliability pass over PR 117 to 119",
       "priority": "high",
       "source": "Agent reported",
-      "status": "blocked",
+      "status": "in_progress",
       "details": {
         "filed_by": "PR 119 round 2 reliability pass (Guru 09:41 IST); attack-the-premise",
         "report": "bcl-119 progress.md",
@@ -13319,7 +13341,8 @@
         "kind": "fix",
         "root_cause_for": "BCL-110, BCL-112, BCL-132, BCL-135, BCL-136, BCL-143",
         "more_evidence": "Round 2: page shows deferred R2-137 as Changes requested, not Parked (render keeps its own state order); Sol plan reviews of R2-137 (cap marker) and R2-144 (hotfix key) both found a field one writer protects and another accepts; bcl install and verify reruns on one lane changed the plan hash and stranded two running jobs (also BCL-113/133)",
-        "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)"
+        "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)",
+        "review_notes": "Round 2 second counted failure (Terra medium re-review of 70015383, 19:52 IST, review-145-2-terra.md). Fixed: pending claims on existing lanes refused, new-lane pending defaults stripped; bcl:753/763 and manage_findings:1814 read named groups; 506 tests, grep clean. Open: workflow_definition.json 'dependency' and new 'dependency_invalidated' duplicate the same states (use one group); test_bcl.py:2377 must assert both decisions under baseline and changed definitions. Commits in bcl120-r1-145; Luna session 01a2038e-ae20-71b1-97ce-5f4bde143c3c."
       },
       "needs": "1. [workflow_definition.json:67](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json:67): `dependency` and `dependency_invalidated` independently declare the same states. Dependency validation and invalidation can therefore drift: changing one list can allow a lane to retain a state that the other check rejects after its prerequisite loses verification. Use one shared group for this invariant and test that changing it moves both decisions.\n\n2. [test_bcl.py:2377](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:2377): The new definition-change test does not establish both sides of either behavior. The changed verify call only checks that one error message is absent; it may have failed earlier for another reason. Invalidation checks only the modified definition, without showing the baseline blocks the dependent lane. Assert the actual decisions under both definitions."
     },
@@ -13570,7 +13593,7 @@
       "details": {
         "root_cause_group": "M-ROUND (same class as BCL-158, which is verified)",
         "also reported as BCL-179": "Fresh lane worktrees get doubled round suffixes The fresh-worktree command appends the round to the lane's worktree name even when the name already carries a round marker in the middle, so round 2 lanes got names ending in r2 twice. 22 Nov 2026 19:12 IST, PR 120 round 2 lanes R2-DO1 and R2-176",
-        "also reported as BCL-180": "A blocked lane cannot be moved to a later round without unblocking it Moving a lane blocked after two counted failures to the next round is refused unless it is unblocked first, but only the owner may unblock, so the lane stays blocked in the current round and holds its release check. 22 Nov 2026 19:29 IST, PR 120 R2-DO1 after owner decision"
+        "also reported as BCL-180": "A blocked lane cannot be moved to a later round without unblocking it Moving a lane blocked after two counted failures to the next round is refused unless it is unblocked first, but only the owner may unblock, so the lane stays blocked in the current round and holds its release check. 22 Nov 2026 19:29 IST, PR 120 R2-DO1 after owner decision 19:55 IST: R2-145 also blocked on its second review; release-check for 0.1.69 (BCL-176 alone) refuses with R2-145 and R2-DO1 listed, so a single passing lane cannot ship without an owner unblock."
       }
     },
     {
@@ -13583,7 +13606,7 @@
       "observed": "22 Nov 2026 19:08 IST, round 1 introspect of PR 120",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "blocked",
+      "status": "in_progress",
       "details": {
         "finding_key": "col-8394fc3bec1b1387",
         "evidence": "snapshots 0ea4fb35 (19:07:32 IST) and d017c9e9 (19:08:11 IST), ~/.agents/artifacts/bcl-120/devobs-after-142.json",
