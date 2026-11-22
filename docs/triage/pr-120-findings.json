@@ -11353,9 +11353,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T16:59:50Z",
-      "now": "2026-11-22T16:59:50Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T17:09:45Z",
+      "now": "2026-11-22T17:09:45Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12937,7 +12937,7 @@
             "BCL-157"
           ],
           "label": "BCL-157",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl120-r4-157",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-157.sh",
@@ -12951,20 +12951,21 @@
             "implementer_session": "codex-luna-120-157",
             "reviewer_session": "codex-terra-120-157",
             "job": {
-              "id": "7896163d913c4e629aef740a38ea793d",
-              "phase": "fix",
-              "started_at": "2026-11-22T16:55:20Z",
-              "command": "run-luna-157.sh",
-              "heartbeat_at": "2026-11-22T16:59:21Z",
+              "id": "70583ae6a831479b8a26240170277b87",
+              "phase": "review",
+              "started_at": "2026-11-22T17:09:45Z",
+              "command": "run-review-157-job.sh",
+              "heartbeat_at": "2026-11-22T17:09:45Z",
               "plan_sha256": "8dbb428df40993cd3f3867cc093b95dc6dd311b530e33d76408378e9eda24da5",
               "worktree": "bcl120-r4-157",
-              "model": "gpt-6-luna fast medium",
+              "model": "gpt-6.1-terra medium (review)",
               "cycle": 12,
-              "round": 4,
-              "pid": 86527
+              "round": 4
             },
             "tool_fault_streak": 0,
-            "fix_status": "running"
+            "fix_status": "passed",
+            "review_status": "running",
+            "reviewer_model": "gpt-6.1-terra medium (review)"
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -12988,7 +12989,7 @@
             }
           ],
           "updated_at": "2026-11-22T16:38:10Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "R4-171",
@@ -12997,7 +12998,7 @@
             "BCL-171"
           ],
           "label": "BCL-171",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl120-r4-171",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-171.sh",
@@ -13010,18 +13011,22 @@
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "codex-luna-120-171",
             "reviewer_session": "codex-terra-120-171",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
               "id": "3e90b9746ba646f0ad381dae42300663",
               "phase": "fix",
               "started_at": "2026-11-22T16:59:50Z",
               "command": "run-luna-171-fix2.sh",
-              "heartbeat_at": "2026-11-22T16:59:50Z",
+              "heartbeat_at": "2026-11-22T17:09:20Z",
               "plan_sha256": "8dbb428df40993cd3f3867cc093b95dc6dd311b530e33d76408378e9eda24da5",
               "worktree": "bcl120-r4-171",
               "model": "gpt-6-luna fast medium",
               "cycle": 12,
-              "round": 4
+              "round": 4,
+              "pid": 94060,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T17:09:20Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra medium (review)",
@@ -13054,7 +13059,7 @@
             }
           ],
           "updated_at": "2026-11-22T16:38:10Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "R4-103",
@@ -13115,7 +13120,7 @@
             "BCL-106"
           ],
           "label": "BCL-106",
-          "status": "review",
+          "status": "running",
           "worktree": "bcl120-r4-106",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-106.sh",
@@ -13128,28 +13133,23 @@
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "codex-luna-120-106",
             "reviewer_session": "codex-terra-120-106",
-            "fix_status": "passed",
+            "fix_status": "running",
             "job": {
-              "id": "4fb1966a00de41d083d1f255cc5d0749",
-              "phase": "plan_review",
-              "started_at": "2026-11-22T16:55:23Z",
-              "command": "run-planreview-106-job.sh",
-              "heartbeat_at": "2026-11-22T16:55:41Z",
+              "id": "165b221f32ed4f46a1c752ef07c715bc",
+              "phase": "fix",
+              "started_at": "2026-11-22T16:59:51Z",
+              "command": "run-luna-106-fix2.sh",
+              "heartbeat_at": "2026-11-22T17:08:53Z",
               "plan_sha256": "8dbb428df40993cd3f3867cc093b95dc6dd311b530e33d76408378e9eda24da5",
               "worktree": "bcl120-r4-106",
-              "model": "gpt-6.1-terra low (plan review)",
+              "model": "gpt-6-luna fast medium",
               "cycle": 12,
               "round": 4,
-              "pid": 87310,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T16:55:41Z",
-              "finished_phase_status": "passed"
+              "pid": 94366
             },
             "tool_fault_streak": 0,
-            "review_status": "changes_requested",
             "reviewer_model": "gpt-6.1-terra medium (review)",
-            "must_fix_note": "1. [bcl:877](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-106/plugins/batched-change-list/bin/bcl:877) runs the shared check directly, and the lane path also launches its command directly. Neither uses `verify_driver.run_check` or `run_round`; only lane exit-code judging uses the driver. The driver’s shared, lane, and cleanup tests therefore do not cover the actual Verify path. Wire the tested driver into that path and test the integration, including a passing check followed by failed cleanup.\n\n2. [verify_driver.py:56](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:56) self-tests judging but does not exercise a shared check, lane check, or failing cleanup. Its cleanup assertion merely constructs a result with a failed cleanup field, so a broken cleanup implementation can pass the pre-Verify self-test. Exercise those invariants in the self-test and test that a broken invariant is rejected.",
-            "plan_review_status": "passed"
+            "must_fix_note": "1. [bcl:877](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-106/plugins/batched-change-list/bin/bcl:877) runs the shared check directly, and the lane path also launches its command directly. Neither uses `verify_driver.run_check` or `run_round`; only lane exit-code judging uses the driver. The driver’s shared, lane, and cleanup tests therefore do not cover the actual Verify path. Wire the tested driver into that path and test the integration, including a passing check followed by failed cleanup.\n\n2. [verify_driver.py:56](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:56) self-tests judging but does not exercise a shared check, lane check, or failing cleanup. Its cleanup assertion merely constructs a result with a failed cleanup field, so a broken cleanup implementation can pass the pre-Verify self-test. Exercise those invariants in the self-test and test that a broken invariant is rejected."
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py",
@@ -13180,7 +13180,7 @@
             }
           ],
           "updated_at": "2026-11-22T16:38:10Z",
-          "phase": "plan_review"
+          "phase": "fix"
         },
         {
           "id": "R2-DO1",
