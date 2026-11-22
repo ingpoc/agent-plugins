@@ -30,6 +30,5 @@ description: Use when collecting findings one at a time, managing build-install-
 | Before a release or after shipping | `references/release.md` |
 | Recovery | `references/tracker.md` |
 | Viewer use | `references/viewer.md` |
-| Debugging, tests, sequencing, shared state, or proof | `references/principles.md` |
 
 Self-validate: regenerate the chart with `python3 scripts/statechart.py`; run `python3 -m unittest discover -s scripts -p 'test_*.py'`.

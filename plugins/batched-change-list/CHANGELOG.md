@@ -2,7 +2,7 @@
 
 - `release-check --ids` counts a lane as settled once its fix and review passed and a presuite passed for every finding in the lane; a running or failed presuite, an unnamed lane finding, or an unfinished fix or review still blocks, and the output keeps its keys (BCL-136).
 - Restored the two legacy viewer command tests (BCL-138).
-- Skill: principles.md (skill-refine base plus bcl lines), read only when editing the skill; Introspect skill edits name the principles they were checked against.
+- Skill: principles.md (skill-refine base plus bcl lines), read only when editing the skill, replacing the duplicate references/principles.md (its debugging and test rules now sit in plan-fix.md); Introspect skill edits name the principles they were checked against.
 
 ## 0.1.60
 

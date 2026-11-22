@@ -4,7 +4,7 @@ import statechart
 import workflow_definition
 
 SKILL=Path(__file__).resolve().parents[1]/'SKILL.md'; ROOT=SKILL.parent; REFS=ROOT/'references'
-EXPECTED={'collect.md':'New list or feedback','present.md':'After collection','plan-fix.md':'After Present or gate loop-back','review.md':"After a group's fix",'install.md':'After group review','verify.md':'After its install','introspect.md':"After every round's Verify",'gate.md':'After Introspect or checking rollover','report-rollover.md':'When gate is met','tracker.md':'Recovery','viewer.md':'Viewer use','principles.md':'Debugging, tests, sequencing, shared state, or proof','release.md':'Before a release or after shipping'}
+EXPECTED={'collect.md':'New list or feedback','present.md':'After collection','plan-fix.md':'After Present or gate loop-back','review.md':"After a group's fix",'install.md':'After group review','verify.md':'After its install','introspect.md':"After every round's Verify",'gate.md':'After Introspect or checking rollover','report-rollover.md':'When gate is met','tracker.md':'Recovery','viewer.md':'Viewer use','release.md':'Before a release or after shipping'}
 STEPS=[stage["label"] for stage in workflow_definition.STAGES]
 
 class SkillLayoutTests(unittest.TestCase):

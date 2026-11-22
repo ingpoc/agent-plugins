@@ -6,7 +6,7 @@ After a counted code failure, the next fix is refused until `bcl job --ids ID --
 
 When the scope is agreed or already authorized, group related fixes into one coherent plan with affected files, acceptance checks, and dependencies. Use existing project gates and the smallest number of build/install cycles consistent with safe verification. Do not assume every issue will be fixed in one cycle.
 
-When debugging, follow [fix root causes](principles.md#fix-root-causes): reproduce, trace the first wrong decision or mishandled legitimate state, fix its owner, and check for the same fault elsewhere. When writing or changing tests, follow [test behavior, not implementation](principles.md#test-behavior-not-implementation). For ordering a multi-step batch, see [sequence verifiable units](principles.md#sequence-verifiable-units).
+When debugging, reproduce, trace the first wrong decision or mishandled legitimate state, fix its owner, and check for the same fault elsewhere. Tests assert behaviour that fails without the fix, not private helpers or call order. Order a batch so each step is checked before the next depends on it.
 
 Before building, make a compact verification matrix for each issue: ID, current status, owner, acceptance check, installed build, prerequisites, and whether the agent or user can perform it. Check shared prerequisites once (including input devices for voice), group checks by installed session, and perform all accessible checks before requesting user assistance.
 

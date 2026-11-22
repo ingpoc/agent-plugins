@@ -15,7 +15,7 @@ def score(path):
     if not isinstance(evals, list):
         evals = []
     return sum(("| Step | When | Load | Run |" in text,
-                all(x in refs for x in ("collect.md", "present.md", "gate.md", "tracker.md", "viewer.md", "principles.md")),
+                all(x in refs for x in ("collect.md", "present.md", "gate.md", "tracker.md", "viewer.md")),
                 len(evals) >= 3,
                 "python3 scripts/statechart.py" in text))
 
