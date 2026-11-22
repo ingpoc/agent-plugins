@@ -10984,9 +10984,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T13:50:27Z",
-      "now": "2026-11-22T13:50:27Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T13:54:37Z",
+      "now": "2026-11-22T13:54:37Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12396,7 +12396,7 @@
             "BCL-145"
           ],
           "label": "BCL-145",
-          "status": "review",
+          "status": "running",
           "worktree": "bcl120-r1-145",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
@@ -12415,16 +12415,21 @@
               "phase": "review",
               "started_at": "2026-11-22T13:49:47Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T13:49:47Z",
+              "heartbeat_at": "2026-11-22T13:52:18Z",
               "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
               "model": "gpt-6.1-terra medium (Codex)",
               "cycle": 12,
               "round": 2,
-              "pid": 32502
+              "pid": 32502,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T13:52:18Z",
+              "finished_phase_status": "changes_requested",
+              "must_fix": "1. [manage_findings.py:549](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:549) permits a plan write to newly claim `codex.fix_status`, `codex.review_status`, or `codex.plan_review_status` as `\"pending\"` when the stored field is absent. This exception also applies to raw `update-plan-group` patches, which can persist the new field. The requested guard forbids newly claiming protected fields, including pending values.\n\n2. Lane membership remains duplicated in [bcl:753](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:753), [bcl:763](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:763), and [manage_findings.py:1814](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1814). Changing the shared groups will therefore leave verify admission and dependency invalidation using stale membership rules."
             },
             "tool_fault_streak": 0,
-            "review_status": "running",
-            "reviewer_model": "gpt-6.1-terra medium (Codex)"
+            "review_status": "changes_requested",
+            "reviewer_model": "gpt-6.1-terra medium (Codex)",
+            "must_fix_note": "1. [manage_findings.py:549](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:549) permits a plan write to newly claim `codex.fix_status`, `codex.review_status`, or `codex.plan_review_status` as `\"pending\"` when the stored field is absent. This exception also applies to raw `update-plan-group` patches, which can persist the new field. The requested guard forbids newly claiming protected fields, including pending values.\n\n2. Lane membership remains duplicated in [bcl:753](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:753), [bcl:763](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:763), and [manage_findings.py:1814](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1814). Changing the shared groups will therefore leave verify admission and dependency invalidation using stale membership rules."
           },
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -12432,10 +12437,19 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json",
             "plugins/batched-change-list/skills/batched-change-list/statechart.html"
           ],
-          "failure_history": [],
+          "failure_history": [
+            {
+              "attempt_id": "a6e0f52080d54fea92899bfa55657883",
+              "source": "review",
+              "reason": "1. [manage_findings.py:549](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:549) permits a plan write to newly claim `codex.fix_status`, `codex.review_status`, or `codex.plan_review_status` as `\"pending\"` when the stored field is absent. This exception also applies to raw `update-plan-group` patches, which can persist the new field. The requested guard forbids newly claiming protected fields, including pending values.\n\n2. Lane membership remains duplicated in [bcl:753](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:753), [bcl:763](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/bin/bcl:763), and [manage_findings.py:1814](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r1-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1814). Changing the shared groups will therefore leave verify admission and dependency invalidation using stale membership rules.",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:52:19Z"
+            }
+          ],
           "plan_review_history": [],
           "updated_at": "2026-11-22T13:42:25Z",
-          "phase": "review"
+          "phase": "fix"
         },
         {
           "id": "R2-DO1",
@@ -12444,7 +12458,7 @@
             "DO-1"
           ],
           "label": "DO-1",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl120-r2-do1-r2",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-do1.sh",
@@ -12457,21 +12471,22 @@
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "codex-luna-120-do1",
             "reviewer_session": "codex-terra-120-do1",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "6173e9c0a957419cbb475cca28e3b868",
-              "phase": "fix",
-              "started_at": "2026-11-22T13:50:27Z",
+              "id": "da6ebb99274244d1b7c92e594ab3ed34",
+              "phase": "review",
+              "started_at": "2026-11-22T13:54:37Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T13:50:27Z",
+              "heartbeat_at": "2026-11-22T13:54:37Z",
               "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
-              "model": "gpt-6-luna fast medium (Codex, resumed)",
+              "model": "gpt-6.1-terra medium (Codex)",
               "cycle": 12,
               "round": 2
             },
             "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra medium (Codex)",
-            "must_fix_note": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Empty commits produce no changed paths and are silently ignored, although other ahead commits must still count. A failed `diff-tree` call is also silently ignored, which can hide an unpushed commit. Count empty commits and handle inspection failures without reporting false success; add behavioral coverage."
+            "must_fix_note": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Empty commits produce no changed paths and are silently ignored, although other ahead commits must still count. A failed `diff-tree` call is also silently ignored, which can hide an unpushed commit. Count empty commits and handle inspection failures without reporting false success; add behavioral coverage.",
+            "review_status": "running"
           },
           "files": [
             "plugins/developer-observability/runtime/collector/sources.py",
@@ -12509,7 +12524,7 @@
             }
           ],
           "updated_at": "2026-11-22T13:42:38Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "R2-176",
