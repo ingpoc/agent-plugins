@@ -11016,9 +11016,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-22T04:15:51Z",
-      "now": "2026-11-22T04:15:51Z — Verify in progress"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T04:21:07Z",
+      "now": "2026-11-22T04:21:07Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12553,14 +12553,14 @@
           "finding_ids": [
             "BCL-135"
           ],
-          "status": "verifying",
+          "status": "verified",
           "worktree": "bcl119-r2-135",
           "label": "BCL-135",
           "reason": "Shipped in 0.1.59 (46ef08eb) as a bootstrap fix: the bug blocked every plan write, so the fix ran before this plan could be recorded",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-135.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -12589,7 +12589,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T04:15:51Z",
+          "updated_at": "2026-11-22T04:16:21Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -12599,7 +12599,15 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-22T04:15:26Z"
-          }
+          },
+          "verify_reruns": [
+            {
+              "round": 2,
+              "reason": "Checker fault: the first check expected the carried lanes to keep their old review state, but a new round clears it by design; check now looks for the carried failure history",
+              "at": "2026-11-22T04:16:21Z",
+              "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+            }
+          ]
         },
         {
           "id": "R2-136",
@@ -12627,7 +12635,7 @@
               "phase": "fix",
               "started_at": "2026-11-22T04:09:15Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T04:15:16Z",
+              "heartbeat_at": "2026-11-22T04:19:16Z",
               "plan_sha256": "8e2b7aecec13d072b201703b8d0fcfabcb027274ffd896b173c87450e48b61f2",
               "model": "gpt-6-luna medium fast (Codex CLI)",
               "cycle": 11,
@@ -12662,16 +12670,15 @@
             "reviewer_session": "codex-terra-6.1-119r2-137",
             "fix_status": "running",
             "job": {
-              "id": "9c1763e59a8b4d1f808e8d94d3517d81",
+              "id": "6bfdde17edfb4f34b2b3df54ee95852f",
               "phase": "fix",
-              "started_at": "2026-11-22T04:09:18Z",
-              "command": "env",
-              "heartbeat_at": "2026-11-22T04:15:19Z",
-              "plan_sha256": "8e2b7aecec13d072b201703b8d0fcfabcb027274ffd896b173c87450e48b61f2",
-              "model": "gpt-6-luna medium fast (Codex CLI)",
+              "started_at": "2026-11-22T04:21:07Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-22T04:21:07Z",
+              "plan_sha256": "160f70ab0fe2f38c1408ea63e8cdd2df8838de56572b2f25ff7abe5b6ffa40de",
+              "model": "scripted confirm of Luna commit c927e759 (stranded job, 0 tokens)",
               "cycle": 11,
-              "round": 2,
-              "pid": 95546
+              "round": 2
             }
           },
           "failure_history": [],
@@ -12839,7 +12846,15 @@
           "state": "pending"
         },
         "BCL-135": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T04:16:52Z",
+          "started_at": "2026-11-22T04:16:52Z",
+          "updated_at": "2026-11-22T04:16:52Z",
+          "check_id": "caaf3f5f69ca47378347bf144d26a03e",
+          "evidence": "Checked: The installed plan check, its test, and the live list after round 1 closed; Expected: A lane whose review asked for changes can be carried and the release check then clears; Observed: The two carried lanes moved to the next round with their failure history, the release check was clear before push, job review states are accepted, unknown states are refused, and the test passes on the installed copy",
+          "details": "Log: bcl-119/progress.md; r2/verify-135.sh. Run r2-8719fcc4-119.",
+          "finished_at": "2026-11-22T04:16:52.215904Z"
         },
         "BCL-136": {
           "state": "pending"
@@ -13653,7 +13668,7 @@
       "observed": "21 Nov 2026 22:25 IST, bcl 0.1.57 installed, deferring R1-RELEASE and R1-ADD in PR 119",
       "priority": "high",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "PR 119 round 1 integration",
         "report": "r1/ops-round2.json",
@@ -13661,7 +13676,25 @@
         "kind": "fix",
         "release_exception": "Guru 22:05 IST: one-time release-check exception for 0.1.58 covering only R1-RELEASE and R1-ADD, carried to round 2 because this bug blocks deferring them",
         "round2_order": "1 (first in round 2)"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The installed plan check, its test, and the live list after round 1 closed",
+          "expected": "A lane whose review asked for changes can be carried and the release check then clears",
+          "observed": "The two carried lanes moved to the next round with their failure history, the release check was clear before push, job review states are accepted, unknown states are refused, and the test passes on the installed copy",
+          "verdict": "The two carried lanes moved to the next round with their failure history, the release check was clear before push, job review states are accepted, unknown states are refused, and the test passes on the installed copy",
+          "check_id": "bcl-135-0.1.60-8719fcc4",
+          "build": "batched-change-list 0.1.60",
+          "session": "r2-8719fcc4-119",
+          "timestamp": "2026-11-22T04:16:52Z",
+          "reference": "8719fcc4:BCL-135:installed-check",
+          "details": "Log: bcl-119/progress.md; r2/verify-135.sh. Run r2-8719fcc4-119."
+        }
+      ],
+      "verification": "The two carried lanes moved to the next round with their failure history, the release check was clear before push, job review states are accepted, unknown states are refused, and the test passes on the installed copy Log: bcl-119/progress.md; r2/verify-135.sh. Run r2-8719fcc4-119.",
+      "verification_refs": [
+        "8719fcc4:BCL-135:installed-check"
+      ]
     },
     {
       "id": "BCL-136",
