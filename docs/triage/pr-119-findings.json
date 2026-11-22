@@ -12089,9 +12089,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-22T11:56:41Z",
-      "now": "2026-11-22T11:56:41Z — Verify in progress"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T12:07:36Z",
+      "now": "2026-11-22T12:07:36Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13699,7 +13699,7 @@
             }
           ],
           "status": "verified",
-          "updated_at": "2026-11-22T11:40:43Z",
+          "updated_at": "2026-11-22T12:07:25Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13776,7 +13776,7 @@
               "at": "2026-11-22T11:02:40Z"
             }
           ],
-          "updated_at": "2026-11-22T11:40:43Z",
+          "updated_at": "2026-11-22T12:07:25Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13800,12 +13800,12 @@
             "BCL-162"
           ],
           "label": "BCL-162",
-          "status": "verifying",
+          "status": "verified",
           "worktree": "bcl119-r3-162",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-162.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -13835,7 +13835,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T11:56:41Z",
+          "updated_at": "2026-11-22T12:07:25Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13854,12 +13854,12 @@
             "BCL-154"
           ],
           "label": "BCL-154",
-          "status": "installing",
+          "status": "verified",
           "worktree": "bcl119-r3-154",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-154.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -13907,8 +13907,8 @@
               "at": "2026-11-22T11:44:27Z"
             }
           ],
-          "updated_at": "2026-11-22T11:40:43Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T12:07:25Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -13926,12 +13926,12 @@
             "BCL-164"
           ],
           "label": "BCL-164",
-          "status": "installing",
+          "status": "verified",
           "worktree": "bcl119-r3-164",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-164.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -13961,8 +13961,8 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T11:40:43Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T12:07:25Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -13980,12 +13980,12 @@
             "BCL-165"
           ],
           "label": "BCL-165",
-          "status": "installing",
+          "status": "verified",
           "worktree": "bcl119-r3-165",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-165.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -14015,8 +14015,8 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T11:40:43Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T12:07:25Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -14146,7 +14146,7 @@
             }
           ],
           "status": "deferred",
-          "updated_at": "2026-11-22T11:40:43Z",
+          "updated_at": "2026-11-22T12:07:25Z",
           "phase": "deferred",
           "reason": "Guru 16:04 IST: ship R2-150 now; parked at sub-lane b 9cbda612 for Codex Luna after 18:50 (plan review passed, a and b committed)",
           "parked_to": 4
@@ -14252,7 +14252,7 @@
             }
           ],
           "status": "deferred",
-          "updated_at": "2026-11-22T11:40:43Z",
+          "updated_at": "2026-11-22T12:07:25Z",
           "phase": "deferred",
           "reason": "Guru 16:04 IST: ship R2-150 now; parked for Codex Luna after 18:50 (plan review passed, no code yet)",
           "parked_to": 4
@@ -14292,7 +14292,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T11:40:43Z"
+          "updated_at": "2026-11-22T12:07:25Z"
         },
         {
           "id": "R1-ADD",
@@ -14331,7 +14331,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T11:40:43Z"
+          "updated_at": "2026-11-22T12:07:25Z"
         },
         {
           "id": "R2-144",
@@ -14371,7 +14371,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T11:40:43Z"
+          "updated_at": "2026-11-22T12:07:25Z"
         },
         {
           "id": "R1-DEAD",
@@ -14450,7 +14450,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T11:40:43Z"
+          "updated_at": "2026-11-22T12:07:25Z"
         },
         {
           "id": "R1-RELEASE",
@@ -14488,7 +14488,7 @@
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 4,
-          "updated_at": "2026-11-22T11:40:43Z"
+          "updated_at": "2026-11-22T12:07:25Z"
         },
         {
           "id": "R2-146",
@@ -14563,7 +14563,7 @@
           ],
           "status": "verified",
           "codex": {},
-          "updated_at": "2026-11-22T11:40:43Z",
+          "updated_at": "2026-11-22T12:07:25Z",
           "phase": "verify"
         },
         {
@@ -14603,7 +14603,7 @@
           ],
           "status": "verified",
           "codex": {},
-          "updated_at": "2026-11-22T11:40:43Z",
+          "updated_at": "2026-11-22T12:07:25Z",
           "phase": "verify"
         },
         {
@@ -14611,89 +14611,12 @@
           "name": "Page shows the real live state",
           "finding_ids": [
             "BCL-157",
-            "BCL-159",
-            "BCL-117",
-            "BCL-118"
+            "BCL-159"
           ],
-          "label": "BCL-157, BCL-159, BCL-117, BCL-118",
+          "label": "BCL-157, BCL-159",
           "status": "deferred",
           "phase": "deferred",
           "reason": "Guru 16:56 IST root-cause merge; also covers nothing else; restructured into one lane at round start",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 4
-          },
-          "parked_to": 4,
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-22T11:40:43Z",
-          "codex": {}
-        },
-        {
-          "id": "M-ROUND",
-          "name": "One round-start command",
-          "finding_ids": [
-            "BCL-151",
-            "BCL-156",
-            "BCL-158",
-            "BCL-111",
-            "BCL-143",
-            "BCL-152"
-          ],
-          "label": "BCL-151, BCL-156, BCL-158, BCL-111, BCL-143, BCL-152",
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 16:56 IST root-cause merge; also covers nothing else; restructured into one lane at round start",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 6
-          },
-          "parked_to": 4,
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-22T11:40:43Z",
-          "codex": {}
-        },
-        {
-          "id": "M-GATES",
-          "name": "Fewer gates and an honest failure cap",
-          "finding_ids": [
-            "BCL-163",
-            "BCL-131",
-            "BCL-149",
-            "BCL-103"
-          ],
-          "label": "BCL-163, BCL-131, BCL-149, BCL-103",
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 16:56 IST root-cause merge; also covers BCL-154 in R3-154, BCL-162 in R3-162, BCL-121 in R1-ADD, BCL-125 in R1-RELEASE, BCL-127 in R1-RELEASE, BCL-137 in R2-137; restructured into one lane at round start",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 4
-          },
-          "parked_to": 4,
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-22T11:40:43Z",
-          "codex": {}
-        },
-        {
-          "id": "M-CHART",
-          "name": "The state chart is always current",
-          "finding_ids": [
-            "BCL-155",
-            "BCL-134"
-          ],
-          "label": "BCL-155, BCL-134",
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 16:56 IST root-cause merge; also covers BCL-122 in R1-ADD; restructured into one lane at round start",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -14703,7 +14626,75 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T11:40:43Z",
+          "updated_at": "2026-11-22T12:07:25Z",
+          "codex": {}
+        },
+        {
+          "id": "M-ROUND",
+          "name": "One round-start command",
+          "finding_ids": [
+            "BCL-151",
+            "BCL-158"
+          ],
+          "label": "BCL-151, BCL-158",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers nothing else; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T12:07:25Z",
+          "codex": {}
+        },
+        {
+          "id": "M-GATES",
+          "name": "Fewer gates and an honest failure cap",
+          "finding_ids": [
+            "BCL-149",
+            "BCL-103"
+          ],
+          "label": "BCL-149, BCL-103",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers BCL-154 in R3-154, BCL-162 in R3-162, BCL-121 in R1-ADD, BCL-125 in R1-RELEASE, BCL-127 in R1-RELEASE, BCL-137 in R2-137; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T12:07:25Z",
+          "codex": {}
+        },
+        {
+          "id": "M-CHART",
+          "name": "The state chart is always current",
+          "finding_ids": [
+            "BCL-134"
+          ],
+          "label": "BCL-134",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers BCL-122 in R1-ADD; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T12:07:25Z",
           "codex": {}
         },
         {
@@ -14727,17 +14718,16 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T11:40:43Z",
+          "updated_at": "2026-11-22T12:07:25Z",
           "codex": {}
         },
         {
           "id": "M-RECEIPTS",
           "name": "Job receipts record what ran",
           "finding_ids": [
-            "BCL-147",
-            "BCL-119"
+            "BCL-147"
           ],
-          "label": "BCL-147, BCL-119",
+          "label": "BCL-147",
           "status": "deferred",
           "phase": "deferred",
           "reason": "Guru 16:56 IST root-cause merge; also covers nothing else; restructured into one lane at round start",
@@ -14745,12 +14735,12 @@
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 2
+            "total": 1
           },
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T11:40:43Z",
+          "updated_at": "2026-11-22T12:07:25Z",
           "codex": {}
         },
         {
@@ -14758,66 +14748,13 @@
           "name": "Verify records and reuses its checks",
           "finding_ids": [
             "BCL-160",
-            "BCL-96",
-            "BCL-97",
             "BCL-106",
             "BCL-139"
           ],
-          "label": "BCL-160, BCL-96, BCL-97, BCL-106, BCL-139",
+          "label": "BCL-160, BCL-106, BCL-139",
           "status": "deferred",
           "phase": "deferred",
           "reason": "Guru 16:56 IST root-cause merge; also covers nothing else; restructured into one lane at round start",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 5
-          },
-          "parked_to": 4,
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-22T11:40:43Z",
-          "codex": {}
-        },
-        {
-          "id": "M-WRITERS",
-          "name": "One owner for lane state",
-          "finding_ids": [
-            "BCL-110",
-            "BCL-112",
-            "BCL-113",
-            "BCL-114",
-            "BCL-132",
-            "BCL-133"
-          ],
-          "label": "BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133",
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 16:56 IST root-cause merge; also covers BCL-145 in R2-145; restructured into one lane at round start",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 6
-          },
-          "parked_to": 4,
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-22T11:40:43Z",
-          "codex": {}
-        },
-        {
-          "id": "M-TRACKER",
-          "name": "Tracker and viewer upkeep",
-          "finding_ids": [
-            "BCL-108",
-            "BCL-115",
-            "BCL-140"
-          ],
-          "label": "BCL-108, BCL-115, BCL-140",
-          "status": "deferred",
-          "phase": "deferred",
-          "reason": "Guru 16:56 IST root-cause merge; also covers BCL-94 in R1-ADD, BCL-124 in R1-DEAD, BCL-142 in R2-142; restructured into one lane at round start",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -14827,20 +14764,20 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T11:40:43Z",
+          "updated_at": "2026-11-22T12:07:25Z",
           "codex": {}
         },
         {
-          "id": "M-INTROSPECT",
-          "name": "Introspect looks across rounds",
+          "id": "M-WRITERS",
+          "name": "One owner for lane state",
           "finding_ids": [
-            "BCL-100",
-            "BCL-120"
+            "BCL-110",
+            "BCL-113"
           ],
-          "label": "BCL-100, BCL-120",
+          "label": "BCL-110, BCL-113",
           "status": "deferred",
           "phase": "deferred",
-          "reason": "Guru 16:56 IST root-cause merge; also covers nothing else; restructured into one lane at round start",
+          "reason": "Guru 16:56 IST root-cause merge; also covers BCL-145 in R2-145; restructured into one lane at round start",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -14850,7 +14787,54 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T11:40:43Z",
+          "updated_at": "2026-11-22T12:07:25Z",
+          "codex": {}
+        },
+        {
+          "id": "M-TRACKER",
+          "name": "Tracker and viewer upkeep",
+          "finding_ids": [
+            "BCL-108",
+            "BCL-115",
+            "BCL-140",
+            "BCL-166"
+          ],
+          "label": "BCL-108, BCL-115, BCL-140, BCL-166",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers BCL-94 in R1-ADD, BCL-124 in R1-DEAD, BCL-142 in R2-142; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 4
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T12:07:25Z",
+          "codex": {}
+        },
+        {
+          "id": "M-INTROSPECT",
+          "name": "Introspect looks across rounds",
+          "finding_ids": [
+            "BCL-120"
+          ],
+          "label": "BCL-120",
+          "status": "deferred",
+          "phase": "deferred",
+          "reason": "Guru 16:56 IST root-cause merge; also covers nothing else; restructured into one lane at round start",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "parked_to": 4,
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T12:07:25Z",
           "codex": {}
         },
         {
@@ -14874,8 +14858,71 @@
           "parked_to": 4,
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T11:40:43Z",
+          "updated_at": "2026-11-22T12:07:25Z",
           "codex": {}
+        },
+        {
+          "id": "R3-163",
+          "name": "Only review CHANGES count toward the lane cap (M-GATES)",
+          "finding_ids": [
+            "BCL-163"
+          ],
+          "label": "BCL-163",
+          "status": "running",
+          "worktree": "bcl119-r3-163",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-163.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
+            "implementer_session": "grokbot-self-119r3-163",
+            "reviewer_session": "grokbot-review-119r3-163",
+            "fix_status": "running",
+            "job": {
+              "id": "dfebdb6bef014b9e987107d0afddab33",
+              "phase": "fix",
+              "started_at": "2026-11-22T12:07:36Z",
+              "command": "self-lane.sh",
+              "heartbeat_at": "2026-11-22T12:07:36Z",
+              "plan_sha256": "9c9711f1c21723d4d75850984cddcdf9e8ed4e2628dd3b427947803cf08a4632",
+              "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
+              "cycle": 11,
+              "round": 3
+            }
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T12:07:25Z",
+          "phase": "fix"
+        },
+        {
+          "id": "R3-155",
+          "name": "Commit hook regenerates the state chart (M-CHART)",
+          "finding_ids": [
+            "BCL-155"
+          ],
+          "label": "BCL-155",
+          "status": "pending",
+          "worktree": "bcl119-r3-155",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-155.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
+            "implementer_session": "grokbot-self-119r3-155",
+            "reviewer_session": "grokbot-review-119r3-155"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T12:07:25Z"
         }
       ],
       "cycle": 11
@@ -14887,203 +14934,516 @@
       "installed_at": "2026-11-22T11:54:12Z",
       "install_evidence": "bcl install-local from clean detached worktree at 048c36c3: plugin sha 558add16 (4 cache copies), skill sha be55f8de",
       "cycle": 11,
-      "status": "active",
+      "status": "complete",
       "checks": {
         "ACU-10": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "ACU-20": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "ACU-21": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-94": {
-          "state": "pending"
-        },
-        "BCL-96": {
-          "state": "pending"
-        },
-        "BCL-97": {
-          "state": "pending"
-        },
-        "BCL-100": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-103": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-106": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-108": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-110": {
-          "state": "pending"
-        },
-        "BCL-111": {
-          "state": "pending"
-        },
-        "BCL-112": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-113": {
-          "state": "pending"
-        },
-        "BCL-114": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-115": {
-          "state": "pending"
-        },
-        "BCL-117": {
-          "state": "pending"
-        },
-        "BCL-118": {
-          "state": "pending"
-        },
-        "BCL-119": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-120": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-121": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-122": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-123": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-124": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-125": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-126": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-127": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-128": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-129": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-130": {
-          "state": "pending"
-        },
-        "BCL-131": {
-          "state": "pending"
-        },
-        "BCL-132": {
-          "state": "pending"
-        },
-        "BCL-133": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-134": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-135": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-136": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-137": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-138": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-139": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-140": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-141": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-142": {
-          "state": "pending"
-        },
-        "BCL-143": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-144": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-145": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-146": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-147": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-148": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-149": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-150": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-151": {
-          "state": "pending"
-        },
-        "BCL-152": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-153": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-154": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T11:56:56Z",
+          "started_at": "2026-11-22T11:56:56Z",
+          "updated_at": "2026-11-22T11:56:56Z",
+          "check_id": "138ee766a551443c8da42b6a5673cbb1",
+          "evidence": "Checked: The installed install-readiness test, lane state suite, install guidance, and a scratch copy of the live tracker; Expected: Install readiness is the release check; the separate install precheck is gone; Observed: All five installed checks passed; installing a lane without a passed pre-push suite was refused with the release-check reason",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
+          "finished_at": "2026-11-22T11:56:56.370021Z"
         },
         "BCL-155": {
-          "state": "pending"
-        },
-        "BCL-156": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-157": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-158": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-159": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-160": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-161": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-162": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T11:56:56Z",
+          "started_at": "2026-11-22T11:56:56Z",
+          "updated_at": "2026-11-22T11:56:56Z",
+          "check_id": "0a0d420fa9ae47cd81e7f03767a11472",
+          "evidence": "Checked: The installed version, its review guidance and test, and this build's shared pre-push suite; Expected: Each lane gets one pre-push suite through the repository check, fix jobs run only the lane's tests, and lanes shipping together share one suite; Observed: All four installed checks passed; the shared suite for four lanes took 141 seconds, down from 301 for one lane",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
+          "finished_at": "2026-11-22T11:56:56.368041Z"
         },
         "BCL-163": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:06:57Z",
+          "stopped": true,
+          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "observed_at": "2026-11-22T12:06:57Z",
+          "updated_at": "2026-11-22T12:06:57Z",
+          "finished_at": "2026-11-22T12:06:57Z"
         },
         "BCL-164": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T11:56:56Z",
+          "started_at": "2026-11-22T11:56:56Z",
+          "updated_at": "2026-11-22T11:56:56Z",
+          "check_id": "0bc4271e4b6e414595e3bf4c5a1dd654",
+          "evidence": "Checked: The installed add tests and a scratch copy of the live tracker; Expected: Adding an issue that looks like an open one is refused unless marked new, and appending it to the open issue adds no new row; Observed: All three installed checks passed on a copy of the live tracker",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
+          "finished_at": "2026-11-22T11:56:56.371778Z"
         },
         "BCL-165": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T11:56:56Z",
+          "started_at": "2026-11-22T11:56:56Z",
+          "updated_at": "2026-11-22T11:56:56Z",
+          "check_id": "9db662ab210948cf914a8d7fbaed41d2",
+          "evidence": "Checked: The installed grouped-list test, the page template, and a render of the live tracker; Expected: The issue list shows one collapsed row per plan group with its issue count, and verified issues fold into a Done section; Observed: All three installed checks passed; the live render tags issues with their group",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
+          "finished_at": "2026-11-22T11:56:56.373352Z"
         }
+      },
+      "stopped": {
+        "reason": "Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+        "at": "2026-11-22T12:06:57Z"
       }
     },
     "introspect": {
@@ -15272,54 +15632,6 @@
       }
     },
     {
-      "id": "BCL-96",
-      "title": "Check scripts are not self-tested before Verify",
-      "source": "User requested",
-      "priority": "high",
-      "summary": "Verify can start with check scripts that cannot run: no git repository, a stale plugin version, missing execute permission, a session limit in the observability tool, or a rerun that is not allowed.",
-      "impact": "A whole verification run is spent and recorded as failed for a reason in the checker, not in the product.",
-      "done_when": "Before Verify, a quick self-test of the check scripts confirms the git repository is present, the recorded plugin version matches the install, the scripts are executable, the observability session limit is fine, and a rerun is allowed; Verify refuses to start when it fails.",
-      "observed": "20 Nov 2026 21:24 IST, Guru, after PR 118 round 1 lost a shared check to a script without execute permission and earlier rounds lost runs to a missing repository and a version mismatch.",
-      "recommendation": "Run one self-test step inside the verify start and replace the separate manual preflight steps it covers.",
-      "status": "untested",
-      "details": {
-        "approved": "Guru 21:24 IST t1579u",
-        "root_cause_group": "M-VERIFY: Verify records and reuses its checks (BCL-160, BCL-96, BCL-97, BCL-106, BCL-139)"
-      }
-    },
-    {
-      "id": "BCL-97",
-      "title": "Rechecks fold into an issue's verdict",
-      "source": "User requested",
-      "priority": "high",
-      "summary": "Extra rechecks run alongside an issue's own check can change that issue's pass or fail result.",
-      "impact": "An issue fails for an unrelated recheck, as happened when a page heading recheck failed a memory lane.",
-      "done_when": "Each issue has one check that decides its verdict; rechecks are recorded separately and never change another issue's verdict.",
-      "observed": "20 Nov 2026 21:24 IST, Guru; on PR 118 round 1 the memory lane first failed on an unrelated multi step recheck.",
-      "recommendation": "Record rechecks under their own issue entries and keep the lane verdict to its named issues.",
-      "status": "untested",
-      "details": {
-        "approved": "Guru 21:24 IST t1579u",
-        "root_cause_group": "M-VERIFY: Verify records and reuses its checks (BCL-160, BCL-96, BCL-97, BCL-106, BCL-139)"
-      }
-    },
-    {
-      "id": "BCL-100",
-      "title": "Introspect does not look across rounds for repeated waste",
-      "source": "User requested",
-      "priority": "medium",
-      "summary": "Introspect only looks at the current round, so the same kind of waste can repeat round after round with a new one off fix each time.",
-      "impact": "Workflow problems are patched repeatedly instead of fixed once in the workflow.",
-      "done_when": "Introspect also scans the last few rounds' introspect and progress records for repeated waste of the same kind, and on two or more repeats it must propose a workflow change rather than a one off fix.",
-      "observed": "20 Nov 2026 21:24 IST, Guru asked for this after repeated checker and retry waste across PR 115 to PR 118.",
-      "recommendation": "Add a cross round scan to the introspect draft and require a workflow change section when a kind repeats; keep it lean by replacing the current free form repeat notes.",
-      "status": "untested",
-      "details": {
-        "approved": "Guru 21:24 IST t1579u",
-        "root_cause_group": "M-INTROSPECT: Introspect looks across rounds (BCL-100, BCL-120)"
-      }
-    },
-    {
       "id": "BCL-103",
       "title": "Lane reviews ask for a version bump only integration makes",
       "source": "Agent reported",
@@ -15340,19 +15652,20 @@
     },
     {
       "id": "BCL-106",
-      "title": "Verify scripts are rewritten every round and cleanup can fail a passing lane",
+      "title": "Verify scripts are untested per-round copies",
       "source": "Agent reported",
-      "priority": "medium",
-      "summary": "Each round hand-writes its own check scripts, and a cleanup error in one turns a passing lane into a failure.",
+      "priority": "high",
+      "summary": "Verify scripts are rewritten every round and cleanup can fail a passing lane, and check scripts are not self-tested before Verify.",
       "impact": "Checker faults recur every round and cost reruns that prove nothing about the fix.",
-      "done_when": "One tested check driver replaces the per-round copies, and a cleanup failure is reported separately without changing a lane's result.",
+      "done_when": "One tested driver runs every check with a built-in self-test, cleanup never changes a verdict, and no per-round copies remain; tests cover each.",
       "observed": "20 Nov 2026 23:10 IST, a PR 118 lane had all four cases passing but failed because its cleanup step misread results; similar checker faults hit PR 117 six times.",
-      "recommendation": "Promote one tested driver for shared checks, lane checks, cleanup and judging, delete the per-round copies, and keep cleanup out of the verdict.",
+      "recommendation": "Promote one tested driver for shared checks, lane checks, cleanup and judging, delete the per-round copies and keep cleanup out of the verdict; run one self-test step inside the verify start in place of the manual preflight.",
       "status": "untested",
       "details": {
         "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 7",
         "filed_by": "Guru 00:33 IST t1597u",
-        "root_cause_group": "M-VERIFY: Verify records and reuses its checks (BCL-160, BCL-96, BCL-97, BCL-106, BCL-139)"
+        "root_cause_group": "M-VERIFY (merged by class, Guru 17:33)",
+        "merged_from": "BCL-96: Check scripts are not self-tested before Verify"
       }
     },
     {
@@ -15374,11 +15687,11 @@
     },
     {
       "id": "BCL-110",
-      "title": "Delete, archive, park, unpark or a reused ID can strip a finding of its lane gate",
-      "summary": "Deleting, archiving, parking or unparking a finding, or adding one with a reused ID, moves it out of its lane without the lane's failure and plan-review history.",
+      "title": "Writers can strip or overwrite a lane's gate state",
+      "summary": "Delete, archive, park, unpark or a reused id can strip a finding of its lane gate; several writers can overwrite a blocked lane's status; legacy history, the cap after unblock and restore-main handle gate rows inconsistently; and the batch finalizer changes lanes the batch did not mean to change.",
       "impact": "A failed finding can be moved out and come back with a clean gate, skipping the required plan review or unblock.",
-      "recommendation": "Refuse removal or reassignment of a finding in a gated lane before any tracker or sidecar write; keep all gate history through same-lane rewrites; reject caller-supplied gate history.",
-      "done_when": "Each of those writes on a gated lane is refused with the tracker and sidecars unchanged, or keeps the gate intact.",
+      "recommendation": "Refuse removal or reassignment of a finding in a gated lane before any write and reject caller-supplied gate history; let only a reasoned unblock clear a failure block; convert legacy history chronologically without duplicates and recheck the cap on every slot-opening step; run the finalizer only for lanes the batch changed.",
+      "done_when": "No writer but unblock can clear or strip a gate, legacy history converts once, and untouched lanes stay byte-identical after a batch; tests cover each writer.",
       "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
       "priority": "high",
       "source": "Agent reported",
@@ -15389,56 +15702,17 @@
         "carry_to_round": "4",
         "technical": "Standalone and batch delete, archive, park, unpark, and add with a reused finding ID move or remove a lane member without its failure and plan-review history.",
         "commit": "0fac47be",
-        "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)"
-      }
-    },
-    {
-      "id": "BCL-111",
-      "title": "Rollover hands unresolved findings a clean lane in the next PR",
-      "summary": "Rolling a PR over drops the lane plan but keeps unresolved findings, so their failures and block are lost in the next PR.",
-      "impact": "A blocked or gated finding restarts in the next PR as if it had never failed.",
-      "recommendation": "Refuse a rollover that would strand a protected gate (even when forced), or carry and enforce the gate in the successor.",
-      "done_when": "Rolling over with a gated lane is refused, or the successor shows the same failures and block.",
-      "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
-      "priority": "high",
-      "source": "Agent reported",
-      "status": "untested",
-      "details": {
-        "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
-        "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 2",
-        "carry_to_round": "4",
-        "technical": "prepare_rollover drops tracking.plan but keeps unresolved findings, so their failure history and block are lost in the successor.",
-        "commit": "0fac47be",
-        "root_cause_group": "M-ROUND: One round-start command (BCL-151, BCL-156, BCL-158, BCL-111, BCL-143, BCL-152)"
-      }
-    },
-    {
-      "id": "BCL-112",
-      "title": "Several writers can overwrite a blocked lane's status",
-      "summary": "Several commands other than unblock (lane edits, verify syncing, skipping review, activity updates) can overwrite a blocked lane's status.",
-      "impact": "A lane blocked by two failures can be reopened without a reasoned unblock.",
-      "recommendation": "Guard set-activity, verification sync, skip-review, rerun and verifier completion so only a reasoned unblock clears a failure block.",
-      "done_when": "Every writer except a reasoned unblock leaves a failure-blocked lane blocked.",
-      "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
-      "priority": "high",
-      "source": "Agent reported",
-      "status": "untested",
-      "details": {
-        "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
-        "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 3",
-        "carry_to_round": "4",
-        "technical": "update-plan-group blocked_reason, sync_plan_verify, skip-review, set-activity and raw verify activity can replace a blocked status, so the job guard sees an open lane.",
-        "commit": "0fac47be",
-        "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)"
+        "root_cause_group": "M-WRITERS (merged by class, Guru 17:33)",
+        "merged_from": "BCL-112: Several writers can overwrite a blocked lane's status; BCL-114: Legacy history, the lane cap after unblock, and restore-main on single updates; BCL-132: Batch finalizer changes lanes the batch did not mean to change"
       }
     },
     {
       "id": "BCL-113",
-      "title": "Edits can invalidate a running job, and a PASS can race a newer failure",
-      "summary": "Editing the plan or a lane during a job can drop the job's only receipt, and a plan-review pass is not checked against failures recorded while it ran.",
+      "title": "Plan and finding edits can strand or race a running job",
+      "summary": "Edits can invalidate a running job and a PASS can race a newer failure; plan edits can strand a running job or reset the review count.",
       "impact": "A running job's result can be lost, or a stale PASS can authorize a fix after a newer failure.",
-      "recommendation": "Preserve the receipt through compatible edits or refuse the change until completion; bind a plan review to the failure present at reservation and reject its PASS if a newer failure arrived.",
-      "done_when": "Edits during a running job keep or refuse; a PASS finishing after a newer failure does not open the fix.",
+      "recommendation": "Preserve the job receipt through compatible edits or refuse the change until completion; bind a plan review to the failure present at reservation and reject its PASS if a newer failure arrived; protect job-owned and cap fields in both plan writers and scope the job hash to its lane.",
+      "done_when": "A running job survives or blocks every edit, a stale PASS is rejected, and cap fields cannot be reset by a plan write; tests cover each.",
       "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
       "priority": "medium",
       "source": "Agent reported",
@@ -15449,27 +15723,8 @@
         "carry_to_round": "4",
         "technical": "A second reservation, a plan or group edit changing the candidate hash, replacing codex, or correct-round can drop a running job's only receipt; a plan-review PASS is not checked against failures recorded during the review.",
         "commit": "0fac47be",
-        "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)"
-      }
-    },
-    {
-      "id": "BCL-114",
-      "title": "Legacy history, the lane cap after unblock, and restore-main on single updates",
-      "summary": "Old per-finding history is not fully converted before gate decisions, the four-lane cap is not rechecked after an unblock, and single finding updates skip the restore-main check.",
-      "impact": "A merged legacy lane can sit open with two failures, a fifth lane can reopen, and a single update can mark a regression without a restore lane.",
-      "recommendation": "Convert chronologically with duplicate failures and plan-review bindings removed, block at two counted failures honoring recorded unblocks, keep same-second ambiguity until a fresh PASS; recheck the cap on every slot-opening transition; apply the restore-main check to single updates.",
-      "done_when": "Tests for interleaved, duplicate and same-second legacy rows, an unblock past four lanes, and a standalone regression update all refuse or block as specified.",
-      "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
-      "priority": "medium",
-      "source": "Agent reported",
-      "status": "untested",
-      "details": {
-        "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
-        "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 5",
-        "carry_to_round": "4",
-        "technical": "Old per-finding history is not fully converted before gate decisions; the four-open-lane cap is not rechecked after unblock or retry; the restore-main check is missing from standalone finding updates.",
-        "commit": "0fac47be",
-        "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)"
+        "root_cause_group": "M-WRITERS (merged by class, Guru 17:33)",
+        "merged_from": "BCL-133: Plan edits can strand a running job or reset the review count"
       }
     },
     {
@@ -15493,70 +15748,12 @@
       }
     },
     {
-      "id": "BCL-117",
-      "title": "The page's Updated stamp does not move on finding writes",
-      "summary": "The PR 118 page's Updated time only changes on lane activity, not when findings are added or updated.",
-      "impact": "The page can look stale after real tracker changes.",
-      "recommendation": "Stamp Updated from the tracker's last write, whatever the write was.",
-      "done_when": "Adding or updating a finding moves the page's Updated time.",
-      "observed": "21 Nov 2026 morning IST, page :59151 kept an old Updated time after finding writes.",
-      "priority": "low",
-      "source": "Agent reported",
-      "status": "untested",
-      "details": {
-        "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
-        "report": "bcl-118 progress.md open item",
-        "carry_to_round": "4",
-        "root_cause_group": "M-LIVE: Page shows the real live state (BCL-157, BCL-159, BCL-117, BCL-118)"
-      }
-    },
-    {
-      "id": "BCL-118",
-      "title": "Goal: the page shows the full orchestration timeline",
-      "summary": "The PR 118 page shows only the current job. It should list every job in the round with its model and effort, state, duration and links to its outputs.",
-      "impact": "Nobody can see how a round actually ran (which models ran, how long each step took, where its output is) without reading logs.",
-      "recommendation": "Render a per-lane timeline from the recorded job history: one row per job with phase, model and effort, state, start, duration and output links.",
-      "done_when": "After a round with several jobs, the page lists every job with model and effort, state, duration and a working link to its output.",
-      "observed": "21 Nov 2026 morning IST, during PR 118 round 3 the page showed one line such as Plan review with its model, while nine plan reviews, two fixes and one review had run.",
-      "priority": "medium",
-      "source": "Agent reported",
-      "status": "untested",
-      "details": {
-        "filed_by": "Guru 10:20 IST t1604u (north star goal, via parent)",
-        "carry_to_round": "4",
-        "kind": "goal",
-        "root_cause_group": "M-LIVE: Page shows the real live state (BCL-157, BCL-159, BCL-117, BCL-118)"
-      }
-    },
-    {
-      "id": "BCL-119",
-      "title": "Goal: every job records tokens and wall time, and Introspect ranks the costliest steps",
-      "summary": "Jobs record no token usage or wall time. Each job should store its measured tokens and duration, and Introspect should rank the round's most token-expensive steps and propose delete, simplify or optimize cuts against them.",
-      "impact": "Token cost is invisible and easy to misread: one fix job's reported usage was the whole session's running total, about seven times what the job itself used.",
-      "recommendation": "Capture input, cached and output tokens plus wall time from each child's own usage report when the job finishes; have Introspect rank steps by tokens and time and propose a cut for the top ones.",
-      "done_when": "Every finished job shows measured tokens and wall time, and Introspect lists the round's top steps by tokens with a proposed cut for each.",
-      "observed": "21 Nov 2026 09:03 to 09:37 IST, the PR 118 round 3 lane fix job (fast fix model, resumed session) made 161 model calls using 22,018,770 input tokens (21,814,400 cached) and 62,229 output tokens; its end-of-run usage line showed 159,527,814 input, the session's running total since 00:58 IST. Context per call grew from about 46 thousand to 210 thousand tokens as about 874 thousand characters of command output (file reads, full test runs) piled up. The tracker recorded none of it.",
-      "priority": "medium",
-      "source": "Agent reported",
-      "status": "untested",
-      "details": {
-        "filed_by": "Guru 10:20 IST t1604u (north star goal, via parent)",
-        "carry_to_round": "4",
-        "kind": "goal",
-        "evidence": "bcl-118 direct luna-lanefix jsonl turn.completed usage (cumulative) and Codex rollout token_count deltas 03:33-04:08 UTC",
-        "measurement_note": "Measure per job as the difference in session totals, never the cumulative turn total.",
-        "comparison": "Same lane, fresh session with a token-discipline brief, 21 Nov 10:32-10:56 IST: 165 model calls, 13,976,327 input (13,799,808 cached), 48,322 output, about 23.5 min, for code +59/-17 and tests +98/-6. Resumed session at 09:03-09:37 IST: 161 calls, 22,018,770 input (21,814,400 cached), 62,229 output, about 34 min, for code +82/-50 and tests +105/-16. Input down about 37 percent.",
-        "comparison_2": "Resumed fresh session 01a1fc7c for the one-item fix, 21 Nov 11:25-11:34 IST: 28 model calls, 4,842,069 input (4,817,920 cached), 8,959 output, for code +12/-4 and tests +25. Measured as the session-total difference.",
-        "root_cause_group": "M-RECEIPTS: Job receipts record what ran (BCL-147, BCL-119)"
-      }
-    },
-    {
       "id": "BCL-120",
-      "title": "Goal: a workflow-level Introspect runs after every merge and gates the next Collect",
-      "summary": "Introspect runs only per lane. After each PR merge and before Collect starts for the next PR, bcl should run a workflow-level Introspect over the whole PR's orchestration and refuse Collect until it is recorded.",
+      "title": "Introspect does not look across rounds and PRs for repeated waste",
+      "summary": "Introspect does not scan across rounds for repeated waste, and no workflow-level Introspect runs after a merge to gate the next Collect.",
       "impact": "Patterns that repeat across lanes and rounds (review loops, interrupted runs, retries, token-heavy steps, hand work outside bcl) are never reviewed as a whole, so they recur in the next PR.",
-      "recommendation": "Add a post-merge Introspect stage that reads the measured job data for the whole PR, names repeating inefficiency patterns, and records cuts in the order delete, simplify, optimize, automate; refuse Collect for the next PR until that record exists. It must not invent work: it files a change only when measured evidence shows the pattern recurred two or more times or had a material token or time cost; anything below that bar is noted and dropped, and no change needed is a valid outcome.",
-      "done_when": "After a merge, starting Collect for the next PR is refused until the workflow-level Introspect is recorded. The record lists each pattern with measured numbers; a change is filed only for a pattern that recurred two or more times or had a material token or time cost, with a delete, simplify, optimize or automate cut; patterns below that bar are noted as dropped, not filed; and a record of no change needed is accepted and unlocks Collect.",
+      "recommendation": "Add a cross-round scan to the Introspect draft that requires a workflow change when a kind repeats, replacing free-form repeat notes; add a post-merge Introspect over the whole PR's measured job data that names repeating patterns, records cuts in the order delete, simplify, optimize, automate, and gates the next Collect.",
+      "done_when": "Introspect flags repeats across rounds with a required change, and the next PR's Collect is refused until the post-merge Introspect is recorded; tests cover both.",
       "observed": "21 Nov 2026 08:46 to about 10:25 IST, PR 118 round 3 ran nine plan reviews in a row on the same two lanes, and the orchestrating run was interrupted and resumed three times; nothing in bcl reviews that pattern across the PR.",
       "priority": "medium",
       "source": "Agent reported",
@@ -15567,7 +15764,8 @@
         "kind": "goal",
         "related": "BCL-118 timeline, BCL-119 token and time data",
         "refined_by": "Guru 10:24 IST t1606u (evidence bar, via parent)",
-        "root_cause_group": "M-INTROSPECT: Introspect looks across rounds (BCL-100, BCL-120)"
+        "root_cause_group": "M-INTROSPECT (merged by class, Guru 17:33)",
+        "merged_from": "BCL-100: Introspect does not look across rounds for repeated waste"
       }
     },
     {
@@ -15831,64 +16029,6 @@
       }
     },
     {
-      "id": "BCL-131",
-      "title": "Listed tool faults often cannot be uncounted",
-      "summary": "Unblock with a tool fault only works on blocked lanes that drop below two counted failures, but the release check lists faults on every lane.",
-      "impact": "Agents are told to uncount faults the command then refuses.",
-      "recommendation": "Split correcting an attempt from reopening a lane; validate all ids before writing; replay is a no-op.",
-      "done_when": "A named fault on a verified, running or still-blocked lane can be uncounted without changing unrelated state.",
-      "observed": "21 Nov 2026 22:20 IST, PR 119 round 1 reviews (bcl 0.1.57 source)",
-      "priority": "medium",
-      "source": "Agent reported",
-      "status": "untested",
-      "details": {
-        "filed_by": "PR 119 round 1 reviews",
-        "report": "r1/review-release-1.md, planreview-release-4.md, -7.md",
-        "evidence": "Terra review release-1; Sol release-4 and release-7 reproductions",
-        "kind": "fix",
-        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
-      }
-    },
-    {
-      "id": "BCL-132",
-      "title": "Batch finalizer changes lanes the batch did not mean to change",
-      "summary": "The verify sync after a batch runs on every lane and can add verify fields or advance a lane status after a pure fault correction.",
-      "impact": "A small correction can silently move lane state.",
-      "recommendation": "Run the finalizer only for lanes the batch changed in ways that need it.",
-      "done_when": "A fault-only batch leaves status, phase and other lanes unchanged.",
-      "observed": "21 Nov 2026 22:20 IST, PR 119 round 1 reviews (bcl 0.1.57 source)",
-      "priority": "medium",
-      "source": "Agent reported",
-      "status": "untested",
-      "details": {
-        "filed_by": "PR 119 round 1 reviews",
-        "report": "r1/planreview-release-5.md, -6.md",
-        "evidence": "Sol plan reviews release-5 and release-6 reproduced it in memory",
-        "kind": "fix",
-        "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)"
-      }
-    },
-    {
-      "id": "BCL-133",
-      "title": "Plan edits can strand a running job or reset the review count",
-      "summary": "The job receipt hashes the whole plan and plan writers can replace a lane codex object, so an edit to any lane can make a running job finish as stale or clear review counts.",
-      "impact": "The review cap from BCL-121 can be bypassed and running jobs lost.",
-      "recommendation": "Protect job-owned and cap fields in both plan writers and scope the job hash to its lane.",
-      "done_when": "Editing another lane or patching codex during a review neither strands the job nor resets the count.",
-      "observed": "21 Nov 2026 22:20 IST, PR 119 round 1 reviews (bcl 0.1.57 source)",
-      "priority": "medium",
-      "source": "Agent reported",
-      "status": "untested",
-      "details": {
-        "filed_by": "PR 119 round 1 reviews",
-        "report": "r1/planreview-add-3.md, -4.md, -5.md",
-        "evidence": "Sol plan reviews add-3, add-4 and add-5 reproduced the stale completion",
-        "kind": "fix",
-        "merged_with": "BCL-113 (same root cause: plan edits invalidate a running job); fix in the same lane",
-        "root_cause_group": "M-WRITERS: One owner for lane state (BCL-145, BCL-110, BCL-112, BCL-113, BCL-114, BCL-132, BCL-133)"
-      }
-    },
-    {
       "id": "BCL-134",
       "title": "Pre-push chart check misses deleted files and checks the wrong tree",
       "summary": "The pre-push hook drops deleted and renamed-out paths and runs the chart check on the checkout instead of the pushed commit.",
@@ -16134,26 +16274,6 @@
       "needs": "1. [live_state.py:473](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:473) clears the pending marker after an ordinary same-stage snapshot even when it creates no commit. If that snapshot runs before the explicit `bcl snapshot`, the latter reports “nothing to save” and the pending change remains uncommitted. Preserve the pending marker until the explicit save commits it. The [concurrency test](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py:199) checks for deadlock and marker removal but does not check that the pending change was committed; make the ordering deterministic and assert the saved commit."
     },
     {
-      "id": "BCL-143",
-      "title": "A new round cannot be planned while a carried lane has counted failures",
-      "summary": "When the next round is planned, a carried lane with counted failures must stay in the plan, but its status is dropped and the plan is then refused as having an invalid status, whatever status is given.",
-      "impact": "No later round can start once any lane with a counted failure was carried, so PR 119 round 2 cannot be recorded.",
-      "recommendation": "When a new round starts, keep the requested status of a carried lane (pending or deferred) and carry only its failure and review history; keep refusing claims of finished job state.",
-      "done_when": "A round 2 plan that keeps carried lanes with counted failures as deferred, plus new lanes, is recorded, the carried lanes keep their failure history, and a test covers it.",
-      "observed": "22 Nov 2026 09:20 IST, bcl 0.1.59, planning PR 119 round 2 on a copy of the live list",
-      "priority": "high",
-      "source": "Agent reported",
-      "status": "untested",
-      "details": {
-        "filed_by": "PR 119 round 2 planning",
-        "report": "bcl-119 progress.md",
-        "evidence": "set-plan round 2 on a copy: omitting R1-DEAD gives cannot change gated lane; keeping it as pending or deferred gives plan group R1-DEAD has invalid status (carry_plan_runtime_state drops status for carried lanes in a new round unless blocked)",
-        "kind": "fix",
-        "blocks": "round 2 plan",
-        "root_cause_group": "M-ROUND: One round-start command (BCL-151, BCL-156, BCL-158, BCL-111, BCL-143, BCL-152)"
-      }
-    },
-    {
       "id": "BCL-144",
       "title": "Ship every round, with a recorded hotfix route for tool bugs",
       "summary": "Verified fixes wait for the rollover gate before they ship, and when a tool bug blocks the loop the only way forward is manual exception steps and fixes built outside any lane.",
@@ -16235,11 +16355,11 @@
     },
     {
       "id": "BCL-147",
-      "title": "A fix job passes when the coding run made no commit",
-      "summary": "bcl marks a fix passed when the job command exits 0, even when the coding run stopped early and the lane worktree has no new commit, so the lane moves to review with nothing to review.",
+      "title": "Job receipts do not record what a job really did",
+      "summary": "A fix job passes when the coding run made no commit, and jobs do not record tokens and wall time for Introspect to rank the costliest steps.",
       "impact": "Lanes show fixed and in review with no change; a review then fails and is counted against the lane.",
-      "recommendation": "When a lane names a worktree, fail the fix job unless the worktree head moved and the tree is clean.",
-      "done_when": "A fix job whose worktree head did not move is recorded failed as a tool fault (not counted), and a test covers it.",
+      "recommendation": "When a lane names a worktree, fail the fix job unless the head moved and the tree is clean; capture input, cached and output tokens plus wall time from each child's own usage report at finish, and have Introspect rank steps by both and propose a cut for the top ones.",
+      "done_when": "A fix job with no commit fails; every finished job records tokens and wall time; Introspect ranks the top steps; tests cover each.",
       "observed": "22 Nov 2026 10:20 IST, bcl 0.1.60, PR 119 lane R2-144",
       "priority": "medium",
       "source": "Agent reported",
@@ -16249,7 +16369,8 @@
         "report": "bcl-119 progress.md",
         "evidence": "R2-144 fix run 1 explored and stopped without a commit, exit 0; bcl set fix passed and the lane showed In review; the wrapper now exits 3 when the head is unchanged",
         "kind": "fix",
-        "root_cause_group": "M-RECEIPTS: Job receipts record what ran (BCL-147, BCL-119)"
+        "root_cause_group": "M-RECEIPTS (merged by class, Guru 17:33)",
+        "merged_from": "BCL-119: Goal: every job records tokens and wall time, and Introspect ranks the costliest steps"
       }
     },
     {
@@ -16274,11 +16395,11 @@
     },
     {
       "id": "BCL-149",
-      "title": "A tool-fault review sends the lane back to fix",
-      "summary": "When a review reply is rejected as incomplete (a tool fault, not counted), bcl moves the lane back to the fix phase, so the review cannot be rerun until a new fix job passes even though the code did not change.",
+      "title": "Tool faults are handled as code failures",
+      "summary": "A tool-fault review sends the lane back to fix, and listed tool faults often cannot be uncounted.",
       "impact": "Rerunning a review needs a scripted no-change fix job; a slip in that script is counted as a code failure and can block the lane.",
-      "recommendation": "Keep the lane in review after a tool-fault review so the same review can be rerun directly; only a counted CHANGES moves the lane back to fix.",
-      "done_when": "After an incomplete review the lane stays in review and the same review can start again without a fix job; a test covers it.",
+      "recommendation": "Keep the lane in review after a tool-fault review so the same review reruns directly, with only a counted CHANGES moving it back to fix; split correcting an attempt from reopening a lane, validate all ids before writing, and make replay a no-op.",
+      "done_when": "A tool-fault review leaves the lane in review; any listed tool fault can be uncounted in one validated write; replay changes nothing; tests cover each.",
       "observed": "22 Nov 2026 11:43 IST, bcl 0.1.61, PR 119 lane R2-146",
       "priority": "medium",
       "source": "Agent reported",
@@ -16288,7 +16409,8 @@
         "kind": "fix",
         "report": "bcl-119 progress.md",
         "evidence": "R2-146 Terra review 2 replied PASS with prose after Must-fix none; rejected as incomplete (tool fault); lane went to running/fix; review job refused (require fix and enter review); a scripted fix-confirm job failed on a checker slip, was counted, blocked the lane, and was uncounted with bcl unblock --tool-fault",
-        "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
+        "root_cause_group": "M-GATES (merged by class, Guru 17:33)",
+        "merged_from": "BCL-131: Listed tool faults often cannot be uncounted"
       }
     },
     {
@@ -16330,31 +16452,12 @@
     },
     {
       "id": "BCL-151",
-      "title": "No bcl command sets the fix order of findings",
-      "summary": "The page lists findings in the order they were filed, and bcl has no command to set a fix order, so an owner reprioritization can only be shown through lane order in the plan.",
+      "title": "The plan has no recorded fix order and no file-overlap check",
+      "summary": "No bcl command sets the fix order of findings, and the plan check allows parallel lanes that change the same files.",
       "impact": "After the owner reorders work, the issue list still shows the old order and the agent has to encode the order in deferred lanes.",
-      "recommendation": "Add a supported command that records an ordered fix queue (finding ids, who set it, when, why); the page lists issues and parked lanes in that order.",
-      "done_when": "Setting a fix order changes the order of issues and parked lanes on the page and records who set it and why; a test covers it.",
+      "recommendation": "Add a supported command that records an ordered fix queue (ids, who set it, when, why) shown in that order on the page; have each lane declare the files it will change and refuse two open lanes in the same round whose file sets overlap, the second waiting or running after the first lands.",
+      "done_when": "The fix order is set by one command and shown in order; overlapping open lanes are refused; tests cover both.",
       "observed": "22 Nov 2026 12:54 IST, bcl 0.1.61, PR 119 round 2",
-      "priority": "medium",
-      "source": "User requested",
-      "status": "untested",
-      "details": {
-        "filed_by": "PR 119 round 2",
-        "kind": "fix",
-        "report": "bcl-119 progress.md",
-        "evidence": "Guru 12:54 IST put the workflow-audit issues at the top: BCL-150, BCL-145, review loop (121, 137, 149), presuite and release check (122, 134, 146, 148), carry (111), receipts (147, 119, 117, 142), then 141. No bcl command stores that order; it was shown through plan lane order instead.",
-        "root_cause_group": "M-ROUND: One round-start command (BCL-151, BCL-156, BCL-158, BCL-111, BCL-143, BCL-152)"
-      }
-    },
-    {
-      "id": "BCL-152",
-      "title": "The plan check allows parallel lanes that change the same files",
-      "summary": "bcl accepts several open lanes in a round even when their fixes change the same files, so merges conflict and one lane undoes or breaks another.",
-      "impact": "Parallel lanes on shared files produce merge conflicts, stale charts and review rounds about changes from another lane.",
-      "recommendation": "Each lane declares the files it will change; the plan check refuses two open lanes in the same round whose file sets overlap, and the second waits for the next round or runs after the first lands.",
-      "done_when": "Planning two open lanes that declare an overlapping file is refused with the shared files named; disjoint lanes are still accepted; a test covers both.",
-      "observed": "22 Nov 2026 12:59 IST, bcl 0.1.61, PR 119 round 2",
       "priority": "high",
       "source": "User requested",
       "status": "untested",
@@ -16362,8 +16465,9 @@
         "filed_by": "PR 119 round 2",
         "kind": "fix",
         "report": "bcl-119 progress.md",
-        "evidence": "Guru 12:59 IST: until BCL-145 lands, fixes touching the writer or the page renderer run one lane at a time; parallel lanes only with disjoint files. In round 2, R2-141 and R2-150 both change the page renderer, and R2-144 and R2-137 both changed plan writes.",
-        "root_cause_group": "M-ROUND: One round-start command (BCL-151, BCL-156, BCL-158, BCL-111, BCL-143, BCL-152)"
+        "evidence": "Guru 12:54 IST put the workflow-audit issues at the top: BCL-150, BCL-145, review loop (121, 137, 149), presuite and release check (122, 134, 146, 148), carry (111), receipts (147, 119, 117, 142), then 141. No bcl command stores that order; it was shown through plan lane order instead.",
+        "root_cause_group": "M-ROUND (merged by class, Guru 17:33)",
+        "merged_from": "BCL-152: The plan check allows parallel lanes that change the same files"
       }
     },
     {
@@ -16414,7 +16518,7 @@
       "observed": "22 Nov 2026 13:14 IST, bcl 0.1.61, PR 119 round 2",
       "priority": "medium",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 13:14 IST (via parent)",
         "kind": "fix",
@@ -16423,7 +16527,25 @@
         "baseline": "round 2: install readiness checked by bcl install and again by release-check before each push (0.1.60, 0.1.61); 2 release-check refusals at 0.1.61 handled by exception",
         "success": "install and release decide readiness from one check; no new refusals or reruns per verified fix versus round 2; else revert and record why",
         "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The installed install-readiness test, lane state suite, install guidance, and a scratch copy of the live tracker",
+          "expected": "Install readiness is the release check; the separate install precheck is gone",
+          "observed": "All five installed checks passed; installing a lane without a passed pre-push suite was refused with the release-check reason",
+          "verdict": "All five installed checks passed; installing a lane without a passed pre-push suite was refused with the release-check reason",
+          "check_id": "bcl-154-0.1.65-048c36c3",
+          "build": "bcl 0.1.65",
+          "session": "r3-048c36c3-119",
+          "timestamp": "2026-11-22T11:56:56Z",
+          "reference": "048c36c3:BCL-154:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119."
+        }
+      ],
+      "verification": "All five installed checks passed; installing a lane without a passed pre-push suite was refused with the release-check reason Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
+      "verification_refs": [
+        "048c36c3:BCL-154:installed-check"
+      ]
     },
     {
       "id": "BCL-155",
@@ -16448,34 +16570,12 @@
       }
     },
     {
-      "id": "BCL-156",
-      "title": "A carried or reopened lane works on an old copy of the code",
-      "summary": "When a lane is carried to a later round or reopened, its worktree stays on the commit it was created from, so the next fix is written against code without the fixes verified since; the agent has to merge the list branch in by hand.",
-      "impact": "Fixes are written on stale code, merges and conflicts are handled by hand, and a review can judge code that is already out of date.",
-      "recommendation": "At each new round, give every carried lane a fresh worktree cut from the list branch head, replay its unverified commits on top, stop the lane with a clear message naming the files on conflict, and remove the old worktree afterwards.",
-      "done_when": "At a new round each carried lane runs in a fresh worktree from the list branch head with its unverified commits replayed, a conflict stops the lane with the files named, and the old worktree is gone; measured against this round, no manual lane merges remain; a test covers it.",
-      "observed": "22 Nov 2026 13:45 IST, bcl 0.1.62, PR 119 lane R2-145",
-      "priority": "high",
-      "source": "User requested",
-      "status": "untested",
-      "details": {
-        "filed_by": "Guru 14:00 IST (via parent)",
-        "kind": "fix",
-        "queue": "audit block after BCL-145",
-        "report": "bcl-119 progress.md",
-        "baseline": "round 2: 4 manual lane-worktree merges (R2-144 base with principles a53dcda3, int merge of R2-136/138/144 with statechart conflicts, int2 merges of R2-141/146, R2-145 reopen merge 26d64a6f with a workflow definition and chart conflict), about 10 minutes of conflict handling plus one stale-chart presuite failure",
-        "success": "zero manual lane merges in the next round; conflicts reported by bcl with files named; else revert and record why",
-        "design": "Guru 14:02 IST: at each new round every carried lane gets a fresh worktree cut from the list branch head; its unverified commits are replayed on top; a conflict stops the lane with a clear message; the old worktree is removed afterwards (supersede rule).",
-        "root_cause_group": "M-ROUND: One round-start command (BCL-151, BCL-156, BCL-158, BCL-111, BCL-143, BCL-152)"
-      }
-    },
-    {
       "id": "BCL-157",
-      "title": "Lane rows do not show how long a lane has been in its stage",
-      "summary": "Each lane row shows a stage pill such as Fixing but not how long the lane has been there, so the owner cannot see where a round slowed.",
+      "title": "The page's time stamps do not track the lane's real progress",
+      "summary": "Lane rows do not show how long a lane has been in its stage, and the page's Updated stamp does not move on finding writes, so the page looks older or newer than the work.",
       "impact": "A slow or stuck stage looks the same as one that just started; the owner has to ask the agent for timings.",
-      "recommendation": "Show time in the current stage on each lane row next to the pill (for example Fixing · 42 min), in a large readable font, derived at render time from the last stage change of that lane; it resets only when the lane changes stage, not on job retries or heartbeats.",
-      "done_when": "Each active lane row shows its stage with minutes in that stage, the count resets only on a stage change, retries and heartbeats leave it unchanged, and a test asserts the visible text.",
+      "recommendation": "Derive both at render from the tracker: time in the current stage on each lane row next to the pill (for example Fixing · 42 min, resetting only on a stage change), and Updated from the tracker's last write, whatever it was.",
+      "done_when": "Every lane row shows time in stage that resets only on a stage change, and Updated moves on every tracker write, including finding writes; render tests cover both.",
       "observed": "22 Nov 2026 14:06 IST, bcl 0.1.62, PR 119 lane R2-145",
       "priority": "high",
       "source": "User requested",
@@ -16486,16 +16586,17 @@
         "queue": "right after BCL-145 (shares the page renderer)",
         "report": "bcl-119 progress.md",
         "design": "Guru 14:08 IST: deterministic, never agent-written. The bcl stage-transition code path itself stamps stage_entered_at on every lane stage change (single writer, protected runtime field); render derives the duration from it at load. No agent-set fields, no manual edits. Tests: retries and heartbeats do not reset it; a stage change does; page text shows it.",
-        "root_cause_group": "M-LIVE: Page shows the real live state (BCL-157, BCL-159, BCL-117, BCL-118)"
+        "root_cause_group": "M-LIVE (merged by class, Guru 17:33)",
+        "merged_from": "BCL-117: The page's Updated stamp does not move on finding writes"
       }
     },
     {
       "id": "BCL-158",
-      "title": "Plan jobs can start before the round changes, and a new round reopens verified lanes",
-      "summary": "bcl lets planning and plan-review jobs start while the previous round is still at Introspect, so the page shows the old round while next-round work runs. When the next round is planned, verified lanes that had a counted failure must be kept and come back as Planned until corrected by hand.",
+      "title": "Round and PR boundaries mishandle carried lanes",
+      "summary": "Plan jobs can start before the round changes and a new round reopens verified lanes; a new round cannot be planned while a carried lane has counted failures; carried or reopened lanes work on an old copy of the code; and rollover hands unresolved findings a clean lane in the next PR.",
       "impact": "The page shows the wrong round and verified lanes look open in the new round.",
-      "recommendation": "Refuse plan and fix jobs until the round transition is recorded; when a new round is planned, keep verified lanes with failure history as Verified (or archive them) instead of reopening them.",
-      "done_when": "Starting a plan job before the round transition is refused with a message naming bcl plan; a new round never includes lanes verified in an earlier round (they show only in their own round and the gate); tests cover both.",
+      "recommendation": "One round-start step: refuse plan and fix jobs until the round transition is recorded; keep verified lanes verified; keep a carried lane's requested status while carrying only its failure and review history; give each carried lane a fresh worktree from the list branch head with its unverified commits replayed (stop with the conflicting files named); and refuse a rollover that would strand a protected gate, or carry and enforce the gate in the successor.",
+      "done_when": "A new round starts in one command; jobs before it are refused; verified lanes stay verified; carried lanes keep history, status and a fresh worktree; a rollover never strands a gate; tests cover each.",
       "observed": "22 Nov 2026 14:32 IST, bcl 0.1.62, PR 119 round 2 to 3",
       "priority": "high",
       "source": "User requested",
@@ -16506,16 +16607,17 @@
         "report": "bcl-119 progress.md",
         "evidence": "Round-3 Astra planning ran from 14:30 IST while the page still showed Round 2 Introspect (the planning ran outside bcl because no bcl stage covers it; bcl did not and could not refuse). The round-3 bcl plan refused to rename gated lanes (R2-150 must stay R2-150) and required gated verified lanes R2-146 and R2-136, which came back Planned and were set back to Verified with update-plan-group.",
         "more_evidence": "Guru 14:39 IST: a new round must never include verified lanes; they show only in their own round and the gate. No supported bcl command removes R2-146 and R2-136 from the round-3 plan (set-plan refuses dropping gated lanes; archive covers findings only), so they stay listed as Verified in Round 3.",
-        "root_cause_group": "M-ROUND: One round-start command (BCL-151, BCL-156, BCL-158, BCL-111, BCL-143, BCL-152)"
+        "root_cause_group": "M-ROUND (merged by class, Guru 17:33)",
+        "merged_from": "BCL-143: A new round cannot be planned while a carried lane has counted failures; BCL-156: A carried or reopened lane works on an old copy of the code; BCL-111: Rollover hands unresolved findings a clean lane in the next PR"
       }
     },
     {
       "id": "BCL-159",
-      "title": "A running job cannot report its steps, so the page looks frozen",
-      "summary": "A fix job that works through several sub-lanes is registered with bcl only once, at start. bcl has no command for the job to report which sub-lane it is on or that one finished, so the lane row and the page's latest line keep showing when the job started.",
+      "title": "The page cannot show what a running job is doing or has done",
+      "summary": "A running job cannot report its steps, so the page looks frozen, and there is no per-lane timeline of the jobs that ran.",
       "impact": "The owner sees no change for half an hour while work is landing and has to ask where the lane stands.",
-      "recommendation": "Add a supported step report for a running job (job id, step name, result, commit) that the job's own child process can call. It goes through the existing job lock, updates the page's latest line and the lane row, and is refused for a job that already finished.",
-      "done_when": "A running job that reports a step shows that step on its lane row and in the page's latest line within one refresh. Reports for a finished or unknown job are refused, and a test checks the visible text.",
+      "recommendation": "Add a supported step report for a running job (job id, step, result, commit) that its own child process can call through the job lock, refused for any other job; render a per-lane timeline from the recorded job history: one row per job with phase, model, state, start, duration and output links.",
+      "done_when": "A running job's step reports update the latest line and lane row, a foreign job's report is refused, and each lane shows its job timeline; tests cover each.",
       "observed": "22 Nov 2026 15:17 IST, bcl 0.1.62, PR 119 lane R2-150",
       "priority": "high",
       "source": "User reported",
@@ -16526,16 +16628,17 @@
         "queue": "with BCL-157 after BCL-145 (shares the page renderer)",
         "report": "bcl-119 progress.md",
         "evidence": "The R2-150 fix job started 14:50 IST through bcl job --phase fix (pid and heartbeat recorded, page showed Fixing). It ran OpenCode for sub-lanes a then b, and sub-lane a committed 3587f94a at 15:05. The page's latest line stayed at 'Fix started 14:50' for 27 min because no command records a step.",
-        "root_cause_group": "M-LIVE: Page shows the real live state (BCL-157, BCL-159, BCL-117, BCL-118)"
+        "root_cause_group": "M-LIVE (merged by class, Guru 17:33)",
+        "merged_from": "BCL-118: Goal: the page shows the full orchestration timeline"
       }
     },
     {
       "id": "BCL-160",
-      "title": "A passing lane check records nothing",
-      "summary": "When the stored lane check passes, bcl verify exits without recording the result. The lane stays in Verifying and the finding stays in progress until a separate script records evidence and finishes the check.",
+      "title": "Verify does not record its own results per issue",
+      "summary": "A passing lane check records nothing, and rechecks fold into an issue's verdict instead of their own entries.",
       "impact": "Every release needs a hand-written recording script after the check, and a slip in it leaves a passed lane looking unfinished on the page.",
-      "recommendation": "On a zero exit, bcl verify records the finished check as fixed for each named finding, with the command, its output tail and the run id as evidence, and marks the lane verified.",
-      "done_when": "A passing bcl verify run leaves the lane verified and its findings verified fixed with evidence, with no further command; a test covers it.",
+      "recommendation": "On a zero exit, record the finished check as fixed for each named finding with the command, output tail and run id as evidence and mark the lane verified; record rechecks under their own issue entries and keep the lane verdict to its named issues.",
+      "done_when": "A passing verify records each named finding fixed and the lane verified with no extra writer; rechecks land on their own issues; tests cover both.",
       "observed": "22 Nov 2026 16:18 IST, bcl 0.1.63, PR 119 lane R2-150",
       "priority": "high",
       "source": "Agent reported",
@@ -16545,7 +16648,8 @@
         "kind": "fix",
         "report": "bcl-119 progress.md",
         "evidence": "bcl verify --then verify-150.sh printed 5/5 and exited 0, but the lane stayed verifying with 0 fixed and the finding stayed in progress; it became verified only after record_r2.py ran start-check, record-evidence, update and finish-check through the batch writer.",
-        "root_cause_group": "M-VERIFY: Verify records and reuses its checks (BCL-160, BCL-96, BCL-97, BCL-106, BCL-139)"
+        "root_cause_group": "M-VERIFY (merged by class, Guru 17:33)",
+        "merged_from": "BCL-97: Rechecks fold into an issue's verdict"
       }
     },
     {
@@ -16577,14 +16681,32 @@
       "observed": "22 Nov 2026 16:41 IST, bcl 0.1.64, PR 119 lane R3-153",
       "priority": "high",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 16:07 IST (via parent)",
         "kind": "fix",
         "report": "bcl-119 progress.md",
         "evidence": "R3-153: fix job full suite 485 tests 160 s; pre-push suite 301 s = skill suite 159 s plus repository check, which ran the same 19 skill test files again (test_bcl 134 s).",
         "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The installed version, its review guidance and test, and this build's shared pre-push suite",
+          "expected": "Each lane gets one pre-push suite through the repository check, fix jobs run only the lane's tests, and lanes shipping together share one suite",
+          "observed": "All four installed checks passed; the shared suite for four lanes took 141 seconds, down from 301 for one lane",
+          "verdict": "All four installed checks passed; the shared suite for four lanes took 141 seconds, down from 301 for one lane",
+          "check_id": "bcl-162-0.1.65-048c36c3",
+          "build": "bcl 0.1.65",
+          "session": "r3-048c36c3-119",
+          "timestamp": "2026-11-22T11:56:56Z",
+          "reference": "048c36c3:BCL-162:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119."
+        }
+      ],
+      "verification": "All four installed checks passed; the shared suite for four lanes took 141 seconds, down from 301 for one lane Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
+      "verification_refs": [
+        "048c36c3:BCL-162:installed-check"
+      ]
     },
     {
       "id": "BCL-163",
@@ -16615,14 +16737,32 @@
       "observed": "22 Nov 2026 16:56 IST, bcl 0.1.64, PR 119",
       "priority": "high",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 16:56 IST (via parent)",
         "kind": "fix",
         "report": "bcl-119 progress.md",
         "evidence": "Round 3 filed BCL-160 to BCL-163 within an hour; BCL-162 repeats BCL-122's cause and BCL-163 BCL-149's. Grouping 52 open issues by root cause needed a hand-built plan and a details note on each issue because no merge command exists.",
         "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)"
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The installed add tests and a scratch copy of the live tracker",
+          "expected": "Adding an issue that looks like an open one is refused unless marked new, and appending it to the open issue adds no new row",
+          "observed": "All three installed checks passed on a copy of the live tracker",
+          "verdict": "All three installed checks passed on a copy of the live tracker",
+          "check_id": "bcl-164-0.1.65-048c36c3",
+          "build": "bcl 0.1.65",
+          "session": "r3-048c36c3-119",
+          "timestamp": "2026-11-22T11:56:56Z",
+          "reference": "048c36c3:BCL-164:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119."
+        }
+      ],
+      "verification": "All three installed checks passed on a copy of the live tracker Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
+      "verification_refs": [
+        "048c36c3:BCL-164:installed-check"
+      ]
     },
     {
       "id": "BCL-165",
@@ -16634,13 +16774,50 @@
       "observed": "22 Nov 2026 17:06 IST, bcl 0.1.64, PR 119 after the root-cause merge",
       "priority": "high",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 17:06 IST (via parent)",
         "kind": "fix",
         "report": "bcl-119 progress.md",
         "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)",
         "evidence": "The root-cause merge put 40 issues into 11 M-* plan groups, but the page still rendered all 64 findings one row each."
+      },
+      "verification_evidence": [
+        {
+          "checked": "The installed grouped-list test, the page template, and a render of the live tracker",
+          "expected": "The issue list shows one collapsed row per plan group with its issue count, and verified issues fold into a Done section",
+          "observed": "All three installed checks passed; the live render tags issues with their group",
+          "verdict": "All three installed checks passed; the live render tags issues with their group",
+          "check_id": "bcl-165-0.1.65-048c36c3",
+          "build": "bcl 0.1.65",
+          "session": "r3-048c36c3-119",
+          "timestamp": "2026-11-22T11:56:56Z",
+          "reference": "048c36c3:BCL-165:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119."
+        }
+      ],
+      "verification": "All three installed checks passed; the live render tags issues with their group Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
+      "verification_refs": [
+        "048c36c3:BCL-165:installed-check"
+      ]
+    },
+    {
+      "id": "BCL-166",
+      "title": "No bcl command merges existing issues into one",
+      "summary": "Merging issues of the same class needs an update of the kept issue plus a delete of each absorbed one, and the delete is refused during an active verification run, so the run had to be stopped first.",
+      "impact": "Merging by class costs a stopped verification run, and the absorbed issues leave no closed entry pointing at the kept one.",
+      "recommendation": "Add bcl merge --into ID --ids A,B with merged title, summary, recommendation and done_when: it rewrites the kept issue, records each absorbed issue as closed with a pointer to the kept one, updates plan groups, refuses gated lanes, and works during an active run.",
+      "done_when": "One bcl merge call folds issues into one without stopping a run; absorbed issues stay as closed pointers, are not counted, and gated lanes are refused; tests cover each.",
+      "observed": "22 Nov 2026 17:40 IST, bcl 0.1.65, PR 119 round 3",
+      "priority": "medium",
+      "source": "User requested",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 17:33 IST (via parent)",
+        "kind": "fix",
+        "report": "bcl-119 progress.md",
+        "evidence": "17:40 IST merge by class: 15 absorbed issues were folded via update and delete after bcl stop-verify on run r3-048c36c3-119.",
+        "root_cause_group": "M-TRACKER"
       }
     }
   ]
