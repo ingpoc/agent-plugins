@@ -11100,8 +11100,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-22T15:19:15Z",
-      "now": "2026-11-22T15:19:15Z — Presuite started"
+      "updated_at": "2026-11-22T15:22:46Z",
+      "now": "2026-11-22T15:22:46Z — Presuite started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12612,19 +12612,19 @@
             "implementer_session": "grokbot-r3-145",
             "reviewer_session": "codex-terra-120-145-r3",
             "job": {
-              "id": "6acf8d0a65a64c19b9d8c63852ad26eb",
+              "id": "77cda1ac394f4d548eff3226bda07385",
               "phase": "presuite",
-              "started_at": "2026-11-22T15:19:15Z",
+              "started_at": "2026-11-22T15:22:46Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T15:22:01Z",
+              "heartbeat_at": "2026-11-22T15:25:32Z",
               "plan_sha256": "4c8ba2892daa4abe2723328c5d64659bc57b221c19e8479973748d3cfcf2cf73",
               "model": "none (script)",
               "cycle": 12,
               "round": 3,
-              "pid": 64105,
-              "exit_code": 1,
-              "finished_at": "2026-11-22T15:22:01Z",
-              "finished_phase_status": "failed"
+              "pid": 79498,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T15:25:32Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "fix_status": "passed",
@@ -12692,9 +12692,9 @@
           "updated_at": "2026-11-22T15:02:44Z",
           "phase": "review",
           "presuite": {
-            "status": "failed",
-            "exit_code": 1,
-            "finished_at": "2026-11-22T15:22:01Z"
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T15:25:32Z"
           }
         },
         {
@@ -12717,19 +12717,19 @@
             "implementer_session": "codex-luna-120-do1",
             "reviewer_session": "codex-terra-120-do1",
             "job": {
-              "id": "6acf8d0a65a64c19b9d8c63852ad26eb",
+              "id": "77cda1ac394f4d548eff3226bda07385",
               "phase": "presuite",
-              "started_at": "2026-11-22T15:19:15Z",
+              "started_at": "2026-11-22T15:22:46Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T15:22:01Z",
+              "heartbeat_at": "2026-11-22T15:25:32Z",
               "plan_sha256": "4c8ba2892daa4abe2723328c5d64659bc57b221c19e8479973748d3cfcf2cf73",
               "model": "none (script)",
               "cycle": 12,
               "round": 3,
-              "pid": 64105,
-              "exit_code": 1,
-              "finished_at": "2026-11-22T15:22:01Z",
-              "finished_phase_status": "failed"
+              "pid": 79498,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T15:25:32Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "fix_status": "passed",
@@ -12806,9 +12806,9 @@
           "updated_at": "2026-11-22T15:02:44Z",
           "phase": "review",
           "presuite": {
-            "status": "failed",
-            "exit_code": 1,
-            "finished_at": "2026-11-22T15:22:01Z"
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T15:25:32Z"
           }
         },
         {
