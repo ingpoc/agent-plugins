@@ -11887,9 +11887,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T11:49:17Z",
-      "now": "2026-11-22T11:49:17Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-22T11:56:19Z",
+      "now": "2026-11-22T11:56:19Z — Install in progress"
     },
     "rollover": {
       "source_pr": 118,
@@ -13598,7 +13598,7 @@
             "BCL-162"
           ],
           "label": "BCL-162",
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl119-r3-162",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-162.sh",
@@ -13613,18 +13613,18 @@
             "reviewer_session": "grokbot-review-119r3-162",
             "fix_status": "passed",
             "job": {
-              "id": "bc7bf8bd46f04184bb5fa45a9e961186",
-              "phase": "review",
-              "started_at": "2026-11-22T11:15:55Z",
-              "command": "cp",
-              "heartbeat_at": "2026-11-22T11:15:55Z",
-              "plan_sha256": "8ae022fb90f12ff7f6c2db1aa8f907b06ffa54fd2160ba03df1a036766d74474",
-              "model": "grokbot-review-pass (separate pass; Codex out until 18:50)",
+              "id": "8e6d3dff131a49ca87c62f42f868bd5a",
+              "phase": "presuite",
+              "started_at": "2026-11-22T11:51:22Z",
+              "command": "presuite-165.sh",
+              "heartbeat_at": "2026-11-22T11:53:44Z",
+              "plan_sha256": "89de7cc4999f092fec593b3e69089eee7cf4bca86afc24e87dea4e683faa59b4",
+              "model": "check.py (pre-push suite)",
               "cycle": 11,
               "round": 3,
-              "pid": 83673,
+              "pid": 51111,
               "exit_code": 0,
-              "finished_at": "2026-11-22T11:15:55Z",
+              "finished_at": "2026-11-22T11:53:44Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -13634,7 +13634,16 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T11:40:43Z",
-          "phase": "review"
+          "phase": "install",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T11:53:44Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T11:56:19Z"
+          }
         },
         {
           "id": "R3-154",
@@ -13643,7 +13652,7 @@
             "BCL-154"
           ],
           "label": "BCL-154",
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl119-r3-154",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-154.sh",
@@ -13658,18 +13667,18 @@
             "reviewer_session": "grokbot-review-119r3-154",
             "fix_status": "passed",
             "job": {
-              "id": "d54234b726fc40658998cbc6aefc4bf4",
-              "phase": "review",
-              "started_at": "2026-11-22T11:46:34Z",
-              "command": "cp",
-              "heartbeat_at": "2026-11-22T11:46:34Z",
+              "id": "8e6d3dff131a49ca87c62f42f868bd5a",
+              "phase": "presuite",
+              "started_at": "2026-11-22T11:51:22Z",
+              "command": "presuite-165.sh",
+              "heartbeat_at": "2026-11-22T11:53:44Z",
               "plan_sha256": "89de7cc4999f092fec593b3e69089eee7cf4bca86afc24e87dea4e683faa59b4",
-              "model": "grokbot-review-pass (separate pass; Codex out until 18:50)",
+              "model": "check.py (pre-push suite)",
               "cycle": 11,
               "round": 3,
-              "pid": 44954,
+              "pid": 51111,
               "exit_code": 0,
-              "finished_at": "2026-11-22T11:46:34Z",
+              "finished_at": "2026-11-22T11:53:44Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -13697,7 +13706,16 @@
             }
           ],
           "updated_at": "2026-11-22T11:40:43Z",
-          "phase": "review"
+          "phase": "install",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T11:53:44Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T11:56:19Z"
+          }
         },
         {
           "id": "R3-164",
@@ -13706,7 +13724,7 @@
             "BCL-164"
           ],
           "label": "BCL-164",
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl119-r3-164",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-164.sh",
@@ -13721,18 +13739,18 @@
             "reviewer_session": "grokbot-review-119r3-164",
             "fix_status": "passed",
             "job": {
-              "id": "236ea164e24c4a6c804809eca2418219",
-              "phase": "review",
-              "started_at": "2026-11-22T11:44:00Z",
-              "command": "cp",
-              "heartbeat_at": "2026-11-22T11:44:00Z",
+              "id": "8e6d3dff131a49ca87c62f42f868bd5a",
+              "phase": "presuite",
+              "started_at": "2026-11-22T11:51:22Z",
+              "command": "presuite-165.sh",
+              "heartbeat_at": "2026-11-22T11:53:44Z",
               "plan_sha256": "89de7cc4999f092fec593b3e69089eee7cf4bca86afc24e87dea4e683faa59b4",
-              "model": "grokbot-review-pass (separate pass; Codex out until 18:50)",
+              "model": "check.py (pre-push suite)",
               "cycle": 11,
               "round": 3,
-              "pid": 36349,
+              "pid": 51111,
               "exit_code": 0,
-              "finished_at": "2026-11-22T11:44:00Z",
+              "finished_at": "2026-11-22T11:53:44Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -13742,7 +13760,16 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T11:40:43Z",
-          "phase": "review"
+          "phase": "install",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T11:53:44Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T11:56:19Z"
+          }
         },
         {
           "id": "R3-165",
@@ -13751,7 +13778,7 @@
             "BCL-165"
           ],
           "label": "BCL-165",
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl119-r3-165",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-165.sh",
@@ -13766,24 +13793,37 @@
             "reviewer_session": "grokbot-review-119r3-165",
             "fix_status": "passed",
             "job": {
-              "id": "76d99516b6dc4fa8836318b22943ebf6",
-              "phase": "review",
-              "started_at": "2026-11-22T11:49:17Z",
-              "command": "cp",
-              "heartbeat_at": "2026-11-22T11:49:17Z",
+              "id": "8e6d3dff131a49ca87c62f42f868bd5a",
+              "phase": "presuite",
+              "started_at": "2026-11-22T11:51:22Z",
+              "command": "presuite-165.sh",
+              "heartbeat_at": "2026-11-22T11:53:44Z",
               "plan_sha256": "89de7cc4999f092fec593b3e69089eee7cf4bca86afc24e87dea4e683faa59b4",
-              "model": "grokbot-review-pass (separate pass; Codex out until 18:50)",
+              "model": "check.py (pre-push suite)",
               "cycle": 11,
-              "round": 3
+              "round": 3,
+              "pid": 51111,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T11:53:44Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "grokbot-review-pass (separate pass; Codex out until 18:50)"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T11:40:43Z",
-          "phase": "review"
+          "phase": "install",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T11:53:44Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T11:56:19Z"
+          }
         },
         {
           "id": "R2-145",
@@ -16168,7 +16208,7 @@
       "observed": "22 Nov 2026 13:14 IST, bcl 0.1.61, PR 119 round 2",
       "priority": "medium",
       "source": "User requested",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 13:14 IST (via parent)",
         "kind": "fix",
@@ -16331,7 +16371,7 @@
       "observed": "22 Nov 2026 16:41 IST, bcl 0.1.64, PR 119 lane R3-153",
       "priority": "high",
       "source": "User reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 16:07 IST (via parent)",
         "kind": "fix",
