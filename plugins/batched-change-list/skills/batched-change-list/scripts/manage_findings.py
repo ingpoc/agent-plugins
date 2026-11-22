@@ -650,7 +650,7 @@ TOOL_FAULT_KINDS = {"incomplete_review", "quota_out", "cut_off", "runner_exit"}
 TOOL_FAULT_STREAK_LIMIT = 3
 
 
-def _included_for_release(group, included_ids):
+def _included_for_release(group, included_ids, require_presuite=False):
     finding_ids = list(group.get("finding_ids") or [])
     codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
     job = codex.get("job")
@@ -660,10 +660,11 @@ def _included_for_release(group, included_ids):
             and codex.get("fix_status") == "passed"
             and codex.get("review_status") in {"passed", "skipped_one_file"}
             and (job is None or (isinstance(job, dict) and "exit_code" in job))
-            and presuite.get("status") not in {"failed", "running"})
+            and (presuite.get("status") == "passed" if require_presuite
+                 else presuite.get("status") not in {"failed", "running"}))
 
 
-def in_flight_lanes(document, included_ids=None):
+def in_flight_lanes(document, included_ids=None, require_presuite=False):
     included_ids = set(included_ids or [])
     tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else {}
     plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
@@ -672,7 +673,7 @@ def in_flight_lanes(document, included_ids=None):
     for group in groups:
         if not isinstance(group, dict):
             continue
-        if _included_for_release(group, included_ids):
+        if _included_for_release(group, included_ids, require_presuite):
             continue
         status, phase = group.get("status"), group.get("phase")
         if status in SETTLED_STATUSES or phase in SETTLED_STATUSES:
@@ -682,13 +683,14 @@ def in_flight_lanes(document, included_ids=None):
     return lanes
 
 
-def release_check_payload(document, included_ids=None):
+def release_check_payload(document, included_ids=None, require_presuite=False):
     included_ids = set(included_ids or [])
     tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else {}
     plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
     groups = plan.get("groups") if isinstance(plan.get("groups"), list) else []
-    included = [group for group in groups if isinstance(group, dict) and _included_for_release(group, included_ids)]
-    lanes = in_flight_lanes(document, included_ids)
+    included = [group for group in groups if isinstance(group, dict)
+                and _included_for_release(group, included_ids, require_presuite)]
+    lanes = in_flight_lanes(document, included_ids, require_presuite)
     payload = {"clear": not lanes,
                "lanes": [{"id": group.get("id"), "status": group.get("status"), "phase": group.get("phase"),
                           "finding_ids": list(group.get("finding_ids") or [])} for group in lanes]}
@@ -696,6 +698,17 @@ def release_check_payload(document, included_ids=None):
         payload["included"] = [{"id": group.get("id"), "finding_ids": list(group.get("finding_ids") or [])}
                                for group in included]
     return payload
+
+
+def require_install_ready(document, ids, groups):
+    # Install's readiness is release-check for the named lanes, plus a passed pre-push suite.
+    release = release_check_payload(document, ids, require_presuite=True)
+    included = {lane["id"] for lane in release.get("included", [])}
+    waiting = [lane["id"] for lane in release["lanes"]]
+    waiting += [group["id"] for group in groups if group["id"] not in included and group["id"] not in waiting]
+    if waiting:
+        raise ValueError("install requires a clear bcl release-check (passed fix, review and pre-push suite; "
+                         f"no other lane in flight); not ready: {', '.join(waiting)}")
 
 
 def _looks_like_tool_fault(row):
@@ -2526,7 +2539,10 @@ def run(args, parser):
                     if target == "install" and (not isinstance(tracking.get("plan"), dict) or tracking["plan"].get("cycle", cycle) != cycle or not tracking["plan"].get("groups")):
                         raise ValueError("install requires a recorded plan with at least one group for the current cycle")
                     if target == "install" and action == "set-stage":
-                        workflow_definition.run_stage_check("install", tracking["plan"])
+                        active = [group for group in tracking["plan"]["groups"] if isinstance(group, dict)
+                                  and group.get("status") not in SETTLED_STATUSES and group.get("phase") not in SETTLED_STATUSES]
+                        require_install_ready(store["document"],
+                                              [identifier for group in active for identifier in group.get("finding_ids", [])], active)
                     if target in workflow_definition.TRANSITIONS:
                         workflow_definition.require_transition(target, tracking.get("stages_reached", []))
                     if target == "merged":
@@ -2667,14 +2683,7 @@ def run(args, parser):
                                 raise ValueError('work requires an eligible current-round plan group for every finding')
                             validate_dependencies(groups, findings, tracking)
                             if stage == 'install':
-                                workflow_definition.run_stage_check('install', plan, ids)
-                                for group in matched:
-                                    codex = group.get('codex') if isinstance(group.get('codex'), dict) else {}
-                                    suite = group.get('presuite') if isinstance(group.get('presuite'), dict) else {}
-                                    if (codex.get('fix_status') != 'passed'
-                                            or codex.get('review_status') not in ('passed', 'skipped_one_file')
-                                            or suite.get('status') != 'passed'):
-                                        raise ValueError(f"install requires passed fix, review, and presuite jobs for lane {group['id']}")
+                                require_install_ready(store["document"], ids, matched)
                         by_id = {group['id']: group for group in groups}
                         for group in matched:
                             if set(ids).intersection(group.get('finding_ids', [])):

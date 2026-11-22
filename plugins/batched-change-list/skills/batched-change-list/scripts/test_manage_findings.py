@@ -637,7 +637,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(run({'action':'set-activity','stage':'review','ids':['ISSUE-01'],'now':'Review'}).returncode, 0)
         install = run({'action':'set-activity','stage':'install','ids':['ISSUE-01'],'now':'Installed'})
         self.assertNotEqual(install.returncode, 0)
-        self.assertIn("install requires codex.review_status='passed'", install.stderr)
+        self.assertIn("install requires a clear bcl release-check", install.stderr)
         before = self.data.read_bytes()
         self.assertNotEqual(run({'action':'set-stage','stage':'made-up'}).returncode, 0)
         self.assertEqual(self.data.read_bytes(), before)
@@ -1773,6 +1773,29 @@ class ManageFindingsTests(unittest.TestCase):
             args.append("--force")
         return self.cli(*args)
 
+    def test_install_readiness_is_release_check_for_named_lanes(self):
+        document = copy.deepcopy(self.document)
+        document["findings"] = document["findings"][:2]
+        for index, finding in enumerate(document["findings"], 1):
+            finding.update(id=f"ISSUE-0{index}", status="in_progress")
+        ready = {"id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "review", "phase": "review",
+                 "codex": {"implementer_session": "writer", "reviewer_session": "reviewer",
+                           "fix_status": "passed", "review_status": "passed"}, "presuite": {"status": "passed"}}
+        fixing = {"id": "B", "finding_ids": ["ISSUE-02"], "depends_on": [], "status": "running", "phase": "fix",
+                  "codex": {"implementer_session": "writer", "fix_status": "running"}}
+        document.setdefault("tracking", {}).update(cycle=1, round=1, stages_reached=["collect", "present", "plan_fix", "review"],
+                                                   plan={"cycle": 1, "round": 1, "groups": [ready, fixing]})
+        install = {"action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Installing"}
+        refused = self._replay_batch(document, install)
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("install requires a clear bcl release-check", refused.stderr)
+        self.assertIn("not ready: B", refused.stderr)
+        fixing.update(status="deferred", phase="deferred")
+        allowed = self._replay_batch(document, install)
+        self.assertEqual(allowed.returncode, 0, allowed.stderr)
+        ready["presuite"] = {"status": "failed"}
+        self.assertIn("not ready: A", self._replay_batch(document, install).stderr)
+
     def _blocked_lane(self):
         document = copy.deepcopy(self.document)
         document["findings"] = document["findings"][:2]
@@ -2319,7 +2342,7 @@ class ManageFindingsTests(unittest.TestCase):
             "action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Install",
         })
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("review_status='passed'", result.stderr)
+        self.assertIn("install requires a clear bcl release-check", result.stderr)
         self.assertEqual(self.data.read_bytes(), before)
 
     def test_job_receipt_cannot_be_patched_directly(self):
@@ -2374,7 +2397,7 @@ class ManageFindingsTests(unittest.TestCase):
         before = json.dumps(document).encode()
         result = self._replay_batch(document, plan, {"action": "set-stage", "stage": "install"})
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("review_status='passed'", result.stderr)
+        self.assertIn("install requires a clear bcl release-check", result.stderr)
         self.assertEqual(self.data.read_bytes(), before)
 
     def test_job_review_statuses_allow_defer_but_not_install_or_unknown_state(self):
@@ -2403,34 +2426,12 @@ class ManageFindingsTests(unittest.TestCase):
                 self.assertEqual(saved_group["codex"]["review_status"], "changes_requested")
                 self.assertEqual(saved_group["failure_history"], [{"attempt": 1, "status": "failed"}])
                 self.assertEqual(manage_findings.release_check_payload(saved)["lanes"], [])
-                with self.assertRaisesRegex(ValueError, "install requires codex.review_status"):
-                    check_install_sessions.validate_install_sessions(saved["tracking"]["plan"], ["ISSUE-01"])
+                ready = manage_findings.release_check_payload(saved, ["ISSUE-01"], require_presuite=True)
+                self.assertEqual(ready.get("included"), [])
 
         document = copy.deepcopy(self.document)
         with self.assertRaisesRegex(ValueError, "codex.review_status must be one of"):
             check_install_sessions.validate_group_codex({"id": "A", "codex": {"review_status": "complete"}})
-
-    def test_set_activity_install_dispatches_through_declared_workflow_check(self):
-        document = copy.deepcopy(self.document)
-        document["findings"][0]["status"] = "in_progress"
-        plan = {"cycle": 1, "round": 1, "groups": [{
-            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "running",
-            "codex": {"implementer_session": "writer", "reviewer_session": "reviewer",
-                      "review_status": "passed"},
-        }]}
-        document["tracking"] = {"cycle": 1, "round": 1, "stages_reached": ["plan_fix", "review"], "plan": plan}
-        self.data.write_text(json.dumps(document), encoding="utf-8")
-        operations = self.root / "install.json"
-        operations.write_text(json.dumps([{
-            "action": "set-activity", "stage": "install", "ids": ["ISSUE-01"], "now": "Install",
-        }]), encoding="utf-8")
-        with patch.object(workflow_definition, "run_check", side_effect=ValueError("declared install check")) as run_check:
-            errors = io.StringIO()
-            with redirect_stderr(errors), self.assertRaises(SystemExit) as result:
-                manage_findings.main(["batch", str(self.data), str(operations), "--render", str(self.root / "page.html")])
-        self.assertEqual(result.exception.code, 2)
-        self.assertIn("declared install check", errors.getvalue())
-        run_check.assert_called_once_with("install", plan, ["ISSUE-01"])
 
     def test_plan_rejects_invalid_one_file_and_empty_session_fields(self):
         for codex, message in (({"one_file": 1}, "one_file"),

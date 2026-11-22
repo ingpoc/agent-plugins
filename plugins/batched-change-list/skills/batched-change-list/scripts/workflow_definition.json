@@ -6,7 +6,7 @@
   "loop": [
     {"id": "plan_fix", "label": "Plan & fix", "lane_phase": "fix"},
     {"id": "review", "label": "Review", "lane_phase": "review", "check": "review", "activities": ["Terra work-done review", "Pre-push suite"]},
-    {"id": "install", "label": "Install", "lane_phase": "install", "check": "install"},
+    {"id": "install", "label": "Install", "lane_phase": "install"},
     {"id": "verify", "label": "Verify", "lane_phase": "verify", "requires": ["install"]},
     {"id": "introspect", "label": "Introspect", "lane_phase": "introspect", "requires": ["verify"], "check": "introspect"},
     {"id": "gate", "label": "Gate", "check": "gate"}
@@ -30,7 +30,6 @@
   "lane_phase_rank": {"fix": 0, "plan_review": 1, "review": 1, "install": 2, "verify": 3, "introspect": 4},
   "checks": {
     "review": {"module": "check_install_sessions", "function": "validate_review_sessions", "file": "check_install_sessions.py"},
-    "install": {"module": "check_install_sessions", "function": "validate_install_sessions", "file": "check_install_sessions.py"},
     "introspect": {"module": "check_introspect", "function": "validate_introspect", "file": "check_introspect.py"},
     "gate": {"module": "check_gate_count", "function": "gate_count", "file": "check_gate_count.py"},
     "merge_gate": {"module": "check_gate_count", "function": "merge_gate_count", "file": "check_gate_count.py"}
