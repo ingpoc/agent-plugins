@@ -12075,6 +12075,525 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "r3-048c36c3-119",
+        "build": "0.1.65",
+        "revision": "048c36c36b1d9170f761d737b530dab99657657e",
+        "installed_at": "2026-11-22T11:54:12Z",
+        "install_evidence": "bcl install-local from clean detached worktree at 048c36c3: plugin sha 558add16 (4 cache copies), skill sha be55f8de",
+        "cycle": 11,
+        "status": "complete",
+        "checks": {
+          "ACU-10": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "ACU-20": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "ACU-21": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-94": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-103": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-106": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-108": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-110": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-113": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-115": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-120": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-121": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-122": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-123": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-124": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-125": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-126": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-127": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-128": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-129": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-130": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-134": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-135": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-136": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-137": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-138": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-139": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-140": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-141": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-142": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-144": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-145": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-146": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-147": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-148": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-149": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-150": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-151": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-153": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-154": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-22T11:56:56Z",
+            "started_at": "2026-11-22T11:56:56Z",
+            "updated_at": "2026-11-22T11:56:56Z",
+            "check_id": "138ee766a551443c8da42b6a5673cbb1",
+            "evidence": "Checked: The installed install-readiness test, lane state suite, install guidance, and a scratch copy of the live tracker; Expected: Install readiness is the release check; the separate install precheck is gone; Observed: All five installed checks passed; installing a lane without a passed pre-push suite was refused with the release-check reason",
+            "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
+            "finished_at": "2026-11-22T11:56:56.370021Z"
+          },
+          "BCL-155": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-157": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-158": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-159": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-160": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-161": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-162": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-22T11:56:56Z",
+            "started_at": "2026-11-22T11:56:56Z",
+            "updated_at": "2026-11-22T11:56:56Z",
+            "check_id": "0a0d420fa9ae47cd81e7f03767a11472",
+            "evidence": "Checked: The installed version, its review guidance and test, and this build's shared pre-push suite; Expected: Each lane gets one pre-push suite through the repository check, fix jobs run only the lane's tests, and lanes shipping together share one suite; Observed: All four installed checks passed; the shared suite for four lanes took 141 seconds, down from 301 for one lane",
+            "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
+            "finished_at": "2026-11-22T11:56:56.368041Z"
+          },
+          "BCL-163": {
+            "state": "inconclusive",
+            "started_at": "2026-11-22T12:06:57Z",
+            "stopped": true,
+            "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+            "observed_at": "2026-11-22T12:06:57Z",
+            "updated_at": "2026-11-22T12:06:57Z",
+            "finished_at": "2026-11-22T12:06:57Z"
+          },
+          "BCL-164": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-22T11:56:56Z",
+            "started_at": "2026-11-22T11:56:56Z",
+            "updated_at": "2026-11-22T11:56:56Z",
+            "check_id": "0bc4271e4b6e414595e3bf4c5a1dd654",
+            "evidence": "Checked: The installed add tests and a scratch copy of the live tracker; Expected: Adding an issue that looks like an open one is refused unless marked new, and appending it to the open issue adds no new row; Observed: All three installed checks passed on a copy of the live tracker",
+            "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
+            "finished_at": "2026-11-22T11:56:56.371778Z"
+          },
+          "BCL-165": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-22T11:56:56Z",
+            "started_at": "2026-11-22T11:56:56Z",
+            "updated_at": "2026-11-22T11:56:56Z",
+            "check_id": "9db662ab210948cf914a8d7fbaed41d2",
+            "evidence": "Checked: The installed grouped-list test, the page template, and a render of the live tracker; Expected: The issue list shows one collapsed row per plan group with its issue count, and verified issues fold into a Done section; Observed: All three installed checks passed; the live render tags issues with their group",
+            "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
+            "finished_at": "2026-11-22T11:56:56.373352Z"
+          }
+        },
+        "stopped": {
+          "reason": "Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
+          "at": "2026-11-22T12:06:57Z"
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -12089,9 +12608,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-22T12:21:47Z",
-      "now": "2026-11-22T12:21:47Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-22T12:21:58Z",
+      "now": "2026-11-22T12:21:58Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 118,
@@ -14868,7 +15387,7 @@
             "BCL-163"
           ],
           "label": "BCL-163",
-          "status": "installing",
+          "status": "verifying",
           "worktree": "bcl119-r3-163",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-163.sh",
@@ -14903,8 +15422,8 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T12:14:47Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T12:21:58Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -15027,522 +15546,170 @@
       "cycle": 11
     },
     "verification_run": {
-      "id": "r3-048c36c3-119",
-      "build": "0.1.65",
-      "revision": "048c36c36b1d9170f761d737b530dab99657657e",
-      "installed_at": "2026-11-22T11:54:12Z",
-      "install_evidence": "bcl install-local from clean detached worktree at 048c36c3: plugin sha 558add16 (4 cache copies), skill sha be55f8de",
+      "id": "r3-29de680d-119",
+      "build": "0.1.66",
+      "revision": "29de680d778c4dc203c3a21d3b8cece33c74078a",
+      "installed_at": "2026-11-22T12:21:34Z",
+      "install_evidence": "bcl install-local from clean detached worktree at 29de680d: plugin sha 55dab827 (cache copies), skill sha 1e6c12a7",
       "cycle": 11,
-      "status": "complete",
+      "status": "active",
       "checks": {
         "ACU-10": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "ACU-20": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "ACU-21": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-94": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-103": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-106": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-108": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-110": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-113": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-115": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-120": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-121": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-122": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-123": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-124": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-125": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-126": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-127": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-128": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-129": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-130": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-134": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-135": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-136": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-137": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-138": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-139": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-140": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-141": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-142": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-144": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-145": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-146": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-147": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-148": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-149": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-150": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-151": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-153": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-154": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-22T11:56:56Z",
-          "started_at": "2026-11-22T11:56:56Z",
-          "updated_at": "2026-11-22T11:56:56Z",
-          "check_id": "138ee766a551443c8da42b6a5673cbb1",
-          "evidence": "Checked: The installed install-readiness test, lane state suite, install guidance, and a scratch copy of the live tracker; Expected: Install readiness is the release check; the separate install precheck is gone; Observed: All five installed checks passed; installing a lane without a passed pre-push suite was refused with the release-check reason",
-          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
-          "finished_at": "2026-11-22T11:56:56.370021Z"
+          "state": "pending"
         },
         "BCL-155": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-157": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-158": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-159": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-160": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-161": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-162": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-22T11:56:56Z",
-          "started_at": "2026-11-22T11:56:56Z",
-          "updated_at": "2026-11-22T11:56:56Z",
-          "check_id": "0a0d420fa9ae47cd81e7f03767a11472",
-          "evidence": "Checked: The installed version, its review guidance and test, and this build's shared pre-push suite; Expected: Each lane gets one pre-push suite through the repository check, fix jobs run only the lane's tests, and lanes shipping together share one suite; Observed: All four installed checks passed; the shared suite for four lanes took 141 seconds, down from 301 for one lane",
-          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
-          "finished_at": "2026-11-22T11:56:56.368041Z"
+          "state": "pending"
         },
         "BCL-163": {
-          "state": "inconclusive",
-          "started_at": "2026-11-22T12:06:57Z",
-          "stopped": true,
-          "evidence": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observation": "Run stopped: Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-          "observed_at": "2026-11-22T12:06:57Z",
-          "updated_at": "2026-11-22T12:06:57Z",
-          "finished_at": "2026-11-22T12:06:57Z"
+          "state": "pending"
         },
         "BCL-164": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-22T11:56:56Z",
-          "started_at": "2026-11-22T11:56:56Z",
-          "updated_at": "2026-11-22T11:56:56Z",
-          "check_id": "0bc4271e4b6e414595e3bf4c5a1dd654",
-          "evidence": "Checked: The installed add tests and a scratch copy of the live tracker; Expected: Adding an issue that looks like an open one is refused unless marked new, and appending it to the open issue adds no new row; Observed: All three installed checks passed on a copy of the live tracker",
-          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
-          "finished_at": "2026-11-22T11:56:56.371778Z"
+          "state": "pending"
         },
         "BCL-165": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-22T11:56:56Z",
-          "started_at": "2026-11-22T11:56:56Z",
-          "updated_at": "2026-11-22T11:56:56Z",
-          "check_id": "9db662ab210948cf914a8d7fbaed41d2",
-          "evidence": "Checked: The installed grouped-list test, the page template, and a render of the live tracker; Expected: The issue list shows one collapsed row per plan group with its issue count, and verified issues fold into a Done section; Observed: All three installed checks passed; the live render tags issues with their group",
-          "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-162.log. Run r3-048c36c3-119.",
-          "finished_at": "2026-11-22T11:56:56.373352Z"
+          "state": "pending"
+        },
+        "BCL-166": {
+          "state": "pending"
+        },
+        "BCL-167": {
+          "state": "pending"
         }
-      },
-      "stopped": {
-        "reason": "Guru 17:33 merge by class: delete of absorbed issues needs no active run; 4 verified fixes kept",
-        "at": "2026-11-22T12:06:57Z"
       }
     },
     "introspect": {
