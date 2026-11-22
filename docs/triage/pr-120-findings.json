@@ -11480,9 +11480,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-22T18:27:02Z",
-      "now": "2026-11-22T18:27:02Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-22T18:34:10Z",
+      "now": "2026-11-22T18:34:10Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 119,
@@ -13025,6 +13025,114 @@
         },
         "round": 3,
         "cycle": 12
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-22T18:34:10Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 2",
+          "Codex write: R4-157",
+          "Codex review: R4-157",
+          "Polling and rework review: R4-157",
+          "Test command: R4-157: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-157.sh",
+          "Codex write: R4-103",
+          "Codex review: R4-103",
+          "Polling and rework review: R4-103",
+          "Test command: R4-103: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-103.sh",
+          "Codex write: R4-106",
+          "Codex review: R4-106",
+          "Polling and rework review: R4-106",
+          "Codex write: R4-171",
+          "Codex review: R4-171",
+          "Polling and rework review: R4-171",
+          "Integration hotfix: parked-lane reblock"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Install",
+          "Parallel group count: 2",
+          "Codex review: R4-103",
+          "Polling and rework review: R4-103",
+          "Test command: R4-157: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-157.sh",
+          "Test command: R4-103: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-103.sh",
+          "Codex write: R4-106",
+          "Codex review: R4-106",
+          "Codex write: R4-171",
+          "Codex review: R4-171",
+          "Codex review: R4-157"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Polling and rework review: R4-106",
+                "evidence": "After the first Terra CHANGES (45,755 tokens, review-106-terra.md) a plan review passed (41,364 tokens, planreview-106.md). The second write still missed a skipped shared check in the self-test (123,851 tokens, luna-106-fix2.log) and Terra again asked for changes (46,078 tokens, review-106-2-terra.md). The lane was parked for round 5 after that second counted failure. Follow-up tokens after the first review were 211,293, and the lane did not ship. A second full write should wait until the must-fix is a failing test in the brief. Codex logs only; dev-obs has no token or review source (BCL-177, DO-2).",
+                "outcome": "issue",
+                "issue_id": "BCL-106"
+              },
+              {
+                "item": "Polling and rework review: R4-171",
+                "evidence": "Same pattern: first Terra CHANGES (58,294 tokens, review-171-terra.md), plan review PASS (30,756 tokens, planreview-171.md), second write (67,953 tokens, luna-171-fix2.log), second Terra CHANGES on uncovered project-dir reuse (19,928 tokens, review-171-2-terra.md), then parked. Follow-up tokens after the first review were 118,637, and the lane did not ship. Codex logs only; dev-obs has no token or review source (BCL-177, DO-2).",
+                "outcome": "issue",
+                "issue_id": "BCL-171"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Codex write: R4-157",
+                "evidence": "Plan-review-first ran three times before the first fix: two CHANGES and one PASS (49,758 + 40,136 + 41,429 tokens, planreview-157.md, planreview-157-2.md, planreview-157-3.md). That caught stamp-scope gaps, but the first Luna write was still 267,496 tokens (luna-157.log) and the first Terra review asked for a same-ID replan case and a ban on supplying stage_entered_at (39,230 tokens, review-157-terra.md). Those cases should have been in the first coding brief after the plan passed. Codex logs only (BCL-177, DO-2).",
+                "outcome": "issue",
+                "issue_id": "BCL-157"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Codex write: R4-103",
+                "evidence": "Lane splitting and plan-review-first cut the share of rework but not the absolute spend. Measured Codex tokens from job logs: round 4 1,528,794 (R4-157 721,263, R4-103 133,233, R4-106 340,927, R4-171 275,897, park-guard 57,474) versus round 3 396,079 and round 2 565,672 (round 1 42,909, coverage differs). Rework after a first review was 670,618 tokens, 44% of the round, down from 59% in round 3, but higher in absolute terms (235,540 in round 3). The split 103 lane shipped on a first-pass review (85,278 + 47,955, review-103-terra.md PASS). 157 still used 721,263 against a 100k estimate, with 283,214 tokens of rework after the first Terra CHANGES including a third write after the 23:07 IST presuite failure. Plan reviews prevented some 157 design mistakes before coding, but they did not prevent 157s first-review CHANGES or the second failures on 106 and 171. Four lanes were started; two were later parked. Grok Bot and helper tokens were not counted. None of these figures reached dev-obs (collector 0.1.34, snapshots 9c8c1e1e and 3dd53e40).",
+                "outcome": "issue",
+                "issue_id": "BCL-177"
+              },
+              {
+                "item": "Stage: Review",
+                "evidence": "The scoped presuite from BCL-176 ran as intended for the 0.1.72 ship: CI=1 python3 scripts/check.py --jobs 6 --changed-since 37ea398c, plugins touched: batched-change-list, 37 test processes, check ok in presuite-r4-157-103.log (about 153s; test_bcl.py 149.9s). That is a change from round 3, when presuite-175.log accidentally ran the full suite. Dev-obs snapshots 9c8c1e1e and 3dd53e40 did not record the suite duration (collector 0.1.34).",
+                "outcome": "issue",
+                "issue_id": "BCL-176"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Stage: Verify",
+                "evidence": "Evidence-quality verdict: low to medium. Before-snapshot 9c8c1e1e (23:55:02 IST, 150 findings) and after-snapshot 3dd53e40 (23:58:07 IST, 151 findings) did not capture tokens, review verdicts, or presuite duration. The after snapshot added col-8394fc3bec1b1387 (samantha-next-r10 git_state/unpushed_commits failed 1x) because a tracker snapshot commit was still unpushed at collect time; this is the same class as DO-1. Installed collector is still 0.1.34. Token and job stamps remain a gap (BCL-177).",
+                "outcome": "issue",
+                "issue_id": "DO-1"
+              },
+              {
+                "item": "Polling and rework review: R4-157",
+                "evidence": "After the first Terra CHANGES, a plan review passed (28,957 tokens, planreview-157-4.md), a second write and review passed (58,024 + 56,830, review-157-2-terra.md), then the 23:07 IST presuite failed 17 test_bcl cases and a third write and review were needed (118,357 + 21,046, review-157-3-terra.md). That is 283,214 rework tokens after the first review, and the failing cases were not in dev-obs (collector 0.1.34, no job or test source, BCL-177 / DO-2).",
+                "outcome": "issue",
+                "issue_id": "BCL-177"
+              },
+              {
+                "item": "Integration hotfix: parked-lane reblock",
+                "evidence": "Parking 106 succeeded, but parking 171 then re-blocked the already parked lane because _lane_history rewrote parked status to blocked. Luna session 01a20471-e19b-7a32-a152-ee6b6907a62c committed 3d8ecf9c (57,474 tokens, luna-park-guard.log) and test_bcl180_multiple_blocked_lanes_stay_parked_until_next_round passed. This was unplanned integration work, not a planned lane. Dev-obs did not record the job or tokens.",
+                "outcome": "fixed inline",
+                "proof": "python3 -m unittest test_manage_findings.ManageFindingsTests.test_bcl180_multiple_blocked_lanes_stay_parked_until_next_round"
+              }
+            ]
+          }
+        },
+        "round": 4,
+        "cycle": 12
       }
     ],
     "archive": {
@@ -13054,7 +13162,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 4,
@@ -13530,7 +13639,8 @@
           }
         }
       ],
-      "cycle": 12
+      "cycle": 12,
+      "status": "closed"
     },
     "verification_run": {
       "id": "r4-1f866e81-120",
@@ -13684,59 +13794,82 @@
       }
     },
     "introspect": {
-      "result": "Round 3: 2 of 4 planned lanes shipped (BCL-145 as 0.1.70, BCL-175/179/180 as 0.1.71); R2-DO1 stays deferred for the owner (dev-obs hygiene gate) and the rest wait in round 4 (BCL-157 overlaps 175). Tokens (Codex logs; dev-obs has no token source, DO-2): round 3 396,079 measured (first Luna 160,539, Terra CHANGES 24,932, plan review 67,798, second Luna 74,589, Terra PASS 68,221) vs round 2 565,672 and round 1 42,909 (coverage differs). 59% of measured round-3 tokens were rework after the first 175 review. Dev-obs evidence quality: low-to-medium signal; verify snapshots 90fa4234 (21:56:23 IST) and 6276e372 (21:57:03 IST) had no new findings and no status change, but the before snapshot included a dirty-worktree blip that vanished (col-937437b89066a62b, DO-1), the collector is still 0.1.34, and tokens and review outcomes were not collected.",
-      "at": "2026-11-22T16:29:29Z",
+      "result": "Introspect recorded",
+      "at": "2026-11-22T18:34:10Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
         "Parallel group count: 2",
-        "Codex write: R2-145",
-        "Codex review: R2-145",
-        "Polling and rework review: R2-145",
-        "Test command: R2-145: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
-        "Codex write: R3-175",
-        "Codex review: R3-175",
-        "Polling and rework review: R3-175",
-        "Test command: R3-175: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r3-175.sh"
+        "Codex write: R4-157",
+        "Codex review: R4-157",
+        "Polling and rework review: R4-157",
+        "Test command: R4-157: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-157.sh",
+        "Codex write: R4-103",
+        "Codex review: R4-103",
+        "Polling and rework review: R4-103",
+        "Test command: R4-103: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-103.sh",
+        "Codex write: R4-106",
+        "Codex review: R4-106",
+        "Polling and rework review: R4-106",
+        "Codex write: R4-171",
+        "Codex review: R4-171",
+        "Polling and rework review: R4-171",
+        "Integration hotfix: parked-lane reblock"
       ],
       "none": [
         "Stage: Plan & fix",
         "Stage: Install",
         "Parallel group count: 2",
-        "Codex write: R2-145",
-        "Codex review: R2-145",
-        "Polling and rework review: R2-145",
-        "Test command: R2-145: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
-        "Test command: R3-175: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r3-175.sh"
+        "Codex review: R4-103",
+        "Polling and rework review: R4-103",
+        "Test command: R4-157: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-157.sh",
+        "Test command: R4-103: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-103.sh",
+        "Codex write: R4-106",
+        "Codex review: R4-106",
+        "Codex write: R4-171",
+        "Codex review: R4-171",
+        "Codex review: R4-157"
       ],
       "sections": {
         "delete": {
           "items": [
             {
-              "item": "Polling and rework review: R3-175",
-              "evidence": "FLAGGED for incomplete first-pass tests, plus Codex logs (dev-obs still has no token source, DO-2): after 16b1ca87 the first Terra review (CHANGES, 24,932 tokens, review-175-terra.md, 21:28 IST) found that a parked lane with blocked_reason and no counted failures was carried as planned. Closing it took a plan review (67,798 tokens, planreview-175.log), a second Luna write (74,589 tokens, luna-175-fix2.log, d72dd830), and a second Terra review (68,221 tokens, review-175-2-terra.md). That is 235,540 tokens of rework because the first brief and tests only covered counted-failure parking. A carry-forward test matrix belongs in the first brief.",
+              "item": "Polling and rework review: R4-106",
+              "evidence": "After the first Terra CHANGES (45,755 tokens, review-106-terra.md) a plan review passed (41,364 tokens, planreview-106.md). The second write still missed a skipped shared check in the self-test (123,851 tokens, luna-106-fix2.log) and Terra again asked for changes (46,078 tokens, review-106-2-terra.md). The lane was parked for round 5 after that second counted failure. Follow-up tokens after the first review were 211,293, and the lane did not ship. A second full write should wait until the must-fix is a failing test in the brief. Codex logs only; dev-obs has no token or review source (BCL-177, DO-2).",
               "outcome": "issue",
-              "issue_id": "BCL-121"
+              "issue_id": "BCL-106"
+            },
+            {
+              "item": "Polling and rework review: R4-171",
+              "evidence": "Same pattern: first Terra CHANGES (58,294 tokens, review-171-terra.md), plan review PASS (30,756 tokens, planreview-171.md), second write (67,953 tokens, luna-171-fix2.log), second Terra CHANGES on uncovered project-dir reuse (19,928 tokens, review-171-2-terra.md), then parked. Follow-up tokens after the first review were 118,637, and the lane did not ship. Codex logs only; dev-obs has no token or review source (BCL-177, DO-2).",
+              "outcome": "issue",
+              "issue_id": "BCL-171"
             }
           ]
         },
         "simplify": {
           "items": [
             {
-              "item": "Codex review: R3-175",
-              "evidence": "The plan review passed (planreview-175.md, 21:30 IST) but the tracker write failed twice: first the reply lacked ROOT CAUSE and FAILING TEST sections (planreview-175-job.log), then a FAILING TEST body with a colon was parsed as empty (manage_findings._section_body). The plan itself was accepted. This is process friction on a required reply shape, not a code disagreement. Dev-obs collected none of these review outcomes or tokens (DO-2).",
+              "item": "Codex write: R4-157",
+              "evidence": "Plan-review-first ran three times before the first fix: two CHANGES and one PASS (49,758 + 40,136 + 41,429 tokens, planreview-157.md, planreview-157-2.md, planreview-157-3.md). That caught stamp-scope gaps, but the first Luna write was still 267,496 tokens (luna-157.log) and the first Terra review asked for a same-ID replan case and a ban on supplying stage_entered_at (39,230 tokens, review-157-terra.md). Those cases should have been in the first coding brief after the plan passed. Codex logs only (BCL-177, DO-2).",
               "outcome": "issue",
-              "issue_id": "BCL-120"
+              "issue_id": "BCL-157"
             }
           ]
         },
         "optimize": {
           "items": [
             {
+              "item": "Codex write: R4-103",
+              "evidence": "Lane splitting and plan-review-first cut the share of rework but not the absolute spend. Measured Codex tokens from job logs: round 4 1,528,794 (R4-157 721,263, R4-103 133,233, R4-106 340,927, R4-171 275,897, park-guard 57,474) versus round 3 396,079 and round 2 565,672 (round 1 42,909, coverage differs). Rework after a first review was 670,618 tokens, 44% of the round, down from 59% in round 3, but higher in absolute terms (235,540 in round 3). The split 103 lane shipped on a first-pass review (85,278 + 47,955, review-103-terra.md PASS). 157 still used 721,263 against a 100k estimate, with 283,214 tokens of rework after the first Terra CHANGES including a third write after the 23:07 IST presuite failure. Plan reviews prevented some 157 design mistakes before coding, but they did not prevent 157s first-review CHANGES or the second failures on 106 and 171. Four lanes were started; two were later parked. Grok Bot and helper tokens were not counted. None of these figures reached dev-obs (collector 0.1.34, snapshots 9c8c1e1e and 3dd53e40).",
+              "outcome": "issue",
+              "issue_id": "BCL-177"
+            },
+            {
               "item": "Stage: Review",
-              "evidence": "The lane release was meant to use a scoped presuite (BCL-176, 129s in round 2). presuite-175.log instead selected a full run because scripts/precommit_chart.py is collection tooling, and the job ran 157 processes including the Swift service tests (test_bcl.py 175.8s, CUAService 131.4s; finished 21:52 IST). Dev-obs snapshots 90fa4234 and 6276e372 did not record that suite duration (collector 0.1.34, no bcl job logs as sources, BCL-147).",
+              "evidence": "The scoped presuite from BCL-176 ran as intended for the 0.1.72 ship: CI=1 python3 scripts/check.py --jobs 6 --changed-since 37ea398c, plugins touched: batched-change-list, 37 test processes, check ok in presuite-r4-157-103.log (about 153s; test_bcl.py 149.9s). That is a change from round 3, when presuite-175.log accidentally ran the full suite. Dev-obs snapshots 9c8c1e1e and 3dd53e40 did not record the suite duration (collector 0.1.34).",
               "outcome": "issue",
               "issue_id": "BCL-176"
             }
@@ -13746,23 +13879,29 @@
           "items": [
             {
               "item": "Stage: Verify",
-              "evidence": "Before-snapshot 90fa4234 (21:56:23 IST) included col-937437b89066a62b (dirty worktree on the list checkout at collect time); after-snapshot 6276e372 (21:57:03 IST) had no new findings and that row was gone (151 to 150). This is verify-created collector noise, the same class as tracker snapshot commits (DO-1). Installed collector is still 0.1.34.",
+              "evidence": "Evidence-quality verdict: low to medium. Before-snapshot 9c8c1e1e (23:55:02 IST, 150 findings) and after-snapshot 3dd53e40 (23:58:07 IST, 151 findings) did not capture tokens, review verdicts, or presuite duration. The after snapshot added col-8394fc3bec1b1387 (samantha-next-r10 git_state/unpushed_commits failed 1x) because a tracker snapshot commit was still unpushed at collect time; this is the same class as DO-1. Installed collector is still 0.1.34. Token and job stamps remain a gap (BCL-177).",
               "outcome": "issue",
               "issue_id": "DO-1"
             },
             {
-              "item": "Codex write: R3-175",
-              "evidence": "Round 3 measured 396,079 Codex tokens from logs (first Luna 160,539; Terra CHANGES 24,932; plan review 67,798; second Luna 74,589; Terra PASS 68,221) versus round 2 565,672 and round 1 42,909 (round 1 coverage was mostly workers). None of this reached dev-obs: collector 0.1.34, task-usage still not a source for Codex jobs (snapshots 90fa4234, 6276e372).",
+              "item": "Polling and rework review: R4-157",
+              "evidence": "After the first Terra CHANGES, a plan review passed (28,957 tokens, planreview-157-4.md), a second write and review passed (58,024 + 56,830, review-157-2-terra.md), then the 23:07 IST presuite failed 17 test_bcl cases and a third write and review were needed (118,357 + 21,046, review-157-3-terra.md). That is 283,214 rework tokens after the first review, and the failing cases were not in dev-obs (collector 0.1.34, no job or test source, BCL-177 / DO-2).",
               "outcome": "issue",
-              "issue_id": "DO-2"
+              "issue_id": "BCL-177"
+            },
+            {
+              "item": "Integration hotfix: parked-lane reblock",
+              "evidence": "Parking 106 succeeded, but parking 171 then re-blocked the already parked lane because _lane_history rewrote parked status to blocked. Luna session 01a20471-e19b-7a32-a152-ee6b6907a62c committed 3d8ecf9c (57,474 tokens, luna-park-guard.log) and test_bcl180_multiple_blocked_lanes_stay_parked_until_next_round passed. This was unplanned integration work, not a planned lane. Dev-obs did not record the job or tokens.",
+              "outcome": "fixed inline",
+              "proof": "python3 -m unittest test_manage_findings.ManageFindingsTests.test_bcl180_multiple_blocked_lanes_stay_parked_until_next_round"
             }
           ]
         }
       },
-      "round": 3,
+      "round": 4,
       "cycle": 12
     },
-    "last_written_at": "2026-11-22T18:29:21Z"
+    "last_written_at": "2026-11-22T18:34:10Z"
   },
   "findings": [
     {
