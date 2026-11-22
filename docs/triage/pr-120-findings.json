@@ -10860,8 +10860,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-22T13:10:14Z",
-      "now": "2026-11-22T13:10:14Z — Review started"
+      "updated_at": "2026-11-22T13:11:37Z",
+      "now": "2026-11-22T13:11:37Z — Presuite started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12185,24 +12185,33 @@
             "reviewer_session": "grokbot-review-120-round",
             "fix_status": "passed",
             "job": {
-              "id": "b02b937c50e143929ce8b58eb7da5daa",
-              "phase": "review",
-              "started_at": "2026-11-22T13:10:14Z",
-              "command": "cp",
-              "heartbeat_at": "2026-11-22T13:10:14Z",
+              "id": "e730f334302d4861948d23de8cb62138",
+              "phase": "presuite",
+              "started_at": "2026-11-22T13:11:37Z",
+              "command": "env",
+              "heartbeat_at": "2026-11-22T13:14:15Z",
               "plan_sha256": "b44ea4ea4102d4833a4717cc496c930b0e2d478f0685a7e3364f61a91d0c6bcc",
-              "model": "Grok Bot self review",
+              "model": "check.py CI mode",
               "cycle": 12,
-              "round": 1
+              "round": 1,
+              "pid": 16182,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T13:14:15Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "Grok Bot self review"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T12:50:21Z",
-          "phase": "review"
+          "phase": "review",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T13:14:15Z"
+          }
         },
         {
           "id": "R1-134",
@@ -12226,18 +12235,18 @@
             "reviewer_session": "grokbot-review-120-134",
             "fix_status": "passed",
             "job": {
-              "id": "757f43c0f9fc400886890d2fe6595d89",
-              "phase": "review",
-              "started_at": "2026-11-22T12:53:50Z",
-              "command": "cp",
-              "heartbeat_at": "2026-11-22T12:53:51Z",
+              "id": "e730f334302d4861948d23de8cb62138",
+              "phase": "presuite",
+              "started_at": "2026-11-22T13:11:37Z",
+              "command": "env",
+              "heartbeat_at": "2026-11-22T13:14:15Z",
               "plan_sha256": "b44ea4ea4102d4833a4717cc496c930b0e2d478f0685a7e3364f61a91d0c6bcc",
-              "model": "Grok Bot self review",
+              "model": "check.py CI mode",
               "cycle": 12,
               "round": 1,
-              "pid": 86173,
+              "pid": 16182,
               "exit_code": 0,
-              "finished_at": "2026-11-22T12:53:51Z",
+              "finished_at": "2026-11-22T13:14:15Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -12260,7 +12269,12 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-22T12:50:21Z",
-          "phase": "review"
+          "phase": "review",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T13:14:15Z"
+          }
         },
         {
           "id": "R2-142",
@@ -12853,7 +12867,8 @@
         "report": "bcl-119 progress.md",
         "design": "Guru 14:08 IST: deterministic, never agent-written. The bcl stage-transition code path itself stamps stage_entered_at on every lane stage change (single writer, protected runtime field); render derives the duration from it at load. No agent-set fields, no manual edits. Tests: retries and heartbeats do not reset it; a stage change does; page text shows it.",
         "root_cause_group": "M-LIVE (merged by class, Guru 17:33)",
-        "merged_from": "BCL-117: The page's Updated stamp does not move on finding writes"
+        "merged_from": "BCL-117: The page's Updated stamp does not move on finding writes",
+        "also reported as BCL-170": "A lane whose review passed shows as paused and needing resume After a review passes and before the full suite starts, the lane pill reads Paused and needs resume, although nothing is paused and the next step is the full suite. 22 Nov 2026 18:42 IST, PR 120 round 1 lanes after their reviews passed"
       }
     },
     {
