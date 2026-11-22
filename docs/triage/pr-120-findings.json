@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T13:28:03Z",
-      "now": "2026-11-22T13:28:03Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T13:28:30Z",
+      "now": "2026-11-22T13:28:30Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12303,7 +12303,7 @@
             "BCL-142"
           ],
           "label": "BCL-142",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl120-r1-142",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-142.sh",
@@ -12315,24 +12315,27 @@
           "codex": {
             "model": "Guru subagent worker",
             "implementer_session": "worker-bcl120-r1-142",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "3fa77b69339d4841a27f21b722f7f83d",
-              "phase": "fix",
-              "started_at": "2026-11-22T13:28:03Z",
+              "id": "9d6b71e1064b4492a17164fdeccfce01",
+              "phase": "review",
+              "started_at": "2026-11-22T13:28:30Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-22T13:28:03Z",
+              "heartbeat_at": "2026-11-22T13:28:30Z",
               "plan_sha256": "1aea6f3ce95b1c0a37be81b22dd9edc85d7924fedc058d4be84fb9a62c12ae0e",
-              "model": "Guru subagent worker (78efdcf0)",
+              "model": "gpt-6.1-terra medium (Codex)",
               "cycle": 12,
               "round": 1
-            }
+            },
+            "tool_fault_streak": 0,
+            "review_status": "running",
+            "reviewer_model": "gpt-6.1-terra medium (Codex)"
           },
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 2,
           "updated_at": "2026-11-22T13:18:04Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "R2-145",
