@@ -1,3 +1,10 @@
+## 0.1.65
+
+- One pre-push suite per lane through `scripts/check.py`; fix jobs run only the lane's tests, and lanes shipping together share one suite job (BCL-162).
+- Install readiness is `bcl release-check`: `set-activity install` and `set-stage install` refuse a lane without a passed fix, review and pre-push suite, or while another lane is in flight; the separate install-session check is gone (BCL-154).
+- `add` refuses an entry that looks like an open issue unless `--new` is passed; `--into ID` appends it to that issue instead (BCL-164).
+- The change-list page groups the issue list by plan group, one collapsed row per group with its issue count, and folds verified issues into a Done section (BCL-165).
+
 ## 0.1.64
 
 - A lane gets one plan review. After it, a review CHANGES reply with ROOT CAUSE and FAILING TEST sections opens the next fix, and a further plan review is refused; a reply without them keeps the old plan-review route (BCL-153).
