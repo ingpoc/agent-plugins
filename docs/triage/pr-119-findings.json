@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-22T03:32:26Z",
-      "now": "2026-11-22T03:32:26Z — Lane R1-ADD updated"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T04:07:33Z",
+      "now": "2026-11-22T04:07:33Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 118,
@@ -10929,7 +10929,7 @@
       }
     },
     "cycle": 11,
-    "round": 1,
+    "round": 2,
     "round_history": [
       {
         "round": 2,
@@ -11090,6 +11090,11 @@
         "round": 3,
         "fixed": 16,
         "ended_at": "2026-11-21T08:49:24Z"
+      },
+      {
+        "round": 1,
+        "fixed": 4,
+        "ended_at": "2026-11-22T04:07:33Z"
       }
     ],
     "introspect_history": [
@@ -12221,14 +12226,11 @@
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix",
       "review",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "round": 1,
+      "round": 2,
       "groups": [
         {
           "id": "R1-DEAD",
@@ -12238,7 +12240,6 @@
             "BCL-124",
             "BCL-126"
           ],
-          "status": "verified",
           "worktree": "bcl119-direct",
           "label": "BCL-123, BCL-124, BCL-126",
           "verify": {
@@ -12251,28 +12252,9 @@
           "codex": {
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r1-dead",
-            "reviewer_session": "codex-terra-6.1-119r1-dead",
-            "fix_status": "passed",
-            "job": {
-              "id": "89d1866176dc4ef98c5b7b6f1d239240",
-              "phase": "presuite",
-              "started_at": "2026-11-21T16:57:00Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-21T17:01:23Z",
-              "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
-              "model": "none",
-              "cycle": 11,
-              "round": 1,
-              "pid": 38903,
-              "exit_code": 0,
-              "finished_at": "2026-11-21T17:01:23Z",
-              "finished_phase_status": "passed"
-            },
-            "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it.",
-            "tool_fault_streak": 0,
-            "review_status": "passed"
+            "reviewer_session": "codex-terra-6.1-119r1-dead"
           },
+          "reason": "BCL-124 only (BCL-123/126 verified). Carried to round 3: round 2 runs BCL-135 to 138 first (max 4 open lanes); handoff order keeps the carried lanes after them",
           "failure_history": [
             {
               "attempt_id": "bb1ddd62936a4b5c8ebf2aa161c6124c",
@@ -12309,8 +12291,6 @@
               "at": "2026-11-21T16:23:26Z"
             }
           ],
-          "updated_at": "2026-11-22T03:32:26Z",
-          "phase": "done",
           "unblock_history": [
             {
               "at": "2026-11-21T16:20:21Z",
@@ -12326,16 +12306,10 @@
               "owner_override": true
             }
           ],
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-21T17:01:23Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-21T17:05:18Z"
-          },
-          "reason": "BCL-124 deletion reverted (Guru 2026-11-21); BCL-124 carried to round 2"
+          "status": "deferred",
+          "phase": "deferred",
+          "parked_to": 3,
+          "updated_at": "2026-11-22T04:07:33Z"
         },
         {
           "id": "R1-RELEASE",
@@ -12344,7 +12318,6 @@
             "BCL-125",
             "BCL-127"
           ],
-          "status": "deferred",
           "worktree": "bcl119-direct",
           "label": "BCL-125, BCL-127",
           "verify": {
@@ -12357,30 +12330,9 @@
           "codex": {
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r1-release",
-            "reviewer_session": "codex-terra-6.1-119r1-release",
-            "fix_status": "passed",
-            "job": {
-              "id": "5458bdec40634e68a020e16d67d10abb",
-              "phase": "plan_review",
-              "started_at": "2026-11-21T16:21:05Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-21T16:22:24Z",
-              "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
-              "model": "gpt-6.2-sol",
-              "cycle": 11,
-              "round": 1,
-              "pid": 53821,
-              "exit_code": 0,
-              "finished_at": "2026-11-21T16:22:24Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. Qualify the blocked-lane instructions in `release.md`. The existing `bcl unblock --ids ID --reason R --tool-fault ATTEMPT` command rejects a correction if two or more counted failures would remain. Describe those candidates as informational too. This is a documentation change within the reduced scope."
-            },
-            "tool_fault_streak": 0,
-            "review_status": "changes_requested",
-            "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. **Listed tool faults cannot be uncounted unless their lane is blocked.** `release-check` reports candidates across all lanes, including the verified lane covered by [test_release_checks.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-release/plugins/batched-change-list/skills/batched-change-list/scripts/test_release_checks.py:26), and the [release guide](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-release/plugins/batched-change-list/skills/batched-change-list/references/release.md:1) directs users to uncount them with `unblock`. But [unblock_lane](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-release/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:566) rejects every non-blocked lane. Removing `resort-failures` therefore leaves those counted faults uncorrectable through the supported path. Allow the named tool-fault correction for those lanes and test it without changing their unrelated status.",
-            "plan_review_status": "changes_requested"
+            "reviewer_session": "codex-terra-6.1-119r1-release"
           },
+          "reason": "Carried to round 3: round 2 runs BCL-135 to 138 first (max 4 open lanes); handoff order keeps the carried lanes after them",
           "failure_history": [
             {
               "attempt_id": "6e29cc802ae9422ebb1ebfe80df8430f",
@@ -12392,65 +12344,10 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T03:32:26Z",
+          "status": "deferred",
           "phase": "deferred",
-          "reason": "Failed final Sol 6.2 plan review; carried to round 2 under Guru one-time release-check exception (BCL-135)",
-          "parked_to": 2
-        },
-        {
-          "id": "R1-TESTS",
-          "name": "Quiet, non-repeating tests",
-          "finding_ids": [
-            "BCL-128",
-            "BCL-129"
-          ],
-          "status": "verified",
-          "worktree": "bcl119-direct",
-          "label": "BCL-128, BCL-129",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r1/verify-tests.sh",
-            "status": "verified",
-            "fixed": 2,
-            "failed": 0,
-            "total": 2
-          },
-          "codex": {
-            "model": "gpt-6-luna medium fast (Codex CLI)",
-            "implementer_session": "codex-luna-119r1-tests",
-            "reviewer_session": "codex-terra-6.1-119r1-tests",
-            "fix_status": "passed",
-            "job": {
-              "id": "89d1866176dc4ef98c5b7b6f1d239240",
-              "phase": "presuite",
-              "started_at": "2026-11-21T16:57:00Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-21T17:01:23Z",
-              "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
-              "model": "none",
-              "cycle": 11,
-              "round": 1,
-              "pid": 38903,
-              "exit_code": 0,
-              "finished_at": "2026-11-21T17:01:23Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "review_status": "passed",
-            "reviewer_model": "gpt-6.1-terra medium"
-          },
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-21T17:05:49Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-21T17:01:23Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-21T17:05:19Z"
-          }
+          "parked_to": 3,
+          "updated_at": "2026-11-22T04:07:33Z"
         },
         {
           "id": "R1-ADD",
@@ -12460,7 +12357,6 @@
             "BCL-122",
             "BCL-94"
           ],
-          "status": "deferred",
           "worktree": "bcl119-direct",
           "label": "BCL-121, BCL-122, BCL-94",
           "verify": {
@@ -12473,30 +12369,9 @@
           "codex": {
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r1-add",
-            "reviewer_session": "codex-terra-6.1-119r1-add",
-            "fix_status": "passed",
-            "job": {
-              "id": "af00b610c5ed4e77ba9752f0895fff86",
-              "phase": "plan_review",
-              "started_at": "2026-11-21T16:21:05Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-21T16:22:47Z",
-              "plan_sha256": "a192c3e6bdecd7007e8158b9d2c4a024846b8e8ec3db62e8ebd552c63aecf5db",
-              "model": "gpt-6.2-sol",
-              "cycle": 11,
-              "round": 1,
-              "pid": 53815,
-              "exit_code": 0,
-              "finished_at": "2026-11-21T16:22:47Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. **BCL-122. Validate the chart from each affected pushed commit.** The plan fixes which paths trigger the check, but the check still reads the current checkout. A push can therefore pass with a stale chart in the commit being pushed. Run the chart check against that commit’s files and keep the unrelated-file skip."
-            },
-            "tool_fault_streak": 0,
-            "review_status": "changes_requested",
-            "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. **Existing live viewers are orphaned on upgrade.** [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-add/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:245) switches from a per-list state filename to a per-project filename without discovering the old record. An existing viewer remains running while a second viewer starts on another port. Add a migration test with a live legacy record and verify ownership before replacing it.\n\n2. **Concurrent starts can create duplicate viewers.** [ensure_viewer](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-add/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:245) has no project-level lock around reading state, choosing a port, starting the process, and writing state. Two callers can both see no viewer and start one; the last state write leaves the other unmanaged. Add a concurrent-start test.\n\n3. **Replacing a lane ID can bypass the review cap and scope lock.** [carry_plan_runtime_state](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-add/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:480) protects removal only for blocked lanes or lanes with counted failures. A same-round plan can replace a reviewed lane with a new ID, losing its review count and lock. Preserve or reject replacement of a lane under review, with a test covering the replacement path.\n\n4. **The requested gate boundaries are not fully tested.** `test_fourth_review_is_refused_until_reasoned_unblock_resets_count` covers the cap and reset, and `test_plan_reviews_do_not_count_toward_work_done_review_cap` covers plan reviews before the cap. Add checks that `plan_review` and `fix` remain available after the cap. The pre-push test covers a positive skill-file match, but needs a negative unrelated-file case and a timing measurement to establish the requested fast-path behavior.",
-            "plan_review_status": "changes_requested"
+            "reviewer_session": "codex-terra-6.1-119r1-add"
           },
+          "reason": "Carried to round 3: round 2 runs BCL-135 to 138 first (max 4 open lanes); handoff order keeps the carried lanes after them",
           "failure_history": [
             {
               "attempt_id": "3f61a1e773c044dda78746f2a99e24ce",
@@ -12508,14 +12383,120 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T03:32:26Z",
+          "status": "deferred",
           "phase": "deferred",
-          "reason": "Failed final Sol 6.2 plan review; carried to round 2 under Guru one-time release-check exception (BCL-135)",
-          "parked_to": 2
+          "parked_to": 3,
+          "updated_at": "2026-11-22T04:07:33Z"
+        },
+        {
+          "id": "R2-135",
+          "name": "Carried lanes can be deferred after a review asked for changes",
+          "finding_ids": [
+            "BCL-135"
+          ],
+          "status": "pending",
+          "worktree": "bcl119-r2-135",
+          "label": "BCL-135",
+          "reason": "Shipped in 0.1.59 (46ef08eb) as a bootstrap fix: the bug blocked every plan write, so the fix ran before this plan could be recorded",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-135.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "gpt-6-luna medium fast (Codex CLI)",
+            "implementer_session": "codex-luna-119r2-135",
+            "reviewer_session": "codex-terra-6.1-119r2-135",
+            "review_status": "pending",
+            "one_file": true
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T04:07:33Z"
+        },
+        {
+          "id": "R2-136",
+          "name": "Release check clears for reviewed fixes in the release",
+          "finding_ids": [
+            "BCL-136"
+          ],
+          "status": "pending",
+          "worktree": "bcl119-r2-136",
+          "label": "BCL-136",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-136.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "gpt-6-luna medium fast (Codex CLI)",
+            "implementer_session": "codex-luna-119r2-136",
+            "reviewer_session": "codex-terra-6.1-119r2-136",
+            "review_status": "pending"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T04:07:33Z"
+        },
+        {
+          "id": "R2-137",
+          "name": "Cap plan reviews at three per lane per round",
+          "finding_ids": [
+            "BCL-137"
+          ],
+          "status": "pending",
+          "worktree": "bcl119-r2-137",
+          "label": "BCL-137",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-137.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "gpt-6-luna medium fast (Codex CLI)",
+            "implementer_session": "codex-luna-119r2-137",
+            "reviewer_session": "codex-terra-6.1-119r2-137",
+            "review_status": "pending"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T04:07:33Z"
+        },
+        {
+          "id": "R2-138",
+          "name": "Restore the two old viewer command tests",
+          "finding_ids": [
+            "BCL-138"
+          ],
+          "status": "pending",
+          "worktree": "bcl119-r2-138",
+          "label": "BCL-138",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r2/verify-138.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "gpt-6-luna medium fast (Codex CLI)",
+            "implementer_session": "codex-luna-119r2-138",
+            "reviewer_session": "codex-terra-6.1-119r2-138",
+            "review_status": "pending",
+            "one_file": true
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T04:07:33Z"
         }
       ],
-      "cycle": 11,
-      "status": "closed"
+      "cycle": 11
     },
     "verification_run": {
       "id": "r1-65c8dd9b-119",
@@ -13566,6 +13547,43 @@
         "report": "bcl-119 progress.md",
         "evidence": "Page badge Fixes 4/15 verified; workflow_definition gate default_threshold 15, merge_previous_pr_threshold 16; note text says rollover needs 16",
         "kind": "fix"
+      }
+    },
+    {
+      "id": "BCL-142",
+      "title": "No supported command saves a pending snapshot on its own",
+      "summary": "After a direct batch write the tracker is marked as not yet saved, and only a command that also changes the tracker saves it again; when the stage has not changed the save also skips the commit.",
+      "impact": "To clear the not-saved mark the agent must make an unrelated change or call internal code, and the saved copy in the repo can lag the live list.",
+      "recommendation": "Add a bcl snapshot command that saves the live list, renders the page, commits when the saved copy differs, and clears the mark.",
+      "done_when": "bcl snapshot clears the not-saved mark and commits the saved copy when it differs, and a test covers it.",
+      "observed": "22 Nov 2026 09:02 IST, bcl 0.1.59, closing round 1 of PR 119",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "PR 119 round 2 (Guru 09:05 IST: file missing bcl commands instead of calling internal code)",
+        "report": "bcl-119 progress.md",
+        "evidence": "No bcl stage saves without a tracker change; live_state.snapshot was called directly at 09:02 IST and skipped the commit because stage and cycle were unchanged, so the snapshot was committed by hand as 4047089b",
+        "kind": "fix"
+      }
+    },
+    {
+      "id": "BCL-143",
+      "title": "A new round cannot be planned while a carried lane has counted failures",
+      "summary": "When the next round is planned, a carried lane with counted failures must stay in the plan, but its status is dropped and the plan is then refused as having an invalid status, whatever status is given.",
+      "impact": "No later round can start once any lane with a counted failure was carried, so PR 119 round 2 cannot be recorded.",
+      "recommendation": "When a new round starts, keep the requested status of a carried lane (pending or deferred) and carry only its failure and review history; keep refusing claims of finished job state.",
+      "done_when": "A round 2 plan that keeps carried lanes with counted failures as deferred, plus new lanes, is recorded, the carried lanes keep their failure history, and a test covers it.",
+      "observed": "22 Nov 2026 09:20 IST, bcl 0.1.59, planning PR 119 round 2 on a copy of the live list",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "PR 119 round 2 planning",
+        "report": "bcl-119 progress.md",
+        "evidence": "set-plan round 2 on a copy: omitting R1-DEAD gives cannot change gated lane; keeping it as pending or deferred gives plan group R1-DEAD has invalid status (carry_plan_runtime_state drops status for carried lanes in a new round unless blocked)",
+        "kind": "fix",
+        "blocks": "round 2 plan"
       }
     }
   ]
