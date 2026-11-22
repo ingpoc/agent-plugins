@@ -162,9 +162,10 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         self.assertEqual(rows[0]['_group'], {'id': 'M-ONE', 'name': 'Shared cause'})
         self.assertNotIn('_group', rows[2])
         template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
-        start = template.index('const navGroups=')
+        start = template.index('const navList=')
         build = template[start:template.index('\n', template.index('function addNavItem', start))]
         program = (r"""
+const localStorage={getItem:()=>'group'};
 class Element { constructor(tag,text='',cls=''){this.tag=tag;this.text=text||'';this.cls=cls||'';this.children=[];this.dataset={}} append(...children){this.children.push(...children)} setAttribute(){} }
 const node=(tag,text,cls)=>new Element(tag,text,cls);
 const findings=JSON.parse(PAYLOAD),labels={verified_fixed:'Verified fixed',untested:'Untested'},run=null,checkLabels={},markStale=()=>{};
@@ -177,6 +178,39 @@ if(group.cls!=='nav-group'||group.children[0].tag!=='details'||text(group.childr
 if(!text(group).includes('ISSUE-01')||text(group).includes('ISSUE-02'))process.exit(3);
 if(plain.cls!=='nav-item'||!text(plain).includes('ISSUE-03'))process.exit(4);
 if(done.cls!=='nav-group nav-done'||text(done.children[0].children[0])!=='Done · 1 verified'||!text(done).includes('ISSUE-02'))process.exit(5);
+""").replace('PAYLOAD', json.dumps(payload))
+        subprocess.run(['node', '-e', program], check=True)
+
+    def test_issue_list_by_plugin_nests_groups_and_folds_verified_per_plugin(self):
+        data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
+        first, second = data['findings'][0], data['findings'][1]
+        data['findings'] = [dict(first, id='BCL-01', title='Bcl grouped'), dict(first, id='BCL-02', title='Bcl plain'),
+                            dict(second, id='BCL-03', title='Bcl done'), dict(first, id='ACU-01', title='Acu open'),
+                            dict(first, id='ISSUE-09', title='Ledger by path', details={'files': 'plugins/context-ledger/x.py'})]
+        data.setdefault('tracking', {})['plan'] = {'round': 1, 'groups': [
+            {'id': 'M-ONE', 'name': 'Shared cause', 'finding_ids': ['BCL-01'], 'status': 'deferred', 'phase': 'deferred'}]}
+        page = renderer.render(data, Path(__file__).parent.parent)
+        payload = re.search(r'<script type="application/json" id="findings-data">(.*?)</script>', page).group(1)
+        self.assertEqual([row['_plugin'] for row in json.loads(payload)],
+                         ['batched-change-list'] * 3 + ['agent-computer-use', 'context-ledger'])
+        self.assertIn('data-mode="plugin">By plugin</button><button type="button" data-mode="group">By group</button>', page)
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        start = template.index('const navList=')
+        build = template[start:template.index('\n', template.index('function addNavItem', start))]
+        program = (r"""
+class Element { constructor(tag,text='',cls=''){this.tag=tag;this.text=text||'';this.cls=cls||'';this.children=[];this.dataset={}} append(...children){this.children.push(...children)} setAttribute(){} }
+const node=(tag,text,cls)=>new Element(tag,text,cls);
+const findings=JSON.parse(PAYLOAD),labels={verified_fixed:'Verified fixed',untested:'Untested'},run=null,checkLabels={},markStale=()=>{};
+const nav=new Element('ul'),document={createTextNode:text=>text};
+""" + build + r"""
+const text=el=>(el?.text||'')+(el?.children||[]).map(text).join('');
+const heads=nav.children.map(li=>text(li.children[0].children[0]));
+if(JSON.stringify(heads)!==JSON.stringify(['agent-computer-use · 1 open · 0 verified','batched-change-list · 2 open · 1 verified','context-ledger · 1 open · 0 verified']))process.exit(1);
+if(nav.children.some(li=>li.cls!=='nav-group nav-plugin'))process.exit(2);
+const bcl=nav.children[1].children[0].children[1].children;
+if(bcl.length!==3||bcl[0].cls!=='nav-group'||text(bcl[0].children[0].children[0])!=='Shared cause · 1 issue')process.exit(3);
+if(bcl[1].cls!=='nav-item'||!text(bcl[1]).includes('BCL-02'))process.exit(4);
+if(bcl[2].cls!=='nav-group nav-done'||text(bcl[2].children[0].children[0])!=='Done · 1 verified'||!text(bcl[2]).includes('BCL-03'))process.exit(5);
 """).replace('PAYLOAD', json.dumps(payload))
         subprocess.run(['node', '-e', program], check=True)
 
