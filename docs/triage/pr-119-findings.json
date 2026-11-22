@@ -12089,9 +12089,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T12:12:12Z",
-      "now": "2026-11-22T12:12:12Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T12:12:32Z",
+      "now": "2026-11-22T12:12:32Z — Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -14913,7 +14913,7 @@
             "BCL-155"
           ],
           "label": "BCL-155",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl119-r3-155",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-155.sh",
@@ -14926,23 +14926,26 @@
             "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
             "implementer_session": "grokbot-self-119r3-155",
             "reviewer_session": "grokbot-review-119r3-155",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "c30daa991df54cdb8cfd45079a019276",
-              "phase": "fix",
-              "started_at": "2026-11-22T12:12:12Z",
-              "command": "self-155.sh",
-              "heartbeat_at": "2026-11-22T12:12:12Z",
+              "id": "46768ec868f044ecb8e11a84b456edd4",
+              "phase": "review",
+              "started_at": "2026-11-22T12:12:32Z",
+              "command": "cp",
+              "heartbeat_at": "2026-11-22T12:12:32Z",
               "plan_sha256": "9c9711f1c21723d4d75850984cddcdf9e8ed4e2628dd3b427947803cf08a4632",
-              "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
+              "model": "grokbot-review-pass (separate pass; Codex out until 18:50)",
               "cycle": 11,
               "round": 3
-            }
+            },
+            "tool_fault_streak": 0,
+            "review_status": "running",
+            "reviewer_model": "grokbot-review-pass (separate pass; Codex out until 18:50)"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T12:07:25Z",
-          "phase": "fix"
+          "phase": "review"
         }
       ],
       "cycle": 11
