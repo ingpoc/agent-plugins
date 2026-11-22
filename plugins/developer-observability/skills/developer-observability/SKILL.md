@@ -3,10 +3,9 @@ name: developer-observability
 description: Use when diagnosing project failures, reviewing runtime evidence, investigating agent tasks or usage, or inspecting observability sessions, decisions, storage, or dashboards.
 ---
 # Developer observability
-
-Use the MCP directly. Kindle and Decider skills own collection, device and service repair, not routine inspection.
-
-For “what happened in task X,” use `observability_tasks`, then `observability_task` and, only when needed, `observability_task_detail`.
+Editing this skill? Read [principles.md](principles.md) first so edits pass it.
+Use the MCP directly. Kindle and Decider own collection and repair.
+Task X: `observability_tasks`, then `observability_task`, then `observability_task_detail` if needed.
 
 | Step | Trigger | Reference | Script |
 | --- | --- | --- | --- |
