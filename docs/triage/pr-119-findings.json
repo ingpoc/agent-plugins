@@ -11499,9 +11499,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T10:25:08Z",
-      "now": "2026-11-22T10:25:08Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T10:26:50Z",
+      "now": "2026-11-22T10:26:50Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13022,11 +13022,15 @@
               "plan_sha256": "764d59965200f25faf82156584b8bf8d687051853674e439b83e4f06de1c8eb2",
               "model": "grokbot-review-pass (Guru 15:22; Codex quota out)",
               "cycle": 11,
-              "round": 3
+              "round": 3,
+              "pid": 76431,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T10:25:08Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "fix_status": "passed",
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "grokbot-review-pass (Guru 15:22; Codex quota out)"
           },
           "failure_history": [
@@ -13125,24 +13129,19 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r3-145",
             "reviewer_session": "codex-terra-6.1-119r3-145",
-            "review_status": "pending",
             "job": {
-              "id": "189f94f0e6144187847f88f2a66b4bda",
-              "phase": "plan_review",
-              "started_at": "2026-11-22T09:15:08Z",
-              "command": "cp",
-              "heartbeat_at": "2026-11-22T09:15:08Z",
+              "id": "eca2db5359304abd9cd6930267e8995b",
+              "phase": "fix",
+              "started_at": "2026-11-22T10:26:50Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-22T10:26:50Z",
               "plan_sha256": "764d59965200f25faf82156584b8bf8d687051853674e439b83e4f06de1c8eb2",
-              "model": "grokbot-subagent (Guru 14:42; Codex quota out)",
+              "model": "grokbot-subagent (Guru 15:22; Codex and OpenCode quota out)",
               "cycle": 11,
-              "round": 3,
-              "pid": 47070,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T09:15:08Z",
-              "finished_phase_status": "passed"
+              "round": 3
             },
-            "plan_review_status": "passed",
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "fix_status": "running"
           },
           "failure_history": [
             {
@@ -13228,9 +13227,9 @@
               "owner_override": true
             }
           ],
-          "status": "review",
+          "status": "running",
           "updated_at": "2026-11-22T09:04:52Z",
-          "phase": "plan_review"
+          "phase": "fix"
         },
         {
           "id": "R2-142",
