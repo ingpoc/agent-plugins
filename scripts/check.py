@@ -20,7 +20,7 @@ run_strict.py, where a skip or a missing service fails.
 diff REF...HEAD touches; scripts/, CI files, catalogs and any path outside
 plugins/ and docs run everything. Collection scripts/ tests always run, every
 package is always validated, and a selection that would run no test fails.
---jobs N runs test processes in parallel (default: CPU count, never more).
+--jobs N runs test processes in parallel (default: min(6, CPU count), never more than CPU count).
 --validate-only runs manifest and catalog checks plus strict skill-shape checks
 when skill-refine is installed; it does not run tests (the pre-push hook uses it).
 --audit-tests prints one JSON line of found/run/skip counts and exits 0
