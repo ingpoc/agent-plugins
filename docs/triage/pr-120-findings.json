@@ -10985,8 +10985,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-22T14:14:40Z",
-      "now": "2026-11-22T14:14:40Z — Review started"
+      "updated_at": "2026-11-22T14:19:41Z",
+      "now": "2026-11-22T14:19:41Z — Presuite started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12582,18 +12582,18 @@
             "reviewer_session": "none-one-file",
             "fix_status": "passed",
             "job": {
-              "id": "7cc36f0740ce42aa985b4dfe0e5abfc0",
-              "phase": "review",
-              "started_at": "2026-11-22T13:46:59Z",
-              "command": "cp",
-              "heartbeat_at": "2026-11-22T13:46:59Z",
+              "id": "65000f35f53447c088e7170957ab800b",
+              "phase": "presuite",
+              "started_at": "2026-11-22T14:19:41Z",
+              "command": "sh",
+              "heartbeat_at": "2026-11-22T14:21:50Z",
               "plan_sha256": "63a6bb0c79e63400d4515eba5406270e45b553787a07a1c413e74ef6d1438811",
-              "model": "Grok Bot review (one-file, Terra skipped)",
+              "model": "none (script)",
               "cycle": 12,
               "round": 2,
-              "pid": 21766,
+              "pid": 81985,
               "exit_code": 0,
-              "finished_at": "2026-11-22T13:46:59Z",
+              "finished_at": "2026-11-22T14:21:50Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -12606,7 +12606,12 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T13:42:38Z",
-          "phase": "review"
+          "phase": "review",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-22T14:21:50Z"
+          }
         },
         {
           "id": "DEFER",
