@@ -998,6 +998,25 @@ def render_tracking(tracking, inventory_override=None):
     return "", build_card
 
 
+PLUGIN_PREFIXES = {"BCL": "batched-change-list", "ACU": "agent-computer-use", "CC": "comet-control",
+                   "COMET": "comet-control", "CL": "context-ledger", "DO": "developer-observability"}
+PLUGIN_PATH = re.compile(r"plugins/([a-z0-9][a-z0-9-]*)/")
+
+
+def plugin_of(item):
+    """Plugin for the issue list: explicit field, then ID prefix, then the first plugins/<name>/ path it names."""
+    details = item.get("details") if isinstance(item.get("details"), dict) else {}
+    for value in (item.get("plugin"), details.get("plugin")):
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    prefix = str(item.get("id", "")).split("-", 1)[0].upper()
+    if prefix in PLUGIN_PREFIXES:
+        return PLUGIN_PREFIXES[prefix]
+    text = " ".join(str(value) for value in [*item.values(), *details.values()] if isinstance(value, str))
+    match = PLUGIN_PATH.search(text)
+    return match.group(1) if match else "other"
+
+
 def render(data, base, inventory_override=None, now=None, viewer=None):
     if not isinstance(data, dict):
         raise ValueError("document must be an object")
@@ -1230,6 +1249,7 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
         item["_lane_status"] = lanes.get(item["id"], finding_lane_status(item, None, round_number))
         if item["id"] in group_of:
             item["_group"] = group_of[item["id"]]
+        item["_plugin"] = plugin_of(item)
     serialized = json.dumps([item for item in output if item["id"] not in excluded], ensure_ascii=True).replace("<", "\\u003c")
     run_view = {key: run[key] for key in ("id", "build", "revision", "installed_at", "status")} if run else None
     replacements = {"{{TITLE}}": html.escape(title), "{{FINDINGS_JSON}}": serialized,
