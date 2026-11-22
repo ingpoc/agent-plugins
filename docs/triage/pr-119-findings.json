@@ -11328,9 +11328,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T06:07:28Z",
-      "now": "2026-11-22T06:07:28Z — Plan Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T06:21:22Z",
+      "now": "2026-11-22T06:21:22Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13195,7 +13195,7 @@
               "phase": "fix",
               "started_at": "2026-11-22T05:52:45Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T06:06:47Z",
+              "heartbeat_at": "2026-11-22T06:20:49Z",
               "plan_sha256": "cd19055a4b931f2e57c4e3bf2731abc686026d00e58b215d487ef6840cb82480",
               "model": "gpt-6-luna",
               "cycle": 11,
@@ -13258,7 +13258,7 @@
           "finding_ids": [
             "BCL-142"
           ],
-          "status": "review",
+          "status": "running",
           "worktree": "bcl119-r2-142",
           "label": "BCL-142",
           "verify": {
@@ -13272,20 +13272,19 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r2-142",
             "reviewer_session": "codex-terra-6.1-119r2-142",
-            "fix_status": "passed",
+            "fix_status": "running",
             "job": {
-              "id": "7c3f94c338744caa88d20ea267489779",
-              "phase": "plan_review",
-              "started_at": "2026-11-22T06:07:28Z",
+              "id": "b302e0b449ea4485aa439afc478f09e4",
+              "phase": "fix",
+              "started_at": "2026-11-22T06:21:22Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T06:07:28Z",
+              "heartbeat_at": "2026-11-22T06:21:22Z",
               "plan_sha256": "cd19055a4b931f2e57c4e3bf2731abc686026d00e58b215d487ef6840cb82480",
-              "model": "gpt-6.2-sol",
+              "model": "gpt-6-luna",
               "cycle": 11,
               "round": 2
             },
             "tool_fault_streak": 0,
-            "review_status": "changes_requested",
             "reviewer_model": "gpt-6.1-terra",
             "must_fix_note": "1. [live_state.py:434](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:434) reads and commits the tracker before acquiring its lock. If another process holds the lock, `snapshot` can commit while that write is in progress, then block only after the commit. Acquire the tracker lock before capture and ensure a held lock or active job is handled safely; add coverage for both cases.\n\n2. [live_state.py:448](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:448) changes the shared snapshot path for **all callers**, so ordinary same-stage updates now create commits. The updated [test](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-142/plugins/batched-change-list/skills/batched-change-list/scripts/test_live_state.py:320) removes the previous assertion that those updates do not commit. Preserve that behavior for existing callers while allowing the explicit snapshot stage to commit a changed copy.\n\nThe new stage does reuse the existing snapshot writer, and the marker is cleared after rendering and Git operations succeed and the captured tracker is checked. This review is based on source inspection; tests were not run in the read-only lane."
           },
@@ -13299,9 +13298,18 @@
               "at": "2026-11-22T06:03:54Z"
             }
           ],
-          "plan_review_history": [],
+          "plan_review_history": [
+            {
+              "job_id": "d6742622b3aa41dbaced77bd8d7e86bc",
+              "after_failure": "fcde003316e84cabb4b5b71ef60b1d89",
+              "status": "passed",
+              "cycle": 11,
+              "round": 2,
+              "at": "2026-11-22T06:17:13Z"
+            }
+          ],
           "updated_at": "2026-11-22T05:52:07Z",
-          "phase": "plan_review"
+          "phase": "fix"
         },
         {
           "id": "R2-146",
@@ -13323,22 +13331,27 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r2-146",
             "reviewer_session": "codex-terra-6.1-119r2-146",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "2801fdd251624c628e8d407249f72f59",
-              "phase": "fix",
-              "started_at": "2026-11-22T06:07:25Z",
+              "id": "cdceb76afd2b43e181595b4ee37e642d",
+              "phase": "review",
+              "started_at": "2026-11-22T06:11:58Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T06:07:25Z",
+              "heartbeat_at": "2026-11-22T06:12:50Z",
               "plan_sha256": "cd19055a4b931f2e57c4e3bf2731abc686026d00e58b215d487ef6840cb82480",
-              "model": "gpt-6-luna",
+              "model": "gpt-6.1-terra",
               "cycle": 11,
               "round": 2,
-              "pid": 75080
+              "pid": 84852,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T06:12:50Z",
+              "finished_phase_status": "incomplete",
+              "must_fix": "Review incomplete: strict verdict or Must-fix section missing"
             },
-            "tool_fault_streak": 0,
+            "tool_fault_streak": 1,
             "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. [scripts/check.py:23](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-146/scripts/check.py:23) still says the default is CPU count. Update the docstring to say `min(6, CPU count)`.\n\nThe source preserves explicit `--jobs` and environment overrides, serial execution with `1`, and the CPU cap. No added code stood out as needing deletion."
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
+            "review_status": "failed"
           },
           "failure_history": [
             {
@@ -13348,6 +13361,17 @@
               "cycle": 11,
               "round": 2,
               "at": "2026-11-22T05:58:47Z"
+            },
+            {
+              "attempt_id": "cdceb76afd2b43e181595b4ee37e642d",
+              "source": "review",
+              "reason": "Review incomplete: strict verdict or Must-fix section missing",
+              "cycle": 11,
+              "round": 2,
+              "at": "2026-11-22T06:12:50Z",
+              "tool_fault": true,
+              "fault_kind": "incomplete_review",
+              "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
             }
           ],
           "plan_review_history": [
