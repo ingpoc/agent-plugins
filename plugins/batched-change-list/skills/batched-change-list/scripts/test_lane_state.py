@@ -120,7 +120,7 @@ class LaneStateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=False):
             page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
         self.assertIn('class="grp interrupted"', page)
-        self.assertIn("Interrupted · resume needed", page)
+        self.assertIn("Interrupted · resume at review", page)
         self.assertNotIn("In review · ISSUE-01", page)
 
     def test_dead_unfinished_presuite_job_renders_interrupted(self):
@@ -131,7 +131,7 @@ class LaneStateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=False):
             page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
         self.assertIn('class="grp interrupted"', page)
-        self.assertIn("Interrupted · resume needed", page)
+        self.assertIn("Interrupted · resume at presuite", page)
         self.assertNotIn("In review · ISSUE-01", page)
 
     def test_recent_lane_heartbeat_prevents_stale(self):
@@ -181,9 +181,9 @@ class LaneStateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, patch.object(render.live_state, "_pid_is_running", return_value=False):
             page = render.render(data, Path(tmp), now=render.parse_instant("2026-11-18T10:00:00Z"))
             status = render.lane_issue_status(data["tracking"]["plan"]["groups"][0], 1)
-        self.assertEqual(status["copy"], "Interrupted · resume needed · A")
+        self.assertEqual(status["copy"], "Interrupted · resume at fix · A")
         self.assertIn('class="grp interrupted"', page)
-        self.assertIn('Interrupted · resume needed', page)
+        self.assertIn('Interrupted · resume at fix', page)
         self.assertNotIn('Fixing · ISSUE-01', page)
 
     def test_install_requires_passed_presuite(self):

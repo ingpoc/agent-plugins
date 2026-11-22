@@ -380,13 +380,14 @@ if(badge.hidden||clock>=Date.parse({json.dumps(updated)})+{stale_after}*60000)pr
             {'id':'B','finding_ids':['ISSUE-02'],'depends_on':['A'],'status':'pending'}]}}
         page = renderer.render(self.data, self.base)
         self.assertEqual(page, renderer.render(self.data, self.base))
-        for marker in ('class="wf"', 'class="wf-band gate-pending"', 'class="wf-loop"', 'wf-gate', 'class="grp running"', 'class="grp planned"', 'after A', 'href="#ISSUE-01"', 'title="'):
+        for marker in ('class="wf"', 'class="wf-band gate-pending"', 'class="wf-loop"', 'wf-gate', 'class="grp paused"', 'class="grp planned"', 'after A', 'href="#ISSUE-01"', 'title="'):
             self.assertIn(marker, page)
-        self.assertIn('<div class="plan-head"><span><strong>Round 1</strong> · 2 lanes · each installs and verifies when ready</span></div>', page)
+        self.assertIn('<strong>Round 1</strong> · 2 lanes · each installs and verifies when ready', page)
+        self.assertIn('<b>1</b> paused', page)
         self.assertLess(page.index('class="plan-head"'), page.index('class="plan-rows"'))
         self.assertNotIn('class="tail"', page)
         self.assertNotIn('round-plan', page)
-        self.assertIn('Fixing', page)
+        self.assertIn('Paused · needs resume', page)
         self.assertIn('Planned', page)
         self.assertIn('No fix plan for Round 1 yet.', renderer.render({**self.data, 'tracking':{'workflow':{'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}}}, self.base))
         self.assertNotIn('class="plan-rows"', renderer.render({**self.data, 'tracking':{}}, self.base))
@@ -431,6 +432,169 @@ if(badge.hidden||clock>=Date.parse({json.dumps(updated)})+{stale_after}*60000)pr
         self.assertNotIn('Working on it', page)
         self.assertNotIn('workflow-now', page)
         self.assertIn('setInterval(formatPageTimes,60000)', page)
+
+    def _lane_display_page(self, groups, paused=None):
+        data = copy.deepcopy(self.data)
+        workflow = {'stage': 'plan_fix', 'updated_at': '2026-11-14T11:10:00Z'}
+        if paused is not None:
+            workflow['paused'] = {'reason': paused, 'at': '2026-11-14T11:10:00Z'}
+        data['tracking'] = {'workflow': workflow, 'plan': {'round': 1, 'groups': groups}}
+        return renderer.render(data, self.base, now=renderer.parse_instant('2026-11-14T11:11:00Z'))
+
+    def _lane_display_chips(self, page):
+        payload = page.split('<script type="application/json" id="findings-data">', 1)[1].split('</script>', 1)[0]
+        return {item['id']: item['_lane_status'] for item in json.loads(payload)}
+
+    def _lane_display_row(self, page, group_id):
+        for chunk in page.split('<details class="grp ')[1:]:
+            if f'<code>{group_id}</code>' in chunk:
+                return chunk.split('</details>', 1)[0]
+        self.fail(f'no lane row for {group_id}')
+
+    def _lane_display_tally(self, page):
+        self.assertIn('<span class="t">', page)
+        return page.split('<span class="t">', 1)[1].split('</span></div>', 1)[0]
+
+    def test_lane_display_live_phases_in_chip_row_and_tally(self):
+        child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])
+        self.addCleanup(child.wait)
+        self.addCleanup(child.terminate)
+        cases = {'fix': ('Fixing', 'fixing'), 'plan_review': ('Plan review', 'in review'),
+                 'review': ('Review', 'in review'), 'presuite': ('Presuite', 'in review')}
+        for phase, (label, tally) in cases.items():
+            with self.subTest(phase=phase):
+                group = {'id': 'A', 'finding_ids': ['ISSUE-01'],
+                         'status': 'running' if phase == 'fix' else 'review',
+                         'phase': 'fix' if phase == 'fix' else 'review',
+                         'codex': {'job': {'pid': child.pid, 'phase': phase,
+                                           'started_at': '2026-11-14T11:10:00Z'}}}
+                page = self._lane_display_page([group])
+                self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'], f'{label} · A')
+                self.assertIn(f'>{label}</span>', self._lane_display_row(page, 'A'))
+                self.assertIn(f'<b>1</b> {tally}', self._lane_display_tally(page))
+
+    def test_lane_display_interrupted_phases_in_chip_row_and_tally(self):
+        child = subprocess.Popen([sys.executable, '-c', 'pass'])
+        child.wait()
+        for phase in ('fix', 'plan_review', 'review', 'presuite'):
+            with self.subTest(phase=phase):
+                resume = 'plan review' if phase == 'plan_review' else phase
+                copy = f'Interrupted · resume at {resume}'
+                group = {'id': 'A', 'finding_ids': ['ISSUE-01'],
+                         'status': 'running' if phase == 'fix' else 'review',
+                         'phase': 'fix' if phase == 'fix' else 'review',
+                         'codex': {'job': {'pid': child.pid, 'phase': phase,
+                                           'started_at': '2026-11-14T11:10:00Z'}}}
+                page = self._lane_display_page([group])
+                self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'], f'{copy} · A')
+                self.assertIn(f'>{copy}</span>', self._lane_display_row(page, 'A'))
+                self.assertIn('<b>1</b> interrupted', self._lane_display_tally(page))
+
+    def test_lane_display_started_receipt_without_pid_is_interrupted(self):
+        group = {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'running', 'phase': 'fix',
+                 'codex': {'job': {'phase': 'plan_review', 'started_at': '2026-11-14T11:10:00Z'}}}
+        page = self._lane_display_page([group])
+        copy = 'Interrupted · resume at plan review'
+        self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'], f'{copy} · A')
+        self.assertIn(f'>{copy}</span>', self._lane_display_row(page, 'A'))
+        self.assertIn('<b>1</b> interrupted', self._lane_display_tally(page))
+
+    def test_lane_display_jobless_active_lane_is_paused(self):
+        for status in ('running', 'review'):
+            with self.subTest(status=status):
+                group = {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': status,
+                         'phase': {'running': 'fix', 'review': 'review', 'installing': 'install',
+                                   'verifying': 'verify'}[status],
+                         'install': {'started_at': '2026-11-14T11:00:00Z'}}
+                page = self._lane_display_page([group])
+                self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'],
+                                 'Paused · needs resume · A')
+                self.assertIn('>Paused · needs resume</span>', self._lane_display_row(page, 'A'))
+                self.assertIn('<b>1</b> paused', self._lane_display_tally(page))
+
+    def test_lane_display_jobless_install_and_verify_keep_stage_copy(self):
+        # Install and verify run as stage commands without a job receipt.
+        for status, copy, label in (('installing', 'In install · A', 'Installing'), ('verifying', 'Verifying · A', 'Verifying')):
+            with self.subTest(status=status):
+                group = {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': status,
+                         'phase': 'install' if status == 'installing' else 'verify',
+                         'install': {'started_at': '2026-11-14T11:00:00Z'}}
+                page = self._lane_display_page([group])
+                self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'], copy)
+                self.assertIn(f'>{label}</span>', self._lane_display_row(page, 'A'))
+                self.assertNotIn('Paused', self._lane_display_row(page, 'A'))
+
+    def test_lane_display_passed_review_without_live_job_is_paused(self):
+        group = {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'review', 'phase': 'review',
+                 'codex': {'review_status': 'passed',
+                           'job': {'pid': 99999, 'phase': 'review', 'exit_code': 0}}}
+        page = self._lane_display_page([group])
+        self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'], 'Paused · needs resume · A')
+        self.assertIn('>Paused · needs resume</span>', self._lane_display_row(page, 'A'))
+        self.assertIn('<b>1</b> paused', self._lane_display_tally(page))
+        self.assertNotIn('Review passed', page)
+        self.assertNotIn('<b>1</b> in review', self._lane_display_tally(page))
+
+    def test_lane_display_paused_round_keeps_settled_verified_lane(self):
+        child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])
+        self.addCleanup(child.wait)
+        self.addCleanup(child.terminate)
+        groups = [
+            {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'running', 'phase': 'fix',
+             'codex': {'job': {'pid': child.pid, 'phase': 'fix', 'started_at': '2026-11-14T11:10:00Z'}}},
+            {'id': 'B', 'finding_ids': ['ISSUE-02'], 'status': 'verified', 'phase': 'verify',
+             'verify': {'status': 'verified'},
+             'codex': {'review_status': 'passed',
+                       'job': {'pid': 99999, 'phase': 'review', 'exit_code': 0,
+                               'finished_phase_status': 'passed'}}},
+        ]
+        page = self._lane_display_page(groups, paused='maintenance')
+        chips = self._lane_display_chips(page)
+        self.assertEqual(chips['ISSUE-01']['copy'], 'Paused · maintenance · A')
+        self.assertEqual(chips['ISSUE-02']['copy'], 'Verified · B')
+        self.assertIn('>Paused · maintenance</span>', self._lane_display_row(page, 'A'))
+        self.assertIn('>Verified</span>', self._lane_display_row(page, 'B'))
+        tally = self._lane_display_tally(page)
+        self.assertIn('<b>1</b> paused', tally)
+        self.assertIn('<b>1</b> verified', tally)
+        self.assertNotIn('<b>1</b> in review', tally)
+        self.assertNotIn('Review passed', page)
+
+    def test_lane_display_pause_reason_is_escaped_in_row(self):
+        child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])
+        self.addCleanup(child.wait)
+        self.addCleanup(child.terminate)
+        group = {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'running', 'phase': 'fix',
+                 'codex': {'job': {'pid': child.pid, 'phase': 'fix', 'started_at': '2026-11-14T11:10:00Z'}}}
+        page = self._lane_display_page([group], paused='<b>owner</b> stop')
+        row = self._lane_display_row(page, 'A')
+        self.assertIn('>Paused · &lt;b&gt;owner&lt;/b&gt; stop</span>', row)
+        self.assertNotIn('<b>owner</b>', row)
+
+    def test_lane_display_settled_blocked_lane_keeps_passed_review_out_of_tally(self):
+        group = {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'blocked', 'phase': 'verify',
+                 'blocked_reason': 'no mic · needs Guru',
+                 'codex': {'review_status': 'passed',
+                           'job': {'pid': 99999, 'phase': 'review', 'exit_code': 0}}}
+        page = self._lane_display_page([group])
+        self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'],
+                         'Blocked · no mic · needs Guru')
+        self.assertIn('>Blocked</span>', self._lane_display_row(page, 'A'))
+        tally = self._lane_display_tally(page)
+        self.assertIn('<b>1</b> blocked', tally)
+        self.assertNotIn('<b>1</b> in review', tally)
+        self.assertNotIn('Review passed', page)
+
+    def test_lane_display_blocked_checks_pending_keeps_detail(self):
+        group = {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'blocked', 'phase': 'verify',
+                 'blocked_reason': 'Individual issue checks pending',
+                 'codex': {'review_status': 'passed'}}
+        page = self._lane_display_page([group])
+        self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'],
+                         'Checks pending · Individual issue checks pending')
+        self.assertIn('>Checks pending</span>', self._lane_display_row(page, 'A'))
+        self.assertIn('<b>1</b> verifying', self._lane_display_tally(page))
+        self.assertNotIn('Review passed', page)
 
     def test_compact_plan_labels_duration_status_details_and_fallbacks(self):
         data = copy.deepcopy(self.data)
@@ -1366,7 +1530,8 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         page = renderer.render(data, self.base)
         self.assertIn('class="grp installing"', page)
         self.assertIn('>Installing</span>', page)
-        self.assertIn('class="grp running"', page)
+        self.assertIn('class="grp paused"', page)
+        self.assertIn('>Paused · needs resume</span>', page)
         self.assertIn('Phase 3 of 4: Install', page)
         self.assertIn('data-stage="gate"', page)
         install = page.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
@@ -1381,8 +1546,8 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         self.assertIn('class="wf-step done"', page)
         data['tracking']['plan']['groups'][0].update(status='review', phase='review', verify={'status':'pending'})
         page = renderer.render(data, self.base)
-        self.assertIn('class="grp review"', page)
-        self.assertIn('>In review</span>', page)
+        self.assertIn('class="grp paused"', page)
+        self.assertIn('>Paused · needs resume</span>', page)
         self.assertIn('Phase 2 of 4: Review', page)
         data['tracking']['workflow']['stage'] = 'install'
         data['tracking']['plan']['groups'] = [

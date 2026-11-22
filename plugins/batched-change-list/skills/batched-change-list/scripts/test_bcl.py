@@ -68,7 +68,7 @@ class BclTests(unittest.TestCase):
                                         env=self.env, capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 lane = json.loads(result.stdout)["plan"][0]
-                self.assertEqual(lane["message"], "Interrupted · resume needed · A")
+                self.assertEqual(lane["message"], f"Interrupted · resume at {phase} · A")
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
