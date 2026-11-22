@@ -240,6 +240,40 @@ class CollectorTests(unittest.TestCase):
         event = next(event for event in events if event['step'] == 'unpushed_commits')
         self.assertEqual(event['message'], '1 local-only commit(s)')
 
+    def test_git_state_handles_unicode_snapshot_path(self):
+        repo = self._git_repo_with_upstream('unicode-snapshot')
+        (repo / 'docs/triage').mkdir(parents=True)
+        (repo / 'docs/triage/café.json').write_text('{}\n')
+        self._git_commit(repo, 'unicode snapshot')
+        events = list(iter_git(repo, 'r', 'r:git', {}))
+        self.assertNotIn('unpushed_commits', [event['step'] for event in events])
+
+    def test_git_state_counts_commit_with_unicode_source_path(self):
+        repo = self._git_repo_with_upstream('unicode-source')
+        (repo / 'docs/triage').mkdir(parents=True)
+        (repo / 'docs/triage/café.json').write_text('{}\n')
+        (repo / 'src').mkdir()
+        (repo / 'src/naïve file.py').write_text('value = 1\n')
+        self._git_commit(repo, 'unicode source')
+        events = list(iter_git(repo, 'r', 'r:git', {}))
+        event = next(event for event in events if event['step'] == 'unpushed_commits')
+        self.assertEqual(event['message'], '1 local-only commit(s)')
+
+    def test_git_state_handles_invalid_utf8_expected_path(self):
+        repo = self._git_repo_with_upstream('invalid-expected-path')
+        self._write_invalid_utf8_path(repo, b'docs/triage/invalid-\xff.json')
+        self._git_commit(repo, 'invalid expected path')
+        events = list(iter_git(repo, 'r', 'r:git', {}))
+        self.assertNotIn('unpushed_commits', [event['step'] for event in events])
+
+    def test_git_state_counts_invalid_utf8_source_path(self):
+        repo = self._git_repo_with_upstream('invalid-source-path')
+        self._write_invalid_utf8_path(repo, b'src/invalid-\xff.py')
+        self._git_commit(repo, 'invalid source path')
+        events = list(iter_git(repo, 'r', 'r:git', {}))
+        event = next(event for event in events if event['step'] == 'unpushed_commits')
+        self.assertEqual(event['message'], '1 local-only commit(s)')
+
     def test_git_state_reports_empty_commit_ahead_of_upstream(self):
         repo = self._git_repo_with_upstream('empty-commit')
         subprocess.run(['git', '-C', str(repo), 'commit', '--allow-empty', '-q', '-m', 'empty'], check=True)
@@ -278,14 +312,14 @@ class CollectorTests(unittest.TestCase):
         (repo / 'src').mkdir()
         (repo / 'src/change.py').write_text('value = 1\n')
         self._git_commit(repo, 'source change')
-        original_git = collector_sources._git
+        original_git_bytes = collector_sources._git_bytes
 
         def fail_diff_tree(path, *args):
             if args and args[0] == 'diff-tree':
                 return None
-            return original_git(path, *args)
+            return original_git_bytes(path, *args)
 
-        with patch.object(collector_sources, '_git', side_effect=fail_diff_tree):
+        with patch.object(collector_sources, '_git_bytes', side_effect=fail_diff_tree):
             events = list(iter_git(repo, 'r', 'r:git', {}))
         event = next(event for event in events if event['step'] == 'unpushed_commits')
         self.assertEqual(event['message'], '1 local-only commit(s)')
@@ -319,6 +353,15 @@ class CollectorTests(unittest.TestCase):
     def _git_commit(repo, message):
         subprocess.run(['git', '-C', str(repo), 'add', '.'], check=True)
         subprocess.run(['git', '-C', str(repo), 'commit', '-q', '-m', message], check=True)
+
+    def _write_invalid_utf8_path(self, repo, relative_path):
+        raw_path = os.fsencode(repo) + b'/' + relative_path
+        try:
+            os.makedirs(os.path.dirname(raw_path), exist_ok=True)
+            with open(raw_path, 'wb') as handle:
+                handle.write(b'value = 1\n')
+        except (OSError, UnicodeError) as exc:
+            self.skipTest(f'filesystem refuses invalid UTF-8 filenames: {exc}')
 
     def test_cli_writes_only_out_atomically_0600(self):
         out = self.tmp / 'out'
