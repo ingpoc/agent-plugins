@@ -11226,9 +11226,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-22T15:29:53Z",
-      "now": "2026-11-22T15:29:53Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-22T15:30:05Z",
+      "now": "2026-11-22T15:30:05Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -12715,7 +12715,8 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 3,
@@ -12816,9 +12817,9 @@
               "owner_override": true
             }
           ],
-          "status": "installing",
-          "updated_at": "2026-11-22T15:02:44Z",
-          "phase": "install",
+          "status": "verifying",
+          "updated_at": "2026-11-22T15:30:05Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
