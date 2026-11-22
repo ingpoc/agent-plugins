@@ -11328,9 +11328,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T07:05:30Z",
-      "now": "2026-11-22T07:05:30Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T07:05:33Z",
+      "now": "2026-11-22T07:05:33Z — Presuite started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13251,19 +13251,15 @@
             "one_file": true,
             "fix_status": "passed",
             "job": {
-              "id": "144db21f3c65453bbdea95cc8ddee3a8",
-              "phase": "fix",
-              "started_at": "2026-11-22T05:52:48Z",
-              "command": "env",
-              "heartbeat_at": "2026-11-22T05:59:40Z",
-              "plan_sha256": "cd19055a4b931f2e57c4e3bf2731abc686026d00e58b215d487ef6840cb82480",
-              "model": "gpt-6-luna",
+              "id": "a412825970b74d1f8fe787cd786a9fcc",
+              "phase": "presuite",
+              "started_at": "2026-11-22T07:05:33Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-22T07:05:33Z",
+              "plan_sha256": "162d148653b4a7f003cb6789972a80c4b3b48e95131d110c0721acdae3a4eb6e",
+              "model": "none",
               "cycle": 11,
-              "round": 2,
-              "pid": 12540,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T05:59:40Z",
-              "finished_phase_status": "passed"
+              "round": 2
             },
             "tool_fault_streak": 0,
             "review_status": "skipped_one_file"
@@ -13370,19 +13366,15 @@
             "reviewer_session": "codex-terra-6.1-119r2-146",
             "fix_status": "passed",
             "job": {
-              "id": "5ee7854711e94865bd2634628b26ca20",
-              "phase": "review",
-              "started_at": "2026-11-22T06:28:03Z",
-              "command": "env",
-              "heartbeat_at": "2026-11-22T06:28:40Z",
-              "plan_sha256": "cd19055a4b931f2e57c4e3bf2731abc686026d00e58b215d487ef6840cb82480",
-              "model": "gpt-6.1-terra",
+              "id": "a412825970b74d1f8fe787cd786a9fcc",
+              "phase": "presuite",
+              "started_at": "2026-11-22T07:05:33Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-22T07:05:33Z",
+              "plan_sha256": "162d148653b4a7f003cb6789972a80c4b3b48e95131d110c0721acdae3a4eb6e",
+              "model": "none",
               "cycle": 11,
-              "round": 2,
-              "pid": 36256,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T06:28:40Z",
-              "finished_phase_status": "passed"
+              "round": 2
             },
             "reviewer_model": "gpt-6.1-terra",
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
@@ -13478,7 +13470,8 @@
               "plan_sha256": "162d148653b4a7f003cb6789972a80c4b3b48e95131d110c0721acdae3a4eb6e",
               "model": "gpt-6-luna",
               "cycle": 11,
-              "round": 2
+              "round": 2,
+              "pid": 85109
             }
           },
           "failure_history": [],
