@@ -11328,9 +11328,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T06:27:16Z",
-      "now": "2026-11-22T06:27:16Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T06:28:03Z",
+      "now": "2026-11-22T06:28:03Z — Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13283,7 +13283,7 @@
               "phase": "fix",
               "started_at": "2026-11-22T06:21:22Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T06:26:23Z",
+              "heartbeat_at": "2026-11-22T06:27:23Z",
               "plan_sha256": "cd19055a4b931f2e57c4e3bf2731abc686026d00e58b215d487ef6840cb82480",
               "model": "gpt-6-luna",
               "cycle": 11,
@@ -13323,7 +13323,7 @@
           "finding_ids": [
             "BCL-146"
           ],
-          "status": "running",
+          "status": "review",
           "worktree": "bcl119-r2-146",
           "label": "BCL-146",
           "verify": {
@@ -13337,21 +13337,22 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r2-146",
             "reviewer_session": "codex-terra-6.1-119r2-146",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "9ffb4e01b0e848c3a8b63c062f9ddd02",
-              "phase": "fix",
-              "started_at": "2026-11-22T06:27:16Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-22T06:27:16Z",
+              "id": "5ee7854711e94865bd2634628b26ca20",
+              "phase": "review",
+              "started_at": "2026-11-22T06:28:03Z",
+              "command": "env",
+              "heartbeat_at": "2026-11-22T06:28:03Z",
               "plan_sha256": "cd19055a4b931f2e57c4e3bf2731abc686026d00e58b215d487ef6840cb82480",
-              "model": "none",
+              "model": "gpt-6.1-terra",
               "cycle": 11,
               "round": 2
             },
-            "tool_fault_streak": 1,
             "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
+            "tool_fault_streak": 0,
+            "review_status": "running"
           },
           "failure_history": [
             {
@@ -13372,6 +13373,16 @@
               "tool_fault": true,
               "fault_kind": "incomplete_review",
               "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
+            },
+            {
+              "attempt_id": "9ffb4e01b0e848c3a8b63c062f9ddd02",
+              "source": "fix",
+              "reason": "Fix job exited 1",
+              "cycle": 11,
+              "round": 2,
+              "at": "2026-11-22T06:27:16Z",
+              "tool_fault": true,
+              "tool_fault_reason": "Checker fault, not a code fault: my scripted fix-confirm ran the harness test with a unittest path form that errors outside the coding session (Ran 1 test, errors=1); the same commit ad8e75be passes test_check_harness via discover (OK). The fix job only re-recorded an existing reviewed commit after a tool-fault review sent the lane back to fix."
             }
           ],
           "plan_review_history": [
@@ -13385,7 +13396,22 @@
             }
           ],
           "updated_at": "2026-11-22T05:52:07Z",
-          "phase": "fix"
+          "phase": "review",
+          "unblock_history": [
+            {
+              "at": "2026-11-22T06:27:48Z",
+              "reason": "Checker fault, not a code fault: my scripted fix-confirm ran the harness test with a unittest path form that errors outside the coding session (Ran 1 test, errors=1); the same commit ad8e75be passes test_check_harness via discover (OK). The fix job only re-recorded an existing reviewed commit after a tool-fault review sent the lane back to fix.",
+              "tool_faults": [
+                "9ffb4e01b0e848c3a8b63c062f9ddd02"
+              ],
+              "covered_attempts": [
+                "033bfea051cd4f2fabd65b164bc0a67c"
+              ],
+              "rows_seen": 3,
+              "by_cycle": 11,
+              "round": 2
+            }
+          ]
         }
       ],
       "cycle": 11
@@ -14605,7 +14631,8 @@
         "report": "bcl-117 and bcl-118 progress.md",
         "evidence": "117 16:47, 22:07, 13:41 and 17:17; 118 08:19; 119 22:14 and 22:26: timing tests failed under about ten-way load and passed alone or with six workers",
         "kind": "fix"
-      }
+      },
+      "needs": "Fix job exited 1"
     },
     {
       "id": "BCL-147",
