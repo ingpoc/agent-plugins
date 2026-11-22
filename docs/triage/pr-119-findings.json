@@ -11002,6 +11002,163 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "r2-8719fcc4-119",
+        "build": "batched-change-list 0.1.60",
+        "revision": "8719fcc4ff571f204c3ef0dcaaffc6c9905a0341",
+        "installed_at": "2026-11-22T04:07:00Z",
+        "install_evidence": "bcl install-local from 8719fcc4 at 09:37 IST: plugin sha256 cdee4413 (5 copies matched), skill sha256 c30ef761; plugin.json 0.1.60; presuite job for R2-135 passed (451 OK, strict 6/6, check.py --jobs 6 ok)",
+        "cycle": 11,
+        "status": "interrupted",
+        "checks": {
+          "ACU-10": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "ACU-21": {
+            "state": "pending"
+          },
+          "BCL-94": {
+            "state": "pending"
+          },
+          "BCL-96": {
+            "state": "pending"
+          },
+          "BCL-97": {
+            "state": "pending"
+          },
+          "BCL-100": {
+            "state": "pending"
+          },
+          "BCL-103": {
+            "state": "pending"
+          },
+          "BCL-106": {
+            "state": "pending"
+          },
+          "BCL-108": {
+            "state": "pending"
+          },
+          "BCL-110": {
+            "state": "pending"
+          },
+          "BCL-111": {
+            "state": "pending"
+          },
+          "BCL-112": {
+            "state": "pending"
+          },
+          "BCL-113": {
+            "state": "pending"
+          },
+          "BCL-114": {
+            "state": "pending"
+          },
+          "BCL-115": {
+            "state": "pending"
+          },
+          "BCL-117": {
+            "state": "pending"
+          },
+          "BCL-118": {
+            "state": "pending"
+          },
+          "BCL-119": {
+            "state": "pending"
+          },
+          "BCL-120": {
+            "state": "pending"
+          },
+          "BCL-121": {
+            "state": "pending"
+          },
+          "BCL-122": {
+            "state": "pending"
+          },
+          "BCL-123": {
+            "state": "pending"
+          },
+          "BCL-124": {
+            "state": "pending"
+          },
+          "BCL-125": {
+            "state": "pending"
+          },
+          "BCL-126": {
+            "state": "pending"
+          },
+          "BCL-127": {
+            "state": "pending"
+          },
+          "BCL-128": {
+            "state": "pending"
+          },
+          "BCL-129": {
+            "state": "pending"
+          },
+          "BCL-130": {
+            "state": "pending"
+          },
+          "BCL-131": {
+            "state": "pending"
+          },
+          "BCL-132": {
+            "state": "pending"
+          },
+          "BCL-133": {
+            "state": "pending"
+          },
+          "BCL-134": {
+            "state": "pending"
+          },
+          "BCL-135": {
+            "state": "fixed",
+            "observation": "Checking the installed version now",
+            "observed_at": "2026-11-22T04:16:52Z",
+            "started_at": "2026-11-22T04:16:52Z",
+            "updated_at": "2026-11-22T04:16:52Z",
+            "check_id": "caaf3f5f69ca47378347bf144d26a03e",
+            "evidence": "Checked: The installed plan check, its test, and the live list after round 1 closed; Expected: A lane whose review asked for changes can be carried and the release check then clears; Observed: The two carried lanes moved to the next round with their failure history, the release check was clear before push, job review states are accepted, unknown states are refused, and the test passes on the installed copy",
+            "details": "Log: bcl-119/progress.md; r2/verify-135.sh. Run r2-8719fcc4-119.",
+            "finished_at": "2026-11-22T04:16:52.215904Z"
+          },
+          "BCL-136": {
+            "state": "pending"
+          },
+          "BCL-137": {
+            "state": "pending"
+          },
+          "BCL-138": {
+            "state": "pending"
+          },
+          "BCL-139": {
+            "state": "pending"
+          },
+          "BCL-140": {
+            "state": "pending"
+          },
+          "BCL-141": {
+            "state": "pending"
+          },
+          "BCL-142": {
+            "state": "pending"
+          },
+          "BCL-143": {
+            "state": "pending"
+          },
+          "BCL-144": {
+            "state": "pending"
+          },
+          "BCL-145": {
+            "state": "pending"
+          },
+          "BCL-146": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -11016,9 +11173,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-22T05:49:27Z",
-      "now": "2026-11-22T05:49:27Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-22T05:50:01Z",
+      "now": "2026-11-22T05:50:01Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 118,
@@ -12615,7 +12772,7 @@
           "finding_ids": [
             "BCL-136"
           ],
-          "status": "installing",
+          "status": "verifying",
           "worktree": "bcl119-r2-136",
           "label": "BCL-136",
           "verify": {
@@ -12670,8 +12827,8 @@
               "at": "2026-11-22T04:31:12Z"
             }
           ],
-          "updated_at": "2026-11-22T04:21:44Z",
-          "phase": "install",
+          "updated_at": "2026-11-22T05:50:01Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12747,7 +12904,7 @@
           "finding_ids": [
             "BCL-138"
           ],
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl119-r2-138",
           "label": "BCL-138",
           "verify": {
@@ -12784,11 +12941,15 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-22T04:21:44Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-22T05:41:40Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T05:49:28Z"
           }
         },
         {
@@ -12857,11 +13018,11 @@
       "cycle": 11
     },
     "verification_run": {
-      "id": "r2-8719fcc4-119",
-      "build": "batched-change-list 0.1.60",
-      "revision": "8719fcc4ff571f204c3ef0dcaaffc6c9905a0341",
-      "installed_at": "2026-11-22T04:07:00Z",
-      "install_evidence": "bcl install-local from 8719fcc4 at 09:37 IST: plugin sha256 cdee4413 (5 copies matched), skill sha256 c30ef761; plugin.json 0.1.60; presuite job for R2-135 passed (451 OK, strict 6/6, check.py --jobs 6 ok)",
+      "id": "r2-db43c514-119",
+      "build": "batched-change-list 0.1.61",
+      "revision": "db43c514ad27a445b3253fd077ab7a2353522e87",
+      "installed_at": "2026-11-22T05:52:00Z",
+      "install_evidence": "bcl install-local from db43c514 at 11:22 IST: plugin sha256 e2a8540f (5 copies matched), skill sha256 3b31f83c; plugin.json 0.1.61; presuite job for R2-136 and R2-138 passed 11:11 IST (460 OK, strict 6/6, check.py ok); pushed under Guru one-time release-check exception 11:18 IST (BCL-148)",
       "cycle": 11,
       "status": "active",
       "checks": {
@@ -12968,15 +13129,7 @@
           "state": "pending"
         },
         "BCL-135": {
-          "state": "fixed",
-          "observation": "Checking the installed version now",
-          "observed_at": "2026-11-22T04:16:52Z",
-          "started_at": "2026-11-22T04:16:52Z",
-          "updated_at": "2026-11-22T04:16:52Z",
-          "check_id": "caaf3f5f69ca47378347bf144d26a03e",
-          "evidence": "Checked: The installed plan check, its test, and the live list after round 1 closed; Expected: A lane whose review asked for changes can be carried and the release check then clears; Observed: The two carried lanes moved to the next round with their failure history, the release check was clear before push, job review states are accepted, unknown states are refused, and the test passes on the installed copy",
-          "details": "Log: bcl-119/progress.md; r2/verify-135.sh. Run r2-8719fcc4-119.",
-          "finished_at": "2026-11-22T04:16:52.215904Z"
+          "state": "pending"
         },
         "BCL-136": {
           "state": "pending"
@@ -13009,6 +13162,12 @@
           "state": "pending"
         },
         "BCL-146": {
+          "state": "pending"
+        },
+        "BCL-147": {
+          "state": "pending"
+        },
+        "BCL-148": {
           "state": "pending"
         }
       }
