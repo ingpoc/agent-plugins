@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T13:33:26Z",
-      "now": "2026-11-22T13:33:26Z — Presuite started"
+      "stage": "install",
+      "updated_at": "2026-11-22T13:37:52Z",
+      "now": "2026-11-22T13:37:52Z — Install in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -12303,7 +12303,7 @@
             "BCL-142"
           ],
           "label": "BCL-142",
-          "status": "review",
+          "status": "installing",
           "worktree": "bcl120-r1-142",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-142.sh",
@@ -12339,11 +12339,20 @@
           "plan_review_history": [],
           "parked_to": 2,
           "updated_at": "2026-11-22T13:18:04Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-22T13:35:51Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-22T13:37:52Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "install-local e5f518da",
+            "at": "2026-11-22T13:37:52Z"
           }
         },
         {
@@ -12353,7 +12362,7 @@
             "BCL-145"
           ],
           "label": "BCL-145",
-          "status": "planned",
+          "status": "deferred",
           "worktree": "bcl120-r1-145",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
@@ -12369,8 +12378,9 @@
           "failure_history": [],
           "plan_review_history": [],
           "parked_to": 2,
-          "updated_at": "2026-11-22T13:18:04Z",
-          "phase": "pending"
+          "updated_at": "2026-11-22T13:36:56Z",
+          "phase": "deferred",
+          "reason": "Guru 19:06 IST: ship R2-142 now; R2-145 worker continues in bcl120-r1-145 and ships after the next Introspect"
         },
         {
           "id": "DEFER",
@@ -12920,7 +12930,7 @@
       "observed": "22 Nov 2026 09:02 IST, bcl 0.1.59, closing round 1 of PR 119",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "PR 119 round 2 (Guru 09:05 IST: file missing bcl commands instead of calling internal code)",
         "report": "bcl-119 progress.md",
