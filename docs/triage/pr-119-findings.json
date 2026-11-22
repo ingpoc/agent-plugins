@@ -11499,9 +11499,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T09:19:45Z",
-      "now": "2026-11-22T09:19:45Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T10:25:08Z",
+      "now": "2026-11-22T10:25:08Z — Review started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13014,18 +13014,20 @@
             "implementer_session": "codex-luna-119r3-150",
             "reviewer_session": "codex-terra-6.1-119r3-150",
             "job": {
-              "id": "26308feb46f14320bdc3ef6c278dbc21",
-              "phase": "fix",
-              "started_at": "2026-11-22T09:19:45Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-22T09:19:45Z",
+              "id": "d7236ea549aa47e9903fa3d6783942e5",
+              "phase": "review",
+              "started_at": "2026-11-22T10:25:08Z",
+              "command": "cp",
+              "heartbeat_at": "2026-11-22T10:25:08Z",
               "plan_sha256": "764d59965200f25faf82156584b8bf8d687051853674e439b83e4f06de1c8eb2",
-              "model": "opencode/deepseek-v4.1-flash-free (OpenCode free, Codex quota out)",
+              "model": "grokbot-review-pass (Guru 15:22; Codex quota out)",
               "cycle": 11,
               "round": 3
             },
             "tool_fault_streak": 0,
-            "fix_status": "running"
+            "fix_status": "passed",
+            "review_status": "running",
+            "reviewer_model": "grokbot-review-pass (Guru 15:22; Codex quota out)"
           },
           "failure_history": [
             {
@@ -13100,9 +13102,9 @@
               "owner_override": true
             }
           ],
-          "status": "running",
+          "status": "review",
           "updated_at": "2026-11-22T09:04:52Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "R2-145",
@@ -15346,6 +15348,25 @@
         "report": "bcl-119 progress.md",
         "evidence": "Round-3 Astra planning ran from 14:30 IST while the page still showed Round 2 Introspect (the planning ran outside bcl because no bcl stage covers it; bcl did not and could not refuse). The round-3 bcl plan refused to rename gated lanes (R2-150 must stay R2-150) and required gated verified lanes R2-146 and R2-136, which came back Planned and were set back to Verified with update-plan-group.",
         "more_evidence": "Guru 14:39 IST: a new round must never include verified lanes; they show only in their own round and the gate. No supported bcl command removes R2-146 and R2-136 from the round-3 plan (set-plan refuses dropping gated lanes; archive covers findings only), so they stay listed as Verified in Round 3."
+      }
+    },
+    {
+      "id": "BCL-159",
+      "title": "A running job cannot report its steps, so the page looks frozen",
+      "summary": "A fix job that works through several sub-lanes is registered with bcl only once, at start. bcl has no command for the job to report which sub-lane it is on or that one finished, so the lane row and the page's latest line keep showing when the job started.",
+      "impact": "The owner sees no change for half an hour while work is landing and has to ask where the lane stands.",
+      "recommendation": "Add a supported step report for a running job (job id, step name, result, commit) that the job's own child process can call. It goes through the existing job lock, updates the page's latest line and the lane row, and is refused for a job that already finished.",
+      "done_when": "A running job that reports a step shows that step on its lane row and in the page's latest line within one refresh. Reports for a finished or unknown job are refused, and a test checks the visible text.",
+      "observed": "22 Nov 2026 15:17 IST, bcl 0.1.62, PR 119 lane R2-150",
+      "priority": "high",
+      "source": "User reported",
+      "status": "untested",
+      "details": {
+        "filed_by": "Guru 15:17 IST (via parent)",
+        "kind": "fix",
+        "queue": "with BCL-157 after BCL-145 (shares the page renderer)",
+        "report": "bcl-119 progress.md",
+        "evidence": "The R2-150 fix job started 14:50 IST through bcl job --phase fix (pid and heartbeat recorded, page showed Fixing). It ran OpenCode for sub-lanes a then b, and sub-lane a committed 3587f94a at 15:05. The page's latest line stayed at 'Fix started 14:50' for 27 min because no command records a step."
       }
     }
   ]
