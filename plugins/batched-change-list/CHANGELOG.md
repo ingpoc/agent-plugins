@@ -1,3 +1,7 @@
+## 0.1.60
+
+- A new round can be planned while carried lanes have counted failures: their requested pending or deferred status is kept and only their failure and review history is carried; dropping such a lane is still refused (BCL-143).
+
 ## 0.1.59
 
 - Plan writes accept every review state that review jobs record (running, blocked, changes_requested), so a lane whose review asked for changes can be deferred or carried and new lanes can be added; install still needs a passed review and unknown states are still refused (BCL-135).
