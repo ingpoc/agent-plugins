@@ -11353,9 +11353,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-22T16:26:43Z",
-      "now": "2026-11-22T16:26:43Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-22T16:29:29Z",
+      "now": "2026-11-22T16:29:29Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 119,
@@ -12814,6 +12814,85 @@
         },
         "round": 2,
         "cycle": 12
+      },
+      {
+        "result": "Round 3: 2 of 4 planned lanes shipped (BCL-145 as 0.1.70, BCL-175/179/180 as 0.1.71); R2-DO1 stays deferred for the owner (dev-obs hygiene gate) and the rest wait in round 4 (BCL-157 overlaps 175). Tokens (Codex logs; dev-obs has no token source, DO-2): round 3 396,079 measured (first Luna 160,539, Terra CHANGES 24,932, plan review 67,798, second Luna 74,589, Terra PASS 68,221) vs round 2 565,672 and round 1 42,909 (coverage differs). 59% of measured round-3 tokens were rework after the first 175 review. Dev-obs evidence quality: low-to-medium signal; verify snapshots 90fa4234 (21:56:23 IST) and 6276e372 (21:57:03 IST) had no new findings and no status change, but the before snapshot included a dirty-worktree blip that vanished (col-937437b89066a62b, DO-1), the collector is still 0.1.34, and tokens and review outcomes were not collected.",
+        "at": "2026-11-22T16:29:29Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 2",
+          "Codex write: R2-145",
+          "Codex review: R2-145",
+          "Polling and rework review: R2-145",
+          "Test command: R2-145: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
+          "Codex write: R3-175",
+          "Codex review: R3-175",
+          "Polling and rework review: R3-175",
+          "Test command: R3-175: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r3-175.sh"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Install",
+          "Parallel group count: 2",
+          "Codex write: R2-145",
+          "Codex review: R2-145",
+          "Polling and rework review: R2-145",
+          "Test command: R2-145: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
+          "Test command: R3-175: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r3-175.sh"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Polling and rework review: R3-175",
+                "evidence": "FLAGGED for incomplete first-pass tests, plus Codex logs (dev-obs still has no token source, DO-2): after 16b1ca87 the first Terra review (CHANGES, 24,932 tokens, review-175-terra.md, 21:28 IST) found that a parked lane with blocked_reason and no counted failures was carried as planned. Closing it took a plan review (67,798 tokens, planreview-175.log), a second Luna write (74,589 tokens, luna-175-fix2.log, d72dd830), and a second Terra review (68,221 tokens, review-175-2-terra.md). That is 235,540 tokens of rework because the first brief and tests only covered counted-failure parking. A carry-forward test matrix belongs in the first brief.",
+                "outcome": "issue",
+                "issue_id": "BCL-121"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Codex review: R3-175",
+                "evidence": "The plan review passed (planreview-175.md, 21:30 IST) but the tracker write failed twice: first the reply lacked ROOT CAUSE and FAILING TEST sections (planreview-175-job.log), then a FAILING TEST body with a colon was parsed as empty (manage_findings._section_body). The plan itself was accepted. This is process friction on a required reply shape, not a code disagreement. Dev-obs collected none of these review outcomes or tokens (DO-2).",
+                "outcome": "issue",
+                "issue_id": "BCL-120"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Stage: Review",
+                "evidence": "The lane release was meant to use a scoped presuite (BCL-176, 129s in round 2). presuite-175.log instead selected a full run because scripts/precommit_chart.py is collection tooling, and the job ran 157 processes including the Swift service tests (test_bcl.py 175.8s, CUAService 131.4s; finished 21:52 IST). Dev-obs snapshots 90fa4234 and 6276e372 did not record that suite duration (collector 0.1.34, no bcl job logs as sources, BCL-147).",
+                "outcome": "issue",
+                "issue_id": "BCL-176"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Stage: Verify",
+                "evidence": "Before-snapshot 90fa4234 (21:56:23 IST) included col-937437b89066a62b (dirty worktree on the list checkout at collect time); after-snapshot 6276e372 (21:57:03 IST) had no new findings and that row was gone (151 to 150). This is verify-created collector noise, the same class as tracker snapshot commits (DO-1). Installed collector is still 0.1.34.",
+                "outcome": "issue",
+                "issue_id": "DO-1"
+              },
+              {
+                "item": "Codex write: R3-175",
+                "evidence": "Round 3 measured 396,079 Codex tokens from logs (first Luna 160,539; Terra CHANGES 24,932; plan review 67,798; second Luna 74,589; Terra PASS 68,221) versus round 2 565,672 and round 1 42,909 (round 1 coverage was mostly workers). None of this reached dev-obs: collector 0.1.34, task-usage still not a source for Codex jobs (snapshots 90fa4234, 6276e372).",
+                "outcome": "issue",
+                "issue_id": "DO-2"
+              }
+            ]
+          }
+        },
+        "round": 3,
+        "cycle": 12
       }
     ],
     "archive": {
@@ -12843,7 +12922,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 3,
@@ -13080,12 +13160,12 @@
             "BCL-175"
           ],
           "label": "BCL-175",
-          "status": "verifying",
+          "status": "verified",
           "worktree": "bcl120-r3-175-r3",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r3-175.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -13208,7 +13288,8 @@
           }
         }
       ],
-      "cycle": 12
+      "cycle": 12,
+      "status": "closed"
     },
     "verification_run": {
       "id": "r3-c9aee24d-120",
@@ -13313,11 +13394,15 @@
           "state": "pending"
         },
         "BCL-175": {
-          "state": "checking",
-          "observation": "Checking the installed 0.1.71 now",
-          "observed_at": "2026-11-22T16:26:23Z",
+          "state": "fixed",
+          "observation": "Checking the installed version now",
+          "observed_at": "2026-11-22T16:28:07Z",
           "started_at": "2026-11-22T16:26:42Z",
-          "updated_at": "2026-11-22T16:26:42Z"
+          "updated_at": "2026-11-22T16:28:07Z",
+          "check_id": "6b31e95bf6294449b79d31688372e71d",
+          "evidence": "Checked: The installed commands for a dry run, making a worktree without writing the live list, replacing an existing round marker, and moving a blocked lane to a later round, including a parked lane that was blocked without counted failures; Expected: A dry run writes nothing; making a worktree without recording leaves the list unchanged and the next job records it; a fresh name replaces one round marker; a blocked or parked-with-reason lane stays blocked until it is unblocked, and other moves stay refused; Observed: All four checks passed on the installed copy; no new observability finding and no status change between the two snapshots",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r3-175.log; dev-obs before 90fa4234 (21:56:23 IST), after 6276e372 (21:57:03 IST), same build. Run r3-c9aee24d-120.",
+          "finished_at": "2026-11-22T16:28:07.491745Z"
         },
         "DO-1": {
           "state": "pending"
@@ -13334,43 +13419,39 @@
       }
     },
     "introspect": {
-      "result": "Round 2: 1 of 3 lanes shipped (BCL-176, 0.1.69); R2-145 and R2-DO1 each failed review twice and were deferred to round 3 (Guru 20:26 IST). Tokens (Codex logs; dev-obs has no token source, DO-2): round 2 565,672 measured (Luna 327,356, Terra 238,316) vs round 1 42,909 measured (one Terra review); coverage differs, since round 1 work was mostly workers and Grok Bot. Per lane: R2-145 238,422 (review 64,604, plan review 16,612, Luna fix 114,522, re-review 42,684; worker untracked); R2-DO1 274,108 (Luna 43,479 + 116,213, plan review 41,380, reviews 37,702 + 35,334); R2-176 53,142 (Luna; my review untracked). 91% of measured tokens went to lanes that did not ship. Missing sources: Grok Bot and subagent tokens, bcl job and presuite logs (BCL-147). Dev-obs evidence quality: low signal; across verify the only new finding was col-8394fc3bec1b1387 (own snapshot commit, DO-1), test findings were stale (last_seen 18:08 IST), and no review outcomes or tokens were collected (snapshots b758ed33, 95e60008). Open question for Guru: should lanes this big be split smaller before fixing?",
-      "at": "2026-11-22T15:01:43Z",
+      "result": "Round 3: 2 of 4 planned lanes shipped (BCL-145 as 0.1.70, BCL-175/179/180 as 0.1.71); R2-DO1 stays deferred for the owner (dev-obs hygiene gate) and the rest wait in round 4 (BCL-157 overlaps 175). Tokens (Codex logs; dev-obs has no token source, DO-2): round 3 396,079 measured (first Luna 160,539, Terra CHANGES 24,932, plan review 67,798, second Luna 74,589, Terra PASS 68,221) vs round 2 565,672 and round 1 42,909 (coverage differs). 59% of measured round-3 tokens were rework after the first 175 review. Dev-obs evidence quality: low-to-medium signal; verify snapshots 90fa4234 (21:56:23 IST) and 6276e372 (21:57:03 IST) had no new findings and no status change, but the before snapshot included a dirty-worktree blip that vanished (col-937437b89066a62b, DO-1), the collector is still 0.1.34, and tokens and review outcomes were not collected.",
+      "at": "2026-11-22T16:29:29Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 1",
-        "Codex write: R2-176",
-        "Codex review: R2-176",
-        "Polling and rework review: R2-176",
-        "Test command: R2-176: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-176.sh",
+        "Parallel group count: 2",
         "Codex write: R2-145",
         "Codex review: R2-145",
         "Polling and rework review: R2-145",
-        "Codex write: R2-DO1",
-        "Codex review: R2-DO1",
-        "Polling and rework review: R2-DO1"
+        "Test command: R2-145: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
+        "Codex write: R3-175",
+        "Codex review: R3-175",
+        "Polling and rework review: R3-175",
+        "Test command: R3-175: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r3-175.sh"
       ],
       "none": [
         "Stage: Plan & fix",
         "Stage: Install",
-        "Parallel group count: 1",
-        "Codex write: R2-176",
-        "Codex review: R2-176",
-        "Polling and rework review: R2-176",
-        "Test command: R2-176: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-176.sh",
+        "Parallel group count: 2",
         "Codex write: R2-145",
-        "Codex review: R2-DO1",
-        "Polling and rework review: R2-DO1"
+        "Codex review: R2-145",
+        "Polling and rework review: R2-145",
+        "Test command: R2-145: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
+        "Test command: R3-175: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r3-175.sh"
       ],
       "sections": {
         "delete": {
           "items": [
             {
-              "item": "Polling and rework review: R2-145",
-              "evidence": "FLAGGED, no dev-obs evidence (Codex tokens and review verdicts are not collected, DO-2/BCL-147): the second fix cycle cost 173,818 tokens (plan review 16,612, Luna 114,522, Terra 42,684; luna-145-2.log, review-145-2-terra.md) and its own new group duplicate became a fresh must-fix, so the lane failed twice with scope growing mid-review",
+              "item": "Polling and rework review: R3-175",
+              "evidence": "FLAGGED for incomplete first-pass tests, plus Codex logs (dev-obs still has no token source, DO-2): after 16b1ca87 the first Terra review (CHANGES, 24,932 tokens, review-175-terra.md, 21:28 IST) found that a parked lane with blocked_reason and no counted failures was carried as planned. Closing it took a plan review (67,798 tokens, planreview-175.log), a second Luna write (74,589 tokens, luna-175-fix2.log, d72dd830), and a second Terra review (68,221 tokens, review-175-2-terra.md). That is 235,540 tokens of rework because the first brief and tests only covered counted-failure parking. A carry-forward test matrix belongs in the first brief.",
               "outcome": "issue",
               "issue_id": "BCL-121"
             }
@@ -13379,8 +13460,8 @@
         "simplify": {
           "items": [
             {
-              "item": "Codex write: R2-DO1",
-              "evidence": "Lane R2-DO1 spent 274,108 tokens (two Luna writes 43,479 + 116,213, plan review 41,380, two Terra reviews 37,702 + 35,334) on one collector rule and still failed; its target finding col-8394fc3bec1b1387 is still the only new finding in dev-obs snapshots b758ed33 (20:27:18 IST) and 95e60008 (20:28:45 IST), evidence ~/.agents/artifacts/bcl-120/devobs-after-176.json; R2-145 cost 238,422 measured tokens plus an untracked worker. Lanes this size should be split before fixing",
+              "item": "Codex review: R3-175",
+              "evidence": "The plan review passed (planreview-175.md, 21:30 IST) but the tracker write failed twice: first the reply lacked ROOT CAUSE and FAILING TEST sections (planreview-175-job.log), then a FAILING TEST body with a colon was parsed as empty (manage_findings._section_body). The plan itself was accepted. This is process friction on a required reply shape, not a code disagreement. Dev-obs collected none of these review outcomes or tokens (DO-2).",
               "outcome": "issue",
               "issue_id": "BCL-120"
             }
@@ -13390,7 +13471,7 @@
           "items": [
             {
               "item": "Stage: Review",
-              "evidence": "Scoped release presuite ran in 129 s against 145 to 159 s full (presuite-r2.log); dev-obs col-77ecdb6e5fd5a2b1 (test_bcl.py slow) last_seen 18:08 IST, so dev-obs did not see this round's four suite runs; dev-obs snapshots b758ed33 (20:27:18 IST) and 95e60008 (20:28:45 IST), evidence ~/.agents/artifacts/bcl-120/devobs-after-176.json",
+              "evidence": "The lane release was meant to use a scoped presuite (BCL-176, 129s in round 2). presuite-175.log instead selected a full run because scripts/precommit_chart.py is collection tooling, and the job ran 157 processes including the Swift service tests (test_bcl.py 175.8s, CUAService 131.4s; finished 21:52 IST). Dev-obs snapshots 90fa4234 and 6276e372 did not record that suite duration (collector 0.1.34, no bcl job logs as sources, BCL-147).",
               "outcome": "issue",
               "issue_id": "BCL-176"
             }
@@ -13400,20 +13481,20 @@
           "items": [
             {
               "item": "Stage: Verify",
-              "evidence": "Only new finding across the BCL-176 verify was col-8394fc3bec1b1387, the verify's own snapshot commit (noise, 95e60008 vs b758ed33); dev-obs snapshots b758ed33 (20:27:18 IST) and 95e60008 (20:28:45 IST), evidence ~/.agents/artifacts/bcl-120/devobs-after-176.json",
+              "evidence": "Before-snapshot 90fa4234 (21:56:23 IST) included col-937437b89066a62b (dirty worktree on the list checkout at collect time); after-snapshot 6276e372 (21:57:03 IST) had no new findings and that row was gone (151 to 150). This is verify-created collector noise, the same class as tracker snapshot commits (DO-1). Installed collector is still 0.1.34.",
               "outcome": "issue",
               "issue_id": "DO-1"
             },
             {
-              "item": "Codex review: R2-145",
-              "evidence": "dev-obs recorded none of the round's 565,672 Codex tokens or its four CHANGES reviews: task-usage.sqlite3 holds 1 row and the only token finding col-7a5451ac618718cb is Samantha's zero-token provider reports; dev-obs snapshots b758ed33 (20:27:18 IST) and 95e60008 (20:28:45 IST), evidence ~/.agents/artifacts/bcl-120/devobs-after-176.json",
+              "item": "Codex write: R3-175",
+              "evidence": "Round 3 measured 396,079 Codex tokens from logs (first Luna 160,539; Terra CHANGES 24,932; plan review 67,798; second Luna 74,589; Terra PASS 68,221) versus round 2 565,672 and round 1 42,909 (round 1 coverage was mostly workers). None of this reached dev-obs: collector 0.1.34, task-usage still not a source for Codex jobs (snapshots 90fa4234, 6276e372).",
               "outcome": "issue",
               "issue_id": "DO-2"
             }
           ]
         }
       },
-      "round": 2,
+      "round": 3,
       "cycle": 12
     }
   },
@@ -14126,12 +14207,30 @@
       "observed": "22 Nov 2026 18:57 IST, PR 120 R2-142 worker (commit 78efdcf0 on base 871800c0)",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "root_cause_group": "M-ROUND (same class as BCL-158, which is verified)",
         "also reported as BCL-179": "Fresh lane worktrees get doubled round suffixes The fresh-worktree command appends the round to the lane's worktree name even when the name already carries a round marker in the middle, so round 2 lanes got names ending in r2 twice. 22 Nov 2026 19:12 IST, PR 120 round 2 lanes R2-DO1 and R2-176",
         "also reported as BCL-180": "A blocked lane cannot be moved to a later round without unblocking it Moving a lane blocked after two counted failures to the next round is refused unless it is unblocked first, but only the owner may unblock, so the lane stays blocked in the current round and holds its release check. 22 Nov 2026 19:29 IST, PR 120 R2-DO1 after owner decision 19:55 IST: R2-145 also blocked on its second review; release-check for 0.1.69 (BCL-176 alone) refuses with R2-145 and R2-DO1 listed, so a single passing lane cannot ship without an owner unblock."
-      }
+      },
+      "verification_evidence": [
+        {
+          "checked": "The installed commands for a dry run, making a worktree without writing the live list, replacing an existing round marker, and moving a blocked lane to a later round, including a parked lane that was blocked without counted failures",
+          "expected": "A dry run writes nothing; making a worktree without recording leaves the list unchanged and the next job records it; a fresh name replaces one round marker; a blocked or parked-with-reason lane stays blocked until it is unblocked, and other moves stay refused",
+          "observed": "All four checks passed on the installed copy; no new observability finding and no status change between the two snapshots",
+          "verdict": "All four checks passed on the installed copy; no new observability finding and no status change between the two snapshots",
+          "check_id": "bcl-175-0.1.71-c9aee24d",
+          "build": "bcl 0.1.71",
+          "session": "r3-c9aee24d-120",
+          "timestamp": "2026-11-22T16:28:07Z",
+          "reference": "c9aee24d:BCL-175:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r3-175.log; dev-obs before 90fa4234 (21:56:23 IST), after 6276e372 (21:57:03 IST), same build. Run r3-c9aee24d-120."
+        }
+      ],
+      "verification": "All four checks passed on the installed copy; no new observability finding and no status change between the two snapshots Log: ~/.agents/artifacts/bcl-120/verify-r3-175.log; dev-obs before 90fa4234 (21:56:23 IST), after 6276e372 (21:57:03 IST), same build. Run r3-c9aee24d-120.",
+      "verification_refs": [
+        "c9aee24d:BCL-175:installed-check"
+      ]
     },
     {
       "id": "DO-1",
