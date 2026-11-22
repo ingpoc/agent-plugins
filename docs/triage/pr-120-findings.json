@@ -11099,9 +11099,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T15:02:44Z",
-      "now": "2026-11-22T15:02:44Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-22T15:03:59Z",
+      "now": "2026-11-22T15:03:59Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12610,7 +12610,18 @@
           "codex": {
             "model": "Grok Bot direct (small fix)",
             "implementer_session": "grokbot-r3-145",
-            "reviewer_session": "codex-terra-120-145-r3"
+            "reviewer_session": "codex-terra-120-145-r3",
+            "job": {
+              "id": "ec3db222e756401b95a116c8961ec882",
+              "phase": "plan_review",
+              "started_at": "2026-11-22T15:03:59Z",
+              "command": "sh",
+              "heartbeat_at": "2026-11-22T15:03:59Z",
+              "plan_sha256": "4c8ba2892daa4abe2723328c5d64659bc57b221c19e8479973748d3cfcf2cf73",
+              "model": "gpt-6.1-terra low (Codex; astra unsupported)",
+              "cycle": 12,
+              "round": 3
+            }
           },
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -12661,8 +12672,9 @@
               "owner_override": true
             }
           ],
-          "status": "planned",
-          "updated_at": "2026-11-22T15:02:44Z"
+          "status": "review",
+          "updated_at": "2026-11-22T15:02:44Z",
+          "phase": "plan_review"
         },
         {
           "id": "R2-DO1",
