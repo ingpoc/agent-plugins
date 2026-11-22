@@ -222,6 +222,43 @@ class CollectorTests(unittest.TestCase):
                                                  {'name': 'disk-floor', 'status': 'PASS'}]}))
         self.assertEqual([e['step'] for e in iter_hygiene(report, 'r', 'r:h', {})], ['local-only-work'])
 
+    def test_git_state_ignores_snapshot_commits_ahead_of_upstream(self):
+        repo = self._git_repo_with_upstream('snapshots')
+        (repo / 'docs/triage').mkdir(parents=True)
+        (repo / 'docs/triage/snapshot.json').write_text('{}\n')
+        self._git_commit(repo, 'snapshot')
+        events = list(iter_git(repo, 'r', 'r:git', {}))
+        self.assertNotIn('unpushed_commits', [event['step'] for event in events])
+
+    def test_git_state_reports_non_snapshot_commits_ahead_of_upstream(self):
+        repo = self._git_repo_with_upstream('other-change')
+        (repo / 'src').mkdir()
+        (repo / 'src/change.py').write_text('value = 1\n')
+        self._git_commit(repo, 'other change')
+        events = list(iter_git(repo, 'r', 'r:git', {}))
+        event = next(event for event in events if event['step'] == 'unpushed_commits')
+        self.assertEqual(event['message'], '1 local-only commit(s)')
+
+    def _git_repo_with_upstream(self, name):
+        bare = self.tmp / f'{name}-remote.git'
+        repo = self.tmp / name
+        subprocess.run(['git', 'init', '-q', '--bare', str(bare)], check=True)
+        subprocess.run(['git', 'init', '-q', str(repo)], check=True)
+        subprocess.run(['git', '-C', str(repo), 'config', 'user.name', 'Test'], check=True)
+        subprocess.run(['git', '-C', str(repo), 'config', 'user.email', 'test@example.com'], check=True)
+        (repo / 'README.md').write_text('initial\n')
+        self._git_commit(repo, 'initial')
+        branch = subprocess.run(['git', '-C', str(repo), 'branch', '--show-current'], check=True,
+                                capture_output=True, text=True).stdout.strip()
+        subprocess.run(['git', '-C', str(repo), 'remote', 'add', 'origin', str(bare)], check=True)
+        subprocess.run(['git', '-C', str(repo), 'push', '-q', '-u', 'origin', branch], check=True)
+        return repo
+
+    @staticmethod
+    def _git_commit(repo, message):
+        subprocess.run(['git', '-C', str(repo), 'add', '.'], check=True)
+        subprocess.run(['git', '-C', str(repo), 'commit', '-q', '-m', message], check=True)
+
     def test_cli_writes_only_out_atomically_0600(self):
         out = self.tmp / 'out'
         summary = collect([{'type': 'project_dir', 'path': str(self.project)}], out, NOW)

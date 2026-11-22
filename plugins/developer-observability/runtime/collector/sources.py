@@ -44,6 +44,7 @@ _PLAIN_MS = re.compile(r'(\d+(?:\.\d+)?)\s?ms\b')
 _CHECK_FAILED = re.compile(r'^failed: test (.+?) \(exit (\d+)\)')
 _XCTEST = re.compile(r'error: -\[([\w.]+) (\w+)\] : (.*)')
 _CHECK_TEST = re.compile(r'^test (.+?) \(([\d.]+)s, exit (\d+)\)')
+GIT_EXPECTED_PATHS = ('docs/triage/',)
 _TASK_REF = re.compile(r'[A-Za-z0-9_.:/-]{1,128}\Z')
 _CHECK_ID = re.compile(r'(?i)^(?:run_id|check_id)=([A-Za-z0-9_.:-]{1,128})$')
 _TASK_FIELDS = {
@@ -762,10 +763,17 @@ def iter_git(repo, project, source, stats):
     if dirty:
         yield _event(stats, project=project, source=source, kind='git_state', step='dirty_worktree', error=True, ts=now,
                      duration_ms=None, message=f'{dirty} uncommitted file(s)', where=ref(repo, 0))
-    ahead = _git(repo, 'rev-list', '--count', '@{u}..HEAD')
-    if ahead and ahead.strip().isdigit() and int(ahead) > 0:
+    commits = _git(repo, 'rev-list', '@{u}..HEAD')
+    unexpected = 0
+    if commits is not None:
+        for commit in commits.splitlines():
+            changed = _git(repo, 'diff-tree', '--root', '--no-commit-id', '--name-only', '-r', '-m', commit)
+            if changed is not None and any(
+                    path and not path.startswith(GIT_EXPECTED_PATHS) for path in changed.splitlines()):
+                unexpected += 1
+    if unexpected:
         yield _event(stats, project=project, source=source, kind='git_state', step='unpushed_commits', error=True, ts=now,
-                     duration_ms=None, message=f'{int(ahead)} local-only commit(s)', where=ref(repo, 0))
+                     duration_ms=None, message=f'{unexpected} local-only commit(s)', where=ref(repo, 0))
 
 
 def iter_hygiene(json_path, project, source, stats):
