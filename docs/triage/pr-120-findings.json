@@ -11353,9 +11353,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T16:38:10Z",
-      "now": "2026-11-22T16:38:10Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-22T16:40:45Z",
+      "now": "2026-11-22T16:40:45Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12937,7 +12937,7 @@
             "BCL-157"
           ],
           "label": "BCL-157",
-          "status": "planned",
+          "status": "review",
           "worktree": "bcl120-r4-157",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-157.sh",
@@ -12949,7 +12949,19 @@
           "codex": {
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "codex-luna-120-157",
-            "reviewer_session": "codex-terra-120-157"
+            "reviewer_session": "codex-terra-120-157",
+            "job": {
+              "id": "035bca1162754931adc57ff0c843ce49",
+              "phase": "plan_review",
+              "started_at": "2026-11-22T16:40:45Z",
+              "command": "run-planreview-157-job.sh",
+              "heartbeat_at": "2026-11-22T16:40:45Z",
+              "plan_sha256": "8dbb428df40993cd3f3867cc093b95dc6dd311b530e33d76408378e9eda24da5",
+              "worktree": "bcl120-r4-157",
+              "model": "gpt-6.1-terra low (plan review)",
+              "cycle": 12,
+              "round": 4
+            }
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -12963,7 +12975,8 @@
           "reason": "Status-accuracy first. BCL-170 already merged into BCL-157 (Paused needs resume after review is the same page-status class). BCL-150 already shipped in 0.1.63. BCL-159 is the same live-page group but is split out: adding job-step reports and a timeline with this lane would exceed the 150k-token cap and shares render.py. Lane-state work: plan review before the first fix. Estimate about 100k tokens.",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T16:38:10Z"
+          "updated_at": "2026-11-22T16:38:10Z",
+          "phase": "plan_review"
         },
         {
           "id": "R4-171",
