@@ -11226,9 +11226,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T16:03:57Z",
-      "now": "2026-11-22T16:03:57Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T16:16:00Z",
+      "now": "2026-11-22T16:16:00Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12953,7 +12953,7 @@
             "BCL-175"
           ],
           "label": "BCL-175",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl120-r3-175-r3",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r3-175.sh",
@@ -12966,21 +12966,22 @@
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "codex-luna-120-175",
             "reviewer_session": "codex-terra-120-175",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "cb17414317414329b8ab41afd48a4dad",
-              "phase": "fix",
-              "started_at": "2026-11-22T16:03:57Z",
-              "command": "run-luna-175-fix2.sh",
-              "heartbeat_at": "2026-11-22T16:03:57Z",
+              "id": "a21873cb01d142f7b7e1681060aefae4",
+              "phase": "review",
+              "started_at": "2026-11-22T16:16:00Z",
+              "command": "run-review-175-2.sh",
+              "heartbeat_at": "2026-11-22T16:16:00Z",
               "plan_sha256": "4257759c2f863172da02a3b4e61a43f3dc2eb47f13ca1511144b1393d76498d6",
-              "model": "gpt-6-luna fast medium (Codex)",
+              "model": "gpt-6.1-terra medium (Codex)",
               "cycle": 12,
               "round": 3
             },
             "tool_fault_streak": 0,
             "reviewer_model": "gpt-6.1-terra medium (Codex)",
-            "must_fix_note": "1. [manage_findings.py:608](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r3-175-r3/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:608) A parked lane with a `blocked_reason` but no counted failures is not considered gated, so it bypasses the new carry-forward logic. A lane blocked for a dependency can therefore be parked and return as `planned` in the next round, allowing a fix job without an unblock. Include parked lanes retaining a blocked reason in the gate and cover that case."
+            "must_fix_note": "1. [manage_findings.py:608](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r3-175-r3/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:608) A parked lane with a `blocked_reason` but no counted failures is not considered gated, so it bypasses the new carry-forward logic. A lane blocked for a dependency can therefore be parked and return as `planned` in the next round, allowing a fix job without an unblock. Include parked lanes retaining a blocked reason in the gate and cover that case.",
+            "review_status": "running"
           },
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -13011,7 +13012,7 @@
             }
           ],
           "updated_at": "2026-11-22T15:31:42Z",
-          "phase": "fix"
+          "phase": "review"
         },
         {
           "id": "DEFER",
