@@ -70,6 +70,31 @@ class BclTests(unittest.TestCase):
                 lane = json.loads(result.stdout)["plan"][0]
                 self.assertEqual(lane["message"], f"Interrupted · resume at {phase} · A")
 
+    def test_status_labels_paused_round_and_keeps_stored_status(self):
+        registry = json.loads((self.state / "registry.json").read_text())
+        live = Path(registry["example/project/123"]["live"])
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+        self.addCleanup(child.wait); self.addCleanup(child.terminate)
+        for status, phase, job in (("running", "fix", {"pid": child.pid, "phase": "fix", "started_at": "2026-11-18T08:00:00Z"}),
+                                   ("review", "review", None)):
+            with self.subTest(status=status):
+                data = json.loads(live.read_text())
+                tracking = data.setdefault("tracking", {})
+                tracking.setdefault("workflow", {"stage": "plan_fix", "updated_at": "2026-11-18T08:00:00Z"})
+                tracking["workflow"]["paused"] = {"reason": "maintenance", "at": "2026-11-18T08:00:00Z"}
+                group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": status, "phase": phase}
+                if job:
+                    group["codex"] = {"job": job}
+                tracking["plan"] = {"round": 1, "groups": [group]}
+                live.write_text(json.dumps(data))
+                self.data.write_text(json.dumps(data))
+                result = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "status"],
+                                        env=self.env, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                lane = json.loads(result.stdout)["plan"][0]
+                self.assertEqual(lane["message"], "Paused · maintenance · A")
+                self.assertEqual(lane["status"], status)
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name); self.state = self.root / "state"
