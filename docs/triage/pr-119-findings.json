@@ -11499,9 +11499,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T08:15:48Z",
-      "now": "2026-11-22T08:15:48Z — Plan Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T08:30:08Z",
+      "now": "2026-11-22T08:30:08Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12955,7 +12955,7 @@
           "finding_ids": [
             "BCL-145"
           ],
-          "status": "review",
+          "status": "running",
           "worktree": "bcl119-r2-145",
           "label": "BCL-145",
           "verify": {
@@ -12969,23 +12969,21 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r2-145",
             "reviewer_session": "codex-terra-6.1-119r2-145",
-            "fix_status": "passed",
+            "fix_status": "running",
             "job": {
-              "id": "7972b502e5384adc989ef39ff5eb0a29",
-              "phase": "plan_review",
-              "started_at": "2026-11-22T08:15:48Z",
+              "id": "e36934730c2b4195837160e256ddaffd",
+              "phase": "fix",
+              "started_at": "2026-11-22T08:30:08Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T08:15:48Z",
+              "heartbeat_at": "2026-11-22T08:30:08Z",
               "plan_sha256": "1582e93171705e103bf359b759ee2f1454d3cf633fd71d7f5806d9ed49481781",
-              "model": "gpt-6.2-astra",
+              "model": "gpt-6-luna",
               "cycle": 11,
               "round": 2
             },
             "tool_fault_streak": 0,
-            "review_status": "changes_requested",
             "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1540) protects runtime fields only when a lane already exists. A new lane can supply fields such as `failure_history`, `install`, or `verify_reruns` through `set-plan`; the later claim check covers only a subset. Apply the declared protection to new lanes too.\n\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1528) accepts `pending` even when a stored status differs, then silently restores the stored value. A caller’s attempted change must be refused; permit `pending` as a default only when no value was stored.\n\n3. Literal lane-state lists remain in [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:618), including the in-flight states and the list at line 624. The stated single-definition requirement is therefore incomplete.\n\n4. Add CLI behavior coverage for new-lane runtime claims, attempts to replace stored values with `pending`, and `bcl plan` without `--plan` resubmitting unchanged stored runtime values. The added tests exercise batch operations but do not cover those paths.",
-            "plan_review_status": "changes_requested"
+            "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1540) protects runtime fields only when a lane already exists. A new lane can supply fields such as `failure_history`, `install`, or `verify_reruns` through `set-plan`; the later claim check covers only a subset. Apply the declared protection to new lanes too.\n\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:1528) accepts `pending` even when a stored status differs, then silently restores the stored value. A caller’s attempted change must be refused; permit `pending` as a default only when no value was stored.\n\n3. Literal lane-state lists remain in [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-145/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:618), including the in-flight states and the list at line 624. The stated single-definition requirement is therefore incomplete.\n\n4. Add CLI behavior coverage for new-lane runtime claims, attempts to replace stored values with `pending`, and `bcl plan` without `--plan` resubmitting unchanged stored runtime values. The added tests exercise batch operations but do not cover those paths."
           },
           "failure_history": [
             {
@@ -12995,11 +12993,31 @@
               "cycle": 11,
               "round": 2,
               "at": "2026-11-22T06:29:56Z"
+            },
+            {
+              "attempt_id": "7972b502e5384adc989ef39ff5eb0a29",
+              "source": "plan_review",
+              "reason": "Reviewer exited 1",
+              "cycle": 11,
+              "round": 2,
+              "at": "2026-11-22T08:16:04Z",
+              "tool_fault": true,
+              "fault_kind": "runner_exit",
+              "tool_fault_reason": "Reviewer exited 1"
             }
           ],
-          "plan_review_history": [],
+          "plan_review_history": [
+            {
+              "job_id": "bdad7a87914a461bb8dfb47d891f7f79",
+              "after_failure": "6cfd7b5c50ab4594b51536cbfe6692ac",
+              "status": "passed",
+              "cycle": 11,
+              "round": 2,
+              "at": "2026-11-22T08:25:51Z"
+            }
+          ],
           "updated_at": "2026-11-22T08:14:57Z",
-          "phase": "plan_review",
+          "phase": "fix",
           "reason": "Guru 13:42 IST: continue with R2-145 now that 0.1.62 shipped; serial (only writer/renderer lane open)",
           "parked_to": 3
         },
