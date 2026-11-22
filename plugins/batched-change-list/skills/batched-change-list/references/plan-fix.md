@@ -27,3 +27,5 @@ Do not fix and test one issue at a time.
 ## Plan check
 
 A round runs only independent groups. Small docs-only or chart-only items with no code dependency and no shared file join the nearest group with a named test and verify. Move a blocked lane only to parked with a reason; it stays blocked next round until `bcl unblock`. Run `bcl refresh-worktrees --repo LIST_WORKTREE` to replay lane commits at list head (`--dry-run` previews; `--no-record` lets the next job record its cwd). A round runs at most 4 open lanes; avoid overlapping files and record fix order with `bcl fix-order`. Rollover carries gated lanes under the same id. Hard groups may use max Codex effort; cap each fix group at about 4 issues.
+
+**Integration handoff:** The plugin version and changelog belong to integration, not to a lane-review must-fix.
