@@ -432,16 +432,16 @@ def carried_tag(finding):
 
 
 def row_phase_track(group, state):
-    lane_phases = [phase for phase, _ in sorted(WF.DEFINITION["lane_phase_rank"].items(), key=lambda item: item[1])
-                   if phase != "introspect"]
+    lane_phases = [stage["lane_phase"] for stage in WF.LOOP
+                   if stage.get("lane_phase") and stage["lane_phase"] != "introspect"]
     phase = "verify" if state == "verified" else "fix" if state == "planned" else plan_phase(group)
+    if phase == "plan_review":
+        phase = "review"
     phase_index = lane_phases.index(phase)
     dots = []
     for index in range(len(lane_phases)):
         kind = ""
-        if state == "verified" and index < 4:
-            kind = "d"
-        elif state != "planned" and index < phase_index:
+        if state == "verified" or (state != "planned" and index < phase_index):
             kind = "d"
         elif state in ("blocked", "failed") and index == phase_index:
             kind = "b" if state == "blocked" else "f"

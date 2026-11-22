@@ -23,7 +23,21 @@ class RenderTests(unittest.TestCase):
                   {'id': 'DONE', 'status': 'verified', 'phase': 'fix'}]
         workflow = renderer.render_workflow('plan_fix', groups, 0, 15, False, 0, 1)
         review = workflow.split('data-stage="review"', 1)[1].split('</li>', 1)[0]
-        self.assertIn('class="wf-step current"', review)
+        self.assertIn('class="wf-step busy"', review)
+        self.assertIn('2 review', review)
+
+    def test_review_chip_sits_under_review_not_install(self):
+        groups = [{'id': 'A', 'status': 'review', 'phase': 'review'},
+                  {'id': 'DONE', 'status': 'verified', 'phase': 'verify'}]
+        workflow = renderer.render_workflow('install', groups, 0, 15, False, 0, 1)
+        review = workflow.split('data-stage="review"', 1)[1].split('</li>', 1)[0]
+        install = workflow.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
+        introspect = workflow.split('data-stage="introspect"', 1)[1].split('</li>', 1)[0]
+        self.assertIn('1 review', review)
+        self.assertNotIn('review', install)
+        self.assertNotIn('verified', introspect)
+        self.assertNotIn('DONE', introspect)
+        self.assertNotIn('class="lc', introspect)
 
     def test_fix_and_review_lanes_keep_plan_fix_current(self):
         groups = [{'id': 'A', 'status': 'planned', 'phase': 'fix'},
@@ -170,7 +184,7 @@ if(!articleDetails.includes('--phase review')||!articleDetails.includes('codex.r
         plan = page.split('>Plan &amp; fix<', 1)[0].rsplit('<li ', 1)[-1]
         self.assertIn('wf-step current', plan)
         track = renderer.row_phase_track({'id':'A', 'status':'verified'}, 'verified')
-        self.assertEqual(track.count('<i'), 5)
+        self.assertEqual(track.count('<i'), 4)
         self.assertEqual(track.count('class="d"'), 4)
 
     def test_planned_lane_does_not_look_active_during_introspection(self):
@@ -407,8 +421,8 @@ if(badge.hidden||clock>=Date.parse({json.dumps(updated)})+{stale_after}*60000)pr
         self.assertIn('<b>1</b> blocked', page)
         self.assertIn('Parked for Round 2', page)
         self.assertIn('CORE · 1', page)
-        self.assertIn('aria-label="Phase 4 of 5: Install"', page)
-        self.assertIn('aria-label="Phase 5 of 5: Verify, blocked"', page)
+        self.assertIn('aria-label="Phase 3 of 4: Install"', page)
+        self.assertIn('aria-label="Phase 4 of 4: Verify, blocked"', page)
         self.assertIn('In install · INSTALL', page)
         self.assertIn('Blocked · no mic · needs Guru', page)
         self.assertIn('CARRIED', page)
@@ -1304,7 +1318,7 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         ]}}
         page = renderer.render(data, self.base)
         self.assertIn('class="grp failed"', page)
-        self.assertIn('Phase 5 of 5: Verify, failed', page)
+        self.assertIn('Phase 4 of 4: Verify, failed', page)
         self.assertIn('Fix failed · F', page)
         self.assertIn('Fix failed · D', page)
         data['tracking']['plan']['groups'][0]['status'] = 'unknown'
@@ -1316,7 +1330,7 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         group = {'id':'A','status':'installing','phase':'fix','finding_ids':['ISSUE-01'],'install':{'started_at':'2026-11-14T09:00:00Z'}}
         self.assertEqual(renderer.plan_phase(group), 'install')
         track = renderer.row_phase_track(group, 'installing')
-        self.assertIn('Phase 4 of 5: Install', track)
+        self.assertIn('Phase 3 of 4: Install', track)
         workflow = renderer.render_workflow('plan_fix',
             [{**group, 'id':f'G{i}'} for i in range(6)], 0, 15, False, 0, 1)
         self.assertIn('aria-label="6 lanes"', workflow)
@@ -1352,7 +1366,7 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         self.assertIn('class="grp installing"', page)
         self.assertIn('>Installing</span>', page)
         self.assertIn('class="grp running"', page)
-        self.assertIn('Phase 4 of 5: Install', page)
+        self.assertIn('Phase 3 of 4: Install', page)
         self.assertIn('data-stage="gate"', page)
         install = page.split('data-stage="install"', 1)[1].split('</li>', 1)[0]
         self.assertNotIn('wf-step done', install)
@@ -1362,13 +1376,13 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         data['tracking']['plan']['groups'][0]['verify'] = {'status':'verified','method':'Unit tests'}
         page = renderer.render(data, self.base)
         self.assertIn('class="grp verified"', page)
-        self.assertIn('Phase 5 of 5: Verify', page)
+        self.assertIn('Phase 4 of 4: Verify', page)
         self.assertIn('class="wf-step done"', page)
         data['tracking']['plan']['groups'][0].update(status='review', phase='review', verify={'status':'pending'})
         page = renderer.render(data, self.base)
         self.assertIn('class="grp review"', page)
         self.assertIn('>In review</span>', page)
-        self.assertIn('Phase 3 of 5: Review', page)
+        self.assertIn('Phase 2 of 4: Review', page)
         data['tracking']['workflow']['stage'] = 'install'
         data['tracking']['plan']['groups'] = [
             {'id':'A','name':'Ready group','finding_ids':['ISSUE-01'],'status':'done','phase':'install','install':{'started_at':'2026-11-14T09:00:00Z'},'verify':{'status':'pending'}},
