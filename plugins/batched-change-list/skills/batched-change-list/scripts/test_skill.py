@@ -13,7 +13,7 @@ class SkillLayoutTests(unittest.TestCase):
         self.assertNotRegex(body,r'(?m)^Workflow:|^\d+\. '); self.assertNotRegex(body,r'\b(?:15|16)\b')
         self.assertEqual(sum(line=='| Step | When | Load | Run |' for line in body.splitlines()),1); self.assertEqual(sum(line=='| When | Load |' for line in body.splitlines()),1)
         self.assertIn('\n\nSelf-validate:',body)
-        for phrase in ('so the fix and its review stay separate','so model and effort stay in one place','so the list and its history have one writer','so one fix does not break another','every “already present” item needs its own named test','so the gate count is the number the owner sees','Run Introspect after every Verify','python3 scripts/statechart.py','python3 -m unittest discover'):
+        for phrase in ('so the fix and its review stay separate','so model and effort stay in one place','so the list and its history have one writer','Load `principles.md` first','every “already present” item needs its own named test','so the gate count is the number the owner sees','Run Introspect after every Verify','python3 scripts/statechart.py','python3 -m unittest discover'):
             self.assertIn(phrase,body)
 
     def test_router_names_each_step_and_side_reference_once_and_all_references(self):
