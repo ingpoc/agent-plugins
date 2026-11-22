@@ -11016,9 +11016,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T04:22:12Z",
-      "now": "2026-11-22T04:22:12Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T04:37:04Z",
+      "now": "2026-11-22T04:37:04Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -12615,7 +12615,7 @@
           "finding_ids": [
             "BCL-136"
           ],
-          "status": "review",
+          "status": "running",
           "worktree": "bcl119-r2-136",
           "label": "BCL-136",
           "verify": {
@@ -12629,26 +12629,44 @@
             "model": "gpt-6-luna medium fast (Codex CLI)",
             "implementer_session": "codex-luna-119r2-136",
             "reviewer_session": "codex-terra-6.1-119r2-136",
-            "fix_status": "passed",
+            "fix_status": "running",
             "job": {
-              "id": "11bd746b06474c73ae9a7140d490f4f9",
-              "phase": "review",
-              "started_at": "2026-11-22T04:22:12Z",
+              "id": "ab8e684a2968484383c8f5da05c785dc",
+              "phase": "fix",
+              "started_at": "2026-11-22T04:37:04Z",
               "command": "env",
-              "heartbeat_at": "2026-11-22T04:22:12Z",
+              "heartbeat_at": "2026-11-22T04:37:04Z",
               "plan_sha256": "7436bdd7c01a10aad2a070531016838baa509dfc7fcf2441c7e77129cd489ac4",
-              "model": "gpt-6.1-terra medium (Codex CLI)",
+              "model": "gpt-6-luna medium fast (Codex CLI)",
               "cycle": 11,
               "round": 2
             },
             "tool_fault_streak": 0,
-            "review_status": "running",
-            "reviewer_model": "gpt-6.1-terra medium (Codex CLI)"
+            "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
+            "must_fix_note": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-136/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:623) treats a named lane as clear while its presuite job is running. Starting presuite leaves the lane in `phase=\"review\"` with both fix and review passed, so `_included_for_release` accepts it even though the lane has unfinished work. Keep an active presuite blocking and cover it through the CLI.\n\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-136/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:657) adds an `included` field even when `--ids` is absent. That changes the JSON output despite the requirement that the command behave exactly as before without `--ids`. Preserve the previous payload shape in that case and test it through the CLI."
           },
-          "failure_history": [],
-          "plan_review_history": [],
+          "failure_history": [
+            {
+              "attempt_id": "11bd746b06474c73ae9a7140d490f4f9",
+              "source": "review",
+              "reason": "1. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-136/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:623) treats a named lane as clear while its presuite job is running. Starting presuite leaves the lane in `phase=\"review\"` with both fix and review passed, so `_included_for_release` accepts it even though the lane has unfinished work. Keep an active presuite blocking and cover it through the CLI.\n\n2. [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-136/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:657) adds an `included` field even when `--ids` is absent. That changes the JSON output despite the requirement that the command behave exactly as before without `--ids`. Preserve the previous payload shape in that case and test it through the CLI.",
+              "cycle": 11,
+              "round": 2,
+              "at": "2026-11-22T04:23:27Z"
+            }
+          ],
+          "plan_review_history": [
+            {
+              "job_id": "4c511dbf81a24093866a64549ee7a41f",
+              "after_failure": "11bd746b06474c73ae9a7140d490f4f9",
+              "status": "passed",
+              "cycle": 11,
+              "round": 2,
+              "at": "2026-11-22T04:31:12Z"
+            }
+          ],
           "updated_at": "2026-11-22T04:21:44Z",
-          "phase": "review"
+          "phase": "fix"
         },
         {
           "id": "R2-137",
@@ -12672,26 +12690,40 @@
             "reviewer_session": "codex-terra-6.1-119r2-137",
             "fix_status": "passed",
             "job": {
-              "id": "6bfdde17edfb4f34b2b3df54ee95852f",
-              "phase": "fix",
-              "started_at": "2026-11-22T04:21:07Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-22T04:21:07Z",
-              "plan_sha256": "160f70ab0fe2f38c1408ea63e8cdd2df8838de56572b2f25ff7abe5b6ffa40de",
-              "model": "scripted confirm of Luna commit c927e759 (stranded job, 0 tokens)",
+              "id": "3de58ccaf3044459aa10284814f51507",
+              "phase": "plan_review",
+              "started_at": "2026-11-22T04:30:35Z",
+              "command": "env",
+              "heartbeat_at": "2026-11-22T04:31:42Z",
+              "plan_sha256": "7436bdd7c01a10aad2a070531016838baa509dfc7fcf2441c7e77129cd489ac4",
+              "model": "gpt-6.2-sol medium (Codex CLI)",
               "cycle": 11,
               "round": 2,
-              "pid": 57150,
+              "pid": 72613,
               "exit_code": 0,
-              "finished_at": "2026-11-22T04:21:07Z",
-              "finished_phase_status": "passed"
+              "finished_at": "2026-11-22T04:31:42Z",
+              "finished_phase_status": "changes_requested",
+              "must_fix": "1. Record the ledger position at unblock and check duplicate job IDs before the cap or reservation logic.\n2. Preserve the budget through same-round membership changes, or reject changes that would discard it.\n3. Authorize cap-only carry from protected runtime state. `update-plan-group` can edit `blocked_reason`."
             },
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "review_status": "changes_requested",
+            "reviewer_model": "gpt-6.1-terra medium (Codex CLI)",
+            "must_fix_note": "1. The cap counts completed PASS and CHANGES history rows, not **job starts**. A failed, incomplete, or interrupted plan review can therefore consume a start without advancing the cap, allowing a fourth start. Record each start per lane and round, including tool-fault and interrupted attempts. See [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-137/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:762).\n\n2. The prescribed reset cannot be used when the cap alone is reached: the cap raises an error without blocking the lane, while `unblock_lane` accepts only lanes already marked blocked. Make the advertised unblock recovery work for a capped lane and test that path from three reviews through unblock and a new start. See [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-137/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:575).",
+            "plan_review_status": "changes_requested"
           },
-          "failure_history": [],
+          "failure_history": [
+            {
+              "attempt_id": "f796a1ea75674892b8649b15aa0aa14d",
+              "source": "review",
+              "reason": "1. The cap counts completed PASS and CHANGES history rows, not **job starts**. A failed, incomplete, or interrupted plan review can therefore consume a start without advancing the cap, allowing a fourth start. Record each start per lane and round, including tool-fault and interrupted attempts. See [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-137/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:762).\n\n2. The prescribed reset cannot be used when the cap alone is reached: the cap raises an error without blocking the lane, while `unblock_lane` accepts only lanes already marked blocked. Make the advertised unblock recovery work for a capped lane and test that path from three reviews through unblock and a new start. See [manage_findings.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-r2-137/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:575).",
+              "cycle": 11,
+              "round": 2,
+              "at": "2026-11-22T04:23:18Z"
+            }
+          ],
           "plan_review_history": [],
           "updated_at": "2026-11-22T04:21:44Z",
-          "phase": "review"
+          "phase": "plan_review"
         },
         {
           "id": "R2-138",
