@@ -11353,9 +11353,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-22T16:55:20Z",
-      "now": "2026-11-22T16:55:20Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-22T16:55:21Z",
+      "now": "2026-11-22T16:55:21Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12955,12 +12955,13 @@
               "phase": "fix",
               "started_at": "2026-11-22T16:55:20Z",
               "command": "run-luna-157.sh",
-              "heartbeat_at": "2026-11-22T16:55:20Z",
+              "heartbeat_at": "2026-11-22T16:55:21Z",
               "plan_sha256": "8dbb428df40993cd3f3867cc093b95dc6dd311b530e33d76408378e9eda24da5",
               "worktree": "bcl120-r4-157",
               "model": "gpt-6-luna fast medium",
               "cycle": 12,
-              "round": 4
+              "round": 4,
+              "pid": 86527
             },
             "tool_fault_streak": 0,
             "fix_status": "running"
@@ -12996,7 +12997,7 @@
             "BCL-171"
           ],
           "label": "BCL-171",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl120-r4-171",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-171.sh",
@@ -13011,21 +13012,16 @@
             "reviewer_session": "codex-terra-120-171",
             "fix_status": "passed",
             "job": {
-              "id": "07bd7bb03ff445c7a4f03af518037466",
-              "phase": "review",
-              "started_at": "2026-11-22T16:50:23Z",
-              "command": "run-review-171-job.sh",
-              "heartbeat_at": "2026-11-22T16:51:14Z",
+              "id": "bab0c59ab7344f97bff6e6b1da610664",
+              "phase": "plan_review",
+              "started_at": "2026-11-22T16:55:21Z",
+              "command": "run-planreview-171-job.sh",
+              "heartbeat_at": "2026-11-22T16:55:21Z",
               "plan_sha256": "8dbb428df40993cd3f3867cc093b95dc6dd311b530e33d76408378e9eda24da5",
               "worktree": "bcl120-r4-171",
-              "model": "gpt-6.1-terra medium (review)",
+              "model": "gpt-6.1-terra low (plan review)",
               "cycle": 12,
-              "round": 4,
-              "pid": 79200,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T16:51:14Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. `plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:69` — The helper uses merged diagnosis freshness to decide whether to collect. The backend takes the newest timestamp from the primary and collector snapshots, so a fresh primary snapshot can mask a stale or missing collector snapshot. Check collector freshness independently.\n2. `plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:74` — Every issue is assigned the collector’s `findings.json` path, although the API also returns findings from the primary source. Primary findings therefore receive an evidence path that may not contain them or may not exist.\n3. `plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:62` — The collector writes its progress message to stdout, ahead of the helper’s JSON. A stale run therefore does not produce valid JSON output. Keep collector output separate from the result."
+              "round": 4
             },
             "tool_fault_streak": 0,
             "review_status": "changes_requested",
@@ -13050,7 +13046,7 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-22T16:38:10Z",
-          "phase": "fix"
+          "phase": "plan_review"
         },
         {
           "id": "R4-103",
