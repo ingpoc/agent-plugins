@@ -15714,127 +15714,407 @@
       "installed_at": "2026-11-22T12:21:34Z",
       "install_evidence": "bcl install-local from clean detached worktree at 29de680d: plugin sha 55dab827 (cache copies), skill sha 1e6c12a7",
       "cycle": 11,
-      "status": "active",
+      "status": "complete",
       "checks": {
         "ACU-10": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "ACU-20": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "ACU-21": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-94": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-103": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-106": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-108": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-110": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-113": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-115": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-120": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-121": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-122": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-123": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-124": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-125": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-126": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-127": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-128": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-129": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-130": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-134": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-135": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-136": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-137": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-138": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-139": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-140": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-141": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-142": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-144": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-145": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-146": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-147": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-148": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-149": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-150": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-151": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-153": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-154": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-155": {
           "state": "fixed",
@@ -15848,22 +16128,64 @@
           "finished_at": "2026-11-22T12:22:15.024760Z"
         },
         "BCL-157": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-158": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-159": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-160": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-161": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-162": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-163": {
           "state": "fixed",
@@ -15877,13 +16199,34 @@
           "finished_at": "2026-11-22T12:22:15.022851Z"
         },
         "BCL-164": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-165": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-166": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-22T12:24:27Z",
+          "stopped": true,
+          "evidence": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observation": "Run stopped: Report recorded at 18 verified; rollover to next PR",
+          "observed_at": "2026-11-22T12:24:27Z",
+          "updated_at": "2026-11-22T12:24:27Z",
+          "finished_at": "2026-11-22T12:24:27Z"
         },
         "BCL-167": {
           "state": "fixed",
@@ -15896,6 +16239,10 @@
           "details": "Log: ~/.agents/artifacts/bcl-119/r3/verify-163.log. Run r3-29de680d-119.",
           "finished_at": "2026-11-22T12:22:15.026267Z"
         }
+      },
+      "stopped": {
+        "reason": "Report recorded at 18 verified; rollover to next PR",
+        "at": "2026-11-22T12:24:27Z"
       }
     },
     "introspect": {
