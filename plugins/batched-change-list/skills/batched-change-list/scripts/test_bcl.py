@@ -687,6 +687,89 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
         self.assertIn('"adopted": false', result.stdout)
 
+    def release_check_for_groups(self, groups, *args):
+        record = json.loads((self.state / "registry.json").read_text())["example/project/123"]
+        live = Path(record["live"])
+        tracker = json.loads(live.read_text())
+        tracker["tracking"]["plan"] = {"groups": groups}
+        serialized = json.dumps(tracker)
+        live.write_text(serialized)
+        self.data.write_text(serialized)
+        return self.call("release-check", *args)
+
+    def test_release_check_includes_named_reviewed_lane(self):
+        for review_status in ("passed", "skipped_one_file"):
+            with self.subTest(review_status=review_status):
+                group = {"id": "A", "finding_ids": ["ISSUE-01", "ISSUE-02"], "status": "running", "phase": "review",
+                         "codex": {"fix_status": "passed", "review_status": review_status}}
+                result = self.release_check_for_groups([group], "--ids", "ISSUE-01", "--ids", "ISSUE-02")
+
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                payload = json.loads(result.stdout)
+                self.assertEqual(payload["lanes"], [])
+                self.assertEqual(payload["included"], [{"id": "A", "finding_ids": ["ISSUE-01", "ISSUE-02"]}])
+
+    def test_release_check_blocks_named_lane_with_running_or_failed_presuite(self):
+        cases = (
+            {"status": "running"},
+            {"status": "failed", "job": {"exit_code": 1}},
+        )
+        for presuite in cases:
+            with self.subTest(presuite=presuite):
+                group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "review",
+                         "codex": {"fix_status": "passed", "review_status": "passed", "job": {"exit_code": 0}},
+                         "presuite": presuite}
+                result = self.release_check_for_groups([group], "--ids", "ISSUE-01")
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertEqual(json.loads(result.stdout)["lanes"][0]["id"], "A")
+
+    def test_release_check_without_ids_preserves_payload_keys(self):
+        group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "review",
+                 "codex": {"fix_status": "passed", "review_status": "passed"}}
+        result = self.release_check_for_groups([group])
+        self.assertEqual(set(json.loads(result.stdout)), {"clear", "lanes"})
+
+    def test_release_check_keeps_unnamed_reviewed_lane_in_flight(self):
+        group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "review",
+                 "codex": {"fix_status": "passed", "review_status": "passed"}}
+        result = self.release_check_for_groups([group])
+
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout)["lanes"][0]["id"], "A")
+
+    def test_release_check_requires_every_lane_finding_to_be_named(self):
+        group = {"id": "A", "finding_ids": ["ISSUE-01", "ISSUE-02"], "status": "running", "phase": "review",
+                 "codex": {"fix_status": "passed", "review_status": "passed"}}
+        result = self.release_check_for_groups([group], "--ids", "ISSUE-01")
+
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout)["lanes"][0]["finding_ids"], ["ISSUE-01", "ISSUE-02"])
+
+    def test_release_check_keeps_named_lane_in_flight_until_fix_and_review_pass(self):
+        cases = (("running", {"fix_status": "passed", "review_status": "changes_requested"}),
+                 ("running", {"fix_status": "running", "review_status": "running"}),
+                 ("blocked", {"fix_status": "passed", "review_status": "passed"}),
+                 ("failed", {"fix_status": "passed", "review_status": "passed"}))
+        for status, codex in cases:
+            with self.subTest(status=status, codex=codex):
+                group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": status, "phase": "review",
+                         "codex": codex}
+                result = self.release_check_for_groups([group], "--ids", "ISSUE-01")
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertEqual(json.loads(result.stdout)["lanes"][0]["id"], "A")
+
+    def test_release_check_keeps_other_unfinished_lane_in_flight(self):
+        ready = {"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "review",
+                 "codex": {"fix_status": "passed", "review_status": "passed"}}
+        unfinished = {"id": "B", "finding_ids": ["ISSUE-02"], "status": "running", "phase": "fix",
+                      "codex": {"fix_status": "running", "review_status": "pending"}}
+        result = self.release_check_for_groups([ready, unfinished], "--ids", "ISSUE-01")
+
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual([lane["id"] for lane in payload["lanes"]], ["B"])
+        self.assertEqual([lane["id"] for lane in payload["included"]], ["A"])
+
     def test_workflow_cycle_uses_live_tracker_and_snapshots_each_stage(self):
         result = self.call_without_viewer("start")
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -1884,5 +1967,34 @@ elif args[:2] != ['pr', 'edit']:
                 live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
         signal_process.assert_called_once_with(state['pid'], 0)
         self.assertEqual(state_path.read_bytes(), previous)
+
+    def test_legacy_viewer_is_not_stopped_without_identity(self):
+        records = json.loads((self.state / "registry.json").read_text())
+        key, record = next(iter(records.items()))
+        path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        state = {"pid": 28743, "port": 53367, "version": "old", "data": record["live"]}
+        path.write_text(json.dumps(state))
+        unchanged = path.read_bytes()
+        with patch.object(live_state, "STATE", self.state), \
+             patch.object(live_state.os, "kill") as signal_process, \
+             patch.object(live_state.urllib.request, "urlopen") as request:
+            with self.assertRaisesRegex(RuntimeError, "cannot verify viewer ownership"):
+                live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
+        signal_process.assert_called_once_with(state['pid'], 0)
+        request.assert_called_once_with(f"http://127.0.0.1:{state['port']}/__bcl_health", timeout=0.5)
+        self.assertEqual(path.read_bytes(), unchanged)
+
+    def test_status_reconciles_legacy_viewer(self):
+        self.assertEqual(self.call("start").returncode, 0)
+        state = self.viewer_state_path()
+        before = json.loads(state.read_text())
+        before.pop('instance')
+        state.write_text(json.dumps(before))
+        result = self.call('status')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(json.loads(result.stdout)['adopted'])
+        after = json.loads(state.read_text())
+        self.assertNotEqual(after['pid'], before['pid'])
+        self.assertTrue(after.get('instance'))
 
 if __name__ == "__main__": unittest.main()

@@ -467,7 +467,7 @@ def main():
         _, rollover_threshold, rollover_met = manage_findings.check_gate_count.rollover_gate_count(data)
         print(json.dumps({"adopted": True, "live": str(live), "stage": current_stage, "recorded_stage": recorded_stage, "cycle": tracking.get("cycle", 1), "report_gate": {"fixed": fixed, "threshold": threshold, "met": report_met}, "verified_gate": {"fixed": verified_fixed, "threshold": verified_threshold, "met": verified_met}, "rollover_gate": {"fixed": fixed, "threshold": rollover_threshold, "met": rollover_met}, "plan": [{"id": g.get("id"), "status": g.get("status"), "message": lane_render.lane_issue_status(g, tracking.get("cycle", 1)).get("copy")} for g in tracking.get("plan", {}).get("groups", [])]}, indent=2)); return
     if args.stage == "release-check":
-        payload = manage_findings.release_check_payload(data)
+        payload = manage_findings.release_check_payload(data, args.ids)
         print(json.dumps(payload, indent=2))
         raise SystemExit(0 if payload["clear"] else 2)
     if args.stage == "resort-failures":

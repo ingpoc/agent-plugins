@@ -1,3 +1,9 @@
+## 0.1.61
+
+- `release-check --ids` counts a lane as settled once its fix and review passed and a presuite passed for every finding in the lane; a running or failed presuite, an unnamed lane finding, or an unfinished fix or review still blocks, and the output keeps its keys (BCL-136).
+- Restored the two legacy viewer command tests (BCL-138).
+- Skill: principles.md (skill-refine base plus bcl lines), read only when editing the skill; Introspect skill edits name the principles they were checked against.
+
 ## 0.1.60
 
 - A new round can be planned while carried lanes have counted failures: their requested pending or deferred status is kept and only their failure and review history is carried; dropping such a lane is still refused (BCL-143).
