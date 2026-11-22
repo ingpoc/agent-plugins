@@ -10984,9 +10984,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-22T13:40:36Z",
-      "now": "2026-11-22T13:40:36Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T13:42:25Z",
+      "now": "2026-11-22T13:42:25Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 119,
@@ -11068,7 +11068,7 @@
       }
     },
     "cycle": 12,
-    "round": 1,
+    "round": 2,
     "round_history": [
       {
         "round": 2,
@@ -11244,6 +11244,11 @@
         "round": 3,
         "fixed": 18,
         "ended_at": "2026-11-22T12:25:27Z"
+      },
+      {
+        "round": 1,
+        "fixed": 4,
+        "ended_at": "2026-11-22T13:42:25Z"
       }
     ],
     "introspect_history": [
@@ -12378,206 +12383,12 @@
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix",
       "review",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "round": 1,
+      "round": 2,
       "groups": [
-        {
-          "id": "R1-ROUND",
-          "name": "One round-start command: carried lanes, fix order, file overlap",
-          "finding_ids": [
-            "BCL-158",
-            "BCL-151"
-          ],
-          "label": "BCL-158, BCL-151",
-          "status": "verified",
-          "worktree": "bcl120-r1-round",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-round.sh",
-            "status": "verified",
-            "fixed": 2,
-            "failed": 0,
-            "total": 2
-          },
-          "codex": {
-            "model": "Grok Bot self-implementation (before 18:50 Codex window)",
-            "implementer_session": "grokbot-self-120-round",
-            "reviewer_session": "grokbot-review-120-round",
-            "fix_status": "passed",
-            "job": {
-              "id": "e730f334302d4861948d23de8cb62138",
-              "phase": "presuite",
-              "started_at": "2026-11-22T13:11:37Z",
-              "command": "env",
-              "heartbeat_at": "2026-11-22T13:14:15Z",
-              "plan_sha256": "b44ea4ea4102d4833a4717cc496c930b0e2d478f0685a7e3364f61a91d0c6bcc",
-              "model": "check.py CI mode",
-              "cycle": 12,
-              "round": 1,
-              "pid": 16182,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T13:14:15Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "review_status": "passed",
-            "reviewer_model": "Grok Bot self review"
-          },
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-22T13:17:47Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-22T13:14:15Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-22T13:16:43Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "Grok Bot verify",
-            "at": "2026-11-22T13:16:44Z"
-          }
-        },
-        {
-          "id": "R1-134",
-          "name": "Fast pre-push chart check from the pushed commit",
-          "finding_ids": [
-            "BCL-134"
-          ],
-          "label": "BCL-134",
-          "status": "verified",
-          "worktree": "bcl120-r1-134",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-134.sh",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "codex": {
-            "model": "Grok Bot self-implementation (before 18:50 Codex window)",
-            "implementer_session": "grokbot-self-120-134",
-            "reviewer_session": "grokbot-review-120-134",
-            "fix_status": "passed",
-            "job": {
-              "id": "e730f334302d4861948d23de8cb62138",
-              "phase": "presuite",
-              "started_at": "2026-11-22T13:11:37Z",
-              "command": "env",
-              "heartbeat_at": "2026-11-22T13:14:15Z",
-              "plan_sha256": "b44ea4ea4102d4833a4717cc496c930b0e2d478f0685a7e3364f61a91d0c6bcc",
-              "model": "check.py CI mode",
-              "cycle": 12,
-              "round": 1,
-              "pid": 16182,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T13:14:15Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "reviewer_model": "Grok Bot self review",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
-            "review_status": "passed"
-          },
-          "failure_history": [
-            {
-              "attempt_id": "d4e172624e774ba4a39d7b8c351c5104",
-              "source": "review",
-              "reason": "Review incomplete: strict verdict or Must-fix section missing",
-              "cycle": 12,
-              "round": 1,
-              "at": "2026-11-22T12:52:36Z",
-              "tool_fault": true,
-              "fault_kind": "incomplete_review",
-              "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
-            }
-          ],
-          "plan_review_history": [],
-          "updated_at": "2026-11-22T13:17:47Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-22T13:14:15Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-22T13:16:43Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "Grok Bot verify",
-            "at": "2026-11-22T13:16:52Z"
-          }
-        },
-        {
-          "id": "R2-142",
-          "name": "bcl snapshot command",
-          "finding_ids": [
-            "BCL-142"
-          ],
-          "label": "BCL-142",
-          "status": "verified",
-          "worktree": "bcl120-r1-142",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-142.sh",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "codex": {
-            "model": "Guru subagent worker",
-            "implementer_session": "worker-bcl120-r1-142",
-            "fix_status": "passed",
-            "job": {
-              "id": "029d1aa9e5d744c89513e9f3eded5f4f",
-              "phase": "presuite",
-              "started_at": "2026-11-22T13:33:26Z",
-              "command": "env",
-              "heartbeat_at": "2026-11-22T13:35:51Z",
-              "plan_sha256": "1aea6f3ce95b1c0a37be81b22dd9edc85d7924fedc058d4be84fb9a62c12ae0e",
-              "model": "check.py CI mode",
-              "cycle": 12,
-              "round": 1,
-              "pid": 75218,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T13:35:51Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "review_status": "passed",
-            "reviewer_model": "gpt-6.1-terra medium (Codex)"
-          },
-          "failure_history": [],
-          "plan_review_history": [],
-          "parked_to": 2,
-          "updated_at": "2026-11-22T13:37:53Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-22T13:35:51Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-22T13:37:52Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "Grok Bot verify",
-            "at": "2026-11-22T13:37:53Z"
-          }
-        },
         {
           "id": "R2-145",
           "name": "One lane-state table for every writer",
@@ -12585,7 +12396,7 @@
             "BCL-145"
           ],
           "label": "BCL-145",
-          "status": "deferred",
+          "status": "planned",
           "worktree": "bcl120-r1-145",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-145.sh",
@@ -12596,14 +12407,75 @@
           },
           "codex": {
             "model": "Guru subagent worker",
-            "implementer_session": "worker-bcl120-r1-145"
+            "implementer_session": "worker-bcl120-r1-145",
+            "reviewer_session": "review-r2-145"
           },
+          "files": [
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/*.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json",
+            "plugins/batched-change-list/skills/batched-change-list/statechart.html"
+          ],
           "failure_history": [],
           "plan_review_history": [],
-          "parked_to": 2,
-          "updated_at": "2026-11-22T13:36:56Z",
-          "phase": "deferred",
-          "reason": "Guru 19:06 IST: ship R2-142 now; R2-145 worker continues in bcl120-r1-145 and ships after the next Introspect"
+          "updated_at": "2026-11-22T13:42:25Z"
+        },
+        {
+          "id": "R2-DO1",
+          "name": "Tracker snapshot commits are not failures",
+          "finding_ids": [
+            "DO-1"
+          ],
+          "label": "DO-1",
+          "status": "planned",
+          "worktree": "bcl120-r2-do1",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-do1.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "gpt-6-luna fast medium (Codex CLI)",
+            "implementer_session": "codex-luna-120-do1",
+            "reviewer_session": "codex-terra-120-do1"
+          },
+          "files": [
+            "plugins/developer-observability/runtime/collector/sources.py",
+            "plugins/developer-observability/tests/test_collector*.py"
+          ],
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T13:42:25Z"
+        },
+        {
+          "id": "R2-176",
+          "name": "Release suite scoped to changed plugins",
+          "finding_ids": [
+            "BCL-176"
+          ],
+          "label": "BCL-176",
+          "status": "planned",
+          "worktree": "bcl120-r2-176",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-176.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "model": "gpt-6-luna fast medium (Codex CLI)",
+            "implementer_session": "codex-luna-120-176",
+            "reviewer_session": "none-one-file"
+          },
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/references/release.md"
+          ],
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-22T13:42:25Z"
         },
         {
           "id": "DEFER",
@@ -12633,27 +12505,29 @@
             "BCL-160",
             "BCL-161",
             "BCL-166",
-            "BCL-94"
+            "BCL-171",
+            "BCL-175",
+            "BCL-94",
+            "DO-2",
+            "DO-3"
           ],
           "label": "rest",
           "status": "deferred",
           "phase": "deferred",
-          "reason": "Round 1 holds four lanes (max 4, disjoint files); the rest wait for round 2",
+          "reason": "Round 2: page status (BCL-157/170), BCL-175, Collect and Verify observability (BCL-171, BCL-160) and event stamping (BCL-177) all change the bcl core files R2-145 is rewriting, so the file-overlap check holds them for round 3; the per-round view (DO-3) waits for the stamping",
           "failure_history": [],
           "plan_review_history": [],
-          "parked_to": 2,
-          "updated_at": "2026-11-22T13:17:47Z",
+          "parked_to": 3,
+          "updated_at": "2026-11-22T13:42:25Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 25
-          },
-          "codex": {}
+            "total": 29
+          }
         }
       ],
-      "cycle": 12,
-      "status": "closed"
+      "cycle": 12
     },
     "verification_run": {
       "id": "r1-e5f518da-120",
@@ -13072,7 +12946,7 @@
         "refined_by": "Guru 10:24 IST t1606u (evidence bar, via parent)",
         "root_cause_group": "M-INTROSPECT (merged by class, Guru 17:33)",
         "merged_from": "BCL-100: Introspect does not look across rounds for repeated waste",
-        "also reported as BCL-173": "Introspect conclusions carry no observability evidence The Introspect draft is built from the agent's own step list; nothing seeds it from recorded observability issues for the verify window, and conclusions need no evidence. 22 Nov 2026 18:54 IST, Guru rule and read-only audit; last collector run before today 20 Nov 16:41 IST; fresh snapshot 052d5b22 taken 18:55 IST"
+        "also reported as BCL-173": "Introspect conclusions carry no observability evidence The Introspect draft is built from the agent's own step list; nothing seeds it from recorded observability issues for the verify window, and conclusions need no evidence. 22 Nov 2026 18:54 IST, Guru rule and read-only audit; last collector run before today 20 Nov 16:41 IST; fresh snapshot 052d5b22 taken 18:55 IST | Token source (spec 19:15 IST): tokens per job in the event log with source Codex capture, Grok Bot or none; sum only when complete; report coverage and name jobs with no source."
       }
     },
     {
@@ -13301,7 +13175,7 @@
       "observed": "22 Nov 2026 09:45 IST, bcl 0.1.60, reliability pass over PR 117 to 119",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "PR 119 round 2 reliability pass (Guru 09:41 IST); attack-the-premise",
         "report": "bcl-119 progress.md",
@@ -13331,7 +13205,8 @@
         "kind": "fix",
         "root_cause_group": "M-RECEIPTS (merged by class, Guru 17:33)",
         "merged_from": "BCL-119: Goal: every job records tokens and wall time, and Introspect ranks the costliest steps",
-        "also reported as BCL-174": "Change list job and verify logs are not observability sources The logs of verify, the full suite and lane jobs are not registered as collector sources, so failures and slow steps in the change list workflow never reach observability. 22 Nov 2026 18:54 IST, Guru rule and read-only audit; last collector run before today 20 Nov 16:41 IST; fresh snapshot 052d5b22 taken 18:55 IST"
+        "also reported as BCL-174": "Change list job and verify logs are not observability sources The logs of verify, the full suite and lane jobs are not registered as collector sources, so failures and slow steps in the change list workflow never reach observability. 22 Nov 2026 18:54 IST, Guru rule and read-only audit; last collector run before today 20 Nov 16:41 IST; fresh snapshot 052d5b22 taken 18:55 IST",
+        "also reported as BCL-177": "The change list writes no event log with round, stage and job for observability No stage or job of the change list records pull request, round, stage, group, job, run, build, plugin, start and end times, outcome and tokens in one place, and round history has no start time or run, so observability cannot stamp or window anything by round. 22 Nov 2026 19:15 IST, per-round view spec ~/.agents/artifacts/bcl-120/devobs-round-view.md"
       }
     },
     {
@@ -13570,7 +13445,7 @@
       "observed": "22 Nov 2026 19:08 IST, round 1 introspect of PR 120",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "finding_key": "col-8394fc3bec1b1387",
         "evidence": "snapshots 0ea4fb35 (19:07:32 IST) and d017c9e9 (19:08:11 IST), ~/.agents/artifacts/bcl-120/devobs-after-142.json"
@@ -13596,14 +13471,16 @@
       "title": "No per-round view: earlier rounds' findings mix with the current one",
       "summary": "A snapshot lists every finding for a project with no round or window filter, so this round's view of the plugin repository mixed 3 active findings with 20 stale ones from 14 and 20 November, and no finding carries a project field for the change list.",
       "impact": "An agent acting on the snapshot reads old failures as current and spends context on them.",
-      "recommendation": "Give a per-round or time-window view that shows only findings first or last seen in the window, with counts first and details on request, and set the project on each finding.",
-      "done_when": "Asking for a round window returns only that window's findings as a short summary with expandable details; a test covers stale findings being excluded.",
+      "recommendation": "Stamp each event with pull request, round, stage, plugin, group, job and run at capture, from the change list's event log; extend the existing issues query with those filters plus change class and a time window, returning a capped one-line summary first and rows, one finding, and evidence paths only on request; apply noise rules. No new tool, no dashboard.",
+      "done_when": "The ten acceptance checks in the spec pass: round queries return only that round's stamped rows with unstamped counts and gaps, change classes are correct, tier caps and noise rules hold, and the cursor is bound to the filters.",
       "observed": "22 Nov 2026 19:10 IST, round 1 introspect of PR 120; Guru asked for a per-round high-signal view with progressive disclosure",
       "priority": "high",
       "source": "Agent reported",
       "status": "untested",
       "details": {
-        "evidence": "snapshot d017c9e9: owner agent-plugins 20 findings of which 17 stale (last seen 14 and 20 Nov); project field empty on all 150"
+        "evidence": "snapshot d017c9e9: owner agent-plugins 20 findings of which 17 stale (last seen 14 and 20 Nov); project field empty on all 150",
+        "spec": "~/.agents/artifacts/bcl-120/devobs-round-view.md (19:15 IST, design only). Extend the issues query with pr, round, stage, plugin, kind, status, change (new, recurring, resolved, carried), since, until and tier; four tiers capped at 400 B, 2 KB, 4 KB, 300 B; noise rules drop stale, out-of-window, fixture and self-health rows; unknown dimensions counted as unstamped, never matched. Depends on the change list event stamping (BCL-147).",
+        "acceptance": "1 round+stage query returns only fully stamped rows (0 on 052d5b22, unstamped 8, gap pr120_ci_absent); 2 no cross-PR mixing; 3 AND law across filters, list is OR; 4 new/recurring/resolved/carried; 5 past-round rows absent from a round query; 6 tier caps hold on full snapshot; 7 fixture and storage rows hidden; 8 cursor bound to filters; 9 token coverage 1/2 names grokbot gap; 10 Introspect conclusion without issue@round flagged."
       }
     },
     {
@@ -13616,7 +13493,7 @@
       "observed": "22 Nov 2026 19:10 IST, round 1 introspect of PR 120",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "finding_key": "col-c56a5cccf80f5577; col-a6d1bba4b8ef188d; col-77ecdb6e5fd5a2b1",
         "evidence": "snapshot d017c9e9 latency hotspots: Swift service p95 111.3 s, context ledger contract p95 69.4 s; presuite logs ~/.agents/artifacts/bcl-120/presuite-r1.log (159 s), presuite-142.log (145 s)"
