@@ -11887,9 +11887,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T11:15:55Z",
-      "now": "2026-11-22T11:15:55Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T11:25:55Z",
+      "now": "2026-11-22T11:25:55Z — Fix started"
     },
     "rollover": {
       "source_pr": 118,
@@ -13621,10 +13621,14 @@
               "plan_sha256": "8ae022fb90f12ff7f6c2db1aa8f907b06ffa54fd2160ba03df1a036766d74474",
               "model": "grokbot-review-pass (separate pass; Codex out until 18:50)",
               "cycle": 11,
-              "round": 3
+              "round": 3,
+              "pid": 83673,
+              "exit_code": 0,
+              "finished_at": "2026-11-22T11:15:55Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "grokbot-review-pass (separate pass; Codex out until 18:50)"
           },
           "failure_history": [],
@@ -13639,7 +13643,7 @@
             "BCL-154"
           ],
           "label": "BCL-154",
-          "status": "pending",
+          "status": "running",
           "worktree": "bcl119-r3-154",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-119/r3/verify-154.sh",
@@ -13651,11 +13655,24 @@
           "codex": {
             "model": "Grok Bot self-implementation (Codex quota out until 18:50)",
             "implementer_session": "grokbot-self-119r3-154",
-            "reviewer_session": "grokbot-review-119r3-154"
+            "reviewer_session": "grokbot-review-119r3-154",
+            "fix_status": "running",
+            "job": {
+              "id": "628478c0d64443be828d7dd6c7b491eb",
+              "phase": "fix",
+              "started_at": "2026-11-22T11:25:55Z",
+              "command": "self-lane.sh",
+              "heartbeat_at": "2026-11-22T11:25:55Z",
+              "plan_sha256": "8ae022fb90f12ff7f6c2db1aa8f907b06ffa54fd2160ba03df1a036766d74474",
+              "model": "Grok Bot self (Codex out until 18:50)",
+              "cycle": 11,
+              "round": 3
+            }
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-22T11:14:49Z"
+          "updated_at": "2026-11-22T11:14:49Z",
+          "phase": "fix"
         },
         {
           "id": "R2-145",
