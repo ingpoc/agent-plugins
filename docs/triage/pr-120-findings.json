@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-22T12:52:36Z",
-      "now": "2026-11-22T12:52:36Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-22T12:53:48Z",
+      "now": "2026-11-22T12:53:48Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -12195,7 +12195,7 @@
             "BCL-134"
           ],
           "label": "BCL-134",
-          "status": "review",
+          "status": "running",
           "worktree": "bcl120-r1-134",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r1-134.sh",
@@ -12208,26 +12208,38 @@
             "model": "Grok Bot self-implementation (before 18:50 Codex window)",
             "implementer_session": "grokbot-self-120-134",
             "reviewer_session": "grokbot-review-120-134",
-            "fix_status": "passed",
+            "fix_status": "running",
             "job": {
-              "id": "d4e172624e774ba4a39d7b8c351c5104",
-              "phase": "review",
-              "started_at": "2026-11-22T12:52:36Z",
-              "command": "test",
-              "heartbeat_at": "2026-11-22T12:52:36Z",
+              "id": "2d1de324447a4de0b4ff1de8d78fc68f",
+              "phase": "fix",
+              "started_at": "2026-11-22T12:53:48Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-22T12:53:48Z",
               "plan_sha256": "b44ea4ea4102d4833a4717cc496c930b0e2d478f0685a7e3364f61a91d0c6bcc",
-              "model": "Grok Bot self review",
+              "model": "Grok Bot self",
               "cycle": 12,
               "round": 1
             },
-            "tool_fault_streak": 0,
-            "review_status": "running",
-            "reviewer_model": "Grok Bot self review"
+            "tool_fault_streak": 1,
+            "reviewer_model": "Grok Bot self review",
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
           },
-          "failure_history": [],
+          "failure_history": [
+            {
+              "attempt_id": "d4e172624e774ba4a39d7b8c351c5104",
+              "source": "review",
+              "reason": "Review incomplete: strict verdict or Must-fix section missing",
+              "cycle": 12,
+              "round": 1,
+              "at": "2026-11-22T12:52:36Z",
+              "tool_fault": true,
+              "fault_kind": "incomplete_review",
+              "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
+            }
+          ],
           "plan_review_history": [],
           "updated_at": "2026-11-22T12:50:21Z",
-          "phase": "review"
+          "phase": "fix"
         },
         {
           "id": "R2-142",
