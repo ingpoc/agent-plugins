@@ -11466,6 +11466,157 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "r4-1f866e81-120",
+        "build": "0.1.72",
+        "revision": "1f866e81335acf9702f48b26a5ed4248284fcbd4",
+        "installed_at": "2026-11-22T18:24:24Z",
+        "install_evidence": "bcl install-local from list worktree at 1f866e81 (batched-change-list 0.1.72): plugin sha 75a56173 (cache copies), skill sha adde971e",
+        "cycle": 12,
+        "status": "interrupted",
+        "checks": {
+          "ACU-10": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "ACU-21": {
+            "state": "pending"
+          },
+          "BCL-94": {
+            "state": "pending"
+          },
+          "BCL-103": {
+            "state": "fixed",
+            "observation": "Rechecking the installed review guides after correcting the test command",
+            "observed_at": "2026-11-22T18:28:37Z",
+            "started_at": "2026-11-22T18:29:21Z",
+            "updated_at": "2026-11-22T18:29:21Z",
+            "previous_checks": [
+              {
+                "state": "inconclusive",
+                "observation": "Checking the installed 0.1.72 review guides now",
+                "observed_at": "2026-11-22T18:25:44Z",
+                "started_at": "2026-11-22T18:25:44Z",
+                "updated_at": "2026-11-22T18:25:44Z",
+                "check_id": "20fa072a6e8644f187bd73d0bb735f50",
+                "evidence": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1",
+                "details": "Command: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-103.sh\nChecked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1",
+                "finished_at": "2026-11-22T18:25:46.043842Z"
+              }
+            ],
+            "check_id": "aca90fa5eee24cb2acbfec2c80887178",
+            "evidence": "Checked: The review and plan-fix guides, the must-fix reference test, and the existing integrated-head bump refusal\nExpected: No lane review lists the version or changelog as a must-fix, and the integrated head still refuses a missing bump\nObserved: All three checks passed on the installed copy after the test command was pointed at the scripts directory",
+            "details": "Log: ~/.agents/artifacts/bcl-120/verify-r4-103.log; installed batched-change-list 0.1.72 from 1f866e81; plugin sha 75a56173, skill sha adde971e; first verify exited 1 because the bump tests were invoked with an unloadable module path, then passed on rerun from the scripts directory; dev-obs before 9c8c1e1e, after 3dd53e40. Run r4-1f866e81-120.",
+            "finished_at": "2026-11-22T18:29:21.348979Z"
+          },
+          "BCL-106": {
+            "state": "pending"
+          },
+          "BCL-108": {
+            "state": "pending"
+          },
+          "BCL-110": {
+            "state": "pending"
+          },
+          "BCL-113": {
+            "state": "pending"
+          },
+          "BCL-115": {
+            "state": "pending"
+          },
+          "BCL-120": {
+            "state": "pending"
+          },
+          "BCL-121": {
+            "state": "pending"
+          },
+          "BCL-124": {
+            "state": "pending"
+          },
+          "BCL-125": {
+            "state": "pending"
+          },
+          "BCL-130": {
+            "state": "pending"
+          },
+          "BCL-134": {
+            "state": "pending"
+          },
+          "BCL-139": {
+            "state": "pending"
+          },
+          "BCL-140": {
+            "state": "pending"
+          },
+          "BCL-142": {
+            "state": "pending"
+          },
+          "BCL-144": {
+            "state": "pending"
+          },
+          "BCL-145": {
+            "state": "pending"
+          },
+          "BCL-147": {
+            "state": "pending"
+          },
+          "BCL-149": {
+            "state": "pending"
+          },
+          "BCL-151": {
+            "state": "pending"
+          },
+          "BCL-157": {
+            "state": "fixed",
+            "observation": "Checking the installed 0.1.72 now",
+            "observed_at": "2026-11-22T18:25:20Z",
+            "started_at": "2026-11-22T18:25:20Z",
+            "updated_at": "2026-11-22T18:25:20Z",
+            "check_id": "4f204fcd9ab6422eafbcb0af6c11ab90",
+            "evidence": "Checked: Time in the current stage on each lane row, the page Updated stamp, and the label after a review has passed\nExpected: Time in stage resets only when the stage changes, Updated moves on every tracker write including a finding write, and a finished review reads Review passed rather than Paused and needs resume\nObserved: All four checks passed on the installed copy; the live page shows time in stage and Review passed for the two reviewed lanes, with no Paused and needs resume label",
+            "details": "Log: ~/.agents/artifacts/bcl-120/verify-r4-157.log; installed batched-change-list 0.1.72 from 1f866e81; plugin sha 75a56173, skill sha adde971e; dev-obs before 9c8c1e1e (collected 150 findings), after 3dd53e40 (151 findings). Run r4-1f866e81-120. Also covers BCL-170 (filed into BCL-157).",
+            "finished_at": "2026-11-22T18:29:21.337135Z"
+          },
+          "BCL-158": {
+            "state": "pending"
+          },
+          "BCL-159": {
+            "state": "pending"
+          },
+          "BCL-160": {
+            "state": "pending"
+          },
+          "BCL-161": {
+            "state": "pending"
+          },
+          "BCL-166": {
+            "state": "pending"
+          },
+          "BCL-171": {
+            "state": "pending"
+          },
+          "BCL-175": {
+            "state": "pending"
+          },
+          "DO-1": {
+            "state": "pending"
+          },
+          "DO-2": {
+            "state": "pending"
+          },
+          "DO-3": {
+            "state": "pending"
+          },
+          "BCL-176": {
+            "state": "pending"
+          },
+          "BCL-177": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -11480,9 +11631,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-24T06:04:20Z",
-      "now": "2026-11-24T06:04:20Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-24T06:04:40Z",
+      "now": "2026-11-24T06:04:40Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -13166,7 +13317,8 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 5,
@@ -13178,7 +13330,7 @@
             "BCL-177"
           ],
           "label": "BCL-177",
-          "status": "installing",
+          "status": "verifying",
           "worktree": "samantha-next-r10",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r5-177.sh",
@@ -13266,9 +13418,9 @@
               "at": "2026-11-24T04:55:50Z"
             }
           ],
-          "updated_at": "2026-11-24T05:34:13Z",
-          "stage_entered_at": "2026-11-24T06:04:20Z",
-          "phase": "install",
+          "updated_at": "2026-11-24T06:04:40Z",
+          "stage_entered_at": "2026-11-24T06:04:40Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -13279,9 +13431,9 @@
             "started_at": "2026-11-24T06:04:20Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "Grok Bot",
-            "at": "2026-11-24T06:04:20Z"
+            "at": "2026-11-24T06:04:40Z"
           }
         },
         {
@@ -13650,11 +13802,11 @@
       "cycle": 12
     },
     "verification_run": {
-      "id": "r4-1f866e81-120",
-      "build": "0.1.72",
-      "revision": "1f866e81335acf9702f48b26a5ed4248284fcbd4",
-      "installed_at": "2026-11-22T18:24:24Z",
-      "install_evidence": "bcl install-local from list worktree at 1f866e81 (batched-change-list 0.1.72): plugin sha 75a56173 (cache copies), skill sha adde971e",
+      "id": "r5-77d2c0b0-120",
+      "build": "0.1.73",
+      "revision": "77d2c0b01836bd8fa35eca066ed17d3f8c075063",
+      "installed_at": "2026-11-24T06:01:47Z",
+      "install_evidence": "bcl install-local from list worktree at 77d2c0b0 (batched-change-list 0.1.73): plugin sha e07aa5d8, skill sha 15f1d9e4; developer-observability 0.1.36 copied to ~/.agents/plugins/developer-observability and runtime/install.py kept the existing config",
       "cycle": 12,
       "status": "active",
       "checks": {
@@ -13671,28 +13823,7 @@
           "state": "pending"
         },
         "BCL-103": {
-          "state": "fixed",
-          "observation": "Rechecking the installed review guides after correcting the test command",
-          "observed_at": "2026-11-22T18:28:37Z",
-          "started_at": "2026-11-22T18:29:21Z",
-          "updated_at": "2026-11-22T18:29:21Z",
-          "previous_checks": [
-            {
-              "state": "inconclusive",
-              "observation": "Checking the installed 0.1.72 review guides now",
-              "observed_at": "2026-11-22T18:25:44Z",
-              "started_at": "2026-11-22T18:25:44Z",
-              "updated_at": "2026-11-22T18:25:44Z",
-              "check_id": "20fa072a6e8644f187bd73d0bb735f50",
-              "evidence": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1",
-              "details": "Command: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-103.sh\nChecked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1",
-              "finished_at": "2026-11-22T18:25:46.043842Z"
-            }
-          ],
-          "check_id": "aca90fa5eee24cb2acbfec2c80887178",
-          "evidence": "Checked: The review and plan-fix guides, the must-fix reference test, and the existing integrated-head bump refusal\nExpected: No lane review lists the version or changelog as a must-fix, and the integrated head still refuses a missing bump\nObserved: All three checks passed on the installed copy after the test command was pointed at the scripts directory",
-          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r4-103.log; installed batched-change-list 0.1.72 from 1f866e81; plugin sha 75a56173, skill sha adde971e; first verify exited 1 because the bump tests were invoked with an unloadable module path, then passed on rerun from the scripts directory; dev-obs before 9c8c1e1e, after 3dd53e40. Run r4-1f866e81-120.",
-          "finished_at": "2026-11-22T18:29:21.348979Z"
+          "state": "pending"
         },
         "BCL-106": {
           "state": "pending"
@@ -13752,15 +13883,7 @@
           "state": "pending"
         },
         "BCL-157": {
-          "state": "fixed",
-          "observation": "Checking the installed 0.1.72 now",
-          "observed_at": "2026-11-22T18:25:20Z",
-          "started_at": "2026-11-22T18:25:20Z",
-          "updated_at": "2026-11-22T18:25:20Z",
-          "check_id": "4f204fcd9ab6422eafbcb0af6c11ab90",
-          "evidence": "Checked: Time in the current stage on each lane row, the page Updated stamp, and the label after a review has passed\nExpected: Time in stage resets only when the stage changes, Updated moves on every tracker write including a finding write, and a finished review reads Review passed rather than Paused and needs resume\nObserved: All four checks passed on the installed copy; the live page shows time in stage and Review passed for the two reviewed lanes, with no Paused and needs resume label",
-          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r4-157.log; installed batched-change-list 0.1.72 from 1f866e81; plugin sha 75a56173, skill sha adde971e; dev-obs before 9c8c1e1e (collected 150 findings), after 3dd53e40 (151 findings). Run r4-1f866e81-120. Also covers BCL-170 (filed into BCL-157).",
-          "finished_at": "2026-11-22T18:29:21.337135Z"
+          "state": "pending"
         },
         "BCL-158": {
           "state": "pending"
@@ -13796,6 +13919,13 @@
           "state": "pending"
         },
         "BCL-177": {
+          "state": "checking",
+          "observation": "Checking the installed 0.1.73 change-list and 0.1.36 observability now",
+          "observed_at": "2026-11-24T06:04:00Z",
+          "started_at": "2026-11-24T06:04:20Z",
+          "updated_at": "2026-11-24T06:04:20Z"
+        },
+        "PR120-r5-codex-reviewer-model-fallback": {
           "state": "pending"
         }
       }
@@ -13908,7 +14038,7 @@
       "round": 4,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T06:04:20Z"
+    "last_written_at": "2026-11-24T06:04:40Z"
   },
   "findings": [
     {
