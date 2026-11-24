@@ -325,7 +325,139 @@
         "ended_at": "2026-11-24T18:51:29Z"
       }
     ],
-    "introspect_history": [],
+    "introspect_history": [
+      {
+        "result": "Introspect: no issues",
+        "at": "2026-11-24T19:29:09Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 12",
+          "Codex write: R1-GUARD",
+          "Codex review: R1-GUARD",
+          "Polling and rework review: R1-GUARD",
+          "Codex write: R1-TOKENS",
+          "Codex review: R1-TOKENS",
+          "Polling and rework review: R1-TOKENS",
+          "Codex write: R1-JOBUX",
+          "Codex review: R1-JOBUX",
+          "Polling and rework review: R1-JOBUX",
+          "Codex write: R1-COSMETIC",
+          "Codex review: R1-COSMETIC",
+          "Polling and rework review: R1-COSMETIC",
+          "Codex write: R4-106",
+          "Codex review: R4-106",
+          "Polling and rework review: R4-106",
+          "Codex write: R4-171",
+          "Codex review: R4-171",
+          "Polling and rework review: R4-171",
+          "Codex write: R2-DEADLOCK",
+          "Codex review: R2-DEADLOCK",
+          "Polling and rework review: R2-DEADLOCK",
+          "Codex write: R3-TRACKER",
+          "Codex review: R3-TRACKER",
+          "Polling and rework review: R3-TRACKER",
+          "Codex write: R3-INTRO",
+          "Codex review: R3-INTRO",
+          "Polling and rework review: R3-INTRO",
+          "Codex write: R3-VERDICT",
+          "Codex review: R3-VERDICT",
+          "Polling and rework review: R3-VERDICT",
+          "Codex write: R4-GATES",
+          "Codex review: R4-GATES",
+          "Polling and rework review: R4-GATES",
+          "Test command: R4-GATES: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-gates.sh",
+          "Codex write: R5-SHIP",
+          "Codex review: R5-SHIP",
+          "Polling and rework review: R5-SHIP",
+          "Test command: R5-SHIP: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-ship.sh",
+          "Job wall time: R4-GATES a45debf54d0e41c99a67024fb4f88676 186s",
+          "Job wall time: R3-TRACKER 970165cfc5fb4e989708e3ee8492aa7e 185s",
+          "Job wall time: R3-INTRO 970165cfc5fb4e989708e3ee8492aa7e 185s",
+          "Repeat: interrupted verification runs",
+          "Repeat: review failures on R4-106",
+          "Repeat: review failures on R4-171",
+          "Repeat: review failures on R3-INTRO",
+          "Repeat: review failures on R2-DO1",
+          "Repeat: plan reviews on R2-DO1",
+          "Repeat: review failures on R4-GATES"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 12",
+          "Codex write: R1-GUARD",
+          "Codex review: R1-GUARD",
+          "Polling and rework review: R1-GUARD",
+          "Codex write: R1-TOKENS",
+          "Codex review: R1-TOKENS",
+          "Polling and rework review: R1-TOKENS",
+          "Codex write: R1-JOBUX",
+          "Codex review: R1-JOBUX",
+          "Polling and rework review: R1-JOBUX",
+          "Codex write: R1-COSMETIC",
+          "Codex review: R1-COSMETIC",
+          "Polling and rework review: R1-COSMETIC",
+          "Codex write: R4-106",
+          "Codex review: R4-106",
+          "Polling and rework review: R4-106",
+          "Codex write: R4-171",
+          "Codex review: R4-171",
+          "Polling and rework review: R4-171",
+          "Codex write: R2-DEADLOCK",
+          "Codex review: R2-DEADLOCK",
+          "Polling and rework review: R2-DEADLOCK",
+          "Codex write: R3-TRACKER",
+          "Codex review: R3-TRACKER",
+          "Polling and rework review: R3-TRACKER",
+          "Codex write: R3-INTRO",
+          "Codex review: R3-INTRO",
+          "Polling and rework review: R3-INTRO",
+          "Codex write: R3-VERDICT",
+          "Codex review: R3-VERDICT",
+          "Polling and rework review: R3-VERDICT",
+          "Codex write: R4-GATES",
+          "Codex review: R4-GATES",
+          "Polling and rework review: R4-GATES",
+          "Test command: R4-GATES: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-gates.sh",
+          "Codex write: R5-SHIP",
+          "Codex review: R5-SHIP",
+          "Polling and rework review: R5-SHIP",
+          "Test command: R5-SHIP: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-ship.sh",
+          "Job wall time: R4-GATES a45debf54d0e41c99a67024fb4f88676 186s",
+          "Job wall time: R3-TRACKER 970165cfc5fb4e989708e3ee8492aa7e 185s",
+          "Job wall time: R3-INTRO 970165cfc5fb4e989708e3ee8492aa7e 185s",
+          "Repeat: interrupted verification runs",
+          "Repeat: review failures on R4-106",
+          "Repeat: review failures on R4-171",
+          "Repeat: review failures on R3-INTRO",
+          "Repeat: review failures on R2-DO1",
+          "Repeat: plan reviews on R2-DO1",
+          "Repeat: review failures on R4-GATES"
+        ],
+        "sections": {
+          "delete": {
+            "none": "Post-merge review of PR #122: BCL-125 already deleted the extra review and resort-failures commands (stored verify r4-gates.sh on installed 4031c6fa). No further command, stage, or API remained to subtract after the merge."
+          },
+          "simplify": {
+            "none": "Reviewed the cross-round repeats against failure_history. R3-INTRO and R4-GATES repeats were tool-fault runner_exit or incomplete_review, already classified as tool faults rather than code failures. R4-106 and R4-171 counted reviews were from cycle 12 and were verified on this PR. R2-DO1 stays parked for Guru; its cycle-12 reviews were not rerun after the intake freeze. 36 of 38 interrupted verification runs have no cycle stamp and remain in PR122-parked-backlog; the two cycle-14 interruptions (pr122-r1, pr122-r2) did not get a new workflow change this pass. No additional simplification after merge."
+          },
+          "optimize": {
+            "none": "Decision before the numbers: the 186s R4-GATES job and the 185s R3-TRACKER and R3-INTRO jobs are the same shared CI=1 check.py --jobs 6 cost, limited by test_bcl.py (about 182-189s in CI). That is one ship-suite duration, not three independent 185s lane costs, so no extra split or skip is proposed after merge."
+          },
+          "automate": {
+            "none": "Token and job-receipt capture already shipped on this PR (R1-TOKENS, BCL-147). No new observability findings under the intake freeze. Historical evidence gaps stay in PR122-parked-backlog."
+          }
+        },
+        "round": 1,
+        "cycle": 15,
+        "scope": "post_merge"
+      }
+    ],
     "archive": {
       "path": "/Users/gurusharan/.agents/state/batched-change-list/ingpoc--agent-plugins/archive.json",
       "count": 375
@@ -347,7 +479,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T19:25:31Z",
+    "last_written_at": "2026-11-24T19:29:09Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -512,7 +644,7 @@
     },
     "post_merge_introspect": {
       "result": "Introspect: no issues",
-      "at": "2026-11-24T19:05:30Z",
+      "at": "2026-11-24T19:29:09Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
@@ -637,8 +769,8 @@
           "none": "Token and job-receipt capture already shipped on this PR (R1-TOKENS, BCL-147). No new observability findings under the intake freeze. Historical evidence gaps stay in PR122-parked-backlog."
         }
       },
-      "round": 5,
-      "cycle": 14,
+      "round": 1,
+      "cycle": 15,
       "scope": "post_merge"
     },
     "stages_reached": [
@@ -660,7 +792,7 @@
             "BCL-178"
           ],
           "worktree": "samantha-next-r13",
-          "status": "verifying",
+          "status": "verified",
           "phase": "verify",
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -675,10 +807,11 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r1-postmerge.sh",
             "method": "Run the post-merge Introspect unit tests, including Collect start after an official record.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-24T19:25:38Z"
           },
           "failure_history": [
             {
@@ -695,7 +828,7 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-24T19:25:31Z",
-          "stage_entered_at": "2026-11-24T19:25:31Z",
+          "stage_entered_at": "2026-11-24T19:25:38Z",
           "codex": {
             "fix_status": "passed",
             "job": {
@@ -1000,7 +1133,7 @@
       "observed": "On list 123, bcl start failed with Collect is refused until the post-merge Introspect is recorded. bcl introspect has no --scope flag, and manage_findings require_transition introspect requires Verify. A script then copied 122 tracking.post_merge_introspect onto 123.json through manage_findings.write; that was a direct tracker write, not a supported bcl command.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "command": "bcl introspect --scope post_merge --draft FILE.json, then bcl introspect --scope post_merge --sections FILE.json",
         "gap": "require_transition introspect requires verify; CLI has no --scope; official introspect would also mark stages_reached and close the plan"
@@ -1018,12 +1151,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T19:25:38Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T19:18:53Z",
         "source": "lane_failure"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r1-postmerge.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r1-postmerge.sh"
     }
   ]
 }
