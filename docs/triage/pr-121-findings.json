@@ -11252,9 +11252,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-24T14:56:59Z",
-      "now": "2026-11-24T14:56:59Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-24T15:06:33Z",
+      "now": "2026-11-24T15:06:33Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 120,
@@ -12701,6 +12701,116 @@
         },
         "round": 2,
         "cycle": 13
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-24T15:06:33Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 5",
+          "Codex write: R2-STATUS",
+          "Codex review: R2-STATUS",
+          "Polling and rework review: R2-STATUS",
+          "Test command: R2-STATUS: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh",
+          "Codex write: R2-TRACKER",
+          "Codex review: R2-TRACKER",
+          "Polling and rework review: R2-TRACKER",
+          "Test command: R2-TRACKER: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh",
+          "Codex write: R2-DOVIEW",
+          "Codex review: R2-DOVIEW",
+          "Polling and rework review: R2-DOVIEW",
+          "Test command: R2-DOVIEW: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh",
+          "Codex write: R3-CLI",
+          "Codex review: R3-CLI",
+          "Polling and rework review: R3-CLI",
+          "Test command: R3-CLI: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cli.sh",
+          "Codex write: R3-COSMETIC",
+          "Codex review: R3-COSMETIC",
+          "Polling and rework review: R3-COSMETIC",
+          "Test command: R3-COSMETIC: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cosmetic.sh",
+          "Developer-observability job events for this list's round-3 Grok Bot jobs captured 0 of 8 token totals (model was recorded, token source was none)",
+          "Official collect coverage across all lists is 9 of 178 finished jobs with token totals",
+          "R2-DO4 start-check after official verify blocked a verified lane; fixed inline so an in-progress check no longer uncounts or blocks it",
+          "Grok Bot implementer work for the viewer writers and CLI fixes was not recorded as a token-bearing job, only the later official fix, review, and pre-push suite wrappers",
+          "Needs Guru items BCL-106, BCL-171, and DO-1 stayed parked for a later round",
+          "DO-13 remains planned as a cosmetic follow-up",
+          "R2-DO4 and R3-CLI pre-push suites each ran about three minutes (181s and 179s) from official job receipts; no token totals were attached"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 5",
+          "Codex write: R2-STATUS",
+          "Codex review: R2-STATUS",
+          "Polling and rework review: R2-STATUS",
+          "Test command: R2-STATUS: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh",
+          "Codex write: R2-TRACKER",
+          "Codex review: R2-TRACKER",
+          "Polling and rework review: R2-TRACKER",
+          "Test command: R2-TRACKER: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh",
+          "Codex write: R2-DOVIEW",
+          "Codex review: R2-DOVIEW",
+          "Polling and rework review: R2-DOVIEW",
+          "Test command: R2-DOVIEW: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh",
+          "Codex write: R3-CLI",
+          "Codex review: R3-CLI",
+          "Polling and rework review: R3-CLI",
+          "Test command: R3-CLI: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cli.sh",
+          "Codex write: R3-COSMETIC",
+          "Codex review: R3-COSMETIC",
+          "Polling and rework review: R3-COSMETIC",
+          "Test command: R3-COSMETIC: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cosmetic.sh",
+          "Needs Guru items BCL-106, BCL-171, and DO-1 stayed parked for a later round",
+          "DO-13 remains planned as a cosmetic follow-up",
+          "R2-DO4 and R3-CLI pre-push suites each ran about three minutes (181s and 179s) from official job receipts; no token totals were attached"
+        ],
+        "sections": {
+          "delete": {
+            "none": "Nothing from this round's shipped work should be removed; the verified viewer and command-line fixes and the already filed token-capture requests should stay recorded."
+          },
+          "simplify": {
+            "none": "The shipped lanes already used stored verify commands and one official install each; the cosmetic lane was planned but not written, so there was no extra review loop to simplify this pass."
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "R2-DO4 start-check after official verify blocked a verified lane; fixed inline so an in-progress check no longer uncounts or blocks it",
+                "evidence": "After official verify, starting a check on the already verified DO-4 and DO-12 findings flipped the R2-DO4 lane to blocked with the reason Prerequisite verification changed, even though both findings stayed verified. A counted failure history prevented restoring the lane, so it had to be parked. Round-3 wall time on that recovery was spent in extra plan updates rather than in new fixes. After commit eb7e8b67, a check still in the checking state keeps the finding counted and leaves the verified lane verified, which is the named test's after condition.",
+                "outcome": "fixed inline",
+                "proof": "test_in_progress_check_does_not_unverify_or_block_a_verified_lane"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Developer-observability job events for this list's round-3 Grok Bot jobs captured 0 of 8 token totals (model was recorded, token source was none)",
+                "evidence": "The change-list event log for this list's round-3 official jobs records eight finished Grok Bot jobs (two fix attempts, one review, and one pre-push suite on DO-4 and DO-12, and the same four on the command-line lane). Each has model Grok Bot and token source none, so zero of eight have a token total. The existing official-collect coverage finding already describes this class of gap, including jobs that record a model but no token source.",
+                "outcome": "issue",
+                "issue_id": "PR120-r6-collect-job-coverage"
+              },
+              {
+                "item": "Official collect coverage across all lists is 9 of 178 finished jobs with token totals",
+                "evidence": "A live read of the change-list job event collector on 24 Nov 2026 20:31 IST (Asia/Calcutta) reported 9 of 178 finished jobs with a verified token total. Job receipts also still omit tokens and wall time, which is already filed.",
+                "outcome": "issue",
+                "issue_id": "BCL-147"
+              },
+              {
+                "item": "Grok Bot implementer work for the viewer writers and CLI fixes was not recorded as a token-bearing job, only the later official fix, review, and pre-push suite wrappers",
+                "evidence": "The writer commits 4074ba41, c704c71e, and eb7e8b67 were implemented in a Grok Bot session before the official jobs ran. Those implementer sessions do not appear as jobs, so Introspect still cannot attribute tokens or wall time to the actual edit work. That gap is already filed.",
+                "outcome": "issue",
+                "issue_id": "DO-6"
+              }
+            ]
+          }
+        },
+        "round": 3,
+        "cycle": 13
       }
     ],
     "archive": {
@@ -12724,7 +12834,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T14:56:59Z",
+    "last_written_at": "2026-11-24T15:06:33Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -13026,7 +13136,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "cycle": 13,
@@ -13684,7 +13795,7 @@
             "BCL-161",
             "BCL-130"
           ],
-          "status": "verifying",
+          "status": "verified",
           "phase": "verify",
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -13695,10 +13806,11 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cli.sh",
             "method": "Run the change-list CLI, findings, and live-state tests.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 3,
             "failed": 0,
-            "total": 3
+            "total": 3,
+            "finished_at": "2026-11-24T15:00:20Z"
           },
           "failure_history": [
             {
@@ -13715,9 +13827,8 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-24T14:56:59Z",
-          "stage_entered_at": "2026-11-24T14:56:59Z",
+          "stage_entered_at": "2026-11-24T15:00:20Z",
           "parked_to": 4,
-          "blocked_reason": "Hold for ready-lane install",
           "codex": {
             "implementer_session": "grok-bot-r3-cli",
             "implementer_model": "Grok Bot",
@@ -13772,7 +13883,7 @@
           "finding_ids": [
             "DO-13"
           ],
-          "status": "parked",
+          "status": "planned",
           "phase": "fix",
           "files": [
             "plugins/developer-observability/ui/app.js",
@@ -13785,22 +13896,23 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T14:56:46Z",
-          "stage_entered_at": "2026-11-24T14:56:46Z",
+          "updated_at": "2026-11-24T15:00:34Z",
+          "stage_entered_at": "2026-11-24T15:00:34Z",
           "parked_to": 4,
           "blocked_reason": "Hold for ready-lane install"
         }
-      ]
+      ],
+      "status": "closed"
     },
     "introspect": {
-      "result": "Introspect: no issues",
-      "at": "2026-11-24T14:06:46Z",
+      "result": "Introspect recorded",
+      "at": "2026-11-24T15:06:33Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 3",
+        "Parallel group count: 5",
         "Codex write: R2-STATUS",
         "Codex review: R2-STATUS",
         "Polling and rework review: R2-STATUS",
@@ -13813,18 +13925,28 @@
         "Codex review: R2-DOVIEW",
         "Polling and rework review: R2-DOVIEW",
         "Test command: R2-DOVIEW: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh",
-        "After Codex quota ran out, Grok Bot implemented remaining STATUS, TRACKER, and DOVIEW work and recorded official install, verify, and this Introspect; no fresh Luna or Codex token totals were stamped for those verifies",
-        "Official install was from 94980b40 at 19:07:21 IST, then bcl install, start-verification r2-62036ff4-121, and lane verify used pushed revision 62036ff4 of batched-change-list 0.1.74 and developer-observability 0.1.38",
-        "R2-STATUS stored command passed 191 tests in 25.252s, R2-TRACKER passed 36 tests in 13.378s including the live-state guard, and R2-DOVIEW passed 216 tests with 2 skipped in 8.440s",
-        "UX re-review of 62036ff4 signed off P1-A, P1-B, and P2-A through P2-D, then N1 and the cheap follow-ups landed as dfa758c3, served on 8780 at 19:31 IST, and DO-4 was not marked verified",
-        "R4-106 and R4-171 stay blocked because they need Guru; R2-DO1, R2-INTRO, and R1-DO11 stay deferred; the ungrouped live-state guard was covered by the TRACKER tests but is not in a plan group"
+        "Codex write: R3-CLI",
+        "Codex review: R3-CLI",
+        "Polling and rework review: R3-CLI",
+        "Test command: R3-CLI: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cli.sh",
+        "Codex write: R3-COSMETIC",
+        "Codex review: R3-COSMETIC",
+        "Polling and rework review: R3-COSMETIC",
+        "Test command: R3-COSMETIC: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cosmetic.sh",
+        "Developer-observability job events for this list's round-3 Grok Bot jobs captured 0 of 8 token totals (model was recorded, token source was none)",
+        "Official collect coverage across all lists is 9 of 178 finished jobs with token totals",
+        "R2-DO4 start-check after official verify blocked a verified lane; fixed inline so an in-progress check no longer uncounts or blocks it",
+        "Grok Bot implementer work for the viewer writers and CLI fixes was not recorded as a token-bearing job, only the later official fix, review, and pre-push suite wrappers",
+        "Needs Guru items BCL-106, BCL-171, and DO-1 stayed parked for a later round",
+        "DO-13 remains planned as a cosmetic follow-up",
+        "R2-DO4 and R3-CLI pre-push suites each ran about three minutes (181s and 179s) from official job receipts; no token totals were attached"
       ],
       "none": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 3",
+        "Parallel group count: 5",
         "Codex write: R2-STATUS",
         "Codex review: R2-STATUS",
         "Polling and rework review: R2-STATUS",
@@ -13837,27 +13959,59 @@
         "Codex review: R2-DOVIEW",
         "Polling and rework review: R2-DOVIEW",
         "Test command: R2-DOVIEW: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh",
-        "After Codex quota ran out, Grok Bot implemented remaining STATUS, TRACKER, and DOVIEW work and recorded official install, verify, and this Introspect; no fresh Luna or Codex token totals were stamped for those verifies",
-        "Official install was from 94980b40 at 19:07:21 IST, then bcl install, start-verification r2-62036ff4-121, and lane verify used pushed revision 62036ff4 of batched-change-list 0.1.74 and developer-observability 0.1.38",
-        "R2-STATUS stored command passed 191 tests in 25.252s, R2-TRACKER passed 36 tests in 13.378s including the live-state guard, and R2-DOVIEW passed 216 tests with 2 skipped in 8.440s",
-        "UX re-review of 62036ff4 signed off P1-A, P1-B, and P2-A through P2-D, then N1 and the cheap follow-ups landed as dfa758c3, served on 8780 at 19:31 IST, and DO-4 was not marked verified",
-        "R4-106 and R4-171 stay blocked because they need Guru; R2-DO1, R2-INTRO, and R1-DO11 stay deferred; the ungrouped live-state guard was covered by the TRACKER tests but is not in a plan group"
+        "Codex write: R3-CLI",
+        "Codex review: R3-CLI",
+        "Polling and rework review: R3-CLI",
+        "Test command: R3-CLI: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cli.sh",
+        "Codex write: R3-COSMETIC",
+        "Codex review: R3-COSMETIC",
+        "Polling and rework review: R3-COSMETIC",
+        "Test command: R3-COSMETIC: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cosmetic.sh",
+        "Needs Guru items BCL-106, BCL-171, and DO-1 stayed parked for a later round",
+        "DO-13 remains planned as a cosmetic follow-up",
+        "R2-DO4 and R3-CLI pre-push suites each ran about three minutes (181s and 179s) from official job receipts; no token totals were attached"
       ],
       "sections": {
         "delete": {
-          "none": "Nothing from this round's performed work should be removed; the three shipped STATUS, TRACKER, and DOVIEW lanes and the parked viewer follow-up should stay recorded."
+          "none": "Nothing from this round's shipped work should be removed; the verified viewer and command-line fixes and the already filed token-capture requests should stay recorded."
         },
         "simplify": {
-          "none": "The review-passed lanes had stored verify commands and a single official install, so there is no extra review loop to simplify this round."
+          "none": "The shipped lanes already used stored verify commands and one official install each; the cosmetic lane was planned but not written, so there was no extra review loop to simplify this pass."
         },
         "optimize": {
-          "none": "Verify was already the stored STATUS, TRACKER, and DOVIEW commands; no leftover flake in those runs was left that would be cheaper to fix now than later."
+          "items": [
+            {
+              "item": "R2-DO4 start-check after official verify blocked a verified lane; fixed inline so an in-progress check no longer uncounts or blocks it",
+              "evidence": "After official verify, starting a check on the already verified DO-4 and DO-12 findings flipped the R2-DO4 lane to blocked with the reason Prerequisite verification changed, even though both findings stayed verified. A counted failure history prevented restoring the lane, so it had to be parked. Round-3 wall time on that recovery was spent in extra plan updates rather than in new fixes. After commit eb7e8b67, a check still in the checking state keeps the finding counted and leaves the verified lane verified, which is the named test's after condition.",
+              "outcome": "fixed inline",
+              "proof": "test_in_progress_check_does_not_unverify_or_block_a_verified_lane"
+            }
+          ]
         },
         "automate": {
-          "none": "Presuite, release-check, official install, and stored verify already run as recorded commands; no new automation would remove as much work as it would add this round."
+          "items": [
+            {
+              "item": "Developer-observability job events for this list's round-3 Grok Bot jobs captured 0 of 8 token totals (model was recorded, token source was none)",
+              "evidence": "The change-list event log for this list's round-3 official jobs records eight finished Grok Bot jobs (two fix attempts, one review, and one pre-push suite on DO-4 and DO-12, and the same four on the command-line lane). Each has model Grok Bot and token source none, so zero of eight have a token total. The existing official-collect coverage finding already describes this class of gap, including jobs that record a model but no token source.",
+              "outcome": "issue",
+              "issue_id": "PR120-r6-collect-job-coverage"
+            },
+            {
+              "item": "Official collect coverage across all lists is 9 of 178 finished jobs with token totals",
+              "evidence": "A live read of the change-list job event collector on 24 Nov 2026 20:31 IST (Asia/Calcutta) reported 9 of 178 finished jobs with a verified token total. Job receipts also still omit tokens and wall time, which is already filed.",
+              "outcome": "issue",
+              "issue_id": "BCL-147"
+            },
+            {
+              "item": "Grok Bot implementer work for the viewer writers and CLI fixes was not recorded as a token-bearing job, only the later official fix, review, and pre-push suite wrappers",
+              "evidence": "The writer commits 4074ba41, c704c71e, and eb7e8b67 were implemented in a Grok Bot session before the official jobs ran. Those implementer sessions do not appear as jobs, so Introspect still cannot attribute tokens or wall time to the actual edit work. That gap is already filed.",
+              "outcome": "issue",
+              "issue_id": "DO-6"
+            }
+          ]
         }
       },
-      "round": 2,
+      "round": 3,
       "cycle": 13
     },
     "verification_run": {
@@ -13897,21 +14051,29 @@
           "state": "pending"
         },
         "BCL-130": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Listing tool-fault candidates no longer rewrites lane history, and a release check no longer starts the viewer or changes the live list. Focused tests for that behaviour have just been prepared.",
           "observed_at": "2026-11-24T14:56:55Z",
           "started_at": "2026-11-24T14:56:55Z",
-          "updated_at": "2026-11-24T14:56:55Z"
+          "updated_at": "2026-11-24T14:56:55Z",
+          "check_id": "5c739d7db77e407ea4442fcea1313f49",
+          "evidence": "Checked: Listing tool-fault candidates for a verified lane with two counted failures, and a release check of the live list file\nExpected: The lane stays verified, and the live list file is not rewritten\nObserved: The focused tests left the lane verified and the live file unchanged; the release check did not start the viewer",
+          "details": "Commit c704c71e. Tests test_listing_tool_faults_does_not_block_a_verified_lane and test_release_check_does_not_rewrite_the_live_tracker. _lane_history(..., mutate=False) on candidate listing; release-check skipped _ensure_viewer.",
+          "finished_at": "2026-11-24T15:00:33.690706Z"
         },
         "BCL-139": {
           "state": "pending"
         },
         "BCL-140": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "The command line now rejects unknown and retired commands before it opens a viewer record. Focused tests for that behaviour have just been prepared.",
           "observed_at": "2026-11-24T14:56:55Z",
           "started_at": "2026-11-24T14:56:55Z",
-          "updated_at": "2026-11-24T14:56:55Z"
+          "updated_at": "2026-11-24T14:56:55Z",
+          "check_id": "aea58f86e3ae4047843bc9ad6aaf0bf9",
+          "evidence": "Checked: Typing an unknown or retired command when a viewer record is damaged\nExpected: A short unknown-command message, and no traceback\nObserved: The focused test opened a damaged viewer record and asked for two retired commands and one unknown command; each failed with the unknown-stage message and no traceback",
+          "details": "Commit c704c71e. Test test_unknown_stage_is_rejected_before_viewer_state_is_read. Stages sync-main, merge, not-a-command. bcl verify --then ~/.agents/artifacts/bcl-121/verify/r3-cli.sh exited 0.",
+          "finished_at": "2026-11-24T15:00:33.683233Z"
         },
         "BCL-144": {
           "state": "pending"
@@ -13929,11 +14091,15 @@
           "state": "pending"
         },
         "BCL-161": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Local install now ignores the list's own snapshot and page, and still refuses when the plugin tree itself is dirty. Focused tests for that behaviour have just been prepared.",
           "observed_at": "2026-11-24T14:56:55Z",
           "started_at": "2026-11-24T14:56:55Z",
-          "updated_at": "2026-11-24T14:56:55Z"
+          "updated_at": "2026-11-24T14:56:55Z",
+          "check_id": "1f8f0a3b6fa341fd8b78701c12c407aa",
+          "evidence": "Checked: A local install when only the list's snapshot and page are dirty, and again when a plugin file is dirty\nExpected: The install proceeds in the first case, and is refused in the second\nObserved: The focused test installed successfully with a dirty snapshot and page, and refused with the local-changes message when a plugin file was changed",
+          "details": "Commit c704c71e. Test test_install_local_ignores_tracker_snapshot_and_page. install-local used git status -- . under the plugin tree. Official install-local recorded revision a44a64f9 (snapshot on top of c704c71e); plugin sha256 742f52b61dbd1879ced13df7dc44e333faa1196d5fd08d7168157caa122eb954.",
+          "finished_at": "2026-11-24T15:00:33.687275Z"
         },
         "BCL-166": {
           "state": "pending"
@@ -14369,7 +14535,7 @@
       "observed": "21 Nov 2026 22:20 IST, PR 119 round 1 reviews (bcl 0.1.57 source)",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "PR 119 round 1 reviews",
         "report": "r1/planreview-release-2.md, -7.md",
@@ -14389,12 +14555,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T15:00:20Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T14:49:26Z",
         "source": "lane_failure"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cli.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cli.sh"
     },
     {
       "id": "BCL-139",
@@ -14436,7 +14612,7 @@
       "observed": "21 Nov 2026 22:45 IST, bcl 0.1.58 installed, interrogate review; also present in 0.1.57",
       "priority": "low",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "interrogate skill review (Sol 6.2 adversary, rerun by orchestrator)",
         "report": "bcl-119/r1/adv-sol.md, r1/advrepro/f1.py",
@@ -14457,12 +14633,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T15:00:20Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T14:49:26Z",
         "source": "lane_failure"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cli.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cli.sh"
     },
     {
       "id": "BCL-144",
@@ -14649,7 +14835,7 @@
       "observed": "22 Nov 2026 16:16 IST, bcl 0.1.63, PR 119 lane R2-150",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 16:21 IST (via parent)",
         "kind": "fix",
@@ -14669,12 +14855,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T15:00:20Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T14:49:26Z",
         "source": "lane_failure"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cli.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cli.sh"
     },
     {
       "id": "BCL-166",
