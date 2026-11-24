@@ -11443,9 +11443,8 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-24T18:49:58Z",
-      "now": "2026-11-24T18:49:58Z — Introspection recorded"
+      "stage": "report_rollover",
+      "updated_at": "2026-11-24T18:50:55Z"
     },
     "rollover": {
       "source_pr": 121,
@@ -13371,7 +13370,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T18:49:58Z",
+    "last_written_at": "2026-11-24T18:50:55Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -13678,7 +13677,8 @@
       "plan_fix",
       "install",
       "verify",
-      "introspect"
+      "introspect",
+      "report_rollover"
     ],
     "plan": {
       "cycle": 14,
