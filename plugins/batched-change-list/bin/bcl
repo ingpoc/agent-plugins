@@ -17,6 +17,7 @@ import tracker_lock
 import workflow_definition
 import check_introspect
 import events as bcl_events
+import verify_driver
 
 def _process_rows():
     """Read only pid/parent/group/comm; never inspect process arguments or environment."""
@@ -79,6 +80,23 @@ def _stamp_session(path, job_id):
     except OSError:
         return False
 
+def _first_error_line(text, limit=240):
+    if not text:
+        return None
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped:
+            return stripped[:limit]
+    return None
+
+
+def _write_job_output(list_path, job_id, output_text):
+    path = bcl_events.events_path(list_path, os.environ.get("BCL_STATE_DIR")).parent / "jobs" / f"{job_id}.log"
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path.write_text(output_text or "", encoding="utf-8")
+    return path
+
+
 def _read_usage(path, job_id):
     """Accept only a verified sidecar or in-file job ID; sum Codex cumulative usage once."""
     try:
@@ -99,10 +117,47 @@ def _read_usage(path, job_id):
                     counts = info.get("total_token_usage") or counts
         if not isinstance(counts, dict):
             return None
-        return {"input": int(counts.get("input_tokens", 0)), "output": int(counts.get("output_tokens", 0)),
+        cached = counts.get("cached_input_tokens", counts.get("cached_tokens", 0))
+        return {"input": int(counts.get("input_tokens", 0)), "cached": int(cached or 0),
+                "output": int(counts.get("output_tokens", 0)),
                 "total": int(counts.get("total_tokens", 0))}
     except (OSError, ValueError, TypeError):
         return None
+
+
+def _repo_head(cwd):
+    try:
+        return subprocess.check_output(["git", "-C", str(cwd), "rev-parse", "HEAD"],
+                                       text=True, stderr=subprocess.DEVNULL).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def _dirty_fingerprint(cwd):
+    try:
+        output = subprocess.check_output(["git", "-C", str(cwd), "status", "--porcelain"],
+                                         text=True, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    fingerprints = {}
+    for line in output.splitlines():
+        if not line.strip():
+            continue
+        rel = line[3:] if len(line) > 3 else line.strip()
+        if " -> " in rel:
+            rel = rel.split(" -> ", 1)[-1]
+        full = Path(cwd) / rel
+        try:
+            digest = hashlib.sha256(full.read_bytes()).hexdigest() if full.is_file() else "missing"
+        except OSError:
+            digest = "unreadable"
+        fingerprints[rel] = (line[:2], digest)
+    return fingerprints
+
+
+def _named_worktree(groups):
+    return any(isinstance(group, dict) and str(group.get("worktree") or "").strip() for group in groups or [])
+
 
 def _last_verdict_block(text):
     lines = text.splitlines()
@@ -224,6 +279,28 @@ def _job_operations(phase, ids, cycle, round_number, job, action, timestamp, exi
             operation["fault_kind"] = fault_kind
         if substitution:
             operation["substitution"] = substitution
+        if job.get("first_error_line"):
+            operation["first_error_line"] = job["first_error_line"]
+        if job.get("output_path"):
+            operation["output_path"] = job["output_path"]
+        if "tokens_source" in job:
+            operation["tokens_source"] = job.get("tokens_source")
+        if "tokens" in job:
+            operation["tokens"] = job.get("tokens")
+        if job.get("wall_time_s") is not None:
+            operation["wall_time_s"] = job["wall_time_s"]
+        if job.get("session"):
+            operation["session"] = job["session"]
+        if job.get("gap"):
+            operation["gap"] = job["gap"]
+        if job.get("model"):
+            operation["model"] = job["model"]
+    elif action == "report-step":
+        operation["step"] = job.get("step")
+        if job.get("result"):
+            operation["result"] = job["result"]
+        if job.get("commit"):
+            operation["commit"] = job["commit"]
     return [operation]
 
 def _run_job(record, live, report, base, groups, phase, ids, command_args, result_file=None, model=None, load_override=None):
@@ -246,6 +323,10 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
     job["worktree"] = Path.cwd().name
     if model:
         job["model"] = model
+    start_head = start_dirty = None
+    if phase == "fix" and _named_worktree(groups):
+        start_head = _repo_head(Path.cwd())
+        start_dirty = _dirty_fingerprint(Path.cwd())
     event_context = {"group_id": groups[0]["id"], "round": round_number}
     if model is not None:
         event_context["model"] = model
@@ -361,6 +442,22 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
             except OSError: pass
     for thread in copiers: thread.join(timeout=0.1)
     finished_at = _utc_now()
+    if phase == "fix" and _named_worktree(groups) and start_head is not None:
+        end_head = _repo_head(Path.cwd())
+        end_dirty = _dirty_fingerprint(Path.cwd())
+        if end_head == start_head:
+            if code == 0:
+                code = 3
+            job["first_error_line"] = job.get("first_error_line") or "fix job made no commit"
+        elif end_dirty is not None and start_dirty is not None:
+            def _snapshot_path(rel):
+                rel = rel.replace("\\", "/")
+                return rel.startswith("docs/triage/") or rel.endswith("-findings.json") or rel.endswith("-findings.html")
+            leftover = [path for path, mark in end_dirty.items()
+                        if start_dirty.get(path) != mark and not _snapshot_path(path)]
+            if leftover and code == 0:
+                code = 3
+                job["first_error_line"] = "fix job left uncommitted changes"
     reply = None
     if phase in workflow_definition.LANE["review_phases"] and result_path:
         try:
@@ -444,16 +541,6 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
             finish_substitution = GROK_BOT_REVIEW
             job["model"] = GROK_BOT_REVIEW
             # A later review job can record a Grok Bot verdict without a no-op fix.
-    try:
-        _job_write_retry(record, live, report, base,
-                         _job_operations(phase, ids, cycle, round_number, job, "finish-job", finished_at,
-                                         exit_code=code, reply=reply, fault_kind=finish_fault_kind,
-                                         substitution=finish_substitution))
-    except Exception as error:
-        raise RuntimeError(f"child exited with code {code}; final tracker write failed: {error}") from error
-    finished = json.loads(live.read_text())
-    final = next(group for group in finished["tracking"]["plan"]["groups"] if group["id"] == groups[0]["id"])
-    result_status = final.get("codex", {}).get("job", {}).get("finished_phase_status")
     usage_path = stamped
     usage_source = "stamp" if stamped else "none"
     if usage_path is None:
@@ -470,10 +557,60 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
         if len(candidates) == 1:
             usage_path, usage_source = candidates[0], "inline"
     usage = _read_usage(usage_path, job["id"]) if usage_path else None
-    if usage is None: usage_source = "none"
+    if usage is None:
+        usage_source = "none"
+    implementer = next(((group.get("codex") or {}).get("implementer_session")
+                        for group in groups if isinstance(group, dict)
+                        and (group.get("codex") or {}).get("implementer_session")), None)
+    model = job.get("model") or event_context.get("model")
+    gap = None if model else "no model recorded"
+    wall_time_s = None
+    started = job.get("started_at")
+    if started and finished_at:
+        try:
+            start = datetime.fromisoformat(started.replace("Z", "+00:00"))
+            end = datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+            wall_time_s = max(0, int((end - start).total_seconds()))
+        except ValueError:
+            pass
+    job["tokens_source"] = usage_source
+    job["tokens"] = usage
+    if wall_time_s is not None:
+        job["wall_time_s"] = wall_time_s
+    if usage_path is not None:
+        job["session"] = usage_path.name
+    elif implementer:
+        job["session"] = implementer
+    if gap:
+        job["gap"] = gap
+    if model:
+        job["model"] = model
+    try:
+        if code != 0 or (output_text and output_text.strip()):
+            try:
+                log_path = _write_job_output(list_path, job["id"], output_text)
+                job["output_path"] = str(log_path)
+            except OSError:
+                log_path = None
+            if code != 0:
+                job["first_error_line"] = job.get("first_error_line") or _first_error_line(output_text) or f"exited {code}"
+        _job_write_retry(record, live, report, base,
+                         _job_operations(phase, ids, cycle, round_number, job, "finish-job", finished_at,
+                                         exit_code=code, reply=reply, fault_kind=finish_fault_kind,
+                                         substitution=finish_substitution))
+    except Exception as error:
+        raise RuntimeError(f"child exited with code {code}; final tracker write failed: {error}") from error
+    finished = json.loads(live.read_text())
+    final = next(group for group in finished["tracking"]["plan"]["groups"] if group["id"] == groups[0]["id"])
+    result_status = final.get("codex", {}).get("job", {}).get("finished_phase_status")
     event = {**event_context, "phase": phase, "agent": Path(command_args[0]).name, "repo": repo.name,
              "exit_code": code, "finished_at": finished_at, "tokens_source": usage_source,
-             "tokens": usage, "session": usage_path.name if usage_path else None}
+             "tokens": usage, "session": job.get("session"),
+             "model": model, "gap": gap,
+             "first_error_line": job.get("first_error_line"),
+             "output_path": job.get("output_path")}
+    if wall_time_s is not None:
+        event["wall_time_s"] = wall_time_s
     bcl_events.job_event(list_path, job["id"], "finish", state_dir=os.environ.get("BCL_STATE_DIR"), **event)
     return (code if code else 0 if result_status == "passed" else 1) if code >= 0 else 128 - code
 
@@ -717,20 +854,21 @@ KNOWN_STAGES = frozenset((
     "correct-round",
     "fix",
     "fix-order",
+    "hotfix",
     "install",
     "install-hooks",
     "install-local",
     "introspect",
     "job",
+    "merge",
     "merged",
     "pause",
     "plan",
     "refresh-worktrees",
     "release-check",
     "report",
-    "resort-failures",
     "resume",
-    "review",
+    "report-step",
     "rollover",
     "snapshot",
     "start",
@@ -748,20 +886,20 @@ def main():
     parser.add_argument("--data", type=Path); parser.add_argument("--render", type=Path)
     parser.add_argument("--progress", type=Path); parser.add_argument("--now")
     parser.add_argument("--ids", action="append", default=[]); parser.add_argument("--plan", type=Path)
+    parser.add_argument("--into", help="merge: the finding that absorbs the others")
     parser.add_argument("--result"); parser.add_argument("--issues", type=Path); parser.add_argument("--sections", type=Path); parser.add_argument("--draft", type=Path)
     parser.add_argument("--phase", choices=workflow_definition.LANE["job_phases"])
     parser.add_argument("--model", help="job, install or verify: who runs this step, shown in the lane model column")
     parser.add_argument("--round", type=int, help="correct-round: the real round number")
     parser.add_argument("--by", help="fix-order: who set the order")
-    parser.add_argument("--reason", help="why an override, fix order, verify rerun, cleanup failure, stopped run, resort-failures apply, or pause is recorded")
-    parser.add_argument("--tool-fault", action="append", default=[], help="unblock or resort-failures --apply: failure attempt ID recorded as a tool fault; repeat for each attempt")
+    parser.add_argument("--reason", help="why an override, fix order, verify rerun, cleanup failure, stopped run, or pause is recorded")
+    parser.add_argument("--tool-fault", action="append", default=[], help="unblock: failure attempt ID recorded as a tool fault; repeat for each attempt")
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
     parser.add_argument("--dry-run", action="store_true"); parser.add_argument("--no-record", action="store_true")
     parser.add_argument("--shared", action="store_true")
     parser.add_argument("--new-pr", type=int); parser.add_argument("--new-url"); parser.add_argument("--worktree")
     parser.add_argument("--merge-commit"); parser.add_argument("--merged-at"); parser.add_argument("--base-branch")
     parser.add_argument("--force", action="store_true")
-    parser.add_argument("--apply", action="store_true", help="resort-failures: apply the listed tool-fault uncounts")
     parser.add_argument("--run-id"); parser.add_argument("--outcome", choices=("passed", "failed", "not_run"))
     parser.add_argument("--through-cycle", type=int)
     parser.add_argument("stage")
@@ -812,7 +950,7 @@ def main():
         if not record: parser.error("could not register tracker")
         print(live); return
     if not record:
-        if args.stage in ("status", "release-check", "resort-failures"):
+        if args.stage in ("status", "release-check"):
             print(json.dumps({"adopted": False, "message": "Run bcl adopt <tracker-in-repo> first."}))
             if args.stage == "release-check":
                 sys.exit(2)  # an unknown lane state is never a clear release
@@ -903,26 +1041,69 @@ def main():
         payload = manage_findings.release_check_payload(data, args.ids)
         print(json.dumps(payload, indent=2))
         raise SystemExit(0 if payload["clear"] else 2)
-    if args.stage == "resort-failures":
-        if args.apply:
-            try:
-                reason = manage_findings.require_override_reason(args.reason, "resort-failures")
-                report, base = live_state.report_paths(record, live)
-                _job_write(record, live, report, base, [{"action": "resort-failures", "apply": True,
-                             "reason": reason, "tool_faults": list(args.tool_fault), "timestamp": _utc_now()}])
-            except (OSError, RuntimeError, ValueError) as error:
-                parser.error(str(error))
-            print(json.dumps(manage_findings.resort_failures(json.loads(live.read_text()), {"apply": False}), indent=2))
-            return
-        if args.tool_fault:
-            parser.error("resort-failures --tool-fault needs --apply and --reason")
-        print(json.dumps(manage_findings.resort_failures(data, {"apply": False}), indent=2))
-        return
     if record.get("rollover_pending") and (args.stage != "start" or not begins_collect):
         parser.error("run bcl start to begin Collect before using the new list")
-    if manage_findings.pause_record(tracking) is not None and args.stage in ("job", "review", "install", "verify"):
+    if manage_findings.pause_record(tracking) is not None and args.stage in ("job", "install", "verify"):
         parser.error("round paused; run bcl resume")
     load_override = _require_machine_load(parser, args) if args.stage in ("job", "verify") else None
+    if args.stage == "hotfix":
+        if not args.ids or not (args.reason or "").strip() or not (args.by or "").strip():
+            parser.error("hotfix requires --ids ID, --by APPROVER, and --reason")
+        operation = {"action": "hotfix", "ids": list(args.ids), "by": args.by, "reason": args.reason}
+        report, base = live_state.report_paths(record, live)
+        try:
+            _job_write(record, live, report, base, [operation])
+        except (OSError, RuntimeError, ValueError) as error:
+            parser.error(str(error))
+        data = json.loads(live.read_text())
+        history = (data.get("tracking") or {}).get("hotfix_history") or []
+        print(json.dumps(history[-1] if history else {}, indent=2))
+        return
+    if args.stage == "merge":
+        if not args.into or not args.ids or not args.plan:
+            parser.error("merge requires --into ID, --ids ID (repeat), and --plan FILE with title, summary, recommendation and done_when")
+        fields = json.loads(args.plan.read_text())
+        if not isinstance(fields, dict):
+            parser.error("merge --plan must be a JSON object")
+        operation = {"action": "merge", "into": args.into, "ids": list(args.ids),
+                     "title": fields.get("title"), "summary": fields.get("summary"),
+                     "recommendation": fields.get("recommendation"), "done_when": fields.get("done_when")}
+        report, base = live_state.report_paths(record, live)
+        try:
+            _job_write(record, live, report, base, [operation])
+        except (OSError, RuntimeError, ValueError) as error:
+            parser.error(str(error))
+        print(json.dumps({"merged_into": args.into, "absorbed": list(args.ids)}))
+        return
+    if args.stage == "report-step":
+        job_id = os.environ.get("BCL_JOB_ID")
+        if not job_id:
+            parser.error("report-step must run inside a bcl job (BCL_JOB_ID)")
+        if not command_args:
+            parser.error("report-step requires a step after --")
+        step, result, commit = command_args[0], (command_args[1] if len(command_args) > 1 else None), (
+            command_args[2] if len(command_args) > 2 else None)
+        groups = [group for group in tracking.get("plan", {}).get("groups", [])
+                  if ((group.get("codex") or {}).get("job") or {}).get("id") == job_id
+                  and "exit_code" not in ((group.get("codex") or {}).get("job") or {})]
+        if not groups:
+            parser.error("report-step is refused for a job that is not this lane's running job")
+        job = groups[0]["codex"]["job"]
+        ids = args.ids or list(groups[0].get("finding_ids") or [])
+        if args.ids:
+            covered = {identifier for group in groups for identifier in group.get("finding_ids", [])}
+            if not set(args.ids).issubset(covered):
+                parser.error("report-step IDs must belong to the running job's lane")
+        report, base = live_state.report_paths(record, live)
+        payload = {"id": job_id, "plan_sha256": job["plan_sha256"], "step": step,
+                   "result": result, "commit": commit}
+        try:
+            _job_write(record, live, report, base,
+                       _job_operations(job.get("phase"), ids, job.get("cycle"), job.get("round"),
+                                       payload, "report-step", _utc_now()))
+        except (OSError, RuntimeError, ValueError) as error:
+            parser.error(str(error))
+        return
     if args.stage == "job":
         if args.phase not in workflow_definition.LANE["job_phases"] or not args.ids or not command_args:
             parser.error("job requires --ids ID, --phase plan_review|fix|review|presuite, and -- <command>")
@@ -962,34 +1143,6 @@ def main():
                          "reason": reason, "tool_faults": args.tool_fault, "timestamp": _utc_now()}])
         except (OSError, RuntimeError, ValueError) as error:
             parser.error(str(error))
-        return
-    if args.stage == "review":
-        if not args.ids:
-            parser.error("review requires --ids ID (repeat for each finding)")
-        groups = [group for group in tracking.get("plan", {}).get("groups", [])
-                  if set(args.ids).intersection(group.get("finding_ids", []))]
-        covered = {identifier for group in groups for identifier in group.get("finding_ids", [])}
-        if not groups or not set(args.ids).issubset(covered):
-            parser.error("review IDs must be covered by current plan groups")
-        for group in groups:
-            codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
-            if codex.get("fix_status") != "passed":
-                parser.error(f"review cannot start: lane {group.get('id')} has not finished fix")
-        try:
-            workflow_definition.run_stage_check("review", tracking.get("plan"), args.ids)
-        except ValueError as error:
-            parser.error(str(error))
-        operations = [{"action": "set-activity", "stage": "review", "ids": args.ids, "now": "Review started"}]
-        for group in groups:
-            if (group.get("codex") or {}).get("one_file"):
-                operations.append({"action": "skip-review", "ids": sorted(set(args.ids).intersection(group.get("finding_ids", [])))})
-        report, base = live_state.report_paths(record, live)
-        command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
-        result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
-        if result.returncode:
-            sys.stderr.write(result.stderr or result.stdout)
-            raise SystemExit(result.returncode)
-        live_state.snapshot(record, live)
         return
     if args.stage == "rollover":
         if not args.new_pr or args.new_pr < 1 or not args.worktree:
@@ -1201,6 +1354,10 @@ def main():
     if stage == "report" and args.force: command.append("--force")
     verification_claim = None
     if stage == "verify":
+        try:
+            verify_driver.self_test()
+        except AssertionError as error:
+            raise SystemExit(f"Verify driver self-test failed: {error}") from error
         verification_claim = tracker_lock.exclusive_lock(tracker_lock.verify_lock_path(live), blocking=False)
         try:
             verification_claim.__enter__()
@@ -1212,6 +1369,21 @@ def main():
             verification_claim.__exit__(None, None, None)
             verification_claim = None
             parser.error("lane verify requires the shared check to pass first; run bcl verify --shared --then CMD")
+
+    def release_verification_claim():
+        nonlocal verification_claim
+        if verification_claim is None:
+            return
+        claim = verification_claim
+        try:
+            claim.__exit__(None, None, None)
+        finally:
+            verification_claim = None
+
+    def report_cleanup_failure(cleanup_code):
+        if cleanup_code:
+            print("Verification cleanup failed; check verdict was recorded independently.", file=sys.stderr)
+
     try:
         bcl_events.stage_event(live.resolve(), stage, "start", state_dir=os.environ.get("BCL_STATE_DIR"), ids=args.ids)
         result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
@@ -1221,12 +1393,11 @@ def main():
         if rerun_op:
             print(f"Rerunning the check for {', '.join(rerun_op['ids'])}: {args.reason.strip()}")
         if stage == "verify" and args.shared:
-            try:
-                result = subprocess.run(words, check=False)
-                code = result.returncode
-            except OSError as error:
-                print(f"Shared verification command could not start: {error}", file=sys.stderr)
-                code = 127
+            results, cleanup_code = verify_driver.run_round(
+                shared=None, lanes=[words], cleanup=release_verification_claim)
+            check = results[0]
+            code = check.exit_code
+            report_cleanup_failure(cleanup_code)
             finished = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
             saved = subprocess.run(command, input=json.dumps([{"action":"finish-shared-check", "run_id":tracking['verification_run']['id'], "exit_code":code, "finished_at":finished}]), text=True, capture_output=True)
             if saved.returncode:
@@ -1244,33 +1415,47 @@ def main():
             live_state.save_registry(records)
             _ensure_viewer(parser, key, current, live, plugin_version, stage)
         if stage == "verify":
+            plan_claim = tracker_lock.exclusive_lock(tracker_lock.plan_lock_path(live))
+            plan_claim.__enter__()
+            plan_claim_released = False
+
+            def release_plan_claim():
+                nonlocal plan_claim_released
+                if not plan_claim_released:
+                    plan_claim.__exit__(None, None, None)
+                    plan_claim_released = True
+
             try:
-                with tracker_lock.exclusive_lock(tracker_lock.plan_lock_path(live)):
-                    current = json.loads(live.read_text())
-                    current_tracking = current.get('tracking', {})
-                    started_plan = current_tracking['plan']
-                    started_groups = {group['id']: group for group in started_plan['groups']}
-                    if started_plan != expected_verify_plan or any(group['id'] not in started_groups or
-                           started_groups[group['id']].get('finding_ids') != group.get('finding_ids') or
-                           started_groups[group['id']].get('verify', {}).get('command') != expected
-                           for group in groups) or any(started_plan.get(k) != tracking['plan'].get(k) for k in ('cycle', 'round')):
-                        raise SystemExit('plan changed before verification command started; reload and retry')
-                    try:
-                        manage_findings.validate_dependencies(
-                            started_plan['groups'], current['findings'], current_tracking)
-                    except ValueError as error:
-                        raise SystemExit(f'verification prerequisites changed before command started: {error}') from error
-                    process = subprocess.Popen(words)
-                # Release the reservation immediately after successful spawn so the
-                # verifier can use the managed tracker writers itself.
-                code = process.wait()
-                reason = f"Verification command exited {code}" if code else ""
+                current = json.loads(live.read_text())
+                current_tracking = current.get('tracking', {})
+                started_plan = current_tracking['plan']
+                started_groups = {group['id']: group for group in started_plan['groups']}
+                if started_plan != expected_verify_plan or any(group['id'] not in started_groups or
+                       started_groups[group['id']].get('finding_ids') != group.get('finding_ids') or
+                       started_groups[group['id']].get('verify', {}).get('command') != expected
+                       for group in groups) or any(started_plan.get(k) != tracking['plan'].get(k) for k in ('cycle', 'round')):
+                    raise SystemExit('plan changed before verification command started; reload and retry')
+                try:
+                    manage_findings.validate_dependencies(
+                        started_plan['groups'], current['findings'], current_tracking)
+                except ValueError as error:
+                    raise SystemExit(f'verification prerequisites changed before command started: {error}') from error
+                results, cleanup_code = verify_driver.run_round(
+                    shared=None, lanes=[words], cleanup=release_verification_claim,
+                    on_spawn=release_plan_claim)
+                check = results[0]
+                code = check.exit_code
+                report_cleanup_failure(cleanup_code)
+                verdict = check.verdict
+                reason = f"Verification command exited {code}" if verdict != "passed" else ""
             except OSError as error:
                 code = 127
                 reason = "Verification command could not start"
                 spawn_error = str(error)
             else:
                 spawn_error = ""
+            finally:
+                release_plan_claim()
             if code:
                 reason = _verification_failure_reason(expected, reason)
                 print(reason, file=sys.stderr)
@@ -1320,7 +1505,6 @@ def main():
             with args.progress.open("a") as out: out.write(f"{stamp} {stage}\n")
 
     finally:
-        if verification_claim is not None:
-            verification_claim.__exit__(None, None, None)
+        release_verification_claim()
 
 if __name__ == "__main__": main()

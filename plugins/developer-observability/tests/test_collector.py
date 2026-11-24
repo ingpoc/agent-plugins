@@ -63,6 +63,13 @@ class CollectorTests(unittest.TestCase):
                              '</testcase></testsuite></testsuites>')
         return project
 
+    def test_discover_project_records_resolved_directory_path(self):
+        stats = {}
+        list(discover_project(self.project, stats))
+        self.assertTrue(stats)
+        resolved = str(self.project.resolve())
+        self.assertTrue(all(item.get('project_dir') == resolved for item in stats.values()))
+
     def test_scoped_findings_do_not_mix_versions(self):
         path = self.tmp / 'versions.jsonl'
         rows = []

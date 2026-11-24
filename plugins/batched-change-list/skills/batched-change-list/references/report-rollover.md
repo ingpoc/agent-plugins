@@ -9,3 +9,5 @@ Start a new list with `bcl rollover --new-pr N --worktree NAME` (add `--new-url 
 The new list's page is not published during rollover. Run `bcl --data NEW_FINDINGS.json start` (or use its new live path) to begin Collect and switch that list's viewer. Only findings started on the new list should then show work in progress.
 
 This package does not authorize merging a product PR. Follow the product repository's merge authorization and gate before running `bcl merged`.
+
+Rollover also moves earlier-cycle run and Introspect history to the archive, including leftover records that have no cycle stamp. The new live list keeps only the current cycle's runs and Introspect records so the size audit can pass.

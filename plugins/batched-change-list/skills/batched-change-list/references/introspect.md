@@ -11,3 +11,5 @@ The call appends the ordered sections, steps, result, and timestamp to `tracking
 A `fixed inline` item needs a `proof` naming the command or test that shows it. Do not pass `issues` or `next_cycle` notes on the Introspect call. Create code follow-ups as separate non-WF findings before linking them from a section item.
 
 Re-sorting open failures after a tool ship is a [release check](release.md), not an Introspect pass.
+
+The Introspect draft scans earlier rounds for repeated waste (interrupted runs, review or plan-review loops) and requires a workflow change when a kind repeats, with evidence on each item. It also reports recorded job tokens for the round against the previous round's total, and names jobs with no token source. After a pull request is merged, record a post-merge Introspect over the PR's measured job data; the next list's Collect is refused until that record is present.

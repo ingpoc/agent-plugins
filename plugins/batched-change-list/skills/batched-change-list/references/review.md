@@ -1,6 +1,6 @@
 # Review
 
-Review each lane after its fix finishes with `bcl job --phase review --model NAME --result FILE -- COMMAND`. The first nonblank line must be `VERDICT: PASS` or `VERDICT: CHANGES`, and the Must-fix section must say `none` for PASS or name an item for CHANGES. Log leftover nits as new issues, not must-fix items. `bcl review --ids ID` records a one-file skip or starts review after a successful fix.
+Review each lane after its fix finishes with `bcl job --phase review --model NAME --result FILE -- COMMAND`. The first nonblank line must be `VERDICT: PASS` or `VERDICT: CHANGES`, and the Must-fix section must say `none` for PASS or name an item for CHANGES. Log leftover nits as new issues, not must-fix items. A passed fix already puts the lane in review, including a fix carried from the previous round.
 
 The plugin version and changelog belong to integration, not to a lane-review must-fix.
 
@@ -8,6 +8,8 @@ When a review, fix, or check does not pass, classify the fault before it is coun
 
 Quota-out fallback: fixes and reviews run on Codex first; if the Codex quota runs out, free OpenCode models (the latest, per the opencode-free-implementer skill) take the remaining fixes and reviews; if OpenCode is unavailable or out of quota too, stop and ask the owner. A quota-out is a tool fault and is not counted; three tool faults in a row (plan reviews included) block the lane until `bcl unblock --reason`.
 
-Run the repository's full check once per lane, right before push, with `bcl job --phase presuite --ids ID [--ids ID] -- python3 scripts/check.py`; it already runs the skill suite, chart and strict shape checks, so fix jobs run only the lane's tests and lanes shipping together share one job. The page shows this as **Pre-push suite** within Review. The pre-push suite is a source check, not the post-install Verify stage. Install requires a passed suite and a passed review or recorded one-file skip for each lane.
+Run the repository's full check once per lane, right before push, with `bcl job --phase presuite --ids ID [--ids ID] -- python3 scripts/check.py`; it already runs the skill suite, chart and strict shape checks, so fix jobs run only the lane's tests and lanes shipping together share one job. The page shows this as **Pre-push suite** within Review. The pre-push suite is a source check, not the post-install Verify stage. Install requires a passed suite and a passed review job for each lane.
 
 `check_install_sessions.py` validates the selected lane and review receipts before Install.
+
+After a fix has passed, record the verdict with `bcl job --phase review`.

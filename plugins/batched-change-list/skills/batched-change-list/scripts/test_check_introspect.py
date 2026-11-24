@@ -33,8 +33,10 @@ class IntrospectCheckTests(unittest.TestCase):
         self.assertEqual(draft["steps"], check.performed_round_steps(self.tracking()))
         self.assertEqual(draft["none"], [])
         self.assertEqual(list(draft["sections"]), list(check.SECTION_ORDER))
-        self.assertTrue(all(section["none"].startswith("Review performed steps")
-                            for section in draft["sections"].values()))
+        self.assertTrue(draft["sections"]["delete"]["none"].startswith("Review performed steps"))
+        self.assertTrue(draft["sections"]["simplify"]["none"].startswith("Review performed steps"))
+        self.assertIn("token", draft["sections"]["optimize"]["none"].lower())
+        self.assertIn("Evidence quality", draft["sections"]["automate"]["none"])
         with self.assertRaisesRegex(ValueError, "lack section or none coverage"):
             check.validate_introspect(draft["sections"], draft["steps"], draft["none"], self.tracking())
 
@@ -96,6 +98,52 @@ class IntrospectCheckTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("polling", result.stderr)
         self.assertEqual(len(result.stderr.strip().splitlines()), 1)
+
+
+    def test_draft_ranks_costliest_jobs_and_proposes_a_cut(self):
+        tracking = self.tracking()
+        tracking["plan"]["groups"][0]["codex"]["job"] = {
+            "id": "slow-job", "phase": "fix", "exit_code": 0, "finished_phase_status": "passed",
+            "wall_time_s": 40, "tokens": {"input": 80, "cached": 0, "output": 20, "total": 100},
+        }
+        tracking["plan"]["groups"][1]["codex"]["job"] = {
+            "id": "quick-job", "phase": "fix", "exit_code": 0, "finished_phase_status": "passed",
+            "wall_time_s": 5, "tokens": {"input": 8, "cached": 0, "output": 2, "total": 10},
+        }
+        draft = check.draft_introspect(tracking)
+        self.assertTrue(any(step.startswith("Job wall time: A") for step in draft["steps"]))
+        reason = draft["sections"]["optimize"]["none"]
+        self.assertIn("Propose a cut", reason)
+        self.assertIn("40s", reason)
+        ranked = check.rank_costliest_jobs(tracking)
+        self.assertEqual(ranked[0]["metric"], "40s")
+        self.assertIn("100", draft["sections"]["optimize"]["none"])
+
+    def test_draft_requires_a_workflow_change_for_repeated_review_failures(self):
+        tracking = self.tracking()
+        tracking["verification_history"] = [
+            {"id": "run-a", "status": "interrupted"},
+            {"id": "run-b", "status": "interrupted"},
+        ]
+        tracking["plan"]["groups"][0]["failure_history"] = [
+            {"source": "review", "attempt_id": "r1"},
+            {"source": "review", "attempt_id": "r2"},
+        ]
+        draft = check.draft_introspect(tracking)
+        items = draft["sections"]["simplify"]["items"]
+        self.assertTrue(any(item["item"] == "Repeat: interrupted verification runs" for item in items))
+        self.assertTrue(any(item["item"] == "Repeat: review failures on A" for item in items))
+        self.assertTrue(all(item.get("evidence") and "workflow change" in item.get("change", "") for item in items))
+        self.assertIn("Repeat: interrupted verification runs", draft["steps"])
+
+    def test_draft_post_merge_introspect_lists_required_changes(self):
+        tracking = self.tracking()
+        tracking["verification_history"] = [{"id": "run-a", "status": "interrupted"},
+                                            {"id": "run-b", "status": "interrupted"}]
+        draft = check.draft_post_merge_introspect(tracking)
+        self.assertEqual(draft["scope"], "post_merge")
+        self.assertTrue(draft["required_changes"])
+        self.assertTrue(any("interrupted" in change for change in draft["required_changes"]))
 
 
 if __name__ == "__main__":

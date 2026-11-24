@@ -210,13 +210,15 @@ class LaneStateTests(unittest.TestCase):
         group.update(phase="review", presuite={"status": "passed"})
         self.assertFalse(self.install_ready(group))
 
-    def test_one_file_lane_skips_review(self):
+    def test_one_file_lane_still_needs_a_passed_review(self):
         group = self.lane("planned", one_file=True, fix_status="passed")
         self.assertEqual(check_install_sessions.validate_review_sessions({"groups": [group]}, ["ISSUE-01"]), ["A"])
         group.update(status="review", phase="review")
         self.assertFalse(self.install_ready(group))
         group["codex"]["review_status"] = "skipped_one_file"
         group["presuite"] = {"status": "passed"}
+        self.assertFalse(self.install_ready(group))
+        group["codex"]["review_status"] = "passed"
         self.assertTrue(self.install_ready(group))
 
     def test_stale_hidden_for_completed_receipt_with_live_pid(self):
@@ -270,8 +272,7 @@ class LaneStateTests(unittest.TestCase):
         rows = statechart.router((ROOT / "SKILL.md").read_text())
         row = next(row for row in rows if row["step"] == "Review")
         self.assertEqual(row["path"], "review.md")
-        self.assertIn("bcl review", row["run"])
-        self.assertIn("bcl job", row["run"])
+        self.assertIn("bcl job --phase review", row["run"])
 
 
 
@@ -289,6 +290,40 @@ class LaneStateTests(unittest.TestCase):
         self.assertEqual(render.lane_display(deferred, 1)["copy"], "Parked → Round 2")
         with patch.dict(render.LANE["groups"], {"busy": frozenset()}):
             self.assertNotIn('class="spinner"', render.render_plan({"findings": []}, {}, {"round": 1, "groups": [group]}, 1, None))
+    def test_page_shows_job_timeline_and_running_step(self):
+        group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "fix",
+                 "codex": {"jobs": [{"id": "job-a", "phase": "fix", "model": "Luna",
+                                     "started_at": "2026-11-21T00:00:00Z",
+                                     "finished_at": "2026-11-21T00:12:00Z", "exit_code": 0,
+                                     "finished_phase_status": "passed",
+                                     "output_path": "/tmp/jobs/job-a.log"}],
+                           "job": {"id": "job-b", "phase": "review", "model": "Terra",
+                                   "started_at": "2026-11-21T00:12:00Z", "pid": 4242,
+                                   "latest_step": {"step": "Reading tests", "result": "ok"}}}}
+        with patch.object(render.live_state, "_pid_is_running", return_value=True):
+            page = render.render_plan({"findings": [{"id": "ISSUE-01", "title": "Demo", "status": "in_progress"}]},
+                                      {"workflow": {"stage": "plan_fix", "updated_at": "2026-11-21T00:13:00Z",
+                                                    "now": "2026-11-21T00:13:00Z — Reading tests: ok"}},
+                                      {"round": 1, "groups": [group]}, 1, "2026-11-21T00:13:00Z")
+        self.assertIn("job-timeline", page)
+        self.assertIn("job-a.log", page)
+        self.assertIn("Reading tests", page)
+        self.assertIn("Luna", page)
+        document = {"title": "List", "findings": [{"id": "ISSUE-01", "title": "Demo", "status": "in_progress",
+                                                   "summary": "s", "recommendation": "r", "done_when": "d",
+                                                   "priority": "high", "source": "Agent reported",
+                                                   "impact": "i"}],
+                    "tracking": {"cycle": 1, "round": 1, "workflow": {
+                        "stage": "plan_fix", "updated_at": "2026-11-21T00:13:00Z",
+                        "now": "2026-11-21T00:13:00Z — Reading tests: ok"},
+                        "plan": {"cycle": 1, "round": 1, "groups": [group]}}}
+        # render() validates more fields; keep this check on the plan fragment and now-line helper.
+        html = render.render_job_timeline(group, "2026-11-21T00:13:00Z")
+        self.assertIn("fix", html)
+        self.assertIn("review", html)
+        self.assertIn("Terra", html)
+
+
 
 if __name__ == "__main__":
     unittest.main()

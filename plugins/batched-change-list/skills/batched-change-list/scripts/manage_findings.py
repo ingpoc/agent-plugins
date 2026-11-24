@@ -31,6 +31,11 @@ RENDERER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RENDERER)
 
 
+def lane_jobs(group):
+    """Finished receipts plus the current job, in start order, without duplicates."""
+    return RENDERER.lane_jobs(group)
+
+
 def stamp_plan_group(group, now):
     group["updated_at"] = now
     codex = group.get("codex")
@@ -821,6 +826,7 @@ def carry_plan_runtime_state(groups, previous, same_round):
             continue
         if prior and unchanged and (same_round or gated(prior)):
             requested_status, requested_phase = group.get("status"), group.get("phase")
+            requested_parked_to = group.get("parked_to")
             for field in protected_group:
                 if field in prior and (same_round or field in LANE["gate_paths"] or
                                        field in ("plan_review_count", "plan_review_passes") or
@@ -846,6 +852,19 @@ def carry_plan_runtime_state(groups, previous, same_round):
                     codex[field] = copy.deepcopy(previous_codex[field])
                 else:
                     codex.pop(field, None)
+            requested_parked = LANE["status_aliases"].get(requested_status, requested_status) == "parked"
+            if (same_round and requested_parked and type(requested_parked_to) is int
+                    and requested_parked_to >= 1):
+                group["status"] = "parked"
+                group["parked_to"] = requested_parked_to
+            review_cleared = previous_codex.get("review_status") in LANE["review_cleared"]
+            if (not same_round and prior.get("status") != "blocked"
+                    and previous_codex.get("fix_status") == "passed" and not review_cleared
+                    and not (prior.get("status") == "parked" and prior.get("blocked_reason"))):
+                group["status"] = "review"
+                group["phase"] = "review"
+                group.pop("parked_to", None)
+                codex["fix_status"] = copy.deepcopy(previous_codex["fix_status"])
             if group.get("status") == "blocked" and not group.get("phase"):
                 group["phase"] = prior.get("phase") or "fix"
             continue
@@ -1002,6 +1021,13 @@ def release_check_payload(document, included_ids=None, require_presuite=False):
     if included_ids:
         payload["included"] = [{"id": group.get("id"), "finding_ids": list(group.get("finding_ids") or [])}
                                for group in included]
+    payload["tool_fault_candidates"] = [
+        {"id": group.get("id"), "finding_ids": list(group.get("finding_ids") or []),
+         "attempts": [row.get("attempt_id") for row in matches],
+         "reasons": [row.get("reason") for row in matches],
+         "ambiguous": [row.get("attempt_id") for row in ambiguous]}
+        for group, matches, rows, ambiguous in resort_failure_candidates(document)
+    ]
     return payload
 
 
@@ -1041,57 +1067,6 @@ def resort_failure_candidates(document):
         if matches or ambiguous:
             found.append((group, matches, rows, ambiguous))
     return found
-
-
-def resort_failures(document, operation):
-    apply = bool(operation.get("apply"))
-    reason = operation.get("reason")
-    if apply:
-        reason = require_override_reason(reason, "resort-failures")
-    stamp = operation.get("timestamp")
-    if apply and (not isinstance(stamp, str) or RENDERER.parse_instant(stamp) is None):
-        raise ValueError("resort-failures timestamp must be an ISO 8601 instant")
-    candidates = resort_failure_candidates(document)
-    report = []
-    named = set(operation.get("tool_faults") or [])
-    if named and not apply:
-        raise ValueError("resort-failures --tool-fault needs --apply and --reason")
-    known = {row.get("attempt_id") for _, _, _, ambiguous in candidates for row in ambiguous}
-    if named - known:
-        raise ValueError(f"resort-failures --tool-fault names no ambiguous counted failure: {', '.join(sorted(named - known))}")
-    for group, matches, rows, ambiguous in candidates:
-        # Ambiguous legacy rows are uncounted only when the owner names them after reading the reply.
-        matches = matches + [row for row in ambiguous if row.get("attempt_id") in named]
-        report.append({"id": group.get("id"), "finding_ids": list(group.get("finding_ids") or []),
-                       "attempts": [row.get("attempt_id") for row in matches],
-                       "reasons": [row.get("reason") for row in matches],
-                       "ambiguous": [row.get("attempt_id") for row in ambiguous]})
-        if not apply or not matches:
-            continue
-        tool_faults = [row.get("attempt_id") for row in matches if isinstance(row.get("attempt_id"), str)]
-        for row in rows:
-            if row.get("attempt_id") in tool_faults:
-                row.update(tool_fault=True, tool_fault_reason=reason)
-        history = group.setdefault("unblock_history", [])
-        if not isinstance(history, list):
-            raise ValueError(f"{group.get('id')} unblock_history must be an array")
-        plan = document.get("tracking", {}).get("plan", {})
-        tracking = document.get("tracking", {})
-        group.setdefault("codex", {}).pop("tool_fault_streak", None)
-        history.append({"at": stamp, "reason": reason, "tool_faults": tool_faults, "resort": True, "rows_seen": len(rows),
-                        "by_cycle": plan.get("cycle", tracking.get("cycle", 1)),
-                        "round": plan.get("round", tracking.get("round", 1))})
-        if group.get("status") == "blocked" and len(_counted_failures(rows)) < 2:
-            group.update(status="running", phase="fix")
-            group.pop("blocked_reason", None)
-            group.pop("failure_block_reason", None)
-            codex = group.setdefault("codex", {})
-            codex.pop("review_status", None)
-            codex.pop("plan_review_status", None)
-            for item in document.get("findings", []):
-                if item.get("id") in group.get("finding_ids", []) and item.get("status") == "blocked":
-                    item["status"] = "in_progress"
-    return {"applied": apply, "lanes": report}
 
 
 def _plan_folded_into_review(group, failures):
@@ -1153,19 +1128,33 @@ def job_transition(document, operation):
         worktree = job.get("worktree")
         if isinstance(worktree, str) and worktree.strip():
             for group in groups:
-                group["worktree"] = worktree
+                if isinstance(group.get("worktree"), str) and group.get("worktree").strip():
+                    group["worktree"] = worktree
         for group in groups:
-            group_job = {**job, "lane_sha256": lane_candidate_sha256(group, cycle, round_number)}
             codex = group.setdefault("codex", {})
             active_job = codex.get("job")
             if isinstance(active_job, dict) and "exit_code" not in active_job:
                 raise ValueError(f"lane {group['id']} already has a running {active_job.get('phase', 'unknown')} job")
+            if isinstance(active_job, dict) and "exit_code" in active_job:
+                history = codex.setdefault("jobs", [])
+                if not isinstance(history, list):
+                    raise ValueError(f"{group['id']} job history must be an array")
+                if all(not isinstance(row, dict) or row.get("id") != active_job.get("id") for row in history):
+                    history.append(dict(active_job))
+            group_job = {**job, "lane_sha256": lane_candidate_sha256(group, cycle, round_number)}
             if group.get("status") in LANE["groups"]["fix_refused"] or (
                     group.get("status") == "failed" and phase not in LANE["groups"]["work_phases"]):
                 recovery = "; run bcl unblock --reason" if group.get("status") == "blocked" else ""
                 raise ValueError(f"job cannot start blocked, parked, deferred, or failed lane {group['id']}{recovery}")
             failures = _counted_failures(_lane_history(group, "failure_history"))
             if phase == "fix":
+                history = _lane_history(group, "failure_history", mutate=False)
+                last_failure = history[-1] if history else None
+                if (group.get("phase") == "review" and codex.get("fix_status") == "passed"
+                        and last_failure and last_failure.get("tool_fault")
+                        and last_failure.get("source") == "review"
+                        and codex.get("review_status") in {"failed", "incomplete"}):
+                    raise ValueError(f"{group['id']} stays in review after a tool-fault review; rerun the review")
                 if len(failures) >= 2 and not _unblock_covers_failures(group, failures):
                     raise ValueError(f"{group['id']} is blocked after two counted failures; run bcl unblock --reason")
                 if failures:
@@ -1194,7 +1183,7 @@ def job_transition(document, operation):
             elif phase == "presuite":
                 if (codex.get("fix_status") != "passed" or
                         codex.get("review_status") not in LANE["review_cleared"]):
-                    raise ValueError(f"presuite requires lane {group['id']} review to pass or be skipped_one_file")
+                    raise ValueError(f"presuite requires lane {group['id']} review to pass")
                 group.update(status="review", phase="review")
             else:
                 reviews = _lane_history(group, "plan_review_history")
@@ -1230,6 +1219,26 @@ def job_transition(document, operation):
             codex = group.setdefault("codex", {})
             job = codex.get("job")
             job.update(exit_code=exit_code, finished_at=stamp)
+            first_error = operation.get("first_error_line")
+            if isinstance(first_error, str) and first_error.strip():
+                job["first_error_line"] = first_error.strip()[:240]
+            output_path = operation.get("output_path")
+            if isinstance(output_path, str) and output_path.strip():
+                job["output_path"] = output_path.strip()
+                job["output_retained"] = True
+            elif job.get("first_error_line"):
+                job["output_retained"] = True
+            if "tokens_source" in operation:
+                job["tokens_source"] = operation.get("tokens_source")
+            if "tokens" in operation:
+                job["tokens"] = operation.get("tokens")
+            wall_time = operation.get("wall_time_s")
+            if isinstance(wall_time, int) and wall_time >= 0:
+                job["wall_time_s"] = wall_time
+            for field in ("session", "gap", "model"):
+                value = operation.get(field)
+                if isinstance(value, str) and value.strip():
+                    job[field] = value.strip()
             job_tool_fault = False
             if phase in LANE["review_phases"]:
                 status = verdict if exit_code == 0 else None
@@ -1271,14 +1280,18 @@ def job_transition(document, operation):
                     if phase == "review":
                         codex["review_status"] = "failed" if incomplete else state
                         codex["must_fix_note"] = reason
-                        if rejected:
+                        # A crash with no verdict returns to fix. A finished
+                        # PASS/incomplete review or a rejected model stays here.
+                        stay = rejected or (tool_fault and not (runner_failed and verdict is None))
+                        if stay:
                             group.update(status="review", phase="review")
-                            substitution = operation.get("substitution")
-                            if isinstance(substitution, str) and substitution.strip():
-                                codex["reviewer_model"] = substitution.strip()
-                                job["model"] = substitution.strip()
-                                job["model_substitution"] = substitution.strip()
-                            job["fault_kind"] = "model_rejected"
+                            if rejected:
+                                substitution = operation.get("substitution")
+                                if isinstance(substitution, str) and substitution.strip():
+                                    codex["reviewer_model"] = substitution.strip()
+                                    job["model"] = substitution.strip()
+                                    job["model_substitution"] = substitution.strip()
+                                job["fault_kind"] = "model_rejected"
                         else:
                             group.update(status="running", phase="fix")
                     else:
@@ -1319,6 +1332,37 @@ def job_transition(document, operation):
             job["heartbeat_at"] = stamp
             if not job_tool_fault:
                 codex["tool_fault_streak"] = 0
+    elif action == "report-step":
+        job_id = operation.get("job_id")
+        step = operation.get("step")
+        if not isinstance(job_id, str) or not job_id.strip():
+            raise ValueError("report-step requires a job id")
+        if not isinstance(step, str) or not step.strip():
+            raise ValueError("report-step requires a step")
+        matched = False
+        entry = {"step": step.strip(), "at": stamp}
+        result = operation.get("result")
+        if isinstance(result, str) and result.strip():
+            entry["result"] = result.strip()
+        commit = operation.get("commit")
+        if isinstance(commit, str) and commit.strip():
+            entry["commit"] = commit.strip()
+        for group in groups:
+            job = (group.get("codex") or {}).get("job")
+            if (not isinstance(job, dict) or job.get("id") != job_id or "exit_code" in job
+                    or job.get("phase") != phase):
+                continue
+            job.setdefault("steps", []).append(entry)
+            job["latest_step"] = entry
+            job["heartbeat_at"] = stamp
+            matched = True
+        if not matched:
+            raise ValueError("report-step is refused for a job that is not this lane's running job")
+        workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
+        label = step.strip()
+        if entry.get("result"):
+            label = f"{label}: {entry['result']}"
+        tracking["workflow"] = {**workflow, "updated_at": stamp, "now": f"{stamp} — {label}"}
     else:
         raise ValueError("unknown job transition")
 
@@ -1864,11 +1908,88 @@ def archive_cycle_history(tracking, through_cycle):
         history = tracking.get(key, [])
         if not isinstance(history, list) or any(not isinstance(row, dict) for row in history):
             raise ValueError(f"tracking.{key} must be an array of records")
-        moved.extend({**copy.deepcopy(row), "record_type": key, "archived_cycle": row["cycle"]}
-                     for row in history if type(row.get("cycle")) is int and row["cycle"] <= through_cycle)
-        tracking[key] = [row for row in history
-                         if not (type(row.get("cycle")) is int and row["cycle"] <= through_cycle)]
+        def earlier(row):
+            cycle = row.get("cycle")
+            return True if type(cycle) is not int else cycle <= through_cycle
+        moved.extend({**copy.deepcopy(row), "record_type": key,
+                      "archived_cycle": row["cycle"] if type(row.get("cycle")) is int else through_cycle}
+                     for row in history if earlier(row))
+        tracking[key] = [row for row in history if not earlier(row)]
     return moved
+
+
+
+def merge_findings(document, operation, timestamp=None):
+    """Fold absorbed issues into one kept issue without deleting rows or stopping a run."""
+    into, absorbed = operation.get("into"), operation.get("ids")
+    if not isinstance(into, str) or not into.strip():
+        raise ValueError("merge requires --into ID")
+    if not isinstance(absorbed, list) or not absorbed or any(not isinstance(i, str) or not i.strip() for i in absorbed):
+        raise ValueError("merge requires --ids of absorbed finding IDs")
+    if into in absorbed or len(absorbed) != len(set(absorbed)):
+        raise ValueError("merge IDs must be unique and must not include the kept issue")
+    findings = document.setdefault("findings", [])
+    by_id = {item.get("id"): item for item in findings if isinstance(item, dict)}
+    if into not in by_id:
+        raise ValueError(f"finding not found: {into}")
+    missing = [identifier for identifier in absorbed if identifier not in by_id]
+    if missing:
+        raise ValueError("merge requires existing finding IDs: " + ", ".join(missing))
+    kept, rows = by_id[into], [by_id[identifier] for identifier in absorbed]
+    if kept.get("status") in CLOSED_STATUSES:
+        raise ValueError(f"cannot merge into closed finding {into}")
+    if any(row.get("status") == "closed" for row in rows):
+        raise ValueError("cannot absorb a closed finding")
+    tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else {}
+    plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
+    groups = plan.get("groups") if isinstance(plan.get("groups"), list) else []
+    involved = {into, *absorbed}
+    for group in groups:
+        if not isinstance(group, dict) or not involved.intersection(group.get("finding_ids") or []):
+            continue
+        if group.get("status") in ("blocked", "parked") or (
+                isinstance(group.get("codex"), dict) and isinstance(group["codex"].get("job"), dict)
+                and "exit_code" not in group["codex"]["job"]):
+            raise ValueError(f"merge refuses gated lane {group.get('id')}")
+    for field in ("title", "summary", "recommendation", "done_when"):
+        value = operation.get(field)
+        if not isinstance(value, str) or not value.strip() or "\n" in value or "\r" in value:
+            raise ValueError(f"merge requires a one-line {field}")
+        kept[field] = value.strip()
+    stamp = timestamp or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    details = dict(kept.get("details") or {})
+    details["merged_from"] = ", ".join(absorbed)
+    kept["details"] = details
+    validate_detail_limits(kept)
+    for row in rows:
+        row["status"] = "closed"
+        row["merged_into"] = into
+        row["merged_at"] = stamp
+    for group in groups:
+        ids = list(group.get("finding_ids") or [])
+        if not involved.intersection(ids):
+            continue
+        group["finding_ids"] = [into if identifier in absorbed else identifier for identifier in ids]
+        # unique, keep order
+        seen, unique = set(), []
+        for identifier in group["finding_ids"]:
+            if identifier not in seen:
+                seen.add(identifier)
+                unique.append(identifier)
+        group["finding_ids"] = unique
+        if not unique:
+            raise ValueError(f"merge would empty lane {group.get('id')}")
+    return kept
+
+
+
+def collect_requires_post_merge_introspect(tracking):
+    if not isinstance(tracking, dict):
+        return False
+    rollover = tracking.get("rollover") if isinstance(tracking.get("rollover"), dict) else {}
+    if not (tracking.get("merged") or rollover.get("source_merge")):
+        return False
+    return not isinstance(tracking.get("post_merge_introspect"), dict)
 
 
 def parked_finding(entry):
@@ -2033,6 +2154,66 @@ def require_restore_lane(group, findings):
     if regressed and group.get("restores_main") is not True:
         raise ValueError(f"plan group {group.get('id')}: {', '.join(regressed)} regress against main; this lane must restore "
                          "main's behaviour first (set restores_main true) and any redesign must be filed as its own finding")
+
+def record_hotfix(document, operation):
+    ids = operation.get("ids")
+    if not isinstance(ids, list) or not ids or any(not isinstance(item, str) or not item.strip() for item in ids):
+        raise ValueError("hotfix requires finding ids")
+    ids = [item.strip() for item in ids]
+    if len(ids) != len(set(ids)):
+        raise ValueError("hotfix ids must be unique")
+    reason = require_override_reason(operation.get("reason"), "hotfix")
+    approver = operation.get("by")
+    if not isinstance(approver, str) or not approver.strip():
+        raise ValueError("hotfix requires an approver")
+    stamp = operation.get("timestamp")
+    if not isinstance(stamp, str) or RENDERER.parse_instant(stamp) is None:
+        stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    findings = document.get("findings") if isinstance(document.get("findings"), list) else []
+    known = {item.get("id") for item in findings if isinstance(item, dict)}
+    missing = [item for item in ids if item not in known]
+    if missing:
+        raise ValueError("hotfix names unknown finding ID(s): " + ", ".join(missing))
+    tracking = document.setdefault("tracking", {})
+    if not isinstance(tracking, dict):
+        raise ValueError("tracking must be an object")
+    plan = tracking.setdefault("plan", {"cycle": tracking.get("cycle", 1),
+                                        "round": tracking.get("round", 1), "groups": []})
+    if not isinstance(plan, dict):
+        raise ValueError("plan must be an object")
+    groups = plan.setdefault("groups", [])
+    if not isinstance(groups, list):
+        raise ValueError("plan groups must be an array")
+    intersecting = [group for group in groups if isinstance(group, dict)
+                    and set(ids) & set(group.get("finding_ids") or [])]
+    if len({group.get("id") for group in intersecting}) > 1:
+        raise ValueError("hotfix must name findings from one lane")
+    if intersecting:
+        group = intersecting[0]
+        if set(group.get("finding_ids") or []) != set(ids):
+            raise ValueError("hotfix must name every finding in the lane")
+    else:
+        base = "HF-" + (ids[0] if len(ids) == 1 else "lane")
+        used = {group.get("id") for group in groups}
+        name, n = base, 1
+        while name in used:
+            n += 1
+            name = f"{base}-{n}"
+        group = {"id": name, "finding_ids": list(ids), "status": "planned", "phase": "fix",
+                 "reason": reason}
+        groups.append(group)
+    payload = release_check_payload(document, ids)
+    record = {"approver": approver.strip(), "reason": reason, "at": stamp, "ids": list(ids),
+              "cycle": plan.get("cycle", tracking.get("cycle", 1)),
+              "round": plan.get("round", tracking.get("round", 1)),
+              "mini_round": True, "release_check": payload}
+    group["hotfix"] = copy.deepcopy(record)
+    history = tracking.setdefault("hotfix_history", [])
+    if not isinstance(history, list):
+        raise ValueError("hotfix_history must be an array")
+    history.append(copy.deepcopy(record))
+    return record
+
 
 MAX_ROUND_LANES = 4
 
@@ -2802,7 +2983,7 @@ def run(args, parser):
                 raise ValueError("pause and resume must be the only batch operation")
             existing_run = store["document"].get("tracking", {}).get("verification_run")
             original_plan = copy.deepcopy(store['document'].get('tracking', {}).get('plan'))
-            run_actions = {"start-verification", "finish-verification", "start-check", "finish-check", "complete-verification", "stop-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify", "set-fix-order", "start-job", "attach-job", "heartbeat-job", "finish-job", "skip-review", "record-cleanup", "archive-history", "unblock-lane", "resort-failures"}
+            run_actions = {"start-verification", "finish-verification", "start-check", "finish-check", "complete-verification", "stop-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify", "set-fix-order", "start-job", "attach-job", "heartbeat-job", "finish-job", "record-cleanup", "archive-history", "unblock-lane"}
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()
@@ -2836,10 +3017,8 @@ def run(args, parser):
                                and isinstance(group["codex"].get("job"), dict)
                                and "exit_code" not in group["codex"]["job"]]
                 plan_or_finding_edits = {
-                    "set-plan", "update-plan-group", "set-activity", "set-stage", "skip-review",
-                    "finish-verification",
-                    "archive", "park", "unpark", "rerun-verify", "unblock-lane", "resort-failures",
-                    "add", "update", "delete", "record-evidence", "start-verification",
+                    "set-plan", "update-plan-group", "set-activity", "set-stage",                     "finish-verification",
+                    "archive", "park", "unpark", "rerun-verify", "unblock-lane",                     "add", "update", "delete", "record-evidence", "start-verification",
                     "start-check", "finish-check", "complete-verification", "stop-verification",
                     "correct-check", "reserve-shared-check", "finish-shared-check", "correct-round",
                     "set-fix-order", "archive-history", "record-cleanup",
@@ -2862,18 +3041,6 @@ def run(args, parser):
                     continue
                 if action == "unblock-lane":
                     unblock_lane(store["document"], operation)
-                    continue
-                if action == "resort-failures":
-                    resort_failures(store["document"], operation)
-                    continue
-                if action == "skip-review":
-                    tracking, _, groups = _lane_groups(store["document"], operation.get("ids"))
-                    for group in groups:
-                        codex = group.setdefault("codex", {})
-                        if not codex.get("one_file") or codex.get("fix_status") != "passed":
-                            raise ValueError("skipped_one_file requires a one-file lane with a passed fix job")
-                        codex["review_status"] = "skipped_one_file"
-                        group.update(status="review", phase="review")
                     continue
                 if action == "record-cleanup":
                     tracking = store["document"].setdefault("tracking", {})
@@ -3163,7 +3330,8 @@ def run(args, parser):
                             raise ValueError("verify.summary must be at most 10 words")
                         target_status = LANE["status_aliases"].get(patch.get("status"), patch.get("status"))
                         if target_status in ("blocked", "parked"):
-                            if patch.get("reason") and not patch.get("blocked_reason"):
+                            if (patch.get("reason") and not patch.get("blocked_reason")
+                                    and (target_status == "blocked" or group.get("status") == "blocked")):
                                 patch["blocked_reason"] = patch["reason"]
                             if target_status == "parked" and patch.get("parked_to") is None:
                                 patch["parked_to"] = RENDERER.rollover_round(tracking) + 1
@@ -3177,7 +3345,6 @@ def run(args, parser):
                         check_install_sessions.validate_group_codex(group)
                         validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
                         require_restore_lane(group, findings)
-                        validate_plan_groups(plan)
                         validate_dependencies(plan['groups'], findings, tracking)
                         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                         stamp_plan_group(group, stamp)
@@ -3251,6 +3418,9 @@ def run(args, parser):
                               "none": coverage["none"], "sections": sections,
                               "round": RENDERER.rollover_round(tracking),
                               "cycle": RENDERER.rollover_cycle(tracking)}
+                    if operation.get("scope") == "post_merge":
+                        record["scope"] = "post_merge"
+                        tracking["post_merge_introspect"] = record
                     history = tracking.setdefault("introspect_history", [])
                     if not isinstance(history, list) or any(not isinstance(item, dict) for item in history):
                         raise ValueError("tracking.introspect_history must be an array of records")
@@ -3314,6 +3484,8 @@ def run(args, parser):
                         actual = hashlib.sha256(json.dumps(original_plan, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
                         if operation['expected_plan_sha256'] != actual:
                             raise ValueError('plan changed; refusing activity update')
+                    if stage == "collect" and collect_requires_post_merge_introspect(tracking):
+                        raise ValueError("Collect is refused until the post-merge Introspect is recorded")
                     if stage not in RENDERER.WORKFLOW_STAGES:
                         raise ValueError("set-activity requires a valid stage")
                     current_workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
@@ -3374,6 +3546,13 @@ def run(args, parser):
                                 group.update(status='installing', phase='install',
                                              install={**install, 'status': 'running', 'started_at': timestamp})
                                 stamp_stage_model(group, 'install', stage_model, timestamp)
+                    elif stage == 'review':
+                        for group in matched:
+                            if set(ids).intersection(group.get('finding_ids', [])):
+                                codex = group.get('codex') if isinstance(group.get('codex'), dict) else {}
+                                if codex.get('fix_status') == 'passed':
+                                    group.update(status='review', phase='review')
+                                    stamp_stage_model(group, 'review', stage_model, timestamp)
                     elif stage == 'verify':
                         start_verification_lanes(store["document"], ids, timestamp, stage_model)
                     tracking["workflow"] = {"stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
@@ -3397,6 +3576,14 @@ def run(args, parser):
                     validate_detail_limits(item)
                     trim_verification_evidence(item)
                     place_new_finding(findings, item, operation.get("new"), operation.get("into"))
+                    continue
+                if action == "merge":
+                    merge_findings(store["document"], operation, datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
+                    findings = store["document"]["findings"]
+                    continue
+                if action == "hotfix":
+                    record_hotfix(store["document"], operation)
+                    findings = store["document"]["findings"]
                     continue
                 index = find_index(findings, operation.get("id"))
                 if action == "update":
@@ -3444,6 +3631,10 @@ def run(args, parser):
                 stamp_changed_stages(_pending_stage_snapshot, store["document"], _pending_stage_timestamp)
             validate_ids(findings)
             store["document"]["findings"] = findings
+            tracking = store["document"].get("tracking")
+            plan = tracking.get("plan") if isinstance(tracking, dict) else None
+            if isinstance(plan, dict):
+                validate_plan_groups(plan)
             before_sync_stage = copy.deepcopy(store["document"])
             invalidate_dependents(store["document"], json.loads(original))
             old_findings = {item.get("id"): item for item in json.loads(original).get("findings", [])}

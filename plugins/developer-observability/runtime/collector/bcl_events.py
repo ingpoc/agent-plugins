@@ -18,6 +18,10 @@ def _gap_name(job):
     model = job.get("model") or job.get("reviewer")
     if model:
         return str(model)
+    if job.get("gap"):
+        return str(job["gap"])
+    if job.get("tokens_source") == "none":
+        return "no token source"
     agent = str(job.get("agent") or "unknown")
     agent_name = Path(agent).name
     wrapper = agent_name in _WRAPPER_AGENTS or agent_name.endswith(".sh")
@@ -56,7 +60,7 @@ def iter_events(stats=None, state_dir=None):
                     if event_time is not None and (latest_time is None or event_time > latest_time):
                         latest_at, latest_time = at, event_time
                 job_id = item.get("job_id")
-                if job_id:
+                if job_id and item.get("event") not in {"issue_failed_first", "root_cause_identified", "fix_verified"}:
                     folded[job_id] = {**folded.get(job_id, {}), **item}
             jobs.extend({**item, "event": "incomplete"} if item.get("event") == "start" else item
                         for item in folded.values())

@@ -59,19 +59,174 @@ def performed_round_steps(tracking):
         if not isinstance(prior_steps, list) or any(not isinstance(step, str) or not step.strip() for step in prior_steps):
             raise ValueError("current-round Introspect record needs a steps array")
         steps.extend(step for step in prior_steps if step not in steps)
+    for row in rank_costliest_jobs(tracking):
+        if row["step"] not in steps:
+            steps.append(row["step"])
     return steps
+
+
+def job_receipts(tracking):
+    """Collect finished job receipts from the current plan for cost ranking."""
+    plan = tracking.get("plan") if isinstance(tracking, dict) else None
+    groups = plan.get("groups") if isinstance(plan, dict) else []
+    receipts = []
+    for group in groups or []:
+        if not isinstance(group, dict):
+            continue
+        group_id = group.get("id") or "lane"
+        codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+        jobs = []
+        if isinstance(codex.get("job"), dict):
+            jobs.append(codex["job"])
+        if isinstance(codex.get("jobs"), list):
+            jobs.extend(job for job in codex["jobs"] if isinstance(job, dict))
+        seen = set()
+        for job in jobs:
+            job_id = job.get("id") or job.get("job_id")
+            key = job_id or id(job)
+            if key in seen:
+                continue
+            seen.add(key)
+            if "exit_code" not in job and job.get("finished_phase_status") is None:
+                continue
+            receipts.append({"group_id": group_id, "job_id": job_id, "phase": job.get("phase"),
+                             "wall_time_s": job.get("wall_time_s") if isinstance(job.get("wall_time_s"), int) else None,
+                             "tokens": job.get("tokens") if isinstance(job.get("tokens"), dict) else None,
+                             "model": job.get("model")})
+    return receipts
+
+
+def rank_costliest_jobs(tracking, limit=3):
+    """Rank finished jobs by wall time and tokens, and propose a cut for the top ones."""
+    receipts = job_receipts(tracking)
+    by_time = sorted((row for row in receipts if isinstance(row.get("wall_time_s"), int)),
+                     key=lambda row: row["wall_time_s"], reverse=True)
+    by_tokens = sorted(
+        (row for row in receipts if isinstance((row.get("tokens") or {}).get("total"), int)),
+        key=lambda row: row["tokens"]["total"], reverse=True)
+    ranked = []
+    for source, rows, unit in (("wall time", by_time, "s"), ("tokens", by_tokens, " tokens")):
+        for index, row in enumerate(rows[:limit], start=1):
+            amount = row["wall_time_s"] if unit == "s" else row["tokens"]["total"]
+            step = (f"Job {source}: {row['group_id']}"
+                    + (f" {row['job_id']}" if row.get("job_id") else "")
+                    + f" {amount}{unit}")
+            cut = ("Propose a cut: split or skip this step first; it used the most "
+                   f"{source} in the recorded jobs.")
+            if index > 1:
+                cut = f"Propose a cut: rank {index} by {source}; shorten or defer it after the top step."
+            ranked.append({"step": step, "item": step, "change": cut, "metric": f"{amount}{unit}"})
+    return ranked
+
+
+def cross_round_repeats(tracking):
+    """Name repeating waste kinds that already appeared more than once."""
+    if not isinstance(tracking, dict):
+        return []
+    repeats = []
+    history = tracking.get("verification_history") if isinstance(tracking.get("verification_history"), list) else []
+    interrupted = [row for row in history if isinstance(row, dict) and row.get("status") == "interrupted"]
+    if len(interrupted) >= 2:
+        ids = ", ".join(str(row.get("id") or "run") for row in interrupted[:4])
+        repeats.append({
+            "kind": "interrupted runs",
+            "step": "Repeat: interrupted verification runs",
+            "evidence": f"{len(interrupted)} interrupted runs, including {ids}",
+            "change": "Require a workflow change so an observer drop cannot leave a run interrupted.",
+        })
+    plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
+    for group in plan.get("groups") or []:
+        if not isinstance(group, dict):
+            continue
+        group_id = group.get("id") or "lane"
+        failures = group.get("failure_history") if isinstance(group.get("failure_history"), list) else []
+        reviews = [row for row in failures if isinstance(row, dict) and row.get("source") == "review"]
+        if len(reviews) >= 2:
+            repeats.append({
+                "kind": "review loops",
+                "step": f"Repeat: review failures on {group_id}",
+                "evidence": f"{group_id} has {len(reviews)} review failures in failure_history",
+                "change": "Require a workflow change; do not keep running plan reviews on the same lane.",
+            })
+        plans = group.get("plan_review_history") if isinstance(group.get("plan_review_history"), list) else []
+        if len(plans) >= 2:
+            repeats.append({
+                "kind": "plan review loops",
+                "step": f"Repeat: plan reviews on {group_id}",
+                "evidence": f"{group_id} has {len(plans)} plan reviews in plan_review_history",
+                "change": "Require a workflow change when plan review repeats on the same lane.",
+            })
+    return repeats
+
+
+def token_comparison(tracking):
+    """Compare current-round token totals with the previous round, naming missing sources."""
+    receipts = job_receipts(tracking)
+    current_total = 0
+    missing = []
+    for row in receipts:
+        tokens = row.get("tokens") or {}
+        if isinstance(tokens.get("total"), int):
+            current_total += tokens["total"]
+        else:
+            missing.append(row.get("job_id") or row.get("group_id") or "job")
+    previous = None
+    history = tracking.get("introspect_history") if isinstance(tracking.get("introspect_history"), list) else []
+    current_round = tracking.get("round", 1)
+    for row in reversed(history):
+        if not isinstance(row, dict):
+            continue
+        if type(row.get("round")) is int and row["round"] < current_round and type(row.get("tokens_total")) is int:
+            previous = row["tokens_total"]
+            break
+    parts = [f"This round's recorded job tokens total {current_total}"]
+    if previous is None:
+        parts.append("the previous round has no comparable token total")
+    else:
+        parts.append(f"the previous round totaled {previous}")
+    if missing:
+        parts.append("missing token source for " + ", ".join(missing))
+    return current_total, previous, missing, "; ".join(parts) + "."
 
 
 def draft_introspect(tracking):
     """Build an editable, deliberately incomplete draft from recorded work."""
-    return {
-        "steps": performed_round_steps(tracking),
-        "none": [],
-        "sections": {
-            name: {"none": f"Review performed steps; no {SECTION_NOUNS[name]} can be inferred from the tracker alone."}
-            for name in SECTION_ORDER
-        },
+    steps = performed_round_steps(tracking)
+    sections = {
+        name: {"none": f"Review performed steps; no {SECTION_NOUNS[name]} can be inferred from the tracker alone."}
+        for name in SECTION_ORDER
     }
+    ranked = rank_costliest_jobs(tracking)
+    _, _, _, token_line = token_comparison(tracking)
+    if ranked:
+        lines = [f"{row['item']}. {row['change']}" for row in ranked]
+        sections["optimize"] = {"none": " ".join(lines) + " " + token_line}
+    else:
+        sections["optimize"] = {"none": token_line}
+    repeats = cross_round_repeats(tracking)
+    if repeats:
+        items = []
+        for row in repeats:
+            if row["step"] not in steps:
+                steps.append(row["step"])
+            items.append({"item": row["step"], "evidence": row["evidence"],
+                          "outcome": "issue", "change": row["change"]})
+        sections["simplify"] = {"items": items}
+    sections["automate"] = {"none": (
+        "Evidence quality: judge whether observability evidence was complete and useful; "
+        "file or append DO issues for gaps. Items without a finding key or evidence path must be flagged or dropped."
+    )}
+    return {"steps": steps, "none": [], "sections": sections}
+
+
+def draft_post_merge_introspect(tracking):
+    """Draft a post-merge Introspect over the PR's measured job data."""
+    draft = draft_introspect(tracking)
+    draft["scope"] = "post_merge"
+    repeats = cross_round_repeats(tracking)
+    if repeats:
+        draft["required_changes"] = [row["change"] for row in repeats]
+    return draft
 
 
 def validate_introspect(sections, steps, none_steps, tracking):

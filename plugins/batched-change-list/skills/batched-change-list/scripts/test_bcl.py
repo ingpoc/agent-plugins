@@ -2,7 +2,7 @@ import importlib.util
 import contextlib
 import io
 from importlib.machinery import SourceFileLoader
-import errno, json, os, shutil, socket, subprocess, sys, tempfile, threading, time, unittest
+import errno, json, os, shlex, shutil, socket, subprocess, sys, tempfile, threading, time, unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -661,6 +661,57 @@ elif args[:2] != ['pr', 'edit']:
         lane = self.call("verify", "--ids", "ISSUE-01", "--then", command)
         self.assertEqual(lane.returncode, 0, lane.stderr)
 
+    def test_verify_uses_driver_and_cleanup_failure_keeps_pass(self):
+        live, command = self._lane_ready()
+        original_run_check = bcl_entrypoint.verify_driver.run_check
+        original_exclusive_lock = tracker_lock.exclusive_lock
+        calls = []
+
+        def recording_run_check(words, **kwargs):
+            calls.append(tuple(words))
+            return original_run_check(words, **kwargs)
+
+        verify_lock = tracker_lock.verify_lock_path(live)
+
+        class FailingExit:
+            def __init__(self, context):
+                self.context = context
+
+            def __enter__(self):
+                return self.context.__enter__()
+
+            def __exit__(self, *exc):
+                self.context.__exit__(*exc)
+                raise RuntimeError("injected cleanup failure")
+
+        def lock_with_failing_verify_cleanup(path, *, blocking=True):
+            context = original_exclusive_lock(path, blocking=blocking)
+            return FailingExit(context) if Path(path) == verify_lock else context
+
+        shared_check = self.root / "shared-check.py"
+        shared_check.write_text("pass\n")
+        shared_command = f'"{sys.executable}" "{shared_check}"'
+
+        with patch.object(bcl_entrypoint.verify_driver, "run_check", recording_run_check), \
+             patch.object(tracker_lock, "exclusive_lock", lock_with_failing_verify_cleanup):
+            shared_result = self.call_without_viewer("verify", "--shared", "--then", shared_command)
+            result = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
+
+        self.assertEqual(shared_result.returncode, 0, shared_result.stderr)
+        self.assertIn("Verification cleanup failed", shared_result.stderr)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(tuple(shlex.split(shared_command)), calls)
+        self.assertIn(tuple(shlex.split(command)), calls)
+        self.assertIn("Verification cleanup failed", result.stderr)
+        written = json.loads(live.read_text())
+        self.assertEqual(written["tracking"]["verification_run"]["shared_check"]["state"], "passed")
+        group = written["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "verified")
+
+    def test_verify_start_runs_driver_self_test(self):
+        import inspect
+        self.assertIn("verify_driver.self_test()", inspect.getsource(bcl_entrypoint.main))
+
     def test_verify_records_fixed_result_from_a_verifying_lane(self):
         live, command = self._lane_ready()
         check = Path(command.split('"')[3])
@@ -822,8 +873,10 @@ elif args[:2] != ['pr', 'edit']:
             job = self.call_job_without_viewer(live, "job", "--ids", "ISSUE-01", "--phase", "fix", "--", "true")
         finally:
             os.chdir(old_cwd)
-        self.assertEqual(job.returncode, 0, job.stderr)
-        self.assertEqual(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["worktree"], "lane-a-r1")
+        self.assertEqual(job.returncode, 3, job.stderr)
+        group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["worktree"], "lane-a-r1")
+        self.assertIn("no commit", (group.get("codex") or {}).get("job", {}).get("first_error_line", ""))
 
     def test_correct_round_moves_the_counter_forward_and_keeps_history(self):
         self.assertEqual(self.call_without_viewer("start").returncode, 0)
@@ -979,8 +1032,6 @@ elif args[:2] != ['pr', 'edit']:
                     "--phase", phase, "job", "--", *command]
             return self.call_job_without_viewer(live, *args)
         self.assertEqual(job("fix").returncode, 0)
-        reviewed = self.call_without_viewer("review", "--ids", "ISSUE-01")
-        self.assertEqual(reviewed.returncode, 0, reviewed.stderr)
         review_job = job("review")
         self.assertEqual(review_job.returncode, 0, review_job.stderr)
         self.assertEqual(job("presuite").returncode, 0)
@@ -1038,7 +1089,6 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(run("fix", "--model", "gpt-6-luna max").returncode, 0)
         codex = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["codex"]
         self.assertEqual((codex["job"]["model"], codex.get("reviewer_model")), ("gpt-6-luna max", None))
-        self.assertEqual(self.call_without_viewer("review", "--ids", "ISSUE-01").returncode, 0)
         result = self.root / "review-model.txt"
         job = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01", "--result", str(result),
             "--model", "Grok Bot subagent (own review)", "--phase", "review", "job", "--", sys.executable, "-c",
@@ -1060,6 +1110,41 @@ elif args[:2] != ['pr', 'edit']:
             (b"\xff", True),
             ("VERDICT: PASS", False),
         ])
+
+    def _walk_start_plan_fix_and_review(self, review_script):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        plan = self.root / "walk-verdict-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"],
+            "status": "planned", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer"}}]}))
+        planned = self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01")
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        fix = self.call_job_without_viewer(live, "--ids", "ISSUE-01", "--phase", "fix", "job", "--",
+                                           sys.executable, "-c", "pass")
+        result = self.root / "walk-review.txt"
+        result.unlink(missing_ok=True)
+        review = self.call_job_without_viewer(live, "--ids", "ISSUE-01", "--result", str(result),
+                                              "--phase", "review", "job", "--", sys.executable, "-c", review_script)
+        group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        return planned, fix, review, group
+
+    def test_one_review_verdict_case_walks_start_plan_fix_and_review(self):
+        result = self.root / "walk-review.txt"
+        script = (
+            "from pathlib import Path; "
+            f"Path({str(result)!r}).write_text('VERDICT: PASS\\n## Must-fix\\nnone\\n')"
+        )
+        planned, fix, review, group = self._walk_start_plan_fix_and_review(script)
+        self.assertEqual(planned.returncode, 0, planned.stderr)
+        self.assertEqual(fix.returncode, 0, fix.stderr)
+        self.assertEqual(review.returncode, 0, review.stderr)
+        self.assertEqual(group["codex"].get("review_status"), "passed")
+
+    def test_failing_review_step_fails_the_walked_verdict_case(self):
+        planned, fix, review, group = self._walk_start_plan_fix_and_review("raise SystemExit(9)")
+        self.assertEqual(planned.returncode, 0, planned.stderr)
+        self.assertEqual(fix.returncode, 0, fix.stderr)
+        self.assertNotEqual(review.returncode, 0)
+        self.assertNotEqual(group["codex"].get("review_status"), "passed")
 
     def test_last_incomplete_changes_is_incomplete_but_complete_changes_survives_nonzero_exit(self):
         live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
@@ -1107,7 +1192,7 @@ elif args[:2] != ['pr', 'edit']:
         return self.call("release-check", *args)
 
     def test_release_check_includes_named_reviewed_lane(self):
-        for review_status in ("passed", "skipped_one_file"):
+        for review_status in ("passed",):
             with self.subTest(review_status=review_status):
                 group = {"id": "A", "finding_ids": ["ISSUE-01", "ISSUE-02"], "status": "running", "phase": "review",
                          "codex": {"fix_status": "passed", "review_status": review_status}}
@@ -1136,7 +1221,7 @@ elif args[:2] != ['pr', 'edit']:
         group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "review",
                  "codex": {"fix_status": "passed", "review_status": "passed"}}
         result = self.release_check_for_groups([group])
-        self.assertEqual(set(json.loads(result.stdout)), {"clear", "lanes"})
+        self.assertEqual(set(json.loads(result.stdout)), {"clear", "lanes", "tool_fault_candidates"})
 
     def test_release_check_keeps_unnamed_reviewed_lane_in_flight(self):
         group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "review",
@@ -1196,8 +1281,6 @@ elif args[:2] != ['pr', 'edit']:
         result = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
                                  "--phase", "fix", "job", "--", *job], env=self.env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        review_result = self.call_without_viewer("review", "--ids", "ISSUE-01")
-        self.assertEqual(review_result.returncode, 0, review_result.stderr)
         verdict_file = self.root / "workflow-review-result.txt"
         review_command = [sys.executable, "-c", f"from pathlib import Path; Path({str(verdict_file)!r}).write_text('VERDICT: PASS\\n## Must-fix\\nnone\\n')"]
         result = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
@@ -1705,6 +1788,7 @@ elif args[:2] != ['pr', 'edit']:
         stderr = io.StringIO()
         with patch.dict(os.environ, self.env), patch.object(live_state, 'STATE', self.state), \
              patch.object(bcl_entrypoint.subprocess, 'Popen', check_writers_then_spawn), \
+             patch.object(bcl_entrypoint.verify_driver.subprocess, 'Popen', check_writers_then_spawn), \
              patch.object(sys, 'argv', [str(BCL),'--data',str(live),'--ids','ISSUE-01','--then',stored_command,'verify']), \
              contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit) as exit_result:
             bcl_entrypoint.main()
@@ -1812,15 +1896,18 @@ elif args[:2] != ['pr', 'edit']:
         self.assertTrue(group["failure_history"][0]["tool_fault"])
         self.assertEqual(group["unblock_history"][-1]["tool_faults"], ["attempt-1"])
 
-    def test_review_refuses_until_fix_job_finishes(self):
+    def test_review_job_refuses_until_fix_job_finishes(self):
         self.assertEqual(self.call("start").returncode, 0)
         plan = self.root / "plan.json"
         plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"],
             "status": "planned", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer"}}]}))
         self.assertEqual(self.call("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
-        result = self.call("review", "--ids", "ISSUE-01")
+        result_file = self.root / "early-review.txt"
+        result = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
+            "--result", str(result_file), "--phase", "review", "job", "--", sys.executable, "-c", "pass"],
+            env=self.env, capture_output=True, text=True)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("has not finished fix", result.stderr)
+        self.assertIn("finish fix and enter review", result.stderr)
 
     def test_review_and_presuite_reject_other_lane_still_fixing(self):
         live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
@@ -1837,7 +1924,7 @@ elif args[:2] != ['pr', 'edit']:
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("each lane", result.stderr)
 
-    def test_one_file_review_skip_and_presuite_gate_real_install(self):
+    def test_one_file_lane_still_needs_a_passed_review_and_presuite_before_install(self):
         self.assertEqual(self.call("start").returncode, 0)
         verify_script = self.root / "verify.sh"
         verify_script.write_text(f"#!/bin/sh\n{sys.executable} -c 'pass'\n")
@@ -1846,13 +1933,19 @@ elif args[:2] != ['pr', 'edit']:
         plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"],
             "status": "planned", "codex": {"one_file": True}, "verify": {"command": str(verify_script)}}]}))
         self.assertEqual(self.call("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
-        self.assertNotEqual(self.call("review", "--ids", "ISSUE-01").returncode, 0)
+        unknown = self.call("review", "--ids", "ISSUE-01")
+        self.assertNotEqual(unknown.returncode, 0)
+        self.assertIn("unknown stage", (unknown.stderr or "") + (unknown.stdout or ""))
         def job(phase, code):
+            extra = ["--result", str(self.root / "one-file-review.txt")] if phase == "review" else []
+            command = [sys.executable, "-c",
+                       f"from pathlib import Path; Path({str(self.root / 'one-file-review.txt')!r}).write_text('VERDICT: PASS\\n## Must-fix\\nnone\\n')"
+                       ] if phase == "review" else [sys.executable, "-c", f"raise SystemExit({code})"]
             return subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
-                "--phase", phase, "job", "--", sys.executable, "-c", f"exit({code})"], env=self.env, capture_output=True, text=True)
+                *extra, "--phase", phase, "job", "--", *command], env=self.env, capture_output=True, text=True)
         self.assertEqual(job("fix", 0).returncode, 0)
-        self.assertEqual(self.call("review", "--ids", "ISSUE-01").returncode, 0)
-        self.assertEqual(json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["codex"]["review_status"], "skipped_one_file")
+        self.assertEqual(job("review", 0).returncode, 0)
+        self.assertEqual(json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["codex"]["review_status"], "passed")
         self.assertNotEqual(self.call("install", "--ids", "ISSUE-01").returncode, 0)
         self.assertEqual(job("presuite", 1).returncode, 1)
         self.assertNotEqual(self.call("install", "--ids", "ISSUE-01").returncode, 0)
@@ -2852,7 +2945,7 @@ elif args[:2] != ['pr', 'edit']:
         for path in viewers.glob("*.json"):
             path.write_text("{not-json")
         (viewers / "damaged.json").write_text("{not-json")
-        for stage in ("sync-main", "merge", "not-a-command"):
+        for stage in ("sync-main", "review", "resort-failures", "not-a-command"):
             result = self.call(stage)
             combined = (result.stderr or "") + (result.stdout or "")
             self.assertNotEqual(result.returncode, 0, combined)
@@ -2898,6 +2991,24 @@ elif args[:2] != ['pr', 'edit']:
         self.assertIn(result.returncode, (0, 2), result.stderr)
         self.assertEqual(live.read_bytes(), before)
         self.assertEqual(live.stat().st_mtime_ns, mtime)
+
+
+    def test_hotfix_records_a_one_lane_mini_round(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        result = self.call_without_viewer("hotfix", "--ids", "ISSUE-01", "--by", "Guru",
+                                          "--reason", "tool bug on the release path")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["approver"], "Guru")
+        self.assertEqual(payload["reason"], "tool bug on the release path")
+        self.assertTrue(payload["mini_round"])
+        self.assertIn("clear", payload["release_check"])
+        saved = json.loads(self.data.read_text())
+        group = saved["tracking"]["plan"]["groups"][-1]
+        self.assertEqual(group["finding_ids"], ["ISSUE-01"])
+        self.assertEqual(group["hotfix"]["approver"], "Guru")
+        missing = self.call_without_viewer("hotfix", "--ids", "ISSUE-01", "--reason", "tool bug")
+        self.assertNotEqual(missing.returncode, 0)
 
 
 

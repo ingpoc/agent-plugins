@@ -11,16 +11,19 @@ class ReferenceTests(unittest.TestCase):
     def test_docs_do_not_advertise_retired_commands(self):
         docs = [SKILL.parent.parent / "README.md", SKILL / "SKILL.md",
                 *(SKILL / "references").rglob("*.md")]
-        command = re.compile(r"\bbcl(?:\s+--data\s+\S+)?\s+(?:merge|sync-main)\b")
-        self.assertRegex("bcl merge", command)
+        command = re.compile(r"\bbcl(?:\s+--data\s+\S+)?\s+(?:sync-main|resort-failures|review)\b")
         self.assertRegex("bcl --data FINDINGS.json sync-main", command)
+        self.assertRegex("bcl review --ids ISSUE-01", command)
+        self.assertRegex("bcl resort-failures", command)
+        self.assertIsNone(command.search("bcl merge --into ID"))
         self.assertIsNone(command.search("bcl merged; merging branches"))
+        self.assertIsNone(command.search("bcl job --phase review"))
         for path in docs:
             text = path.read_text(encoding="utf-8")
             self.assertIsNone(command.search(text), f"{path} advertises a retired command")
         readme = docs[0].read_text(encoding="utf-8")
         stage_list = readme.split("**Workflow command.**", 1)[1].split(". Successful stages", 1)[0]
-        self.assertNotRegex(stage_list, r"\b(?:merge|sync-main)\b", "README stage list advertises a retired command")
+        self.assertNotRegex(stage_list, r"\bsync-main\b", "README stage list advertises a retired command")
 
     def test_references_have_no_literal_gate_numbers(self):
         values = (DEFINITION["gate"]["default_threshold"], DEFINITION["gate"]["merge_previous_pr_threshold"])
@@ -57,6 +60,18 @@ class ReferenceTests(unittest.TestCase):
             text.count("the plugin version and changelog belong to integration, not to a lane-review must-fix."),
             1,
         )
+
+    def test_guides_say_every_round_ships(self):
+        release = (SKILL / "references/release.md").read_text(encoding="utf-8").lower()
+        gate = (SKILL / "references/gate.md").read_text(encoding="utf-8").lower()
+        note = DEFINITION["gate"]["note"].lower()
+        for text in (release, gate, note):
+            self.assertIn("each round ships", text)
+            self.assertIn("patch", text)
+        self.assertIn("bcl hotfix", release)
+        self.assertIn("--by", release)
+        self.assertIn("release-check", release)
+
 
 
 if __name__ == "__main__":

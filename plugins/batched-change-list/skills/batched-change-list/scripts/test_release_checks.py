@@ -32,57 +32,49 @@ class ReleaseCheckTests(unittest.TestCase):
         self.assertEqual(payload["lanes"], [])
 
 
-class ResortFailuresTests(unittest.TestCase):
+class ToolFaultCandidateTests(unittest.TestCase):
     def _blocked(self, rows):
         return document([{"id": "A", "finding_ids": ["ISSUE-01"], "status": "blocked", "phase": "fix",
                           "blocked_reason": "Second failure", "failure_history": rows}],
                         findings=[{"id": "ISSUE-01", "status": "blocked"}])
 
-    def test_applies_structured_tool_faults_without_uncounting_code_faults(self):
+    def test_release_check_lists_structured_tool_faults_without_uncounting_them(self):
         doc = self._blocked([
             {"attempt_id": "r1", "source": "review", "reason": "quota ran out", "fault_kind": "quota_out", "at": STAMP},
             {"attempt_id": "r2", "source": "review", "reason": "missing guard", "at": STAMP}])
-        preview = manager.resort_failures(doc, {"apply": False})
-        self.assertEqual(preview["lanes"][0]["attempts"], ["r1"])
+        payload = manager.release_check_payload(doc)
+        self.assertEqual(payload["tool_fault_candidates"][0]["attempts"], ["r1"])
         self.assertEqual(doc["tracking"]["plan"]["groups"][0]["status"], "blocked")
-        applied = manager.resort_failures(doc, {"apply": True, "reason": "quota-out is a tool fault", "timestamp": STAMP})
+        manager.unblock_lane(doc, {"ids": ["ISSUE-01"], "reason": "quota-out is a tool fault",
+                                   "tool_faults": ["r1"], "timestamp": STAMP})
         group = doc["tracking"]["plan"]["groups"][0]
-        self.assertTrue(applied["applied"])
         self.assertTrue(group["failure_history"][0]["tool_fault"])
         self.assertFalse(group["failure_history"][1].get("tool_fault"))
         self.assertEqual(group["status"], "running")
         self.assertEqual(doc["findings"][0]["status"], "in_progress")
-        self.assertTrue(group["unblock_history"][0]["resort"])
 
     def test_ambiguous_legacy_incomplete_rows_stay_counted_unless_named(self):
         doc = self._blocked([
             {"attempt_id": "r1", "source": "review", "reason": manager.INCOMPLETE_REVIEW_REASON, "at": STAMP},
             {"attempt_id": "r2", "source": "review", "reason": manager.INCOMPLETE_REVIEW_REASON, "at": STAMP}])
-        preview = manager.resort_failures(doc, {"apply": False})
-        self.assertEqual(preview["lanes"][0]["attempts"], [])
-        self.assertEqual(preview["lanes"][0]["ambiguous"], ["r1", "r2"])
-        manager.resort_failures(doc, {"apply": True, "reason": "post-ship sort", "timestamp": STAMP})
+        payload = manager.release_check_payload(doc)
+        self.assertEqual(payload["tool_fault_candidates"][0]["attempts"], [])
+        self.assertEqual(payload["tool_fault_candidates"][0]["ambiguous"], ["r1", "r2"])
+        self.assertEqual(doc["tracking"]["plan"]["groups"][0]["status"], "blocked")
+        with self.assertRaisesRegex(ValueError, "unknown attempt"):
+            manager.unblock_lane(doc, {"ids": ["ISSUE-01"], "reason": "x", "tool_faults": ["nope"], "timestamp": STAMP})
+        manager.unblock_lane(doc, {"ids": ["ISSUE-01"], "reason": "r1 reply had no verdict line",
+                                   "tool_faults": ["r1"], "timestamp": STAMP})
         group = doc["tracking"]["plan"]["groups"][0]
-        self.assertFalse(any(row.get("tool_fault") for row in group["failure_history"]))
-        self.assertEqual(group["status"], "blocked")
-        manager.resort_failures(doc, {"apply": True, "reason": "r1 reply had no verdict line", "tool_faults": ["r1"], "timestamp": STAMP})
         self.assertTrue(group["failure_history"][0]["tool_fault"])
         self.assertFalse(group["failure_history"][1].get("tool_fault"))
         self.assertEqual(group["status"], "running")
-        with self.assertRaisesRegex(ValueError, "names no ambiguous"):
-            manager.resort_failures(doc, {"apply": True, "reason": "x", "tool_faults": ["nope"], "timestamp": STAMP})
 
     def test_reviewer_text_that_looks_like_a_tool_reason_stays_counted(self):
         doc = self._blocked([
             {"attempt_id": "r1", "source": "review", "reason": "Quota-out: handling is broken", "at": STAMP},
             {"attempt_id": "r2", "source": "review", "reason": "Cut-off: upload truncates", "at": STAMP}])
-        self.assertEqual(manager.resort_failures(doc, {"apply": False})["lanes"], [])
-
-    def test_apply_requires_a_reason(self):
-        doc = document([{"id": "A", "finding_ids": ["ISSUE-01"], "status": "running", "phase": "fix",
-                         "failure_history": [{"attempt_id": "r1", "source": "review", "reason": "x", "fault_kind": "cut_off", "at": STAMP}]}])
-        with self.assertRaisesRegex(ValueError, "resort-failures"):
-            manager.resort_failures(doc, {"apply": True, "timestamp": STAMP})
+        self.assertEqual(manager.release_check_payload(doc)["tool_fault_candidates"], [])
 
 
 class ToolFaultStreakTests(unittest.TestCase):

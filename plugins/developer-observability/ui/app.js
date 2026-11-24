@@ -19,6 +19,7 @@ const PRESET_FROM = {'1 h': 'now-1h', '6 h': 'now-6h', '24 h': 'now-24h', '7 d':
 let data = {issues: [], rounds: [], runs: [], lists: {projects: [], prs: []}};
 let project = 'agent-plugins', pr = 'current', round = null, scope = 'now';
 let from = null, to = null, run = null, openGroup = null, showAll = false, drawer = null;
+let keyOn = false, jobsOn = false, cycAll = false, statsOn = false;
 let timeLabel = 'Now', generation = 0, lastFocus = null, openerSelector = null, dragging = null;
 
 function prUnset(value) {
@@ -173,11 +174,15 @@ function urlState() {
   }
   if (q.has('group')) openGroup = q.get('group');
   if (q.has('drawer')) drawer = q.get('drawer');
+  keyOn = q.get('key') === '1';
+  jobsOn = q.get('jobs') === 'open';
+  cycAll = q.get('cycles') === 'all';
+  statsOn = q.get('stats') === 'open';
 }
 
 function updateUrl() {
   const u = new URL(location.href);
-  for (const key of ['project', 'pr', 'round', 'scope', 'from', 'to', 'run', 'group', 'drawer']) {
+  for (const key of ['project', 'pr', 'round', 'scope', 'from', 'to', 'run', 'group', 'drawer', 'key', 'jobs', 'cycles', 'stats']) {
     u.searchParams.delete(key);
   }
   if (project) u.searchParams.set('project', project);
@@ -192,11 +197,15 @@ function updateUrl() {
   }
   if (openGroup) u.searchParams.set('group', openGroup);
   if (drawer) u.searchParams.set('drawer', drawer);
+  if (drawer && keyOn) u.searchParams.set('key', '1');
+  if (drawer && jobsOn) u.searchParams.set('jobs', 'open');
+  if (drawer && cycAll) u.searchParams.set('cycles', 'all');
+  if (statsOn) u.searchParams.set('stats', 'open');
   history.replaceState(null, '', u);
 }
 
 function issuesQuery() {
-  const q = new URLSearchParams({project});
+  const q = new URLSearchParams({project, include: 'trail,jobs,rollup'});
   if (pr && pr !== 'current') q.set('pr', pr);
   if (run) q.set('run', run);
   else {
@@ -220,7 +229,7 @@ async function load() {
       : await tool('observability_issues', {
           project_id: project, pr, scope, from_time: from, to_time: to,
           round: round != null ? String(round) : undefined,
-          run: run || undefined
+          run: run || undefined, include: ['trail', 'jobs', 'rollup']
         });
     if(request!==generation)return;
     if (result.error) throw Error(result.error);
@@ -366,11 +375,23 @@ function toggle(id) {
   if (button) button.setAttribute('aria-expanded', String(!pop.hidden));
 }
 
+function breadcrumbRound(selectedRound, selectedRun, runRecord, windowView) {
+  // A selected run takes its own round; other window views show a dash.
+  if (selectedRun) {
+    const value = runRecord && runRecord.round != null ? Number(runRecord.round) : null;
+    return value != null && !Number.isNaN(value) ? value : null;
+  }
+  if (windowView) return null;
+  const value = selectedRound != null ? Number(selectedRound) : null;
+  return value != null && !Number.isNaN(value) ? value : null;
+}
+
 function scopeBar() {
   $('project-label').textContent = (data.lists?.projects || []).find(row => row.id === project)?.label || 'Agent Plugins';
   const row = currentPrRow();
   $('pr-label').textContent = row ? `#${row.pr}` : (pr && pr !== 'current' ? `#${pr}` : '');
-  $('round-label').textContent = round != null && !Number.isNaN(Number(round)) ? `R${round}` : 'R—';
+  const shown = breadcrumbRound(round, run, data.run, Boolean((from && to) || scope === 'window'));
+  $('round-label').textContent = shown != null ? `R${shown}` : 'R—';
   $('time-label').textContent = timeLabel;
 }
 
@@ -393,9 +414,9 @@ function needRows() {
     .sort((a, b) => (b.state === 'regressed') - (a.state === 'regressed'))
     .slice(0, 2);
   const fresh = data.issues.filter(i => i.state === 'untested').length;
-  const rows = failures.map(i => `<div class="need" title="${esc(i.last_evidence?.summary || i.summary)}"><span class="id mono"><span class="dot" style="background:${colors[i.state]}"></span>${esc(i.id)}</span><span class="what">${esc(i.state === 'regressed' ? 'Failed after resolution' : `Blocked · ${i.attempts || 0} failures`)}</span><button class="act" data-open="${esc(i.id)}">Review</button></div>`);
+  const rows = failures.map(i => `<div class="need" title="${esc(i.last_evidence?.summary || i.summary)}"><span class="id mono"><span class="dot" style="background:${colors[i.state]}"></span>${esc(i.id)}</span><span class="what">${esc(i.state === 'regressed' ? 'Failed after resolution' : `Blocked · ${i.attempts || 0} failure${(i.attempts || 0) === 1 ? '' : 's'}`)}</span><button class="act" data-open="${esc(i.id)}">Review</button></div>`);
   if (fresh && rows.length < 3) {
-    rows.push(`<div class="need"><span class="id mono"><span class="dot" style="background:${colors.untested}"></span>${fresh} untested</span><span class="what">No attempt recorded</span><button class="act" data-group="untested">Show</button></div>`);
+    rows.push(`<div class="need"><span class="id mono"><span class="dot" style="background:${colors.untested}"></span>${fresh} untested</span><span class="what">No attempts</span><button class="act" data-group="untested">Show</button></div>`);
   }
   return rows.length ? rows.join('') : '<div class="empty">Nothing needs your attention</div>';
 }
@@ -420,7 +441,7 @@ function rows(list, key) {
     const [t, c, tip] = lastEvidence(i);
     const carried = i.origin_label && String(i.origin_label).includes('carried')
       ? `<span class="muted origin"> · ${esc(i.origin_label)}</span>` : '';
-    return `<button class="row" data-open="${esc(i.id)}" title="${esc(tip)}"><span class="mono">${esc(i.id)}</span><span class="title" title="${esc(i.title)}">${esc(i.title)}${carried}</span><span class="e ${c}">${esc(t)}</span></button>`;
+    return `<button class="row" data-open="${esc(i.id)}" title="${esc(tip)}"><span class="mono">${esc(i.id)}</span><span class="title" title="${esc(i.title)}">${esc(i.title)}${carried}</span>${cue(i)}<span class="e ${c}">${esc(t)}</span></button>`;
   }).join('')}${ordered.length > 8 && !showAll ? `<button class="more" data-more="${esc(key)}">Show all ${ordered.length}</button>` : ''}</div>`;
 }
 
@@ -458,7 +479,7 @@ function headline() {
   const gate = data.gate || {};
   const verified = gate.verified;
   const threshold = gate.threshold;
-  const gateText = typeof threshold === 'number' ? `${verified ?? 0}/${threshold} verified` : (typeof verified === 'number' ? `${verified} verified` : '');
+  const gateText = typeof threshold === 'number' ? ((verified ?? 0) >= threshold ? `${verified} verified · gate ${threshold} ✓` : `${verified ?? 0}/${threshold} verified`) : (typeof verified === 'number' ? `${verified} verified` : '');
   const last = data.last_fail?.at ? `last fail ${formatTime(data.last_fail.at)}` : '';
   const parts = [prLabel, rLabel, blocked ? `<span class="bad">${blocked} blocked</span>` : null, gateText, last].filter(Boolean);
   return parts.join('<span class="d">·</span>');
@@ -475,7 +496,118 @@ function renderNow() {
     const expanded = openGroup === s;
     h += `<button class="grp" data-toggle="${s}" aria-expanded="${expanded}" title="${esc(labels[s])}"><span class="dot" style="background:${colors[s]}"></span>${labels[s]} <span class="n">${list.length}</span><span class="chev">›</span></button>${expanded ? rows(list, s) : ''}`;
   }
+  if (!isWindow()) h += statsHTML();
   return h + '</div>';
+}
+
+// ---- v4 trail (SPEC-trail.md): renders only from the API's include=trail,jobs,rollup payload.
+const STEP = {first_fail: 'First failing run', regressed: 'Failed again after fix', root_cause: 'Root cause identified', fix_verified: 'Fix verified'};
+const PVT = {derived: 'From notes: read from tracker notes, a proxy time or chat, not recorded as data', missing: 'Not recorded', recorded: 'Recorded by the tracker or a job receipt'};
+function fmtD(ms) {
+  if (ms < 60000) return '<1 min';
+  const m = Math.round(ms / 60000), h = Math.floor(m / 60);
+  return h ? `${h} h${m % 60 ? ` ${m % 60} m` : ''}` : `${m} m`;
+}
+function pv(value, provenance, source) {
+  if (value == null || provenance === 'missing') return `<span class="mis" title="${PVT.missing}">— not recorded</span>`;
+  if (provenance === 'derived') return `<span class="drv" title="From notes${source ? ` · ${esc(source)}` : ''}">${value}</span>`;
+  return value;
+}
+const nf = n => Number(n).toLocaleString('en-US');
+const kfmt = n => n >= 1e6 ? `${(n / 1e6).toFixed(1)} M` : `${Math.round(n / 1e3)} k`;
+const mkOf = s => s.status === 'pending' ? 'pending' : (s.provenance || 'missing');
+function curSteps(i) { return (i.trail || []).filter(s => s.cycle === i.cycle); }
+function cue(i) {
+  const steps = curSteps(i);
+  if (!steps.length) return '<span class="cue"></span>';
+  const tip = steps.map(s => `${STEP[s.step]}: ${s.status === 'pending' ? 'not yet' : s.provenance === 'derived' ? 'from notes' : s.provenance === 'missing' ? 'not recorded' : 'recorded'}`).join(' · ');
+  const dots = steps.map((s, k) => {
+    const x = 6 + k * 14, m = mkOf(s);
+    if (m === 'recorded') return `<circle cx="${x}" cy="7" r="4.5" fill="#61686c"/>`;
+    if (m === 'derived') return `<circle cx="${x}" cy="7" r="4" fill="none" stroke="#61686c" stroke-width="1.6"/>`;
+    if (m === 'missing') return `<line x1="${x - 4}" x2="${x + 4}" y1="7" y2="7" stroke="#8d9397" stroke-width="1.6"/>`;
+    return `<circle cx="${x}" cy="7" r="4" fill="none" stroke="#c4c8c4" stroke-width="1.4" stroke-dasharray="2 2"/>`;
+  }).join('');
+  return `<span class="cue" title="Trail · ${esc(tip)}"><svg width="40" height="14" role="img" aria-label="Trail: ${esc(tip)}">${dots}</svg></span>`;
+}
+function tim(x, label) {
+  if (!x) return '';
+  const v = x.status === 'open'
+    ? `<span class="mis">not yet</span>${x.so_far_ms != null ? ` <small>· ${fmtD(x.so_far_ms)} so far</small>` : ''}`
+    : pv(x.ms != null ? fmtD(x.ms) : null, x.provenance, x.provenance === 'derived' ? 'starts or ends on a step from notes' : '');
+  return `<div><span class="k">${label}</span><b>${v}</b></div>`;
+}
+function stepHTML(s) {
+  if (s.status === 'pending') return `<li class="st pend"><span class="mk pending" aria-hidden="true"></span><div><div class="sl">${STEP[s.step]} · not yet</div>${s.note ? `<div class="sm">${esc(s.note)}</div>` : ''}</div><time></time></li>`;
+  const fp = s.field_provenance || {};
+  const ts = s.ts ? esc(formatTime(s.ts, true)) : null;
+  const rid = s.run_id ? esc(s.run_id.length > 24 ? `${s.run_id.slice(0, 23)}…` : s.run_id) : null;
+  const runTxt = rid ? `run <span class="mono" title="${esc(s.run_id)}">${pv(rid, fp.run_id, s.source)}</span>` : `run ${pv(null, 'missing')}`;
+  const evd = s.evidence_url ? `<span class="evl" title="${esc(s.evidence_url)}">${pv('evidence ↗', fp.evidence_url, s.source)}</span>` : `evidence ${pv(null, 'missing')}`;
+  return `<li class="st"><span class="mk ${mkOf(s)}" aria-hidden="true"></span><div><div class="sl">${STEP[s.step]}${s.provenance === 'derived' ? ` <span class="fn" title="${esc(s.source || 'tracker notes')}">· from notes</span>` : ''}</div>${s.what ? `<div class="sm">${esc(s.what)}</div>` : ''}${s.note ? `<div class="sm">${esc(s.note)}</div>` : ''}<div class="sm">${runTxt} · ${evd}</div></div><time>${pv(ts, fp.ts, s.source)}</time></li>`;
+}
+function cycleHTML(i, c) {
+  const st = (i.trail || []).filter(s => s.cycle === c);
+  const tm = (i.timing || []).find(x => x.cycle === c) || {};
+  let h = '';
+  st.forEach((s, k) => {
+    h += stepHTML(s);
+    const nx = st[k + 1];
+    if (nx && nx.status === 'done' && s.status === 'done' && s.ts && nx.ts) {
+      const p = [s, nx].some(z => z.field_provenance?.ts === 'missing') ? 'missing' : [s, nx].some(z => z.field_provenance?.ts !== 'recorded') ? 'derived' : 'recorded';
+      const gap = new Date(nx.ts) - new Date(s.ts);
+      if (gap >= 0) h += `<li class="gapl">${pv(`↓ ${fmtD(gap)}`, p, 'one end is from notes')}</li>`;
+    }
+  });
+  return `<div class="tt">${tim(tm.ttr, 'To root cause')}${tim(tm.ttv, 'To verified')}</div><ol class="trail">${h}</ol>`;
+}
+function keyHTML() {
+  return `<div class="key" role="note" aria-label="Key">
+ <svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="6.5" fill="#1f2326"/></svg><span>Recorded · stored by tracker or job receipt</span>
+ <svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5.5" fill="#fff" stroke="#1f2326" stroke-width="2"/></svg><span><span class="drv">From notes</span> · read from notes or chat</span>
+ <span class="mis" style="text-align:center">—</span><span>Not recorded · happened, nothing stored</span>
+ <svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5.5" fill="#fff" stroke="#cfd2ce" stroke-width="2" stroke-dasharray="2.5 2"/></svg><span class="mis">Not yet · step not reached</span>
+ <span class="h">Tokens</span>
+ <span class="num">1,088,149</span><span>Official · from the provider</span>
+ <span class="num"><span class="drv">≈ 412 k</span></span><span>Estimated · counted by us</span>
+ <span class="mis">—</span><span>None · not recorded</span></div>`;
+}
+function modelTxt(j) {
+  if (!j.model) return j.harness ? `<span title="harness: ${esc(j.harness)} · model not recorded">${pv(null, 'missing')}</span>` : pv(null, 'missing');
+  return j.model_version ? esc(`${j.model} ${j.model_version}`) : `${esc(j.model)} <span class="mis" title="Model version not recorded">· version —</span>`;
+}
+function tokTxt(j) {
+  if (j.tokens_source === 'official' && j.tokens != null) return nf(j.tokens);
+  if (j.tokens_source === 'estimated' && j.tokens != null) return `<span class="drv" title="Estimated${j.tokens_method ? ` · ${esc(j.tokens_method)}` : ''}, not from the provider">≈ ${kfmt(j.tokens)}</span>`;
+  return pv(null, 'missing');
+}
+function jobsHTML(i) {
+  const J = i.jobs_usage || [];
+  if (!J.length) return `<details class="jd" data-det="jobs"${jobsOn ? ' open' : ''}><summary>Jobs · 0</summary><div class="jsum" style="border:0">No jobs linked to this issue</div></details>`;
+  const off = J.filter(j => j.tokens_source === 'official').reduce((a, j) => a + j.tokens, 0);
+  const est = J.filter(j => j.tokens_source === 'estimated').reduce((a, j) => a + j.tokens, 0);
+  const no = J.filter(j => j.tokens_source === 'none').length;
+  const parts = [off ? `${nf(off)} official` : '', est ? `<span class="drv">≈ ${kfmt(est)}</span> estimated` : '', no ? `${no} not recorded` : ''].filter(Boolean).join(' · ');
+  const lane = J.some(j => j.link_provenance === 'derived') ? '<div class="jsum" style="border:0;padding-top:0"><span class="drv" title="Credited through lane membership, not a finding id on the job">Some jobs</span> are credited through the lane</div>' : '';
+  return `<details class="jd" data-det="jobs"${jobsOn ? ' open' : ''}><summary>Jobs · ${J.length}</summary><div class="jt"><span class="hd">Job</span><span class="hd">Model</span><span class="hd num">Tokens</span>${J.map(j => `<span title="${esc(j.job_id)}">${j.link_provenance === 'derived' ? `<span class="drv" title="Credited through the lane">${esc(String(j.phase).replace('_', ' '))}</span>` : esc(String(j.phase).replace('_', ' '))}</span><span>${modelTxt(j)}</span><span class="num">${tokTxt(j)}</span>`).join('')}</div><div class="jsum">Tokens: ${parts}</div>${lane}</details>`;
+}
+function trailHTML(i) {
+  if (!i.trail) return '';
+  const cycles = [...new Set(i.trail.map(s => s.cycle))];
+  const cur = i.cycle, prev = cycles.filter(c => c !== cur);
+  const after = (i.after || []).map(a => `<div class="gapl" style="padding-left:0;margin-top:8px">${esc(formatTime(a.ts, true))} · ${esc(a.text)}</div>`).join('');
+  return `<h3 class="trh">Trail${cur > 1 ? ` <span class="fn" style="font-weight:400">· cycle ${cur}</span>` : ''}<button class="keyb" data-key aria-expanded="${keyOn}" title="What solid, outlined, dotted and dashes mean">Key</button></h3>
+ ${keyOn ? keyHTML() : ''}${cycleHTML(i, cur)}${after}
+ ${prev.map(c => { const f = i.trail.find(s => s.cycle === c && s.step === 'fix_verified'); return `<details class="cyc" data-det="cycles"${cycAll ? ' open' : ''}><summary>Earlier fix · cycle ${c}${f && f.ts ? ` · verified ${esc(formatTime(f.ts))}` : ''}</summary>${cycleHTML(i, c)}</details>`; }).join('')}
+ ${jobsHTML(i)}`;
+}
+function statsHTML() {
+  const R = data.rollup;
+  if (!R) return '';
+  const m = (x, closed) => x ? `${pv(x.ms != null ? fmtD(x.ms) : null, x.provenance, 'median includes steps from notes')}${x.inputs != null && x.inputs !== closed ? ` <span class="mis" title="Closed cycles with both ends dated">· ${x.inputs} of ${closed}</span>` : ''}` : '<span class="mis">none closed</span>';
+  const btn = `<button class="grp" data-stats aria-expanded="${statsOn}" title="Median time to root cause and to verified, and token coverage, per round">Timing and tokens<span class="chev">›</span></button>`;
+  if (!statsOn) return btn;
+  return `${btn}<div class="stats"><div class="stg"><span class="hd">Scope</span><span class="hd">Median to root cause</span><span class="hd">Median to verified</span><span class="hd">Jobs with tokens</span>${R.map(r => `<span class="sc">${esc(r.scope)}${r.closed ? ` <span class="mis">· ${r.closed} closed</span>` : ''}</span><span class="num">${m(r.ttr_median, r.closed)}</span><span class="num">${m(r.ttv_median, r.closed)}</span><span class="num">${r.tokens.official + r.tokens.estimated} of ${r.jobs} jobs${r.tokens.estimated ? ` <span class="mis">· ${r.tokens.estimated} est.</span>` : ''}</span>`).join('')}</div></div>`;
 }
 
 function drawerHTML() {
@@ -483,7 +615,7 @@ function drawerHTML() {
   if (!i) return '';
   const f = i.first_seen || {};
   const ev = [...(i.events || [])].sort((a, b) => new Date(a.at) - new Date(b.at) || (a.kind === 'first_seen' ? -1 : 0));
-  return `<div class="scrim" data-close></div><aside class="drawer" id="issue-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"><button class="x" data-close aria-label="Close">×</button><div class="mono muted">${esc(i.id)}</div><h2 id="drawer-title" tabindex="-1">${esc(i.title)}</h2><dl class="facts"><dt>Status</dt><dd>${esc(labels[i.state] || i.state)}</dd><dt>Area</dt><dd>${esc(i.area || 'Not recorded')}</dd><dt>Origin</dt><dd>${esc(i.origin_label || `${i.origin || ''}${i.origin_pr ? ` · PR #${i.origin_pr}` : ''}${i.carried_to ? ` → #${i.carried_to}` : ''}`)}</dd><dt>First seen</dt><dd>${f.at ? formatTime(f.at, true) : 'Not recorded'}</dd><dt>Last fail</dt><dd>${i.last_seen_at ? formatTime(i.last_seen_at, true) : 'No failure recorded'}</dd><dt>Attempts</dt><dd>${esc(i.attempts || 0)}</dd><dt>Lane</dt><dd>${esc(i.lane?.id || 'No lane')}</dd></dl><h3>What we know</h3><p>${esc(i.summary || 'No summary recorded.')}</p>${i.impact ? `<p>${esc(i.impact)}</p>` : ''}${i.done_when ? `<p>${esc(i.done_when)}</p>` : ''}<h3>Timeline</h3><ul class="tl">${ev.map(e => `<li class="${e.kind === 'pass' ? 'pass-dot' : ['fail', 'review_failed', 'owner_rejected'].includes(e.kind) ? 'fail-dot' : e.kind === 'inconclusive' ? 'inconclusive-dot' : ''}"><time>${esc(formatTime(e.at, true))}</time><span>${esc(e.summary || e.kind)}${publicRef(e.ref)}</span></li>`).join('') || '<li><span class="muted">No events recorded</span></li>'}</ul><details><summary>Raw data</summary><pre>${esc(JSON.stringify(i.raw, null, 2))}</pre></details></aside>`;
+  return `<div class="scrim" data-close></div><aside class="drawer" id="issue-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"><button class="x" data-close aria-label="Close">×</button><div class="mono muted">${esc(i.id)}</div><h2 id="drawer-title" tabindex="-1">${esc(i.title)}</h2><dl class="facts"><dt>Status</dt><dd>${esc(labels[i.state] || i.state)}</dd><dt>Area</dt><dd>${esc(i.area || 'Not recorded')}</dd><dt>Origin</dt><dd>${esc(i.origin_label || `${i.origin || ''}${i.origin_pr ? ` · PR #${i.origin_pr}` : ''}${i.carried_to ? ` → #${i.carried_to}` : ''}`)}</dd><dt>First seen</dt><dd>${f.at ? formatTime(f.at, true) : 'Not recorded'}</dd><dt>Last fail</dt><dd>${i.last_seen_at ? formatTime(i.last_seen_at, true) : 'No failure recorded'}</dd><dt>Attempts</dt><dd>${esc(i.attempts || 0)}</dd><dt>Lane</dt><dd>${esc(i.lane?.id || 'No lane')}</dd></dl>${trailHTML(i)}<details class="wk"><summary>What we know</summary><p>${esc(i.summary || 'No summary recorded.')}</p>${i.impact ? `<p>${esc(i.impact)}</p>` : ''}${i.done_when ? `<p>${esc(i.done_when)}</p>` : ''}</details><details class="wk"><summary>All events · ${ev.length}</summary><ul class="tl">${ev.map(e => `<li class="${e.kind === 'pass' ? 'pass-dot' : ['fail', 'review_failed', 'owner_rejected'].includes(e.kind) ? 'fail-dot' : e.kind === 'inconclusive' ? 'inconclusive-dot' : ''}"><time>${esc(formatTime(e.at, true))}</time><span>${esc(e.summary || e.kind)}${publicRef(e.ref)}</span></li>`).join('') || '<li><span class="muted">No events recorded</span></li>'}</ul></details><details data-raw="${esc(i.id)}"><summary>Raw data</summary><pre>${i.raw !== undefined ? esc(JSON.stringify(i.raw, null, 2)) : 'Loading…'}</pre></details></aside>`;
 }
 
 function recentRuns() {
@@ -732,6 +864,8 @@ document.addEventListener('click', event => {
     return;
   }
   if (b.dataset.open) { closePops(); openDrawer(b.dataset.open); return; }
+  if (b.dataset.key !== undefined) { keyOn = !keyOn; updateUrl(); render(); document.querySelector('.drawer [data-key]')?.focus(); return; }
+  if (b.dataset.stats !== undefined) { statsOn = !statsOn; updateUrl(); render(); document.querySelector('[data-stats]')?.focus(); return; }
   if (b.dataset.close !== undefined) { closeDrawer(); return; }
   if (b.dataset.toggle) {
     openGroup = openGroup === b.dataset.toggle ? null : b.dataset.toggle;
@@ -759,6 +893,40 @@ document.addEventListener('click', event => {
     load();
   }
 });
+
+// Raw data and job receipts are not in the list payload; fetch them from /api/issues/<id> when opened.
+async function loadRaw(node) {
+  const id = node.dataset.raw;
+  const i = data.issues.find(x => x.id === id);
+  const pre = node.querySelector('pre');
+  if (!i || !pre || i.raw !== undefined) return;
+  try {
+    const q = issuesQuery();
+    q.delete('include');
+    const result = http
+      ? await (await fetch(`/api/issues/${encodeURIComponent(id)}?${q}`)).json()
+      : await tool('observability_issues', {
+          project_id: project, pr, scope, from_time: from, to_time: to,
+          round: round != null ? String(round) : undefined, run: run || undefined, issue_id: id
+        });
+    if (result.error) throw Error(result.error);
+    const found = (result.issues || [])[0] || {};
+    i.raw = found.raw ?? null;
+    i.jobs = found.jobs;
+    pre.textContent = JSON.stringify(i.raw, null, 2);
+  } catch (e) {
+    pre.textContent = 'Could not load raw data';
+  }
+}
+
+document.addEventListener('toggle', event => {
+  const node = event.target;
+  if (node instanceof HTMLDetailsElement && node.dataset.raw && node.open) { loadRaw(node); return; }
+  if (!(node instanceof HTMLDetailsElement) || !node.dataset.det) return;
+  if (node.dataset.det === 'jobs') jobsOn = node.open;
+  if (node.dataset.det === 'cycles') cycAll = node.open;
+  updateUrl();
+}, true);
 
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') {

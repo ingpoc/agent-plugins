@@ -159,8 +159,8 @@ class ManageFindingsTests(unittest.TestCase):
         archive = self.root / "archive.json"
         archive.write_text(json.dumps(moved))
         tracking["archive"] = {"path": str(archive)}
-        self.assertEqual([row["id"] for row in tracking["verification_history"]], ["run-legacy", "run-current"])
-        self.assertEqual([row.get("cycle") for row in tracking["introspect_history"]], [None])
+        self.assertEqual([row["id"] for row in tracking["verification_history"]], ["run-current"])
+        self.assertEqual(tracking["introspect_history"], [])
         self.assertEqual(manage_findings.verification_check({"tracking": tracking}, "ISSUE-01", "check-old")["check_id"], "check-old")
 
     def test_fixed_inline_introspect_requires_a_named_proof(self):
@@ -186,11 +186,65 @@ class ManageFindingsTests(unittest.TestCase):
         result = self.cli("batch", self.data, operations, "--render", self.root / "page.html")
         self.assertEqual(result.returncode, 0, result.stderr)
         saved = json.loads(self.data.read_text())
-        self.assertEqual([row["id"] for row in saved["tracking"]["verification_history"]], ["legacy-run", "new-run"])
-        self.assertEqual(len(saved["tracking"]["introspect_history"]), 1)
+        self.assertEqual([row["id"] for row in saved["tracking"]["verification_history"]], ["new-run"])
+        self.assertEqual(saved["tracking"]["introspect_history"], [])
         self.assertEqual(manage_findings.verification_check(saved, "ISSUE-01", "old-check")["check_id"], "old-check")
         rows = json.loads((self.root / "archive.json").read_text())
         self.assertEqual({row["record_type"] for row in rows}, {"verification_history", "introspect_history"})
+        self.assertEqual(manage_findings.verification_check(saved, "ISSUE-01", "legacy-check")["check_id"], "legacy-check")
+
+    def test_merge_folds_issues_during_an_active_run_and_refuses_a_gated_lane(self):
+        document = copy.deepcopy(self.document)
+        while len(document["findings"]) < 3:
+            extra = copy.deepcopy(document["findings"][0])
+            extra["id"] = f"ISSUE-{len(document['findings'])+1:02d}"
+            extra["title"] = extra["id"]
+            extra["status"] = "untested"
+            document["findings"].append(extra)
+        a, b, c = (item["id"] for item in document["findings"][:3])
+        for item in document["findings"][:3]:
+            item["status"] = "untested"
+        document["tracking"] = {"cycle": 1, "round": 1,
+            "verification_run": {"id": "run-1", "status": "active", "build": "1.0",
+                "revision": "abc", "installed_at": "2026-11-24T17:00:00Z", "install_evidence": "receipt",
+                "checks": {a: {"state": "pending"}}},
+            "plan": {"cycle": 1, "round": 1, "groups": [
+                {"id": "A", "finding_ids": [a, b], "status": "planned", "phase": "fix"}]}}
+        fields = {"title": "Kept title", "summary": "Both symptoms in one issue.",
+                  "recommendation": "Use one merge command.", "done_when": "Absorbed issues are closed pointers."}
+        result = self._replay_batch(document, {"action": "merge", "into": a, "ids": [b], **fields})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved = json.loads(self.data.read_text())
+        kept = next(item for item in saved["findings"] if item["id"] == a)
+        absorbed = next(item for item in saved["findings"] if item["id"] == b)
+        self.assertEqual(kept["title"], "Kept title")
+        self.assertEqual(kept["status"], "untested")
+        self.assertEqual(absorbed["status"], "closed")
+        self.assertEqual(absorbed["merged_into"], a)
+        self.assertEqual(saved["tracking"]["plan"]["groups"][0]["finding_ids"], [a])
+        self.assertEqual(saved["tracking"]["verification_run"]["status"], "active")
+        # gated (parked) lane is refused
+        parked = copy.deepcopy(document)
+        parked["tracking"]["plan"]["groups"][0].update(status="parked", parked_to=2, finding_ids=[c])
+        parked["findings"][2]["status"] = "untested"
+        refused = self._replay_batch(parked, {"action": "merge", "into": a, "ids": [c], **fields})
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("gated lane", refused.stderr)
+
+    def test_collect_is_refused_until_post_merge_introspect(self):
+        document = copy.deepcopy(self.document)
+        document["findings"][0]["status"] = "in_progress"
+        document["tracking"] = {"cycle": 2, "round": 1, "stages_reached": [],
+            "rollover": {"source_merge": {"sha": "abc", "merged_at": "2026-11-24T12:00:00Z"}},
+            "workflow": {"stage": "collect"}}
+        start = {"action": "set-activity", "stage": "collect", "ids": [document["findings"][0]["id"]],
+                 "now": "Started collection"}
+        result = self._replay_batch(document, start)
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("post-merge Introspect", result.stderr)
+        document["tracking"]["post_merge_introspect"] = {"scope": "post_merge", "at": "2026-11-24T12:01:00Z"}
+        allowed = self._replay_batch(document, start)
+        self.assertEqual(allowed.returncode, 0, allowed.stderr)
 
     def test_cleanup_outcome_is_separate_from_verification_verdict(self):
         document = copy.deepcopy(self.document)
@@ -1513,6 +1567,81 @@ class ManageFindingsTests(unittest.TestCase):
         current = json.loads(self.data.read_text())
         self.assertEqual([lane["status"] for lane in current["tracking"]["plan"]["groups"]], ["parked", "parked"])
         self.assertTrue(manage_findings.release_check_payload(current)["clear"])
+
+    def test_batch_can_park_two_overflow_lanes_under_the_cap(self):
+        document = copy.deepcopy(self.document)
+        findings = document["findings"]
+        template = copy.deepcopy(findings[0])
+        while len(findings) < 6:
+            identifier = f"ISSUE-{len(findings)+1:02d}"
+            if all(item.get("id") != identifier for item in findings):
+                extra = copy.deepcopy(template)
+                extra["id"] = identifier
+                extra["title"] = identifier
+                extra["status"] = "in_progress"
+                findings.append(extra)
+        groups = []
+        for index, identifier in enumerate(item["id"] for item in findings[:6]):
+            status = "review"
+            codex = {"fix_status": "passed"}
+            if index < 4:
+                codex["review_status"] = "passed"
+            groups.append({"id": chr(ord("A") + index), "finding_ids": [identifier],
+                           "status": status, "phase": "review", "codex": codex})
+        document["tracking"] = {"cycle": 1, "round": 1, "plan": {"cycle": 1, "round": 1, "groups": groups}}
+        # One park would leave five active lanes; both parks in one batch must land under the cap.
+        result = self._replay_batch(
+            document,
+            {"action": "update-plan-group", "id": "E", "patch": {"status": "parked", "parked_to": 2}},
+            {"action": "update-plan-group", "id": "F", "patch": {"status": "parked", "parked_to": 2}},
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        current = json.loads(self.data.read_text())
+        states = [lane["status"] for lane in current["tracking"]["plan"]["groups"]]
+        self.assertEqual(states, ["review", "review", "review", "review", "parked", "parked"])
+        self.assertTrue(manage_findings.release_check_payload(
+            current, [item for lane in current["tracking"]["plan"]["groups"][:4]
+                      for item in lane["finding_ids"]])["clear"])
+
+    def test_carried_passed_fix_enters_review_next_round(self):
+        prior = {"cycle": 1, "round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "status": "parked", "parked_to": 2,
+            "codex": {"fix_status": "passed"},
+        }]}
+        next_round = [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned"}]
+        manage_findings.carry_plan_runtime_state(next_round, prior, False)
+        self.assertEqual(next_round[0]["status"], "review")
+        self.assertEqual(next_round[0]["phase"], "review")
+        self.assertEqual(next_round[0]["codex"]["fix_status"], "passed")
+        self.assertNotIn("parked_to", next_round[0])
+
+    def test_same_round_plan_can_park_overflow_lanes(self):
+        prior = {"cycle": 1, "round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "status": "review", "phase": "review",
+            "codex": {"fix_status": "passed"},
+        }]}
+        requested = [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "parked", "parked_to": 2}]
+        manage_findings.carry_plan_runtime_state(requested, prior, True)
+        self.assertEqual(requested[0]["status"], "parked")
+        self.assertEqual(requested[0]["parked_to"], 2)
+        self.assertEqual(requested[0]["codex"]["fix_status"], "passed")
+
+    def test_set_activity_review_enters_review_phase_when_fix_passed(self):
+        document = copy.deepcopy(self.document)
+        finding_id = document["findings"][0]["id"]
+        document["findings"][0]["status"] = "in_progress"
+        document["tracking"] = {"cycle": 1, "round": 1, "workflow": {"stage": "plan_fix"},
+                                "stages_reached": ["plan_fix"],
+                                "plan": {"cycle": 1, "round": 1, "groups": [{
+                                    "id": "A", "finding_ids": [finding_id], "status": "planned",
+                                    "codex": {"fix_status": "passed"},
+                                }]}}
+        result = self._replay_batch(document, {"action": "set-activity", "stage": "review",
+                                               "ids": [finding_id], "now": "Review started"})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "review")
+        self.assertEqual(group["phase"], "review")
 
     def test_bcl180_parked_dependency_blocked_reason_carries_as_blocked(self):
         parked = {"cycle": 1, "round": 1, "groups": [{
@@ -3026,11 +3155,11 @@ class ManageFindingsTests(unittest.TestCase):
             "tracking": {"plan": {"cycle": 1, "round": 1, "groups": [group]}},
         }
         before = json.dumps(document, sort_keys=True)
-        report = manage_findings.resort_failures(document, {"apply": False})
+        report = manage_findings.release_check_payload(document)
         self.assertEqual(group["status"], "verified")
         self.assertIsNone(group.get("blocked_reason"))
         self.assertEqual(json.dumps(document, sort_keys=True), before)
-        self.assertFalse(report["applied"])
+        self.assertIn("tool_fault_candidates", report)
         # A write still applies the two-failure gate.
         rows = manage_findings._lane_history(group, "failure_history")
         self.assertEqual(len(rows), 2)
@@ -3070,6 +3199,25 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIsNone(group.get("blocked_reason"))
         self.assertEqual(current["findings"][0]["status"], "verified_fixed")
 
+class HotfixTests(ManageFindingsTests):
+    def test_hotfix_records_approver_reason_and_release_check(self):
+        document = copy.deepcopy(self.document)
+        document['findings'][0]['status'] = 'untested'
+        identifier = document['findings'][0]['id']
+        document['tracking'] = {'cycle': 1, 'round': 2, 'plan': {'cycle': 1, 'round': 2, 'groups': []}}
+        record = manage_findings.record_hotfix(document, {'ids': [identifier], 'by': 'Guru',
+            'reason': 'tool bug on the release path', 'timestamp': '2026-11-24T18:40:00Z'})
+        self.assertEqual(record['approver'], 'Guru')
+        self.assertEqual(record['reason'], 'tool bug on the release path')
+        self.assertTrue(record['mini_round'])
+        self.assertIn('clear', record['release_check'])
+        group = document['tracking']['plan']['groups'][0]
+        self.assertEqual(group['finding_ids'], [identifier])
+        self.assertEqual(group['hotfix']['approver'], 'Guru')
+        self.assertEqual(document['tracking']['hotfix_history'][-1]['ids'], [identifier])
+        with self.assertRaisesRegex(ValueError, 'approver'):
+            manage_findings.record_hotfix(document, {'ids': [identifier], 'reason': 'tool bug',
+                'timestamp': '2026-11-24T18:40:00Z'})
 
 
 if __name__ == "__main__":

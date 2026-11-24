@@ -14,7 +14,7 @@ import workflow_definition as WF
 import live_state
 
 STATUSES = {"verified_fixed", "failing", "untested", "in_progress", "awaiting_user_test",
-            "awaiting_verification", "blocked", "investigation"}
+            "awaiting_verification", "blocked", "investigation", "closed"}
 SOURCES = {"User reported", "User requested", "Agent reported", "Telemetry lead", "Source hypothesis"}
 CHECK_STATES = {"pending", "checking", "fixed", "not_fixed", "blocked", "inconclusive"}
 WORKFLOW_STAGES = {**WF.STAGE_LABELS, "gate": WF.DEFINITION["gate"]["badge_label"]}
@@ -331,6 +331,63 @@ def lane_job_running(group):
     return bool(job) and "exit_code" not in job and type(pid) is int and pid > 0 and live_state._pid_is_running(pid)
 
 
+def lane_jobs(group):
+    """Finished receipts plus the current job, in start order, without duplicates."""
+    codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+    history = [job for job in (codex.get("jobs") or []) if isinstance(job, dict)]
+    current = lane_job(group)
+    if current and all(job.get("id") != current.get("id") for job in history):
+        history = history + [current]
+    def start_key(job):
+        return job.get("started_at") or job.get("finished_at") or ""
+    return sorted(history, key=start_key)
+
+
+def job_duration(job, now=None):
+    start = parse_instant(job.get("started_at")) if job else None
+    end = parse_instant(job.get("finished_at")) if job else None
+    if start and not end:
+        end = parse_instant(now) if isinstance(now, str) or now is None else now
+        if end is None:
+            end = datetime.now(timezone.utc)
+    if not start or not end or end < start:
+        return ""
+    seconds = int((end - start).total_seconds())
+    if seconds < 60:
+        return "less than one min"
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes} min"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h {minutes}m" if minutes else f"{hours}h"
+
+
+def render_job_timeline(group, now=None):
+    rows = []
+    for job in lane_jobs(group):
+        phase = str(job.get("phase") or "job").replace("_", " ")
+        model = job.get("model") or "—"
+        if "exit_code" not in job:
+            state = job.get("latest_step", {}).get("step") or "running"
+        elif job.get("exit_code") == 0:
+            state = job.get("finished_phase_status") or "passed"
+        else:
+            state = job.get("first_error_line") or job.get("finished_phase_status") or f"exit {job.get('exit_code')}"
+        start = ist_time(job.get("started_at")) or job.get("started_at") or ""
+        duration = job_duration(job, now)
+        output = job.get("output_path") or ""
+        output_html = (f'<a class="job-output" href="{html.escape(Path(output).name, quote=True)}">'
+                       f'{html.escape(Path(output).name)}</a>' if output else "")
+        parts = [phase, model, state, start, duration]
+        cells = " · ".join(html.escape(str(part)) for part in parts if part)
+        if output_html:
+            cells = f"{cells} · {output_html}" if cells else output_html
+        rows.append(f"<li>{cells}</li>")
+    if not rows:
+        return ""
+    return f'<ol class="job-timeline" aria-label="Lane job timeline">{"".join(rows)}</ol>'
+
+
 def lane_model(group, codex):
     """Who works on the lane now: the model recorded for install or verify (else a scripted
     check), the job model for the lane's current stage, then the reviewer while the lane is
@@ -465,7 +522,7 @@ def finding_lane_status(finding, lane, round_number):
     copy = {"failing": "Failing · no lane yet", "untested": "Untested",
             "in_progress": "In progress · no lane yet", "verified_fixed": "Verified fixed",
             "awaiting_user_test": "Awaiting user test", "awaiting_verification": "Awaiting verification",
-            "blocked": "Blocked", "investigation": "Investigation needed"}.get(status, str(status).replace("_", " ").title())
+            "blocked": "Blocked", "investigation": "Investigation needed", "closed": "Closed"}.get(status, str(status).replace("_", " ").title())
     kind = {"failing": "bad", "verified_fixed": "ok", "in_progress": "run", "blocked": "blk"}.get(status, "idle")
     return {"copy": copy, "kind": kind, "status": "no_lane", "outcome": outcome}
 
@@ -569,6 +626,12 @@ def render_plan(data, tracking, plan, round_number, now, displays=None):
                 note = verify.get("summary") or group.get("verify_summary") or group.get("note") or group.get("reason")
             if not note and build:
                 note = f'{"Installing" if state == "installing" else "Installed"} build {build}'
+        job = lane_job(group)
+        if display.get("live") and job and isinstance(job.get("latest_step"), dict):
+            step = job["latest_step"]
+            note = step.get("step") or note
+            if step.get("result"):
+                note = f"{step.get('step')}: {step.get('result')}"
         note = short_words(note)
         pill_label = "Waiting for quota" if waiting_until else display["label"]
         verify_info = " · ".join(filter(None, (verify.get("method"), verify.get("status"), verify.get("failure"), verify.get("result"), verify.get("summary"))))
@@ -595,7 +658,8 @@ def render_plan(data, tracking, plan, round_number, now, displays=None):
                     f'<span class="g-model">{html.escape(model or "—")}</span><span class="g-note">{html.escape(note)}</span>'
                     f'<span class="pill {state}">{spinner}{icon}{html.escape(pill_label)}</span>'
                     '<svg class="chev" viewBox="0 0 14 14" aria-hidden="true"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
-                    f'</summary><div class="g-detail"><ul>{"".join(detail_rows)}</ul>{f"<dl>{dl}</dl>" if dl else ""}</div></details>')
+                    f'</summary><div class="g-detail"><ul>{"".join(detail_rows)}</ul>{f"<dl>{dl}</dl>" if dl else ""}'
+                    f'{render_job_timeline(group, now)}</div></details>')
     parked_groups = [group for group in groups if states[group.get("id")] == "parked"]
     parked_by_round = {}
     for group in parked_groups:
@@ -1237,8 +1301,21 @@ def render(data, base, inventory_override=None, now=None, viewer=None):
     viewer_html = (f'<div class="viewer-footer">Live view, viewer {html.escape(str(viewer["version"]))}, started {html.escape(str(viewer["started"]))}'
                    f'<details><summary>Details</summary><p>Report path: {html.escape(str(viewer["path"]))}</p></details></div>'
                    if viewer else '<p class="viewer-footer">Viewer version not recorded</p>')
+    latest_html = ""
+    latest_step = None
+    for group in groups:
+        job = lane_job(group)
+        step = job.get("latest_step") if job and isinstance(job.get("latest_step"), dict) else None
+        if step and (latest_step is None or str(step.get("at") or "") >= str(latest_step.get("at") or "")):
+            latest_step = step
+    if latest_step and latest_step.get("step"):
+        label = latest_step["step"]
+        if latest_step.get("result"):
+            label = f"{label}: {latest_step['result']}"
+        when = ist_time(latest_step.get("at")) or ""
+        latest_html = f'<p class="now-line">{html.escape(" · ".join(part for part in (when, label) if part))}</p>'
     timeline = (f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow · last recorded</strong>{fresh_html}</div>'
-                f'{timeline_steps}{plan_view}{viewer_html}</section>')
+                f'{latest_html}{timeline_steps}{plan_view}{viewer_html}</section>')
     group_of = {identifier: {"id": str(group.get("id")), "name": str(group.get("name") or group.get("label") or group.get("id"))}
                 for group in groups for identifier in group.get("finding_ids", []) if isinstance(identifier, str)}
     for item in output:

@@ -43,7 +43,7 @@ class SkillLayoutTests(unittest.TestCase):
 
     def test_flow_chart_has_svg_edges_and_current_after_toggle(self):
         chart=statechart.render()
-        for term in ('Collect','Present','Plan &amp; fix','Review','Pre-push suite','under 15 verified','15+ verified','Report &amp; roll over','Merge previous PR','16+ verified for Merge previous PR','marker-end="url(#arrow)"','data-view="current"','data-view="after"','class="badge verdict"','keep','bcl plan</tspan>','bcl job --phase fix</tspan>','bcl review; bcl job','bcl merged</tspan>','bcl install-local</tspan>'):
+        for term in ('Collect','Present','Plan &amp; fix','Review','Pre-push suite','under 15 verified','15+ verified','Report &amp; roll over','Merge previous PR','16+ verified for Merge previous PR','marker-end="url(#arrow)"','data-view="current"','data-view="after"','class="badge verdict"','keep','bcl plan</tspan>','bcl job --phase fix</tspan>','bcl job --phase review','bcl merged</tspan>','bcl install-local</tspan>'):
             self.assertIn(term,chart)
 
     def test_evals_shape_and_router_paths_cover_three_scenarios(self):
