@@ -462,6 +462,41 @@ def _history_instant(row):
     return RENDERER.parse_instant(row.get("at") or row.get("timestamp") or row.get("recorded_at") or "")
 
 
+def _filed_after_review(document, row):
+    reviewed_at = _history_instant(row)
+    if reviewed_at is None:
+        return False
+    for finding in document.get("findings", []):
+        created_at = RENDERER.parse_instant(finding.get("created_at", ""))
+        if created_at is not None and created_at > reviewed_at:
+            return True
+    return False
+
+
+def _review_attempts(group):
+    return [row for row in _lane_history(group, "failure_history")
+            if row.get("source") == "review" and not row.get("tool_fault")]
+
+
+def _refuse_review_lane_membership(before, after):
+    """A reviewer owns an immutable lane membership snapshot until follow-ups are filed."""
+    prior = {group.get("id"): group for group in (before or {}).get("groups", [])
+             if isinstance(group, dict)}
+    for group in (after or {}).get("groups", []):
+        if not isinstance(group, dict):
+            continue
+        old = prior.get(group.get("id"))
+        if old is None:
+            continue
+        phase = old.get("phase")
+        if phase not in ("review", "plan_review"):
+            continue
+        added = set(group.get("finding_ids", [])) - set(old.get("finding_ids", []))
+        if added:
+            raise ValueError(f"cannot add findings to lane {group.get('id')} during {phase}; "
+                             "file them as standalone findings first")
+
+
 def _unblock_covers_failures(group, failures):
     if len(failures) < 2:
         return True
@@ -1001,6 +1036,9 @@ def job_transition(document, operation):
             elif phase == "review":
                 if group.get("phase") != "review" or codex.get("fix_status") != "passed":
                     raise ValueError(f"review requires lane {group['id']} to finish fix")
+                prior_reviews = _review_attempts(group)
+                if len(prior_reviews) >= 3 and not _filed_after_review(document, prior_reviews[-1]):
+                    raise ValueError(f"{group['id']} requires remaining review items to be filed as standalone findings before another review")
                 group.update(status="review", phase="review")
                 codex["review_status"] = "running"
                 if isinstance(job.get("model"), str):
@@ -1011,6 +1049,9 @@ def job_transition(document, operation):
                     raise ValueError(f"presuite requires lane {group['id']} review to pass or be skipped_one_file")
                 group.update(status="review", phase="review")
             else:
+                reviews = _lane_history(group, "plan_review_history")
+                if reviews and not _filed_after_review(document, reviews[-1]):
+                    raise ValueError(f"{group['id']} requires plan review items to be filed as standalone findings before another plan_review")
                 if _plan_folded_into_review(group, failures):
                     raise ValueError(f"{group['id']} already had its one plan review and its last review answered "
                                      "ROOT CAUSE and FAILING TEST; start the fix")
@@ -1095,6 +1136,10 @@ def job_transition(document, operation):
                             group.update(status="running", phase="fix")
                     else:
                         codex["plan_review_status"] = "failed" if incomplete else state
+                        if not tool_fault:
+                            _lane_history(group, "plan_review_history").append(
+                                {"job_id": job_id, "status": state, "cycle": cycle,
+                                 "round": round_number, "at": stamp})
                     # Review findings always enter failure history; plan-review tool faults enter it
                     # too (never counted) so repeated cut-offs hit the tool-fault streak block.
                     job_tool_fault = tool_fault
@@ -1223,6 +1268,7 @@ def place_new_finding(findings, item, new=False, into=None):
         raise ValueError(f"{item.get('id', 'entry')} looks like open {', '.join(matches)}; "
                          "append with into ID, or pass new true if it has a different cause")
     validate_ids(findings + [item])
+    item["created_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     findings.append(item)
     return True
 
@@ -2709,6 +2755,7 @@ def run(args, parser):
                         if starting_new_round:
                             advance_plan_round(tracking, findings,
                                                datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
+                        _refuse_review_lane_membership(current_plan, requested_plan)
                         carry_from = current_plan if isinstance(current_plan, dict) else {
                             "groups": copy.deepcopy(tracking.get("carried_gates") or [])}
                         carry_plan_runtime_state(requested_plan["groups"], carry_from, same_current_plan and not starting_new_round)
@@ -2783,6 +2830,10 @@ def run(args, parser):
                         patch = operation.get("patch")
                         if group is None or not isinstance(patch, dict) or "id" in patch:
                             raise ValueError("update-plan-group requires id and a valid group patch")
+                        if ("finding_ids" in patch and group.get("phase") in ("review", "plan_review")
+                                and set(patch["finding_ids"]) - set(group.get("finding_ids", []))):
+                            raise ValueError(f"cannot add findings to lane {group.get('id')} during {group.get('phase')}; "
+                                             "file them as standalone findings first")
                         if group.get("status") == "blocked" and patch.get("status", "blocked") != "blocked":
                             if (patch.get("status") not in LANE["moves"].get("blocked", [])
                                     or patch.get("status") != "parked"

@@ -1946,6 +1946,31 @@ class ManageFindingsTests(unittest.TestCase):
             args.append("--force")
         return self.cli(*args)
 
+    def test_review_lane_rejects_new_membership_while_standalone_add_succeeds(self):
+        document = copy.deepcopy(self.document)
+        document["findings"].append({"id": "ISSUE-99", "title": "Unassigned follow-up", "status": "open"})
+        document.setdefault("tracking", {}).update(cycle=1, round=1, plan={"cycle": 1, "round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01"], "depends_on": [], "status": "review", "phase": "review",
+            "codex": {"fix_status": "passed"}}]})
+        result = self._replay_batch(document, {"action": "set-plan", "plan": {"round": 1, "groups": [{
+            "id": "A", "finding_ids": ["ISSUE-01", "ISSUE-99"], "depends_on": [], "status": "review",
+            "phase": "review", "codex": {"fix_status": "passed"}}]}})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("cannot add findings to lane A during review", result.stderr)
+
+        self.data.write_text(json.dumps(self.document), encoding="utf-8")
+        entry = {"id": "ISSUE-98", "title": "Standalone follow-up", "summary": "A distinct finding",
+                 "impact": "Follow-up must remain separate", "done_when": "Standalone entry is saved",
+                 "source": "User reported", "status": "untested", "observed": "The separate issue was reported",
+                 "recommendation": "Track it independently"}
+        entry_path = self.root / "standalone.json"
+        entry_path.write_text(json.dumps(entry), encoding="utf-8")
+        added = self.cli("add", self.data, entry_path, "--new")
+        self.assertEqual(added.returncode, 0, added.stderr)
+        saved = json.loads(self.data.read_text())
+        self.assertEqual(saved["findings"][-1]["id"], "ISSUE-98")
+        self.assertIn("created_at", saved["findings"][-1])
+
     def test_replan_same_id_keeps_stage_entered_at_when_pair_unchanged(self):
         document = copy.deepcopy(self.document)
         document.setdefault("tracking", {}).update(cycle=1, round=1, plan={"cycle": 1, "round": 1, "groups": [{
