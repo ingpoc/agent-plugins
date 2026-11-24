@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-24T19:24:58Z",
-      "now": "2026-11-24T19:24:58Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-24T19:25:31Z",
+      "now": "2026-11-24T19:25:31Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 122,
@@ -347,7 +347,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T19:24:58Z",
+    "last_written_at": "2026-11-24T19:25:31Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -645,7 +645,8 @@
       "collect",
       "plan_fix",
       "review",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "cycle": 15,
@@ -659,8 +660,8 @@
             "BCL-178"
           ],
           "worktree": "samantha-next-r13",
-          "status": "installing",
-          "phase": "install",
+          "status": "verifying",
+          "phase": "verify",
           "files": [
             "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -693,8 +694,8 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T19:20:14Z",
-          "stage_entered_at": "2026-11-24T19:24:58Z",
+          "updated_at": "2026-11-24T19:25:31Z",
+          "stage_entered_at": "2026-11-24T19:25:31Z",
           "codex": {
             "fix_status": "passed",
             "job": {
@@ -818,9 +819,9 @@
             "started_at": "2026-11-24T19:24:58Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "Grok Bot",
-            "at": "2026-11-24T19:24:58Z"
+            "at": "2026-11-24T19:25:31Z"
           }
         },
         {
@@ -898,6 +899,30 @@
           "stage_entered_at": "2026-11-24T19:18:36Z"
         }
       ]
+    },
+    "verification_run": {
+      "id": "pr123-r1-09ca4e40",
+      "build": "batched-change-list 0.1.74 from samantha-next-r13",
+      "revision": "09ca4e405def9ee8723a22617920ab102b458db9",
+      "installed_at": "2026-11-24T19:24:58Z",
+      "install_evidence": "bcl install-local revision 09ca4e405def9ee8723a22617920ab102b458db9; sha256 294e87c135cfd9c1694c4f5c0d674efc4e9c35bc67d085ca4f1b8ed6fef34e7e",
+      "cycle": 15,
+      "status": "active",
+      "checks": {
+        "DO-1": {
+          "state": "pending"
+        },
+        "PR122-parked-backlog": {
+          "state": "pending"
+        },
+        "BCL-178": {
+          "state": "pending"
+        }
+      },
+      "run_id": "pr123-r1-09ca4e40",
+      "pr": 123,
+      "round": 1,
+      "started_at": "2026-11-24T19:24:58Z"
     }
   },
   "findings": [
