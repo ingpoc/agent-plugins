@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.36
+
+- Collect reads the change list's job event log as a source and reports token coverage, named usage gaps, and incomplete jobs without totaling incomplete tokens (BCL-177).
+
 ## 0.1.35
 
 - The change list's own tracker snapshot commits (only docs/triage/ paths) no longer show as unpushed-commit failures; paths are read NUL-delimited so non-ASCII and undecodable names are classified correctly, and empty or uninspectable commits still count (DO-1).
