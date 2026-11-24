@@ -11764,9 +11764,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T07:17:50Z",
-      "now": "2026-11-24T07:17:50Z — Plan Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T07:18:02Z",
+      "now": "2026-11-24T07:18:02Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13633,8 +13633,8 @@
             "DO-4"
           ],
           "worktree": "bcl120-r7-doview",
-          "status": "review",
-          "phase": "plan_review",
+          "status": "running",
+          "phase": "fix",
           "files": [
             "plugins/developer-observability/runtime/viewer.py",
             "plugins/developer-observability/tests/test_viewer.py",
@@ -13644,9 +13644,18 @@
           ],
           "reason": "Guru 12:37 IST approved a localhost observability viewer as a top lane. It reuses the DO-3 MCP App page and backend, one fixed port per project, never the reserved Samantha port. Round 6 is already introspected and DO-3 is closed, so this is a new finding in round 7. About 90k tokens.",
           "failure_history": [],
-          "plan_review_history": [],
+          "plan_review_history": [
+            {
+              "job_id": "2301acc011884a95b705df3f4026de99",
+              "after_failure": null,
+              "status": "passed",
+              "cycle": 12,
+              "round": 7,
+              "at": "2026-11-24T07:17:51Z"
+            }
+          ],
           "updated_at": "2026-11-24T07:10:46Z",
-          "stage_entered_at": "2026-11-24T07:17:50Z",
+          "stage_entered_at": "2026-11-24T07:18:02Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13655,17 +13664,19 @@
           },
           "codex": {
             "job": {
-              "id": "2301acc011884a95b705df3f4026de99",
-              "phase": "plan_review",
-              "started_at": "2026-11-24T07:17:50Z",
-              "command": "run-record-r7-doview-planreview.sh",
-              "heartbeat_at": "2026-11-24T07:17:50Z",
+              "id": "c43b1ff0a1e7429a998ca5ece4c01b01",
+              "phase": "fix",
+              "started_at": "2026-11-24T07:18:02Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T07:18:02Z",
               "plan_sha256": "d9a80194943afcf6c7216dc5e2d5eb719fcb05245be364e291411ca4cc27dd9f",
               "worktree": "bcl120-r7-doview",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "model": "Grok Bot",
               "cycle": 12,
               "round": 7
-            }
+            },
+            "tool_fault_streak": 0,
+            "fix_status": "running"
           }
         },
         {
@@ -14312,7 +14323,7 @@
       "round": 6,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T07:17:50Z",
+    "last_written_at": "2026-11-24T07:18:02Z",
     "fix_order": {
       "ids": [
         "DO-4",
