@@ -11764,9 +11764,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T07:07:37Z",
-      "now": "2026-11-24T07:07:37Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-24T07:17:50Z",
+      "now": "2026-11-24T07:17:50Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13626,6 +13626,49 @@
       "round": 7,
       "groups": [
         {
+          "id": "R7-DOVIEW",
+          "name": "Local browser viewer for the per-round observability page",
+          "label": "DO-4",
+          "finding_ids": [
+            "DO-4"
+          ],
+          "worktree": "bcl120-r7-doview",
+          "status": "review",
+          "phase": "plan_review",
+          "files": [
+            "plugins/developer-observability/runtime/viewer.py",
+            "plugins/developer-observability/tests/test_viewer.py",
+            "plugins/developer-observability/ui/app.js",
+            "plugins/developer-observability/ui/dashboard.html",
+            "plugins/developer-observability/bin/developer-observability"
+          ],
+          "reason": "Guru 12:37 IST approved a localhost observability viewer as a top lane. It reuses the DO-3 MCP App page and backend, one fixed port per project, never the reserved Samantha port. Round 6 is already introspected and DO-3 is closed, so this is a new finding in round 7. About 90k tokens.",
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T07:10:46Z",
+          "stage_entered_at": "2026-11-24T07:17:50Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "job": {
+              "id": "2301acc011884a95b705df3f4026de99",
+              "phase": "plan_review",
+              "started_at": "2026-11-24T07:17:50Z",
+              "command": "run-record-r7-doview-planreview.sh",
+              "heartbeat_at": "2026-11-24T07:17:50Z",
+              "plan_sha256": "d9a80194943afcf6c7216dc5e2d5eb719fcb05245be364e291411ca4cc27dd9f",
+              "worktree": "bcl120-r7-doview",
+              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "cycle": 12,
+              "round": 7
+            }
+          }
+        },
+        {
           "id": "R7-ACU20",
           "name": "Island shows Grok Bot subagent runs",
           "label": "ACU-20",
@@ -13644,10 +13687,11 @@
             "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandCodexThreadsTests.swift"
           ],
           "reason": "Product first: the island already shows Codex CLI runs and must also show Grok Bot's own subagents as running, done, or stopped with a reason, from a supported credential-free record. Do not read credentials, dual-drive Comet, or touch port 8765, pid 1338, or ~/.cache/macos-cua/samantha-activity.jsonl. About 90k tokens.",
+          "stage_entered_at": "2026-11-24T07:07:37Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T07:07:37Z",
-          "stage_entered_at": "2026-11-24T07:07:37Z",
+          "codex": {},
+          "updated_at": "2026-11-24T07:10:46Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13672,10 +13716,11 @@
             "plugins/agent-computer-use/runtime/voice-cua/tests/test_usage_and_backoff.py"
           ],
           "reason": "Product: re-read provider usage fields for Grok Voice and the GPT live model, with AirPods Pro and typed prompts allowed for checks. Keep unknown rather than zero when a provider still omits counts; do not invent tokens. Serial live checks only; never touch port 8765, pid 1338, or the live Samantha activity log, and do not unlock the Mini or retry notarization. Not a duplicate of DO-2 or collect-job-coverage. About 80k tokens.",
+          "stage_entered_at": "2026-11-24T07:07:37Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T07:07:37Z",
-          "stage_entered_at": "2026-11-24T07:07:37Z",
+          "codex": {},
+          "updated_at": "2026-11-24T07:10:46Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13698,37 +13743,11 @@
             "plugins/agent-computer-use/runtime/voice-cua/tests/test_dev_tools.py"
           ],
           "reason": "Product: replace the short fixed waits in test_connected_but_unresponsive_service_times_out_on_runtime_contract and test_background_jobs_track_and_stop_only_the_returned_job_id so both pass 50 runs under four busy CPU loops and the pre-push suite passes first time. Tests only; do not edit production voice or island files owned by the other ACU lanes. About 40k tokens.",
+          "stage_entered_at": "2026-11-24T07:07:37Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T07:07:37Z",
-          "stage_entered_at": "2026-11-24T07:07:37Z",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
-          }
-        },
-        {
-          "id": "R7-STALE",
-          "name": "A finished job can record its result after a mid-job plan change",
-          "label": "stale-finish",
-          "finding_ids": [
-            "PR120-r6-stale-job-finish"
-          ],
-          "worktree": "bcl120-r7-stale",
-          "status": "planned",
-          "phase": "pending",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_job_lifecycle.py"
-          ],
-          "reason": "Round 6 introspect waste: a successful finish must record even if another lane wrote a receipt while it ran. Change manage_findings.py only; leave bin/bcl for collect-job-coverage. Metric: 0 stale-plan finish failures on a three-lane parallel run (was 2 of 3, plus 2 no-op receipts). About 70k tokens.",
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-24T07:07:37Z",
-          "stage_entered_at": "2026-11-24T07:07:37Z",
+          "codex": {},
+          "updated_at": "2026-11-24T07:10:46Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13745,6 +13764,7 @@
           ],
           "worktree": "bcl120-r5-171",
           "status": "blocked",
+          "phase": "fix",
           "parked_to": 7,
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py",
@@ -13753,6 +13773,7 @@
           ],
           "reason": "Parked for a later round; stays closed until an owner unblock",
           "blocked_reason": "Second failure",
+          "stage_entered_at": "2026-11-24T07:07:37Z",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -13819,9 +13840,7 @@
           ],
           "failure_block_reason": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
           "codex": {},
-          "phase": "fix",
-          "stage_entered_at": "2026-11-24T07:07:37Z",
-          "updated_at": "2026-11-24T07:07:37Z",
+          "updated_at": "2026-11-24T07:10:46Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13838,6 +13857,7 @@
           ],
           "worktree": "bcl120-r5-106",
           "status": "blocked",
+          "phase": "fix",
           "parked_to": 7,
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py",
@@ -13846,6 +13866,7 @@
           ],
           "reason": "Parked for a later round; stays closed until an owner unblock",
           "blocked_reason": "Second failure",
+          "stage_entered_at": "2026-11-24T07:07:37Z",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -13901,9 +13922,7 @@
           ],
           "failure_block_reason": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test.",
           "codex": {},
-          "phase": "fix",
-          "stage_entered_at": "2026-11-24T07:07:37Z",
-          "updated_at": "2026-11-24T07:07:37Z",
+          "updated_at": "2026-11-24T07:10:46Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13919,12 +13938,15 @@
             "DO-1"
           ],
           "worktree": "bcl120-r2-do1-r3",
+          "status": "deferred",
+          "phase": "deferred",
           "parked_to": 7,
           "files": [
             "plugins/developer-observability/runtime/collector/sources.py",
             "plugins/developer-observability/tests/test_collector*.py"
           ],
           "reason": "DO-1 stays deferred until Guru approves a path past the observability hygiene gate. No override.",
+          "stage_entered_at": "2026-11-24T04:15:21Z",
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -13987,11 +14009,8 @@
               "owner_override": true
             }
           ],
-          "status": "deferred",
-          "phase": "deferred",
           "codex": {},
-          "stage_entered_at": "2026-11-24T04:15:21Z",
-          "updated_at": "2026-11-24T07:07:37Z",
+          "updated_at": "2026-11-24T07:10:46Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -14023,20 +14042,21 @@
             "BCL-161",
             "BCL-166",
             "PR120-r6-gate-denominator",
-            "PR120-r6-collect-job-coverage"
+            "PR120-r6-collect-job-coverage",
+            "PR120-r6-stale-job-finish"
           ],
           "status": "deferred",
           "phase": "deferred",
           "parked_to": 8,
-          "reason": "ACU-10, ACU-20 and ACU-21 stay split: same M-ACU label, three different causes (provider token fields, island subagent feed, flaky tests). Collect-job-coverage waits so it can take bin/bcl after stale-job-finish lands. 106 and 171 stay parked until owner unblock. DO-1 stays deferred.",
+          "reason": "Stale-job-finish waits so the new observability viewer can take a top slot. Collect-job-coverage still waits for bin/bcl. 106 and 171 stay parked until owner unblock. DO-1 stays deferred.",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T07:07:37Z",
+          "updated_at": "2026-11-24T07:10:46Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 20
+            "total": 21
           }
         }
       ],
@@ -14292,18 +14312,45 @@
       "round": 6,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T07:07:37Z",
+    "last_written_at": "2026-11-24T07:17:50Z",
     "fix_order": {
       "ids": [
-        "PR120-r5-codex-reviewer-model-fallback",
-        "BCL-121",
-        "DO-2",
-        "DO-3"
+        "DO-4",
+        "ACU-20",
+        "ACU-10",
+        "ACU-21",
+        "PR120-r6-stale-job-finish",
+        "PR120-r6-collect-job-coverage"
       ],
       "by": "Grok Bot",
-      "at": "2026-11-24T06:12:19Z",
-      "reason": "Round 5 waste goes first next round: automatic reviewer fallback, then the plan-review cap, then observability token and filter gaps so Introspect can use collect."
-    }
+      "at": "2026-11-24T07:10:47Z",
+      "reason": "Guru 12:37 IST: local observability viewer is the top lane (new DO-4; --into DO-3 refused because DO-3 is closed). Then product ACU (island, voice tokens, flaky tests). Round-6 waste follows after these four."
+    },
+    "fix_order_history": [
+      {
+        "ids": [
+          "PR120-r5-codex-reviewer-model-fallback",
+          "BCL-121",
+          "DO-2",
+          "DO-3"
+        ],
+        "by": "Grok Bot",
+        "at": "2026-11-24T06:12:19Z",
+        "reason": "Round 5 waste goes first next round: automatic reviewer fallback, then the plan-review cap, then observability token and filter gaps so Introspect can use collect."
+      },
+      {
+        "ids": [
+          "ACU-20",
+          "ACU-10",
+          "ACU-21",
+          "PR120-r6-stale-job-finish",
+          "PR120-r6-collect-job-coverage"
+        ],
+        "by": "Grok Bot",
+        "at": "2026-11-24T07:07:47Z",
+        "reason": "Guru 12:32 IST: product ACU first (island subagent view, then voice token re-check, then flaky tests), alongside round-6 waste (record a finish after a mid-job plan change, then store model and token source on official finishes)."
+      }
+    ]
   },
   "findings": [
     {
@@ -15336,6 +15383,24 @@
       },
       "id": "PR120-r6-collect-job-coverage",
       "created_at": "2026-11-24T07:02:02Z"
+    },
+    {
+      "id": "DO-4",
+      "title": "Observability has no local browser viewer on a fixed per-project port",
+      "source": "User requested",
+      "priority": "high",
+      "summary": "The per-round observability dashboard from DO-3 exists only as an MCP App resource, so it cannot be opened as a localhost page on the Mini the way the change-list tracker viewer can.",
+      "impact": "Guru cannot open the per-round run view in a browser with a stable per-project address, or inspect rounds, jobs, tokens and coverage gaps without an MCP Apps host.",
+      "done_when": "A localhost page on the Mini uses one fixed port per project, never the reserved Samantha port, and reuses the existing MCP App page and backend with no second UI. It shows what happened in each round, pull request, stage and lane or job, plus findings, tokens and coverage gaps. Filters combine: round, pull request, stage, plugin, kind, status, since and until. Disclosure is summary, then lane, then evidence. Text is 14 to 16 pixels or larger, with zoom and text-size controls, and the browser's own zoom is never blocked. The live Mini URL is recorded.",
+      "observed": "24 Nov 2026 12:37 IST, Asia/Calcutta. Guru approved a local browser viewer. After DO-3 the dashboard is still only the MCP App resource on the stdio server; there is no localhost page and no saved port per project.",
+      "recommendation": "Serve the existing dashboard and backend on the loopback interface with one saved port per project, like the change-list viewer, and never bind the reserved Samantha port.",
+      "status": "in_progress",
+      "details": {
+        "related_to_DO-3": "DO-3 is verified and closed; it added the per-round filters and MCP App UI. This is the missing local HTTP viewer, not a second UI or a new filter API. On 24 Nov 2026 12:39 IST, add --into DO-3 was refused because that finding is closed, so this was added as new.",
+        "Technical wording": "Reuse ui/app.js and ObservabilityAPI. Serve 127.0.0.1. Never bind port 8765. Do not touch pid 1338 or ~/.cache/macos-cua/samantha-activity.jsonl.",
+        "MCP resource today": "The dashboard is only ui://developer-observability/dashboard on the stdio MCP server."
+      },
+      "created_at": "2026-11-24T07:10:26Z"
     }
   ]
 }
