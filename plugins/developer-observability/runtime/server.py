@@ -94,7 +94,7 @@ def invoke(method, *args, **kwargs):
                    'invalid_kind', 'invalid_change_class', 'invalid_since', 'invalid_until', 'invalid_time_window',
                    'invalid_issue_ids', 'invalid_diagnosis', 'invalid_version_scope', 'version_scope_unavailable',
                    'collector_failed', 'invalid_session_ref', 'session_not_in_project', 'invalid_diagnostics',
-                   'invalid_task_status', 'invalid_task_ref', 'invalid_cursor')
+                   'invalid_task_status', 'invalid_task_ref', 'invalid_cursor', 'tracker_unavailable')
         message = code if code in allowed else 'backend_or_decision_failed'
         payload = {'error': message, 'next_step': NEXT_STEPS.get(
             code, 'Check configured backend and snapshot/Decider health; refresh projects before retrying. No fallback decision was made.')}
@@ -250,6 +250,28 @@ def observability_dashboard(project_id: str | None = None) -> CallToolResult:
         if not projects.is_error:
             result.structured_content['projects'] = projects.structured_content['projects']
     return result
+
+
+@server.tool(annotations=READ)
+@track
+def observability_round(project: str | None = None, pr: str | int | None = None, round: int | None = None,
+                        project_id: str | None = None) -> CallToolResult:
+    """Read-only per-round view of plan groups, jobs and the verification gate. Never writes the tracker."""
+    from backend.round_view import build_round
+    from backend.observability_api import NEXT_STEPS
+
+    try:
+        result = build_round(project or project_id, pr=None if pr in (None, "") else pr, round=round)
+        return CallToolResult(content=[TextContent(type="text", text=json.dumps(result, separators=(",", ":")))],
+                              structuredContent=result)
+    except Exception as error:
+        code = str(error).split(":", 1)[0]
+        allowed = ("tracker_unavailable", "unknown_project")
+        message = code if code in allowed else "backend_or_decision_failed"
+        payload = {"error": message, "next_step": NEXT_STEPS.get(
+            code, "Check that a change-list tracker exists for this project; this tool never writes.")}
+        return CallToolResult(isError=True, content=[TextContent(type="text", text=json.dumps(payload))],
+                              structuredContent=payload)
 
 
 @server.tool(annotations=READ)

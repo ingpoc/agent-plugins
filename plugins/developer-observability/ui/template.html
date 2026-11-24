@@ -1,3 +1,179 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Developer observability</title><style>
+<!doctype html><html lang="en"><head><!--DEVOBS_VIEWER--><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Developer observability</title><style>
 :root{font:16px/1.5 system-ui,sans-serif;color-scheme:light dark;--bg:light-dark(#f6f6f4,#171819);--surface:light-dark(#fff,#202224);--text:light-dark(#202426,#edf0ee);--muted:light-dark(#626963,#a5ada8);--line:light-dark(#dce0db,#3b413d);--accent:light-dark(#25684c,#8ed8b0)}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}main{max-width:1050px;margin:auto;padding:24px}h1{font-size:24px;line-height:1.2;margin:3px 0 9px;letter-spacing:-.6px}h2{font-size:16px;margin:0 0 12px}h3{font-size:14px;margin:18px 0 5px}p{margin:5px 0 12px}.eyebrow{color:var(--accent);font-size:14px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase}.muted,small{color:var(--muted)}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:20px 0 12px}label{display:grid;gap:5px;font-size:14px;color:var(--muted)}select,button,textarea,input{font:inherit;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);padding:9px 12px;min-height:40px}select{min-width:180px}button{cursor:pointer}button:disabled{opacity:.5;cursor:wait}button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.health{border:1px solid var(--line);padding:12px 14px;border-radius:10px;color:var(--muted);font-size:14px;margin-bottom:18px}.layout{display:grid;grid-template-columns:minmax(220px,1fr) minmax(280px,1.3fr);gap:16px}.panel{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:18px;min-width:0}.issue{display:block;text-align:left;width:100%;margin:0 0 8px;padding:12px;min-height:72px}.issue strong{display:block;overflow-wrap:anywhere;min-width:0;font-weight:550;margin:5px 0 5px}.badge{font-size:14px;border-radius:5px;padding:2px 6px;background:var(--bg);color:var(--muted)}.active{color:light-dark(#a03c22,#ffa887)}.selected{border-color:var(--accent)}.timeline{list-style:none;border-inline-start:1px solid var(--line);margin:10px 0 0;padding:0 0 0 18px;max-height:min(55vh,420px);overflow:auto;overscroll-behavior:contain}.timeline:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:5px}.timeline li{position:relative;padding:0 0 14px 10px}.timeline li::before{content:"";position:absolute;width:9px;height:9px;border-radius:50%;left:-23px;top:6px;background:var(--muted);border:2px solid var(--surface)}.timeline .failure::before{background:light-dark(#a03c22,#ffa887)}.timeline .recovery::before{background:light-dark(#25684c,#8ed8b0)}.event-time time{display:block;font-variant-numeric:tabular-nums;font-size:14px;color:var(--muted);overflow-wrap:anywhere}.event-time small{display:block;font-size:14px}.timeline strong{display:block;overflow-wrap:anywhere}pre{font:14px/1.6 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;border-radius:8px;background:var(--bg);max-height:260px;overflow:auto}#error{color:light-dark(#a03c22,#ffa887)}details{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}summary{cursor:pointer;font-weight:600}textarea{width:100%;margin:10px 0;min-height:110px}.footer{margin-top:18px;font-size:14px;color:var(--muted)}.zoom-controls{display:flex;gap:6px;align-items:center;margin-left:auto}.zoom-controls button{min-width:44px;font:inherit}@media(max-width:650px){main{padding:16px}.layout{grid-template-columns:1fr}h1{font-size:22px}select{min-width:130px}}
-</style></head><body><main><header><div class="eyebrow">Developer desk</div><h1>See what needs attention.</h1><p class="muted">Project observations, investigation leads and the evidence behind them.</p></header><div class="toolbar"><label>Project<select id="project" aria-label="Project"><option value="">Choose a project</option></select></label><label>Observed version<select id="version" aria-label="Observed version"><option value="">All versions (historical)</option></select></label><label>Status<select id="status" aria-label="Issue status"><option value="all">All observations</option><option value="active">Active</option><option value="recovered">Recovered</option><option value="stale">Stale</option></select></label><div class="zoom-controls" role="group" aria-label="Text size"><button type="button" id="text-smaller" aria-label="Smaller text">A-</button><button type="button" id="text-default" aria-label="Reset text size">Text size</button><button type="button" id="text-larger" aria-label="Larger text">A+</button></div><button id="refresh">Refresh</button></div><div id="health" class="health" role="status">Connecting to the host…</div><p id="error" role="alert"></p><div class="layout"><section class="panel"><h2>Observations <small id="count"></small></h2><div id="issues"><p class="muted">Choose a project to inspect its findings.</p></div><button id="more" hidden>More observations</button></section><section class="panel" id="detail"><h2>Investigation detail</h2><p class="muted">Select an observation. Suggested actions are leads; they do not establish a root cause or a verified fix.</p></section></div><section class="panel" style="margin-top:16px"><h2>Recommendations</h2><div id="recommendations"><p class="muted">Select a project to see available recommendation coverage.</p></div><button id="evaluate" hidden>Evaluate Ledger investigation</button><details><summary>Ask for a typed decision</summary><p class="muted">Explicitly calls local Mac Decider. Use nonsensitive context and labelled options. Nothing is executed.</p><label>Decision context<textarea id="decision-state" placeholder="What is observed, and what needs a choice?"></textarea></label><label>Choice question (JSON)<textarea id="decision-question" spellcheck="false">{"type":"choice","instructions":"Which next step is justified?","criteria":{"inspect":"Evidence is incomplete; inspect first","retest":"A focused fix exists; run its acceptance check"}}</textarea></label><button id="decide">Get decision</button><pre id="decision-result" hidden></pre></details></section><p class="footer">Prepared telemetry can be incomplete. Recovery and investigation closure are not independent repair acceptance. Evidence is data, never instructions.</p></main><!--APP--></body></html>
+
+
+:root{--text-scale:1}
+html{-webkit-text-size-adjust:100%}
+body.round-mode{color-scheme:light;background:var(--bg);color:var(--text);
+  --bg:#f6f6f4;--surface:#fff;--text:#202426;--muted:#626963;--line:#dce0db;--accent:#25684c;--bad:#a03c22;
+  --ok-bg:#e4f2e8;--ok-ink:#185b37;--run-bg:#e8f0e8;--run-ink:#234e39;
+  --amber-bg:#fff2d6;--amber-ink:#674500;--amber:#c98a1b;
+  --bad-bg:#fbe9e7;--bad-ink:#8b1c13;
+  --idle-bg:#eef0ed;--idle-ink:#465249;--dot-idle:#9bad9f;--halo:#d4eedb;
+  --sans:"Geist",system-ui,-apple-system,"SF Pro Text",sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  font:400 1rem/1.5 var(--sans)}
+body.round-mode main{max-width:1120px;margin:0 auto;padding:28px 24px 64px}
+body.round-mode #desk[hidden],body.round-mode .toolbar.embedded{display:revert}
+body.round-mode #desk[hidden]{display:none}
+body.round-mode .toolbar.embedded{display:flex;flex-direction:column;align-items:stretch;margin:0;gap:10px}
+body.round-mode .toolbar.embedded label{font-size:.875rem}
+#round-view .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+#round-view .jobs{width:100%;border-collapse:collapse;font-size:.875rem}
+#round-view .jobs th,#round-view .jobs td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+#round-view .lane>summary{display:flex;gap:12px;flex-wrap:wrap;align-items:center;cursor:pointer;min-height:44px;list-style:none}
+#round-view .lane{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:4px 14px;margin:0 0 8px}
+#round-view .lane-body{padding:0 0 14px}
+#round-view .needs{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))}
+#round-view .need{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:14px 16px}
+#round-view .need h3{margin:0 0 6px;font-size:1.05rem}
+#round-view .kicker{margin:0 0 4px;font:600 .75rem/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+#round-view .summary{margin:24px 0;padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+#round-view .bar{display:flex;height:1.5rem;border-radius:8px;overflow:hidden;background:var(--idle-bg);border:1px solid var(--line)}
+#round-view .bar .seg-bar{background:var(--accent);color:#fff;font:600 .7rem/1.5rem var(--mono);text-align:center;overflow:hidden}
+#round-view .bar .hatched{background:repeating-linear-gradient(45deg,var(--idle-bg),var(--idle-bg) 6px,var(--line) 6px,var(--line) 8px);color:var(--muted);font:600 .7rem/1.5rem var(--sans);text-align:center}
+#round-view .bar-row{margin:0 0 12px}
+#round-view .bar-label{margin:0 0 4px;font-weight:600}
+#round-view .tag.ok{background:var(--ok-bg);color:var(--ok-ink)}
+#round-view .tag.bad{background:var(--bad-bg);color:var(--bad-ink)}
+#round-view .tag.run{background:var(--run-bg);color:var(--run-ink)}
+#round-view .tag.idle{background:var(--idle-bg);color:var(--idle-ink)}
+#round-view nav.rounds{display:flex;gap:8px;flex-wrap:wrap;width:100%;margin-top:12px}
+#round-view nav.rounds button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;min-height:36px;cursor:pointer}
+#round-view nav.rounds button[aria-current="page"]{background:var(--halo);border-color:var(--accent)}
+#round-view .mono{font-family:var(--mono)}
+#round-view .muted{color:var(--muted)}
+#round-view .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+#round-view button,#round-view summary{font:inherit;color:inherit}
+#round-view /* 1 header */
+.top{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
+#round-view .eyebrow{font:600 .875rem/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0 0 8px}
+#round-view h1{font-size:1.75rem;line-height:1.15;letter-spacing:-.02em;margin:0;font-weight:650}
+#round-view h1 .muted{font-weight:500}
+#round-view .fresh{margin:8px 0 0;font-size:.875rem;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#round-view .tag{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:1px 8px;font:600 .875rem/1.5 var(--sans)}
+#round-view .tag.stale{background:var(--amber-bg);color:var(--amber-ink)}
+#round-view .controls{margin-left:auto;display:flex;gap:8px;align-items:center}
+#round-view .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden}
+#round-view .seg button{border:0;background:none;min-width:44px;min-height:40px;padding:0 10px;cursor:pointer;font-size:.9375rem}
+#round-view .seg button+button{border-left:1px solid var(--line)}
+#round-view .seg output{display:inline-flex;align-items:center;justify-content:center;min-width:56px;border-left:1px solid var(--line);font:500 .875rem var(--mono)}
+#round-view .pop{position:relative}
+#round-view .pop>summary{list-style:none;display:inline-flex;align-items:center;gap:6px;min-height:42px;padding:0 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer;font-size:.9375rem}
+#round-view .pop>summary::-webkit-details-marker{display:none}
+#round-view .pop>summary .n{background:var(--idle-bg);color:var(--idle-ink);border-radius:999px;padding:0 7px;font:600 .875rem/1.5 var(--mono)}
+#round-view .pop .sheet{position:absolute;right:0;top:48px;z-index:5;width:340px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(32,36,38,.12);padding:16px;display:grid;gap:12px}
+#round-view .sheet label{display:grid;gap:4px;font-size:.875rem;color:var(--muted)}
+#round-view .sheet select,#round-view .sheet input{font:inherit;font-size:.9375rem;color:var(--text);min-height:40px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--surface)}
+#round-view .rounds{display:flex;gap:6px;margin-top:14px;width:100%;overflow-x:auto;white-space:nowrap}
+#round-view .rounds a{font:500 .875rem/1 var(--mono);color:var(--muted);text-decoration:none;padding:8px 10px;border-radius:8px;border:1px solid transparent}
+#round-view .rounds a[aria-current]{background:var(--surface);border-color:var(--line);color:var(--text)}
+#round-view section{margin-top:28px}
+#round-view h2{font-size:1rem;margin:0 0 10px;font-weight:650;display:flex;gap:8px;align-items:baseline}
+#round-view h2 small{font-size:.875rem;color:var(--muted);font-weight:400}
+#round-view /* 2 needs you */
+.needs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+#round-view .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px 12px;display:grid;gap:6px;align-content:start;position:relative}
+#round-view .card.amber{border-left:4px solid var(--amber)}
+#round-view .card .rank{font:600 .875rem/1 var(--mono);color:var(--muted)}
+#round-view .card b{font-size:1rem;font-weight:650;line-height:1.35}
+#round-view .fact,#round-view .guess{font-size:.9375rem;margin:0}
+#round-view .lbl{font:600 .875rem/1 var(--mono);margin-right:8px}
+#round-view .fact .lbl{color:var(--accent)}
+#round-view .guess{color:var(--muted)}
+#round-view .guess .lbl{color:var(--amber-ink)}
+#round-view .act{font-size:.875rem;color:var(--accent);font-weight:600;margin-top:2px}
+#round-view .more{margin-top:8px;font-size:.875rem;color:var(--muted)}
+#round-view .more summary{cursor:pointer}
+#round-view /* 3 summary line */
+.sum{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px}
+#round-view .sum .big{font-weight:650}
+#round-view .tally{display:flex;gap:8px;flex-wrap:wrap}
+#round-view .gate{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:.9375rem}
+#round-view .gate svg{flex:none}
+#round-view /* pills */
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 10px;font:600 .875rem/1.5 var(--sans);white-space:nowrap}
+#round-view .p-review{background:var(--surface);box-shadow:inset 0 0 0 1.5px #9bbca8;color:var(--run-ink)}
+#round-view .p-planned{background:var(--idle-bg);color:var(--idle-ink)}
+#round-view .p-blocked{background:var(--amber-bg);color:var(--amber-ink)}
+#round-view .p-failed{background:var(--bad-bg);color:var(--bad-ink)}
+#round-view .p-verified{background:var(--ok-bg);color:var(--ok-ink)}
+#round-view .p-parked{background:transparent;box-shadow:inset 0 0 0 1.5px var(--dot-idle);color:var(--muted)}
+#round-view .chip{font:500 .875rem/1.5 var(--mono);background:var(--idle-bg);color:var(--idle-ink);border-radius:6px;padding:0 6px;white-space:nowrap}
+#round-view /* 4 lanes */
+.lanes{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+#round-view .lhead,#round-view .lane>summary{display:grid;grid-template-columns:minmax(230px,1.5fr) 158px minmax(200px,1.5fr) 64px 92px minmax(150px,1fr) 18px;gap:14px;align-items:center;padding:12px 18px}
+#round-view .lhead{font-size:.875rem;color:var(--muted);border-bottom:1px solid var(--line);padding-top:10px;padding-bottom:10px}
+#round-view .lhead .r,#round-view .num{text-align:right;font-variant-numeric:tabular-nums}
+#round-view .lane{border-bottom:1px solid var(--line)}
+#round-view .lane:last-of-type{border-bottom:0}
+#round-view .lane>summary{list-style:none;cursor:pointer;min-height:60px}
+#round-view .lane>summary::-webkit-details-marker{display:none}
+#round-view .lane>summary:hover{background:#fafbf9}
+#round-view .lane.blocked>summary{box-shadow:inset 4px 0 0 var(--amber)}
+#round-view .lane.failed>summary{box-shadow:inset 4px 0 0 var(--bad)}
+#round-view .lname b{display:block;font-weight:600;line-height:1.3}
+#round-view .lname .ids{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap}
+#round-view .state{display:grid;gap:6px;justify-items:start}
+#round-view .track{display:flex;gap:9px;align-items:center}
+#round-view .track i{width:9px;height:9px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--dot-idle);display:block}
+#round-view .track i.d{background:var(--accent);box-shadow:none}
+#round-view .track i.c{box-shadow:inset 0 0 0 2px var(--accent),0 0 0 3px var(--halo)}
+#round-view .track i.b{box-shadow:inset 0 0 0 2px var(--amber),0 0 0 3px var(--amber-bg)}
+#round-view .why{font-size:.9375rem}
+#round-view .why.warn{color:var(--amber-ink);font-weight:600}
+#round-view .unk{color:var(--muted)}
+#round-view .model{font-size:.875rem;line-height:1.35}
+#round-view .chev{width:18px;height:18px;transition:transform .15s}
+#round-view .lane[open] .chev{transform:rotate(90deg)}
+#round-view .parked{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--line);font-size:.9375rem;color:var(--muted);background:#fbfbfa}
+#round-view /* lane level 2 + 3 */
+.lbody{padding:4px 18px 18px 18px;display:grid;grid-template-columns:1.3fr 1fr;gap:20px;border-top:1px dashed var(--line);background:#fcfcfb}
+#round-view .lbody h3{font-size:.875rem;font-weight:650;margin:14px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono)}
+#round-view .jobs{width:100%;border-collapse:collapse;font-size:.9375rem}
+#round-view .jobs th{font-weight:500;color:var(--muted);text-align:left;font-size:.875rem;padding:4px 8px 6px 0;border-bottom:1px solid var(--line)}
+#round-view .jobs td{padding:8px 8px 8px 0;border-bottom:1px solid #eceeea;vertical-align:top}
+#round-view .jobs td.num,#round-view .jobs th.num{padding-right:16px;text-align:right;white-space:nowrap}
+#round-view .jobs td:first-child{white-space:nowrap}
+#round-view .jobs .ok{color:var(--ok-ink);font-weight:600}
+#round-view .jobs .bad{color:var(--bad-ink);font-weight:600}
+#round-view .jobs .cmd{font:400 .875rem/1.4 var(--mono);color:var(--muted);display:block;overflow-wrap:anywhere}
+#round-view .box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:8px}
+#round-view .ev{margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+#round-view .ev>summary{padding:10px 14px;cursor:pointer;font-weight:600;font-size:.9375rem}
+#round-view .ev pre{margin:0;padding:12px 14px;border-top:1px solid var(--line);font:400 .875rem/1.55 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;background:var(--bg);border-radius:0 0 12px 12px}
+#round-view /* 5 time and tokens */
+.tt{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:grid;gap:18px}
+#round-view .barrow{display:grid;grid-template-columns:120px 1fr 150px;gap:14px;align-items:center}
+#round-view .barrow .k{font-weight:600}
+#round-view .bar{display:flex;height:22px;border-radius:6px;overflow:hidden;background:var(--idle-bg)}
+#round-view .bar span{height:100%}
+#round-view .hatch{background:repeating-linear-gradient(135deg,#eceeea 0 6px,#dfe3dd 6px 12px)}
+#round-view .legend{display:flex;gap:6px 18px;flex-wrap:wrap;font-size:.875rem;color:var(--muted);grid-column:2/4}
+#round-view .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+#round-view .c1{background:#25684c}
+#round-view .c2{background:#6f9f85}
+#round-view .c3{background:#a9c7b4}
+#round-view .c4{background:#c98a1b}
+#round-view .note{font-size:.875rem;color:var(--muted);grid-column:2/4;margin:-8px 0 0}
+#round-view .foot{margin-top:28px;font-size:.875rem;color:var(--muted)}
+#round-view h1{font-size:1.5rem}
+#round-view .controls{margin-left:0;width:100%;justify-content:space-between}
+#round-view .pop .sheet{right:auto;left:auto;width:min(340px,calc(100vw - 32px));right:0}
+#round-view .needs{grid-template-columns:1fr}
+#round-view .gate{margin-left:0;width:100%}
+#round-view .lhead{display:none}
+#round-view .lane>summary{grid-template-columns:1fr auto;grid-template-areas:"name chev" "state state" "why why" "meta meta";gap:8px;padding:14px 16px}
+#round-view .lname{grid-area:name}
+#round-view .state{grid-area:state;display:flex;align-items:center;gap:12px}
+#round-view .why{grid-area:why}
+#round-view .chev{grid-area:chev;align-self:start;margin-top:3px}
+#round-view .mmeta{grid-area:meta;display:flex;gap:14px;flex-wrap:wrap;font-size:.875rem;color:var(--muted)}
+#round-view .dk{display:none}
+#round-view .lbody{grid-template-columns:1fr;padding:4px 16px 16px}
+#round-view .jobs .hide-m{display:none}
+#round-view .barrow{grid-template-columns:1fr;gap:6px}
+#round-view .legend,#round-view .note{grid-column:1}
+#round-view .note{margin:0}
+#round-view .mmeta{display:none}
+</style></head><body><main><div id="round-view" hidden></div><div id="desk"><header><div class="eyebrow">Developer desk</div><h1>See what needs attention.</h1><p class="muted">Project observations, investigation leads and the evidence behind them.</p></header><div class="toolbar"><label>Project<select id="project" aria-label="Project"><option value="">Choose a project</option></select></label><label>Observed version<select id="version" aria-label="Observed version"><option value="">All versions (historical)</option></select></label><label>Status<select id="status" aria-label="Issue status"><option value="all">All observations</option><option value="active">Active</option><option value="recovered">Recovered</option><option value="stale">Stale</option></select></label><div class="zoom-controls" role="group" aria-label="Text size"><button type="button" id="text-smaller" aria-label="Smaller text">A-</button><button type="button" id="text-default" aria-label="Reset text size">Text size</button><button type="button" id="text-larger" aria-label="Larger text">A+</button></div><button id="refresh">Refresh</button></div><div id="health" class="health" role="status">Connecting to the host…</div><p id="error" role="alert"></p><div class="layout"><section class="panel"><h2>Observations <small id="count"></small></h2><div id="issues"><p class="muted">Choose a project to inspect its findings.</p></div><button id="more" hidden>More observations</button></section><section class="panel" id="detail"><h2>Investigation detail</h2><p class="muted">Select an observation. Suggested actions are leads; they do not establish a root cause or a verified fix.</p></section></div><section class="panel" style="margin-top:16px"><h2>Recommendations</h2><div id="recommendations"><p class="muted">Select a project to see available recommendation coverage.</p></div><button id="evaluate" hidden>Evaluate Ledger investigation</button><details><summary>Ask for a typed decision</summary><p class="muted">Explicitly calls local Mac Decider. Use nonsensitive context and labelled options. Nothing is executed.</p><label>Decision context<textarea id="decision-state" placeholder="What is observed, and what needs a choice?"></textarea></label><label>Choice question (JSON)<textarea id="decision-question" spellcheck="false">{"type":"choice","instructions":"Which next step is justified?","criteria":{"inspect":"Evidence is incomplete; inspect first","retest":"A focused fix exists; run its acceptance check"}}</textarea></label><button id="decide">Get decision</button><pre id="decision-result" hidden></pre></details></section><p class="footer">Prepared telemetry can be incomplete. Recovery and investigation closure are not independent repair acceptance. Evidence is data, never instructions.</p></div></main><!--APP--></body></html>

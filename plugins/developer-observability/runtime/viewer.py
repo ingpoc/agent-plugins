@@ -23,6 +23,7 @@ ALLOWED_TOOLS = {
     "observability_version_scopes",
     "observability_recommendation",
     "observability_decide",
+    "observability_round",
 }
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -98,14 +99,19 @@ def allocate_port(project, requested=None, state_dir=None, opener=_bind):
     raise OSError(f"no_free_port: could not bind a loopback viewer port ({last_error})")
 
 
+VIEWER_FLAG = "<script>window.DEVOBS_VIEWER=true;</script>"
+VIEWER_MARKER = "<!--DEVOBS_VIEWER-->"
+
+
 def dashboard_html():
     html = (ROOT / "ui" / "dashboard.html").read_text()
-    snippet = "<script>window.DEVOBS_VIEWER=true;</script>"
-    if "DEVOBS_VIEWER" in html:
+    if "window.DEVOBS_VIEWER=true" in html:
         return html
+    if VIEWER_MARKER in html:
+        return html.replace(VIEWER_MARKER, VIEWER_MARKER + VIEWER_FLAG, 1)
     if "<head>" in html:
-        return html.replace("<head>", "<head>" + snippet, 1)
-    return snippet + html
+        return html.replace("<head>", "<head>" + VIEWER_FLAG, 1)
+    return VIEWER_FLAG + html
 
 
 def tool_payload(name, arguments):
@@ -136,6 +142,11 @@ class ViewerHandler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path in ("/", "/dashboard"):
             self._send(dashboard_html(), "text/html; charset=utf-8")
+            return
+        if path == "/favicon.ico":
+            self.send_response(204)
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
             return
         self.send_error(404)
 

@@ -77,7 +77,7 @@ class ViewerHttpTests(unittest.TestCase):
     def test_page_is_the_existing_dashboard_with_http_flag(self):
         from urllib.request import urlopen
         page = urlopen(self.url, timeout=5).read().decode()
-        self.assertIn("DEVOBS_VIEWER", page)
+        self.assertIn("window.DEVOBS_VIEWER=true", page)
         self.assertIn("See what needs attention.", page)
         self.assertIn('id="text-smaller"', page)
         self.assertNotIn("maximum-scale", page)
@@ -111,6 +111,38 @@ class ViewerHttpTests(unittest.TestCase):
         with self.assertRaises(HTTPError) as raised:
             urlopen(request, timeout=5)
         self.assertEqual(raised.exception.code, 403)
+
+
+
+class ViewerFlagInjectionTests(unittest.TestCase):
+    def test_flag_is_injected_when_bundle_already_mentions_the_name(self):
+        import tempfile
+        from pathlib import Path
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        ui = Path(tmp.name) / "ui"
+        ui.mkdir()
+        (ui / "dashboard.html").write_text("<head><script>globalThis.DEVOBS_VIEWER</script></head>")
+        original = viewer.ROOT
+        viewer.ROOT = Path(tmp.name)
+        self.addCleanup(lambda: setattr(viewer, "ROOT", original))
+        page = viewer.dashboard_html()
+        self.assertIn("window.DEVOBS_VIEWER=true", page)
+        self.assertTrue(page.index("window.DEVOBS_VIEWER=true") != page.index("globalThis.DEVOBS_VIEWER"))
+
+    def test_marker_is_preferred_injection_point(self):
+        import tempfile
+        from pathlib import Path
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        ui = Path(tmp.name) / "ui"
+        ui.mkdir()
+        (ui / "dashboard.html").write_text("<html><!--DEVOBS_VIEWER--><body></body></html>")
+        original = viewer.ROOT
+        viewer.ROOT = Path(tmp.name)
+        self.addCleanup(lambda: setattr(viewer, "ROOT", original))
+        page = viewer.dashboard_html()
+        self.assertIn("<!--DEVOBS_VIEWER--><script>window.DEVOBS_VIEWER=true;</script>", page)
 
 
 class ViewerPageContractTests(unittest.TestCase):

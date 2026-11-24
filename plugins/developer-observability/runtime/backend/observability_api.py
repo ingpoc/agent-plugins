@@ -32,6 +32,7 @@ KINDS = ('all', 'failure', 'latency_hotspot', 'redundancy', 'turn_latency', 'isl
 MAX_ISSUES_LIMIT = 100
 # Local edit (0.1.7): error hints name the real fix, not backend or Decider health.
 NEXT_STEPS = {
+        'tracker_unavailable': 'Confirm a change-list tracker exists for this project. This tool is read-only.',
     'invalid_session_ref': 'Select a session_ref returned by observability_sessions for this project.',
     'session_not_in_project': 'Refresh observability_sessions for this project and select a returned session_ref.',
     'invalid_limit': 'Pass limit as an integer: 1–100 for observability_sessions and observability_issues (larger issue limits are clamped), '
@@ -440,6 +441,21 @@ class ObservabilityAPI:
             value = finding.get(field)
             if isinstance(value, (str, int)) and not isinstance(value, bool):
                 summary[field] = value
+        kind = summary.get('kind') or 'failure'
+        count = finding.get('failed_attempt_count', 0)
+        count = count if isinstance(count, int) and not isinstance(count, bool) else 0
+        if kind in ('latency_hotspot', 'turn_latency'):
+            latency = finding.get('latency') if isinstance(finding.get('latency'), dict) else {}
+            sample = latency.get('n')
+            summary['sample_count'] = sample if isinstance(sample, int) and not isinstance(sample, bool) else count
+            summary['failed_attempts'] = 0
+        elif kind == 'redundancy':
+            redundancy = finding.get('redundancy') if isinstance(finding.get('redundancy'), dict) else {}
+            sample = redundancy.get('occurrences')
+            summary['sample_count'] = sample if isinstance(sample, int) and not isinstance(sample, bool) else count
+            summary['failed_attempts'] = 0
+        else:
+            summary['failed_attempts'] = count
         return summary
 
     @staticmethod
