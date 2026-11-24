@@ -11764,9 +11764,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-24T07:03:42Z",
-      "now": "2026-11-24T07:03:42Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T07:07:37Z",
+      "now": "2026-11-24T07:07:37Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 119,
@@ -11848,7 +11848,7 @@
       }
     },
     "cycle": 12,
-    "round": 6,
+    "round": 7,
     "round_history": [
       {
         "round": 2,
@@ -12049,6 +12049,11 @@
         "round": 5,
         "fixed": 10,
         "ended_at": "2026-11-24T06:19:20Z"
+      },
+      {
+        "round": 6,
+        "fixed": 14,
+        "ended_at": "2026-11-24T07:07:37Z"
       }
     ],
     "introspect_history": [
@@ -13615,323 +13620,139 @@
       "collect",
       "present",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "round": 6,
+      "round": 7,
       "groups": [
         {
-          "status": "verified",
-          "phase": "verify",
-          "codex": {
-            "job": {
-              "id": "5c2a78107cd24b57aeb590d332c348c6",
-              "phase": "presuite",
-              "started_at": "2026-11-24T06:49:49Z",
-              "command": "run-presuite-r6.sh",
-              "heartbeat_at": "2026-11-24T06:52:48Z",
-              "plan_sha256": "83143053de99d5260a5315f1e044fb21a2e76476f67772d364afbe84840289cb",
-              "worktree": "samantha-next-r10",
-              "model": "check.py --changed-since 77d2c0b0",
-              "cycle": 12,
-              "round": 6,
-              "pid": 42305,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T06:52:48Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "fix_status": "passed",
-            "model": "Grok Bot",
-            "implementer_session": "grokbot-r6-fallback",
-            "reviewer_session": "grokbot-r6-fallback-review",
-            "review_status": "passed",
-            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
-          },
-          "verify": {
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-fallback.sh"
-          },
-          "id": "R6-FALLBACK",
-          "name": "Rejected reviewer models fall back automatically",
-          "label": "fallback",
+          "id": "R7-ACU20",
+          "name": "Island shows Grok Bot subagent runs",
+          "label": "ACU-20",
           "finding_ids": [
-            "PR120-r5-codex-reviewer-model-fallback"
+            "ACU-20"
           ],
-          "worktree": "samantha-next-r10",
+          "worktree": "bcl120-r7-acu20",
+          "status": "planned",
+          "phase": "pending",
           "files": [
-            "plugins/batched-change-list/bin/bcl",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_reviewer_fallback.py"
+            "plugins/agent-computer-use/bin/island_activity.py",
+            "plugins/agent-computer-use/bin/island_hook.py",
+            "plugins/agent-computer-use/skills/macos-cua/tests/test_island_activity.py",
+            "plugins/agent-computer-use/skills/macos-cua/service/Sources/CUAService/IslandActivities.swift",
+            "plugins/agent-computer-use/skills/macos-cua/service/Sources/CUAService/IslandCodexThreads.swift",
+            "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandCodexThreadsTests.swift"
           ],
-          "reason": "First in the round-6 fix order: when the signed-in account rejects the reviewer, record a named tool fault and automatically retry Astra 6.2, then a Grok Bot review, without a no-op fix. Do not edit manage_findings.py (that is BCL-121). Estimate about 80k tokens.",
+          "reason": "Product first: the island already shows Codex CLI runs and must also show Grok Bot's own subagents as running, done, or stopped with a reason, from a supported credential-free record. Do not read credentials, dual-drive Comet, or touch port 8765, pid 1338, or ~/.cache/macos-cua/samantha-activity.jsonl. About 90k tokens.",
           "failure_history": [],
-          "plan_review_history": [
-            {
-              "job_id": "bf697dc366324286bb3b4f0aebe4d803",
-              "after_failure": null,
-              "status": "passed",
-              "cycle": 12,
-              "round": 6,
-              "at": "2026-11-24T06:20:49Z"
-            }
-          ],
-          "updated_at": "2026-11-24T06:59:41Z",
-          "stage_entered_at": "2026-11-24T07:00:28Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T06:52:48Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-24T06:59:02Z"
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T07:07:37Z",
+          "stage_entered_at": "2026-11-24T07:07:37Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           }
         },
         {
-          "status": "verified",
-          "phase": "verify",
-          "codex": {
-            "job": {
-              "id": "5c2a78107cd24b57aeb590d332c348c6",
-              "phase": "presuite",
-              "started_at": "2026-11-24T06:49:49Z",
-              "command": "run-presuite-r6.sh",
-              "heartbeat_at": "2026-11-24T06:52:48Z",
-              "plan_sha256": "83143053de99d5260a5315f1e044fb21a2e76476f67772d364afbe84840289cb",
-              "worktree": "samantha-next-r10",
-              "model": "check.py --changed-since 77d2c0b0",
-              "cycle": 12,
-              "round": 6,
-              "pid": 42305,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T06:52:48Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "fix_status": "passed",
-            "model": "Grok Bot",
-            "implementer_session": "01a20c3d-3174-7353-a7c9-fd09efec5305",
-            "reviewer_session": "grokbot-r6-121-review",
-            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
-            "review_status": "passed"
-          },
-          "verify": {
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-121.sh"
-          },
-          "id": "R6-121",
-          "name": "Cap plan reviews and post-fix reviews",
-          "label": "BCL-121",
+          "id": "R7-ACU10",
+          "name": "Voice and live-model usage rows carry real token counts",
+          "label": "ACU-10",
           "finding_ids": [
-            "BCL-121"
+            "ACU-10"
           ],
-          "worktree": "samantha-next-r10",
+          "worktree": "bcl120-r7-acu10",
+          "status": "planned",
+          "phase": "pending",
+          "files": [
+            "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua/providers.py",
+            "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua/live_session.py",
+            "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua/activity_log.py",
+            "plugins/agent-computer-use/runtime/voice-cua/tests/test_usage_and_backoff.py"
+          ],
+          "reason": "Product: re-read provider usage fields for Grok Voice and the GPT live model, with AirPods Pro and typed prompts allowed for checks. Keep unknown rather than zero when a provider still omits counts; do not invent tokens. Serial live checks only; never touch port 8765, pid 1338, or the live Samantha activity log, and do not unlock the Mini or retry notarization. Not a duplicate of DO-2 or collect-job-coverage. About 80k tokens.",
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T07:07:37Z",
+          "stage_entered_at": "2026-11-24T07:07:37Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          }
+        },
+        {
+          "id": "R7-ACU21",
+          "name": "Two ACU tests wait on a condition under load",
+          "label": "ACU-21",
+          "finding_ids": [
+            "ACU-21"
+          ],
+          "worktree": "bcl120-r7-acu21",
+          "status": "planned",
+          "phase": "pending",
+          "files": [
+            "scripts/test_release_agent_computer_use.py",
+            "plugins/agent-computer-use/runtime/voice-cua/tests/test_dev_tools.py"
+          ],
+          "reason": "Product: replace the short fixed waits in test_connected_but_unresponsive_service_times_out_on_runtime_contract and test_background_jobs_track_and_stop_only_the_returned_job_id so both pass 50 runs under four busy CPU loops and the pre-push suite passes first time. Tests only; do not edit production voice or island files owned by the other ACU lanes. About 40k tokens.",
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T07:07:37Z",
+          "stage_entered_at": "2026-11-24T07:07:37Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          }
+        },
+        {
+          "id": "R7-STALE",
+          "name": "A finished job can record its result after a mid-job plan change",
+          "label": "stale-finish",
+          "finding_ids": [
+            "PR120-r6-stale-job-finish"
+          ],
+          "worktree": "bcl120-r7-stale",
+          "status": "planned",
+          "phase": "pending",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py"
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_job_lifecycle.py"
           ],
-          "reason": "Second in the fix order: refuse a second plan review until open items are filed (the current cap only applies after a passed review plus a counted failure, which let R5-177 run seven plan reviews). Also refuse a fourth post-fix review until remaining items are filed, and refuse adding a finding to a lane under review. Do not edit bin/bcl (that is the fallback lane). Estimate about 100k tokens.",
+          "reason": "Round 6 introspect waste: a successful finish must record even if another lane wrote a receipt while it ran. Change manage_findings.py only; leave bin/bcl for collect-job-coverage. Metric: 0 stale-plan finish failures on a three-lane parallel run (was 2 of 3, plus 2 no-op receipts). About 70k tokens.",
           "failure_history": [],
-          "plan_review_history": [
-            {
-              "job_id": "424728cad3394cf7a53b7d3e793d6afd",
-              "after_failure": null,
-              "status": "passed",
-              "cycle": 12,
-              "round": 6,
-              "at": "2026-11-24T06:20:50Z"
-            }
-          ],
-          "updated_at": "2026-11-24T06:59:04Z",
-          "stage_entered_at": "2026-11-24T07:00:28Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T06:52:48Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-24T06:59:02Z"
-          }
-        },
-        {
-          "status": "verified",
-          "phase": "verify",
-          "codex": {
-            "job": {
-              "id": "5c2a78107cd24b57aeb590d332c348c6",
-              "phase": "presuite",
-              "started_at": "2026-11-24T06:49:49Z",
-              "command": "run-presuite-r6.sh",
-              "heartbeat_at": "2026-11-24T06:52:48Z",
-              "plan_sha256": "83143053de99d5260a5315f1e044fb21a2e76476f67772d364afbe84840289cb",
-              "worktree": "samantha-next-r10",
-              "model": "check.py --changed-since 77d2c0b0",
-              "cycle": 12,
-              "round": 6,
-              "pid": 42305,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T06:52:48Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "fix_status": "passed",
-            "model": "Grok Bot",
-            "implementer_session": "01a20c3d-4e72-7113-862e-a74708f0827b",
-            "reviewer_session": "grokbot-r6-do2-review",
-            "review_status": "passed",
-            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
-          },
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T07:07:37Z",
+          "stage_entered_at": "2026-11-24T07:07:37Z",
           "verify": {
-            "status": "verified",
-            "fixed": 1,
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
-            "total": 1,
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-do2.sh"
-          },
-          "id": "R6-DO2",
-          "name": "Per-job tokens from official collect, including Grok Bot",
-          "label": "DO-2",
-          "finding_ids": [
-            "DO-2"
-          ],
-          "worktree": "samantha-next-r10",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_events.py",
-            "plugins/developer-observability/runtime/collector/bcl_events.py",
-            "plugins/developer-observability/tests/test_bcl_events_source.py"
-          ],
-          "reason": "Third in the fix order: official collect must mark the change-list source collected with a last event time, name the job model or a real token-source gap rather than the wrapper binary, and expose complete Codex tokens plus a named Grok Bot source or gap. Do not edit cli.py, sources.py, or the query/UI (those are DO-1 and DO-3). Estimate about 120k tokens.",
-          "failure_history": [],
-          "plan_review_history": [
-            {
-              "job_id": "0ce304a49b4f417f9a740e22da4e6cca",
-              "after_failure": null,
-              "status": "passed",
-              "cycle": 12,
-              "round": 6,
-              "at": "2026-11-24T06:20:51Z"
-            }
-          ],
-          "updated_at": "2026-11-24T06:59:08Z",
-          "stage_entered_at": "2026-11-24T07:00:28Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T06:52:48Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-24T06:59:02Z"
-          }
-        },
-        {
-          "status": "verified",
-          "phase": "verify",
-          "codex": {
-            "job": {
-              "id": "5c2a78107cd24b57aeb590d332c348c6",
-              "phase": "presuite",
-              "started_at": "2026-11-24T06:49:49Z",
-              "command": "run-presuite-r6.sh",
-              "heartbeat_at": "2026-11-24T06:52:48Z",
-              "plan_sha256": "83143053de99d5260a5315f1e044fb21a2e76476f67772d364afbe84840289cb",
-              "worktree": "samantha-next-r10",
-              "model": "check.py --changed-since 77d2c0b0",
-              "cycle": 12,
-              "round": 6,
-              "pid": 42305,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T06:52:48Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "fix_status": "passed",
-            "model": "Grok Bot",
-            "implementer_session": "01a20c3d-6db7-7ec1-9106-e357e2ea27e1",
-            "reviewer_session": "grokbot-r6-do3-review",
-            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
-            "review_status": "passed"
-          },
-          "verify": {
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-do3.sh"
-          },
-          "id": "R6-DO3",
-          "name": "Filter official collect by pull request and round",
-          "label": "DO-3",
-          "finding_ids": [
-            "DO-3"
-          ],
-          "worktree": "samantha-next-r10",
-          "files": [
-            "plugins/developer-observability/runtime/backend/observability_api.py",
-            "plugins/developer-observability/runtime/server.py",
-            "plugins/developer-observability/runtime/island.py",
-            "plugins/developer-observability/tests/test_island.py",
-            "plugins/developer-observability/tests/test_session_timeline.py",
-            "plugins/developer-observability/ui/app.js",
-            "plugins/developer-observability/ui/dashboard.html"
-          ],
-          "reason": "Fourth in the fix order: extend the existing issues query with pull request and round filters (plus the remaining acceptance filters), and show the same view in the app UI through that query. Do not edit events.py, bcl_events.py, or sources.py (those are DO-2 and DO-1). This may need a later slice if it exceeds 150k tokens. Estimate about 140k tokens.",
-          "failure_history": [],
-          "plan_review_history": [
-            {
-              "job_id": "e72ac0c650854a4e998805aad9f324e5",
-              "after_failure": null,
-              "status": "passed",
-              "cycle": 12,
-              "round": 6,
-              "at": "2026-11-24T06:20:53Z"
-            }
-          ],
-          "updated_at": "2026-11-24T06:59:20Z",
-          "stage_entered_at": "2026-11-24T07:00:28Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T06:52:48Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-24T06:59:02Z"
+            "total": 1
           }
         },
         {
           "id": "R4-171",
           "name": "Collect reads developer-observability findings",
+          "label": "BCL-171",
           "finding_ids": [
             "BCL-171"
           ],
-          "label": "BCL-171",
           "worktree": "bcl120-r5-171",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-171.sh",
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
-          },
+          "status": "blocked",
+          "parked_to": 7,
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_collect_observability.py",
             "plugins/batched-change-list/skills/batched-change-list/references/collect.md"
           ],
           "reason": "Parked for a later round; stays closed until an owner unblock",
-          "status": "parked",
+          "blocked_reason": "Second failure",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -13981,34 +13802,6 @@
               "at": "2026-11-22T16:55:46Z"
             }
           ],
-          "codex": {
-            "fix_status": "passed",
-            "job": {
-              "id": "060493f71d274cb9b07506247d1f0164",
-              "phase": "review",
-              "started_at": "2026-11-24T04:43:44Z",
-              "command": "run-record-171-verdict.sh",
-              "heartbeat_at": "2026-11-24T04:43:44Z",
-              "plan_sha256": "14de10ee41df11aed412a7051b50e15d097b767fd120ee50bb918d1a53655f90",
-              "worktree": "bcl120-r5-171",
-              "model": "gpt-6.1-terra medium (review, re-record)",
-              "cycle": 12,
-              "round": 5,
-              "pid": 90625,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T04:43:44Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`."
-            },
-            "tool_fault_streak": 0,
-            "model": "gpt-6-luna fast medium (Codex CLI)",
-            "implementer_session": "01a20bc8-294f-73e2-9e7d-b7a24fcf28df",
-            "reviewer_session": "codex-terra-120-171-3",
-            "reviewer_model": "gpt-6.1-terra medium (review, re-record)",
-            "must_fix_note": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
-            "review_status": "blocked"
-          },
-          "updated_at": "2026-11-24T06:58:56Z",
           "unblock_history": [
             {
               "at": "2026-11-24T04:16:26Z",
@@ -14024,34 +13817,35 @@
               "owner_override": true
             }
           ],
-          "blocked_reason": "Second failure",
           "failure_block_reason": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
-          "parked_to": 7,
+          "codex": {},
           "phase": "fix",
-          "stage_entered_at": "2026-11-24T06:58:56Z"
-        },
-        {
-          "id": "R4-106",
-          "name": "Tested verify driver; cleanup cannot change a verdict",
-          "finding_ids": [
-            "BCL-106"
-          ],
-          "label": "BCL-106",
-          "worktree": "bcl120-r5-106",
+          "stage_entered_at": "2026-11-24T07:07:37Z",
+          "updated_at": "2026-11-24T07:07:37Z",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-106.sh",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 1
-          },
+          }
+        },
+        {
+          "id": "R4-106",
+          "name": "Tested verify driver; cleanup cannot change a verdict",
+          "label": "BCL-106",
+          "finding_ids": [
+            "BCL-106"
+          ],
+          "worktree": "bcl120-r5-106",
+          "status": "blocked",
+          "parked_to": 7,
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_verify_driver.py",
             "plugins/batched-change-list/skills/batched-change-list/references/verify.md"
           ],
           "reason": "Parked for a later round; stays closed until an owner unblock",
-          "status": "parked",
+          "blocked_reason": "Second failure",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -14090,34 +13884,6 @@
               "at": "2026-11-22T16:55:41Z"
             }
           ],
-          "codex": {
-            "fix_status": "passed",
-            "job": {
-              "id": "43677574e10744dcb0f6b2ef6fe0775b",
-              "phase": "review",
-              "started_at": "2026-11-24T04:34:01Z",
-              "command": "run-review-106-3-job.sh",
-              "heartbeat_at": "2026-11-24T04:34:33Z",
-              "plan_sha256": "28229a40984d30d5480eca1f38e8a3319c3e5e7d3bc768207d4c7dee6fd854f9",
-              "worktree": "bcl120-r5-106",
-              "model": "gpt-6.1-terra medium (review)",
-              "cycle": 12,
-              "round": 5,
-              "pid": 78502,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T04:34:33Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test."
-            },
-            "tool_fault_streak": 0,
-            "model": "gpt-6-luna fast medium (Codex CLI)",
-            "implementer_session": "01a20bc8-122c-7543-a4c3-11b1c01e6a46",
-            "reviewer_session": "codex-terra-120-106-3",
-            "review_status": "blocked",
-            "reviewer_model": "gpt-6.1-terra medium (review)",
-            "must_fix_note": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test."
-          },
-          "updated_at": "2026-11-24T06:58:56Z",
           "unblock_history": [
             {
               "at": "2026-11-24T04:16:26Z",
@@ -14133,33 +13899,32 @@
               "owner_override": true
             }
           ],
-          "blocked_reason": "Second failure",
           "failure_block_reason": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test.",
-          "parked_to": 7,
+          "codex": {},
           "phase": "fix",
-          "stage_entered_at": "2026-11-24T06:58:56Z"
-        },
-        {
-          "id": "R2-DO1",
-          "name": "Tracker snapshot commits are not failures",
-          "finding_ids": [
-            "DO-1"
-          ],
-          "label": "DO-1",
-          "worktree": "bcl120-r2-do1-r3",
+          "stage_entered_at": "2026-11-24T07:07:37Z",
+          "updated_at": "2026-11-24T07:07:37Z",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r2-do1.sh",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 1
-          },
+          }
+        },
+        {
+          "id": "R2-DO1",
+          "name": "Tracker snapshot commits are not failures",
+          "label": "DO-1",
+          "finding_ids": [
+            "DO-1"
+          ],
+          "worktree": "bcl120-r2-do1-r3",
+          "parked_to": 7,
           "files": [
             "plugins/developer-observability/runtime/collector/sources.py",
             "plugins/developer-observability/tests/test_collector*.py"
           ],
           "reason": "DO-1 stays deferred until Guru approves a path past the observability hygiene gate. No override.",
-          "parked_to": 7,
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -14226,15 +13991,19 @@
           "phase": "deferred",
           "codex": {},
           "stage_entered_at": "2026-11-24T04:15:21Z",
-          "updated_at": "2026-11-24T06:19:20Z"
+          "updated_at": "2026-11-24T07:07:37Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          }
         },
         {
           "id": "DEFER",
           "name": "Later rounds",
+          "label": "rest",
           "finding_ids": [
-            "ACU-10",
-            "ACU-20",
-            "ACU-21",
             "BCL-94",
             "BCL-108",
             "BCL-110",
@@ -14253,26 +14022,25 @@
             "BCL-160",
             "BCL-161",
             "BCL-166",
-            "PR120-r6-gate-denominator"
+            "PR120-r6-gate-denominator",
+            "PR120-r6-collect-job-coverage"
           ],
-          "label": "rest",
           "status": "deferred",
           "phase": "deferred",
-          "reason": "Remaining items wait for a later round. The official gate-count denominator issue is filed and deferred; 106 and 171 stay parked until owner unblock.",
-          "parked_to": 7,
+          "parked_to": 8,
+          "reason": "ACU-10, ACU-20 and ACU-21 stay split: same M-ACU label, three different causes (provider token fields, island subagent feed, flaky tests). Collect-job-coverage waits so it can take bin/bcl after stale-job-finish lands. 106 and 171 stay parked until owner unblock. DO-1 stays deferred.",
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T07:07:37Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 22
-          },
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-24T06:19:20Z"
+            "total": 20
+          }
         }
       ],
-      "cycle": 12,
-      "status": "closed"
+      "cycle": 12
     },
     "verification_run": {
       "id": "r6-828e2f90-120",
@@ -14524,7 +14292,7 @@
       "round": 6,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T07:03:42Z",
+    "last_written_at": "2026-11-24T07:07:37Z",
     "fix_order": {
       "ids": [
         "PR120-r5-codex-reviewer-model-fallback",
@@ -14548,7 +14316,7 @@
       "done_when": "Usage records carry real input and output token counts for Grok Voice and for the GPT live model; a test checks both providers.",
       "observed": "19 Nov 2026 typed run: all 9 Grok Voice usage rows showed 0 tokens; GPT-Live-1 run had usage rows only for the backend model.",
       "recommendation": "Read the providers' response usage fields (or the closest available) into the usage records, and mark them unknown rather than zero when absent.",
-      "status": "blocked",
+      "status": "in_progress",
       "details": {
         "Technical wording": "usage rows provider=xai model=grok-voice-latest input_tokens=0 output_tokens=0; no usage rows with model=gpt-live-1.",
         "Dev-obs evidence": "Dev-obs sums these rows (col-ffa528ff4fa3470c) without flagging that every Grok row is zero.",
@@ -14565,7 +14333,7 @@
       "done_when": "The island shows Grok Bot subagent runs as running, done, or stopped with a reason, the same way it shows Codex runs, read from a supported source with no credentials.",
       "observed": "20 Nov 2026 13:11 IST: Guru noticed rounds 5 and 6 ran on Grok Bot's own subagents and nothing showed on the island.",
       "recommendation": "Find a supported, credential-free record of Grok Bot subagent runs and feed it to the island the way Codex runs are fed.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "Planned round": "Round 7; recorded only in round 6, not part of the round 6 plan or gate.",
         "root_cause_group": "M-ACU: Agent computer use items (ACU-10, ACU-20, ACU-21)"
@@ -14581,7 +14349,7 @@
       "done_when": "Both tests pass 50 runs in a row under four busy CPU loops, and the pre-push suite passes first time.",
       "observed": "20 Nov 2026 13:34 and 13:41 IST: test_connected_but_unresponsive_service_times_out_on_runtime_contract (one probe call in 0.01 s) and test_background_jobs_track_and_stop_only_the_returned_job_id (stop had no status; 1 failure in 12 runs alone). Both are on main.",
       "recommendation": "Wait on a condition instead of a fixed short time in both tests.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "root_cause_group": "M-ACU: Agent computer use items (ACU-10, ACU-20, ACU-21)"
       }
@@ -15544,7 +15312,7 @@
       "recommendation": "Let a successful finish land against the current plan when the job id is still running, or keep a stable plan generation for in-flight jobs so a receipt on another lane does not invalidate them.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "lanes": "R6-121 job 947b61265d184d2b922aea49bf15a996 and R6-DO3 job 08e131b7a81941f5ae17100c87d6b293; logs job-fix-r6-121.log and job-fix-r6-do3.log; no-op receipts then recorded through bcl job --phase fix -- /usr/bin/true.",
         "metric": "Before: 2 of 3 parallel finish writes failed after exit 0, plus 2 no-op receipts. After: 0 stale-plan finish failures on a three-lane parallel run."
