@@ -11,16 +11,16 @@ class ReferenceTests(unittest.TestCase):
     def test_docs_do_not_advertise_retired_commands(self):
         docs = [SKILL.parent.parent / "README.md", SKILL / "SKILL.md",
                 *(SKILL / "references").rglob("*.md")]
-        command = re.compile(r"\bbcl(?:\s+--data\s+\S+)?\s+(?:merge|sync-main)\b")
-        self.assertRegex("bcl merge", command)
+        command = re.compile(r"\bbcl(?:\s+--data\s+\S+)?\s+sync-main\b")
         self.assertRegex("bcl --data FINDINGS.json sync-main", command)
+        self.assertIsNone(command.search("bcl merge --into ID"))
         self.assertIsNone(command.search("bcl merged; merging branches"))
         for path in docs:
             text = path.read_text(encoding="utf-8")
             self.assertIsNone(command.search(text), f"{path} advertises a retired command")
         readme = docs[0].read_text(encoding="utf-8")
         stage_list = readme.split("**Workflow command.**", 1)[1].split(". Successful stages", 1)[0]
-        self.assertNotRegex(stage_list, r"\b(?:merge|sync-main)\b", "README stage list advertises a retired command")
+        self.assertNotRegex(stage_list, r"\bsync-main\b", "README stage list advertises a retired command")
 
     def test_references_have_no_literal_gate_numbers(self):
         values = (DEFINITION["gate"]["default_threshold"], DEFINITION["gate"]["merge_previous_pr_threshold"])
