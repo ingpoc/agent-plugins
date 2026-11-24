@@ -11631,9 +11631,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T06:20:48Z",
-      "now": "2026-11-24T06:20:48Z — Plan Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T06:23:48Z",
+      "now": "2026-11-24T06:23:48Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13398,21 +13398,23 @@
       "round": 6,
       "groups": [
         {
-          "status": "review",
-          "phase": "plan_review",
+          "status": "running",
+          "phase": "fix",
           "codex": {
             "job": {
-              "id": "bf697dc366324286bb3b4f0aebe4d803",
-              "phase": "plan_review",
-              "started_at": "2026-11-24T06:20:48Z",
-              "command": "run-record-r6-planreview.sh",
-              "heartbeat_at": "2026-11-24T06:20:48Z",
+              "id": "ab86bbadbd7d42f3a1efc14465152f6e",
+              "phase": "fix",
+              "started_at": "2026-11-24T06:23:48Z",
+              "command": "run-record-r6-fix-fallback.sh",
+              "heartbeat_at": "2026-11-24T06:23:48Z",
               "plan_sha256": "76b90262c5cf69b905b69ff6ffb9ac3cf293babc17a6b6dfedce112463bdcea4",
               "worktree": "bcl120-r6-fallback",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "model": "Grok Bot",
               "cycle": 12,
               "round": 6
-            }
+            },
+            "tool_fault_streak": 0,
+            "fix_status": "running"
           },
           "verify": {
             "status": "pending",
@@ -13433,14 +13435,42 @@
           ],
           "reason": "First in the round-6 fix order: when the signed-in account rejects the reviewer, record a named tool fault and automatically retry Astra 6.2, then a Grok Bot review, without a no-op fix. Do not edit manage_findings.py (that is BCL-121). Estimate about 80k tokens.",
           "failure_history": [],
-          "plan_review_history": [],
+          "plan_review_history": [
+            {
+              "job_id": "bf697dc366324286bb3b4f0aebe4d803",
+              "after_failure": null,
+              "status": "passed",
+              "cycle": 12,
+              "round": 6,
+              "at": "2026-11-24T06:20:49Z"
+            }
+          ],
           "updated_at": "2026-11-24T06:19:20Z",
-          "stage_entered_at": "2026-11-24T06:20:48Z"
+          "stage_entered_at": "2026-11-24T06:23:48Z"
         },
         {
-          "status": "planned",
-          "phase": "pending",
-          "codex": {},
+          "status": "review",
+          "phase": "plan_review",
+          "codex": {
+            "job": {
+              "id": "424728cad3394cf7a53b7d3e793d6afd",
+              "phase": "plan_review",
+              "started_at": "2026-11-24T06:20:50Z",
+              "command": "run-record-r6-planreview.sh",
+              "heartbeat_at": "2026-11-24T06:20:50Z",
+              "plan_sha256": "76b90262c5cf69b905b69ff6ffb9ac3cf293babc17a6b6dfedce112463bdcea4",
+              "worktree": "bcl120-r6-121",
+              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "cycle": 12,
+              "round": 6,
+              "pid": 75398,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T06:20:50Z",
+              "finished_phase_status": "passed"
+            },
+            "plan_review_status": "passed",
+            "tool_fault_streak": 0
+          },
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13460,14 +13490,42 @@
           ],
           "reason": "Second in the fix order: refuse a second plan review until open items are filed (the current cap only applies after a passed review plus a counted failure, which let R5-177 run seven plan reviews). Also refuse a fourth post-fix review until remaining items are filed, and refuse adding a finding to a lane under review. Do not edit bin/bcl (that is the fallback lane). Estimate about 100k tokens.",
           "failure_history": [],
-          "plan_review_history": [],
+          "plan_review_history": [
+            {
+              "job_id": "424728cad3394cf7a53b7d3e793d6afd",
+              "after_failure": null,
+              "status": "passed",
+              "cycle": 12,
+              "round": 6,
+              "at": "2026-11-24T06:20:50Z"
+            }
+          ],
           "updated_at": "2026-11-24T06:19:20Z",
-          "stage_entered_at": "2026-11-24T06:19:20Z"
+          "stage_entered_at": "2026-11-24T06:20:50Z"
         },
         {
-          "status": "planned",
-          "phase": "pending",
-          "codex": {},
+          "status": "review",
+          "phase": "plan_review",
+          "codex": {
+            "job": {
+              "id": "0ce304a49b4f417f9a740e22da4e6cca",
+              "phase": "plan_review",
+              "started_at": "2026-11-24T06:20:51Z",
+              "command": "run-record-r6-planreview.sh",
+              "heartbeat_at": "2026-11-24T06:20:51Z",
+              "plan_sha256": "76b90262c5cf69b905b69ff6ffb9ac3cf293babc17a6b6dfedce112463bdcea4",
+              "worktree": "bcl120-r6-do2",
+              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "cycle": 12,
+              "round": 6,
+              "pid": 75510,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T06:20:51Z",
+              "finished_phase_status": "passed"
+            },
+            "plan_review_status": "passed",
+            "tool_fault_streak": 0
+          },
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13489,14 +13547,42 @@
           ],
           "reason": "Third in the fix order: official collect must mark the change-list source collected with a last event time, name the job model or a real token-source gap rather than the wrapper binary, and expose complete Codex tokens plus a named Grok Bot source or gap. Do not edit cli.py, sources.py, or the query/UI (those are DO-1 and DO-3). Estimate about 120k tokens.",
           "failure_history": [],
-          "plan_review_history": [],
+          "plan_review_history": [
+            {
+              "job_id": "0ce304a49b4f417f9a740e22da4e6cca",
+              "after_failure": null,
+              "status": "passed",
+              "cycle": 12,
+              "round": 6,
+              "at": "2026-11-24T06:20:51Z"
+            }
+          ],
           "updated_at": "2026-11-24T06:19:20Z",
-          "stage_entered_at": "2026-11-24T06:19:20Z"
+          "stage_entered_at": "2026-11-24T06:20:51Z"
         },
         {
-          "status": "planned",
-          "phase": "pending",
-          "codex": {},
+          "status": "review",
+          "phase": "plan_review",
+          "codex": {
+            "job": {
+              "id": "e72ac0c650854a4e998805aad9f324e5",
+              "phase": "plan_review",
+              "started_at": "2026-11-24T06:20:52Z",
+              "command": "run-record-r6-planreview.sh",
+              "heartbeat_at": "2026-11-24T06:20:53Z",
+              "plan_sha256": "76b90262c5cf69b905b69ff6ffb9ac3cf293babc17a6b6dfedce112463bdcea4",
+              "worktree": "bcl120-r6-do3",
+              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "cycle": 12,
+              "round": 6,
+              "pid": 75614,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T06:20:53Z",
+              "finished_phase_status": "passed"
+            },
+            "plan_review_status": "passed",
+            "tool_fault_streak": 0
+          },
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13521,9 +13607,18 @@
           ],
           "reason": "Fourth in the fix order: extend the existing issues query with pull request and round filters (plus the remaining acceptance filters), and show the same view in the app UI through that query. Do not edit events.py, bcl_events.py, or sources.py (those are DO-2 and DO-1). This may need a later slice if it exceeds 150k tokens. Estimate about 140k tokens.",
           "failure_history": [],
-          "plan_review_history": [],
+          "plan_review_history": [
+            {
+              "job_id": "e72ac0c650854a4e998805aad9f324e5",
+              "after_failure": null,
+              "status": "passed",
+              "cycle": 12,
+              "round": 6,
+              "at": "2026-11-24T06:20:53Z"
+            }
+          ],
           "updated_at": "2026-11-24T06:19:20Z",
-          "stage_entered_at": "2026-11-24T06:19:20Z"
+          "stage_entered_at": "2026-11-24T06:20:53Z"
         },
         {
           "id": "R4-171",
@@ -14092,7 +14187,7 @@
       "round": 5,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T06:20:48Z",
+    "last_written_at": "2026-11-24T06:23:49Z",
     "fix_order": {
       "ids": [
         "PR120-r5-codex-reviewer-model-fallback",
