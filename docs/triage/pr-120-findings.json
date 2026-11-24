@@ -11480,9 +11480,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T05:45:46Z",
-      "now": "2026-11-24T05:45:46Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T05:55:59Z",
+      "now": "2026-11-24T05:55:59Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13177,7 +13177,7 @@
             "BCL-177"
           ],
           "label": "BCL-177",
-          "status": "review",
+          "status": "running",
           "worktree": "bcl120-r5-177",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r5-177.sh",
@@ -13191,22 +13191,21 @@
             "implementer_session": "01a20c01-4fd3-76b1-b5c7-c05e95e22500",
             "reviewer_session": "codex-terra-120-177-2",
             "job": {
-              "id": "3163b0985e2a41b4bda86ce088950cdb",
-              "phase": "review",
-              "started_at": "2026-11-24T05:45:46Z",
-              "command": "run-record-177-2-grok.sh",
-              "heartbeat_at": "2026-11-24T05:45:46Z",
+              "id": "b990bf8732fd4c179ed1f98b3e7ae9af",
+              "phase": "fix",
+              "started_at": "2026-11-24T05:55:59Z",
+              "command": "run-luna-177-3-already-committed.sh",
+              "heartbeat_at": "2026-11-24T05:55:59Z",
               "plan_sha256": "24cbbc0299efb5555bb9c4853e744bff7bcf3e0de5288b468b1090244be88378",
               "worktree": "bcl120-r5-177",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "model": "Grok Bot inline fix (Astra 6.2 and Terra 6.1 unavailable)",
               "cycle": 12,
               "round": 5
             },
             "tool_fault_streak": 0,
-            "fix_status": "passed",
+            "fix_status": "running",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
-            "must_fix_note": "Reviewer exited 1",
-            "review_status": "running"
+            "must_fix_note": "Reviewer exited 1"
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
@@ -13262,8 +13261,8 @@
             }
           ],
           "updated_at": "2026-11-24T05:34:13Z",
-          "stage_entered_at": "2026-11-24T05:45:36Z",
-          "phase": "review"
+          "stage_entered_at": "2026-11-24T05:55:59Z",
+          "phase": "fix"
         },
         {
           "id": "R4-171",
@@ -13889,7 +13888,7 @@
       "round": 4,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T05:45:46Z"
+    "last_written_at": "2026-11-24T05:55:59Z"
   },
   "findings": [
     {
@@ -14765,6 +14764,23 @@
         "spec": "devobs-round-view.md capture-time fields and Tokens sections; acceptance checks 9 and the events.jsonl contract. Query filters, tiers, and UI stay with DO-3.",
         "related": "Split from the capture half of DO-3. Related to BCL-147 (job receipts and fail-if-no-commit, not in this slice) and DO-2 (token sources, covered here for Codex and Grok Bot).",
         "kind": "fix"
+      }
+    },
+    {
+      "id": "PR120-r5-codex-reviewer-model-fallback",
+      "title": "A rejected Codex reviewer model does not fall back and is stored as a runner-exit tool fault",
+      "summary": "When the signed-in account rejects the configured reviewer, the review job exits without a verdict, the change list records a runner-exit tool fault, and the lane is sent back to fix. The workflow does not automatically try the next allowed reviewer.",
+      "impact": "A finished fix cannot be reviewed until someone probes models by hand, runs a no-op fix to re-enter review, and substitutes a fallback model or a Grok Bot review. Shipping stalls on an account or model outage.",
+      "done_when": "A rejected reviewer is recorded as a named tool fault, the job automatically retries the next allowed reviewer without a no-op fix, the substitution is recorded on the job, and a test covers that path.",
+      "observed": "24 Nov 2026, PR 120, installed bcl 0.1.72, Mini ChatGPT login. R5-177 Terra review 1 at 10:51 IST used gpt-6.1-terra successfully (54,709 tokens, CHANGES). Review 2 at 11:04 IST failed immediately: 'The gpt-6.1-terra model is not supported when using Codex with a ChatGPT account' (model_not_found), job ef27ecbf759e40d3add34980634fdab1, tool_fault runner_exit, lane returned to phase=fix. Mini probes at 11:07, 11:10 IST and a box account probe (CODEX_HOME=~/.codex-a) at 11:11 IST failed the same way. gpt-6.2-astra medium was probed at 11:12 IST and failed with the same ChatGPT unsupported-model error, so review 2 was done as a Grok Bot subagent review and recorded through a bcl review job.",
+      "recommendation": "Treat a rejected reviewer as a named tool fault, not a generic runner exit. Automatically retry the approved fallback list (Astra 6.2, then a Grok Bot review), record the substitution on the job, and do not send the lane back to fix for that fault.",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "rejected_models": "gpt-6.1-terra and gpt-6.2-astra both returned model_not_found / not supported when using Codex with a ChatGPT account.",
+        "probes": "Mini probes at 11:07 and 11:10 IST; box account probe with CODEX_HOME=~/.codex-a at 11:11 IST; Astra probe at 11:12 IST. Terra review 1 at 10:51 IST had still worked.",
+        "job": "R5-177 review 2 job ef27ecbf759e40d3add34980634fdab1 at 11:04 IST was stored as tool_fault runner_exit; the lane returned to phase=fix."
       }
     }
   ]
