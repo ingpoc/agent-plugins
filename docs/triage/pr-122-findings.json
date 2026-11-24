@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T15:40:55Z",
-      "now": "2026-11-24T15:40:55Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T15:40:57Z",
+      "now": "2026-11-24T15:40:57Z — Review started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12188,7 +12188,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T15:40:56Z",
+    "last_written_at": "2026-11-24T15:40:57Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12611,11 +12611,11 @@
             "implementer_session": "grokbot-122-r1-jobux",
             "reviewer_session": "grokbot-122-r1-jobux-review",
             "job": {
-              "id": "29b7a0e780ec4a1ab3223f65a1f2ad22",
-              "phase": "fix",
-              "started_at": "2026-11-24T15:40:55Z",
-              "command": "r1-jobux.sh",
-              "heartbeat_at": "2026-11-24T15:40:55Z",
+              "id": "0499750160854ddb9850698d6827ac13",
+              "phase": "review",
+              "started_at": "2026-11-24T15:40:57Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T15:40:57Z",
               "plan_sha256": "c06c5647d35b2c5a3ac0ff656ce6a551942e5bf68ff8fc2d197defed10c07d68",
               "finding_ids": [
                 "BCL-159",
@@ -12628,14 +12628,15 @@
               "cycle": 14,
               "round": 1
             },
-            "fix_status": "running",
-            "tool_fault_streak": 1,
+            "fix_status": "passed",
+            "tool_fault_streak": 0,
             "reviewer_model": "Grok Bot",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
+            "review_status": "running"
           },
-          "status": "running",
-          "phase": "fix",
-          "stage_entered_at": "2026-11-24T15:39:24Z",
+          "status": "review",
+          "phase": "review",
+          "stage_entered_at": "2026-11-24T15:40:56Z",
           "failure_history": [
             {
               "attempt_id": "c90f1bee31c74eea9c9d0b720a953282",
