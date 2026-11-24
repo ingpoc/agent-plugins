@@ -864,10 +864,15 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(len(result_item['details']['Fact 8']), 600)
         self.assertEqual([r['reference'] for r in result_item['verification_evidence']],
                          ['pass-new','fail-new','reference-neutral'])
-        first_bytes = self.data.read_bytes()
+        first = json.loads(self.data.read_text())
         again = self.cli('compact', self.data)
         self.assertEqual(again.returncode, 0, again.stderr)
-        self.assertEqual(self.data.read_bytes(), first_bytes)
+        second = json.loads(self.data.read_text())
+        self.assertTrue(first["tracking"].get("last_written_at"))
+        self.assertTrue(second["tracking"].get("last_written_at"))
+        first["tracking"].pop("last_written_at")
+        second["tracking"].pop("last_written_at")
+        self.assertEqual(first, second)
 
     def test_plan_fix_cannot_restart_before_current_introspect(self):
         plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','name':'Plain group','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','worktree':'fix-a','codex':{'implementer_session':'writer','reviewer_session':'reviewer'}}]}}
