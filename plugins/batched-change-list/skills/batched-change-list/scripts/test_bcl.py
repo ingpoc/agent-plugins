@@ -222,9 +222,19 @@ elif args[:2] != ['pr', 'edit']:
         other_viewer = self.state / "viewers" / "other-list.json"; other_viewer.parent.mkdir(parents=True, exist_ok=True)
         other_viewer.write_text(json.dumps({"port":53366, "data":"/another/list.json"}))
         self.call_without_viewer("adopt", self.data)
-        record = next(iter(json.loads((self.state / "registry.json").read_text()).values()))
+        records = json.loads((self.state / "registry.json").read_text())
+        record = records["example/project/123"]
+        # Give this test process its own stable project port so parallel suites
+        # cannot race to claim the global default during viewer startup.
+        first = 30000 + os.getpid() % 30000
+        self.viewer_port = next((candidate for offset in range(30000)
+                                 if (candidate := 30000 + (first - 30000 + offset) % 30000)
+                                 not in {53366, 8765, 8780} and live_state._port_is_free(candidate)), None)
+        if self.viewer_port is None:
+            self.fail("could not allocate an isolated project viewer port")
+        record["viewer_port"] = self.viewer_port
+        (self.state / "registry.json").write_text(json.dumps(records, indent=2) + "\n")
         key = "example/project/123"
-        self.viewer_port = record["viewer_port"]
         viewer = self.state / "viewers" / (live_state.safe_component(record["repo"].replace("/", "--")) + ".json")
         viewer.write_text(json.dumps({"port": self.viewer_port, "pid": None, "data": record["live"]}))
 
