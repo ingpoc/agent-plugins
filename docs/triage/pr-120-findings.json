@@ -11480,9 +11480,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-22T18:34:10Z",
-      "now": "2026-11-22T18:34:10Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T04:13:34Z",
+      "now": "2026-11-24T04:13:34Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 119,
@@ -11564,7 +11564,7 @@
       }
     },
     "cycle": 12,
-    "round": 4,
+    "round": 5,
     "round_history": [
       {
         "round": 2,
@@ -11755,6 +11755,11 @@
         "round": 3,
         "fixed": 7,
         "ended_at": "2026-11-22T16:38:10Z"
+      },
+      {
+        "round": 4,
+        "fixed": 9,
+        "ended_at": "2026-11-24T04:13:34Z"
       }
     ],
     "introspect_history": [
@@ -13160,106 +13165,45 @@
       "collect",
       "present",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "round": 4,
+      "round": 5,
       "groups": [
         {
-          "id": "R4-157",
-          "name": "Page status accuracy: time in stage and paused copy",
+          "id": "R5-177",
+          "name": "Stamp change-list events and job tokens for a per-round view",
           "finding_ids": [
-            "BCL-157"
+            "BCL-177"
           ],
-          "label": "BCL-157",
-          "status": "verified",
-          "worktree": "samantha-next-r10",
+          "label": "BCL-177",
+          "status": "planned",
+          "worktree": "bcl120-r5-177",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-157.sh",
-            "status": "verified",
-            "fixed": 1,
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r5-177.sh",
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           },
           "codex": {
             "model": "gpt-6-luna fast medium (Codex CLI)",
-            "implementer_session": "codex-luna-120-157",
-            "reviewer_session": "codex-terra-120-157",
-            "job": {
-              "id": "60d355f53b6047689efcaab2701fdc41",
-              "phase": "presuite",
-              "started_at": "2026-11-22T18:17:06Z",
-              "command": "python3",
-              "heartbeat_at": "2026-11-22T18:19:38Z",
-              "plan_sha256": "1245d145a669dec85da5427c8d34ebf8df58c8025a4e5381956a0fd4ac012e6a",
-              "worktree": "samantha-next-r10",
-              "model": "check.py --changed-since 37ea398c",
-              "cycle": 12,
-              "round": 4,
-              "pid": 86120,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T18:19:38Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "fix_status": "passed",
-            "reviewer_model": "gpt-6.1-terra medium (review)",
-            "must_fix_note": "1. [manage_findings.py:523](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:523) and [manage_findings.py:625](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:625): Replanning a lane with the same ID but different findings drops `stage_entered_at`. If its canonical pair remains unchanged, the stamp helper does not restore it, so the lane shows no duration. I reproduced this in memory; add a regression test for the plan-write path.\n\n2. [manage_findings.py:573](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:573): Plan writes accept a supplied `stage_entered_at` when it equals the stored value. The requested contract forbids supplying the field, including an equal value.",
-            "review_status": "passed"
+            "implementer_session": "codex-luna-120-177",
+            "reviewer_session": "codex-terra-120-177"
           },
           "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_render.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_lane_state.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json",
-            "plugins/batched-change-list/skills/batched-change-list/statechart.html"
+            "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_events.py",
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py",
+            "plugins/developer-observability/runtime/collector/bcl_events.py",
+            "plugins/developer-observability/tests/test_bcl_events_source.py"
           ],
-          "reason": "Status-accuracy first. BCL-170 already merged into BCL-157 (Paused needs resume after review is the same page-status class). BCL-150 already shipped in 0.1.63. BCL-159 is the same live-page group but is split out: adding job-step reports and a timeline with this lane would exceed the 150k-token cap and shares render.py. Lane-state work: plan review before the first fix. Estimate about 100k tokens.",
-          "failure_history": [
-            {
-              "attempt_id": "70583ae6a831479b8a26240170277b87",
-              "source": "review",
-              "reason": "1. [manage_findings.py:523](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:523) and [manage_findings.py:625](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:625): Replanning a lane with the same ID but different findings drops `stage_entered_at`. If its canonical pair remains unchanged, the stamp helper does not restore it, so the lane shows no duration. I reproduced this in memory; add a regression test for the plan-write path.\n\n2. [manage_findings.py:573](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-157/plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py:573): Plan writes accept a supplied `stage_entered_at` when it equals the stored value. The requested contract forbids supplying the field, including an equal value.",
-              "cycle": 12,
-              "round": 4,
-              "at": "2026-11-22T17:11:25Z"
-            }
-          ],
-          "plan_review_history": [
-            {
-              "job_id": "9e2bc16616bb4807816a03273ce88bdc",
-              "after_failure": null,
-              "status": "passed",
-              "cycle": 12,
-              "round": 4,
-              "at": "2026-11-22T16:50:41Z"
-            },
-            {
-              "job_id": "2755f0467b75406fb3e09f2ad1a081b7",
-              "after_failure": "70583ae6a831479b8a26240170277b87",
-              "status": "passed",
-              "cycle": 12,
-              "round": 4,
-              "at": "2026-11-22T17:16:25Z"
-            }
-          ],
-          "updated_at": "2026-11-22T18:25:27Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-22T18:19:38Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-22T18:24:24Z"
-          },
-          "stage_entered_at": "2026-11-22T18:29:21Z"
+          "reason": "Highest-signal capture work from the round 4 Introspect: write one events log line per stage and job, and let developer-observability read it, including token source or a named gap. Query filters, tiers and UI stay with DO-3. Do not grow SKILL.md. Uses a new collector module so this lane does not share sources.py with deferred DO-1. Does not overlap 171 (collect helper) or the tightened 106 self-test. Plan review before the first fix. Estimate about 120k tokens; split if it exceeds 150k.",
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T04:13:34Z",
+          "stage_entered_at": "2026-11-24T04:13:34Z"
         },
         {
           "id": "R4-171",
@@ -13268,7 +13212,6 @@
             "BCL-171"
           ],
           "label": "BCL-171",
-          "status": "parked",
           "worktree": "bcl120-r4-171",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-171.sh",
@@ -13277,39 +13220,13 @@
             "failed": 0,
             "total": 1
           },
-          "codex": {
-            "model": "gpt-6-luna fast medium (Codex CLI)",
-            "implementer_session": "codex-luna-120-171",
-            "reviewer_session": "codex-terra-120-171",
-            "fix_status": "passed",
-            "job": {
-              "id": "361aad2c4f2549f9a06967b8683360b9",
-              "phase": "review",
-              "started_at": "2026-11-22T17:10:20Z",
-              "command": "run-review-171-2-job.sh",
-              "heartbeat_at": "2026-11-22T17:10:58Z",
-              "plan_sha256": "8dbb428df40993cd3f3867cc093b95dc6dd311b530e33d76408378e9eda24da5",
-              "worktree": "bcl120-r4-171",
-              "model": "gpt-6.1-terra medium (review)",
-              "cycle": 12,
-              "round": 4,
-              "pid": 43247,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T17:10:58Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. [collect_observability.py:90](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:90): A fresh collector snapshot is reused without checking whether it covers the requested `--project-dir`. The collector adds that directory only when it runs, so a snapshot collected for another directory can produce an incomplete result for the requested project without warning. Preserve the fresh-snapshot rule, but detect and report insufficient coverage."
-            },
-            "tool_fault_streak": 0,
-            "reviewer_model": "gpt-6.1-terra medium (review)",
-            "must_fix_note": "1. [collect_observability.py:90](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:90): A fresh collector snapshot is reused without checking whether it covers the requested `--project-dir`. The collector adds that directory only when it runs, so a snapshot collected for another directory can produce an incomplete result for the requested project without warning. Preserve the fresh-snapshot rule, but detect and report insufficient coverage.",
-            "review_status": "blocked"
-          },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_collect_observability.py",
             "plugins/batched-change-list/skills/batched-change-list/references/collect.md"
           ],
-          "reason": "Second counted review CHANGES; park for a later round so 0.1.72 can ship BCL-103 and BCL-157. Lane stays blocked until owner unblock.",
+          "reason": "Carried from round 4 after a second counted review. Tight must-fix only: when a fresh collector snapshot is reused, detect and report that it does not cover the requested --project-dir; keep the fresh-snapshot rule. Guru 24 Nov 09:36 IST continue authorized working this parked lane in round 5 after unblock and a plan review. Estimate about 80k tokens.",
+          "status": "blocked",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -13339,82 +13256,12 @@
               "at": "2026-11-22T16:55:46Z"
             }
           ],
-          "updated_at": "2026-11-22T18:15:06Z",
-          "phase": "fix",
           "blocked_reason": "Second failure",
           "failure_block_reason": "1. [collect_observability.py:90](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:90): A fresh collector snapshot is reused without checking whether it covers the requested `--project-dir`. The collector adds that directory only when it runs, so a snapshot collected for another directory can produce an incomplete result for the requested project without warning. Preserve the fresh-snapshot rule, but detect and report insufficient coverage.",
-          "parked_to": 5,
-          "stage_entered_at": "2026-11-22T18:15:06Z"
-        },
-        {
-          "id": "R4-103",
-          "name": "Review guide: version and changelog belong to integration",
-          "finding_ids": [
-            "BCL-103"
-          ],
-          "label": "BCL-103",
-          "status": "verified",
-          "worktree": "samantha-next-r10",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-103.sh",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "codex": {
-            "model": "gpt-6-luna fast medium (Codex CLI)",
-            "implementer_session": "codex-luna-120-103",
-            "reviewer_session": "codex-terra-120-103",
-            "fix_status": "passed",
-            "job": {
-              "id": "60d355f53b6047689efcaab2701fdc41",
-              "phase": "presuite",
-              "started_at": "2026-11-22T18:17:06Z",
-              "command": "python3",
-              "heartbeat_at": "2026-11-22T18:19:38Z",
-              "plan_sha256": "1245d145a669dec85da5427c8d34ebf8df58c8025a4e5381956a0fd4ac012e6a",
-              "worktree": "samantha-next-r10",
-              "model": "check.py --changed-since 37ea398c",
-              "cycle": 12,
-              "round": 4,
-              "pid": 86120,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T18:19:38Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "review_status": "passed",
-            "reviewer_model": "gpt-6.1-terra medium (review)"
-          },
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/references/review.md",
-            "plugins/batched-change-list/skills/batched-change-list/references/plan-fix.md",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_references.py"
-          ],
-          "reason": "Carried to round 4. Split: this lane is the review guide and handoff only, plus a test that reviews must not list version or changelog as a must-fix, and must not regress the existing integrated-head bump refusal. The CI event-range check and main-branch structure/principles work (notes filed as BCL-168 and BCL-169) stay out; those were reverted after Terra reviews 5 and 6 and would push this lane over 150k. Estimate about 80k tokens.",
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-22T18:27:02Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-22T18:19:38Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-22T18:24:24Z"
-          },
-          "stage_entered_at": "2026-11-22T18:29:21Z",
-          "verify_reruns": [
-            {
-              "round": 4,
-              "reason": "The bump-refusal tests were invoked with a module path the test loader cannot import; rerunning them from the scripts directory.",
-              "at": "2026-11-22T18:27:02Z",
-              "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
-            }
-          ]
+          "codex": {},
+          "phase": "fix",
+          "updated_at": "2026-11-24T04:13:34Z",
+          "stage_entered_at": "2026-11-24T04:13:34Z"
         },
         {
           "id": "R4-106",
@@ -13423,7 +13270,6 @@
             "BCL-106"
           ],
           "label": "BCL-106",
-          "status": "parked",
           "worktree": "bcl120-r4-106",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-106.sh",
@@ -13432,41 +13278,13 @@
             "failed": 0,
             "total": 1
           },
-          "codex": {
-            "model": "gpt-6-luna fast medium (Codex CLI)",
-            "implementer_session": "codex-luna-120-106",
-            "reviewer_session": "codex-terra-120-106",
-            "fix_status": "passed",
-            "job": {
-              "id": "950fe02ac3864e49a2f384cbeecc2994",
-              "phase": "review",
-              "started_at": "2026-11-22T17:16:00Z",
-              "command": "run-review-106-2-job.sh",
-              "heartbeat_at": "2026-11-22T17:16:33Z",
-              "plan_sha256": "8dbb428df40993cd3f3867cc093b95dc6dd311b530e33d76408378e9eda24da5",
-              "worktree": "bcl120-r4-106",
-              "model": "gpt-6.1-terra medium (review)",
-              "cycle": 12,
-              "round": 4,
-              "pid": 66962,
-              "exit_code": 0,
-              "finished_at": "2026-11-22T17:16:33Z",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. [verify_driver.py:73](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:73): Make the self-test detect a skipped shared check. I replaced `run_round` in memory with a wrapper that drops the shared command; `self_test()` still passed."
-            },
-            "tool_fault_streak": 0,
-            "reviewer_model": "gpt-6.1-terra medium (review)",
-            "must_fix_note": "1. [verify_driver.py:73](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:73): Make the self-test detect a skipped shared check. I replaced `run_round` in memory with a wrapper that drops the shared command; `self_test()` still passed.",
-            "review_status": "blocked"
-          },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_verify_driver.py",
-            "plugins/batched-change-list/skills/batched-change-list/references/verify.md",
-            "plugins/batched-change-list/bin/bcl",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
+            "plugins/batched-change-list/skills/batched-change-list/references/verify.md"
           ],
-          "reason": "Second counted review CHANGES; park for a later round so 0.1.72 can ship BCL-103 and BCL-157. Lane stays blocked until owner unblock.",
+          "reason": "Carried from round 4 after a second counted review. Tight must-fix only: the self-test must detect a skipped shared check. bin/bcl and test_bcl.py stay out so this lane does not overlap 177. Guru 24 Nov 09:36 IST continue authorized working this parked lane in round 5 after unblock and a plan review. Estimate about 80k tokens.",
+          "status": "blocked",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -13496,11 +13314,12 @@
               "at": "2026-11-22T16:55:41Z"
             }
           ],
-          "updated_at": "2026-11-22T18:03:56Z",
-          "phase": "fix",
           "blocked_reason": "Second failure",
           "failure_block_reason": "1. [verify_driver.py:73](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:73): Make the self-test detect a skipped shared check. I replaced `run_round` in memory with a wrapper that drops the shared command; `self_test()` still passed.",
-          "parked_to": 5
+          "codex": {},
+          "phase": "fix",
+          "updated_at": "2026-11-24T04:13:34Z",
+          "stage_entered_at": "2026-11-24T04:13:34Z"
         },
         {
           "id": "R2-DO1",
@@ -13517,16 +13336,11 @@
             "failed": 0,
             "total": 1
           },
-          "codex": {
-            "model": "gpt-6-luna fast medium (Codex CLI)",
-            "implementer_session": "codex-luna-120-do1",
-            "reviewer_session": "codex-terra-120-do1"
-          },
           "files": [
             "plugins/developer-observability/runtime/collector/sources.py",
             "plugins/developer-observability/tests/test_collector*.py"
           ],
-          "reason": "The 0.1.35 code already landed on PR 120 (5147fa97). The developer-observability release script refused install at its machine hygiene gate with: hygiene check fails for agent-plugins; clean up first (or pass --hygiene-override and say why). All 37 local-only-work rows are under /Users/gurusharan/Documents/remote-claude/active/apps/agent-plugins: unapproved exact branch/heads, 1 dirty file(s) remain in place (bundle covers committed refs only), and codex/acu-110-island approved local-only record is stale. Fixing that is not in-scope work this agent can do: it would need owner approval of those local-only dispositions, edits in the forbidden main clone, or --hygiene-override. No gate will be overridden. Installed collector stays 0.1.34 until Guru approves a path.",
+          "reason": "The 0.1.35 code already landed on PR 120 (5147fa97). The developer-observability release script refused install at its machine hygiene gate because of local-only work under the forbidden main clone. No gate will be overridden. Installed collector stays 0.1.34 until Guru approves a path.",
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -13589,10 +13403,10 @@
               "owner_override": true
             }
           ],
-          "status": "deferred",
-          "phase": "deferred",
-          "parked_to": 5,
-          "updated_at": "2026-11-22T16:38:10Z"
+          "status": "planned",
+          "codex": {},
+          "updated_at": "2026-11-24T04:13:34Z",
+          "stage_entered_at": "2026-11-24T04:13:34Z"
         },
         {
           "id": "DEFER",
@@ -13626,11 +13440,11 @@
           "label": "rest",
           "status": "deferred",
           "phase": "deferred",
-          "reason": "BCL-159 shares render.py with R4-157 and would exceed the 150k cap if combined (job-step reports plus timeline). BCL-110 overlaps manage_findings.py with 157 and is over 150k. BCL-121 and BCL-160 also overlap lane-state or verify writers. DO-3 (recording, filters, and UI) is over 150k and must be split later; DO-2 waits with it and with BCL-147. Other items wait for a later round.",
+          "reason": "DO-3 (filters, tiers and UI) stays split from BCL-177. BCL-147 is related job receipts, not this slice. BCL-110, BCL-121, BCL-159 and BCL-160 still overlap lane-state or page writers or exceed 150k. Other items wait for a later round.",
           "failure_history": [],
           "plan_review_history": [],
-          "parked_to": 5,
-          "updated_at": "2026-11-22T16:38:10Z",
+          "parked_to": 6,
+          "updated_at": "2026-11-24T04:13:34Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13639,8 +13453,7 @@
           }
         }
       ],
-      "cycle": 12,
-      "status": "closed"
+      "cycle": 12
     },
     "verification_run": {
       "id": "r4-1f866e81-120",
@@ -13901,7 +13714,7 @@
       "round": 4,
       "cycle": 12
     },
-    "last_written_at": "2026-11-22T18:34:10Z"
+    "last_written_at": "2026-11-24T04:13:34Z"
   },
   "findings": [
     {
@@ -14019,7 +13832,7 @@
       "done_when": "One tested driver runs every check with a built-in self-test, cleanup never changes a verdict, and no per-round copies remain; tests cover each.",
       "observed": "20 Nov 2026 23:10 IST, a PR 118 lane had all four cases passing but failed because its cleanup step misread results; similar checker faults hit PR 117 six times.",
       "recommendation": "Promote one tested driver for shared checks, lane checks, cleanup and judging, delete the per-round copies and keep cleanup out of the verdict; run one self-test step inside the verify start in place of the manual preflight.",
-      "status": "blocked",
+      "status": "in_progress",
       "details": {
         "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 7",
         "filed_by": "Guru 00:33 IST t1597u",
@@ -14637,7 +14450,7 @@
       "observed": "22 Nov 2026 18:54 IST, Guru rule and read-only audit; last collector run before today 20 Nov 16:41 IST; fresh snapshot 052d5b22 taken 18:55 IST",
       "priority": "high",
       "source": "User reported",
-      "status": "blocked",
+      "status": "in_progress",
       "needs": "1. [collect_observability.py:90](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:90): A fresh collector snapshot is reused without checking whether it covers the requested `--project-dir`. The collector adds that directory only when it runs, so a snapshot collected for another directory can produce an incomplete result for the requested project without warning. Preserve the fresh-snapshot rule, but detect and report insufficient coverage."
     },
     {
@@ -14771,7 +14584,7 @@
       "observed": "22 Nov 2026 19:15 IST design in ~/.agents/artifacts/bcl-120/devobs-round-view.md; task-usage.sqlite3 has 1 row; round 3 measured 396,079 Codex tokens only in job logs",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "spec": "devobs-round-view.md capture-time fields and Tokens sections; acceptance checks 9 and the events.jsonl contract. Query filters, tiers, and UI stay with DO-3.",
         "related": "Split from the capture half of DO-3. Related to BCL-147 (job receipts and fail-if-no-commit, not in this slice) and DO-2 (token sources, covered here for Codex and Grok Bot).",
