@@ -11480,9 +11480,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T05:18:43Z",
-      "now": "2026-11-24T05:18:43Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T05:22:21Z",
+      "now": "2026-11-24T05:22:21Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13177,7 +13177,7 @@
             "BCL-177"
           ],
           "label": "BCL-177",
-          "status": "review",
+          "status": "running",
           "worktree": "bcl120-r5-177",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r5-177.sh",
@@ -13191,21 +13191,21 @@
             "implementer_session": "01a20beb-820a-7020-8ebc-0ac1e7a8c31e",
             "reviewer_session": "codex-terra-120-177-1",
             "job": {
-              "id": "4ff6c7f1718b43cfa5f7aa4965a1e441",
-              "phase": "review",
-              "started_at": "2026-11-24T05:18:43Z",
-              "command": "run-review-177-1-job.sh",
-              "heartbeat_at": "2026-11-24T05:18:43Z",
+              "id": "74cc0bda492d407dafc7ac172035b40b",
+              "phase": "fix",
+              "started_at": "2026-11-24T05:22:21Z",
+              "command": "run-luna-177-2-job.sh",
+              "heartbeat_at": "2026-11-24T05:22:21Z",
               "plan_sha256": "cfdcfd38bf82f15bac112f679c2e9a1f36e5472c82f761c89a0bec8b14b359f2",
               "worktree": "bcl120-r5-177",
-              "model": "gpt-6.1-terra medium (review)",
+              "model": "gpt-6-luna fast medium (Codex CLI)",
               "cycle": 12,
               "round": 5
             },
             "tool_fault_streak": 0,
-            "fix_status": "passed",
-            "review_status": "running",
-            "reviewer_model": "gpt-6.1-terra medium (review)"
+            "fix_status": "running",
+            "reviewer_model": "gpt-6.1-terra medium (review)",
+            "must_fix_note": "1. `plugins/batched-change-list/bin/bcl:323` — The copier timeout does not prevent a hang. If a descendant outside the process group retains a pipe, its copier can remain blocked in `read()`. The subsequent `pipe.close()` waits for the same buffered-reader lock. A read-only pipe experiment reproduced the blocked close. Avoid closing a pipe from the main thread while its copier is blocked.\n\n2. `plugins/batched-change-list/bin/bcl:338` — Concatenating all stdout before all stderr loses their actual order. An earlier incomplete CHANGES on stderr followed by a valid PASS on stdout is treated as the last verdict, even though PASS came later; the reverse can falsely pass. Preserve the observed order of verdict output across streams.\n\n3. `plugins/batched-change-list/bin/bcl:333` — A changed `--result` file is used whenever it contains a verdict-starting line, even if that block fails parsing. A malformed result file therefore masks a valid teed verdict. Use the changed result only after `parse_review_reply` accepts it; otherwise inspect the teed output.\n\n4. `plugins/batched-change-list/skills/batched-change-list/scripts/events.py:14` — Events are keyed by the current directory’s basename, rather than the adopted list’s identity and state location. Different lists in the same worktree share a file, while the same list run from different worktrees writes separate files. Use the resolved list identity and state location for both job and stage events, and update collector discovery accordingly."
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
@@ -13228,6 +13228,15 @@
               "tool_fault": true,
               "fault_kind": "runner_exit",
               "tool_fault_reason": "Reviewer exited 1"
+            },
+            {
+              "attempt_id": "4ff6c7f1718b43cfa5f7aa4965a1e441",
+              "source": "review",
+              "reason": "1. `plugins/batched-change-list/bin/bcl:323` — The copier timeout does not prevent a hang. If a descendant outside the process group retains a pipe, its copier can remain blocked in `read()`. The subsequent `pipe.close()` waits for the same buffered-reader lock. A read-only pipe experiment reproduced the blocked close. Avoid closing a pipe from the main thread while its copier is blocked.\n\n2. `plugins/batched-change-list/bin/bcl:338` — Concatenating all stdout before all stderr loses their actual order. An earlier incomplete CHANGES on stderr followed by a valid PASS on stdout is treated as the last verdict, even though PASS came later; the reverse can falsely pass. Preserve the observed order of verdict output across streams.\n\n3. `plugins/batched-change-list/bin/bcl:333` — A changed `--result` file is used whenever it contains a verdict-starting line, even if that block fails parsing. A malformed result file therefore masks a valid teed verdict. Use the changed result only after `parse_review_reply` accepts it; otherwise inspect the teed output.\n\n4. `plugins/batched-change-list/skills/batched-change-list/scripts/events.py:14` — Events are keyed by the current directory’s basename, rather than the adopted list’s identity and state location. Different lists in the same worktree share a file, while the same list run from different worktrees writes separate files. Use the resolved list identity and state location for both job and stage events, and update collector discovery accordingly.",
+              "cycle": 12,
+              "round": 5,
+              "at": "2026-11-24T05:21:12Z",
+              "plan_answered": true
             }
           ],
           "plan_review_history": [
@@ -13241,8 +13250,8 @@
             }
           ],
           "updated_at": "2026-11-24T05:18:42Z",
-          "stage_entered_at": "2026-11-24T05:15:19Z",
-          "phase": "review"
+          "stage_entered_at": "2026-11-24T05:21:12Z",
+          "phase": "fix"
         },
         {
           "id": "R4-171",
@@ -13868,7 +13877,7 @@
       "round": 4,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T05:18:43Z"
+    "last_written_at": "2026-11-24T05:22:21Z"
   },
   "findings": [
     {
