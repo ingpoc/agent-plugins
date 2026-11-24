@@ -11480,9 +11480,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T04:58:32Z",
-      "now": "2026-11-24T04:58:32Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T05:18:43Z",
+      "now": "2026-11-24T05:18:43Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13177,7 +13177,7 @@
             "BCL-177"
           ],
           "label": "BCL-177",
-          "status": "running",
+          "status": "review",
           "worktree": "bcl120-r5-177",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r5-177.sh",
@@ -13188,22 +13188,24 @@
           },
           "codex": {
             "model": "gpt-6-luna fast medium (Codex CLI)",
-            "implementer_session": "codex-luna-120-177",
-            "reviewer_session": "codex-terra-120-177",
+            "implementer_session": "01a20beb-820a-7020-8ebc-0ac1e7a8c31e",
+            "reviewer_session": "codex-terra-120-177-1",
             "job": {
-              "id": "a98443ec6a45427dbb36bcc0fa8d7086",
-              "phase": "fix",
-              "started_at": "2026-11-24T04:58:32Z",
-              "command": "run-luna-177-job.sh",
-              "heartbeat_at": "2026-11-24T04:58:32Z",
-              "plan_sha256": "da172f0488b12930f37a878165ebbbbec5e24854be40ae300ec297ca97e7a421",
+              "id": "4ff6c7f1718b43cfa5f7aa4965a1e441",
+              "phase": "review",
+              "started_at": "2026-11-24T05:18:43Z",
+              "command": "run-review-177-1-job.sh",
+              "heartbeat_at": "2026-11-24T05:18:43Z",
+              "plan_sha256": "cfdcfd38bf82f15bac112f679c2e9a1f36e5472c82f761c89a0bec8b14b359f2",
               "worktree": "bcl120-r5-177",
-              "model": "gpt-6-luna fast medium (Codex CLI)",
+              "model": "gpt-6.1-terra medium (review)",
               "cycle": 12,
               "round": 5
             },
             "tool_fault_streak": 0,
-            "fix_status": "running"
+            "fix_status": "passed",
+            "review_status": "running",
+            "reviewer_model": "gpt-6.1-terra medium (review)"
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
@@ -13238,9 +13240,9 @@
               "at": "2026-11-24T04:55:50Z"
             }
           ],
-          "updated_at": "2026-11-24T04:28:23Z",
-          "stage_entered_at": "2026-11-24T04:58:32Z",
-          "phase": "fix"
+          "updated_at": "2026-11-24T05:18:42Z",
+          "stage_entered_at": "2026-11-24T05:15:19Z",
+          "phase": "review"
         },
         {
           "id": "R4-171",
@@ -13866,7 +13868,7 @@
       "round": 4,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T04:58:32Z"
+    "last_written_at": "2026-11-24T05:18:43Z"
   },
   "findings": [
     {
