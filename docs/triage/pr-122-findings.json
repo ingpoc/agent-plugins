@@ -11003,9 +11003,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T18:27:29Z",
-      "now": "2026-11-24T18:27:29Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T18:27:31Z",
+      "now": "2026-11-24T18:27:31Z — Review started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12662,7 +12662,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T18:27:29Z",
+    "last_written_at": "2026-11-24T18:27:31Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -14490,18 +14490,18 @@
             "plugins/batched-change-list/skills/batched-change-list/statechart.html"
           ],
           "reason": "The separate review and resort-failures commands duplicate the review job, release-check, and unblock.",
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "codex": {
             "implementer_session": "grokbot-122-r4-gates",
             "reviewer_session": "grokbot-122-r4-gates-review",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "27f95289c59a41c48f699b593c36752f",
-              "phase": "fix",
-              "started_at": "2026-11-24T18:27:29Z",
-              "command": "confirm-gates.sh",
-              "heartbeat_at": "2026-11-24T18:27:29Z",
+              "id": "e32be2f9a2d04dc68f8c99328f1ff2a5",
+              "phase": "review",
+              "started_at": "2026-11-24T18:27:31Z",
+              "command": "review-gates-followup.sh",
+              "heartbeat_at": "2026-11-24T18:27:31Z",
               "plan_sha256": "2bf45d1c726c10555d7766be1accdf48e1d827fd659b406c55854100390d0a16",
               "finding_ids": [
                 "BCL-125"
@@ -14512,7 +14512,7 @@
               "cycle": 14,
               "round": 4
             },
-            "tool_fault_streak": 1,
+            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "9934a3d0ca8b4bdf9e6d50ad06b31faa",
@@ -14646,10 +14646,37 @@
                 "session": "grokbot-122-r4-gates",
                 "finished_phase_status": "incomplete",
                 "must_fix": "Reviewer exited 1"
+              },
+              {
+                "id": "27f95289c59a41c48f699b593c36752f",
+                "phase": "fix",
+                "started_at": "2026-11-24T18:27:29Z",
+                "command": "confirm-gates.sh",
+                "heartbeat_at": "2026-11-24T18:27:30Z",
+                "plan_sha256": "2bf45d1c726c10555d7766be1accdf48e1d827fd659b406c55854100390d0a16",
+                "finding_ids": [
+                  "BCL-125"
+                ],
+                "worktree": "gurusharan",
+                "model": "Grok Bot subagent",
+                "lane_sha256": "42dba8f7ff7b6658108bd544aaf9a256437b2060506b6fc77ddcdd73f06ba7c2",
+                "cycle": 14,
+                "round": 4,
+                "pid": 71496,
+                "exit_code": 0,
+                "finished_at": "2026-11-24T18:27:30Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/27f95289c59a41c48f699b593c36752f.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 1,
+                "session": "grokbot-122-r4-gates",
+                "finished_phase_status": "passed"
               }
             ],
             "reviewer_model": "Grok Bot subagent",
-            "must_fix_note": "Reviewer exited 1"
+            "must_fix_note": "Reviewer exited 1",
+            "review_status": "running"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-gates.sh",
@@ -14659,7 +14686,7 @@
             "failed": 0,
             "total": 1
           },
-          "stage_entered_at": "2026-11-24T18:26:10Z",
+          "stage_entered_at": "2026-11-24T18:27:30Z",
           "failure_history": [
             {
               "attempt_id": "41a8451169c645b8a4a169e564d0da1c",
