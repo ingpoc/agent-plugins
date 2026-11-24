@@ -56,13 +56,14 @@ function statusClass(status) {
 }
 
 function shortName(group) {
-  const raw = group.label || group.name || group.id || '';
-  return String(raw).replace(/^R\d+-/, '');
+  const raw = String((group && (group.name || group.label || group.id)) || '').trim();
+  const words = raw.split(/\s+/).filter(Boolean);
+  return words.slice(0, 5).join(' ');
 }
 
 function durationLabel(ms) {
   if (!Number.isFinite(ms) || ms <= 0) return '';
-  if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+  if (ms < 60000) return '<1';
   const minutes = ms / 60000;
   if (minutes < 60) return `${minutes < 10 ? minutes.toFixed(1) : Math.round(minutes)} min`;
   return `${(minutes / 60).toFixed(1)} h`;
@@ -105,6 +106,10 @@ export function publicText(value) {
     .replace(/\[([^\]]+)\]\((?:file:\/\/)?(\/?(?:Users|home)\/[^)]+)\)/gi, '$1')
     .replace(/(?:file:\/\/)?\/?(?:Users|home)\/[^\s\]\)\'"<>]+/gi, (path) => {
       const parts = path.replace(/^file:\/\//i, '').split('/').filter(Boolean);
+      return parts[parts.length - 1] || 'file';
+    })
+    .replace(/~\/\.cache\/\S+/g, (path) => {
+      const parts = path.split('/').filter(Boolean);
       return parts[parts.length - 1] || 'file';
     });
 }
@@ -308,14 +313,14 @@ export function mountRoundView(ctx) {
 
     const needsCards = (data.needs_you || []).filter((card) => kindAllows(card.kind));
     const fallback = data.fallback || {};
-    const listNote = fallback.from_pr ? el('p', {class: 'list-note'}, [
-      fallback.auto
+    const listNote = (fallback.persist || fallback.auto || fallback.suggest_pr) && fallback.from_pr && fallback.missing_round == null ? el('p', {class: 'list-note'}, [
+      (fallback.persist || fallback.auto)
         ? `No lanes yet in #${fallback.from_pr} · viewing #${fallback.viewing_pr}`
         : `No lanes yet in #${fallback.from_pr}`,
-      (fallback.suggest_pr || (fallback.auto && fallback.from_pr)) ? el('button', {
+      (fallback.suggest_pr || ((fallback.persist || fallback.auto) && fallback.from_pr)) ? el('button', {
         type: 'button',
-        text: fallback.auto ? `View #${fallback.from_pr}` : `View #${fallback.suggest_pr}`,
-        onclick: () => load(project, fallback.auto ? fallback.from_pr : fallback.suggest_pr),
+        text: (fallback.persist || fallback.auto) ? `View #${fallback.from_pr}` : `View #${fallback.suggest_pr}`,
+        onclick: () => load(project, (fallback.persist || fallback.auto) ? fallback.from_pr : fallback.suggest_pr),
       }) : null,
     ]) : null;
     const needs = el('section', {'aria-labelledby': 'needs-h'}, [
@@ -336,9 +341,15 @@ export function mountRoundView(ctx) {
           action ? el('button', {type: 'button', class: 'act', text: action.label || 'Open lane', onclick: () => openLane(action.target || card.group_id)}) : null,
         ]);
       })),
-      data.needs_you_more ? el('details', {class: 'more'}, [
-        el('summary', {text: `${data.needs_you_more} more · FYI`}),
-        el('p', {class: 'muted', text: 'Lower-priority notes are not shown as cards.'}),
+      (data.needs_you_fyi || []).length || data.needs_you_more ? el('details', {class: 'more'}, [
+        el('summary', {text: `${(data.needs_you_fyi || []).length || data.needs_you_more} more · FYI`}),
+        (data.needs_you_fyi || []).length
+          ? el('ul', {class: 'fyi'}, (data.needs_you_fyi || []).map((card) => el('li', {}, [
+              el('strong', {text: publicText(card.title) || `Item ${card.rank}`}),
+              ' ',
+              el('span', {class: 'muted', text: publicText(card.fact || card.why || '') || ''}),
+            ])))
+          : el('p', {class: 'muted', text: 'Lower-priority notes are not shown as cards.'}),
       ]) : null,
     ]);
 
@@ -347,12 +358,14 @@ export function mountRoundView(ctx) {
       : (threshold == null
         ? `${verified} verified fixed`
         : `${gate.fixed ?? 0} / ${threshold} to the merge gate`);
+    const laneCounts = data.lane_counts || {};
+    const blockedLanes = laneCounts.blocked || 0;
     const summaryBits = viewingCurrent ? [
       `${verified} verified fixed`,
       counts.in_progress ? ` · ${counts.in_progress} in progress` : '',
       counts.untested ? ` · ${counts.untested} untested` : '',
-      counts.blocked ? ` · ${counts.blocked} blocked` : '',
-      counts.deferred ? ` · ${counts.deferred} deferred` : '',
+      blockedLanes ? ` · ${blockedLanes} blocked` : '',
+      laneCounts.deferred ? ` · ${laneCounts.deferred} deferred` : '',
     ].join('') : ringLabel;
     const summary = el('section', {class: 'summary', 'aria-labelledby': 'sum-h'}, [
       el('h2', {id: 'sum-h', class: 'sr', text: 'Round summary'}),
@@ -370,30 +383,51 @@ export function mountRoundView(ctx) {
     const selected = data.round;
     const currentGroups = liveGroups.filter((group) => groupBelongs(group, selected) && !isParkedGroup(group) && kindAllows(displayStatus(group)));
     const parkedGroups = liveGroups.filter((group) => isParkedGroup(group) || (selected != null && !groupBelongs(group, selected) && data.viewing_current));
-    const jobsFor = (id) => (data.jobs || []).filter((job) => job.group_id === id && (selected == null || job.round == null || job.round === selected));
+    const jobsFor = (id) => (data.jobs || []).filter((job) => {
+      const onLane = job.group_id === id || (job.shared_group_ids || []).includes(id);
+      return onLane && (selected == null || job.round == null || job.round === selected);
+    });
 
     const lanes = el('section', {'aria-labelledby': 'lanes-h'}, [
       el('h2', {id: 'lanes-h', text: 'Lanes'}),
       el('div', {class: 'lhead', 'aria-hidden': 'true'}, ['Lane', 'Phase', 'Why', 'Min', 'Tokens', 'Model', ''].map((label) => el('span', {text: label}))),
       el('div', {class: 'lanes'}, currentGroups.map((group) => {
         const jobs = jobsFor(group.id);
-        const tokens = jobs.reduce((sum, job) => sum + (typeof job.tokens?.total === 'number' ? job.tokens.total : 0), 0);
-        const minutes = jobs.reduce((sum, job) => sum + (typeof job.duration_ms === 'number' ? job.duration_ms : 0), 0);
-        const model = jobs.map((job) => job.model || job.agent).find(Boolean) || '—';
-        const why = publicText(group.why || ((displayStatus(group) === 'blocked') ? (group.blocked_reason || group.reason) : group.reason) || '');
-        const node = el('details', {class: `lane ${statusClass(displayStatus(group))}`, id: `lane-${group.id}`}, [
+        const uniqueJobs = jobs.filter((job) => job.group_id === group.id);
+        const tokens = uniqueJobs.reduce((sum, job) => {
+          if (job.tokens_source !== 'stamp' && job.tokens_source !== 'inline') return sum;
+          return sum + (typeof job.tokens?.total === 'number' ? job.tokens.total : 0);
+        }, 0);
+        const minutes = Number.isFinite(group.duration_ms) ? group.duration_ms : uniqueJobs.reduce((sum, job) => sum + ((typeof job.duration_ms === 'number' && job.duration_ms > 0) ? job.duration_ms : 0), 0);
+        const model = group.model || '—';
+        const why = publicText(group.why || ((displayStatus(group) === 'blocked') ? (group.blocked_reason || group.reason) : '') || '');
+        const brief = publicText(group.brief || group.reason || '');
+        const node = el('details', {class: `lane ${statusClass(displayStatus(group))}${group.flagged ? ' flagged' : ''}`, id: `lane-${group.id}`}, [
           el('summary', {}, [
-            el('span', {class: 'id mono', text: group.id}),
-            el('span', {class: 'name', text: shortName(group)}),
-            el('span', {class: `tag ${statusClass(displayStatus(group))}`, text: phaseTrack(group)}),
-            el('span', {class: 'why', text: why || '—'}),
+            el('span', {class: 'lname'}, [
+              el('b', {text: shortName(group)}),
+              el('span', {class: 'ids'}, [
+                el('span', {class: 'mono', text: group.id}),
+                ...(group.finding_ids || []).slice(0, 3).map((id) => el('span', {class: 'mono', text: id})),
+              ]),
+            ]),
+            el('span', {class: 'state'}, [
+              el('span', {class: `tag ${statusClass(displayStatus(group))}`, text: displayStatus(group)}),
+              phaseTrack(group),
+            ]),
+            el('span', {class: `why${displayStatus(group) === 'blocked' || group.flagged ? ' warn' : ''}`, text: why || '—'}),
             el('span', {class: 'muted', text: durationLabel(minutes) || '—'}),
             el('span', {class: 'muted', text: tokens ? formatTokens(tokens) : '—'}),
-            el('span', {class: 'model', text: model}),
+            el('span', {class: 'model'}, [
+              model,
+              group.model_note ? el('span', {class: 'muted', text: group.model_note}) : null,
+            ]),
+            el('span', {class: 'chev', 'aria-hidden': 'true'}),
           ]),
           el('div', {class: 'lane-body lbody'}, [
             el('h3', {text: 'What we know'}),
-            why ? el('p', {text: why}) : el('p', {class: 'muted', text: 'No written reason for this lane.'}),
+            group.flagged ? el('p', {class: 'gap'}, [el('b', {text: 'Flag. '}), `A verified lane has a job that exited ${(group.flagged_exits || []).map((item) => item.exit_code).filter((code) => code != null).join(', ') || 'non-zero'}.`]) : null,
+            brief ? el('p', {text: brief}) : (why ? el('p', {text: why}) : el('p', {class: 'muted', text: 'No written reason for this lane.'})),
             group.findings?.length ? el('ul', {}, group.findings.map((finding) => el('li', {}, [
               el('strong', {class: 'mono', text: finding.id}),
               ` ${finding.title || ''} `,
@@ -419,17 +453,23 @@ export function mountRoundView(ctx) {
         ]);
         return node;
       })),
-      parkedGroups.length ? el('p', {class: 'parked', text: parkedLine(parkedGroups)}) : null,
-      !currentGroups.length ? el('p', {class: 'muted', text: fallback.suggest_pr
-        ? `No lanes yet in #${fallback.from_pr || data.pr?.number} · view #${fallback.suggest_pr}`
-        : (data.pr?.number ? `No lanes yet in #${data.pr.number}.` : 'No lanes in this round.')}) : null,
+      parkedGroups.length ? parkedBlock(parkedGroups, jobsFor) : null,
+      !currentGroups.length ? el('p', {class: 'muted', text: (fallback.missing_round != null || (data.viewing_current === false && data.round != null))
+        ? `No lane data recorded for R${fallback.missing_round ?? data.round}`
+        : (fallback.suggest_pr
+          ? `No lanes yet in #${fallback.from_pr || data.pr?.number} · view #${fallback.suggest_pr}`
+          : (data.pr?.number ? `No lanes yet in #${data.pr.number}.` : 'No lanes in this round.'))}) : null,
     ]);
 
     const tt = data.time_tokens || {};
     const unfinished = tt.incomplete || 0;
     const bars = el('section', {'aria-labelledby': 'bars-h'}, [
       el('h2', {id: 'bars-h', text: 'Where time and tokens went'}),
-      el('p', {class: 'muted', text: `${tt.coverage || '0/0'} jobs have token coverage · ${formatTokens(tt.tokens || 0)} tokens · ${durationLabel(tt.duration_ms) || 'duration unknown'}`}),
+      el('p', {class: 'muted', text: [
+        tt.jobs ? `${tt.covered || 0}/${tt.jobs} jobs have token coverage` : 'no jobs recorded',
+        (tt.covered ? `${formatTokens(tt.tokens)} tokens` : 'tokens unknown'),
+        durationLabel(tt.duration_ms) || 'duration unknown',
+      ].join(' · ')}),
       barRow('Time', (tt.by_lane || []).map((lane) => ({
         id: lane.group_id,
         value: lane.duration_ms || 0,
@@ -457,10 +497,11 @@ export function mountRoundView(ctx) {
   function openLane(id) {
     if (!id) return;
     const node = document.getElementById(`lane-${id}`);
-    if (node) {
-      node.open = true;
-      node.scrollIntoView({block: 'start', behavior: 'smooth'});
-    }
+    if (!node) return;
+    const parked = document.getElementById('parked-line');
+    if (parked && parked.contains(node)) parked.open = true;
+    node.open = true;
+    node.scrollIntoView({block: 'start', behavior: 'smooth'});
   }
 
   function groupBelongs(group, selected) {
@@ -481,8 +522,57 @@ export function mountRoundView(ctx) {
     return `Parked or deferred: ${names.length} groups (${names.slice(0, 4).join(', ')}${names.length > 4 ? '…' : ''})`;
   }
 
+  function parkedBlock(groups, jobsFor) {
+    return el('details', {id: 'parked-line', class: 'parked'}, [
+      el('summary', {text: parkedLine(groups)}),
+      el('div', {class: 'parked-groups'}, groups.map((group) => {
+        const jobs = jobsFor ? jobsFor(group.id) : [];
+        const brief = publicText(group.brief || group.why || group.reason || '');
+        return el('details', {class: 'lane parked-lane', id: `lane-${group.id}`}, [
+          el('summary', {}, [
+            el('span', {class: 'lname'}, [
+              el('b', {text: shortName(group)}),
+              el('span', {class: 'ids'}, [el('span', {class: 'mono', text: group.id})]),
+            ]),
+            el('span', {class: 'why', text: publicText(group.why || '') || 'Parked'}),
+          ]),
+          el('div', {class: 'lane-body lbody'}, [
+            el('h3', {text: 'What we know'}),
+            brief ? el('p', {text: brief}) : el('p', {class: 'muted', text: 'No written reason for this lane.'}),
+            group.findings?.length ? el('ul', {}, group.findings.map((finding) => el('li', {}, [
+              el('strong', {class: 'mono', text: finding.id}),
+              ` ${finding.title || ''} `,
+              el('span', {class: 'muted', text: finding.status || displayStatus(group)}),
+            ]))) : null,
+            el('details', {class: 'ev'}, [
+              el('summary', {text: 'Raw evidence'}),
+              el('pre', {class: 'mono', text: JSON.stringify({id: group.id, view_status: displayStatus(group), status: group.status, phase: group.phase, parked_to: group.parked_to, why: group.why, findings: group.findings || [], jobs}, null, 2)}),
+            ]),
+          ]),
+        ]);
+      })),
+    ]);
+  }
+
   function phaseTrack(group) {
-    return displayStatus(group) || '—';
+    const phases = ['fix', 'review', 'install', 'verify', 'introspect'];
+    const labels = ['Fix', 'Review', 'Install', 'Verify', 'Introspect'];
+    const current = group.phase_label || phases[group.phase_index - 1] || null;
+    const index = current ? phases.indexOf(current) + 1 : 0;
+    const status = displayStatus(group);
+    const track = el('span', {class: 'track', 'aria-label': index ? `Phase ${index} of 5: ${labels[index - 1]}` : 'Phase not recorded'});
+    phases.forEach((name, i) => {
+      const dot = el('i');
+      if (index && i + 1 < index) dot.className = 'd';
+      else if (index && i + 1 === index) {
+        if (status === 'blocked') dot.className = 'b';
+        else if (status === 'failed') dot.className = 'f';
+        else if (status === 'verified' || status === 'historical') dot.className = 'd';
+        else dot.className = 'c';
+      }
+      track.append(dot);
+    });
+    return track;
   }
 
   function kindAllows(kind) {
@@ -511,7 +601,7 @@ export function mountRoundView(ctx) {
     svg.setAttribute('class', 'gate-ring');
     svg.setAttribute('role', 'img');
     svg.setAttribute('aria-label', label);
-    svg.innerHTML = `<circle cx="20" cy="20" r="16" fill="none" stroke="currentColor" stroke-width="3" opacity="0.2"/><circle cx="20" cy="20" r="16" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="${dash}" stroke-linecap="round" transform="rotate(-90 20 20)"/>`;
+    svg.innerHTML = `<circle class="track-ring" cx="20" cy="20" r="16" fill="none" stroke="var(--ok-bg)" stroke-width="3"/><circle class="fill-ring" cx="20" cy="20" r="16" fill="none" stroke="var(--accent)" stroke-width="3" stroke-dasharray="${dash}" stroke-linecap="round" transform="rotate(-90 20 20)"/>`;
     return svg;
   }
 

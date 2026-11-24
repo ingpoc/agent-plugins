@@ -292,5 +292,99 @@ class RoundViewTests(unittest.TestCase):
         self.assertEqual(result["fallback"]["suggest_pr"], "120")
 
 
+    def test_past_round_rebuilds_lanes_from_job_history(self):
+        _write_events(self.root, [
+            {"event": "start", "job_id": "j6a", "phase": "fix", "agent": "run-luna-r6-do2-job.sh",
+             "repo": "bcl42-r6-do2", "round": 6, "started_at": "2026-11-24T06:27:53Z", "at": "2026-11-24T06:27:53Z"},
+            {"event": "finish", "job_id": "j6a", "phase": "fix", "agent": "run-luna-r6-do2-job.sh",
+             "repo": "bcl42-r6-do2", "round": 6, "exit_code": 0,
+             "tokens": {"input": 10, "output": 2, "total": 12}, "tokens_source": "stamp",
+             "finished_at": "2026-11-24T06:30:33Z", "at": "2026-11-24T06:30:33Z"},
+            {"event": "finish", "job_id": "j6b", "phase": "review", "agent": "run-record-r6-121-grok.sh",
+             "repo": "bcl42-r6-121", "round": 6, "exit_code": 0,
+             "started_at": "2026-11-24T06:33:35Z", "finished_at": "2026-11-24T06:33:36Z"},
+        ])
+        self.tracker["findings"].append({"id": "DO-2", "status": "verified_fixed", "title": "Token use of Codex runs is recorded"})
+        _write_tracker(self.root, "demo", "42", self.tracker)
+        result = build_round("demo", pr="42", round=6, state_dir=str(self.root))
+        ids = {group["id"] for group in result["groups"]}
+        self.assertEqual(ids, {"R6-DO2", "R6-121"})
+        do2 = next(group for group in result["groups"] if group["id"] == "R6-DO2")
+        self.assertEqual(do2["name"], "Token use of Codex runs is recorded")
+        self.assertGreater(do2["duration_ms"], 0)
+        self.assertIsNone((result.get("fallback") or {}).get("suggest_pr"))
+        self.assertNotEqual((result.get("fallback") or {}).get("missing_round"), 6)
+        self.assertTrue(all(job.get("group_id") in ids for job in result["jobs"]))
+
+    def test_past_round_without_lane_data_has_no_view_link(self):
+        _write_events(self.root, [])
+        result = build_round("demo", pr="42", round=5, state_dir=str(self.root))
+        self.assertEqual(result["groups"], [])
+        self.assertEqual(result["fallback"]["missing_round"], 5)
+        self.assertIsNone(result["fallback"].get("suggest_pr"))
+        self.assertFalse(result["fallback"].get("persist"))
+
+    def test_lane_row_is_scannable_and_hides_cache_paths(self):
+        group = self.tracker["tracking"]["plan"]["groups"][0]
+        group["name"] = "Island shows Grok Bot subagent runs"
+        group["reason"] = (
+            "Product first: the island already shows Codex CLI runs and must also show Grok Bot "
+            "subagents from a supported record. Do not touch ~/.cache/macos-cua/samantha-activity.jsonl."
+        )
+        group["status"] = "verified"
+        group["phase"] = "verify"
+        group["stage_model"] = {"stage": "verify", "model": "Grok Bot"}
+        group["codex"] = {"job": {"model": "check.py --changed-since abc"}, "reviewer_model": "Grok Bot subagent review"}
+        _write_tracker(self.root, "demo", "42", self.tracker)
+        _write_events(self.root, [
+            {"event": "start", "job_id": "jfail", "phase": "presuite", "agent": "run-presuite-r7-acu-ship.sh",
+             "repo": "bcl42-r7-acu20", "round": 7, "started_at": "2026-11-24T08:19:41Z", "at": "2026-11-24T08:19:41Z"},
+            {"event": "finish", "job_id": "jfail", "phase": "presuite", "agent": "run-presuite-r7-acu-ship.sh",
+             "repo": "bcl42-r7-acu20", "round": 7, "exit_code": 2,
+             "started_at": "2026-11-24T08:19:41Z", "finished_at": "2026-11-24T08:19:41Z"},
+            {"event": "start", "job_id": "jok", "phase": "presuite", "agent": "run-presuite-r7-acu-ship.sh",
+             "repo": "bcl42-r7-acu20", "round": 7, "started_at": "2026-11-24T08:19:58Z", "at": "2026-11-24T08:19:58Z"},
+            {"event": "finish", "job_id": "jok", "phase": "presuite", "agent": "run-presuite-r7-acu-ship.sh",
+             "repo": "bcl42-r7-acu20", "round": 7, "exit_code": 0,
+             "started_at": "2026-11-24T08:19:58Z", "finished_at": "2026-11-24T08:23:21Z"},
+        ])
+        result = build_round("demo", pr="42", state_dir=str(self.root))
+        lane = next(item for item in result["groups"] if item["id"] == "R7-ACU20")
+        self.assertEqual(lane["name"], "Island shows Grok Bot subagent runs")
+        self.assertNotEqual(lane["name"], lane["label"])
+        self.assertLessEqual(len((lane["why"] or "").split()), 10)
+        self.assertIn("passed", lane["why"].lower())
+        self.assertIn("~/.cache", group["reason"])
+        self.assertNotIn("~/.cache", lane["why"] or "")
+        self.assertNotIn("~/.cache", lane["brief"] or "")
+        self.assertIn("samantha-activity.jsonl", lane["brief"])
+        self.assertEqual(lane["model"], "Grok Bot (version not recorded)")
+        self.assertNotIn(".sh", lane["model"] or "")
+        self.assertNotIn("check.py", lane["model"] or "")
+        self.assertEqual(lane["phase_index"], 4)
+        self.assertEqual(lane["phase_label"], "verify")
+        self.assertEqual(lane["duration_ms"], 203000)
+        self.assertTrue(lane["flagged"])
+        self.assertEqual(lane["view_status"], "verified")
+        self.assertEqual(result["lane_counts"].get("blocked"), 1)
+        self.assertGreaterEqual(result["status_counts"].get("blocked", 0), 2)
+
+    def test_parked_card_keeps_an_open_action_for_the_group(self):
+        result = build_round("demo", pr="42", state_dir=str(self.root))
+        card = next(item for item in result["needs_you"] if item.get("group_id") == "R4-106")
+        self.assertEqual(card["action"]["label"], "Open lane")
+        self.assertEqual(card["action"]["target"], "R4-106")
+        parked = next(item for item in result["groups"] if item["id"] == "R4-106")
+        self.assertEqual(parked["view_status"], "parked")
+
+    def test_view_note_for_newer_empty_list_persists_when_pr_is_explicit(self):
+        self._write_lists()
+        result = build_round("demo", pr="120", state_dir=str(self.root))
+        self.assertEqual(result["pr"]["number"], "120")
+        self.assertTrue(result["fallback"].get("persist") or result["fallback"].get("auto"))
+        self.assertEqual(result["fallback"]["from_pr"], "121")
+        self.assertEqual(result["fallback"]["viewing_pr"], "120")
+
+
 if __name__ == "__main__":
     unittest.main()

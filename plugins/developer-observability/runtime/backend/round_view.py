@@ -4,12 +4,31 @@ from __future__ import annotations
 import json
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 SCHEMA_VERSION = 1
 _ROUND_RE = re.compile(r"^R(\d+)-", re.I)
 _WORKTREE_ROUND_RE = re.compile(r"-r(\d+)-", re.I)
+_WORKTREE_GROUP_RE = re.compile(r"-r(\d+)-([a-z0-9]+)", re.I)
+_SHARED_WORKTREE_SUFFIXES = {"ship", "wt", "tmp", "job", "work"}
+_CACHE_PATH_RE = re.compile(r"~/\.cache/\S+")
+_MODEL_HINT_RE = re.compile(r"\b(grok|astra|terra|sol|luna|codex|gpt|claude|gemini)\b", re.I)
+_MODEL_BAD_RE = re.compile(r"(?i)(?:\.sh\b|check\.py|--|/)")
+_PHASES = ("fix", "review", "install", "verify", "introspect")
+_PHASE_ALIASES = {
+    "planned": None,
+    "plan_review": "fix",
+    "fix": "fix",
+    "fixing": "fix",
+    "review": "review",
+    "install": "install",
+    "installing": "install",
+    "presuite": "install",
+    "verify": "verify",
+    "verifying": "verify",
+    "introspect": "introspect",
+}
 
 
 _ABS_PATH_RE = re.compile(
@@ -23,7 +42,7 @@ _MD_PATH_RE = re.compile(
 
 
 def _public_text(value):
-    """Drop absolute home paths from UI text; keep the visible label or basename."""
+    """Drop absolute home paths and ~/.cache paths from UI text; keep the basename."""
     if not isinstance(value, str) or not value:
         return value
     def md(match):
@@ -31,7 +50,57 @@ def _public_text(value):
     text = _MD_PATH_RE.sub(md, value)
     def bare(match):
         return Path(match.group(1).rstrip("/")).name or "file"
-    return _ABS_PATH_RE.sub(bare, text)
+    text = _ABS_PATH_RE.sub(bare, text)
+    def cache(match):
+        return Path(match.group(0).rstrip("/")).name or "file"
+    return _CACHE_PATH_RE.sub(cache, text)
+
+
+def _clip_words(value, limit=10):
+    if not value:
+        return None
+    words = str(value).split()
+    if len(words) <= limit:
+        return " ".join(words)
+    return " ".join(words[:limit])
+
+
+def _ist_clock(value):
+    stamp = _parse_time(value)
+    if stamp is None:
+        return None
+    local = stamp.astimezone(timezone(timedelta(hours=5, minutes=30)))
+    return local.strftime("%I:%M %p").lstrip("0")
+
+
+def _group_id_from_repo(repo):
+    """Infer R7-ACU20 from a worktree name like bcl120-r7-acu20. Skip shared trees."""
+    if not repo:
+        return None
+    name = Path(str(repo).rstrip("/")).name
+    match = _WORKTREE_GROUP_RE.search(name)
+    if not match:
+        return None
+    suffix = match.group(2).lower()
+    if suffix in _SHARED_WORKTREE_SUFFIXES:
+        return None
+    return f"R{int(match.group(1))}-{match.group(2).upper()}"
+
+
+def _finding_for_group_id(group_id, findings_by_id):
+    if not group_id or not findings_by_id:
+        return None
+    suffix = str(group_id).split("-", 1)[-1]
+    dashed = re.sub(r"([A-Za-z]+)(\d+)", r"\1-\2", suffix)
+    for key in (suffix, dashed, f"DO-{dashed}", f"BCL-{dashed}", f"ACU-{dashed}"):
+        item = findings_by_id.get(key) or findings_by_id.get(str(key).upper()) or findings_by_id.get(str(key).lower())
+        if item:
+            return item
+    suffix_l = dashed.lower()
+    for key, item in findings_by_id.items():
+        if str(key).lower() == suffix_l or str(key).lower().endswith("-" + suffix_l) or str(key).lower().endswith(suffix_l):
+            return item
+    return None
 
 
 def _view_status(group):
@@ -42,19 +111,45 @@ def _view_status(group):
     return status or "unknown"
 
 
-def _lane_why(group):
+def _lane_why(group, jobs=None):
+    """A factual why of at most 10 words. The full brief stays on the group."""
     status = _view_status(group)
     if status in {"parked", "deferred"}:
         target = group.get("parked_to")
         if target is not None:
             return f"Parked to round {target}"
-        return _public_text(group.get("reason") or "This lane is parked.")
+        return _clip_words(_public_text(group.get("reason") or "This lane is parked."))
     if status == "blocked":
-        return _public_text(group.get("blocked_reason") or group.get("reason") or "This lane is blocked.")
+        return _clip_words(
+            _public_text(group.get("blocked_reason") or group.get("reason") or "") or "reason not recorded"
+        )
+    jobs = [job for job in (jobs or []) if isinstance(job, dict)]
+    jobs = sorted(jobs, key=lambda job: job.get("finished_at") or job.get("started_at") or "")
+    fails = [job for job in jobs if isinstance(job.get("exit_code"), int) and job.get("exit_code") != 0]
+    last = jobs[-1] if jobs else None
+    if last and last.get("exit_code") == 0:
+        phase = str(last.get("phase") or "job").replace("_", " ")
+        phase = phase[:1].upper() + phase[1:]
+        if fails:
+            when = _ist_clock(fails[-1].get("finished_at") or fails[-1].get("started_at"))
+            if when:
+                return _clip_words(f"{phase} passed on retry; {len(fails)} fail at {when}")
+            return _clip_words(f"{phase} passed on retry")
+        if status == "verified":
+            return _clip_words(f"{phase} passed; verified")
+        return _clip_words(f"{phase} passed")
+    if last and isinstance(last.get("exit_code"), int) and last.get("exit_code") != 0:
+        phase = str(last.get("phase") or "job").replace("_", " ")
+        phase = phase[:1].upper() + phase[1:]
+        return _clip_words(f"{phase} failed · exit {last.get('exit_code')}")
+    if status == "verified":
+        return "Verified"
+    if status == "historical":
+        return "Recorded in a finished round"
     reason = group.get("reason") or ""
     if re.search(r"(?i)\bparked\b", reason):
-        return _public_text(group.get("blocked_reason") or "") or None
-    return _public_text(reason) or None
+        return _clip_words(_public_text(group.get("blocked_reason") or "") or None)
+    return _clip_words(_public_text(reason) or None)
 
 
 
@@ -230,6 +325,8 @@ def _round_from_group_id(group_id):
 def _annotate_job(job, groups):
     """Attach group_id and round when present on the event, else infer from worktree."""
     group_id = job.get("group_id") if isinstance(job.get("group_id"), str) and job.get("group_id") else None
+    explicit_group = bool(group_id)
+    shared_group_ids = []
     round_number = job.get("round")
     if isinstance(round_number, str) and round_number.isdigit():
         round_number = int(round_number)
@@ -237,13 +334,19 @@ def _annotate_job(job, groups):
         round_number = None
     repo = str(job.get("repo") or "")
     if not group_id:
-        for group in groups:
-            worktree = group.get("worktree")
-            if worktree and repo and (repo == worktree or repo.endswith(f"/{worktree}") or worktree.endswith(f"/{repo}")):
-                group_id = group.get("id")
-                if round_number is None:
-                    round_number = _round_from_group_id(group_id)
-                break
+        inferred = _group_id_from_repo(repo)
+        if inferred:
+            group_id = inferred
+        else:
+            hits = []
+            for group in groups:
+                worktree = group.get("worktree")
+                if worktree and repo and (repo == worktree or repo.endswith(f"/{worktree}") or worktree.endswith(f"/{repo}")):
+                    hits.append(group)
+            if len(hits) == 1:
+                group_id = hits[0].get("id")
+            elif len(hits) > 1:
+                shared_group_ids = [group.get("id") for group in hits if group.get("id")]
     if round_number is None:
         if group_id:
             round_number = _round_from_group_id(group_id)
@@ -273,7 +376,8 @@ def _annotate_job(job, groups):
         "session": job.get("session"),
         "duration_ms": duration_ms,
         "model": job.get("model"),
-        "group_id_inferred": bool(group_id and not job.get("group_id")),
+        "group_id_inferred": bool(group_id and not explicit_group),
+        "shared_group_ids": shared_group_ids,
     }
 
 
@@ -387,32 +491,43 @@ def _history_for_cycle(history, current_round, current_cycle):
     return compact
 
 
-def _round_groups(groups, jobs, selected_round, current_round):
-    """Lanes that belong to the selected round. Past rounds are reconstructed from jobs when the live plan has moved on."""
+def _historical_group(group_id, job, findings_by_id=None):
+    finding = _finding_for_group_id(group_id, findings_by_id or {})
+    finding_ids = [finding["id"]] if finding and finding.get("id") else []
+    status = "verified" if finding and finding.get("status") in {"verified", "verified_fixed"} else "historical"
+    title = (finding or {}).get("title") or re.sub(r"([A-Za-z]+)(\d+)", r"\1-\2", str(group_id).split("-", 1)[-1])
+    return {
+        "id": group_id,
+        "name": title,
+        "label": (finding or {}).get("id") or group_id,
+        "status": status,
+        "view_status": status,
+        "phase": job.get("phase") if isinstance(job, dict) else None,
+        "finding_ids": finding_ids,
+        "findings": ([{"id": finding.get("id"), "title": finding.get("title"), "status": finding.get("status")}] if finding else []),
+        "reason": None,
+        "why": None,
+        "worktree": (job or {}).get("repo") if isinstance(job, dict) else None,
+        "reconstructed": True,
+    }
+
+
+def _round_groups(groups, jobs, selected_round, current_round, findings_by_id=None):
+    """Lanes for the selected round. Past rounds are rebuilt from job history, not another list."""
     if selected_round is None or selected_round == current_round:
         return list(groups)
     matching = [group for group in groups if _round_from_group_id(group.get("id")) == selected_round]
     seen = {group.get("id") for group in matching}
     for job in jobs:
         job_round = job.get("round")
-        if job_round is None and job.get("group_id"):
-            job_round = _round_from_group_id(job.get("group_id"))
+        if job_round is None:
+            job_round = _round_from_group_id(job.get("group_id")) or _round_from_group_id(_group_id_from_repo(job.get("repo")))
         if job_round != selected_round:
             continue
-        group_id = job.get("group_id")
+        group_id = job.get("group_id") or _group_id_from_repo(job.get("repo"))
         if not group_id or group_id in seen:
             continue
-        matching.append({
-            "id": group_id,
-            "name": group_id,
-            "label": group_id,
-            "status": "historical",
-            "view_status": "historical",
-            "phase": job.get("phase"),
-            "finding_ids": [],
-            "reason": None,
-            "why": None,
-        })
+        matching.append(_historical_group(group_id, job, findings_by_id))
         seen.add(group_id)
     matching.sort(key=lambda group: str(group.get("id") or ""))
     return matching
@@ -520,11 +635,114 @@ def _rank_needs(groups, findings_by_id, parked, jobs, selected_round):
             continue
         seen.add(key)
         unique.append(card)
-    more = max(0, len(unique) - 3)
     ranked = []
     for index, card in enumerate(unique[:3], start=1):
         ranked.append({**{k: v for k, v in card.items() if k != "priority"}, "rank": index})
-    return ranked, more
+    fyi = []
+    for index, card in enumerate(unique[3:], start=4):
+        fyi.append({**{k: v for k, v in card.items() if k != "priority"}, "rank": index})
+    return ranked, fyi
+
+
+
+def _looks_like_model(value):
+    if not isinstance(value, str) or not value.strip():
+        return False
+    if _MODEL_BAD_RE.search(value) and not _MODEL_HINT_RE.search(value):
+        return False
+    if re.search(r"(?i)check\.py|\.sh\b", value):
+        return False
+    return bool(_MODEL_HINT_RE.search(value) or not _MODEL_BAD_RE.search(value))
+
+
+def _format_model(value, version=None):
+    name = _public_text(str(value).strip())
+    if not name:
+        return None
+    if version and not re.search(r"\d", name):
+        return f"{name} {version}"
+    if re.search(r"\d", name):
+        return name
+    return f"{name} (version not recorded)"
+
+
+def _lane_model(group, jobs=None):
+    """A model name with version. Never a script or command."""
+    for job in jobs or []:
+        if _looks_like_model(job.get("model")):
+            return _format_model(job.get("model"), job.get("model_version"))
+    stage = group.get("stage_model") if isinstance(group.get("stage_model"), dict) else {}
+    if _looks_like_model(stage.get("model")):
+        return _format_model(stage.get("model"), stage.get("version") or stage.get("model_version"))
+    codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+    job = codex.get("job") if isinstance(codex.get("job"), dict) else {}
+    if _looks_like_model(job.get("model")):
+        return _format_model(job.get("model"), job.get("model_version") or job.get("version"))
+    reviewer = codex.get("reviewer_model")
+    if isinstance(reviewer, str) and _MODEL_HINT_RE.search(reviewer):
+        if re.search(r"(?i)grok bot", reviewer):
+            return "Grok Bot (version not recorded)"
+        match = re.search(r"(Astra|Terra|Sol|Luna|Codex|GPT|Claude)[^,;)]*", reviewer)
+        if match:
+            return _format_model(match.group(0).strip())
+    return None
+
+
+def _lane_model_note(group):
+    codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+    reviewer = codex.get("reviewer_model")
+    if isinstance(reviewer, str) and reviewer.strip():
+        return _public_text(reviewer)
+    return None
+
+
+def _phase_track(group):
+    raw = str(group.get("phase") or "").strip().lower()
+    name = _PHASE_ALIASES.get(raw, raw if raw in _PHASES else None)
+    status = _view_status(group)
+    if status in {"parked", "deferred"} and name is None:
+        return None, None
+    if name is None and status == "verified":
+        name = "verify"
+    if name not in _PHASES:
+        return None, name
+    return _PHASES.index(name) + 1, name
+
+
+def _enrich_group(group, jobs):
+    lane_jobs = [job for job in jobs if job.get("group_id") == group.get("id")]
+    shared = [job for job in jobs if group.get("id") in (job.get("shared_group_ids") or [])]
+    related = lane_jobs + [job for job in shared if job not in lane_jobs]
+    related = sorted(related, key=lambda job: job.get("finished_at") or job.get("started_at") or "")
+    group["brief"] = _public_text(group.get("reason"))
+    group["why"] = _lane_why(group, related)
+    group["duration_ms"] = sum(
+        job["duration_ms"] for job in related if isinstance(job.get("duration_ms"), int) and job["duration_ms"] > 0
+    )
+    group["model"] = _lane_model(group, related)
+    group["model_note"] = _lane_model_note(group)
+    # Reconstructed lanes take their phase from the last recorded job.
+    if group.get("reconstructed") and related:
+        last_phase = next((job.get("phase") for job in reversed(related) if job.get("phase")), None)
+        if last_phase:
+            group["phase"] = last_phase
+    index, label = _phase_track(group)
+    group["phase_index"] = index
+    group["phase_label"] = label
+    fails = [
+        job for job in related
+        if isinstance(job.get("exit_code"), int) and job.get("exit_code") != 0
+    ]
+    group["flagged"] = bool(fails) and _view_status(group) == "verified"
+    group["flagged_exits"] = [
+        {
+            "exit_code": job.get("exit_code"),
+            "phase": job.get("phase"),
+            "at": job.get("finished_at") or job.get("started_at"),
+        }
+        for job in fails
+    ]
+    return group
 
 
 def build_round(project, pr=None, round=None, state_dir=None):
@@ -559,18 +777,24 @@ def build_round(project, pr=None, round=None, state_dir=None):
                         or (job.get("round") is None and _round_from_group_id(job.get("group_id")) == selected_round)]
     else:
         visible_jobs = jobs
-    groups = _round_groups(all_groups, visible_jobs, selected_round, current_round)
+    groups = _round_groups(all_groups, visible_jobs, selected_round, current_round, findings_by_id)
+    for group in groups:
+        _enrich_group(group, visible_jobs)
 
+    viewing_past = (
+        isinstance(selected_round, int)
+        and isinstance(current_round, int)
+        and selected_round != current_round
+    )
     newest = lists[0] if lists else None
     suggest = next((row for row in lists if row.get("has_lanes") and row.get("pr") != found_pr), None)
     fallback = None
-    if requested_pr in (None, "") and newest and newest.get("pr") != found_pr and not newest.get("has_lanes"):
+    if viewing_past and not groups:
         fallback = {
-            "auto": True,
-            "from_pr": newest.get("pr"),
-            "from_label": newest.get("label"),
-            "viewing_pr": found_pr,
-            "viewing_label": next((row.get("label") for row in lists if row.get("pr") == found_pr), f"PR #{found_pr}"),
+            "auto": False,
+            "from_pr": found_pr,
+            "from_label": next((row.get("label") for row in lists if row.get("pr") == found_pr), f"PR #{found_pr}"),
+            "missing_round": selected_round,
         }
     elif not groups and suggest:
         fallback = {
@@ -579,6 +803,15 @@ def build_round(project, pr=None, round=None, state_dir=None):
             "from_label": next((row.get("label") for row in lists if row.get("pr") == found_pr), f"PR #{found_pr}"),
             "suggest_pr": suggest.get("pr"),
             "suggest_label": suggest.get("label"),
+        }
+    elif newest and newest.get("pr") != found_pr and not newest.get("has_lanes"):
+        fallback = {
+            "auto": requested_pr in (None, ""),
+            "from_pr": newest.get("pr"),
+            "from_label": newest.get("label"),
+            "viewing_pr": found_pr,
+            "viewing_label": next((row.get("label") for row in lists if row.get("pr") == found_pr), f"PR #{found_pr}"),
+            "persist": True,
         }
 
     history = tracking.get("round_history") if isinstance(tracking.get("round_history"), list) else []
@@ -610,7 +843,8 @@ def build_round(project, pr=None, round=None, state_dir=None):
         "needs": parked.get("needs") if isinstance(parked.get("needs"), list) else [],
     }
 
-    needs, more = _rank_needs(groups, findings_by_id, parked_out, visible_jobs, selected_round)
+    needs, fyi = _rank_needs(groups, findings_by_id, parked_out, visible_jobs, selected_round)
+    more = len(fyi)
 
     round_jobs = [job for job in visible_jobs if selected_round is None or job.get("round") == selected_round]
     eligible = [
@@ -639,14 +873,22 @@ def build_round(project, pr=None, round=None, state_dir=None):
             "tokens": sum(job["tokens"]["total"] for job in covered),
             "duration_ms": sum(job["duration_ms"] for job in lane_jobs if isinstance(job.get("duration_ms"), int)),
         })
-    if not by_lane and round_jobs:
+    shared_jobs = [job for job in round_jobs if (job.get("shared_group_ids") or []) and not job.get("group_id")]
+    if shared_jobs:
+        covered = [
+            job for job in shared_jobs
+            if job.get("tokens_source") in {"stamp", "inline"}
+            and isinstance(job.get("tokens"), dict)
+            and isinstance(job["tokens"].get("total"), int)
+        ]
         by_lane.append({
-            "group_id": "jobs",
-            "jobs": len(round_jobs),
-            "covered": len(eligible),
-            "tokens": token_total,
-            "duration_ms": duration_total,
+            "group_id": "shared",
+            "jobs": len(shared_jobs),
+            "covered": len(covered),
+            "tokens": sum(job["tokens"]["total"] for job in covered),
+            "duration_ms": sum(job["duration_ms"] for job in shared_jobs if isinstance(job.get("duration_ms"), int)),
         })
+    # Leave by_lane empty when jobs cannot be attributed; the UI shows unknown, not a fake "jobs" segment.
 
     pull = tracking.get("pull_request") if isinstance(tracking.get("pull_request"), dict) else {"label": f"PR #{found_pr}" if found_pr else None}
     return {
@@ -687,6 +929,11 @@ def build_round(project, pr=None, round=None, state_dir=None):
         "fallback": fallback,
         "needs_you": needs,
         "needs_you_more": more,
+        "needs_you_fyi": fyi,
+        "lane_counts": _status_counts([
+            {"status": group.get("view_status") or group.get("status")}
+            for group in groups
+        ]),
         "groups": groups,
         "jobs": visible_jobs,
         "time_tokens": {
