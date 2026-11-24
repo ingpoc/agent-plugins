@@ -11764,9 +11764,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T07:37:44Z",
-      "now": "2026-11-24T07:37:44Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T07:37:46Z",
+      "now": "2026-11-24T07:37:46Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13815,14 +13815,14 @@
             "ACU-21"
           ],
           "worktree": "bcl120-r7-acu21",
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "files": [
             "scripts/test_release_agent_computer_use.py",
             "plugins/agent-computer-use/runtime/voice-cua/tests/test_dev_tools.py"
           ],
           "reason": "Product: replace the short fixed waits in test_connected_but_unresponsive_service_times_out_on_runtime_contract and test_background_jobs_track_and_stop_only_the_returned_job_id so both pass 50 runs under four busy CPU loops and the pre-push suite passes first time. Tests only; do not edit production voice or island files owned by the other ACU lanes. About 40k tokens.",
-          "stage_entered_at": "2026-11-24T07:36:46Z",
+          "stage_entered_at": "2026-11-24T07:37:45Z",
           "failure_history": [
             {
               "attempt_id": "72cf8d0cbf3941a7884d76f8033e848e",
@@ -13859,22 +13859,23 @@
           ],
           "codex": {
             "job": {
-              "id": "e84373b4a4d34ddb8d2e15b3570f865f",
-              "phase": "fix",
-              "started_at": "2026-11-24T07:37:44Z",
-              "command": "run-record-r7-acu21-fix.sh",
-              "heartbeat_at": "2026-11-24T07:37:44Z",
+              "id": "1cdc88bfaca64a3ab2f727c5c634b045",
+              "phase": "review",
+              "started_at": "2026-11-24T07:37:46Z",
+              "command": "run-record-r7-acu21-review.sh",
+              "heartbeat_at": "2026-11-24T07:37:46Z",
               "plan_sha256": "4456f0e9a8b96460a04c1c8a2ee591b9bc76d68cf4eec6fb24fed6bc272cd72f",
               "worktree": "bcl120-r7-acu21",
-              "model": "Grok Bot subagent (Astra 6.2 and Terra 6.1 unavailable)",
+              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
               "cycle": 12,
               "round": 7
             },
-            "tool_fault_streak": 1,
-            "fix_status": "running",
+            "tool_fault_streak": 0,
+            "fix_status": "passed",
             "implementer_session": "grokbot-r7-acu21",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
+            "review_status": "running"
           },
           "updated_at": "2026-11-24T07:36:38Z",
           "verify": {
@@ -14441,7 +14442,7 @@
       "round": 6,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T07:37:44Z",
+    "last_written_at": "2026-11-24T07:37:46Z",
     "fix_order": {
       "ids": [
         "DO-4",
