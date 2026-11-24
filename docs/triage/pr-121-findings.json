@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T11:44:36Z",
-      "now": "2026-11-24T11:44:36Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T11:44:38Z",
+      "now": "2026-11-24T11:44:38Z — Review started"
     },
     "rollover": {
       "source_pr": 120,
@@ -12258,7 +12258,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T11:44:36Z",
+    "last_written_at": "2026-11-24T11:44:38Z",
     "fix_order": {
       "ids": [
         "BCL-110",
@@ -12720,8 +12720,8 @@
           "id": "R2-DO4",
           "name": "Replace the viewer with the v3 calm UI",
           "label": "DO-4",
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "finding_ids": [
             "DO-4",
             "DO-12"
@@ -12760,27 +12760,28 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-24T11:43:37Z",
-          "stage_entered_at": "2026-11-24T11:43:38Z",
+          "stage_entered_at": "2026-11-24T11:44:37Z",
           "codex": {
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "64c97fbc5c584b5981fb5aeb4a4ce69e",
-              "phase": "fix",
-              "started_at": "2026-11-24T11:44:36Z",
-              "command": "true",
-              "heartbeat_at": "2026-11-24T11:44:36Z",
+              "id": "6b4c58ac99eb45d2a971729b1c8687d8",
+              "phase": "review",
+              "started_at": "2026-11-24T11:44:38Z",
+              "command": "run-record-do4.sh",
+              "heartbeat_at": "2026-11-24T11:44:38Z",
               "plan_sha256": "a683eedd9436598ae2e2d69d1f93341389e1956d9ce3aa59ef43392b9a94eee5",
               "worktree": "bcl121-r2-do4",
-              "model": "gpt-6-luna fast medium",
+              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
               "cycle": 13,
               "round": 2
             },
-            "tool_fault_streak": 1,
+            "tool_fault_streak": 0,
             "implementer_session": "01a20d35-5e3b-77f2-98d7-a953abb136e1",
             "implementer_model": "gpt-6-luna",
             "effort": "medium",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
+            "review_status": "running"
           }
         },
         {
