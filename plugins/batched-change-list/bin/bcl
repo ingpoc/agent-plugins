@@ -641,6 +641,24 @@ def _new_pr_url(old_url, number, explicit):
         raise ValueError("--new-url must contain the --new-pr number in its /pull/N path")
     return url
 
+
+def _manage_in_process(argv, stdin_text=None):
+    """Run manage_findings in this process so allow_live_writes still applies."""
+    import contextlib, io
+    stdout, stderr = io.StringIO(), io.StringIO()
+    stdin = io.StringIO(stdin_text or "")
+    previous = sys.stdin
+    try:
+        sys.stdin = stdin
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            try:
+                code = manage_findings.main(argv)
+            except SystemExit as error:
+                code = 0 if error.code is None else (error.code if isinstance(error.code, int) else 1)
+    finally:
+        sys.stdin = previous
+    return argparse.Namespace(returncode=code or 0, stdout=stdout.getvalue(), stderr=stderr.getvalue())
+
 def _git(cwd, *args):
     return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True)
 
@@ -988,10 +1006,12 @@ def main():
         if args.force:
             operation["override_reason"] = args.reason
         if args.now: operation["now"] = args.now
-        command = [sys.executable, str(MANAGE), "batch", str(live), "-"]
-        if args.force: command.append("--force")
-        result = subprocess.run(command, input=json.dumps([operation]), text=True, capture_output=True)
-        if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
+        argv = ["batch", str(live), "-"]
+        if args.force: argv.append("--force")
+        result = _manage_in_process(argv, json.dumps([operation]))
+        if result.returncode:
+            sys.stderr.write(result.stderr or result.stdout)
+            raise SystemExit(result.returncode)
         sys.stdout.write(result.stdout)
         return
     if args.stage == "merged":

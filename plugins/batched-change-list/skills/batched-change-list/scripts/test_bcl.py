@@ -1987,6 +1987,26 @@ elif args[:2] != ['pr', 'edit']:
         record = json.loads((self.state / "registry.json").read_text())["example/project/124"]
         self.assertEqual(Path(record["home"]).resolve(), (self.home.parent / "feature-124").resolve())
 
+    def test_rollover_writes_when_state_is_the_default_live_root(self):
+        # Reproduce the official command: BCL_STATE_DIR is the real default root, so
+        # the manage_findings child used to be refused by the live-state guard.
+        default_home = self.root / "default-home"
+        state = default_home / ".agents/state/batched-change-list"
+        env = {**self.env, "HOME": str(default_home), "BCL_STATE_DIR": str(state)}
+        adopt = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--render", str(self.page), "adopt"],
+                               env=env, capture_output=True, text=True, cwd=self.home)
+        self.assertEqual(adopt.returncode, 0, adopt.stderr)
+        self.git(self.home, "worktree", "add", "-qb", "feature-124", str(self.root / "feature-124"))
+        result = subprocess.run(
+            [sys.executable, str(BCL), "--data", str(self.data), "rollover",
+             "--new-pr", "124", "--worktree", "feature-124", "--force", "--reason", "test override"],
+            env=env, capture_output=True, text=True, cwd=self.home)
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertIn("Created new live list", result.stdout)
+        registry = json.loads((state / "registry.json").read_text())
+        self.assertIn("example/project/124", registry)
+        self.assertTrue(Path(registry["example/project/124"]["live"]).is_file())
+
     def test_rollover_clears_old_plan_lanes(self):
         self.git(self.home, "worktree", "add", "-qb", "feature-124", str(self.root / "feature-124"))
         live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
