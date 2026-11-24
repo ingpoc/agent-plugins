@@ -11252,9 +11252,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-24T14:41:10Z",
-      "now": "2026-11-24T14:41:10Z — Verify in progress"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T14:46:05Z",
+      "now": "2026-11-24T14:46:05Z — Fix started"
     },
     "rollover": {
       "source_pr": 120,
@@ -12724,7 +12724,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T14:41:10Z",
+    "last_written_at": "2026-11-24T14:46:05Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -13270,12 +13270,13 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-do4.sh",
             "method": "Run the state-model and issues-API tests. Do not record verified_fixed until the UX Comet review passes.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 2,
             "failed": 0,
-            "total": 2
+            "total": 2,
+            "finished_at": "2026-11-24T14:41:21Z"
           },
-          "parked_to": 3,
+          "parked_to": 4,
           "failure_history": [
             {
               "attempt_id": "9209b5a161fc4c63acc2117c5182d3e2",
@@ -13318,7 +13319,7 @@
               "at": "2026-11-24T11:45:44Z"
             }
           ],
-          "status": "verifying",
+          "status": "parked",
           "codex": {
             "fix_status": "passed",
             "job": {
@@ -13346,8 +13347,8 @@
             "reviewer_model": "Grok Bot"
           },
           "phase": "verify",
-          "stage_entered_at": "2026-11-24T14:41:10Z",
-          "updated_at": "2026-11-24T14:41:10Z",
+          "stage_entered_at": "2026-11-24T14:43:17Z",
+          "updated_at": "2026-11-24T14:43:17Z",
           "unblock_history": [
             {
               "at": "2026-11-24T14:29:48Z",
@@ -13374,7 +13375,8 @@
             "stage": "verify",
             "model": "Grok Bot",
             "at": "2026-11-24T14:41:10Z"
-          }
+          },
+          "blocked_reason": "Already verified this round"
         },
         {
           "id": "R2-INTRO",
@@ -13682,7 +13684,7 @@
             "BCL-161",
             "BCL-130"
           ],
-          "status": "parked",
+          "status": "running",
           "phase": "fix",
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -13692,14 +13694,43 @@
           "reason": "Small independent command-line accuracy fixes: reject unknown stages before setup, ignore the list's own snapshot during local install, and make release-check a pure read.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r3-cli.sh",
-            "method": "Run the change-list CLI, findings, and live-state tests."
+            "method": "Run the change-list CLI, findings, and live-state tests.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 3
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T14:41:01Z",
-          "stage_entered_at": "2026-11-24T14:41:01Z",
+          "updated_at": "2026-11-24T14:46:04Z",
+          "stage_entered_at": "2026-11-24T14:46:05Z",
           "parked_to": 4,
-          "blocked_reason": "Hold for ready-lane install"
+          "blocked_reason": "Hold for ready-lane install",
+          "codex": {
+            "implementer_session": "grok-bot-r3-cli",
+            "implementer_model": "Grok Bot",
+            "effort": "medium",
+            "fix_status": "running",
+            "job": {
+              "id": "06c6ddcee6264e55a8583976a5710cfd",
+              "phase": "fix",
+              "started_at": "2026-11-24T14:46:05Z",
+              "command": "r3-cli.sh",
+              "heartbeat_at": "2026-11-24T14:46:05Z",
+              "plan_sha256": "1f5a25f912d1170e641eace98c0817df7a7e0817877689060c1eba995823b4a5",
+              "finding_ids": [
+                "BCL-140",
+                "BCL-161",
+                "BCL-130"
+              ],
+              "worktree": "samantha-next-r11",
+              "model": "Grok Bot",
+              "lane_sha256": "25dbb2e90f03fc35e0d372c28f77d67be3d0920156b93004d27d1e37374dbed0",
+              "cycle": 13,
+              "round": 3
+            }
+          },
+          "worktree": "samantha-next-r11"
         },
         {
           "id": "R3-COSMETIC",
@@ -13708,7 +13739,7 @@
           "finding_ids": [
             "DO-13"
           ],
-          "status": "parked",
+          "status": "planned",
           "phase": "fix",
           "files": [
             "plugins/developer-observability/ui/app.js",
@@ -13721,8 +13752,8 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T14:41:01Z",
-          "stage_entered_at": "2026-11-24T14:41:01Z",
+          "updated_at": "2026-11-24T14:41:46Z",
+          "stage_entered_at": "2026-11-24T14:41:46Z",
           "parked_to": 4,
           "blocked_reason": "Hold for ready-lane install"
         }
@@ -13878,11 +13909,15 @@
           "state": "pending"
         },
         "DO-4": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "The live local project viewer is serving the latest followed-up commit, and a UX review has just signed it off as ready to ship.",
           "observed_at": "2026-11-24T14:22:00Z",
           "started_at": "2026-11-24T14:25:48Z",
-          "updated_at": "2026-11-24T14:25:48Z"
+          "updated_at": "2026-11-24T14:25:48Z",
+          "check_id": "35450a5af80943aaa6b512c379a18f21",
+          "evidence": "Checked: The live local project viewer, on the first screen, past rounds and merged lists, the last test run, and the issue drawer\nExpected: Past rounds and merged lists keep their real status, a first visit shows this pull request's number, Escape returns to the row that opened the drawer, the timeline does not show raw check names, a carried label is separated from the title, and the earlier accuracy fixes still hold\nObserved: On 24 Nov 2026, from 19:49 to 19:52 IST, at the local project viewer, the merged list showed 17 verified, 2 blocked, 3 in progress and 26 untested, matching the written list. That list's sixth round showed the same 17 verified and 2 blocked. In this pull request's first round this issue was untested and the collector issue stayed blocked. A first visit showed this pull request's number. Escape returned focus to the row that opened the drawer. Timelines ended with a short run label. Carried labels had a separator. Earlier checks still held. The review verdict was to ship. Two small presentation nits remain and do not block shipping",
+          "details": "UX ship write-up: ~/.agents/artifacts/bcl-121/r3/ux-2d1e049c/FINDINGS.md (source /workspace/do-viewer-review/live-v3-2d1e049c/FINDINGS.md). Revision 2d1e049c4f91f092e43f06194a7d93195dbc9911 served at http://127.0.0.1:8780/ from 19:48:14 IST, pid 58570. Lease uiux-v3live-2d1e049c, 19:49–19:52 IST Asia/Calcutta. Screenshots in the source review folder: now-121.png, pr120.png, round-120r6.png, last-run-120.png, mobile.png, zoom-200.png. Two non-blocking P3s (run breadcrumb keeps the previous round; Needs-you line truncates at 390px) will be filed as one cosmetic issue.",
+          "finished_at": "2026-11-24T14:41:45.615671Z"
         },
         "DO-5": {
           "state": "pending"
@@ -13906,7 +13941,15 @@
           "state": "pending"
         },
         "DO-12": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "The writers that record first seen, last seen, status history, when a round started, the pull request opened time when it is known, the stored merge and report thresholds, and the issue ids on each job receipt have been installed, and their focused tests have just passed.",
+          "observed_at": "2026-11-24T14:41:45Z",
+          "started_at": "2026-11-24T14:41:46Z",
+          "updated_at": "2026-11-24T14:41:46Z",
+          "check_id": "59b66b96f6bc4f838410122a5a6dc992",
+          "evidence": "Checked: When a change list is recorded, first seen and last seen times, the history of status changes, when the current round started, the pull request opened time when that time is known, the stored merge and report thresholds, and the issue ids on each job receipt\nExpected: Those fields are written and kept, a known opened time fills in when it is missing, default merge and report thresholds are stored, and a new job receipt lists the issues it covers\nObserved: After those writers were installed, the focused tests for first seen and last seen, opened time, default thresholds, and job issue ids all passed, and the observability test suite also passed",
+          "details": "Writers landed in 4074ba41acc0937f7642871b4cd3d361fe5e90c6 and were installed via worktree bcl install-local (official plugin sha256 14d787b393a03ba6a7fbdf0c5fcd773b9867d42b58a83c4f98c108435f9015b7, receipt ~/.agents/artifacts/bcl-121/r3/install-receipt-4074ba41.json). Official bcl install --ids DO-4 --ids DO-12 then bcl verify --then ~/.agents/artifacts/bcl-121/verify/r2-do4.sh exited 0 at 2026-11-24T14:41:21Z. Tests: test_capture_issue_metadata_keeps_state_origin_failure_and_stored_gate, test_capture_fills_opened_at_and_default_gate, test_snapshot_guard_start_job, plus developer-observability unittest discover 217 passed, 2 skipped.",
+          "finished_at": "2026-11-24T14:41:46.411149Z"
         },
         "PR121-r2-live-state-guard": {
           "state": "pending"
@@ -14767,7 +14810,7 @@
       "done_when": "The local page uses the approved calm look and the agreed data contract: Now is the default, the headline is numeric, Needs-you has at most three rows, groups expand in place, a row opens the drawer, the timeframe and the round lens open from the scope bar with the window in the address, text is fifteen pixels or larger with text-size controls and zoom never blocked, tests cover the state model and the issues API, and the page is served on the usual local viewer port. The issue is verified only after a later UX review of list 121 and list 120 passes.",
       "observed": "24 Nov 2026 16:19 IST Asia/Calcutta. Guru approved the v3 calm design. Replace the current viewer with that look. Use only the v2 data contract, state model, timeframe, and API, not the v2 layout. Do not mark this issue verified until a later UX review of list 121 and list 120 passes.",
       "recommendation": "Replace the current viewer with the v3 calm UI. Build in this order: first the default Now scope and the state model; then the numeric headline, Needs-you, groups, and drawer; then the timeframe with the window in the address; then the issues API and the matching agent tool. Keep the page terse with progressive disclosure, a first screen that reads in five seconds, a thin status bar, at most three Needs-you rows, group lines with a label and a count, tooltips instead of captions, groups that expand in place to at most eight rows plus Show all, a drawer that opens from a row with facts, then what we know, then the timeline, and raw data collapsed, and the round lens and timeframe opening from the scope bar. Text is fifteen pixels or larger, with smaller and larger text controls, and browser zoom is never blocked. Polish: a touch legend, a date on last fail when it is not today, and real button actions. Serve on the usual local viewer port after the commit. Never bind the reserved Samantha port or touch its process.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "related_to_DO-3": "DO-3 is verified and closed; it added the per-round filters and MCP App UI. This is the missing local HTTP viewer, not a second UI or a new filter API.",
         "Technical wording": "Reuse the existing backend where it already matches the v2 data contract. Serve 127.0.0.1. Never bind port 8765. Do not touch pid 1338 or the Samantha activity log.",
@@ -14778,8 +14821,10 @@
         "Verification hold": "Do not record verified_fixed until the UX Comet review of #121 and #120 passes."
       },
       "created_at": "2026-11-24T07:10:26Z",
-      "verification": "Guru rejected the page: it is not understandable, so the earlier sign-off is withdrawn.",
-      "verification_refs": [],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-do4.sh",
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-do4.sh (exit 0)"
+      ],
       "verification_evidence": [
         {
           "checked": "The local per-round page for this project after the latest viewer fix",
@@ -14805,6 +14850,12 @@
           "at": "2026-11-24T14:29:22Z",
           "from": "untested",
           "to": "in_progress",
+          "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T14:41:21Z",
+          "from": "in_progress",
+          "to": "resolved",
           "source": "tracker_update"
         }
       ],
@@ -15062,7 +15113,7 @@
     {
       "id": "DO-12",
       "title": "Tracker is missing first seen, last seen, state changes, and related scope fields",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "source": "User requested",
       "summary": "The viewer and the issues API cannot tell what is current, what came back, or what happened in a chosen window, because the tracker does not keep structured first-seen and last-seen times, a history of state changes, when a round or pull request started, which issues a job belongs to, or the stored merge-gate threshold.",
@@ -15089,12 +15140,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T14:41:21Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T14:32:19Z",
         "source": "lane_failure"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-do4.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-do4.sh"
     },
     {
       "id": "PR121-r2-live-state-guard",
