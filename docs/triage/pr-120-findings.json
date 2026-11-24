@@ -11764,9 +11764,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T08:09:32Z",
-      "now": "2026-11-24T08:09:32Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T08:09:43Z",
+      "now": "2026-11-24T08:09:43Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13632,9 +13632,9 @@
           "finding_ids": [
             "DO-4"
           ],
-          "worktree": "samantha-next-r10",
-          "status": "review",
-          "phase": "review",
+          "worktree": "bcl120-r7-doview",
+          "status": "running",
+          "phase": "fix",
           "files": [
             "plugins/developer-observability/runtime/viewer.py",
             "plugins/developer-observability/tests/test_viewer.py",
@@ -13655,7 +13655,7 @@
             }
           ],
           "updated_at": "2026-11-24T07:18:47Z",
-          "stage_entered_at": "2026-11-24T07:18:04Z",
+          "stage_entered_at": "2026-11-24T08:09:43Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13664,31 +13664,21 @@
           },
           "codex": {
             "job": {
-              "id": "78e0aa0f76124968990283777e73e264",
-              "phase": "presuite",
-              "started_at": "2026-11-24T07:26:05Z",
-              "command": "python3",
-              "heartbeat_at": "2026-11-24T07:29:02Z",
-              "plan_sha256": "98694a6ff430c209e5ecd737a474396a415498512fd702dd641b0607f6d509a2",
-              "worktree": "samantha-next-r10",
-              "model": "check.py --changed-since e18667d6",
+              "id": "31bdf8ddebc94b1a848f84a360db1742",
+              "phase": "fix",
+              "started_at": "2026-11-24T08:09:43Z",
+              "command": "run-record-r7-doview-fix.sh",
+              "heartbeat_at": "2026-11-24T08:09:43Z",
+              "plan_sha256": "01f22297541454d2413c930b3e2ea6a75951463db517e35f8429ff5aa78ebd99",
+              "worktree": "bcl120-r7-doview",
+              "model": "Grok Bot inline fix (Astra 6.2 and Terra 6.1 unavailable)",
               "cycle": 12,
-              "round": 7,
-              "pid": 12295,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T07:29:02Z",
-              "finished_phase_status": "passed"
+              "round": 7
             },
             "tool_fault_streak": 0,
-            "fix_status": "passed",
+            "fix_status": "running",
             "implementer_session": "grokbot-r7-doview",
-            "review_status": "passed",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
-          },
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T07:29:02Z"
           }
         },
         {
@@ -13788,17 +13778,21 @@
               "phase": "review",
               "started_at": "2026-11-24T08:09:32Z",
               "command": "run-record-r7-acu10-review.sh",
-              "heartbeat_at": "2026-11-24T08:09:32Z",
+              "heartbeat_at": "2026-11-24T08:09:33Z",
               "plan_sha256": "01f22297541454d2413c930b3e2ea6a75951463db517e35f8429ff5aa78ebd99",
               "worktree": "bcl120-r7-acu10",
               "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
               "cycle": 12,
-              "round": 7
+              "round": 7,
+              "pid": 98906,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T08:09:33Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "implementer_session": "grokbot-r7-acu10",
             "fix_status": "passed",
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           },
           "updated_at": "2026-11-24T08:09:21Z",
@@ -14453,7 +14447,7 @@
       "round": 6,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T08:09:32Z",
+    "last_written_at": "2026-11-24T08:09:44Z",
     "fix_order": {
       "ids": [
         "DO-4",
