@@ -244,29 +244,127 @@ def _status_counts(findings):
     return counts
 
 
+
+def _infer_history_cycles(history):
+    """Split stored round_history into cycles. A round number that does not increase starts a new cycle."""
+    cycles = []
+    current = []
+    previous = None
+    for item in history:
+        if not isinstance(item, dict):
+            continue
+        round_number = item.get("round")
+        if not isinstance(round_number, int):
+            continue
+        if previous is not None and round_number <= previous:
+            if current:
+                cycles.append(current)
+            current = []
+        current.append({
+            "round": round_number,
+            "fixed": item.get("fixed"),
+            "ended_at": item.get("ended_at"),
+        })
+        previous = round_number
+    if current:
+        cycles.append(current)
+    return cycles
+
+
+def _history_for_cycle(history, current_round, current_cycle):
+    """Chips for one cycle only, one row per round, plus the live round if it has not ended."""
+    cycles = _infer_history_cycles(history)
+    selected = cycles[-1] if cycles else []
+    if isinstance(current_cycle, int) and cycles:
+        # Prefer the trailing cycle; label it with the tracker's current cycle when it matches the tail.
+        selected = cycles[-1]
+    by_round = {}
+    for item in selected:
+        by_round[item["round"]] = {**item, "cycle": current_cycle, "live": False}
+    compact = [by_round[key] for key in sorted(by_round)]
+    if isinstance(current_round, int) and current_round not in by_round:
+        compact.append({"round": current_round, "fixed": None, "ended_at": None, "cycle": current_cycle, "live": True})
+    for item in compact:
+        item.setdefault("cycle", current_cycle)
+        item.setdefault("live", False)
+    return compact
+
+
+def _round_groups(groups, jobs, selected_round, current_round):
+    """Lanes that belong to the selected round. Past rounds are reconstructed from jobs when the live plan has moved on."""
+    if selected_round is None or selected_round == current_round:
+        return list(groups)
+    matching = [group for group in groups if _round_from_group_id(group.get("id")) == selected_round]
+    if matching:
+        return matching
+    seen = {group.get("id") for group in matching}
+    for job in jobs:
+        if job.get("round") != selected_round:
+            continue
+        group_id = job.get("group_id")
+        if not group_id or group_id in seen:
+            continue
+        matching.append({
+            "id": group_id,
+            "name": group_id,
+            "label": group_id,
+            "status": "historical",
+            "phase": job.get("phase"),
+            "finding_ids": [],
+            "reason": None,
+        })
+        seen.add(group_id)
+    matching.sort(key=lambda group: str(group.get("id") or ""))
+    return matching
+
 def _rank_needs(groups, findings_by_id, parked, jobs, selected_round):
     """Plugin ranks the cards. The UI must not re-sort."""
     cards = []
 
     def add(priority, kind, title, why, **extra):
-        cards.append({"priority": priority, "kind": kind, "title": title, "why": why, **extra})
+        fact = extra.pop("fact", why)
+        gap = extra.pop("gap", None)
+        guess = extra.pop("guess", None)
+        evidence = extra.pop("evidence", None)
+        action = extra.pop("action", None)
+        cards.append({
+            "priority": priority,
+            "kind": kind,
+            "title": title,
+            "why": why,
+            "fact": fact,
+            "gap": gap,
+            "guess": guess,
+            "evidence": evidence,
+            "action": action,
+            **extra,
+        })
 
     for group in groups:
         if group.get("status") == "blocked":
             reason = group.get("blocked_reason") or group.get("reason") or "This lane is blocked."
             add(0, "blocked", f"{group.get('id')} is blocked", reason,
-                group_id=group.get("id"), finding_ids=group.get("finding_ids") or [])
+                group_id=group.get("id"), finding_ids=group.get("finding_ids") or [],
+                fact=reason, gap="This lane cannot move until the block is cleared.",
+                evidence=reason, action={"label": "Open lane", "target": group.get("id")})
         elif group.get("status") not in {"deferred", "verified", "review"}:
             history = group.get("failure_history") or []
             real = [item for item in history if isinstance(item, dict) and not item.get("tool_fault")]
             if real:
                 add(1, "failed_attempts", f"{group.get('id')} has failed attempts",
                     real[-1].get("reason") or "This lane recorded a failed attempt.",
-                    group_id=group.get("id"), finding_ids=group.get("finding_ids") or [])
+                    group_id=group.get("id"), finding_ids=group.get("finding_ids") or [],
+                    fact=real[-1].get("reason") or "This lane recorded a failed attempt.",
+                    gap="The last failed attempt still needs a passing rerun.",
+                    evidence=real[-1].get("reason") or real[-1].get("attempt_id"),
+                    action={"label": "Open lane", "target": group.get("id")})
         elif isinstance(group.get("presuite"), dict) and group["presuite"].get("status") == "failed":
             add(1, "failed_attempts", f"{group.get('id')} presuite failed",
                 "Presuite exited unsuccessfully.",
-                group_id=group.get("id"), finding_ids=group.get("finding_ids") or [])
+                group_id=group.get("id"), finding_ids=group.get("finding_ids") or [],
+                fact="Presuite exited unsuccessfully.",
+                gap="This lane needs a passing pre-push suite.",
+                action={"label": "Open lane", "target": group.get("id")})
 
     if selected_round is not None:
         round_jobs = [job for job in jobs if job.get("round") == selected_round]
@@ -325,36 +423,35 @@ def build_round(project, pr=None, round=None, state_dir=None):
     groups_raw = plan.get("groups") if isinstance(plan.get("groups"), list) else []
     findings = data.get("findings") if isinstance(data.get("findings"), list) else []
     findings_by_id = {str(item.get("id")): item for item in findings if isinstance(item, dict) and item.get("id")}
-    groups = [_group_payload(group, findings_by_id) for group in groups_raw if isinstance(group, dict)]
-    all_jobs = [_annotate_job(job, groups) for job in _fold_jobs(state_dir)]
-    worktrees = {group.get("worktree") for group in groups if group.get("worktree")}
-    group_ids = {group.get("id") for group in groups if group.get("id")}
+    current_round = tracking.get("round") or plan.get("round")
+    if isinstance(current_round, str) and str(current_round).isdigit():
+        current_round = int(current_round)
+    current_cycle = tracking.get("cycle") or plan.get("cycle")
+    all_groups = [_group_payload(group, findings_by_id) for group in groups_raw if isinstance(group, dict)]
+    all_jobs = [_annotate_job(job, all_groups) for job in _fold_jobs(state_dir)]
+    worktrees = {group.get("worktree") for group in all_groups if group.get("worktree")}
+    group_ids = {group.get("id") for group in all_groups if group.get("id")}
     jobs = [
         job for job in all_jobs
         if job.get("group_id") in group_ids or (job.get("repo") and job.get("repo") in worktrees)
+           or (selected_round is not None and job.get("round") == selected_round)
     ]
     if selected_round is not None:
         visible_jobs = [job for job in jobs if job.get("round") == selected_round or job.get("round") is None and job.get("group_id") in {
-            group.get("id") for group in groups if _round_from_group_id(group.get("id")) == selected_round
+            group.get("id") for group in all_groups if _round_from_group_id(group.get("id")) == selected_round
         }]
     else:
         visible_jobs = jobs
+    groups = _round_groups(all_groups, visible_jobs, selected_round, current_round)
 
     history = tracking.get("round_history") if isinstance(tracking.get("round_history"), list) else []
-    compact_history = []
-    for item in history:
-        if not isinstance(item, dict):
-            continue
-        compact_history.append({
-            "round": item.get("round"),
-            "fixed": item.get("fixed"),
-            "ended_at": item.get("ended_at"),
-        })
+    compact_history = _history_for_cycle(history, current_round, current_cycle)
     previous = None
     if selected_round is not None:
         earlier = [item for item in compact_history if isinstance(item.get("round"), int) and item["round"] == selected_round - 1]
         if earlier:
             previous = earlier[-1].get("ended_at")
+    viewing_current = selected_round is None or selected_round == current_round
 
     verification = tracking.get("verification_run") if isinstance(tracking.get("verification_run"), dict) else {}
     checks = verification.get("checks") if isinstance(verification.get("checks"), dict) else {}
@@ -412,22 +509,24 @@ def build_round(project, pr=None, round=None, state_dir=None):
         "project_id": project,
         "tracker": path.name,
         "pr": {"label": pull.get("label"), "url": pull.get("url"), "number": found_pr},
-        "cycle": tracking.get("cycle") or plan.get("cycle"),
+        "cycle": current_cycle,
         "round": selected_round,
+        "current_round": current_round,
+        "viewing_current": viewing_current,
         "updated_at": tracking.get("last_written_at"),
         "round_started_at": previous,
         "round_history": compact_history,
         "gate": {
-            "run_id": verification.get("id"),
-            "status": verification.get("status"),
-            "cycle": verification.get("cycle"),
-            "revision": verification.get("revision"),
-            "fixed": fixed,
-            "pending": pending,
-            "total": len(checks),
-            "threshold": threshold,
+            "run_id": verification.get("id") if viewing_current else None,
+            "status": verification.get("status") if viewing_current else None,
+            "cycle": verification.get("cycle") if viewing_current else current_cycle,
+            "revision": verification.get("revision") if viewing_current else None,
+            "fixed": fixed if viewing_current else next((item.get("fixed") for item in compact_history if item.get("round") == selected_round), 0),
+            "pending": pending if viewing_current else 0,
+            "total": len(checks) if viewing_current else 0,
+            "threshold": threshold if viewing_current else None,
         },
-        "status_counts": _status_counts(findings),
+        "status_counts": _status_counts(findings) if viewing_current else {},
         "parked": parked_out,
         "needs_you": needs,
         "needs_you_more": more,

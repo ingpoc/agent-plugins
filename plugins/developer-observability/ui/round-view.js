@@ -99,6 +99,9 @@ export function mountRoundView(ctx) {
   if (desk) desk.hidden = true;
 
   let scale = 1;
+  let kindFilter = 'all';
+  let currentProject = null;
+  let currentData = null;
   try {
     const stored = Number.parseFloat(localStorage.getItem('devobs-text-scale') || '');
     if (TEXT_SCALES.includes(stored)) scale = stored;
@@ -108,47 +111,118 @@ export function mountRoundView(ctx) {
     }
   } catch {}
 
+  function ensureChrome() {
+    if (document.getElementById('round-chrome')) return;
+    const chrome = el('div', {id: 'round-chrome'});
+    const err = el('p', {id: 'round-error', class: 'banner', hidden: true, role: 'alert'});
+    const body = el('div', {id: 'round-body'});
+    const host = el('div', {id: 'round-toolbar-host'});
+    const toolbar = document.querySelector('.toolbar');
+    if (toolbar) {
+      toolbar.hidden = false;
+      toolbar.classList.add('embedded');
+      host.append(toolbar);
+      for (const node of toolbar.querySelectorAll('label, .seg, [id^="filter-"], #text-smaller, #text-default, #text-larger, #ts-val, #status, #decide, #evaluate, #more')) {
+        const id = node.id || '';
+        if (['project', 'version', 'refresh'].includes(id)) continue;
+        if (node.matches('label') && node.querySelector('#project, #version, #refresh')) continue;
+        node.hidden = true;
+      }
+    }
+    chrome.append(host);
+    root.replaceChildren(chrome, err, body);
+  }
+
+  function showError(message) {
+    ensureChrome();
+    const err = document.getElementById('round-error');
+    err.hidden = !message;
+    err.textContent = message || '';
+    const legacy = $('error');
+    if (legacy) legacy.textContent = message || '';
+  }
+
+  function emptyState(title, detail) {
+    ensureChrome();
+    const body = document.getElementById('round-body');
+    body.replaceChildren(
+      el('section', {class: 'empty'}, [
+        el('h2', {text: title}),
+        el('p', {class: 'muted', text: detail}),
+      ]),
+    );
+  }
+
   async function load(project, pr, round) {
-    root.replaceChildren(el('p', {class: 'muted', text: 'Loading the round view…'}));
+    ensureChrome();
+    currentProject = project;
+    const body = document.getElementById('round-body');
+    showError('');
+    body.replaceChildren(el('p', {class: 'muted', text: 'Loading the round view…'}));
     try {
       const data = await call('observability_round', {
         project,
         ...(pr ? {pr} : {}),
         ...(round ? {round: Number(round)} : {}),
       });
+      currentData = data;
       render(data, project);
     } catch (error) {
-      root.replaceChildren(el('p', {class: 'muted', text: error.message || 'Round view unavailable'}));
+      const message = error.message || 'Round view unavailable';
+      currentData = null;
+      const missing = String(message).startsWith('tracker_unavailable');
+      showError(missing ? '' : message);
+      renderChrome(null, project);
+      emptyState(
+        missing ? 'No change-list round' : 'Could not load this round',
+        missing
+          ? 'This project has no change-list tracker. Choose another project, or go back to the last one with Refresh after you pick it.'
+          : message,
+      );
     }
   }
 
-  function render(data, project) {
-    const prLabel = data.pr?.label || (data.pr?.number ? `PR #${data.pr.number}` : 'PR');
-    const updated = data.updated_at;
-    const started = data.round_started_at;
-    const counts = data.status_counts || {};
-    const verified = counts.verified_fixed || 0;
-    const gate = data.gate || {};
-    const threshold = gate.threshold;
-    const filterCount = countActiveFilters();
-
+  function renderChrome(data, project) {
+    ensureChrome();
+    const chrome = document.getElementById('round-chrome');
+    const host = document.getElementById('round-toolbar-host');
+    const prLabel = data?.pr?.label || (data?.pr?.number ? `PR #${data.pr.number}` : 'Change list');
+    const updated = data?.updated_at;
+    const started = data?.round_started_at;
+    const stale = isStale(updated);
     const scaleOut = el('output', {id: 'ts-val', 'aria-live': 'polite', text: `${Math.round(currentScale() * 100)}%`});
     applyScale(currentScale() || scale, scaleOut);
 
-    const sheet = el('div', {class: 'sheet', id: 'round-filter-sheet'});
-    const toolbar = document.querySelector('.toolbar');
-    if (toolbar && !sheet.contains(toolbar)) {
-      toolbar.hidden = false;
-      toolbar.classList.add('embedded');
-      sheet.append(toolbar);
-    }
+    const filterCount = (kindFilter && kindFilter !== 'all') ? 1 : 0;
+    const pop = el('details', {class: 'pop', id: 'round-filter-pop'}, [
+      el('summary', {'aria-label': `Filter, ${filterCount} applied`}, [
+        'Filter ',
+        el('span', {class: 'n', text: String(filterCount)}),
+      ]),
+      el('div', {class: 'sheet slim'}, [
+        el('label', {}, [
+          'Kind ',
+          el('select', {id: 'round-kind', 'aria-label': 'Kind', onchange: (event) => {
+            kindFilter = event.target.value || 'all';
+            if (currentData) render(currentData, project);
+          }}, [
+            ...[['all', 'All'], ['failure', 'Failure'], ['blocked', 'Blocked'], ['failed_attempts', 'Failed attempts']].map(([value, label]) => {
+              const option = el('option', {text: label});
+              option.value = value;
+              if (value === kindFilter) option.selected = true;
+              return option;
+            }),
+          ]),
+        ]),
+      ]),
+    ]);
 
     const header = el('header', {class: 'top'}, [
       el('div', {}, [
-        el('p', {class: 'eyebrow', text: `Developer observability · ${project}`}),
+        el('p', {class: 'eyebrow', text: `Developer observability · ${project || 'No project'}`}),
         el('h1', {}, [
-          `${prLabel} · Round ${data.round ?? '—'} `,
-          el('span', {class: 'muted', text: data.cycle != null ? `· Cycle ${data.cycle}` : ''}),
+          data ? `${prLabel} · Round ${data.round ?? '—'} ` : 'No change-list round ',
+          el('span', {class: 'muted', text: data?.cycle != null ? `· Cycle ${data.cycle}` : ''}),
         ]),
         el('p', {class: 'fresh'}, [
           updated ? el('span', {}, [
@@ -156,11 +230,16 @@ export function mountRoundView(ctx) {
             el('time', {datetime: updated, text: istTime(updated)}),
             ' · ',
             el('span', {text: relative(updated)}),
-          ]) : null,
+          ]) : el('span', {class: 'muted', text: 'No tracker update time'}),
           started ? el('span', {}, [
             ' · Round started ',
             el('time', {datetime: started, text: istTime(started)}),
-          ]) : el('span', {class: 'muted', text: ' · Round start not stored'}),
+          ]) : (data ? el('span', {class: 'muted', text: ' · Round start not stored'}) : null),
+          el('span', {}, [
+            ' · Snapshot ',
+            updated ? el('time', {datetime: updated, text: istTime(updated, true)}) : el('span', {text: 'not stored'}),
+            stale ? el('span', {class: 'tag stale', text: 'Stale'}) : null,
+          ]),
         ]),
       ]),
       el('div', {class: 'controls'}, [
@@ -175,90 +254,114 @@ export function mountRoundView(ctx) {
             applyScale(TEXT_SCALES[i], scaleOut);
           }}),
         ]),
-        el('details', {class: 'pop'}, [
-          el('summary', {'aria-label': `Filter, ${filterCount} applied`}, [
-            'Filter ',
-            el('span', {class: 'n', text: String(filterCount)}),
-          ]),
-          sheet,
-        ]),
+        pop,
+        host,
       ]),
-      el('nav', {class: 'rounds', 'aria-label': 'Rounds'}, (data.round_history || []).map((item) => {
-        const current = item.round === data.round;
-        return el('button', {
-          type: 'button',
-          'aria-current': current ? 'page' : null,
-          text: `R${item.round} · ${item.fixed ?? 0} fixed`,
-          onclick: () => {
-            const roundInput = filters.round || document.getElementById('filter-round');
-            if (roundInput) roundInput.value = item.round;
-            load(project, data.pr?.number, item.round);
-          },
-        });
-      }).concat(data.round != null && !(data.round_history || []).some((item) => item.round === data.round)
-        ? [el('button', {type: 'button', 'aria-current': 'page', text: `R${data.round} · live`})]
-        : [])),
     ]);
 
+    const chips = el('nav', {class: 'rounds', 'aria-label': 'Rounds'}, (data?.round_history || []).map((item) => {
+      const current = item.round === data.round && (item.cycle == null || item.cycle === data.cycle);
+      const fixed = item.live ? 'live' : `${item.fixed ?? 0} fixed`;
+      return el('button', {
+        type: 'button',
+        'aria-current': current ? 'page' : null,
+        text: `R${item.round} · ${fixed}`,
+        onclick: () => load(project, data.pr?.number, item.round),
+      });
+    }));
+
+    chrome.replaceChildren(header, chips);
+  }
+
+  function render(data, project) {
+    renderChrome(data, project);
+    const body = document.getElementById('round-body');
+    const counts = data.status_counts || {};
+    const verified = counts.verified_fixed || 0;
+    const gate = data.gate || {};
+    const threshold = gate.threshold;
+    const viewingCurrent = data.viewing_current !== false;
+
+    const needsCards = (data.needs_you || []).filter((card) => kindAllows(card.kind));
     const needs = el('section', {'aria-labelledby': 'needs-h'}, [
       el('h2', {id: 'needs-h'}, [
         'Needs you ',
-        el('small', {text: data.needs_you?.length ? `${data.needs_you.length} ranked · evidence first` : 'Nothing waiting'}),
+        el('small', {text: needsCards.length ? `${needsCards.length} ranked · evidence first` : 'Nothing waiting'}),
       ]),
-      el('div', {class: 'needs'}, (data.needs_you || []).map((card) => el('article', {class: 'need'}, [
-        el('p', {class: 'kicker', text: `${card.rank}. ${labelKind(card.kind)}`}, card.group_id ? [el('span', {class: 'mono', text: ` · ${card.group_id}`})] : []),
-        el('h3', {text: card.title || ''}),
-        el('p', {text: card.why || ''}),
-        card.finding_ids?.length ? el('p', {class: 'muted mono', text: card.finding_ids.join(', ')}) : null,
-      ]))),
-      data.needs_you_more ? el('p', {class: 'muted', text: `${data.needs_you_more} more · FYI`}) : null,
+      el('div', {class: 'needs'}, needsCards.map((card) => {
+        const action = card.action || (card.group_id ? {label: 'Open lane', target: card.group_id} : null);
+        return el('article', {class: 'card need'}, [
+          el('p', {class: 'kicker', text: `${card.rank}. ${labelKind(card.kind)}`}, card.group_id ? [el('span', {class: 'mono', text: ` · ${card.group_id}`})] : []),
+          el('h3', {text: card.title || ''}),
+          card.fact ? el('p', {class: 'fact'}, [el('b', {text: 'Fact. '}), card.fact]) : null,
+          card.gap ? el('p', {class: 'gap'}, [el('b', {text: 'Gap. '}), card.gap]) : null,
+          card.guess ? el('p', {class: 'guess'}, [el('b', {text: 'Guess. '}), card.guess]) : null,
+          !card.fact && card.why ? el('p', {class: 'fact'}, [el('b', {text: 'Fact. '}), card.why]) : null,
+          card.evidence ? el('p', {class: 'muted ev-line', text: `Evidence: ${card.evidence}`}) : null,
+          action ? el('button', {type: 'button', class: 'act', text: action.label || 'Open lane', onclick: () => openLane(action.target || card.group_id)}) : null,
+        ]);
+      })),
+      data.needs_you_more ? el('details', {class: 'more'}, [
+        el('summary', {text: `${data.needs_you_more} more · FYI`}),
+        el('p', {class: 'muted', text: 'Lower-priority notes are not shown as cards.'}),
+      ]) : null,
     ]);
 
-    const ringLabel = threshold == null
-      ? `${gate.fixed ?? 0} verified · threshold not stored`
-      : `${gate.fixed ?? 0} / ${threshold} to the merge gate`;
+    const ringLabel = !viewingCurrent
+      ? `${gate.fixed ?? 0} verified in this finished round`
+      : (threshold == null
+        ? `${verified} verified fixed`
+        : `${gate.fixed ?? 0} / ${threshold} to the merge gate`);
+    const summaryBits = viewingCurrent ? [
+      `${verified} verified fixed`,
+      counts.in_progress ? ` · ${counts.in_progress} in progress` : '',
+      counts.untested ? ` · ${counts.untested} untested` : '',
+      counts.blocked ? ` · ${counts.blocked} blocked` : '',
+      counts.deferred ? ` · ${counts.deferred} deferred` : '',
+    ].join('') : ringLabel;
     const summary = el('section', {class: 'summary', 'aria-labelledby': 'sum-h'}, [
       el('h2', {id: 'sum-h', class: 'sr', text: 'Round summary'}),
-      el('p', {}, [
-        `${verified} verified fixed`,
-        counts.in_progress ? ` · ${counts.in_progress} in progress` : '',
-        counts.untested ? ` · ${counts.untested} untested` : '',
-        counts.blocked ? ` · ${counts.blocked} blocked` : '',
-        counts.deferred ? ` · ${counts.deferred} deferred` : '',
+      el('div', {class: 'gate'}, [
+        gateRing(viewingCurrent && threshold != null ? (gate.fixed || 0) / Math.max(threshold, 1) : (verified ? 1 : 0), ringLabel),
+        el('p', {}, [summaryBits]),
       ]),
-      el('p', {class: 'muted', text: ringLabel + (gate.run_id ? ` · ${gate.run_id}` : '')}),
     ]);
 
-    const currentGroups = (data.groups || []).filter((group) => {
-      if (data.round == null) return true;
-      const match = String(group.id || '').match(/^R(\d+)-/i);
-      if (!match) return group.status === 'deferred' || group.id === 'DEFER';
-      return Number(match[1]) === data.round;
-    });
-    const otherGroups = (data.groups || []).filter((group) => !currentGroups.includes(group));
+    const liveGroups = data.groups || [];
+    const selected = data.round;
+    const currentGroups = liveGroups.filter((group) => groupBelongs(group, selected) && !isParkedGroup(group) && kindAllows(group.status));
+    const parkedGroups = liveGroups.filter((group) => isParkedGroup(group) || (selected != null && !groupBelongs(group, selected) && data.viewing_current));
+    const jobsFor = (id) => (data.jobs || []).filter((job) => job.group_id === id && (selected == null || job.round == null || job.round === selected));
 
-    const jobsFor = (id) => (data.jobs || []).filter((job) => job.group_id === id);
     const lanes = el('section', {'aria-labelledby': 'lanes-h'}, [
       el('h2', {id: 'lanes-h', text: 'Lanes'}),
-      el('div', {class: 'lanes'}, currentGroups.concat(otherGroups).map((group) => {
+      el('div', {class: 'lhead', 'aria-hidden': 'true'}, ['Lane', 'Phase', 'Why', 'Min', 'Tokens', 'Model', ''].map((label) => el('span', {text: label}))),
+      el('div', {class: 'lanes'}, currentGroups.map((group) => {
         const jobs = jobsFor(group.id);
-        return el('details', {class: `lane ${statusClass(group.status)}`}, [
+        const tokens = jobs.reduce((sum, job) => sum + (typeof job.tokens?.total === 'number' ? job.tokens.total : 0), 0);
+        const minutes = jobs.reduce((sum, job) => sum + (typeof job.duration_ms === 'number' ? job.duration_ms : 0), 0);
+        const model = jobs.map((job) => job.model || job.agent).find(Boolean) || '—';
+        const why = group.blocked_reason || group.reason || '';
+        const node = el('details', {class: `lane ${statusClass(group.status)}`, id: `lane-${group.id}`}, [
           el('summary', {}, [
             el('span', {class: 'id mono', text: group.id}),
             el('span', {class: 'name', text: shortName(group)}),
-            el('span', {class: `tag ${statusClass(group.status)}`, text: `${group.status || '—'}${group.phase ? ` · ${group.phase}` : ''}`}),
-            jobs.length ? el('span', {class: 'muted', text: `${jobs.length} job${jobs.length === 1 ? '' : 's'}`}) : el('span', {class: 'muted', text: 'no job'}),
+            el('span', {class: `tag ${statusClass(group.status)}`, text: phaseTrack(group)}),
+            el('span', {class: 'why', text: why || '—'}),
+            el('span', {class: 'muted', text: durationLabel(minutes) || '—'}),
+            el('span', {class: 'muted', text: tokens ? formatTokens(tokens) : '—'}),
+            el('span', {class: 'model', text: model}),
           ]),
-          el('div', {class: 'lane-body'}, [
-            group.reason ? el('p', {text: group.reason}) : null,
-            group.blocked_reason ? el('p', {text: `Blocked: ${group.blocked_reason}`}) : null,
-            group.parked_to != null ? el('p', {class: 'muted', text: `Parked to round ${group.parked_to}`}) : null,
+          el('div', {class: 'lane-body lbody'}, [
+            el('h3', {text: 'What we know'}),
+            why ? el('p', {text: why}) : el('p', {class: 'muted', text: 'No written reason for this lane.'}),
             group.findings?.length ? el('ul', {}, group.findings.map((finding) => el('li', {}, [
               el('strong', {class: 'mono', text: finding.id}),
               ` ${finding.title || ''} `,
               el('span', {class: 'muted', text: finding.status || ''}),
             ]))) : null,
-            jobs.length ? el('table', {class: 'jobs'}, [
+            el('h3', {text: 'Jobs'}),
+            jobs.length ? el('div', {class: 'table-wrap'}, [el('table', {class: 'jobs'}, [
               el('thead', {}, [el('tr', {}, ['Phase', 'Agent', 'Started', 'Duration', 'Tokens', 'Exit'].map((h) => el('th', {text: h})))]),
               el('tbody', {}, jobs.map((job) => el('tr', {}, [
                 el('td', {text: job.phase || ''}),
@@ -268,13 +371,20 @@ export function mountRoundView(ctx) {
                 el('td', {text: tokenCell(job)}),
                 el('td', {text: job.exit_code == null ? (job.event === 'incomplete' ? 'open' : '—') : String(job.exit_code)}),
               ]))),
-            ]) : el('p', {class: 'muted', text: 'No recorded job for this lane.'}),
+            ])]) : el('p', {class: 'muted', text: 'No recorded job for this lane.'}),
+            el('details', {class: 'ev'}, [
+              el('summary', {text: 'Raw evidence'}),
+              el('pre', {class: 'mono', text: JSON.stringify({id: group.id, status: group.status, phase: group.phase, parked_to: group.parked_to, findings: group.findings || [], jobs}, null, 2)}),
+            ]),
           ]),
         ]);
+        return node;
       })),
+      parkedGroups.length ? el('p', {class: 'parked', text: parkedLine(parkedGroups)}) : null,
     ]);
 
     const tt = data.time_tokens || {};
+    const unfinished = tt.incomplete || 0;
     const bars = el('section', {'aria-labelledby': 'bars-h'}, [
       el('h2', {id: 'bars-h', text: 'Where time and tokens went'}),
       el('p', {class: 'muted', text: `${tt.coverage || '0/0'} jobs have token coverage · ${formatTokens(tt.tokens || 0)} tokens · ${durationLabel(tt.duration_ms) || 'duration unknown'}`}),
@@ -288,17 +398,81 @@ export function mountRoundView(ctx) {
         value: lane.tokens || 0,
         unknown: lane.covered === 0,
       })), (tt.tokens || 0) || 1, formatTokens),
-      tt.incomplete ? el('p', {class: 'muted', text: `${tt.incomplete} unfinished job(s). Unrecorded session time is not in this bar.`}) : el('p', {class: 'muted', text: 'Unrecorded session time is not in this bar.'}),
+      el('p', {class: 'muted', text: unfinished
+        ? `${unfinished} job${unfinished === 1 ? '' : 's'} never recorded a finish. Unrecorded session time is not in this bar.`
+        : 'Unrecorded session time is not in this bar.'}),
     ]);
 
-    root.replaceChildren(header, needs, summary, lanes, bars);
-    $('error').textContent = '';
+    body.replaceChildren(needs, summary, lanes, bars);
     const health = $('health');
     if (health) {
-      health.textContent = updated
-        ? `Tracker updated ${istTime(updated)} (${relative(updated)}). Gate ${ringLabel}.`
+      health.textContent = data.updated_at
+        ? `Tracker updated ${istTime(data.updated_at)} (${relative(data.updated_at)}). ${ringLabel}.`
         : 'Round view ready.';
     }
+  }
+
+  function openLane(id) {
+    if (!id) return;
+    const node = document.getElementById(`lane-${id}`);
+    if (node) {
+      node.open = true;
+      node.scrollIntoView({block: 'start', behavior: 'smooth'});
+    }
+  }
+
+  function groupBelongs(group, selected) {
+    if (selected == null) return true;
+    const match = String(group.id || '').match(/^R(\d+)-/i);
+    if (!match) return false;
+    return Number(match[1]) === selected;
+  }
+
+  function isParkedGroup(group) {
+    const status = String(group.status || '').toLowerCase();
+    return status === 'deferred' || status === 'parked' || group.id === 'DEFER';
+  }
+
+  function parkedLine(groups) {
+    const names = groups.map((group) => group.id).filter(Boolean);
+    if (names.length === 1) return `Parked or deferred: ${names[0]}`;
+    return `Parked or deferred: ${names.length} groups (${names.slice(0, 4).join(', ')}${names.length > 4 ? '…' : ''})`;
+  }
+
+  function phaseTrack(group) {
+    const status = group.status || '—';
+    const phase = group.phase ? ` · ${group.phase}` : '';
+    return status + phase;
+  }
+
+  function kindAllows(kind) {
+    if (!kindFilter || kindFilter === 'all') return true;
+    if (kindFilter === 'failure' || kindFilter === 'failed_attempts') {
+      return ['failed', 'failed_attempts', 'blocked', 'error'].includes(String(kind || '').toLowerCase());
+    }
+    return String(kind || '').toLowerCase() === kindFilter;
+  }
+
+  function isStale(iso) {
+    if (!iso) return true;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return true;
+    return (Date.now() - date.getTime()) > 36 * 3600 * 1000;
+  }
+
+  function gateRing(fraction, label) {
+    const value = Math.max(0, Math.min(1, Number(fraction) || 0));
+    const c = 2 * Math.PI * 16;
+    const dash = `${(value * c).toFixed(2)} ${c.toFixed(2)}`;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 40 40');
+    svg.setAttribute('width', '40');
+    svg.setAttribute('height', '40');
+    svg.setAttribute('class', 'gate-ring');
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', label);
+    svg.innerHTML = `<circle cx="20" cy="20" r="16" fill="none" stroke="currentColor" stroke-width="3" opacity="0.2"/><circle cx="20" cy="20" r="16" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="${dash}" stroke-linecap="round" transform="rotate(-90 20 20)"/>`;
+    return svg;
   }
 
   function barRow(label, parts, total, format) {
@@ -341,24 +515,21 @@ export function mountRoundView(ctx) {
     })[kind] || kind || 'Note';
   }
 
-  function countActiveFilters() {
-    let count = 0;
-    for (const [id, node] of Object.entries(filters || {})) {
-      if (!node) continue;
-      const value = node.value;
-      if (id === 'kind' || id === 'change_class') {
-        if (value && value !== 'all') count += 1;
-      } else if (value) count += 1;
-    }
-    const version = document.getElementById('version');
-    if (version && version.value) count += 1;
-    const status = document.getElementById('status');
-    if (status && status.value && status.value !== 'all') count += 1;
-    return count;
+  if (!window.__roundFilterEsc) {
+    window.__roundFilterEsc = true;
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      const open = document.getElementById('round-filter-pop');
+      if (open && open.open) {
+        open.open = false;
+        event.preventDefault();
+      }
+    });
   }
 
   const projectSelect = $('project');
   const boot = async () => {
+    ensureChrome();
     const listing = await call('observability_projects', {});
     const projects = listing.projects || [];
     projectSelect.replaceChildren(text('option', 'Choose a project'));
@@ -373,7 +544,8 @@ export function mountRoundView(ctx) {
       projectSelect.value = preferred.project_id;
       await load(preferred.project_id);
     } else {
-      root.replaceChildren(el('p', {class: 'muted', text: 'No project is available yet.'}));
+      renderChrome(null, '');
+      emptyState('No project is available yet.', 'Choose a project when one appears.');
     }
   };
 

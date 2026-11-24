@@ -131,6 +131,48 @@ class RoundViewTests(unittest.TestCase):
         build_round("demo", pr=42, state_dir=str(self.root))
         self.assertEqual(path.read_text(), before)
         self.assertEqual(path.stat().st_mtime, mtime)
+    def test_round_history_stays_in_the_current_cycle(self):
+        self.tracker["tracking"]["round_history"] = [
+            {"round": 6, "fixed": 32, "ended_at": "2026-11-20T12:05:55Z"},
+            {"round": 7, "fixed": 32, "ended_at": "2026-11-20T13:00:00Z"},
+            {"round": 1, "fixed": 4, "ended_at": "2026-11-22T13:42:25Z"},
+            {"round": 6, "fixed": 14, "ended_at": "2026-11-24T07:07:37Z"},
+        ]
+        _write_tracker(self.root, "demo", "42", self.tracker)
+        result = build_round("demo", pr="42", state_dir=str(self.root))
+        rounds = [(item["round"], item.get("fixed"), item.get("cycle")) for item in result["round_history"]]
+        self.assertEqual(rounds, [(1, 4, 3), (6, 14, 3), (7, None, 3)])
+        self.assertTrue(result["round_history"][-1]["live"])
+        self.assertEqual(result["round_started_at"], "2026-11-24T07:07:37Z")
+
+    def test_selecting_a_past_round_returns_that_round_jobs(self):
+        _write_events(self.root, [
+            {"event": "start", "job_id": "j6", "phase": "presuite", "agent": "run-presuite-r6.sh",
+             "group_id": "R6-121", "round": 6, "started_at": "2026-11-24T06:00:00Z", "at": "2026-11-24T06:00:00Z"},
+            {"event": "finish", "job_id": "j6", "phase": "presuite", "agent": "run-presuite-r6.sh",
+             "group_id": "R6-121", "round": 6, "exit_code": 0,
+             "tokens": {"input": 100, "output": 20, "total": 120}, "tokens_source": "stamp",
+             "finished_at": "2026-11-24T06:10:00Z", "at": "2026-11-24T06:10:00Z"},
+        ])
+        result = build_round("demo", pr="42", round=6, state_dir=str(self.root))
+        self.assertEqual(result["round"], 6)
+        self.assertFalse(result["viewing_current"])
+        self.assertEqual({group["id"] for group in result["groups"]}, {"R6-121"})
+        self.assertEqual(len(result["jobs"]), 1)
+        self.assertEqual(result["jobs"][0]["group_id"], "R6-121")
+        self.assertEqual(result["time_tokens"]["tokens"], 120)
+        self.assertIsNone(result["gate"]["run_id"])
+        self.assertEqual(result["gate"]["fixed"], 14)
+
+    def test_needs_you_cards_include_fact_gap_and_action(self):
+        result = build_round("demo", pr="42", state_dir=str(self.root))
+        card = result["needs_you"][0]
+        self.assertEqual(card["kind"], "blocked")
+        self.assertTrue(card["fact"])
+        self.assertTrue(card["gap"])
+        self.assertEqual(card["action"]["target"], "R4-171")
+        self.assertEqual(card["action"]["label"], "Open lane")
+
 
 
 if __name__ == "__main__":
