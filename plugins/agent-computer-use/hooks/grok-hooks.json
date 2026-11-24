@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/plugins/agent-computer-use/bin/acu-grok-hook\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/plugins/agent-computer-use/bin/acu-grok-hook\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

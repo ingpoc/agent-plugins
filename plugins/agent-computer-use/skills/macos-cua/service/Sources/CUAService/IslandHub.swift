@@ -505,7 +505,7 @@ final class IslandHub {
         changed()
     }
 
-    /// Agent schema: {source, id, name, parent_id, kind: running|needs_you|done|error|approval|clear,
+    /// Agent schema: {source, id, name, parent_id, kind: running|needs_you|done|stopped|error|approval|clear,
     /// title, detail, app, destructive, ttl_s}.
     private func publishAgent(_ j: [String: Any], source: AgentSource, now: Date) -> Response {
         let rawId = (j["id"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "default"
@@ -591,7 +591,7 @@ final class IslandHub {
             onPeek?(IslandPeekItem(id: id, source: source.title, app: app, symbol: String((j["symbol"] as? String ?? "").prefix(40)),
                                    title: title, body: detail, at: now))
             return .ok(["id": rawId])
-        case "running", "needs_you", "done", "error":
+        case "running", "needs_you", "done", "stopped", "error":
             guard !title.isEmpty else { return .err(400, "title required") }
             let previousStatus = entries[id]?.agent.status
             let rawParent = (j["parent_id"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -607,7 +607,7 @@ final class IslandHub {
             let cap = store.cap(source)
             let needs = kind == "needs_you" && cap.rank >= AttentionCap.attention.rank
             // Roster spec: done rows fade after 3 min, error rows stay 30 min (or until cleared).
-            let defaultTTL: TimeInterval = kind == "done" ? 180 : kind == "error" ? 1800
+            let defaultTTL: TimeInterval = kind == "done" ? 180 : (kind == "error" || kind == "stopped") ? 1800
                 : source == .agentRoster ? 3600 : 600
             // Plugin rows may hold for as little as 1 s: the circle drops 2 s after the last call.
             let isPlugin = plugin != nil
@@ -622,11 +622,11 @@ final class IslandHub {
             // technical `error` goes to the hover tooltip.
             var shown = agent
             shown.initiator = IslandInitiator.fromPost(j["initiator"]) ?? entries[id]?.agent.initiator
-            if kind == "error", let line = (j["detail"] as? String)?.components(separatedBy: .newlines).first?
+            if kind == "error" || kind == "stopped", let line = (j["detail"] as? String)?.components(separatedBy: .newlines).first?
                 .trimmingCharacters(in: .whitespaces), !line.isEmpty { shown.local_detail = String(line.prefix(60)) }
             if kind == "running" || kind == "done", let meta = (j["meta"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
                !meta.isEmpty { shown.local_detail = String(meta.prefix(60)) }
-            if kind == "error", let tech = (j["error"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+            if kind == "error" || kind == "stopped", let tech = (j["error"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
                !tech.isEmpty { shown.tooltip = String(tech.prefix(200)) }
             if let p = plugin {
                 shown.plugin = p
