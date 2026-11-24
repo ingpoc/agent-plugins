@@ -11480,9 +11480,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T04:19:44Z",
-      "now": "2026-11-24T04:19:44Z — Plan Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T04:19:49Z",
+      "now": "2026-11-24T04:19:49Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13200,7 +13200,8 @@
               "worktree": "bcl120-r5-177",
               "model": "gpt-6.1-terra low (plan review)",
               "cycle": 12,
-              "round": 5
+              "round": 5,
+              "pid": 24302
             }
           },
           "files": [
@@ -13340,7 +13341,21 @@
               "at": "2026-11-22T16:55:41Z"
             }
           ],
-          "codex": {},
+          "codex": {
+            "fix_status": "running",
+            "job": {
+              "id": "0960c76db8af4fc097c1cb9fd2e315f9",
+              "phase": "fix",
+              "started_at": "2026-11-24T04:19:49Z",
+              "command": "run-luna-106-fix3-job.sh",
+              "heartbeat_at": "2026-11-24T04:19:49Z",
+              "plan_sha256": "26ef7de6301d1e3e2eae3ac62e2396bf4986201abc06563a79d9a14062ae5c43",
+              "worktree": "bcl120-r5-106",
+              "model": "gpt-6-luna fast medium (Codex CLI)",
+              "cycle": 12,
+              "round": 5
+            }
+          },
           "phase": "fix",
           "updated_at": "2026-11-24T04:18:49Z",
           "stage_entered_at": "2026-11-24T04:16:26Z",
@@ -13755,7 +13770,7 @@
       "round": 4,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T04:19:44Z"
+    "last_written_at": "2026-11-24T04:19:50Z"
   },
   "findings": [
     {
