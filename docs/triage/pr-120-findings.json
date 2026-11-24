@@ -11764,9 +11764,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T08:08:41Z",
-      "now": "2026-11-24T08:08:41Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T08:09:10Z",
+      "now": "2026-11-24T08:09:10Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13699,8 +13699,8 @@
             "ACU-20"
           ],
           "worktree": "bcl120-r7-acu20",
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "files": [
             "plugins/agent-computer-use/bin/island_activity.py",
             "plugins/agent-computer-use/bin/island_hook.py",
@@ -13710,7 +13710,7 @@
             "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandCodexThreadsTests.swift"
           ],
           "reason": "Product first: the island already shows Codex CLI runs and must also show Grok Bot's own subagents as running, done, or stopped with a reason, from a supported credential-free record. Do not read credentials, dual-drive Comet, or touch port 8765, pid 1338, or ~/.cache/macos-cua/samantha-activity.jsonl. About 90k tokens.",
-          "stage_entered_at": "2026-11-24T08:08:41Z",
+          "stage_entered_at": "2026-11-24T08:08:44Z",
           "failure_history": [],
           "plan_review_history": [
             {
@@ -13724,20 +13724,22 @@
           ],
           "codex": {
             "job": {
-              "id": "1c8bf71fdb4a4cd7b067b091eec4f106",
-              "phase": "fix",
-              "started_at": "2026-11-24T08:08:41Z",
-              "command": "run-record-r7-acu20-fix.sh",
-              "heartbeat_at": "2026-11-24T08:08:41Z",
+              "id": "622d7fcb44f649b3aba7100739951c84",
+              "phase": "review",
+              "started_at": "2026-11-24T08:09:10Z",
+              "command": "run-record-r7-acu20-review.sh",
+              "heartbeat_at": "2026-11-24T08:09:10Z",
               "plan_sha256": "521de15db424a2afd3b57e9fa0c255601fb1dc67bb79fae9e55cbdb6fe0c71fd",
               "worktree": "bcl120-r7-acu20",
-              "model": "Grok Bot inline fix (Astra 6.2 and Terra 6.1 unavailable)",
+              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
               "cycle": 12,
               "round": 7
             },
             "tool_fault_streak": 0,
             "implementer_session": "grokbot-r7-acu20",
-            "fix_status": "running"
+            "fix_status": "passed",
+            "review_status": "running",
+            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           },
           "updated_at": "2026-11-24T08:08:32Z",
           "verify": {
@@ -14448,7 +14450,7 @@
       "round": 6,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T08:08:41Z",
+    "last_written_at": "2026-11-24T08:09:10Z",
     "fix_order": {
       "ids": [
         "DO-4",
