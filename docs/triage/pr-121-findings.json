@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T10:17:01Z",
-      "now": "2026-11-24T10:17:01Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-24T10:25:45Z",
+      "now": "2026-11-24T10:25:45Z — Install in progress"
     },
     "rollover": {
       "source_pr": 120,
@@ -12185,7 +12185,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T10:17:01Z",
+    "last_written_at": "2026-11-24T10:25:45Z",
     "fix_order": {
       "ids": [
         "DO-11",
@@ -12448,7 +12448,8 @@
       "collect",
       "present",
       "plan_fix",
-      "review"
+      "review",
+      "install"
     ],
     "plan": {
       "cycle": 13,
@@ -12514,9 +12515,9 @@
           "finding_ids": [
             "DO-5"
           ],
-          "worktree": "bcl121-r1-do5",
-          "status": "review",
-          "phase": "review",
+          "worktree": "samantha-next-r11",
+          "status": "installing",
+          "phase": "install",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
             "plugins/batched-change-list/bin/bcl"
@@ -12533,25 +12534,43 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-24T10:17:00Z",
-          "stage_entered_at": "2026-11-24T10:11:18Z",
+          "stage_entered_at": "2026-11-24T10:25:45Z",
           "codex": {
             "fix_status": "passed",
             "job": {
-              "id": "c8fbea22168a49a3a2073b71176130bd",
-              "phase": "review",
-              "started_at": "2026-11-24T10:17:01Z",
-              "command": "run-record-do5.sh",
-              "heartbeat_at": "2026-11-24T10:17:01Z",
+              "id": "f2f95825c4a44d6e85ffc2c3b0ee6d38",
+              "phase": "presuite",
+              "started_at": "2026-11-24T10:21:16Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T10:24:13Z",
               "plan_sha256": "d91698ebc5fc3d4dc3120caa72331f7098f7d16e36217ccfd605a9671e3741f3",
-              "worktree": "bcl121-r1-do5",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "worktree": "samantha-next-r11",
+              "model": "check.py --changed-since 9fc50e95 (rerun after flaky compact timestamp)",
               "cycle": 13,
-              "round": 1
+              "round": 1,
+              "pid": 49875,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T10:24:13Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "implementer_session": "01a20d08-1bde-7553-90ec-6b8dc296b684",
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T10:24:13Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T10:25:45Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-24T10:25:45Z"
           }
         },
         {
@@ -12561,9 +12580,9 @@
           "finding_ids": [
             "PR120-r6-gate-denominator"
           ],
-          "worktree": "bcl121-r1-gate",
-          "status": "review",
-          "phase": "review",
+          "worktree": "samantha-next-r11",
+          "status": "installing",
+          "phase": "install",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/check_gate_count.py"
           ],
@@ -12579,27 +12598,43 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-24T10:17:00Z",
-          "stage_entered_at": "2026-11-24T10:12:43Z",
+          "stage_entered_at": "2026-11-24T10:25:45Z",
           "codex": {
             "fix_status": "passed",
             "job": {
-              "id": "838fd404ea81412abc08198939e82412",
-              "phase": "fix",
-              "started_at": "2026-11-24T10:09:24Z",
-              "command": "run-luna-gate.sh",
-              "heartbeat_at": "2026-11-24T10:12:43Z",
-              "plan_sha256": "fc8d5205eb091ddc8eb0bf67f595930b147504389aa53fec009783b73c9e87cb",
-              "worktree": "bcl121-r1-gate",
-              "model": "gpt-6-luna fast medium",
+              "id": "f2f95825c4a44d6e85ffc2c3b0ee6d38",
+              "phase": "presuite",
+              "started_at": "2026-11-24T10:21:16Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T10:24:13Z",
+              "plan_sha256": "d91698ebc5fc3d4dc3120caa72331f7098f7d16e36217ccfd605a9671e3741f3",
+              "worktree": "samantha-next-r11",
+              "model": "check.py --changed-since 9fc50e95 (rerun after flaky compact timestamp)",
               "cycle": 13,
               "round": 1,
-              "pid": 16101,
+              "pid": 49875,
               "exit_code": 0,
-              "finished_at": "2026-11-24T10:12:43Z",
+              "finished_at": "2026-11-24T10:24:13Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
-            "implementer_session": "01a20d08-1d3a-7f90-ae8b-f9ec14ce3b9f"
+            "implementer_session": "01a20d08-1d3a-7f90-ae8b-f9ec14ce3b9f",
+            "review_status": "passed",
+            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T10:24:13Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T10:25:45Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-24T10:25:45Z"
           }
         },
         {
@@ -12609,9 +12644,9 @@
           "finding_ids": [
             "DO-7"
           ],
-          "worktree": "bcl121-r1-do7",
-          "status": "review",
-          "phase": "review",
+          "worktree": "samantha-next-r11",
+          "status": "installing",
+          "phase": "install",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py"
           ],
@@ -12627,27 +12662,43 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-24T10:17:00Z",
-          "stage_entered_at": "2026-11-24T10:14:53Z",
+          "stage_entered_at": "2026-11-24T10:25:45Z",
           "codex": {
             "fix_status": "passed",
             "job": {
-              "id": "bb7d114920a54dc0b30adf5e52346ad4",
-              "phase": "fix",
-              "started_at": "2026-11-24T10:09:24Z",
-              "command": "run-luna-do7.sh",
-              "heartbeat_at": "2026-11-24T10:14:53Z",
-              "plan_sha256": "fc8d5205eb091ddc8eb0bf67f595930b147504389aa53fec009783b73c9e87cb",
-              "worktree": "bcl121-r1-do7",
-              "model": "gpt-6-luna fast medium",
+              "id": "f2f95825c4a44d6e85ffc2c3b0ee6d38",
+              "phase": "presuite",
+              "started_at": "2026-11-24T10:21:16Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T10:24:13Z",
+              "plan_sha256": "d91698ebc5fc3d4dc3120caa72331f7098f7d16e36217ccfd605a9671e3741f3",
+              "worktree": "samantha-next-r11",
+              "model": "check.py --changed-since 9fc50e95 (rerun after flaky compact timestamp)",
               "cycle": 13,
               "round": 1,
-              "pid": 16139,
+              "pid": 49875,
               "exit_code": 0,
-              "finished_at": "2026-11-24T10:14:53Z",
+              "finished_at": "2026-11-24T10:24:13Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
-            "implementer_session": "01a20d08-1e22-7a61-8576-03d112b1e6fd"
+            "implementer_session": "01a20d08-1e22-7a61-8576-03d112b1e6fd",
+            "review_status": "passed",
+            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T10:24:13Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T10:25:45Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-24T10:25:45Z"
           }
         },
         {
@@ -12657,7 +12708,7 @@
           "finding_ids": [
             "BCL-106"
           ],
-          "status": "blocked",
+          "status": "parked",
           "parked_to": 2,
           "reason": "Needs Guru",
           "failure_history": [
@@ -12717,8 +12768,8 @@
           "failure_block_reason": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test.",
           "codex": {},
           "phase": "fix",
-          "updated_at": "2026-11-24T10:03:39Z",
-          "stage_entered_at": "2026-11-24T10:03:39Z",
+          "updated_at": "2026-11-24T10:24:57Z",
+          "stage_entered_at": "2026-11-24T10:24:57Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -12733,7 +12784,7 @@
           "finding_ids": [
             "BCL-171"
           ],
-          "status": "blocked",
+          "status": "parked",
           "parked_to": 2,
           "reason": "Needs Guru",
           "failure_history": [
@@ -12804,8 +12855,8 @@
           "failure_block_reason": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
           "codex": {},
           "phase": "fix",
-          "updated_at": "2026-11-24T10:03:39Z",
-          "stage_entered_at": "2026-11-24T10:03:39Z",
+          "updated_at": "2026-11-24T10:24:57Z",
+          "stage_entered_at": "2026-11-24T10:24:57Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13323,7 +13374,7 @@
       "observed": "24 Nov 2026 11:43 IST, PR 120. check_gate_count.py printed Gate count: 10 of 15 (report gate, default_threshold 15). bcl status already shows report_gate 10/15 and rollover_gate 10/16. The page badge already reads Fixes 10/16 verified with a small 10/15 report gate, but the loop still says under 15 verified. tracking.rollover_threshold is unset. There is no supported command to raise the report threshold. Guru's merge rule is 16+ verified; the bar must not be lowered.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested"
+      "status": "in_progress"
     },
     {
       "title": "A finished job cannot record its result if another lane's receipt was written while it ran",
@@ -13398,7 +13449,7 @@
     {
       "id": "DO-5",
       "title": "Change-list job events still have no group or round fields",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "source": "Agent reported",
       "summary": "The default round view can only infer a job's lane from the worktree name, because job events still have no group or round fields. That inference fails when a worktree is shared, unnamed, or does not contain the lane id.",
@@ -13431,7 +13482,7 @@
     {
       "id": "DO-7",
       "title": "Blocked and parked lanes do not carry a stored reason or a target round",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "source": "Agent reported",
       "summary": "Blocked lanes on the tracker have no stored blocked reason or target round, and deferred is not in the status enum, so the default view has to guess why a lane is waiting and where it was parked.",
