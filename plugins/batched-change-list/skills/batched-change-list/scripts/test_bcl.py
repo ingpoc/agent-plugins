@@ -37,6 +37,26 @@ def tearDownModule():
     viewer_test_guard.assert_no_viewers(viewer_test_guard.TEMP_ROOTS)
 
 class BclTests(unittest.TestCase):
+    def test_job_stamp_is_create_only_and_bound_to_open_codex_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = Path(tmp) / "sessions"
+            sessions.mkdir()
+            first = sessions / "first.jsonl"
+            second = sessions / "second.jsonl"
+            first.write_text("{}\n"); second.write_text("{}\n")
+            with patch.object(bcl_entrypoint, "_process_rows", return_value=[(41, 1, 41, "codex")]), \
+                 patch.object(bcl_entrypoint.subprocess, "check_output", return_value=f"p41\nn{first}\n"):
+                self.assertEqual(bcl_entrypoint._session_files(41, sessions), [first.resolve()])
+            self.assertTrue(bcl_entrypoint._stamp_session(first, "job-a"))
+            self.assertFalse(bcl_entrypoint._stamp_session(first, "job-b"))
+            self.assertTrue(bcl_entrypoint._stamp_session(first, "job-a"))
+            self.assertEqual(Path(str(first) + ".bcl-job").read_text().strip(), "job-a")
+            self.assertFalse(Path(str(second) + ".bcl-job").exists())
+
+    def test_last_verdict_block_never_falls_back_to_earlier_pass(self):
+        text = "log\nVERDICT: PASS\n## Must-fix\nnone\nVERDICT: CHANGES\n## Notes\ncut off"
+        self.assertEqual(bcl_entrypoint._last_verdict_block(text), "VERDICT: CHANGES\n## Notes\ncut off\n")
+
     def test_bcl179_fresh_worktree_name_replaces_one_round_marker(self):
         for old, expected in (("bcl120-r2-do1", "bcl120-r3-do1"),
                               ("bcl120-r2", "bcl120-r3"),
@@ -919,9 +939,11 @@ elif args[:2] != ['pr', 'edit']:
                     writer = f"from pathlib import Path; Path({str(result)!r}).write_text({contents!r})"
                 job = self.call_job_without_viewer(self.data, "--ids", "ISSUE-01", "--result", result,
                     "--phase", "review", "job", "--", sys.executable, "-c", writer)
-                self.assertEqual(job.returncode, 0 if writes and verdict == "VERDICT: PASS" else 1, job.stderr)
+                last_verdict = next((line for line in reversed((verdict or "").splitlines())
+                                     if line in {"VERDICT: PASS", "VERDICT: CHANGES"}), None)
+                self.assertEqual(job.returncode, 0 if writes and last_verdict == "VERDICT: PASS" else 1, job.stderr)
                 group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
-                expected_status = "passed" if writes and verdict == "VERDICT: PASS" else "changes_requested" if verdict == "VERDICT: CHANGES" else "failed"
+                expected_status = "passed" if writes and last_verdict == "VERDICT: PASS" else "changes_requested" if last_verdict == "VERDICT: CHANGES" else "failed"
                 self.assertEqual(group["codex"].get("review_status"), expected_status, job.stdout + job.stderr)
                 if writes and not isinstance(verdict, bytes):
                     self.assertIn("review note", result.read_text())
@@ -960,6 +982,33 @@ elif args[:2] != ['pr', 'edit']:
             (b"\xff", True),
             ("VERDICT: PASS", False),
         ])
+
+    def test_last_incomplete_changes_is_incomplete_but_complete_changes_survives_nonzero_exit(self):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        document = json.loads(self.data.read_text())
+        document["findings"][0]["status"] = "in_progress"
+        document["tracking"].update(stages_reached=["collect", "plan_fix", "review"],
+            workflow={"stage": "review", "updated_at": bcl_entrypoint._utc_now()}, cycle=1,
+            plan={"cycle": 1, "round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "review",
+                "phase": "review", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer", "fix_status": "passed"}}]})
+        prepared = json.dumps(document).encode()
+        result = self.root / "review-result.txt"
+        cases = [
+            ("import sys; print('VERDICT: PASS\\n## Must-fix\\nnone\\n'); print('VERDICT: CHANGES\\n## Notes\\ntruncated')", 0,
+             "failed", "incomplete"),
+            (f"from pathlib import Path; Path({str(result)!r}).write_text('VERDICT: CHANGES\\n\\n## Must-fix\\n- issue\\n'); raise SystemExit(1)", 1,
+             "changes_requested", "changes_requested"),
+        ]
+        for script, exit_code, review_status, finished_status in cases:
+            with self.subTest(review_status=review_status):
+                live.write_bytes(prepared); self.data.write_bytes(prepared)
+                result.unlink(missing_ok=True)
+                job = self.call_job_without_viewer(self.data, "--ids", "ISSUE-01", "--result", result,
+                    "--phase", "review", "job", "--", sys.executable, "-c", script)
+                self.assertEqual(job.returncode, 1, job.stderr)
+                group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
+                self.assertEqual(group["codex"]["review_status"], review_status)
+                self.assertEqual(group["codex"]["job"]["finished_phase_status"], finished_status)
 
     def test_release_check_on_an_unadopted_tracker_is_not_clear(self):
         stray = self.root / "stray" / "list.json"; stray.parent.mkdir()

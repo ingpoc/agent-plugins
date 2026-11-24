@@ -1050,12 +1050,11 @@ def job_transition(document, operation):
                         codex["review_status"] = "passed"
                         group.update(status="review", phase="review")
                 else:
-                    first_line = next((line.strip() for line in (reply or "").splitlines() if line.strip()), "")
-                    # A failed runner without a declared CHANGES verdict, or a reply with no CHANGES verdict
-                    # line (cut off, quoted, quota), is a tool fault; a declared CHANGES always counts.
-                    runner_failed = exit_code != 0 and first_line != "VERDICT: CHANGES"
+                    # Only a complete, parsed CHANGES reply can override a nonzero exit.
+                    # A later incomplete CHANGES block must not mask a prior PASS.
+                    runner_failed = exit_code != 0 and verdict != "CHANGES"
                     incomplete = runner_failed or verdict is None
-                    tool_fault = runner_failed or (incomplete and first_line != "VERDICT: CHANGES")
+                    tool_fault = runner_failed or verdict is None
                     state = "incomplete" if incomplete else "changes_requested"
                     job["finished_phase_status"] = state
                     reason = (f"Reviewer exited {exit_code}" if runner_failed

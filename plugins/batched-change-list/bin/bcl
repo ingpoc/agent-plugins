@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Stage-oriented entrypoint for batched-change-list."""
-import argparse, hashlib, json, os, re, shlex, shutil, subprocess, sys, time, uuid
+import argparse, hashlib, json, os, re, shlex, shutil, subprocess, sys, threading, time, uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -16,6 +16,100 @@ import render as lane_render
 import tracker_lock
 import workflow_definition
 import check_introspect
+import events as bcl_events
+
+def _process_rows():
+    """Read only pid/parent/group/comm; never inspect process arguments or environment."""
+    try:
+        raw = subprocess.check_output(["ps", "-axo", "pid=,ppid=,pgid=,comm="], text=True, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    rows = []
+    for line in raw.splitlines():
+        parts = line.strip().split(None, 3)
+        if len(parts) == 4 and all(part.isdigit() for part in parts[:3]):
+            rows.append((int(parts[0]), int(parts[1]), int(parts[2]), Path(parts[3]).name))
+    return rows
+
+def _group_pids(pgid):
+    return {pid for pid, _, group, _ in _process_rows() if group == pgid}
+
+def _session_files(pid, sessions):
+    """Return open session jsonl files for a live Codex pid, using lsof only."""
+    try:
+        row = next((item for item in _process_rows() if item[0] == pid), None)
+        if not row or row[3] != "codex":
+            return []
+        output = subprocess.check_output(["lsof", "-Fn", "-p", str(pid)], text=True, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError, StopIteration):
+        return []
+    root = sessions.resolve()
+    found = set()
+    for line in output.splitlines():
+        if not line.startswith("n"):
+            continue
+        candidate = Path(line[1:])
+        try:
+            resolved = candidate.resolve()
+            if resolved.is_relative_to(root) and resolved.name.endswith(".jsonl") and resolved.is_file():
+                found.add(resolved)
+        except (OSError, ValueError):
+            pass
+    return sorted(found)
+
+def _stamp_session(path, job_id):
+    sidecar = Path(str(path) + ".bcl-job")
+    try:
+        existing = sidecar.read_text(encoding="utf-8").strip()
+        return existing == job_id
+    except FileNotFoundError:
+        pass
+    except OSError:
+        return False
+    try:
+        fd = os.open(sidecar, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(job_id + "\n")
+        return True
+    except FileExistsError:
+        try:
+            return sidecar.read_text(encoding="utf-8").strip() == job_id
+        except OSError:
+            return False
+    except OSError:
+        return False
+
+def _read_usage(path, job_id):
+    """Accept only a verified sidecar or in-file job ID; sum Codex cumulative usage once."""
+    try:
+        try:
+            stamped = Path(str(path) + ".bcl-job").read_text(encoding="utf-8").strip() == job_id
+        except OSError:
+            stamped = False
+        if not stamped and job_id not in Path(path).read_text(encoding="utf-8", errors="replace"):
+            return None
+        counts = None
+        with Path(path).open(encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                try: row = json.loads(line)
+                except ValueError: continue
+                payload = row.get("payload", row)
+                if payload.get("type") == "token_count":
+                    info = payload.get("info", {})
+                    counts = info.get("total_token_usage") or counts
+        if not isinstance(counts, dict):
+            return None
+        return {"input": int(counts.get("input_tokens", 0)), "output": int(counts.get("output_tokens", 0)),
+                "total": int(counts.get("total_tokens", 0))}
+    except (OSError, ValueError, TypeError):
+        return None
+
+def _last_verdict_block(text):
+    lines = text.splitlines()
+    starts = [i for i, line in enumerate(lines) if line.strip() in {"VERDICT: PASS", "VERDICT: CHANGES"}]
+    if not starts:
+        return None
+    return "\n".join(lines[starts[-1]:]).strip() + "\n"
 
 def _provider(url):
     return "gh" if (urlsplit(url).hostname or "").lower() == "github.com" else "origin"
@@ -142,44 +236,106 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
     job["worktree"] = Path.cwd().name
     if model:
         job["model"] = model
-    _job_write_retry(record, live, report, base,
-                     _job_operations(phase, ids, cycle, round_number, job, "start-job", started_at,
-                                     load_override=load_override))
+    repo = Path.cwd()
+    bcl_events.job_event(repo, job["id"], "start", state_dir=os.environ.get("BCL_STATE_DIR"),
+                         phase=phase, agent=Path(command_args[0]).name, repo=repo.name, started_at=started_at)
     try:
-        process = subprocess.Popen(command_args)
+        _job_write_retry(record, live, report, base,
+                         _job_operations(phase, ids, cycle, round_number, job, "start-job", started_at,
+                                         load_override=load_override))
+    except Exception as error:
+        try:
+            bcl_events.job_event(repo, job["id"], "failed_start", state_dir=os.environ.get("BCL_STATE_DIR"),
+                                 phase=phase, agent=Path(command_args[0]).name, error=str(error))
+        except OSError:
+            pass
+        raise
+    try:
+        child_env = os.environ.copy()
+        child_env["BCL_JOB_ID"] = job["id"]
+        process = subprocess.Popen(command_args, env=child_env, start_new_session=True,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except OSError as error:
         _job_write_retry(record, live, report, base,
                          _job_operations(phase, ids, cycle, round_number, job, "finish-job", _utc_now(), exit_code=127))
         print(f"bcl: job command could not start: {error}", file=sys.stderr)
+        bcl_events.job_event(repo, job["id"], "failed_start", state_dir=os.environ.get("BCL_STATE_DIR"),
+                             phase=phase, agent=Path(command_args[0]).name, error=str(error))
         return 127
+    output = {"stdout": bytearray(), "stderr": bytearray()}
+    def copy_stream(pipe, key, destination):
+        try:
+            while True:
+                chunk = pipe.read(65536)
+                if not chunk: break
+                output[key].extend(chunk)
+                try:
+                    destination.buffer.write(chunk); destination.buffer.flush()
+                except (AttributeError, OSError, BrokenPipeError):
+                    pass
+        except (OSError, ValueError):
+            pass
+    copiers = [threading.Thread(target=copy_stream, args=(process.stdout, "stdout", sys.stdout), daemon=True),
+               threading.Thread(target=copy_stream, args=(process.stderr, "stderr", sys.stderr), daemon=True)]
+    for thread in copiers: thread.start()
+    pgid = process.pid
+    sessions = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "sessions"
+    stamped = None
     job["pid"] = process.pid
     try:
         _job_write_retry(record, live, report, base,
                          _job_operations(phase, ids, cycle, round_number, job, "attach-job", _utc_now()))
     except Exception:
-        process.terminate()
+        try: os.killpg(pgid, 15)
+        except OSError: pass
         process.wait()
         raise
-    while True:
-        try:
-            code = process.wait(timeout=60)
+    wait_deadline = time.monotonic() + 3600
+    while time.monotonic() < wait_deadline:
+        live_pids = _group_pids(pgid)
+        for pid in sorted(live_pids):
+            open_sessions = _session_files(pid, sessions)
+            if len(open_sessions) == 1 and _stamp_session(open_sessions[0], job["id"]):
+                stamped = open_sessions[0]
+        if process.poll() is not None and not live_pids:
             break
+        try:
+            process.wait(timeout=1)
+            if _group_pids(pgid):
+                time.sleep(0.25)
+            else:
+                break
         except subprocess.TimeoutExpired:
+            pass
+        if time.monotonic() % 60 < 1.1:
             job["heartbeat_at"] = _utc_now()
             try:
                 _job_write(record, live, report, base,
                            _job_operations(phase, ids, cycle, round_number, job, "heartbeat-job", job["heartbeat_at"]))
             except Exception as error:
                 print(f"bcl: job heartbeat write failed; will retry: {error}", file=sys.stderr)
+    try:
+        code = process.wait(timeout=0.1)
+    except subprocess.TimeoutExpired:
+        code = 124
+        try: os.killpg(pgid, 15)
+        except OSError: pass
+    for thread in copiers: thread.join(timeout=2)
+    for pipe in (process.stdout, process.stderr):
+        try: pipe.close()
+        except OSError: pass
+    for thread in copiers: thread.join(timeout=0.1)
     finished_at = _utc_now()
     reply = None
-    if phase in workflow_definition.LANE["review_phases"] and code == 0 and result_path:
+    if phase in workflow_definition.LANE["review_phases"] and result_path:
         try:
             current_result = result_path.stat()
             if previous_result is None or (current_result.st_ino, current_result.st_size, current_result.st_mtime_ns) != (previous_result.st_ino, previous_result.st_size, previous_result.st_mtime_ns):
-                reply = result_path.read_text(encoding="utf-8")
+                reply = _last_verdict_block(result_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError):
             pass
+    if phase in workflow_definition.LANE["review_phases"] and reply is None:
+        reply = _last_verdict_block(output["stdout"].decode("utf-8", errors="replace") + "\n" + output["stderr"].decode("utf-8", errors="replace"))
     try:
         _job_write_retry(record, live, report, base,
                          _job_operations(phase, ids, cycle, round_number, job, "finish-job", finished_at,
@@ -189,6 +345,27 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
     finished = json.loads(live.read_text())
     final = next(group for group in finished["tracking"]["plan"]["groups"] if group["id"] == groups[0]["id"])
     result_status = final.get("codex", {}).get("job", {}).get("finished_phase_status")
+    usage_path = stamped
+    usage_source = "stamp" if stamped else "none"
+    if usage_path is None:
+        candidates = []
+        try:
+            for candidate in sessions.rglob("*.jsonl"):
+                try:
+                    if job["id"] in candidate.read_text(encoding="utf-8", errors="replace"):
+                        candidates.append(candidate)
+                except OSError:
+                    continue
+        except OSError:
+            pass
+        if len(candidates) == 1:
+            usage_path, usage_source = candidates[0], "inline"
+    usage = _read_usage(usage_path, job["id"]) if usage_path else None
+    if usage is None: usage_source = "none"
+    event = {"phase": phase, "agent": Path(command_args[0]).name, "repo": repo.name,
+             "exit_code": code, "finished_at": finished_at, "tokens_source": usage_source,
+             "tokens": usage, "session": usage_path.name if usage_path else None}
+    bcl_events.job_event(repo, job["id"], "finish", state_dir=os.environ.get("BCL_STATE_DIR"), **event)
     return (code if code else 0 if result_status == "passed" else 1) if code >= 0 else 128 - code
 
 def _install_tree_digest(root):
@@ -865,9 +1042,11 @@ def main():
             verification_claim = None
             parser.error("lane verify requires the shared check to pass first; run bcl verify --shared --then CMD")
     try:
+        bcl_events.stage_event(Path.cwd(), stage, "start", state_dir=os.environ.get("BCL_STATE_DIR"), ids=args.ids)
         result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
         if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
         live_state.snapshot(record, live)
+        bcl_events.stage_event(Path.cwd(), stage, "finish", state_dir=os.environ.get("BCL_STATE_DIR"), ids=args.ids, outcome="completed")
         if rerun_op:
             print(f"Rerunning the check for {', '.join(rerun_op['ids'])}: {args.reason.strip()}")
         if stage == "verify" and args.shared:
