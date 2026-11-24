@@ -11617,6 +11617,139 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "r5-77d2c0b0-120",
+        "build": "0.1.73",
+        "revision": "77d2c0b01836bd8fa35eca066ed17d3f8c075063",
+        "installed_at": "2026-11-24T06:01:47Z",
+        "install_evidence": "bcl install-local from list worktree at 77d2c0b0 (batched-change-list 0.1.73): plugin sha e07aa5d8, skill sha 15f1d9e4; developer-observability 0.1.36 copied to ~/.agents/plugins/developer-observability and runtime/install.py kept the existing config",
+        "cycle": 12,
+        "status": "interrupted",
+        "checks": {
+          "ACU-10": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "ACU-21": {
+            "state": "pending"
+          },
+          "BCL-94": {
+            "state": "pending"
+          },
+          "BCL-103": {
+            "state": "pending"
+          },
+          "BCL-106": {
+            "state": "pending"
+          },
+          "BCL-108": {
+            "state": "pending"
+          },
+          "BCL-110": {
+            "state": "pending"
+          },
+          "BCL-113": {
+            "state": "pending"
+          },
+          "BCL-115": {
+            "state": "pending"
+          },
+          "BCL-120": {
+            "state": "pending"
+          },
+          "BCL-121": {
+            "state": "pending"
+          },
+          "BCL-124": {
+            "state": "pending"
+          },
+          "BCL-125": {
+            "state": "pending"
+          },
+          "BCL-130": {
+            "state": "pending"
+          },
+          "BCL-134": {
+            "state": "pending"
+          },
+          "BCL-139": {
+            "state": "pending"
+          },
+          "BCL-140": {
+            "state": "pending"
+          },
+          "BCL-142": {
+            "state": "pending"
+          },
+          "BCL-144": {
+            "state": "pending"
+          },
+          "BCL-145": {
+            "state": "pending"
+          },
+          "BCL-147": {
+            "state": "pending"
+          },
+          "BCL-149": {
+            "state": "pending"
+          },
+          "BCL-151": {
+            "state": "pending"
+          },
+          "BCL-157": {
+            "state": "pending"
+          },
+          "BCL-158": {
+            "state": "pending"
+          },
+          "BCL-159": {
+            "state": "pending"
+          },
+          "BCL-160": {
+            "state": "pending"
+          },
+          "BCL-161": {
+            "state": "pending"
+          },
+          "BCL-166": {
+            "state": "pending"
+          },
+          "BCL-171": {
+            "state": "pending"
+          },
+          "BCL-175": {
+            "state": "pending"
+          },
+          "DO-1": {
+            "state": "pending"
+          },
+          "DO-2": {
+            "state": "pending"
+          },
+          "DO-3": {
+            "state": "pending"
+          },
+          "BCL-176": {
+            "state": "pending"
+          },
+          "BCL-177": {
+            "state": "fixed",
+            "observation": "Checking the installed 0.1.73 change-list and 0.1.36 observability now",
+            "observed_at": "2026-11-24T06:04:00Z",
+            "started_at": "2026-11-24T06:04:20Z",
+            "updated_at": "2026-11-24T06:04:20Z",
+            "check_id": "6a0e149bc69146ceb4797f94c4f885b0",
+            "evidence": "Checked: The installed change-list and observability versions, their tests for job events and verdict recording, collector coverage of a complete job plus a named missing source, and a live collect after install\nExpected: The installed copies match the shipped versions, those tests pass, a complete job plus a missing token source reports coverage with the missing source named and no incomplete total, and a live collect after install shows coverage, names any gaps, and does not total incomplete tokens\nObserved: All five checks passed on the installed copies; the before and after observability snapshots had the same finding count, and the live collect reported coverage and named gaps without an incomplete token total",
+            "details": "Log: ~/.agents/artifacts/bcl-120/verify-r5-177.log; installed batched-change-list 0.1.73 from 77d2c0b01836bd8fa35eca066ed17d3f8c075063; plugin sha e07aa5d8, skill sha 15f1d9e4, installed_at 2026-11-24T06:01:47Z; developer-observability 0.1.36 copied to ~/.agents/plugins/developer-observability; dev-obs before 0cda0dd1 (146 findings, 11:34 IST), after 9e04f496 (146 findings, 11:35 IST), same build. Run r5-77d2c0b0-120.",
+            "finished_at": "2026-11-24T06:07:00.249191Z"
+          },
+          "PR120-r5-codex-reviewer-model-fallback": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -11631,9 +11764,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T06:49:49Z",
-      "now": "2026-11-24T06:49:49Z — Presuite started"
+      "stage": "verify",
+      "updated_at": "2026-11-24T06:59:03Z",
+      "now": "2026-11-24T06:59:03Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -13392,14 +13525,16 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 6,
       "groups": [
         {
-          "status": "review",
-          "phase": "review",
+          "status": "verifying",
+          "phase": "verify",
           "codex": {
             "job": {
               "id": "5c2a78107cd24b57aeb590d332c348c6",
@@ -13429,7 +13564,8 @@
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-fallback.sh"
           },
           "id": "R6-FALLBACK",
           "name": "Rejected reviewer models fall back automatically",
@@ -13454,17 +13590,21 @@
               "at": "2026-11-24T06:20:49Z"
             }
           ],
-          "updated_at": "2026-11-24T06:24:10Z",
-          "stage_entered_at": "2026-11-24T06:23:49Z",
+          "updated_at": "2026-11-24T06:59:03Z",
+          "stage_entered_at": "2026-11-24T06:59:03Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-24T06:52:48Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T06:59:02Z"
           }
         },
         {
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "codex": {
             "job": {
               "id": "5c2a78107cd24b57aeb590d332c348c6",
@@ -13494,7 +13634,8 @@
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-121.sh"
           },
           "id": "R6-121",
           "name": "Cap plan reviews and post-fix reviews",
@@ -13519,17 +13660,21 @@
               "at": "2026-11-24T06:20:50Z"
             }
           ],
-          "updated_at": "2026-11-24T06:41:50Z",
-          "stage_entered_at": "2026-11-24T06:49:36Z",
+          "updated_at": "2026-11-24T06:57:36Z",
+          "stage_entered_at": "2026-11-24T06:59:02Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-24T06:52:48Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T06:59:02Z"
           }
         },
         {
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "codex": {
             "job": {
               "id": "5c2a78107cd24b57aeb590d332c348c6",
@@ -13559,7 +13704,8 @@
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-do2.sh"
           },
           "id": "R6-DO2",
           "name": "Per-job tokens from official collect, including Grok Bot",
@@ -13586,17 +13732,21 @@
               "at": "2026-11-24T06:20:51Z"
             }
           ],
-          "updated_at": "2026-11-24T06:33:35Z",
-          "stage_entered_at": "2026-11-24T06:30:33Z",
+          "updated_at": "2026-11-24T06:57:36Z",
+          "stage_entered_at": "2026-11-24T06:59:02Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-24T06:52:48Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T06:59:02Z"
           }
         },
         {
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "codex": {
             "job": {
               "id": "5c2a78107cd24b57aeb590d332c348c6",
@@ -13626,7 +13776,8 @@
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-do3.sh"
           },
           "id": "R6-DO3",
           "name": "Filter official collect by pull request and round",
@@ -13656,12 +13807,16 @@
               "at": "2026-11-24T06:20:53Z"
             }
           ],
-          "updated_at": "2026-11-24T06:41:51Z",
-          "stage_entered_at": "2026-11-24T06:49:39Z",
+          "updated_at": "2026-11-24T06:57:36Z",
+          "stage_entered_at": "2026-11-24T06:59:02Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-24T06:52:48Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T06:59:02Z"
           }
         },
         {
@@ -13684,8 +13839,8 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_collect_observability.py",
             "plugins/batched-change-list/skills/batched-change-list/references/collect.md"
           ],
-          "reason": "Third counted review CHANGES after the recovered Terra verdict was recorded with bcl job: coverage keys match only a directory basename, so a fresh snapshot for another path with the same name (or a missing key) can pass. FAILING TEST: fresh snapshot for a different directory with the same basename must report insufficient coverage. Lane stays blocked until owner unblock. Guru 24 Nov continue was not an unblock.",
-          "status": "blocked",
+          "reason": "Parked for a later round; stays closed until an owner unblock",
+          "status": "parked",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -13762,7 +13917,7 @@
             "must_fix_note": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
             "review_status": "blocked"
           },
-          "updated_at": "2026-11-24T06:19:20Z",
+          "updated_at": "2026-11-24T06:58:56Z",
           "unblock_history": [
             {
               "at": "2026-11-24T04:16:26Z",
@@ -13782,7 +13937,7 @@
           "failure_block_reason": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
           "parked_to": 7,
           "phase": "fix",
-          "stage_entered_at": "2026-11-24T06:19:20Z"
+          "stage_entered_at": "2026-11-24T06:58:56Z"
         },
         {
           "id": "R4-106",
@@ -13804,8 +13959,8 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_verify_driver.py",
             "plugins/batched-change-list/skills/batched-change-list/references/verify.md"
           ],
-          "reason": "Third counted review CHANGES after Guru 24 Nov 09:36 IST continue: self-test still does not observe the shared command itself running (on_shared_passed records a zero status, so a runner that skips the command but reports success still passes). FAILING TEST: make the shared check return success without executing its command and assert that self test fails. Lane stays blocked until owner unblock.",
-          "status": "blocked",
+          "reason": "Parked for a later round; stays closed until an owner unblock",
+          "status": "parked",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -13871,7 +14026,7 @@
             "reviewer_model": "gpt-6.1-terra medium (review)",
             "must_fix_note": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test."
           },
-          "updated_at": "2026-11-24T06:19:20Z",
+          "updated_at": "2026-11-24T06:58:56Z",
           "unblock_history": [
             {
               "at": "2026-11-24T04:16:26Z",
@@ -13891,7 +14046,7 @@
           "failure_block_reason": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test.",
           "parked_to": 7,
           "phase": "fix",
-          "stage_entered_at": "2026-11-24T06:19:20Z"
+          "stage_entered_at": "2026-11-24T06:58:56Z"
         },
         {
           "id": "R2-DO1",
@@ -14028,11 +14183,11 @@
       "cycle": 12
     },
     "verification_run": {
-      "id": "r5-77d2c0b0-120",
-      "build": "0.1.73",
-      "revision": "77d2c0b01836bd8fa35eca066ed17d3f8c075063",
-      "installed_at": "2026-11-24T06:01:47Z",
-      "install_evidence": "bcl install-local from list worktree at 77d2c0b0 (batched-change-list 0.1.73): plugin sha e07aa5d8, skill sha 15f1d9e4; developer-observability 0.1.36 copied to ~/.agents/plugins/developer-observability and runtime/install.py kept the existing config",
+      "id": "r6-828e2f90-120",
+      "build": "bcl 0.1.74 and developer-observability 0.1.37",
+      "revision": "828e2f90b3ef10fe496ac5bf09d8bf2206a8b528",
+      "installed_at": "2026-11-24T06:55:44Z",
+      "install_evidence": "bcl install-local from list worktree at 828e2f90 (batched-change-list 0.1.74): plugin sha 605fd900, skill sha 25236cf8; developer-observability 0.1.37 copied to ~/.agents/plugins/developer-observability and runtime/install.py kept the existing config",
       "cycle": 12,
       "status": "active",
       "checks": {
@@ -14070,7 +14225,11 @@
           "state": "pending"
         },
         "BCL-121": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Checking the installed change-list now",
+          "observed_at": "2026-11-24T06:57:54Z",
+          "started_at": "2026-11-24T06:57:54Z",
+          "updated_at": "2026-11-24T06:57:54Z"
         },
         "BCL-124": {
           "state": "pending"
@@ -14136,26 +14295,33 @@
           "state": "pending"
         },
         "DO-2": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Checking the installed observability now",
+          "observed_at": "2026-11-24T06:57:54Z",
+          "started_at": "2026-11-24T06:57:54Z",
+          "updated_at": "2026-11-24T06:57:54Z"
         },
         "DO-3": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Checking the installed observability now",
+          "observed_at": "2026-11-24T06:57:54Z",
+          "started_at": "2026-11-24T06:57:54Z",
+          "updated_at": "2026-11-24T06:57:54Z"
         },
         "BCL-176": {
           "state": "pending"
         },
         "BCL-177": {
-          "state": "fixed",
-          "observation": "Checking the installed 0.1.73 change-list and 0.1.36 observability now",
-          "observed_at": "2026-11-24T06:04:00Z",
-          "started_at": "2026-11-24T06:04:20Z",
-          "updated_at": "2026-11-24T06:04:20Z",
-          "check_id": "6a0e149bc69146ceb4797f94c4f885b0",
-          "evidence": "Checked: The installed change-list and observability versions, their tests for job events and verdict recording, collector coverage of a complete job plus a named missing source, and a live collect after install\nExpected: The installed copies match the shipped versions, those tests pass, a complete job plus a missing token source reports coverage with the missing source named and no incomplete total, and a live collect after install shows coverage, names any gaps, and does not total incomplete tokens\nObserved: All five checks passed on the installed copies; the before and after observability snapshots had the same finding count, and the live collect reported coverage and named gaps without an incomplete token total",
-          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r5-177.log; installed batched-change-list 0.1.73 from 77d2c0b01836bd8fa35eca066ed17d3f8c075063; plugin sha e07aa5d8, skill sha 15f1d9e4, installed_at 2026-11-24T06:01:47Z; developer-observability 0.1.36 copied to ~/.agents/plugins/developer-observability; dev-obs before 0cda0dd1 (146 findings, 11:34 IST), after 9e04f496 (146 findings, 11:35 IST), same build. Run r5-77d2c0b0-120.",
-          "finished_at": "2026-11-24T06:07:00.249191Z"
+          "state": "pending"
         },
         "PR120-r5-codex-reviewer-model-fallback": {
+          "state": "checking",
+          "observation": "Checking the installed change-list and observability now",
+          "observed_at": "2026-11-24T06:57:54Z",
+          "started_at": "2026-11-24T06:57:54Z",
+          "updated_at": "2026-11-24T06:57:54Z"
+        },
+        "PR120-r6-gate-denominator": {
           "state": "pending"
         }
       }
@@ -14231,7 +14397,7 @@
       "round": 5,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T06:52:48Z",
+    "last_written_at": "2026-11-24T06:59:03Z",
     "fix_order": {
       "ids": [
         "PR120-r5-codex-reviewer-model-fallback",
