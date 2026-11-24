@@ -112,6 +112,8 @@ class CarryAndCreditTests(unittest.TestCase):
         self.assertEqual([(j["job_id"], j["link_provenance"]) for j in issue["jobs_usage"]], [("j6", "derived")])
         self.assertIsNone(issue["jobs_usage"][0]["model"])
         self.assertEqual(issue["jobs_usage"][0]["harness"], "Grok Bot")
+        cause = [step for step in self._build(pr="120", scope="all", include="trail")["issues"] if step["id"] == "DO-2"][0]["trail"][1]
+        self.assertEqual((cause["ts"], cause["provenance"], cause["source"]), ("2026-11-21T09:30:00Z", "derived", "first job on lane R6-DO2"))
 
     def test_list_payload_drops_heavy_fields_and_detail_keeps_them(self):
         listed = self._build(pr="120", scope="all", include="trail,jobs,rollup")

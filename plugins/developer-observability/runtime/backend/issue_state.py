@@ -1270,7 +1270,15 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
             hint = issue.get("_lane_plan") or {}
             lane = hint.get("lane")
             if not lane:
-                return None
+                # No current lane: the first job on the lane the issue was in when it ran (derived).
+                lane_jobs = [(instant(job.get("started_at") or job.get("at")), job) for job, link in linked
+                             if link == "derived" and instant(job.get("started_at") or job.get("at"))]
+                if not lane_jobs:
+                    return None
+                at, job = min(lane_jobs, key=lambda row: row[0])
+                lane_id = job.get("group_id") or _group_id_from_repo(job.get("repo"))
+                return {"lane": lane_id, "at": job.get("started_at") or job.get("at"), "source": f"first job on lane {lane_id}",
+                        "what": None}
             if hint.get("at"):
                 return {"lane": lane, "at": hint["at"], "source": f"{lane} plan recorded_at", "what": hint.get("what")}
             starts = [job.get("started_at") or job.get("at") for job, _ in linked
