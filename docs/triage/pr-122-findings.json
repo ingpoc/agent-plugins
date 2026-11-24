@@ -11223,9 +11223,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-24T18:37:01Z",
-      "now": "2026-11-24T18:37:01Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-24T18:38:41Z",
+      "now": "2026-11-24T18:38:41Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 121,
@@ -12859,6 +12859,134 @@
         },
         "round": 3,
         "cycle": 14
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-24T18:38:41Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 11",
+          "Codex write: R1-GUARD",
+          "Codex review: R1-GUARD",
+          "Polling and rework review: R1-GUARD",
+          "Codex write: R1-TOKENS",
+          "Codex review: R1-TOKENS",
+          "Polling and rework review: R1-TOKENS",
+          "Codex write: R1-JOBUX",
+          "Codex review: R1-JOBUX",
+          "Polling and rework review: R1-JOBUX",
+          "Codex write: R1-COSMETIC",
+          "Codex review: R1-COSMETIC",
+          "Polling and rework review: R1-COSMETIC",
+          "Codex write: R4-106",
+          "Codex review: R4-106",
+          "Polling and rework review: R4-106",
+          "Codex write: R4-171",
+          "Codex review: R4-171",
+          "Polling and rework review: R4-171",
+          "Codex write: R2-DEADLOCK",
+          "Codex review: R2-DEADLOCK",
+          "Polling and rework review: R2-DEADLOCK",
+          "Codex write: R3-TRACKER",
+          "Codex review: R3-TRACKER",
+          "Polling and rework review: R3-TRACKER",
+          "Codex write: R3-INTRO",
+          "Codex review: R3-INTRO",
+          "Polling and rework review: R3-INTRO",
+          "Codex write: R3-VERDICT",
+          "Codex review: R3-VERDICT",
+          "Polling and rework review: R3-VERDICT",
+          "Codex write: R4-GATES",
+          "Codex review: R4-GATES",
+          "Polling and rework review: R4-GATES",
+          "Test command: R4-GATES: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-gates.sh",
+          "Job wall time: R4-GATES a45debf54d0e41c99a67024fb4f88676 186s",
+          "Job wall time: R3-TRACKER 970165cfc5fb4e989708e3ee8492aa7e 185s",
+          "Job wall time: R3-INTRO 970165cfc5fb4e989708e3ee8492aa7e 185s",
+          "Repeat: interrupted verification runs",
+          "Repeat: review failures on R4-106",
+          "Repeat: review failures on R4-171",
+          "Repeat: review failures on R3-INTRO",
+          "Repeat: review failures on R2-DO1",
+          "Repeat: plan reviews on R2-DO1",
+          "Repeat: review failures on R4-GATES"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 11",
+          "Codex write: R1-GUARD",
+          "Codex review: R1-GUARD",
+          "Polling and rework review: R1-GUARD",
+          "Codex write: R1-TOKENS",
+          "Codex review: R1-TOKENS",
+          "Polling and rework review: R1-TOKENS",
+          "Codex write: R1-JOBUX",
+          "Codex review: R1-JOBUX",
+          "Polling and rework review: R1-JOBUX",
+          "Codex write: R1-COSMETIC",
+          "Codex review: R1-COSMETIC",
+          "Polling and rework review: R1-COSMETIC",
+          "Codex write: R4-106",
+          "Codex review: R4-106",
+          "Polling and rework review: R4-106",
+          "Codex write: R4-171",
+          "Codex review: R4-171",
+          "Polling and rework review: R4-171",
+          "Codex write: R2-DEADLOCK",
+          "Codex review: R2-DEADLOCK",
+          "Polling and rework review: R2-DEADLOCK",
+          "Codex write: R3-TRACKER",
+          "Codex review: R3-TRACKER",
+          "Polling and rework review: R3-TRACKER",
+          "Codex write: R3-INTRO",
+          "Codex review: R3-INTRO",
+          "Polling and rework review: R3-INTRO",
+          "Codex write: R3-VERDICT",
+          "Codex review: R3-VERDICT",
+          "Polling and rework review: R3-VERDICT",
+          "Codex review: R4-GATES",
+          "Polling and rework review: R4-GATES",
+          "Test command: R4-GATES: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-gates.sh",
+          "Job wall time: R4-GATES a45debf54d0e41c99a67024fb4f88676 186s",
+          "Job wall time: R3-TRACKER 970165cfc5fb4e989708e3ee8492aa7e 185s",
+          "Job wall time: R3-INTRO 970165cfc5fb4e989708e3ee8492aa7e 185s",
+          "Repeat: interrupted verification runs",
+          "Repeat: review failures on R4-106",
+          "Repeat: review failures on R4-171",
+          "Repeat: review failures on R3-INTRO",
+          "Repeat: review failures on R2-DO1",
+          "Repeat: plan reviews on R2-DO1",
+          "Repeat: review failures on R4-GATES"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Codex write: R4-GATES",
+                "evidence": "Commit 04571729 on grokbot/samantha-0160-next5, installed revision 4031c6fa. After 63555a5d deleted the extra review and resort-failures commands, a leftover lifecycle test still called resort_failures and the CLI still advertised --apply, so the first pre-push suite failed. Both leftovers were deleted; unblock remains the only uncount path.",
+                "outcome": "fixed inline",
+                "proof": "python3 -m unittest test_job_lifecycle test_bcl.BclTests.test_unknown_stage_is_rejected_before_viewer_state_is_read"
+              }
+            ]
+          },
+          "simplify": {
+            "none": "No further simplification this pass. DO-11 was already folded into PR122-parked-backlog with bcl merge --into; DO-1 stayed parked for Guru. File overlap still kept BCL-144 off this round until R4-GATES landed."
+          },
+          "optimize": {
+            "none": "Decision before the numbers: 186s is the wall time of the first R4-GATES pre-push suite (job a45debf5, check.py --jobs 6, 67 processes) that failed on test_job_lifecycle.test_resort_replay_changes_nothing, not a hung or repeated suite. The limiter in both the failing run and the later passing run (about 181s for test_bcl.py, 32s for test_manage_findings.py) is the same plugin unit-test file, already run once per ship, not three separate 186s costs. The 185s TRACKER and INTRO times are the earlier shared R3 presuite copied onto those lanes. Lane verify for R4-GATES was 48 tests in 11.259s. Parallel group count 11 is the plan list including already-verified R1-R3 lanes, not eleven in-flight lanes (one was in flight; the cap is four). Gate is 16 verified_fixed; remaining open work is BCL-144 untested, parked DO-1, and the blocked parked backlog, so the limiter is unfinished untested work, not test spread. Recorded job tokens total 0 and the previous round has no comparable total because these jobs were scripted and left no token receipts; that is missing instrumentation, not a third 186s cost."
+          },
+          "automate": {
+            "none": "No new automation or issues under the intake freeze. The two R4-GATES review failures were tool faults (a review script self-copy exited 1 on BSD cp, then a pre-written verdict file was ignored because it was not rewritten during the job); both were uncounted, and the passing review wrote the verdict during the job. Historical interrupted runs and earlier-lane review loops stay in PR122-parked-backlog rather than new findings."
+          }
+        },
+        "round": 4,
+        "cycle": 14
       }
     ],
     "archive": {
@@ -12882,7 +13010,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T18:37:01Z",
+    "last_written_at": "2026-11-24T18:38:41Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -13188,7 +13316,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "cycle": 14,
@@ -14712,7 +14841,7 @@
             "plugins/batched-change-list/skills/batched-change-list/statechart.html"
           ],
           "reason": "The separate review and resort-failures commands duplicate the review job, release-check, and unblock.",
-          "status": "verifying",
+          "status": "verified",
           "phase": "verify",
           "codex": {
             "implementer_session": "grokbot-122-r4-gates",
@@ -14966,12 +15095,13 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-gates.sh",
             "method": "Run tests that the review job is the only review command, release-check lists tool-fault candidates, and unblock is the only uncount path.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-24T18:37:13Z"
           },
-          "stage_entered_at": "2026-11-24T18:37:01Z",
+          "stage_entered_at": "2026-11-24T18:37:13Z",
           "failure_history": [
             {
               "attempt_id": "41a8451169c645b8a4a169e564d0da1c",
@@ -15013,7 +15143,8 @@
             "at": "2026-11-24T18:37:01Z"
           }
         }
-      ]
+      ],
+      "status": "closed"
     },
     "verification_run": {
       "id": "pr122-r4-4031c6faf6456d381d8852ae0557a2ab979751b6",
@@ -15092,13 +15223,13 @@
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-24T18:01:12Z",
+      "at": "2026-11-24T18:38:41Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 10",
+        "Parallel group count: 11",
         "Codex write: R1-GUARD",
         "Codex review: R1-GUARD",
         "Polling and rework review: R1-GUARD",
@@ -15114,43 +15245,42 @@
         "Codex write: R4-106",
         "Codex review: R4-106",
         "Polling and rework review: R4-106",
-        "Test command: R4-106: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh",
         "Codex write: R4-171",
         "Codex review: R4-171",
         "Polling and rework review: R4-171",
-        "Test command: R4-171: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh",
         "Codex write: R2-DEADLOCK",
         "Codex review: R2-DEADLOCK",
         "Polling and rework review: R2-DEADLOCK",
-        "Test command: R2-DEADLOCK: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
         "Codex write: R3-TRACKER",
         "Codex review: R3-TRACKER",
         "Polling and rework review: R3-TRACKER",
-        "Test command: R3-TRACKER: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-tracker.sh",
         "Codex write: R3-INTRO",
         "Codex review: R3-INTRO",
         "Polling and rework review: R3-INTRO",
-        "Test command: R3-INTRO: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-intro.sh",
         "Codex write: R3-VERDICT",
         "Codex review: R3-VERDICT",
         "Polling and rework review: R3-VERDICT",
-        "Test command: R3-VERDICT: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-verdict.sh",
+        "Codex write: R4-GATES",
+        "Codex review: R4-GATES",
+        "Polling and rework review: R4-GATES",
+        "Test command: R4-GATES: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-gates.sh",
+        "Job wall time: R4-GATES a45debf54d0e41c99a67024fb4f88676 186s",
         "Job wall time: R3-TRACKER 970165cfc5fb4e989708e3ee8492aa7e 185s",
         "Job wall time: R3-INTRO 970165cfc5fb4e989708e3ee8492aa7e 185s",
-        "Job wall time: R3-VERDICT 970165cfc5fb4e989708e3ee8492aa7e 185s",
         "Repeat: interrupted verification runs",
         "Repeat: review failures on R4-106",
         "Repeat: review failures on R4-171",
+        "Repeat: review failures on R3-INTRO",
         "Repeat: review failures on R2-DO1",
         "Repeat: plan reviews on R2-DO1",
-        "Repeat: review failures on R3-INTRO"
+        "Repeat: review failures on R4-GATES"
       ],
       "none": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 10",
+        "Parallel group count: 11",
         "Codex write: R1-GUARD",
         "Codex review: R1-GUARD",
         "Polling and rework review: R1-GUARD",
@@ -15166,68 +15296,57 @@
         "Codex write: R4-106",
         "Codex review: R4-106",
         "Polling and rework review: R4-106",
-        "Test command: R4-106: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh",
         "Codex write: R4-171",
         "Codex review: R4-171",
         "Polling and rework review: R4-171",
-        "Test command: R4-171: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh",
         "Codex write: R2-DEADLOCK",
         "Codex review: R2-DEADLOCK",
         "Polling and rework review: R2-DEADLOCK",
-        "Test command: R2-DEADLOCK: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
+        "Codex write: R3-TRACKER",
         "Codex review: R3-TRACKER",
         "Polling and rework review: R3-TRACKER",
-        "Test command: R3-TRACKER: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-tracker.sh",
+        "Codex write: R3-INTRO",
         "Codex review: R3-INTRO",
         "Polling and rework review: R3-INTRO",
-        "Test command: R3-INTRO: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-intro.sh",
+        "Codex write: R3-VERDICT",
         "Codex review: R3-VERDICT",
         "Polling and rework review: R3-VERDICT",
-        "Test command: R3-VERDICT: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-verdict.sh",
+        "Codex review: R4-GATES",
+        "Polling and rework review: R4-GATES",
+        "Test command: R4-GATES: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-gates.sh",
+        "Job wall time: R4-GATES a45debf54d0e41c99a67024fb4f88676 186s",
         "Job wall time: R3-TRACKER 970165cfc5fb4e989708e3ee8492aa7e 185s",
         "Job wall time: R3-INTRO 970165cfc5fb4e989708e3ee8492aa7e 185s",
-        "Job wall time: R3-VERDICT 970165cfc5fb4e989708e3ee8492aa7e 185s",
         "Repeat: interrupted verification runs",
         "Repeat: review failures on R4-106",
         "Repeat: review failures on R4-171",
+        "Repeat: review failures on R3-INTRO",
         "Repeat: review failures on R2-DO1",
         "Repeat: plan reviews on R2-DO1",
-        "Repeat: review failures on R3-INTRO"
+        "Repeat: review failures on R4-GATES"
       ],
       "sections": {
         "delete": {
-          "none": "Subtract-before-you-add: no fourth lane was added because BCL-125 and BCL-144 still share files with the three active lanes. DO-1 stayed parked for Guru; DO-11 was folded into PR122-parked-backlog with official merge --into instead of getting a lane. The presuite follow-up only taught existing tests that bcl merge is live again; no new command was added for that."
-        },
-        "simplify": {
           "items": [
             {
-              "item": "Codex write: R3-TRACKER",
-              "evidence": "Commits f0f47571 and b0699c2a, installed revision be5aabd6. Unstamped history archives at rollover; bcl merge --into works during an active run and marks absorbed issues closed; Collect is refused until a post-merge Introspect is recorded; the retired-command test now only bans sync-main.",
+              "item": "Codex write: R4-GATES",
+              "evidence": "Commit 04571729 on grokbot/samantha-0160-next5, installed revision 4031c6fa. After 63555a5d deleted the extra review and resort-failures commands, a leftover lifecycle test still called resort_failures and the CLI still advertised --apply, so the first pre-push suite failed. Both leftovers were deleted; unblock remains the only uncount path.",
               "outcome": "fixed inline",
-              "proof": "python3 -m unittest test_manage_findings.ManageFindingsTests.test_merge_folds_issues_during_an_active_run_and_refuses_a_gated_lane test_manage_findings.ManageFindingsTests.test_collect_is_refused_until_post_merge_introspect test_manage_findings.ManageFindingsTests.test_archive_history_keeps_ambiguous_rows_and_check_id_lookup test_manage_findings.ManageFindingsTests.test_archive_history_batch_preserves_legacy_and_resolves_archived_check test_references.ReferenceTests.test_docs_do_not_advertise_retired_commands"
-            },
-            {
-              "item": "Codex write: R3-INTRO",
-              "evidence": "Commit bcb91362. The Introspect draft names repeating waste with evidence and requires a workflow change, compares recorded job tokens with the previous round, and can emit a post-merge draft.",
-              "outcome": "fixed inline",
-              "proof": "python3 -m unittest test_check_introspect.IntrospectCheckTests.test_draft_requires_a_workflow_change_for_repeated_review_failures test_check_introspect.IntrospectCheckTests.test_draft_post_merge_introspect_lists_required_changes test_check_introspect.IntrospectCheckTests.test_draft_uses_performed_round_steps_and_requires_review"
-            },
-            {
-              "item": "Codex write: R3-VERDICT",
-              "evidence": "Commits 3783c790 and 4de5669e. The review-verdict table remains, and a walked start/plan/fix/review case fails when the review step exits 9. The early-reject test no longer treats merge as unknown.",
-              "outcome": "fixed inline",
-              "proof": "python3 -m unittest test_bcl.BclTests.test_review_job_verdicts test_bcl.BclTests.test_one_review_verdict_case_walks_start_plan_fix_and_review test_bcl.BclTests.test_failing_review_step_fails_the_walked_verdict_case test_bcl.BclTests.test_unknown_stage_is_rejected_before_viewer_state_is_read"
+              "proof": "python3 -m unittest test_job_lifecycle test_bcl.BclTests.test_unknown_stage_is_rejected_before_viewer_state_is_read"
             }
           ]
         },
+        "simplify": {
+          "none": "No further simplification this pass. DO-11 was already folded into PR122-parked-backlog with bcl merge --into; DO-1 stayed parked for Guru. File overlap still kept BCL-144 off this round until R4-GATES landed."
+        },
         "optimize": {
-          "none": "Decision before the numbers: 185s is the wall time of one shared presuite job (970165cf, check ok after a follow-up, 67 test processes), copied onto three lanes, not three separate 185s costs. The limiter in that passing run was test_bcl.py at 182.7s; test_manage_findings.py was 32.2s and ran in parallel under --jobs 6. The first presuite (same script) failed in 181.8s on two tests that still treated bcl merge as retired or unknown; that was a code fault in the TRACKER/VERDICT follow-up, not a suite-spread problem. Lane verifies were short: tracker 5 tests in 0.381s, intro 4 tests in 0.000s, verdict 3 tests in 9.129s. Parallel group count 10 is the plan's group list including already-verified R1 and R2 lanes, not ten in-flight lanes (three were in flight; the cap is four). Gate is 15 verified_fixed of 20, open 3 untested (BCL-125, BCL-144, and parked DO-1); the limiter is unfinished untested work, not test spread. Recorded job tokens total 0 and the previous round has no comparable total because these jobs were scripted and left no token receipts; that is missing instrumentation, not a third 185s cost."
+          "none": "Decision before the numbers: 186s is the wall time of the first R4-GATES pre-push suite (job a45debf5, check.py --jobs 6, 67 processes) that failed on test_job_lifecycle.test_resort_replay_changes_nothing, not a hung or repeated suite. The limiter in both the failing run and the later passing run (about 181s for test_bcl.py, 32s for test_manage_findings.py) is the same plugin unit-test file, already run once per ship, not three separate 186s costs. The 185s TRACKER and INTRO times are the earlier shared R3 presuite copied onto those lanes. Lane verify for R4-GATES was 48 tests in 11.259s. Parallel group count 11 is the plan list including already-verified R1-R3 lanes, not eleven in-flight lanes (one was in flight; the cap is four). Gate is 16 verified_fixed; remaining open work is BCL-144 untested, parked DO-1, and the blocked parked backlog, so the limiter is unfinished untested work, not test spread. Recorded job tokens total 0 and the previous round has no comparable total because these jobs were scripted and left no token receipts; that is missing instrumentation, not a third 186s cost."
         },
         "automate": {
-          "none": "No new automation or DO issues under the intake freeze. R3-INTRO's two review failures were tool-fault probe bugs (a check called a missing helper, then expected a deliberately incomplete draft to validate), already recorded as tool faults and uncounted; the passing review did not need a workflow change. Historical interrupted runs and earlier-lane review loops stay in the parked backlog rather than new findings."
+          "none": "No new automation or issues under the intake freeze. The two R4-GATES review failures were tool faults (a review script self-copy exited 1 on BSD cp, then a pre-written verdict file was ignored because it was not rewritten during the job); both were uncounted, and the passing review wrote the verdict during the job. Historical interrupted runs and earlier-lane review loops stay in PR122-parked-backlog rather than new findings."
         }
       },
-      "round": 3,
+      "round": 4,
       "cycle": 14
     }
   },
@@ -15402,7 +15521,7 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
@@ -15423,12 +15542,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:37:13Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T18:35:47Z",
         "source": "verification_check"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-gates.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-gates.sh"
     },
     {
       "id": "BCL-139",
