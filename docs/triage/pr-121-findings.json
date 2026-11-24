@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T10:31:36Z",
-      "now": "2026-11-24T10:31:36Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-24T10:59:52Z",
+      "now": "2026-11-24T10:59:52Z — Review started"
     },
     "rollover": {
       "source_pr": 120,
@@ -12258,17 +12258,24 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T10:31:36Z",
+    "last_written_at": "2026-11-24T10:59:52Z",
     "fix_order": {
       "ids": [
-        "DO-11",
-        "DO-5",
-        "PR120-r6-gate-denominator",
-        "DO-7"
+        "BCL-110",
+        "BCL-113",
+        "PR120-r6-stale-job-finish",
+        "BCL-160",
+        "BCL-94",
+        "BCL-115",
+        "BCL-124",
+        "DO-9",
+        "DO-10",
+        "BCL-120",
+        "BCL-139"
       ],
       "by": "Grok Bot",
-      "at": "2026-11-24T10:03:28Z",
-      "reason": "Viewer polish first, then event stamps, then the gate count and parked-reason gaps"
+      "at": "2026-11-24T10:31:37Z",
+      "reason": "Status accuracy first, then tracker upkeep, observability data, and Introspect tests"
     },
     "fix_order_history": [
       {
@@ -12306,6 +12313,17 @@
         "by": "Grok Bot",
         "at": "2026-11-24T07:10:47Z",
         "reason": "Guru 12:37 IST: local observability viewer is the top lane (new DO-4; --into DO-3 refused because DO-3 is closed). Then product ACU (island, voice tokens, flaky tests). Round-6 waste follows after these four."
+      },
+      {
+        "ids": [
+          "DO-11",
+          "DO-5",
+          "PR120-r6-gate-denominator",
+          "DO-7"
+        ],
+        "by": "Grok Bot",
+        "at": "2026-11-24T10:03:28Z",
+        "reason": "Viewer polish first, then event stamps, then the gate count and parked-reason gaps"
       }
     ],
     "carried_gates": [
@@ -12531,15 +12549,14 @@
           "id": "R2-STATUS",
           "name": "Keep lane and verify status accurate",
           "label": "STATUS",
+          "status": "review",
+          "phase": "review",
           "finding_ids": [
             "BCL-110",
             "BCL-113",
             "PR120-r6-stale-job-finish",
             "BCL-160"
           ],
-          "worktree": "bcl121-r2-status",
-          "status": "planned",
-          "phase": "fix",
           "files": [
             "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -12547,6 +12564,7 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_job_lifecycle.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_lane_state.py"
           ],
+          "worktree": "bcl121-r2-status",
           "reason": "Status-accuracy first: writers must not strip gate state, a running job must survive edits, a successful finish must record, and a passing verify must record each finding.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh",
@@ -12556,59 +12574,105 @@
             "failed": 0,
             "total": 4
           },
+          "stage_entered_at": "2026-11-24T10:51:22Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T10:31:36Z",
-          "stage_entered_at": "2026-11-24T10:31:36Z"
+          "codex": {
+            "job": {
+              "id": "d94cdeab35df49ad8e3323529dcfea3d",
+              "phase": "fix",
+              "started_at": "2026-11-24T10:31:39Z",
+              "command": "run-luna-status.sh",
+              "heartbeat_at": "2026-11-24T10:51:22Z",
+              "plan_sha256": "217c0e84eb9a93a3192efa059e12356ba870dfc589f82cd25163761a4187bb8f",
+              "worktree": "bcl121-r2-status",
+              "model": "gpt-6-luna fast medium",
+              "cycle": 13,
+              "round": 2,
+              "pid": 73017,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T10:51:22Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed",
+            "tool_fault_streak": 0,
+            "implementer_session": "01a20d1c-7ab0-7c12-899c-150a230c462f",
+            "implementer_model": "gpt-6-luna",
+            "effort": "medium"
+          },
+          "updated_at": "2026-11-24T10:58:49Z"
         },
         {
           "id": "R2-TRACKER",
           "name": "One viewer port per project and safe adopt paths",
           "label": "TRACKER",
+          "status": "review",
+          "phase": "review",
           "finding_ids": [
             "BCL-94",
             "BCL-115",
             "BCL-124"
           ],
-          "worktree": "bcl121-r2-tracker",
-          "status": "planned",
-          "phase": "fix",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/serve.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_live_state.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_serve.py"
           ],
+          "worktree": "bcl121-r2-tracker",
           "reason": "Tracker upkeep that does not touch the job runner: one saved port per project, exclusive adopt, and delete the legacy viewer path.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh",
-            "method": "Run the live-state and viewer tests.",
+            "method": "Run the live-state and serve tests.",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 3
           },
+          "stage_entered_at": "2026-11-24T10:39:32Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T10:31:36Z",
-          "stage_entered_at": "2026-11-24T10:31:36Z"
+          "codex": {
+            "job": {
+              "id": "d97c248c8eb64f6c8221d317d7d985d9",
+              "phase": "fix",
+              "started_at": "2026-11-24T10:31:39Z",
+              "command": "run-luna-tracker.sh",
+              "heartbeat_at": "2026-11-24T10:39:32Z",
+              "plan_sha256": "217c0e84eb9a93a3192efa059e12356ba870dfc589f82cd25163761a4187bb8f",
+              "worktree": "bcl121-r2-tracker",
+              "model": "gpt-6-luna fast medium",
+              "cycle": 13,
+              "round": 2,
+              "pid": 73136,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T10:39:32Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed",
+            "tool_fault_streak": 0,
+            "implementer_session": "01a20d1c-7b4e-71d2-913c-3d43a58059a7",
+            "implementer_model": "gpt-6-luna",
+            "effort": "medium"
+          },
+          "updated_at": "2026-11-24T10:58:49Z"
         },
         {
           "id": "R2-DOVIEW",
           "name": "Coverage gaps as objects and a stored merge bar",
           "label": "DOVIEW",
+          "status": "review",
+          "phase": "review",
           "finding_ids": [
             "DO-9",
             "DO-10"
           ],
-          "worktree": "bcl121-r2-doview",
-          "status": "planned",
-          "phase": "fix",
           "files": [
             "plugins/developer-observability/runtime/backend/observability_api.py",
             "plugins/developer-observability/runtime/backend/round_view.py",
             "plugins/developer-observability/tests/test_round_view.py"
           ],
+          "worktree": "bcl121-r2-doview",
           "reason": "Non-viewer-polish observability: return coverage gaps as objects and expose the stored merge-bar threshold without hard-coding it.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh",
@@ -12618,82 +12682,151 @@
             "failed": 0,
             "total": 2
           },
+          "stage_entered_at": "2026-11-24T10:35:52Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T10:31:36Z",
-          "stage_entered_at": "2026-11-24T10:31:36Z"
+          "codex": {
+            "job": {
+              "id": "510a63fef9ab40b8a5983945d8c56ebf",
+              "phase": "review",
+              "started_at": "2026-11-24T10:59:52Z",
+              "command": "run-record-doview.sh",
+              "heartbeat_at": "2026-11-24T10:59:52Z",
+              "plan_sha256": "070550ceb1ce3e619ee7f4365571c0ffaaff488ca5c0c68f5d34b59080233f72",
+              "worktree": "bcl121-r2-doview",
+              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "cycle": 13,
+              "round": 2
+            },
+            "fix_status": "passed",
+            "tool_fault_streak": 0,
+            "implementer_session": "01a20d1c-7c70-7261-ab2c-8518fc51f541",
+            "implementer_model": "gpt-6-luna",
+            "effort": "medium",
+            "review_status": "running",
+            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
+          },
+          "updated_at": "2026-11-24T10:58:49Z"
+        },
+        {
+          "id": "R2-DO4",
+          "name": "Replace the viewer with the v3 calm UI",
+          "label": "DO-4",
+          "status": "running",
+          "phase": "fix",
+          "finding_ids": [
+            "DO-4",
+            "DO-12"
+          ],
+          "files": [
+            "plugins/developer-observability/ui/dashboard.html",
+            "plugins/developer-observability/ui/template.html",
+            "plugins/developer-observability/runtime/viewer.py",
+            "plugins/developer-observability/runtime/backend/issue_state.py",
+            "plugins/developer-observability/tests/test_viewer.py",
+            "plugins/developer-observability/tests/test_issue_state.py",
+            "plugins/developer-observability/tests/test_issues_api.py"
+          ],
+          "worktree": "bcl121-r2-do4",
+          "reason": "Guru approved the v3 calm design at 16:19 IST. Replace the current viewer; use the v2 data contract, not its layout. Tracker fields are DO-12. Do not claim exclusive ownership of observability_api.py, round_view.py, manage_findings.py, or live_state.py; those belong to other open R2 lanes, but this worktree starts from their already-landed commits.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-do4.sh",
+            "method": "Run the state-model and issues-API tests. Do not record verified_fixed until the UX Comet review passes.",
+            "status": "partial",
+            "fixed": 0,
+            "failed": 1,
+            "total": 2
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T10:58:01Z",
+          "stage_entered_at": "2026-11-24T10:58:50Z",
+          "codex": {
+            "fix_status": "running",
+            "job": {
+              "id": "d45b374667a34cc5afba215701b8b049",
+              "phase": "fix",
+              "started_at": "2026-11-24T10:58:50Z",
+              "command": "run-luna-do4.sh",
+              "heartbeat_at": "2026-11-24T10:59:51Z",
+              "plan_sha256": "070550ceb1ce3e619ee7f4365571c0ffaaff488ca5c0c68f5d34b59080233f72",
+              "worktree": "bcl121-r2-do4",
+              "model": "gpt-6-luna fast medium",
+              "cycle": 13,
+              "round": 2,
+              "pid": 27886
+            }
+          }
         },
         {
           "id": "R2-INTRO",
           "name": "Cross-round Introspect and a real review-path test",
           "label": "INTRO",
+          "status": "deferred",
+          "phase": "deferred",
           "finding_ids": [
             "BCL-120",
             "BCL-139"
           ],
-          "worktree": "bcl121-r2-intro",
-          "status": "planned",
-          "phase": "fix",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/check_introspect.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_check_introspect.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
           ],
-          "reason": "Independent of the job runner and live-state: Introspect should flag repeats across rounds, and the merged verdict test should drive a real review path.",
+          "worktree": "bcl121-r2-intro",
+          "parked_to": 3,
+          "reason": "Deferred so DO-4 v3 can take the fourth R2 lane. Fix commit already exists on the intro worktree.",
+          "stage_entered_at": "2026-11-24T10:58:16Z",
+          "failure_history": [],
+          "plan_review_history": [],
+          "codex": {
+            "job": {
+              "id": "90973898d157496d85ac963ce486549f",
+              "phase": "fix",
+              "started_at": "2026-11-24T10:31:39Z",
+              "command": "run-luna-intro.sh",
+              "heartbeat_at": "2026-11-24T10:36:20Z",
+              "plan_sha256": "217c0e84eb9a93a3192efa059e12356ba870dfc589f82cd25163761a4187bb8f",
+              "worktree": "bcl121-r2-intro",
+              "model": "gpt-6-luna fast medium",
+              "cycle": 13,
+              "round": 2,
+              "pid": 73277,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T10:36:20Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed",
+            "tool_fault_streak": 0
+          },
+          "updated_at": "2026-11-24T10:58:16Z",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-intro.sh",
-            "method": "Run the Introspect and change-list CLI tests.",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 2
-          },
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-24T10:31:36Z",
-          "stage_entered_at": "2026-11-24T10:31:36Z"
+          }
         },
         {
           "id": "R1-DO11",
           "name": "Viewer row polish",
           "label": "DO-11",
+          "status": "deferred",
+          "phase": "deferred",
           "finding_ids": [
             "DO-11"
           ],
-          "status": "deferred",
-          "phase": "deferred",
           "parked_to": 3,
-          "reason": "Waiting on v2 spec",
+          "reason": "Superseded by DO-4 v3 and cancelled",
           "stage_entered_at": "2026-11-24T10:15:23Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T10:31:36Z",
+          "codex": {},
+          "updated_at": "2026-11-24T10:58:01Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1
-          }
-        },
-        {
-          "id": "R3-DO4",
-          "name": "Local per-round viewer",
-          "label": "DO-4",
-          "finding_ids": [
-            "DO-4"
-          ],
-          "status": "deferred",
-          "phase": "deferred",
-          "parked_to": 3,
-          "reason": "Waiting on v2 spec",
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-24T10:31:36Z",
-          "stage_entered_at": "2026-11-24T10:31:36Z",
-          "verify": {
-            "status": "failed",
-            "fixed": 0,
-            "failed": 1,
             "total": 1
           }
         },
@@ -12701,12 +12834,14 @@
           "id": "R4-106",
           "name": "Tested verify driver; cleanup cannot change a verdict",
           "label": "BCL-106",
+          "status": "parked",
+          "phase": "fix",
           "finding_ids": [
             "BCL-106"
           ],
-          "status": "blocked",
           "parked_to": 3,
           "reason": "Needs Guru",
+          "stage_entered_at": "2026-11-24T10:58:16Z",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -12763,9 +12898,7 @@
           "blocked_reason": "Second failure",
           "failure_block_reason": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test.",
           "codex": {},
-          "phase": "fix",
-          "stage_entered_at": "2026-11-24T10:31:36Z",
-          "updated_at": "2026-11-24T10:31:36Z",
+          "updated_at": "2026-11-24T10:58:16Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -12777,12 +12910,14 @@
           "id": "R4-171",
           "name": "Collect reads developer-observability findings",
           "label": "BCL-171",
+          "status": "parked",
+          "phase": "fix",
           "finding_ids": [
             "BCL-171"
           ],
-          "status": "blocked",
           "parked_to": 3,
           "reason": "Needs Guru",
+          "stage_entered_at": "2026-11-24T10:58:16Z",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -12850,9 +12985,7 @@
           "blocked_reason": "Second failure",
           "failure_block_reason": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
           "codex": {},
-          "phase": "fix",
-          "stage_entered_at": "2026-11-24T10:31:36Z",
-          "updated_at": "2026-11-24T10:31:36Z",
+          "updated_at": "2026-11-24T10:58:16Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -12864,11 +12997,14 @@
           "id": "R2-DO1",
           "name": "Tracker snapshot commits are not failures",
           "label": "DO-1",
+          "status": "deferred",
+          "phase": "deferred",
           "finding_ids": [
             "DO-1"
           ],
           "parked_to": 3,
           "reason": "Needs Guru",
+          "stage_entered_at": "2026-11-24T10:03:39Z",
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -12931,11 +13067,8 @@
               "owner_override": true
             }
           ],
-          "status": "deferred",
-          "phase": "deferred",
           "codex": {},
-          "stage_entered_at": "2026-11-24T10:03:39Z",
-          "updated_at": "2026-11-24T10:31:36Z",
+          "updated_at": "2026-11-24T10:58:01Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13500,15 +13633,18 @@
       "priority": "high",
       "summary": "The per-round observability dashboard from DO-3 exists only as an MCP App resource, so it cannot be opened as a localhost page on the Mini the way the change-list tracker viewer can.",
       "impact": "Guru cannot open the per-round run view in a browser with a stable per-project address, or inspect rounds, jobs, tokens and coverage gaps without an MCP Apps host.",
-      "done_when": "A localhost page on the Mini uses one fixed port per project, never the reserved Samantha port, and reuses the existing MCP App page and backend with no second UI. It shows what happened in each round, pull request, stage and lane or job, plus findings, tokens and coverage gaps. Filters combine: round, pull request, stage, plugin, kind, status, since and until. Disclosure is summary, then lane, then evidence. Text is 14 to 16 pixels or larger, with zoom and text-size controls, and the browser's own zoom is never blocked. The live Mini URL is recorded.",
-      "observed": "24 Nov 2026 12:37 IST, Asia/Calcutta. Guru approved a local browser viewer. After DO-3 the dashboard is still only the MCP App resource on the stdio server; there is no localhost page and no saved port per project.",
-      "recommendation": "Serve the existing dashboard and backend on the loopback interface with one saved port per project, like the change-list viewer, and never bind the reserved Samantha port.",
+      "done_when": "The local page uses the approved calm look and the agreed data contract: Now is the default, the headline is numeric, Needs-you has at most three rows, groups expand in place, a row opens the drawer, the timeframe and the round lens open from the scope bar with the window in the address, text is fifteen pixels or larger with text-size controls and zoom never blocked, tests cover the state model and the issues API, and the page is served on the usual local viewer port. The issue is verified only after a later UX review of list 121 and list 120 passes.",
+      "observed": "24 Nov 2026 16:19 IST Asia/Calcutta. Guru approved the v3 calm design. Replace the current viewer with that look. Use only the v2 data contract, state model, timeframe, and API, not the v2 layout. Do not mark this issue verified until a later UX review of list 121 and list 120 passes.",
+      "recommendation": "Replace the current viewer with the v3 calm UI. Build in this order: first the default Now scope and the state model; then the numeric headline, Needs-you, groups, and drawer; then the timeframe with the window in the address; then the issues API and the matching agent tool. Keep the page terse with progressive disclosure, a first screen that reads in five seconds, a thin status bar, at most three Needs-you rows, group lines with a label and a count, tooltips instead of captions, groups that expand in place to at most eight rows plus Show all, a drawer that opens from a row with facts, then what we know, then the timeline, and raw data collapsed, and the round lens and timeframe opening from the scope bar. Text is fifteen pixels or larger, with smaller and larger text controls, and browser zoom is never blocked. Polish: a touch legend, a date on last fail when it is not today, and real button actions. Serve on the usual local viewer port after the commit. Never bind the reserved Samantha port or touch its process.",
       "status": "failing",
       "details": {
-        "related_to_DO-3": "DO-3 is verified and closed; it added the per-round filters and MCP App UI. This is the missing local HTTP viewer, not a second UI or a new filter API. On 24 Nov 2026 12:39 IST, add --into DO-3 was refused because that finding is closed, so this was added as new.",
-        "Technical wording": "Reuse ui/app.js and ObservabilityAPI. Serve 127.0.0.1. Never bind port 8765. Do not touch pid 1338 or ~/.cache/macos-cua/samantha-activity.jsonl.",
-        "MCP resource today": "The dashboard is only ui://developer-observability/dashboard on the stdio MCP server.",
-        "Guru rejection": "On 24 November 2026 mid-afternoon IST Asia/Calcutta, Guru found the list 121 page not understandable: no issue list, unclear project, pull request, cycle and round scope, a repeated no-lanes message, twenty-nine untested items with no list, and unknown bars. The pass-five sign-off was withdrawn. The issue stays open and will be re-planned from the issues-first v2 spec when that spec exists."
+        "related_to_DO-3": "DO-3 is verified and closed; it added the per-round filters and MCP App UI. This is the missing local HTTP viewer, not a second UI or a new filter API.",
+        "Technical wording": "Reuse the existing backend where it already matches the v2 data contract. Serve 127.0.0.1. Never bind port 8765. Do not touch pid 1338 or the Samantha activity log.",
+        "MCP resource today": "The dashboard began as ui://developer-observability/dashboard on the stdio MCP server.",
+        "Guru rejection": "On 24 November 2026 mid-afternoon IST Asia/Calcutta, Guru found the list 121 page not understandable. That rejected UI is being replaced, not polished.",
+        "v3 approval": "Guru approved the v3 calm design at 16:19 IST on 24 Nov 2026, Asia/Calcutta. Look: mock.html, data.js, and frames in the v3-calm folder. Data contract from v2-signal SPEC.md and RESEARCH.md only; do not use the v2 layout. API: GET /api/issues and the observability_issues tool. Port 8780; never 8765 or pid 1338.",
+        "DO-11": "DO-11 is superseded and cancelled. Official live statuses have no cancelled state, so that finding stays untested on a deferred lane.",
+        "Verification hold": "Do not record verified_fixed until the UX Comet review of #121 and #120 passes."
       },
       "created_at": "2026-11-24T07:10:26Z",
       "verification": "Guru rejected the page: it is not understandable, so the earlier sign-off is withdrawn.",
@@ -13673,9 +13809,30 @@
       "recommendation": "Use each lane's own latest job for its why, fill a verified lane's track through Verify, say Model not recorded and Tokens unknown in muted text with a short tooltip, keep the reviewer outage note out of the model cell, truncate names at a word with an ellipsis, write less than one minute as less than one min, show compact rows with desktop column headers, move keyboard focus to the opened lane, and drop cache paths from the brief.",
       "done_when": "Each lane why comes from that lane's own latest job, a verified lane fills the phase track through Verify, missing model and tokens use muted labels with a tooltip, names truncate at a word with an ellipsis, durations under a minute say less than one min, desktop rows are compact and show column headers, opening a lane moves focus to it, and cache paths are not shown in the brief.",
       "details": {
-        "spec follow-up": "Eight polish notes from the 24 Nov 2026 mid-afternoon live review: per-lane why, verified track fill, muted missing-data labels with tooltip, word-boundary name truncation, unit on sub-minute duration, compact desktop headers, focus on the opened lane, and stripping cache paths from the brief. The review findings file is the evidence cited on the related viewer issue."
+        "spec follow-up": "Eight polish notes from the 24 Nov 2026 mid-afternoon live review: per-lane why, verified track fill, muted missing-data labels with tooltip, word-boundary name truncation, unit on sub-minute duration, compact desktop headers, focus on the opened lane, and stripping cache paths from the brief. The review findings file is the evidence cited on the related viewer issue.",
+        "Cancelled": "24 Nov 2026 16:19 IST Asia/Calcutta. Guru approved the v3 calm viewer, which replaces the current page. DO-11 is superseded and cancelled; do not ship the old polish. Official render statuses do not include closed or cancelled, so the finding was not given a closed status."
       },
-      "created_at": "2026-11-24T10:00:44Z"
+      "created_at": "2026-11-24T10:00:44Z",
+      "verification": "Cancelled as superseded by the DO-4 v3 viewer replacement approved 24 Nov 2026 16:19 IST Asia/Calcutta. Official live statuses have no cancelled state, so this issue stays untested and its lane stays deferred; do not ship the old row polish."
+    },
+    {
+      "id": "DO-12",
+      "title": "Tracker is missing first seen, last seen, state changes, and related scope fields",
+      "status": "untested",
+      "priority": "high",
+      "source": "User requested",
+      "summary": "The viewer and the issues API cannot tell what is current, what came back, or what happened in a chosen window, because the tracker does not keep structured first-seen and last-seen times, a history of state changes, when a round or pull request started, which issues a job belongs to, or the stored merge-gate threshold.",
+      "impact": "People and agents can see the wrong state, age, and window reasons, because the page has to parse free text and guess.",
+      "observed": "24 Nov 2026 16:19 IST Asia/Calcutta. Guru approved the v3 calm viewer. The agreed data contract still has these tracker gaps: first seen is only free text, last seen is missing, owner rejections are not in the state-change history, jobs do not name their issues, round start and pull-request opened times are not stored, and the merge-gate threshold was tracked as a separate issue.",
+      "recommendation": "Store a structured first-seen record, last seen from every failing check, review, or owner report, a state-change history, when each round started, when the pull request opened, the issue ids on each job, and the cycle merge-gate threshold. This folds the existing merge-threshold issue; keep that issue on its current lane for the work already in review.",
+      "done_when": "The live tracker writes and persists first seen, last seen, the state-change history, when a round started, when the pull request opened, the issue ids on each job, and the stored merge-gate threshold, and tests cover those writers.",
+      "details": {
+        "root_cause_group": "M-TRACKER",
+        "folds": "DO-10 covers the stored merge-gate threshold and stays on R2-DOVIEW. This issue is the rest of the v2 timestamp contract plus that same threshold field.",
+        "spec": "v2-signal SPEC.md section 8a/8b and RESEARCH.md, used as the data contract only. Fields: first_seen, last_seen, state_changes, round_started_at, pull_request.opened_at, finding_ids on jobs, stored gate threshold.",
+        "approved": "Guru approved the v3 design at 16:19 IST on 24 Nov 2026."
+      },
+      "created_at": "2026-11-24T10:57:47Z"
     }
   ]
 }
