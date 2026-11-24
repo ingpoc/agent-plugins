@@ -6,12 +6,12 @@ const app = http ? null : new App({name: 'Developer observability', version: '0.
 const colors = {
   regressed: '#b3261e', blocked: '#d4583f', in_progress: '#2457a6', untested: '#cfd2ce',
   parked: '#d9a441', resolved: '#25684c', new: '#2457a6', reoccurred: '#9a5b00',
-  fixed: '#25684c', worked: '#cfd2ce'
+  fixed: '#25684c', worked: '#cfd2ce', inconclusive: '#8d9397'
 };
 const labels = {
   regressed: 'Regressed', blocked: 'Blocked', in_progress: 'In progress', untested: 'Untested',
   parked: 'Parked', resolved: 'Resolved', new: 'New', reoccurred: 'Failed again',
-  fixed: 'Fixed', worked: 'Worked on'
+  fixed: 'Fixed', worked: 'Worked on', inconclusive: 'Inconclusive'
 };
 const PRESETS = ['Now', 'Last test run', '1 h', '6 h', '24 h', '7 d', 'This PR'];
 const PRESET_FROM = {'1 h': 'now-1h', '6 h': 'now-6h', '24 h': 'now-24h', '7 d': 'now-7d'};
@@ -75,6 +75,17 @@ function relativeName(fromValue, toValue) {
   if (fromValue === 'now-6h' && toValue === 'now') return '6 h';
   if (fromValue === 'now-24h' && toValue === 'now') return '24 h';
   if (fromValue === 'now-7d' && toValue === 'now') return '7 d';
+  return null;
+}
+
+function windowRangeLabel(fromValue, toValue) {
+  const named = relativeName(fromValue, toValue);
+  if (named) return named;
+  if (fromValue && toValue) {
+    const start = formatTime(fromValue, !isToday(fromValue));
+    const end = toValue === 'now' ? 'now' : formatTime(toValue, !isToday(toValue));
+    if (start && end) return `${start}–${end}`;
+  }
   return null;
 }
 
@@ -186,6 +197,9 @@ async function load() {
     data = result;
     if (result.pr) pr = String(result.pr).replace(/^#/, '');
     if (result.round != null && run == null && !(from && to)) round = result.round;
+    if (result.run_note && !result.run) timeLabel = result.run_note;
+    else if (from && to && !run) timeLabel = windowRangeLabel(from, to) || timeLabel;
+    else if (result.run && result.run.recorded) timeLabel = runLabel(result.run);
     render();
   } catch (e) {
     if(request!==generation)return;
@@ -205,7 +219,13 @@ function runLabel(row, fallback = 'run time not recorded') {
 }
 
 function lastRecordedRun() {
-  const runs = [...(data.runs || [])].filter(row => (row.started_at || row.installed_at) && (row.ended_at || row.end));
+  const wanted = String(pr || data.pr || '').replace(/^#/, '');
+  const runs = [...(data.runs || [])].filter(row => {
+    const recorded = (row.started_at || row.installed_at) && (row.ended_at || row.end);
+    if (!recorded) return false;
+    if (!wanted || wanted === 'current') return true;
+    return String(row.pr || '').replace(/^#/, '') === wanted;
+  });
   if (!runs.length) return null;
   return runs.sort((a, b) => {
     const ta = new Date(a.started_at || a.installed_at).getTime();
@@ -227,19 +247,19 @@ function setPreset(name) {
     return;
   }
   if (name === 'Last test run') {
-    const last = lastRecordedRun() || (data.run?.recorded ? data.run : null);
-    if (!last || !((last.started_at || last.installed_at) && (last.ended_at || last.end))) {
-      timeLabel = 'run time not recorded';
-      $('time-label').textContent = timeLabel;
-      run = null;
-      from = null;
-      to = null;
-      updateUrl();
-      render();
-      return;
-    }
+    const last = lastRecordedRun();
     run = 'last';
     scope = 'window';
+    from = null;
+    to = null;
+    if (!last || !((last.started_at || last.installed_at) && (last.ended_at || last.end))) {
+      const prLabel = `#${String(pr || data.pr || '').replace(/^#/, '')}`;
+      timeLabel = `no ${prLabel} run yet`;
+      $('time-label').textContent = timeLabel;
+      updateUrl();
+      load();
+      return;
+    }
     timeLabel = runLabel(last);
     updateUrl();
     load();
@@ -271,7 +291,7 @@ function setWindow() {
   if (!from || !to) return;
   run = null;
   scope = 'window';
-  timeLabel = 'Custom';
+  timeLabel = windowRangeLabel(from, to) || [textInput(from), textInput(to)].filter(Boolean).join('–') || 'Custom';
   updateUrl();
   load();
 }
@@ -329,8 +349,9 @@ function isWindow() {
 }
 
 function groupByState() {
+  // Render the server-computed state / window_reason; never recompute it here.
   const states = isWindow()
-    ? ['regressed', 'new', 'reoccurred', 'fixed', 'worked']
+    ? ['regressed', 'new', 'reoccurred', 'fixed', 'worked', 'inconclusive']
     : ['regressed', 'blocked', 'in_progress', 'untested', 'parked', 'resolved'];
   return states.map(s => [s, data.issues.filter(i => isWindow() ? i.window_reason === s : i.state === s)])
     .filter(([, list]) => list.length);
@@ -353,8 +374,10 @@ function lastEvidence(i) {
   const e = i.last_evidence || {};
   if (!e.at) return ['', 'muted', 'No check on record'];
   const kind = ['pass', 'fixed', 'resolved'].includes(e.kind) ? 'pass'
-    : ['fail', 'review_failed', 'owner_rejected', 'inconclusive'].includes(e.kind) ? 'fail' : 'run';
-  return [`${kind === 'pass' ? '✓ ' : kind === 'fail' ? '× ' : '● '}${formatTime(e.at, !isToday(e.at))}`, kind, `${e.summary || e.kind} · ${formatTime(e.at, true)}`];
+    : ['fail', 'review_failed', 'owner_rejected'].includes(e.kind) ? 'fail'
+    : e.kind === 'inconclusive' ? 'inconclusive' : 'run';
+  const mark = kind === 'pass' ? '✓ ' : kind === 'fail' ? '× ' : kind === 'inconclusive' ? '○ ' : '● ';
+  return [`${mark}${formatTime(e.at, !isToday(e.at))}`, kind, `${i.check_reason || e.summary || e.kind} · ${formatTime(e.at, true)}`];
 }
 
 function rows(list, key) {
@@ -373,12 +396,25 @@ function headline() {
   const total = data.issues.length;
   const prLabel = `#${String(data.pr || pr || '').replace(/^#/, '')}`;
   const rLabel = data.round != null ? `R${data.round}` : (round != null ? `R${round}` : '');
+  if (data.run_note && !data.run) {
+    const other = data.last_other_run ? `last: ${runLabel(data.last_other_run)}` : '';
+    return `${esc(data.run_note)}${other ? `<div class="d" style="margin-top:8px;font-size:1rem">${esc(other)}</div>` : ''}`;
+  }
   if (isWindow()) {
+    if (data.run && (counts.tested != null || byReason.inconclusive || byReason.fixed)) {
+      const tested = counts.tested ?? total;
+      const fixed = counts.fixed ?? byReason.fixed ?? 0;
+      const inconclusive = counts.inconclusive ?? byReason.inconclusive ?? 0;
+      const bits = [`${tested} tested`, `${fixed} fixed`, `${inconclusive} inconclusive`];
+      if (byReason.regressed) bits.splice(1, 0, `<span class="bad">Regressed ${byReason.regressed}</span>`);
+      return `${bits.join('<span class="d">·</span>')}<div class="d" style="margin-top:8px;font-size:1rem">${esc(runLabel(data.run) || timeLabel)}</div>`;
+    }
     const bits = [`${total} <span class="d">in window</span>`];
     if (byReason.new) bits.push(`New ${byReason.new}`);
     if (byReason.regressed) bits.push(`<span class="bad">Regressed ${byReason.regressed}</span>`);
     if (byReason.reoccurred) bits.push(`Failed again ${byReason.reoccurred}`);
     if (byReason.fixed) bits.push(`Fixed ${byReason.fixed}`);
+    if (byReason.inconclusive) bits.push(`Inconclusive ${byReason.inconclusive}`);
     const quiet = data.quiet_excluded;
     const runBit = data.run ? runLabel(data.run) : timeLabel;
     return `${bits.join('<span class="d">·</span>')}${quiet ? `<span class="d">·</span>${quiet} quiet` : ''}<div class="d" style="margin-top:8px;font-size:1rem">${esc(runBit)}</div>`;
@@ -396,9 +432,7 @@ function headline() {
 function renderNow() {
   const groups = groupByState();
   const total = data.issues.length || 1;
-  const legendItems = isWindow()
-    ? [['new', 'New'], ['reoccurred', 'Failed again'], ['regressed', 'Regressed'], ['fixed', 'Fixed']]
-    : [['blocked', 'Blocked'], ['in_progress', 'In progress'], ['untested', 'Untested'], ['resolved', 'Resolved']];
+  const legendItems = groups.map(([s]) => [s, labels[s] || s]);
   let h = `<div class="headline">${headline()}</div><div class="sbar" role="img" aria-label="Issue status mix">${groups.map(([s, list]) => `<span style="width:${list.length / total * 100}%;background:${colors[s]}" title="${labels[s]} ${list.length}"></span>`).join('')}</div><div class="legend">${legendItems.map(([s, l]) => `<span title="${l}"><i style="background:${colors[s]}"></i>${l}</span>`).join('')}</div>`;
   if (!isWindow()) h += `<h2 class="section-title">Needs you</h2><div class="list">${needRows()}</div>`;
   h += `<h2 class="section-title">Issues</h2><div class="list">`;
@@ -413,8 +447,8 @@ function drawerHTML() {
   const i = data.issues.find(x => x.id === drawer);
   if (!i) return '';
   const f = i.first_seen || {};
-  const ev = [...(i.events || [])].sort((a, b) => String(a.at).localeCompare(String(b.at)));
-  return `<div class="scrim" data-close></div><aside class="drawer" id="issue-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"><button class="x" data-close aria-label="Close">×</button><div class="mono muted">${esc(i.id)}</div><h2 id="drawer-title" tabindex="-1">${esc(i.title)}</h2><dl class="facts"><dt>Status</dt><dd>${esc(labels[i.state] || i.state)}</dd><dt>Area</dt><dd>${esc(i.area || 'Not recorded')}</dd><dt>Origin</dt><dd>${esc(i.origin)}${i.origin_pr ? ` · PR #${esc(i.origin_pr)}` : ''}</dd><dt>First seen</dt><dd>${f.at ? formatTime(f.at, true) : 'Not recorded'}</dd><dt>Last fail</dt><dd>${i.last_seen_at ? formatTime(i.last_seen_at, true) : 'No failure recorded'}</dd><dt>Attempts</dt><dd>${esc(i.attempts || 0)}</dd><dt>Lane</dt><dd>${esc(i.lane?.id || 'No lane')}</dd></dl><h3>What we know</h3><p>${esc(i.summary || 'No summary recorded.')}</p>${i.impact ? `<p>${esc(i.impact)}</p>` : ''}${i.done_when ? `<p>${esc(i.done_when)}</p>` : ''}<h3>Timeline</h3><ul class="tl">${ev.map(e => `<li class="${e.kind === 'pass' ? 'pass-dot' : ['fail', 'review_failed', 'owner_rejected'].includes(e.kind) ? 'fail-dot' : ''}"><time>${esc(formatTime(e.at, true))}</time><span>${esc(e.summary || e.kind)}${e.ref ? ` · ${esc(e.ref)}` : ''}</span></li>`).join('') || '<li><span class="muted">No events recorded</span></li>'}</ul><details><summary>Raw data</summary><pre>${esc(JSON.stringify(i.raw, null, 2))}</pre></details></aside>`;
+  const ev = [...(i.events || [])].sort((a, b) => new Date(a.at) - new Date(b.at) || (a.kind === 'first_seen' ? -1 : 0));
+  return `<div class="scrim" data-close></div><aside class="drawer" id="issue-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"><button class="x" data-close aria-label="Close">×</button><div class="mono muted">${esc(i.id)}</div><h2 id="drawer-title" tabindex="-1">${esc(i.title)}</h2><dl class="facts"><dt>Status</dt><dd>${esc(labels[i.state] || i.state)}</dd><dt>Area</dt><dd>${esc(i.area || 'Not recorded')}</dd><dt>Origin</dt><dd>${esc(i.origin_label || `${i.origin || ''}${i.origin_pr ? ` · PR #${i.origin_pr}` : ''}${i.carried_to ? ` → #${i.carried_to}` : ''}`)}</dd><dt>First seen</dt><dd>${f.at ? formatTime(f.at, true) : 'Not recorded'}</dd><dt>Last fail</dt><dd>${i.last_seen_at ? formatTime(i.last_seen_at, true) : 'No failure recorded'}</dd><dt>Attempts</dt><dd>${esc(i.attempts || 0)}</dd><dt>Lane</dt><dd>${esc(i.lane?.id || 'No lane')}</dd></dl><h3>What we know</h3><p>${esc(i.summary || 'No summary recorded.')}</p>${i.impact ? `<p>${esc(i.impact)}</p>` : ''}${i.done_when ? `<p>${esc(i.done_when)}</p>` : ''}<h3>Timeline</h3><ul class="tl">${ev.map(e => `<li class="${e.kind === 'pass' ? 'pass-dot' : ['fail', 'review_failed', 'owner_rejected'].includes(e.kind) ? 'fail-dot' : e.kind === 'inconclusive' ? 'inconclusive-dot' : ''}"><time>${esc(formatTime(e.at, true))}</time><span>${esc(e.summary || e.kind)}${e.ref ? ` · ${esc(e.ref)}` : ''}</span></li>`).join('') || '<li><span class="muted">No events recorded</span></li>'}</ul><details><summary>Raw data</summary><pre>${esc(JSON.stringify(i.raw, null, 2))}</pre></details></aside>`;
 }
 
 function recentRuns() {
@@ -475,11 +509,17 @@ function drawHist() {
     }
   }
   const max = Math.max(1, ...bins);
+  const span = end - start;
   const bands = recentRuns().map(row => {
     const a = new Date(row.started_at || row.installed_at || 0).getTime();
     const b = new Date(row.ended_at || row.end || 0).getTime();
-    if (!a || !b) return null;
-    return {id: row.id || row.run_id, left: (a - start) / (end - start) * 100, width: Math.max(1, (b - a) / (end - start) * 100)};
+    if (!a || !b || !span) return null;
+    const left = (a - start) / span * 100;
+    const right = (b - start) / span * 100;
+    if (right <= 0 || left >= 100) return null;
+    const clippedLeft = Math.max(0, left);
+    const clippedRight = Math.min(100, right);
+    return {id: row.id || row.run_id, left: clippedLeft, width: Math.max(0.5, clippedRight - clippedLeft)};
   }).filter(Boolean);
   const windowStart = from && to && !String(from).startsWith('now') ? new Date(from).getTime() : (data.window?.from ? new Date(data.window.from).getTime() : start);
   const windowEnd = from && to && to !== 'now' ? new Date(to).getTime() : (data.window?.to ? new Date(data.window.to).getTime() : end);

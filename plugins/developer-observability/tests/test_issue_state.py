@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "runtime"))
-from backend.issue_state import lifecycle_state, select_scope, window_reason
+from backend.issue_state import first_seen_for, lifecycle_state, select_scope, window_reason
 
 
 class IssueStateTests(unittest.TestCase):
@@ -13,6 +13,9 @@ class IssueStateTests(unittest.TestCase):
         self.assertEqual(lifecycle_state({"status": "running"}), "in_progress")
         self.assertEqual(lifecycle_state({"status": "pending"}, [{"kind": "review_failed", "at": "2026-11-24T10:00:00Z"}]), "blocked")
         self.assertEqual(lifecycle_state({"status": "parked"}), "parked")
+        self.assertEqual(lifecycle_state({"status": "untested"}, lane={"status": "planned", "phase": "fix"}), "untested")
+        self.assertEqual(lifecycle_state({"status": "untested"}, lane={"status": "parked", "phase": "fix"}), "untested")
+        self.assertEqual(lifecycle_state({"status": "untested"}, lane={"status": "deferred", "phase": "deferred"}), "parked")
         self.assertEqual(lifecycle_state({"status": "verified"}), "resolved")
         self.assertEqual(lifecycle_state({"status": "verified", "resolved_at": "2026-11-24T10:00:00Z"},
                                          [{"kind": "fail", "at": "2026-11-24T10:01:00Z"}]), "regressed")
@@ -39,6 +42,33 @@ class IssueStateTests(unittest.TestCase):
                                                      {"kind": "fail", "at": "2026-11-24T11:00:00Z"}]}, start, end), "regressed")
         self.assertIsNone(window_reason({"events": [{"kind": "job", "at": "2026-11-24T08:00:00Z"}]}, start, end))
 
+    def test_inconclusive_is_never_a_regression(self):
+        start, end = "2026-11-24T10:00:00Z", "2026-11-24T12:00:00Z"
+        issue = {"events": [
+            {"kind": "pass", "at": "2026-11-24T08:00:00Z"},
+            {"kind": "inconclusive", "at": "2026-11-24T11:00:00Z", "summary": "not enough evidence"},
+        ]}
+        self.assertEqual(window_reason(issue, start, end), "inconclusive")
+        fail = {"events": [
+            {"kind": "pass", "at": "2026-11-24T08:00:00Z"},
+            {"kind": "fail", "at": "2026-11-24T11:00:00Z"},
+        ]}
+        self.assertEqual(window_reason(fail, start, end), "regressed")
+
+    def test_first_seen_is_the_earliest_time_across_sources(self):
+        finding = {
+            "id": "DO-4",
+            "created_at": "2026-11-24T07:10:26Z",
+            "first_seen": {"at": "2026-11-24T07:10:26Z", "source": "created_at", "pr": 121},
+            "observed": "24 Nov 2026 16:19 IST. Guru approved the v3 calm design.",
+        }
+        seen = first_seen_for(finding, 121, 2)
+        # Structured 12:40 IST beats the later 16:19 observed rewrite.
+        self.assertTrue((seen["at"] or "").startswith("2026-11-24T07:10:26"))
+        self.assertNotEqual(seen["source"], "observed_text")
+        finding["observed"] = "24 Nov 2026 12:37 IST, first visit on #120"
+        seen = first_seen_for(finding, 121, 2)
+        self.assertTrue("07:07" in (seen["at"] or "") or "12:37" in (seen["at"] or ""))
 
 if __name__ == "__main__":
     unittest.main()

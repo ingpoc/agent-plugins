@@ -144,7 +144,7 @@ class CascadeAndAccuracyTests(unittest.TestCase):
             {"id": "PR120-r6-collect-job-coverage", "title": "Coverage", "status": "untested",
              "created_at": "2026-11-24T07:02:02Z", "observed": "24 Nov 2026, 12:27–12:30 IST, Asia/Calcutta."},
             {"id": "DO-4", "title": "Viewer v3", "status": "in_progress", "created_at": "2026-11-24T07:10:26Z",
-             "observed": "24 Nov 2026 12:40 IST"},
+             "observed": "24 Nov 2026 12:37 IST"},
             {"id": "BCL-171", "title": "Collector", "status": "blocked",
              "observed": "22 Nov 2026 18:54 IST, Guru rule and read-only audit",
              "last_seen": {"at": "2026-11-24T04:43:44Z", "source": "review"},
@@ -169,10 +169,13 @@ class CascadeAndAccuracyTests(unittest.TestCase):
         findings_121 = [
             {"id": "DO-4", "title": "Viewer v3", "status": "failing",
              "created_at": "2026-11-24T07:10:26Z",
+             "first_seen": {"at": "2026-11-24T07:10:26Z", "source": "created_at", "pr": 121, "round": 2},
              "observed": "24 Nov 2026 16:19 IST Asia/Calcutta. Guru approved the v3 calm design.",
              "verification": "Guru rejected the page: it is not understandable, so the earlier sign-off is withdrawn.",
              "verification_evidence": [{"observed": "The mid-afternoon review of 24 November 2026 concluded the page is ready to ship."}],
              "last_seen": {"at": "2026-11-24T11:44:38Z", "source": "review"}},
+            {"id": "DO-12", "title": "Tracker fields", "status": "untested",
+             "created_at": "2026-11-24T12:00:00Z", "observed": "24 Nov 2026 17:30 IST"},
             {"id": "DO-8", "title": "DO-8", "status": "untested",
              "created_at": "2026-11-24T08:04:16Z", "observed": "24 Nov 2026 13:30 IST Asia/Calcutta."},
             {"id": "DO-6", "title": "DO-6", "status": "untested",
@@ -202,7 +205,7 @@ class CascadeAndAccuracyTests(unittest.TestCase):
             121, 2, 13, findings_121,
             history=[{"round": 1, "fixed": 3, "ended_at": "2026-11-24T10:31:36Z"}],
             plan_groups=[
-                {"id": "R2-DO4", "status": "planned", "phase": "fix", "finding_ids": ["DO-4"],
+                {"id": "R2-DO4", "status": "planned", "phase": "fix", "finding_ids": ["DO-4", "DO-12"],
                  "failure_history": [
                      {"attempt_id": "a", "source": "review", "reason": "Review incomplete", "at": "2026-11-24T11:43:38Z"},
                      {"attempt_id": "b", "source": "review", "reason": "Must-fix remaining", "at": "2026-11-24T11:44:38Z"},
@@ -243,7 +246,7 @@ class CascadeAndAccuracyTests(unittest.TestCase):
         self.assertEqual({row["id"] for row in via_scope["issues"]}, {row["id"] for row in via_http["issues"]})
         r6 = next(row for row in via_http["rounds"] if str(row.get("pr")) == "120" and row.get("round") == 6)
         self.assertEqual(r6["fixed"], 4)
-        self.assertEqual(r6["found"], 3)
+        self.assertEqual(r6["found"], 4)
         self.assertEqual(r6["regressed"], 0)
 
     def test_p1_timeframe_dedupes_by_latest_pr_and_fills_window(self):
@@ -339,7 +342,7 @@ class CascadeAndAccuracyTests(unittest.TestCase):
         self.assertEqual(both, {"a", "b"})
 
     def test_last_test_run_window_matches_counts_and_rejects_unrecorded_fallback(self):
-        result = build_issues("agent-plugins", run="last")
+        result = build_issues("agent-plugins", pr="120", run="last")
         self.assertEqual(result["run"]["id"], "r6-828e2f90-120")
         self.assertTrue(result["run"]["recorded"])
         self.assertEqual(result["window"]["kind"], "run")
@@ -356,7 +359,7 @@ class CascadeAndAccuracyTests(unittest.TestCase):
         self.assertEqual(result["counts"]["by_reason"]["fixed"], 4)
         self.assertEqual(result["counts"]["by_reason"]["new"], sum(i.get("window_reason") == "new" for i in result["issues"]))
         self.assertEqual(len({row["id"] for row in result["issues"]}), len(result["issues"]))
-        via_http = issues_payload({"project": ["agent-plugins"], "run": ["last"]})
+        via_http = issues_payload({"project": ["agent-plugins"], "pr": ["120"], "run": ["last"]})
         self.assertEqual({row["id"] for row in via_http["issues"]}, {row["id"] for row in result["issues"]})
         self.assertEqual(via_http["counts"], result["counts"])
         by_id = build_issues("agent-plugins", run="r6-828e2f90-120")
@@ -372,6 +375,98 @@ class CascadeAndAccuracyTests(unittest.TestCase):
         self.assertIsNone(missing["window"]["from"])
         self.assertIsNone(missing["window"]["to"])
         self.assertEqual(missing["counts"]["by_state"]["resolved"], 0)
+
+
+    def test_p1a_run_lists_every_check_and_inconclusive_is_not_regressed(self):
+        tracker = json.loads((self.state / "agent-plugins" / "120.json").read_text())
+        tracker["tracking"].setdefault("verification_history", []).append({
+            "id": "r7-acu-demo-120",
+            "pr": 120,
+            "round": 7,
+            "installed_at": "2026-11-24T08:31:56Z",
+            "ended_at": "2026-11-24T08:50:24Z",
+            "status": "complete",
+            "checks": {
+                "BCL-121": {"state": "inconclusive", "finished_at": "2026-11-24T08:40:00Z", "summary": "run stopped"},
+                "DO-2": {"state": "inconclusive", "finished_at": "2026-11-24T08:41:00Z", "summary": "run stopped"},
+                "DO-3": {"state": "fixed", "finished_at": "2026-11-24T08:42:00Z", "summary": "fixed"},
+                "PR120-r5-codex-reviewer-model-fallback": {"state": "inconclusive", "finished_at": "2026-11-24T08:43:00Z",
+                                                           "summary": "run stopped"},
+                "DO-4": {"state": "not_fixed", "finished_at": "2026-11-24T08:44:00Z", "summary": "still failing"},
+            },
+        })
+        (self.state / "agent-plugins" / "120.json").write_text(json.dumps(tracker))
+        result = build_issues("agent-plugins", pr="120", run="last")
+        self.assertEqual(result["run"]["id"], "r7-acu-demo-120")
+        ids = [row["id"] for row in result["issues"]]
+        self.assertEqual(len(ids), 5)
+        self.assertEqual(len(set(ids)), 5)
+        by_reason = result["counts"]["by_reason"]
+        self.assertEqual(result["counts"]["tested"], 5)
+        self.assertEqual(result["counts"]["fixed"], 1)
+        self.assertEqual(result["counts"]["inconclusive"], 3)
+        self.assertEqual(by_reason["inconclusive"], 3)
+        self.assertEqual(by_reason["fixed"], 1)
+        self.assertEqual(by_reason.get("regressed") or 0, 1)
+        self.assertTrue(all(row["window_reason"] != "regressed" or row["id"] == "DO-4" for row in result["issues"]))
+        # Window / run counts match state= filters on the same set.
+        self.assertEqual(result["counts"]["by_state"]["regressed"],
+                         sum(issue["state"] == "regressed" for issue in result["issues"]))
+        filtered = build_issues("agent-plugins", pr="120", run="r7-acu-demo-120", state="regressed")
+        self.assertEqual(len(filtered["issues"]), result["counts"]["by_state"]["regressed"])
+        self.assertTrue(all(issue["state"] == "regressed" for issue in filtered["issues"]))
+
+    def test_p1b_first_seen_is_earliest_across_prs_and_timeline_is_sorted(self):
+        result = build_issues("agent-plugins")
+        do4 = next(row for row in result["issues"] if row["id"] == "DO-4")
+        stamp = do4["first_seen"]["at"]
+        from backend.issue_state import instant
+        first = instant(stamp)
+        self.assertIsNotNone(first)
+        self.assertEqual(first.astimezone(__import__("datetime").timezone.utc).strftime("%Y-%m-%dT%H:%M"),
+                         "2026-11-24T07:07")
+        instants = []
+        for event in do4["events"]:
+            value = instant(event["at"])
+            self.assertIsNotNone(value, event)
+            instants.append(value)
+        self.assertEqual(instants, sorted(instants))
+        # The 16:19 rewritten note must not become first seen.
+        self.assertFalse((stamp or "").startswith("2026-11-24T16:19") or "10:49" in (stamp or ""))
+
+    def test_p2a_untested_planned_sibling_stays_untested(self):
+        result = build_issues("agent-plugins")
+        issues = {row["id"]: row for row in result["issues"]}
+        do12 = issues["DO-12"]
+        self.assertEqual(do12["status_raw"], "untested")
+        self.assertEqual(do12["state"], "untested")
+        self.assertFalse(do12["needs_you"])
+        self.assertEqual(do12["lane"]["id"], "R2-DO4")
+        self.assertEqual(issues["DO-4"]["state"], "regressed")
+        self.assertEqual(result["counts"]["by_state"]["untested"],
+                         sum(issue["state"] == "untested" for issue in result["issues"]))
+        self.assertEqual(result["counts"]["by_state"]["parked"],
+                         sum(issue["state"] == "parked" for issue in result["issues"]))
+
+    def test_p2c_live_rounds_and_runs_follow_the_source_pr(self):
+        result = build_issues("agent-plugins")
+        rounds = result["rounds"]
+        live = [row for row in rounds if row.get("live")]
+        self.assertTrue(all(str(row.get("pr")) == "121" for row in live), live)
+        self.assertTrue(all(row.get("round") == 2 for row in live if str(row.get("pr")) == "121"))
+        r7 = next(row for row in rounds if str(row.get("pr")) == "120" and row.get("round") == 7)
+        self.assertFalse(r7.get("live"))
+        self.assertIsNotNone(r7.get("ended_at"))
+        # Default last run on the open PR has no run yet.
+        missing = build_issues("agent-plugins", pr="121", run="last")
+        self.assertIsNone(missing["run"])
+        self.assertEqual(missing["run_note"], "no #121 run yet")
+        self.assertEqual(missing["issues"], [])
+        self.assertIsNotNone(missing["last_other_run"])
+        self.assertEqual(str(missing["last_other_run"]["pr"]), "120")
+        # Runs copied or hosted elsewhere still keep their source PR from the id suffix.
+        from backend.issue_state import run_source_pr
+        self.assertEqual(run_source_pr({"id": "r7-acu-0.2.163-11517de1-120"}, 121), "120")
 
 
 

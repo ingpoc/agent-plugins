@@ -8,10 +8,11 @@ from pathlib import Path
 
 STATES = ("untested", "in_progress", "blocked", "parked", "resolved", "regressed")
 ORIGINS = ("new", "carried")
-WINDOW_REASONS = ("regressed", "new", "reoccurred", "fixed", "worked")
+WINDOW_REASONS = ("regressed", "new", "reoccurred", "fixed", "worked", "inconclusive")
 TERMINAL = {"resolved", "verified", "verified_fixed", "fixed", "closed", "done"}
-FAIL_KINDS = {"fail", "review_failed", "owner_rejected", "inconclusive"}
+FAIL_KINDS = {"fail", "review_failed", "owner_rejected"}
 PASS_KINDS = {"pass", "resolved"}
+INCONCLUSIVE_KINDS = {"inconclusive"}
 IST = timezone(timedelta(hours=5, minutes=30))
 MONTHS = {name: index for index, name in enumerate(
     ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1)}
@@ -160,7 +161,10 @@ def lifecycle_state(finding, events=(), lane=None, prior=None):
     if terminal:
         return "resolved"
     lane_status = _lane_status(lane)
-    if status in {"parked", "deferred"} or lane_status in {"parked", "deferred"}:
+    if status in {"parked", "deferred"} or lane_status == "deferred":
+        return "parked"
+    # A temporarily parked fix lane must not rewrite an untested finding (DO-12).
+    if lane_status == "parked" and status not in {"untested", "pending", ""}:
         return "parked"
     if status in {"blocked", "failed", "failing", "changes_requested", "incomplete"} or failures:
         return "blocked"
@@ -201,20 +205,25 @@ def window_kind(start, end):
 
 def window_reason(issue, start, end):
     """Classify issue activity in a project-wide window; return None when quiet."""
+    start, end = instant(start) or start, instant(end) or end
     first = instant((issue.get("first_seen") or {}).get("at"))
     events = [event for event in issue.get("events", []) if instant(event.get("at"))]
     inside = [event for event in events if start <= instant(event["at"]) <= end]
-    if first and start <= first <= end:
-        return "new"
     failures = [event for event in inside if event.get("kind") in FAIL_KINDS]
     passes_before = any(instant(event.get("at")) < start and event.get("kind") in PASS_KINDS
-                        for event in events)
-    if failures and passes_before:
+                        for event in events) or any(
+        instant(event.get("at")) < instant(failures[0]["at"]) and event.get("kind") in PASS_KINDS
+        for event in events if failures and instant(failures[0].get("at")))
+    if failures and (passes_before or _had_prior_pass(issue.get("raw") or issue, events)):
         return "regressed"
     if failures:
         return "reoccurred"
     if any(event.get("kind") in PASS_KINDS for event in inside):
         return "fixed"
+    if any(event.get("kind") in INCONCLUSIVE_KINDS for event in inside):
+        return "inconclusive"
+    if first and start <= first <= end:
+        return "new"
     if any(event.get("kind") == "job" for event in inside):
         return "worked"
     return None
@@ -308,14 +317,16 @@ def first_seen_for(finding, tracker_pr, round_number, unresolved_ids=(), source_
     observed_at = parse_observed(finding.get("observed"))
     stored_at = instant(stored.get("at")) if stored else instant(finding.get("first_seen_at"))
     created_at = instant(finding.get("created_at"))
+    candidates = []
+    if stored_at is not None:
+        candidates.append((stored_at, stored.get("source") or "first_seen_at"))
+    if created_at is not None:
+        candidates.append((created_at, "created_at"))
     if observed_at is not None:
-        at, source = observed_at, "observed_text"
-    elif stored_at is not None and stored.get("source") not in {None, "legacy_gap"}:
-        at, source = stored_at, stored.get("source") or "first_seen_at"
-    elif stored_at is not None:
-        at, source = stored_at, stored.get("source") or "first_seen_at"
-    elif created_at is not None:
-        at, source = created_at, "created_at"
+        candidates.append((observed_at, "observed_text"))
+    if candidates:
+        # Earliest wins; a later rewritten observed note must not replace an earlier structured time.
+        at, source = min(candidates, key=lambda row: (row[0], 0 if row[1] != "observed_text" else 1))
     else:
         at, source = None, "legacy_gap"
     origin_pr = stored.get("pr") if stored.get("pr") is not None else finding.get("first_seen_pr", finding.get("origin_pr"))
@@ -358,10 +369,13 @@ def _events_for(finding, group, jobs):
             if not isinstance(row, dict):
                 continue
             status = str(row.get("state") or row.get("status") or "").lower()
+            if status in {"pending", "checking", ""}:
+                continue
             at = row.get("finished_at") or row.get("updated_at") or row.get("at")
-            kind = "pass" if status in {"fixed", "passed", "pass", "resolved"} else "inconclusive" if status in {"inconclusive", "pending"} else "fail"
-            events.append(_event(kind, at, row.get("summary") or status, row.get("ref") or f"check:{finding.get('id')}"))
-    if isinstance(group, dict):
+            kind = "pass" if status in {"fixed", "passed", "pass", "resolved"} else "inconclusive" if status in {"inconclusive", "blocked", "stopped"} else "fail"
+            events.append(_event(kind, at, row.get("evidence") or row.get("summary") or status, row.get("ref") or f"check:{finding.get('id')}"))
+    status_raw = str(finding.get("status_raw") or finding.get("status") or "").strip().lower()
+    if isinstance(group, dict) and status_raw in {"failing", "failed", "blocked", "changes_requested", "incomplete"}:
         for row in group.get("failure_history", []):
             if isinstance(row, dict):
                 events.append(_event("fail", row.get("at") or row.get("timestamp"), row.get("reason") or "Lane failure",
@@ -377,16 +391,43 @@ def _events_for(finding, group, jobs):
         if job.get("event") == "finish" and job.get("exit_code") not in (None, 0):
             kind = "review_failed" if job.get("phase") == "review" else "fail"
         events.append(_event(kind, at, job.get("phase") or "Job", f"job:{job.get('job_id')}" if job.get("job_id") else None))
-    return sorted((row for row in events if row), key=lambda row: row["at"])
+    return _sort_events(row for row in events if row)
+
+
+def _sort_events(events):
+    """Sort by instant, not raw strings, so +05:30 and Z timestamps stay in order."""
+    def key(row):
+        stamp = instant(row.get("at")) or datetime.min.replace(tzinfo=timezone.utc)
+        return (stamp, 0 if row.get("kind") == "first_seen" else 1, row.get("kind") or "")
+    return sorted(events, key=key)
 
 
 
-def resolve_run(runs, key):
-    """Pick a verification run by id or the most recently started one (key='last')."""
+def run_source_pr(run, tracker_pr=None):
+    """Attribute a run to its source PR from the id suffix, recorded pr, or host tracker."""
+    if not isinstance(run, dict):
+        return str(tracker_pr) if tracker_pr is not None else None
+    ident = str(run.get("id") or run.get("run_id") or "")
+    match = re.search(r"-(\d+)$", ident)
+    if match:
+        return match.group(1)
+    recorded = run.get("pr")
+    if recorded is not None and str(recorded).lstrip("#").isdigit():
+        return str(recorded).lstrip("#")
+    return str(tracker_pr).lstrip("#") if tracker_pr is not None else None
+
+
+def resolve_run(runs, key, pr=None):
+    """Pick a verification run by id, or the latest run for pr when key='last'."""
     usable = [run for run in runs if isinstance(run, dict) and (run.get("id") or run.get("run_id"))]
     if not usable or key in (None, ""):
         return None
     if str(key).lower() == "last":
+        if pr not in (None, "", "current"):
+            wanted = str(pr).lstrip("#")
+            usable = [run for run in usable if str(run.get("pr") or "").lstrip("#") == wanted]
+        if not usable:
+            return None
         def sort_key(run):
             stamp = instant(run.get("started_at") or run.get("installed_at") or run.get("ended_at"))
             return stamp or datetime.min.replace(tzinfo=timezone.utc)
@@ -552,6 +593,86 @@ def _activity_counts(issues, start, end, now=None):
     return {"found": found, "fixed": fixed, "regressed": regressed}
 
 
+
+def _check_window_reason(check, issue):
+    status = str(check.get("state") or check.get("status") or "").lower()
+    if status in {"pending", "checking", ""}:
+        return None
+    if status in {"fixed", "passed", "pass", "resolved"}:
+        return "fixed"
+    if status in {"inconclusive", "blocked", "stopped"}:
+        return "inconclusive"
+    events = issue.get("events") or []
+    if _had_prior_pass(issue.get("raw") or issue, events):
+        return "regressed"
+    return "reoccurred"
+
+
+def _select_run_issues(issues, run, state=None):
+    """Include every finished check in the run, including inconclusive results."""
+    checks = run.get("checks") if isinstance(run.get("checks"), dict) else {}
+    selected = []
+    for issue in issues:
+        check = checks.get(issue.get("id"))
+        if not isinstance(check, dict):
+            continue
+        reason = _check_window_reason(check, issue)
+        if reason is None:
+            continue
+        start, end = run_window(run)
+        start_at, end_at = instant(start), instant(end)
+        events = []
+        if start_at and end_at:
+            events = [event for event in issue.get("events", []) if instant(event.get("at")) and start_at <= instant(event["at"]) <= end_at]
+        reason_text = check.get("evidence") or check.get("summary") or check.get("observation") or check.get("state")
+        selected.append({**issue, "window_reason": reason, "window_events": events, "check_outcome": check.get("state"),
+                         "check_reason": reason_text})
+    selected.sort(key=lambda row: (row["window_reason"] == "regressed", row["window_reason"] == "new",
+                                  row.get("last_seen_at") or ""), reverse=True)
+    if state:
+        accepted, negated = _parse_state_filter(state)
+        def allowed(issue):
+            current = issue.get("state")
+            source = issue.get("origin")
+            if accepted and current not in accepted and source not in accepted:
+                return False
+            if current in negated or source in negated:
+                return False
+            return True
+        selected = [issue for issue in selected if allowed(issue)]
+    return selected
+
+
+def _bound_issue_to_round(issue, start, end, carried_to=None):
+    """Restrict evidence and state to a past round's window; label leftovers carried forward."""
+    end_at = instant(end)
+    events = issue.get("events") or []
+    if end_at:
+        events = [event for event in events if instant(event.get("at")) and instant(event["at"]) <= end_at]
+    events = _sort_events(events)
+    bounded = {**issue, "events": events}
+    raw = issue.get("raw") if isinstance(issue.get("raw"), dict) else issue
+    status = str(raw.get("status") or issue.get("status_raw") or "").strip().lower()
+    snapshot = {**raw, "status": status}
+    state = lifecycle_state(snapshot, events, lane=None, prior=None)
+    if state == "parked" and status not in {"parked", "deferred"}:
+        state = "untested"
+    last_evidence = max((event for event in events if (event.get("ref") or "").startswith(("job:", "check:"))),
+                        key=lambda row: instant(row.get("at")) or datetime.min.replace(tzinfo=timezone.utc),
+                        default=None)
+    failures = [event for event in events if event.get("kind") in FAIL_KINDS]
+    last_seen_at = max((event["at"] for event in failures if event.get("at")), default=None)
+    origin_label = issue.get("origin")
+    if carried_to and state != "resolved":
+        origin_label = "carried"
+        bounded["carried_to"] = str(carried_to).lstrip("#")
+        bounded["origin_label"] = f"carried → #{str(carried_to).lstrip('#')}"
+    bounded.update(state=state, last_evidence=last_evidence, last_seen_at=last_seen_at,
+                   needs_you=state in {"blocked", "regressed"}, origin=origin_label or issue.get("origin"),
+                   attempts=len(failures) or 0)
+    return bounded
+
+
 def build_issues(project, pr="current", scope="now", from_time=None, to_time=None, state=None, state_dir=None, round_id=None, run=None):
     """Read trackers and job events and return the shared UI/MCP issue contract."""
     try:
@@ -604,16 +725,23 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
         tracking, plan, round_number, cycle = _meta(document)
         history = tracking.get("round_history") if isinstance(tracking.get("round_history"), list) else []
         compact = _history_for_cycle(history, round_number, cycle)
+        merged = tracking.get("merged") if isinstance(tracking.get("merged"), dict) else merged_by_pr.get(str(tracker_pr))
+        is_open = (not merged) and str(tracker_pr) == str(latest_pr)
+        merge_at = (merged or {}).get("merged_at") or (merged or {}).get("at") if merged else None
         rows = []
         previous_end = None
         for row in compact:
             started = row.get("started_at") or previous_end
-            rows.append({**row, "pr": tracker_pr, "started_at": started, "ended_at": row.get("ended_at"),
-                         "live": bool(row.get("live") or (row.get("round") == round_number and not row.get("ended_at")))})
-            previous_end = row.get("ended_at") or started
+            ended = row.get("ended_at")
+            live = is_open and row.get("round") == round_number and not ended
+            if not ended and row.get("round") == round_number and not is_open:
+                ended = merge_at
+            rows.append({**row, "pr": tracker_pr, "started_at": started, "ended_at": ended, "live": live})
+            previous_end = ended or started
         if round_number is not None and all(row.get("round") != round_number for row in rows):
+            ended = None if is_open else merge_at
             rows.append({"pr": tracker_pr, "round": round_number, "started_at": tracking.get("round_started_at") or previous_end,
-                         "ended_at": None, "live": True, "cycle": cycle})
+                         "ended_at": ended, "live": is_open, "cycle": cycle})
         return rows
 
     latest_by_pr = {}
@@ -686,7 +814,14 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
         for history_run in runs:
             normalized = normalize_run(history_run)
             if normalized:
-                all_runs.append({**normalized, "pr": tracker_pr})
+                attributed = {**normalized, "pr": run_source_pr(normalized, tracker_pr)}
+                existing = next((row for row in all_runs if str(row.get("id") or row.get("run_id")) == str(attributed.get("id") or attributed.get("run_id"))), None)
+                if existing:
+                    # Prefer the source-tracker attribution already recorded; merge checks.
+                    if isinstance(existing.get("checks"), dict) or isinstance(attributed.get("checks"), dict):
+                        existing["checks"] = {**(attributed.get("checks") or {}), **(existing.get("checks") or {})}
+                else:
+                    all_runs.append(attributed)
         findings = document.get("findings") if isinstance(document.get("findings"), list) else []
         for finding in findings:
             if not isinstance(finding, dict) or not finding.get("id"):
@@ -707,12 +842,14 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
                 if not isinstance(check, dict):
                     continue
                 check_state = str(check.get("state") or "").lower()
-                kind = "pass" if check_state in {"fixed", "passed", "pass", "resolved"} else "inconclusive" if check_state in {"inconclusive", "pending", "blocked"} else "fail"
+                if check_state in {"pending", "checking", ""}:
+                    continue
+                kind = "pass" if check_state in {"fixed", "passed", "pass", "resolved"} else "inconclusive" if check_state in {"inconclusive", "blocked", "stopped"} else "fail"
                 at = check.get("finished_at") or check.get("updated_at")
                 if at:
-                    events.append(_event(kind, at, check.get("summary") or check_state,
+                    events.append(_event(kind, at, check.get("evidence") or check.get("summary") or check_state,
                                          f"check:{history_run.get('id', 'current')}:{identifier}"))
-            events.sort(key=lambda row: row["at"])
+            events = _sort_events(event for event in events if event)
             lane_round = _round_from_group_id(group.get("id")) if group else None
             if lane_round is None and group:
                 try:
@@ -732,7 +869,7 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
                 home_round = round_number
             lane = None
             if group:
-                lane = {"id": group.get("id"), "state": group.get("status"), "round": lane_round or round_number}
+                lane = {"id": group.get("id"), "state": group.get("status"), "phase": group.get("phase"), "round": lane_round or round_number}
             computed = lifecycle_state(finding, events, lane=lane, prior=prior_findings.get(identifier))
             failures = [event for event in events if event["kind"] in {"fail", "review_failed", "owner_rejected"}]
             last_seen = finding.get("last_seen")
@@ -759,6 +896,29 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
             prior_findings[identifier] = finding
 
     catalog = built
+    earliest_seen = {}
+    for issue in catalog:
+        identifier = issue.get("id")
+        seen = issue.get("first_seen") if isinstance(issue.get("first_seen"), dict) else None
+        if not identifier or not seen or not instant(seen.get("at")):
+            continue
+        previous = earliest_seen.get(identifier)
+        if previous is None or instant(seen["at"]) < instant(previous["at"]) or (
+            instant(seen["at"]) == instant(previous["at"]) and seen.get("source") != "observed_text" and previous.get("source") == "observed_text"
+        ):
+            earliest_seen[identifier] = seen
+    for issue in catalog:
+        identifier = issue.get("id")
+        if identifier in earliest_seen:
+            issue["first_seen"] = earliest_seen[identifier]
+            if issue["first_seen"].get("pr") is not None:
+                issue["origin_pr"] = issue["first_seen"]["pr"]
+            issue["events"] = _sort_events(
+                [{**event, "at": issue["first_seen"]["at"]} if event.get("kind") == "first_seen" else event
+                 for event in issue.get("events") or []]
+            )
+            issue["origin"] = origin(issue["first_seen"], issue.get("pr"), identifier,
+                                     unresolved_ids=(), carried_from=issue.get("origin") == "carried")
     now = datetime.now(timezone.utc)
     decorated_rounds = []
     issues_by_pr = {}
@@ -790,21 +950,35 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
         built = [issue for issue in catalog if str(issue.get("pr")) == str(focus_pr)]
         if not built and not catalog:
             built = []
-    selected_run = resolve_run(all_runs, run) if run not in (None, "") else None
-    if run not in (None, "") and selected_run is None:
-        raise ValueError("invalid_run: no matching test run")
+    run_note = None
+    last_other_run = None
     run_unrecorded = False
-    if selected_run is not None:
-        run_from, run_to = run_window(selected_run)
-        if run_from and run_to:
-            from_time, to_time = run_from, run_to
-            timed = True
-            built = _dedupe_latest_pr(catalog)
+    selected_run = None
+    if run not in (None, ""):
+        run_pr = requested_pr or (None if str(run).lower() != "last" else str(current_pr))
+        if str(run).lower() == "last":
+            selected_run = resolve_run(all_runs, "last", pr=run_pr)
+            if selected_run is None:
+                last_other_run = resolve_run(all_runs, "last")
+                run_note = f"no #{str(run_pr).lstrip('#')} run yet"
+            # A specific missing last run is not an invalid id.
         else:
-            run_unrecorded = True
+            selected_run = resolve_run(all_runs, run)
+            if selected_run is None:
+                raise ValueError("invalid_run: no matching test run")
+        if selected_run is not None:
+            run_from, run_to = run_window(selected_run)
+            if run_from and run_to:
+                from_time, to_time = run_from, run_to
+                timed = True
+                built = _dedupe_latest_pr(catalog)
+            else:
+                run_unrecorded = True
     now = datetime.now(timezone.utc)
-    if run_unrecorded:
+    if run_unrecorded or (run not in (None, "") and selected_run is None):
         selected = []
+    elif selected_run is not None and not run_unrecorded:
+        selected = _select_run_issues(built, selected_run, state=state)
     else:
         selected = select_scope(built, scope=scope, state=state, start=from_time, end=to_time, now=now,
                             scope_pr=focus_pr if (scope_round is not None or (not timed and scope != "all")) else None,
@@ -821,6 +995,16 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
                 present = select_scope(present, scope="all", state=state)
         selected = present
 
+    if scope_round is not None and selected and not timed and selected_run is None:
+        focus_rounds = [row for row in all_rounds if str(row.get("pr")) == str(focus_pr) and row.get("round") == scope_round]
+        round_row = focus_rounds[0] if focus_rounds else None
+        if round_row and not round_row.get("live"):
+            later_pr = None if str(focus_pr) == str(latest_pr) else latest_pr
+            later_ids = {issue.get("id") for issue in catalog if str(issue.get("pr")) == str(later_pr)} if later_pr else set()
+            selected = [_bound_issue_to_round(issue, round_row.get("started_at"), round_row.get("ended_at"),
+                                              later_pr if issue.get("id") in later_ids else None)
+                        for issue in selected]
+
     gate = current_tracking.get("gate") if isinstance(current_tracking.get("gate"), dict) else {}
     verification = current_tracking.get("verification_run") if isinstance(current_tracking.get("verification_run"), dict) else {}
     threshold = next((source[key] for source in (verification, gate, current_tracking)
@@ -831,9 +1015,13 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
     by_reason = {name: sum(issue.get("window_reason") == name for issue in selected) for name in WINDOW_REASONS} if timed else None
     window = None
     quiet_excluded = None
-    if run_unrecorded:
+    if run_unrecorded or (run not in (None, "") and selected_run is None):
         window = {"from": None, "to": None, "kind": "run", "rounds": [], "test_runs": [],
-                  "run": public_run(selected_run), "recorded": False}
+                  "run": public_run(selected_run) if selected_run else None, "recorded": False}
+        if run_note:
+            window["note"] = run_note
+        if last_other_run:
+            window["last_other_run"] = public_run(last_other_run)
         quiet_excluded = 0
     elif timed:
         start, end = parse_window(from_time, to_time, now)
@@ -877,6 +1065,10 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
     count_payload = {"by_state": counts, "by_origin": by_origin}
     if by_reason is not None:
         count_payload["by_reason"] = by_reason
+    if selected_run is not None and not run_unrecorded:
+        count_payload["tested"] = len(selected)
+        count_payload["fixed"] = sum(issue.get("window_reason") == "fixed" for issue in selected)
+        count_payload["inconclusive"] = sum(issue.get("window_reason") == "inconclusive" for issue in selected)
     return {"schema_version": 1, "project": project, "pr": display_pr, "cycle": current_tracking.get("cycle"),
             "round": display_round, "round_started_at": current_tracking.get("round_started_at"),
             "pull_request": ({**pull, "opened_at": pull.get("opened_at")} if pull else None),
@@ -888,6 +1080,8 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
             "counts": count_payload,
             "window": window, "quiet_excluded": quiet_excluded,
             "run": public_run(selected_run) if selected_run is not None else None,
+            "run_note": run_note,
+            "last_other_run": public_run(last_other_run) if last_other_run is not None else None,
             "last_fail": last_fail,
             "gate": {"verified": verification.get("fixed") if isinstance(verification.get("fixed"), int) else sum(issue["state"] == "resolved" for issue in selected if not timed),
                      "threshold": threshold,
