@@ -161,6 +161,27 @@ class IntrospectCheckTests(unittest.TestCase):
                              source["tracking"]["stages_reached"])
             self.assertEqual(check.coverage_tracking(fresh, tracking, None), tracking)
 
+    def test_coverage_tracking_uses_source_list_after_successor_reaches_verify(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            source = {"tracking": self.tracking()}
+            (folder / "122.json").write_text(json.dumps(source))
+            successor = folder / "123.json"
+            successor.write_text(json.dumps({"tracking": {
+                "cycle": 2, "round": 1,
+                "stages_reached": ["collect", "plan_fix", "review", "install", "verify"],
+                "plan": {"round": 1, "cycle": 2, "groups": [
+                    {"id": "R1", "codex": {"implementer_session": "new"},
+                     "verify": {"command": "python3 -m unittest test_successor.py"}}]},
+                "rollover": {"source_pr": 122, "source_merge": {"commit_sha": "abc", "merged_at": "2026-11-24T12:00:00Z"}},
+            }}))
+            tracking = json.loads(successor.read_text())["tracking"]
+            covered = check.coverage_tracking(successor, tracking, "post_merge")
+            self.assertEqual(covered["stages_reached"], source["tracking"]["stages_reached"])
+            self.assertIs(check.coverage_tracking(successor, tracking, None), tracking)
+            self.assertNotEqual(covered.get("plan"), tracking.get("plan"))
+
 
 if __name__ == "__main__":
     unittest.main()

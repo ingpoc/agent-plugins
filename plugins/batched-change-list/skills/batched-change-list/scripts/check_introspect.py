@@ -242,13 +242,10 @@ def source_list_path(live_path, tracking):
 
 
 def coverage_tracking(live_path, tracking, scope=None):
-    """For a post-merge Introspect, use the merged list's job data when this list has not reached Verify."""
+    """For a post-merge Introspect, always use the merged list's job data when that list is present."""
     if not isinstance(tracking, dict):
         raise ValueError("tracker tracking must be an object")
     if scope != "post_merge":
-        return tracking
-    reached = tracking.get("stages_reached") or []
-    if isinstance(reached, list) and "verify" in reached:
         return tracking
     source = source_list_path(live_path, tracking)
     if source is None:
