@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "collect",
-      "updated_at": "2026-11-24T19:08:04Z",
-      "now": "2026-11-24T19:08:04Z — Started collection"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T19:18:36Z",
+      "now": "2026-11-24T19:18:36Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 122,
@@ -347,7 +347,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T19:14:24Z",
+    "last_written_at": "2026-11-24T19:18:36Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -642,8 +642,122 @@
       "scope": "post_merge"
     },
     "stages_reached": [
-      "collect"
-    ]
+      "collect",
+      "plan_fix"
+    ],
+    "plan": {
+      "cycle": 15,
+      "round": 1,
+      "groups": [
+        {
+          "id": "R1-POSTMERGE",
+          "name": "Record post-merge Introspect on a fresh list",
+          "label": "POSTMERGE",
+          "finding_ids": [
+            "BCL-178"
+          ],
+          "worktree": "samantha-next-r13",
+          "status": "planned",
+          "phase": "fix",
+          "files": [
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/check_introspect.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_check_introspect.py",
+            "plugins/batched-change-list/skills/batched-change-list/references/introspect.md"
+          ],
+          "reason": "The Collect gate needs a post-merge Introspect on the next list, but the only way to write one was a direct tracker write. Add an official command that records it without requiring Verify.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r1-postmerge.sh",
+            "method": "Run the post-merge Introspect unit tests, including Collect start after an official record.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T19:18:36Z",
+          "stage_entered_at": "2026-11-24T19:18:36Z"
+        },
+        {
+          "id": "R2-DO1",
+          "finding_ids": [
+            "DO-1"
+          ],
+          "reason": "Needs Guru later round",
+          "failure_history": [
+            {
+              "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
+              "source": "review",
+              "reason": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Empty commits produce no changed paths and are silently ignored, although other ahead commits must still count. A failed `diff-tree` call is also silently ignored, which can hide an unpushed commit. Count empty commits and handle inspection failures without reporting false success; add behavioral coverage.",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:47:58Z"
+            },
+            {
+              "attempt_id": "97d390f143b64b1f84744481175417da",
+              "source": "plan_review",
+              "reason": "Reviewer exited 1",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:48:55Z",
+              "tool_fault": true,
+              "fault_kind": "runner_exit",
+              "tool_fault_reason": "Reviewer exited 1"
+            },
+            {
+              "attempt_id": "da6ebb99274244d1b7c92e594ab3ed34",
+              "source": "review",
+              "reason": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Git quotes paths containing non-ASCII characters or certain special characters by default. A snapshot such as `docs/triage/café.json` is returned as a quoted string that does not start with `docs/triage/`, so the collector still reports it as an unpushed commit. Use NUL-delimited output and parse the actual paths; add a behavioral test.",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:56:04Z"
+            }
+          ],
+          "plan_review_history": [
+            {
+              "job_id": "8ed5a5892da64c9383d7cdcd6fcc20b6",
+              "after_failure": "3c9e094c725a400b95a22641c1cf7369",
+              "status": "passed",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:50:18Z"
+            },
+            {
+              "job_id": "84ed2b23b4db442f802a39aeea6d79ab",
+              "after_failure": "da6ebb99274244d1b7c92e594ab3ed34",
+              "status": "passed",
+              "cycle": 12,
+              "round": 3,
+              "at": "2026-11-22T15:11:59Z"
+            }
+          ],
+          "unblock_history": [
+            {
+              "at": "2026-11-22T14:56:28Z",
+              "reason": "Guru approved 2026-11-22 20:26 IST: defer to round 3 so R2-176 can ship",
+              "tool_faults": [],
+              "covered_attempts": [
+                "3c9e094c725a400b95a22641c1cf7369",
+                "da6ebb99274244d1b7c92e594ab3ed34"
+              ],
+              "rows_seen": 3,
+              "by_cycle": 12,
+              "round": 2,
+              "owner_override": true
+            }
+          ],
+          "status": "parked",
+          "codex": {},
+          "parked_to": 2,
+          "updated_at": "2026-11-24T19:18:36Z",
+          "stage_entered_at": "2026-11-24T19:18:36Z"
+        }
+      ]
+    }
   },
   "findings": [
     {
@@ -720,7 +834,7 @@
       "observed": "On list 123, bcl start failed with Collect is refused until the post-merge Introspect is recorded. bcl introspect has no --scope flag, and manage_findings require_transition introspect requires Verify. A script then copied 122 tracking.post_merge_introspect onto 123.json through manage_findings.write; that was a direct tracker write, not a supported bcl command.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "command": "bcl introspect --scope post_merge --draft FILE.json, then bcl introspect --scope post_merge --sections FILE.json",
         "gap": "require_transition introspect requires verify; CLI has no --scope; official introspect would also mark stages_reached and close the plan"
@@ -732,7 +846,14 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-24T19:18:36Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     }
   ]
 }
