@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T16:19:22Z",
-      "now": "2026-11-24T16:19:22Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T16:23:29Z",
+      "now": "2026-11-24T16:23:29Z — Presuite started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12188,7 +12188,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T16:19:22Z",
+    "last_written_at": "2026-11-24T16:23:29Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12527,31 +12527,27 @@
             "implementer_session": "grokbot-122-r1-guard",
             "reviewer_session": "grokbot-122-r1-guard-review",
             "job": {
-              "id": "682fb9ba161548f583146a5cde05386a",
+              "id": "8868c3c2c1fd421dac8dbe31ac01118e",
               "phase": "presuite",
-              "started_at": "2026-11-24T16:04:53Z",
+              "started_at": "2026-11-24T16:23:29Z",
               "command": "run-presuite-r1.sh",
-              "heartbeat_at": "2026-11-24T16:08:25Z",
+              "heartbeat_at": "2026-11-24T16:23:29Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "PR121-r2-live-state-guard",
+                "PR120-r6-collect-job-coverage",
+                "BCL-147",
+                "DO-6",
                 "BCL-159",
                 "DO-8",
                 "BCL-149",
-                "DO-13",
-                "PR120-r6-collect-job-coverage",
-                "BCL-147",
-                "DO-6"
+                "DO-13"
               ],
               "worktree": "samantha-next-r12",
-              "model": "Grok Bot",
+              "model": "Grok Bot subagent",
               "lane_sha256": "52e631c9d304de19bb9218b3c3339cd0412e1a7cedbf2e03d1dc1e7aa5e5b202",
               "cycle": 14,
-              "round": 1,
-              "pid": 91460,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T16:08:25Z",
-              "finished_phase_status": "passed"
+              "round": 1
             },
             "fix_status": "passed",
             "review_status": "passed",
@@ -12597,31 +12593,27 @@
             "implementer_session": "grokbot-122-r1-tokens",
             "reviewer_session": "grokbot-122-r1-tokens-review",
             "job": {
-              "id": "682fb9ba161548f583146a5cde05386a",
+              "id": "8868c3c2c1fd421dac8dbe31ac01118e",
               "phase": "presuite",
-              "started_at": "2026-11-24T16:04:53Z",
+              "started_at": "2026-11-24T16:23:29Z",
               "command": "run-presuite-r1.sh",
-              "heartbeat_at": "2026-11-24T16:08:25Z",
+              "heartbeat_at": "2026-11-24T16:23:29Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "PR121-r2-live-state-guard",
+                "PR120-r6-collect-job-coverage",
+                "BCL-147",
+                "DO-6",
                 "BCL-159",
                 "DO-8",
                 "BCL-149",
-                "DO-13",
-                "PR120-r6-collect-job-coverage",
-                "BCL-147",
-                "DO-6"
+                "DO-13"
               ],
               "worktree": "samantha-next-r12",
-              "model": "Grok Bot",
+              "model": "Grok Bot subagent",
               "lane_sha256": "f9ccad631e267ec040352ad2849b7f9521b96a5b5da894f570e41b7bb3079739",
               "cycle": 14,
-              "round": 1,
-              "pid": 91460,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T16:08:25Z",
-              "finished_phase_status": "passed"
+              "round": 1
             },
             "fix_status": "passed",
             "reviewer_model": "Grok Bot",
@@ -12668,31 +12660,27 @@
             "implementer_session": "grokbot-122-r1-jobux",
             "reviewer_session": "grokbot-122-r1-jobux-review",
             "job": {
-              "id": "682fb9ba161548f583146a5cde05386a",
+              "id": "8868c3c2c1fd421dac8dbe31ac01118e",
               "phase": "presuite",
-              "started_at": "2026-11-24T16:04:53Z",
+              "started_at": "2026-11-24T16:23:29Z",
               "command": "run-presuite-r1.sh",
-              "heartbeat_at": "2026-11-24T16:08:25Z",
+              "heartbeat_at": "2026-11-24T16:23:29Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "PR121-r2-live-state-guard",
+                "PR120-r6-collect-job-coverage",
+                "BCL-147",
+                "DO-6",
                 "BCL-159",
                 "DO-8",
                 "BCL-149",
-                "DO-13",
-                "PR120-r6-collect-job-coverage",
-                "BCL-147",
-                "DO-6"
+                "DO-13"
               ],
               "worktree": "samantha-next-r12",
-              "model": "Grok Bot",
+              "model": "Grok Bot subagent",
               "lane_sha256": "d6107db03312c69d29e3502ccd4270b16963a461a51209afb1c42e7d813fc4a6",
               "cycle": 14,
-              "round": 1,
-              "pid": 91460,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T16:08:25Z",
-              "finished_phase_status": "passed"
+              "round": 1
             },
             "fix_status": "passed",
             "review_status": "passed",
@@ -12749,31 +12737,27 @@
             "reviewer_session": "grokbot-122-r1-cosmetic-review",
             "fix_status": "passed",
             "job": {
-              "id": "682fb9ba161548f583146a5cde05386a",
+              "id": "8868c3c2c1fd421dac8dbe31ac01118e",
               "phase": "presuite",
-              "started_at": "2026-11-24T16:04:53Z",
+              "started_at": "2026-11-24T16:23:29Z",
               "command": "run-presuite-r1.sh",
-              "heartbeat_at": "2026-11-24T16:08:25Z",
+              "heartbeat_at": "2026-11-24T16:23:29Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "PR121-r2-live-state-guard",
+                "PR120-r6-collect-job-coverage",
+                "BCL-147",
+                "DO-6",
                 "BCL-159",
                 "DO-8",
                 "BCL-149",
-                "DO-13",
-                "PR120-r6-collect-job-coverage",
-                "BCL-147",
-                "DO-6"
+                "DO-13"
               ],
               "worktree": "samantha-next-r12",
-              "model": "Grok Bot",
+              "model": "Grok Bot subagent",
               "lane_sha256": "4f02cf0be2a6f8eff07c807ac20f779697696226e93adb27587f9a580f51f0fb",
               "cycle": 14,
-              "round": 1,
-              "pid": 91460,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T16:08:25Z",
-              "finished_phase_status": "passed"
+              "round": 1
             },
             "tool_fault_streak": 0,
             "review_status": "passed",
@@ -12798,9 +12782,9 @@
           ],
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
-          "status": "running",
-          "phase": "fix",
-          "stage_entered_at": "2026-11-24T16:13:13Z",
+          "status": "review",
+          "phase": "review",
+          "stage_entered_at": "2026-11-24T16:19:23Z",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -12869,13 +12853,13 @@
             }
           ],
           "codex": {
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
               "id": "bf59c295365748c8a0533942f5f377ad",
               "phase": "fix",
               "started_at": "2026-11-24T16:19:22Z",
               "command": "commit-106.sh",
-              "heartbeat_at": "2026-11-24T16:19:22Z",
+              "heartbeat_at": "2026-11-24T16:19:23Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "BCL-106"
@@ -12884,8 +12868,13 @@
               "model": "Grok Bot subagent",
               "lane_sha256": "e3635de546ff1cc2fe2e5977c3b82eaeb03807ed379ac67a3fce9cf85f5bfdfd",
               "cycle": 14,
-              "round": 1
-            }
+              "round": 1,
+              "pid": 43363,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T16:19:23Z",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
           },
           "updated_at": "2026-11-24T16:03:40Z",
           "verify": {
@@ -12904,9 +12893,9 @@
           ],
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
-          "status": "running",
-          "phase": "fix",
-          "stage_entered_at": "2026-11-24T16:13:13Z",
+          "status": "review",
+          "phase": "review",
+          "stage_entered_at": "2026-11-24T16:22:02Z",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -12985,7 +12974,30 @@
               "owner_override": true
             }
           ],
-          "codex": {},
+          "codex": {
+            "fix_status": "passed",
+            "job": {
+              "id": "cb85c0f9e4994357902c7fecb87d301e",
+              "phase": "fix",
+              "started_at": "2026-11-24T16:22:01Z",
+              "command": "commit-171.sh",
+              "heartbeat_at": "2026-11-24T16:22:02Z",
+              "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
+              "finding_ids": [
+                "BCL-171"
+              ],
+              "worktree": "samantha-next-r12",
+              "model": "Grok Bot subagent",
+              "lane_sha256": "d0a12bb62332493e2be92be3bdd0c55eb7f68522d77fb7c534ed1378bd467ed7",
+              "cycle": 14,
+              "round": 1,
+              "pid": 58980,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T16:22:02Z",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
+          },
           "updated_at": "2026-11-24T16:03:40Z",
           "verify": {
             "status": "pending",
