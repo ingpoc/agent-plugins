@@ -11631,9 +11631,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-24T06:11:53Z",
-      "now": "2026-11-24T06:11:53Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T06:19:20Z",
+      "now": "2026-11-24T06:19:20Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 119,
@@ -11715,7 +11715,7 @@
       }
     },
     "cycle": 12,
-    "round": 5,
+    "round": 6,
     "round_history": [
       {
         "round": 2,
@@ -11911,6 +11911,11 @@
         "round": 4,
         "fixed": 9,
         "ended_at": "2026-11-24T04:13:34Z"
+      },
+      {
+        "round": 5,
+        "fixed": 10,
+        "ended_at": "2026-11-24T06:19:20Z"
       }
     ],
     "introspect_history": [
@@ -13387,126 +13392,125 @@
       "collect",
       "present",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "round": 5,
+      "round": 6,
       "groups": [
         {
-          "id": "R5-177",
-          "name": "Stamp change-list events and job tokens for a per-round view",
-          "finding_ids": [
-            "BCL-177"
-          ],
-          "label": "BCL-177",
-          "status": "verified",
-          "worktree": "samantha-next-r10",
+          "status": "planned",
+          "phase": "pending",
+          "codex": {},
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r5-177.sh",
-            "status": "verified",
-            "fixed": 1,
+            "status": "pending",
+            "fixed": 0,
             "failed": 0,
             "total": 1
           },
-          "codex": {
-            "model": "gpt-6-luna fast medium (Codex CLI)",
-            "implementer_session": "01a20c01-4fd3-76b1-b5c7-c05e95e22500",
-            "reviewer_session": "codex-terra-120-177-2",
-            "job": {
-              "id": "f5eecd13e6794225affee114719106a0",
-              "phase": "presuite",
-              "started_at": "2026-11-24T05:56:21Z",
-              "command": "python3",
-              "heartbeat_at": "2026-11-24T05:59:16Z",
-              "plan_sha256": "24cbbc0299efb5555bb9c4853e744bff7bcf3e0de5288b468b1090244be88378",
-              "worktree": "samantha-next-r10",
-              "model": "check.py --changed-since 302a1a70",
-              "cycle": 12,
-              "round": 5,
-              "pid": 28937,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T05:59:16Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "fix_status": "passed",
-            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
-            "must_fix_note": "Reviewer exited 1",
-            "review_status": "passed"
+          "id": "R6-FALLBACK",
+          "name": "Rejected reviewer models fall back automatically",
+          "label": "fallback",
+          "finding_ids": [
+            "PR120-r5-codex-reviewer-model-fallback"
+          ],
+          "worktree": "bcl120-r6-fallback",
+          "files": [
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_reviewer_fallback.py"
+          ],
+          "reason": "First in the round-6 fix order: when the signed-in account rejects the reviewer, record a named tool fault and automatically retry Astra 6.2, then a Grok Bot review, without a no-op fix. Do not edit manage_findings.py (that is BCL-121). Estimate about 80k tokens.",
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T06:19:20Z",
+          "stage_entered_at": "2026-11-24T06:19:20Z"
+        },
+        {
+          "status": "planned",
+          "phase": "pending",
+          "codex": {},
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
+          "id": "R6-121",
+          "name": "Cap plan reviews and post-fix reviews",
+          "label": "BCL-121",
+          "finding_ids": [
+            "BCL-121"
+          ],
+          "worktree": "bcl120-r6-121",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py"
+          ],
+          "reason": "Second in the fix order: refuse a second plan review until open items are filed (the current cap only applies after a passed review plus a counted failure, which let R5-177 run seven plan reviews). Also refuse a fourth post-fix review until remaining items are filed, and refuse adding a finding to a lane under review. Do not edit bin/bcl (that is the fallback lane). Estimate about 100k tokens.",
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T06:19:20Z",
+          "stage_entered_at": "2026-11-24T06:19:20Z"
+        },
+        {
+          "status": "planned",
+          "phase": "pending",
+          "codex": {},
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "id": "R6-DO2",
+          "name": "Per-job tokens from official collect, including Grok Bot",
+          "label": "DO-2",
+          "finding_ids": [
+            "DO-2"
+          ],
+          "worktree": "bcl120-r6-do2",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_events.py",
-            "plugins/batched-change-list/bin/bcl",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py",
             "plugins/developer-observability/runtime/collector/bcl_events.py",
-            "plugins/developer-observability/runtime/collector/cli.py",
             "plugins/developer-observability/tests/test_bcl_events_source.py"
           ],
-          "reason": "Highest-signal capture work from the round 4 Introspect: write one events log line per stage and job, and let developer-observability read it, including token source or a named gap. Query filters, tiers and UI stay with DO-3. Do not grow SKILL.md. Uses a new collector module so this lane does not share sources.py with deferred DO-1. Does not overlap 171 (collect helper) or the tightened 106 self-test. Plan review before the first fix. Estimate about 120k tokens; split if it exceeds 150k.",
-          "failure_history": [
-            {
-              "attempt_id": "5f46408108b74dcbbd94b8f9523c9a8a",
-              "source": "plan_review",
-              "reason": "Reviewer exited 1",
-              "cycle": 12,
-              "round": 5,
-              "at": "2026-11-24T04:34:36Z",
-              "tool_fault": true,
-              "fault_kind": "runner_exit",
-              "tool_fault_reason": "Reviewer exited 1"
-            },
-            {
-              "attempt_id": "4ff6c7f1718b43cfa5f7aa4965a1e441",
-              "source": "review",
-              "reason": "1. `plugins/batched-change-list/bin/bcl:323` — The copier timeout does not prevent a hang. If a descendant outside the process group retains a pipe, its copier can remain blocked in `read()`. The subsequent `pipe.close()` waits for the same buffered-reader lock. A read-only pipe experiment reproduced the blocked close. Avoid closing a pipe from the main thread while its copier is blocked.\n\n2. `plugins/batched-change-list/bin/bcl:338` — Concatenating all stdout before all stderr loses their actual order. An earlier incomplete CHANGES on stderr followed by a valid PASS on stdout is treated as the last verdict, even though PASS came later; the reverse can falsely pass. Preserve the observed order of verdict output across streams.\n\n3. `plugins/batched-change-list/bin/bcl:333` — A changed `--result` file is used whenever it contains a verdict-starting line, even if that block fails parsing. A malformed result file therefore masks a valid teed verdict. Use the changed result only after `parse_review_reply` accepts it; otherwise inspect the teed output.\n\n4. `plugins/batched-change-list/skills/batched-change-list/scripts/events.py:14` — Events are keyed by the current directory’s basename, rather than the adopted list’s identity and state location. Different lists in the same worktree share a file, while the same list run from different worktrees writes separate files. Use the resolved list identity and state location for both job and stage events, and update collector discovery accordingly.",
-              "cycle": 12,
-              "round": 5,
-              "at": "2026-11-24T05:21:12Z",
-              "plan_answered": true
-            },
-            {
-              "attempt_id": "ef27ecbf759e40d3add34980634fdab1",
-              "source": "review",
-              "reason": "Reviewer exited 1",
-              "cycle": 12,
-              "round": 5,
-              "at": "2026-11-24T05:34:22Z",
-              "tool_fault": true,
-              "fault_kind": "runner_exit",
-              "tool_fault_reason": "Reviewer exited 1"
-            }
-          ],
-          "plan_review_history": [
-            {
-              "job_id": "711cb21de0cb40dcaa0021631c8f36a5",
-              "after_failure": null,
-              "status": "passed",
-              "cycle": 12,
-              "round": 5,
-              "at": "2026-11-24T04:55:50Z"
-            }
-          ],
-          "updated_at": "2026-11-24T06:04:40Z",
-          "stage_entered_at": "2026-11-24T06:07:00Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T05:59:16Z"
+          "reason": "Third in the fix order: official collect must mark the change-list source collected with a last event time, name the job model or a real token-source gap rather than the wrapper binary, and expose complete Codex tokens plus a named Grok Bot source or gap. Do not edit cli.py, sources.py, or the query/UI (those are DO-1 and DO-3). Estimate about 120k tokens.",
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T06:19:20Z",
+          "stage_entered_at": "2026-11-24T06:19:20Z"
+        },
+        {
+          "status": "planned",
+          "phase": "pending",
+          "codex": {},
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-24T06:04:20Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "Grok Bot",
-            "at": "2026-11-24T06:04:40Z"
-          }
+          "id": "R6-DO3",
+          "name": "Filter official collect by pull request and round",
+          "label": "DO-3",
+          "finding_ids": [
+            "DO-3"
+          ],
+          "worktree": "bcl120-r6-do3",
+          "files": [
+            "plugins/developer-observability/runtime/backend/observability_api.py",
+            "plugins/developer-observability/runtime/server.py",
+            "plugins/developer-observability/runtime/island.py",
+            "plugins/developer-observability/tests/test_island.py",
+            "plugins/developer-observability/tests/test_session_timeline.py",
+            "plugins/developer-observability/ui/app.js",
+            "plugins/developer-observability/ui/dashboard.html"
+          ],
+          "reason": "Fourth in the fix order: extend the existing issues query with pull request and round filters (plus the remaining acceptance filters), and show the same view in the app UI through that query. Do not edit events.py, bcl_events.py, or sources.py (those are DO-2 and DO-1). This may need a later slice if it exceeds 150k tokens. Estimate about 140k tokens.",
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T06:19:20Z",
+          "stage_entered_at": "2026-11-24T06:19:20Z"
         },
         {
           "id": "R4-171",
@@ -13529,7 +13533,7 @@
             "plugins/batched-change-list/skills/batched-change-list/references/collect.md"
           ],
           "reason": "Third counted review CHANGES after the recovered Terra verdict was recorded with bcl job: coverage keys match only a directory basename, so a fresh snapshot for another path with the same name (or a missing key) can pass. FAILING TEST: fresh snapshot for a different directory with the same basename must report insufficient coverage. Lane stays blocked until owner unblock. Guru 24 Nov continue was not an unblock.",
-          "status": "parked",
+          "status": "blocked",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -13606,9 +13610,7 @@
             "must_fix_note": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
             "review_status": "blocked"
           },
-          "phase": "fix",
-          "updated_at": "2026-11-24T04:43:57Z",
-          "stage_entered_at": "2026-11-24T04:43:57Z",
+          "updated_at": "2026-11-24T06:19:20Z",
           "unblock_history": [
             {
               "at": "2026-11-24T04:16:26Z",
@@ -13626,7 +13628,9 @@
           ],
           "blocked_reason": "Second failure",
           "failure_block_reason": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
-          "parked_to": 6
+          "parked_to": 7,
+          "phase": "fix",
+          "stage_entered_at": "2026-11-24T06:19:20Z"
         },
         {
           "id": "R4-106",
@@ -13649,7 +13653,7 @@
             "plugins/batched-change-list/skills/batched-change-list/references/verify.md"
           ],
           "reason": "Third counted review CHANGES after Guru 24 Nov 09:36 IST continue: self-test still does not observe the shared command itself running (on_shared_passed records a zero status, so a runner that skips the command but reports success still passes). FAILING TEST: make the shared check return success without executing its command and assert that self test fails. Lane stays blocked until owner unblock.",
-          "status": "parked",
+          "status": "blocked",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -13715,9 +13719,7 @@
             "reviewer_model": "gpt-6.1-terra medium (review)",
             "must_fix_note": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test."
           },
-          "phase": "fix",
-          "updated_at": "2026-11-24T04:38:28Z",
-          "stage_entered_at": "2026-11-24T04:38:28Z",
+          "updated_at": "2026-11-24T06:19:20Z",
           "unblock_history": [
             {
               "at": "2026-11-24T04:16:26Z",
@@ -13735,7 +13737,9 @@
           ],
           "blocked_reason": "Second failure",
           "failure_block_reason": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test.",
-          "parked_to": 6
+          "parked_to": 7,
+          "phase": "fix",
+          "stage_entered_at": "2026-11-24T06:19:20Z"
         },
         {
           "id": "R2-DO1",
@@ -13756,7 +13760,8 @@
             "plugins/developer-observability/runtime/collector/sources.py",
             "plugins/developer-observability/tests/test_collector*.py"
           ],
-          "reason": "Set-plan for round 5 omitted this lane's protected status, which reset it to planned. DO-1 stays deferred: 0.1.35 already landed (5147fa97) but the developer-observability hygiene gate still refuses install because of local-only work under the forbidden main clone; no override. Waits for Guru.",
+          "reason": "DO-1 stays deferred until Guru approves a path past the observability hygiene gate. No override.",
+          "parked_to": 7,
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -13820,11 +13825,10 @@
             }
           ],
           "status": "deferred",
-          "codex": {},
-          "updated_at": "2026-11-24T04:15:21Z",
-          "stage_entered_at": "2026-11-24T04:15:21Z",
           "phase": "deferred",
-          "parked_to": 6
+          "codex": {},
+          "stage_entered_at": "2026-11-24T04:15:21Z",
+          "updated_at": "2026-11-24T06:19:20Z"
         },
         {
           "id": "DEFER",
@@ -13839,7 +13843,6 @@
             "BCL-113",
             "BCL-115",
             "BCL-120",
-            "BCL-121",
             "BCL-124",
             "BCL-125",
             "BCL-130",
@@ -13852,27 +13855,25 @@
             "BCL-160",
             "BCL-161",
             "BCL-166",
-            "DO-2",
-            "DO-3"
+            "PR120-r6-gate-denominator"
           ],
           "label": "rest",
           "status": "deferred",
           "phase": "deferred",
-          "reason": "DO-3 (filters, tiers and UI) stays split from BCL-177. BCL-147 is related job receipts, not this slice. BCL-110, BCL-121, BCL-159 and BCL-160 still overlap lane-state or page writers or exceed 150k. Other items wait for a later round.",
-          "failure_history": [],
-          "plan_review_history": [],
-          "parked_to": 6,
-          "updated_at": "2026-11-24T04:13:34Z",
+          "reason": "Remaining items wait for a later round. The official gate-count denominator issue is filed and deferred; 106 and 171 stay parked until owner unblock.",
+          "parked_to": 7,
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 24
-          }
+            "total": 22
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T06:19:20Z"
         }
       ],
-      "cycle": 12,
-      "status": "closed"
+      "cycle": 12
     },
     "verification_run": {
       "id": "r5-77d2c0b0-120",
@@ -14078,7 +14079,7 @@
       "round": 5,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T06:12:19Z",
+    "last_written_at": "2026-11-24T06:19:20Z",
     "fix_order": {
       "ids": [
         "PR120-r5-codex-reviewer-model-fallback",
@@ -14327,7 +14328,7 @@
       "observed": "21 Nov 2026 IST: twelve plan reviews between 05:30 and 11:20; six work-done reviews between 12:30 and 13:29 with five asking for changes; the version bump item added at 13:10 was reverted at 13:37 after two reviews.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Workflow Introspect after PR 118 merge (evidence rule: 2 loops in one PR)",
         "evidence": "bcl-118/direct planreview-int..int12 (12 files) and review-0157..0157-6 (6 files), file times 05:30-11:20 and 12:30-13:29 IST; revert commits f0ce0b4f and 20a363a1",
@@ -14893,7 +14894,7 @@
       "observed": "22 Nov 2026 19:10 IST, round 1 introspect of PR 120",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "evidence": "~/.local/share/developer-observability/task-usage.sqlite3 task_usage 1 row; ~/.agents/artifacts/bcl-120/review-142-terra.jsonl line 10471 tokens used 42,909",
         "round_2_tokens": "Round 2 Codex logs: 565,672 tokens (Luna 327,356; Terra 238,316); per lane R2-145 238,422 (+ untracked worker), R2-DO1 274,108, R2-176 53,142 (+ my review, untracked). Round 1 measured only 42,909 (one Terra review). None of it reached dev-obs: task-usage.sqlite3 has 1 row (snapshot 95e60008).",
@@ -14910,7 +14911,7 @@
       "observed": "22 Nov 2026 19:10 IST, round 1 introspect of PR 120; Guru asked for a per-round high-signal view with progressive disclosure",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "evidence": "snapshot d017c9e9: owner agent-plugins 20 findings of which 17 stale (last seen 14 and 20 Nov); project field empty on all 150",
         "spec": "~/.agents/artifacts/bcl-120/devobs-round-view.md (19:15 IST, design only). Extend the issues query with pr, round, stage, plugin, kind, status, change (new, recurring, resolved, carried), since, until and tier; four tiers capped at 400 B, 2 KB, 4 KB, 300 B; noise rules drop stale, out-of-window, fixture and self-health rows; unknown dimensions counted as unstamped, never matched. Depends on the change list event stamping (BCL-147).",
@@ -14998,12 +14999,24 @@
       "recommendation": "Treat a rejected reviewer as a named tool fault, not a generic runner exit. Automatically retry the approved fallback list (Astra 6.2, then a Grok Bot review), record the substitution on the job, and do not send the lane back to fix for that fault.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "rejected_models": "gpt-6.1-terra and gpt-6.2-astra both returned model_not_found / not supported when using Codex with a ChatGPT account.",
         "probes": "Mini probes at 11:07 and 11:10 IST; box account probe with CODEX_HOME=~/.codex-a at 11:11 IST; Astra probe at 11:12 IST. Terra review 1 at 10:51 IST had still worked.",
         "job": "R5-177 review 2 job ef27ecbf759e40d3add34980634fdab1 at 11:04 IST was stored as tool_fault runner_exit; the lane returned to phase=fix."
       }
+    },
+    {
+      "id": "PR120-r6-gate-denominator",
+      "title": "The official gate count reports the lower report bar, not the merge bar",
+      "summary": "The official count command prints the report bar of fifteen verified fixes, so a status report can read as if that were the merge bar, even though merge and rollover already require sixteen.",
+      "impact": "An agent can tell the owner the gate is fifteen and treat a lower bar as enough, when merge still requires sixteen.",
+      "recommendation": "Make the official count command and the main page count use the merge bar, or clearly label any lower report bar as report-only, and never lower the merge bar.",
+      "done_when": "The official count states the merge bar, or clearly labels a lower report bar as report-only, a test covers that, and the merge bar is not reduced.",
+      "observed": "24 Nov 2026 11:43 IST, PR 120. check_gate_count.py printed Gate count: 10 of 15 (report gate, default_threshold 15). bcl status already shows report_gate 10/15 and rollover_gate 10/16. The page badge already reads Fixes 10/16 verified with a small 10/15 report gate, but the loop still says under 15 verified. tracking.rollover_threshold is unset. There is no supported command to raise the report threshold. Guru's merge rule is 16+ verified; the bar must not be lowered.",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested"
     }
   ]
 }
