@@ -143,10 +143,37 @@ def observability_issues(project_id: str, status: str = 'all', cursor: str | Non
                          include_coverage: bool = False, pull_request: str | None = None,
                          round: str | None = None, stage: str | None = None, plugin: str | None = None,
                          change_class: str | None = None, since: str | None = None,
-                         until: str | None = None) -> CallToolResult:
-    """List project issues. Filters combine and cursors stay bound to the full query and snapshot."""
-    return invoke('issues', project_id, status, cursor, limit, kind, version, attribution, include_coverage,
-                  pull_request, round, stage, plugin, change_class, since, until)
+                         until: str | None = None, scope: str = 'now', pr: str = 'current',
+                         state: str | None = None, from_time: str | None = None,
+                         to_time: str | None = None) -> CallToolResult:
+    """List issues using the dashboard's now, round and timeframe state rules."""
+    if from_time is None:
+        from_time = since
+    if to_time is None:
+        to_time = until
+    if pull_request not in (None, '') and pr == 'current':
+        pr = pull_request
+    if round not in (None, '') and scope == 'now':
+        scope = f'round:{round}'
+    if (project_id != 'agent-plugins' and scope == 'now' and pr == 'current'
+            and from_time is None and to_time is None and state is None):
+        return invoke('issues', project_id, status, cursor, limit, kind, version, attribution, include_coverage,
+                      pull_request, round, stage, plugin, change_class, since, until)
+    from backend.issue_state import build_issues
+    from backend.observability_api import NEXT_STEPS
+    try:
+        payload = build_issues(project_id, pr, scope, from_time, to_time, state)
+        return CallToolResult(content=[TextContent(type='text', text=json.dumps(payload, separators=(',', ':')))],
+                              structuredContent=payload)
+    except Exception as error:
+        code = str(error).split(':', 1)[0]
+        if code == 'tracker_unavailable':
+            return invoke('issues', project_id, status, cursor, limit, kind, version, attribution, include_coverage,
+                          pull_request, round, stage, plugin, change_class, since, until)
+        if code not in ('unknown_project', 'tracker_unavailable', 'invalid_scope', 'invalid_state', 'invalid_time_window'):
+            code = 'backend_or_decision_failed'
+        payload = {'error': code, 'next_step': NEXT_STEPS.get(code, 'Check the tracker and use a valid scope or time window.')}
+        return CallToolResult(isError=True, content=[TextContent(type='text', text=json.dumps(payload))], structuredContent=payload)
 
 
 @server.tool(annotations=READ)
@@ -244,7 +271,7 @@ def observability_decide(project_id: str, snapshot_id: str, state: str, question
 @track
 def observability_dashboard(project_id: str | None = None) -> CallToolResult:
     """Open the interactive observability and recommendation dashboard in MCP Apps hosts; structured output remains usable in text-only clients."""
-    result = invoke('issues', project_id) if project_id else invoke('projects')
+    result = observability_issues(project_id) if project_id else invoke('projects')
     if not result.is_error:
         projects = invoke('projects')
         if not projects.is_error:

@@ -103,7 +103,7 @@ class MCPTests(unittest.TestCase):
                     self.assertEqual(stale.structured_content['error'], 'snapshot_changed')
                     self.assertIn('fresh diagnosis', stale.structured_content['next_step'])
                     issues = await client.call_tool('observability_issues', {'project_id': 'a'})
-                    self.assertEqual(issues.structured_content['total'], 1)
+                    self.assertEqual(issues.structured_content['total'], 1)  # Generic projects without a BCL tracker retain legacy output.
                     failure = await client.call_tool('observability_issues', {'project_id':'other'})
                     self.assertTrue(failure.is_error)
                     dumped = json.dumps(failure.model_dump())
@@ -112,8 +112,8 @@ class MCPTests(unittest.TestCase):
                     resource = await client.read_resource('ui://developer-observability/dashboard')
                     html = resource.contents[0]
                     self.assertEqual(html.mime_type, 'text/html;profile=mcp-app')
-                    self.assertIn('See what needs attention', html.text)
-                    self.assertIn('Occurrence timeline', html.text)
+                    self.assertIn('Needs you', html.text)
+                    self.assertIn('What we know', html.text)
                     self.assertNotIn('cdn.', html.text)
                     self.assertIn('connectDomains', json.dumps(html.meta))
 
@@ -136,21 +136,22 @@ class MCPTests(unittest.TestCase):
         subprocess.run(['npm','run','build'],cwd=ROOT,check=True,capture_output=True)
         self.assertEqual(before, (ROOT/'ui/dashboard.html').read_bytes())
 
-    def test_shipped_bundle_includes_round_view_sources(self):
-        """Fails when dashboard.html was not rebuilt from ui/round-view.js (no esbuild required)."""
-        source = (ROOT/'ui/round-view.js').read_text()
+    def test_shipped_bundle_includes_calm_issue_view(self):
+        """The shipped dashboard contains the approved progressive issue view."""
+        source = (ROOT/'ui/template.html').read_text() + (ROOT/'ui/app.js').read_text()
         bundle = (ROOT/'ui/dashboard.html').read_text()
-        for marker in ('What we know', 'Raw evidence', 'tracker_unavailable', 'No lane data recorded', 'parked-line', 'track-ring', 'Model not recorded', 'Tokens unknown'):
+        for marker in ('Needs you', 'What we know', 'Timeframe', 'Raw data', 'Show all', 'A−', 'A+'):
             self.assertIn(marker, source)
             self.assertIn(marker, bundle)
 
-    def test_hidden_toolbar_is_not_shown_in_round_mode(self):
-        """The leaked desk toolbar must stay hidden; [hidden] must beat label display rules."""
+    def test_hidden_elements_and_minimum_text_scale(self):
+        """The viewer keeps hidden elements hidden and text at 15px or larger."""
         import re
         source = (ROOT/'ui/template.html').read_text()
         bundle = (ROOT/'ui/dashboard.html').read_text()
         for html in (source, bundle):
             compact = re.sub(r'\s+', '', html)
             self.assertIn('[hidden]{display:none!important}', compact)
-            self.assertIn('body.round-mode.toolbar.embedded{display:none!important}', compact)
-            self.assertNotIn('body.round-mode.toolbar.embedded{display:flex;flex-direction:column', compact)
+            self.assertIn('--scale:1', compact)
+        self.assertIn('font-size:.9375rem', source)
+        self.assertIn('Math.max(.9375', bundle)

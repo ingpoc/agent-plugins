@@ -11,6 +11,7 @@ import os
 import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 RESERVED_PORTS = {8765}
 PORT_FLOOR = 8780
@@ -114,6 +115,16 @@ def dashboard_html():
     return VIEWER_FLAG + html
 
 
+def issues_payload(query):
+    """Resolve the GET API query through the same issue state model as MCP."""
+    if str(ROOT / 'runtime') not in __import__('sys').path:
+        __import__('sys').path.insert(0, str(ROOT / 'runtime'))
+    from backend.issue_state import build_issues
+    value = lambda key, default=None: query.get(key, [default])[0]
+    return build_issues(value('project', 'agent-plugins'), value('pr', 'current'), value('scope', 'now'),
+                        value('from'), value('to'), value('state'))
+
+
 def tool_payload(name, arguments):
     if str(ROOT / 'runtime') not in __import__('sys').path:
         __import__('sys').path.insert(0, str(ROOT / 'runtime'))
@@ -139,7 +150,22 @@ class ViewerHandler(BaseHTTPRequestHandler):
         self.wfile.write(content if isinstance(content, bytes) else content.encode())
 
     def do_GET(self):
-        path = self.path.split("?", 1)[0]
+        request = urlsplit(self.path)
+        path = request.path
+        port = self.server.server_address[1]
+        if self.headers.get("Host") not in {f"127.0.0.1:{port}", f"localhost:{port}"}:
+            self.send_error(403)
+            return
+        if path == "/api/issues":
+            query = parse_qs(request.query, keep_blank_values=False)
+            try:
+                payload = issues_payload(query)
+                self._send(json.dumps(payload), "application/json; charset=utf-8")
+            except (ValueError, OSError) as error:
+                code = str(error).split(':', 1)[0]
+                status = 400 if code.startswith('invalid_') else 404
+                self._send(json.dumps({"error": code}), "application/json; charset=utf-8", status)
+            return
         if path in ("/", "/dashboard"):
             self._send(dashboard_html(), "text/html; charset=utf-8")
             return

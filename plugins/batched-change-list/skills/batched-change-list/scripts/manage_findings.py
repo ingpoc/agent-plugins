@@ -585,6 +585,111 @@ def touch_last_written(document, timestamp=None):
         timestamp or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
 
 
+def capture_issue_metadata(document, before, operations, timestamp):
+    """Persist issue lifecycle timestamps alongside the authoritative tracker edit."""
+    tracking = document.setdefault("tracking", {})
+    prior_tracking = before.get("tracking", {}) if isinstance(before.get("tracking"), dict) else {}
+    plan = tracking.get("plan", {}) if isinstance(tracking.get("plan"), dict) else {}
+    old_plan = prior_tracking.get("plan", {}) if isinstance(prior_tracking.get("plan"), dict) else {}
+    round_number = tracking.get("round", plan.get("round"))
+    old_round = prior_tracking.get("round", old_plan.get("round"))
+    if round_number != old_round or (old_round is None and not tracking.get("round_started_at")):
+        tracking["round_started_at"] = timestamp
+    pull = tracking.get("pull_request")
+    if isinstance(pull, dict) and pull:
+        pull.setdefault("opened_at", tracking.get("pull_request_opened_at"))
+
+    old_findings = {row.get("id"): row for row in before.get("findings", []) if isinstance(row, dict)}
+    groups = plan.get("groups", []) if isinstance(plan.get("groups"), list) else []
+    runs = tracking.get("verification_history", []) if isinstance(tracking.get("verification_history"), list) else []
+    current_run = tracking.get("verification_run", {}) if isinstance(tracking.get("verification_run"), dict) else {}
+    runs = [*runs, current_run]
+    operations_by_id = {op.get("id"): op for op in operations if isinstance(op, dict) and op.get("id")}
+    lifecycle = {"untested": "untested", "pending": "untested", "planned": "untested", "running": "in_progress",
+                 "in_progress": "in_progress", "review": "in_progress", "blocked": "blocked", "failed": "blocked",
+                 "parked": "parked", "deferred": "parked", "verified": "resolved", "fixed": "resolved",
+                 "verified_fixed": "resolved", "resolved": "resolved", "done": "resolved"}
+    for finding in document.get("findings", []):
+        if not isinstance(finding, dict) or not finding.get("id"):
+            continue
+        identifier = finding["id"]
+        previous = old_findings.get(identifier, {})
+        previous_first = previous.get("first_seen")
+        finding.setdefault("first_seen", {
+            "at": finding.get("created_at") or (timestamp if not previous else None),
+            "pr": tracking.get("pull_request", {}).get("number") if isinstance(tracking.get("pull_request"), dict) else None,
+            "round": round_number,
+            "source": "created_at" if finding.get("created_at") else "tracker_recorded" if not previous else "legacy_gap",
+        })
+        if isinstance(previous_first, dict):
+            finding["first_seen"] = previous_first
+        finding.setdefault("state_changes", [])
+        before_state = lifecycle.get(str(previous.get("status", "")).lower(), "untested")
+        after_state = lifecycle.get(str(finding.get("status", "")).lower(), before_state)
+        operation = operations_by_id.get(identifier, {})
+        owner_rejected = operation.get("reopen") is True
+        if owner_rejected:
+            after_state, source = "regressed", "owner_rejected"
+        else:
+            source = operation.get("action") or "tracker_update"
+        transitions = list(previous.get("state_changes", [])) if isinstance(previous.get("state_changes"), list) else []
+        transitions.extend(row for row in (finding.get("state_changes") if isinstance(finding.get("state_changes"), list) else [])
+                           if isinstance(row, dict) and row not in transitions)
+        if after_state != before_state and not any(isinstance(row, dict) and row.get("at") == timestamp for row in transitions):
+            transitions.append({"at": timestamp, "from": before_state, "to": after_state, "source": source})
+        finding["state_changes"] = transitions
+
+        failures = []
+        for run in runs:
+            checks = run.get("checks", {}) if isinstance(run, dict) and isinstance(run.get("checks"), dict) else {}
+            check = checks.get(identifier)
+            if isinstance(check, dict) and str(check.get("state", "")).lower() in {"not_fixed", "failed", "inconclusive", "rejected"}:
+                observed_at = check.get("finished_at") or check.get("updated_at")
+                if observed_at:
+                    failures.append((observed_at, "verification_check"))
+        for group in groups:
+            if identifier not in (group.get("finding_ids") or []):
+                continue
+            for row in group.get("failure_history", []):
+                if isinstance(row, dict):
+                    if row.get("at"):
+                        failures.append((row["at"], "review" if "review" in str(row.get("source", "")).lower() else "lane_failure"))
+        reports = finding.get("owner_reports") if isinstance(finding.get("owner_reports"), list) else []
+        if isinstance(finding.get("owner_report"), dict):
+            reports = [*reports, finding["owner_report"]]
+        for report in reports:
+            if isinstance(report, dict) and report.get("result") in {"rejected", "failed", "not_fixed"} and report.get("at"):
+                failures.append((report["at"], "owner_report"))
+        if owner_rejected:
+            failures.append((timestamp, "owner_rejected"))
+        if failures:
+            latest_at, source = max(failures, key=lambda row: row[0])
+            resolved_events = [row for row in transitions if isinstance(row, dict) and row.get("to") == "resolved" and row.get("at")]
+            resolved_at = max((row["at"] for row in resolved_events), default=None)
+            if not resolved_at:
+                resolved_at = next((previous.get(key) for key in ("resolved_at", "fixed_at", "verified_at", "closed_at")
+                                    if previous.get(key)), None)
+            def parsed_time(value):
+                try:
+                    return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+                except (TypeError, ValueError):
+                    return None
+            if before_state == "resolved" and not owner_rejected and resolved_at:
+                failure_time, resolution_time = parsed_time(latest_at), parsed_time(resolved_at)
+                if failure_time and resolution_time and failure_time > resolution_time and not any(
+                        isinstance(row, dict) and row.get("to") == "regressed" and row.get("at") == latest_at
+                        for row in transitions):
+                    transitions.append({"at": latest_at, "from": "resolved", "to": "regressed", "source": source})
+                    finding["state_changes"] = transitions
+            prior_last = previous.get("last_seen")
+            if prior_last and not finding.get("last_seen"):
+                finding["last_seen"] = prior_last
+            current_last = finding.get("last_seen")
+            current_at = current_last.get("at") if isinstance(current_last, dict) else current_last
+            if not current_at or str(latest_at) >= str(current_at):
+                finding["last_seen"] = {"at": latest_at, "source": source}
+
+
 _MISSING = object()
 
 
@@ -2419,7 +2524,7 @@ def missing_report_file(error, base):
     return filename.is_absolute() and filename.resolve().is_relative_to(Path(base).resolve())
 
 
-def write(path, original, store, findings, validate=True, touch=True, *, stage_stamped=False, last_written_at=None):
+def write(path, original, store, findings, validate=True, touch=True, *, stage_stamped=False, last_written_at=None, operations=()):
     missing_capture = None
     if store["kind"] == "json":
         document = store["document"]
@@ -2430,7 +2535,9 @@ def write(path, original, store, findings, validate=True, touch=True, *, stage_s
         if store["collection"] == "findings":
             if not stage_stamped:
                 stamp_changed_stages(json.loads(original), document)
-            touch_last_written(document, last_written_at)
+            write_at = last_written_at or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+            capture_issue_metadata(document, json.loads(original), operations, write_at)
+            touch_last_written(document, write_at)
         if validate and store["collection"] == "findings":
             base = live_state.evidence_base(path)
             try:
@@ -3300,6 +3407,7 @@ def run(args, parser):
                 raise ValueError("render output must differ from input and template")
             touch_workflow(store["document"])
             batch_write_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+            capture_issue_metadata(store["document"], json.loads(original), operations, batch_write_at)
             touch_last_written(store["document"], batch_write_at)
             inventory = RENDERER.load_inventory(args.inventory) if args.inventory else None
             base = args.base or live_state.evidence_base(path)
@@ -3406,7 +3514,7 @@ def run(args, parser):
             trim_verification_evidence(updated)
             findings[index] = updated
             validate_ids(findings)
-            write(path, original, store, findings)
+            write(path, original, store, findings, operations=[{"id": args.id, "action": "update", **patch}])
             print(f"Updated {args.id}")
             return 0
         if store["kind"] == "json":

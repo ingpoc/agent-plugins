@@ -9,6 +9,15 @@ import events
 
 
 class EventTests(unittest.TestCase):
+    def test_job_event_stamps_finding_ids_from_its_plan_group(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            tracker = root / "121.json"
+            tracker.write_text(json.dumps({"tracking": {"plan": {"groups": [
+                {"id": "R2-DO4", "finding_ids": ["DO-4", "DO-12"]}]}}}))
+            events.job_event(tracker, "job-1", "start", state_dir=root / "state", group_id="R2-DO4")
+            self.assertEqual(events.read(tracker, root / "state")[0]["finding_ids"], ["DO-4", "DO-12"])
+
     def test_stamped_lifecycle_metadata_is_persisted_without_worktree_inference(self):
         with tempfile.TemporaryDirectory() as tmp:
             metadata = {"group_id": "lane-7", "round": 3, "model": "gpt-6-luna"}

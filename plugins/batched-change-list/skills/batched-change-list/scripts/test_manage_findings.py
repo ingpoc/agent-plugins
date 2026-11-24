@@ -26,6 +26,45 @@ RENDERER = Path(__file__).with_name("render.py")
 
 
 class ManageFindingsTests(unittest.TestCase):
+    def test_capture_issue_metadata_keeps_state_origin_failure_and_stored_gate(self):
+        before = {"findings": [{"id": "DO-4", "status": "pending", "created_at": "2026-11-23T09:00:00Z"}],
+                  "tracking": {"round": 1, "pull_request": {"number": 121},
+                               "plan": {"round": 1, "groups": []},
+                               "gate": {"merge_previous_pr_threshold": 12}}}
+        after = copy.deepcopy(before)
+        after["findings"][0]["status"] = "blocked"
+        after["tracking"]["round"] = 2
+        after["tracking"]["plan"] = {"round": 2, "groups": [{"id": "R2-DO4", "finding_ids": ["DO-4"],
+                                                               "failure_history": [{"at": "2026-11-24T10:00:00Z", "source": "review"}]}]}
+        manage_findings.capture_issue_metadata(after, before, [{"id": "DO-4", "action": "update"}], "2026-11-24T10:01:00Z")
+        finding = after["findings"][0]
+        self.assertEqual(finding["first_seen"], {"at": "2026-11-23T09:00:00Z", "pr": 121, "round": 2, "source": "created_at"})
+        self.assertEqual(finding["state_changes"][-1]["to"], "blocked")
+        self.assertEqual(finding["last_seen"], {"at": "2026-11-24T10:00:00Z", "source": "review"})
+        self.assertEqual(after["tracking"]["round_started_at"], "2026-11-24T10:01:00Z")
+        self.assertIsNone(after["tracking"]["pull_request"]["opened_at"])
+        self.assertEqual(after["tracking"]["gate"]["merge_previous_pr_threshold"], 12)
+
+    def test_owner_rejection_records_regression_transition(self):
+        document = {"findings": [{"id": "DO-4", "status": "verified"}], "tracking": {"round": 2, "plan": {"round": 2}}}
+        manage_findings.capture_issue_metadata(document, {"findings": [{"id": "DO-4", "status": "verified"}],
+                                                  "tracking": {"round": 2, "plan": {"round": 2}}},
+                                                [{"id": "DO-4", "action": "update", "reopen": True}], "2026-11-24T10:01:00Z")
+        self.assertEqual(document["findings"][0]["state_changes"][-1]["to"], "regressed")
+        self.assertEqual(document["findings"][0]["state_changes"][-1]["source"], "owner_rejected")
+
+    def test_later_failed_check_regresses_a_resolved_finding(self):
+        before = {"findings": [{"id": "DO-4", "status": "verified",
+                                "state_changes": [{"at": "2026-11-24T10:00:00Z", "from": "in_progress",
+                                                  "to": "resolved", "source": "verification"}]}],
+                  "tracking": {"round": 2, "plan": {"round": 2}, "verification_run": {"checks": {
+                      "DO-4": {"state": "failed", "finished_at": "2026-11-24T10:30:00Z"}}}}}
+        after = copy.deepcopy(before)
+        manage_findings.capture_issue_metadata(after, before, [], "2026-11-24T10:31:00Z")
+        finding = after["findings"][0]
+        self.assertEqual(finding["state_changes"][-1], {"at": "2026-11-24T10:30:00Z", "from": "resolved",
+                                                         "to": "regressed", "source": "verification_check"})
+
     def test_stage_stamp_tracks_complete_derived_transitions_and_ignores_heartbeat(self):
         before = {"tracking": {"plan": {"groups": [{"id": "A", "status": "running", "phase": "fix",
             "codex": {"job": {"phase": "plan_review"}}}]}}}

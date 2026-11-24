@@ -38,12 +38,12 @@ class IslandTests(unittest.TestCase):
         app = (root / 'ui/app.js').read_text()
         server = (root / 'runtime/server.py').read_text()
         backend = (root / 'runtime/backend/observability_api.py').read_text()
-        self.assertIn("function issueQuery(extra={})", app)
-        self.assertIn("call('observability_issues',issueQuery())", app)
-        self.assertIn("call('observability_issues',issueQuery({cursor}))", app)
+        self.assertIn("function load()", app)
+        self.assertIn("scope,pr:'current'", app)
+        self.assertIn("from_time:from,to_time:to", app)
         self.assertIn("def observability_issues(", server)
-        self.assertIn("return invoke('issues'", server)
-        self.assertIn("getattr(backend(), method)(*args, **kwargs)", server)
+        self.assertIn("from backend.issue_state import build_issues", server)
+        self.assertIn("return invoke('issues'", server)  # compatibility for projects without a BCL tracker
         self.assertIn("def issues(self, project_id", backend)
         self.assertNotIn('_matches_issue_filters', app, 'filter semantics belong to the shared issues API')
 
