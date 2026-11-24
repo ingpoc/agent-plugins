@@ -13,6 +13,7 @@ from unittest.mock import patch
 import check_introspect
 import manage_findings
 import workflow_definition
+import render
 import check_install_sessions
 
 try:
@@ -3034,6 +3035,41 @@ class ManageFindingsTests(unittest.TestCase):
         rows = manage_findings._lane_history(group, "failure_history")
         self.assertEqual(len(rows), 2)
         self.assertEqual(group["status"], "blocked")
+
+    def test_in_progress_check_does_not_unverify_or_block_a_verified_lane(self):
+        self.assertTrue(render.check_keeps_verified({"state": "checking"}))
+        self.assertTrue(render.check_keeps_verified({"state": "pending"}))
+        self.assertTrue(render.check_keeps_verified({"state": "fixed"}))
+        self.assertFalse(render.check_keeps_verified({"state": "not_fixed"}))
+        self.assertFalse(render.check_keeps_verified({"state": "blocked"}))
+        self.assertTrue(render.check_keeps_verified({"state": "inconclusive", "stopped": True}))
+        previous = {
+            "findings": [{
+                "id": "ISSUE-01", "status": "verified_fixed",
+                "verification_refs": ["verify command passed: check.sh (exit 0)"],
+            }],
+            "tracking": {
+                "plan": {"round": 1, "cycle": 1, "groups": [{
+                    "id": "A", "status": "verified", "phase": "verify",
+                    "finding_ids": ["ISSUE-01"],
+                    "failure_history": [{"attempt_id": "f1", "source": "review", "reason": "earlier"}],
+                }]},
+                "verification_run": {"id": "run-1", "status": "active", "checks": {
+                    "ISSUE-01": {"state": "fixed"},
+                }},
+            },
+        }
+        current = json.loads(json.dumps(previous))
+        current["tracking"]["verification_run"]["checks"]["ISSUE-01"] = {
+            "state": "checking", "recheck": True,
+            "previous_checks": [{"state": "fixed"}],
+        }
+        manage_findings.invalidate_dependents(current, previous)
+        group = current["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "verified")
+        self.assertIsNone(group.get("blocked_reason"))
+        self.assertEqual(current["findings"][0]["status"], "verified_fixed")
+
 
 
 if __name__ == "__main__":

@@ -737,7 +737,8 @@ def check_keeps_verified(check):
     state = check.get("state")
     if state == "inconclusive" and check.get("stopped") is True:
         return True
-    return state not in {"checking", "blocked", "inconclusive", "not_fixed"}
+    # A check still in progress is collecting evidence, not a reopen.
+    return state not in {"blocked", "inconclusive", "not_fixed"}
 
 
 def rollover_gate(findings, tracking):
