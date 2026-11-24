@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T16:04:13Z",
-      "now": "2026-11-24T16:04:13Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T16:04:42Z",
+      "now": "2026-11-24T16:04:42Z — Fix started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12188,7 +12188,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T16:04:13Z",
+    "last_written_at": "2026-11-24T16:04:42Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12578,8 +12578,8 @@
             "DO-6"
           ],
           "worktree": "samantha-next-r12",
-          "status": "review",
-          "phase": "review",
+          "status": "running",
+          "phase": "fix",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
             "plugins/developer-observability"
@@ -12597,18 +12597,13 @@
             "implementer_session": "grokbot-122-r1-tokens",
             "reviewer_session": "grokbot-122-r1-tokens-review",
             "job": {
-              "id": "2e242737e2384de4b950627ad474af58",
-              "phase": "presuite",
-              "started_at": "2026-11-24T15:59:16Z",
-              "command": "run-presuite-r1.sh",
-              "heartbeat_at": "2026-11-24T16:02:17Z",
-              "plan_sha256": "ec9669f3e3483036c4624aff34bf407edbe6550e472d463761e078c528b2dde1",
+              "id": "083231b9e20344ceb003c43abcdea3ec",
+              "phase": "fix",
+              "started_at": "2026-11-24T16:04:42Z",
+              "command": "commit-eof.sh",
+              "heartbeat_at": "2026-11-24T16:04:42Z",
+              "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
-                "PR121-r2-live-state-guard",
-                "BCL-159",
-                "DO-8",
-                "BCL-149",
-                "DO-13",
                 "PR120-r6-collect-job-coverage",
                 "BCL-147",
                 "DO-6"
@@ -12617,23 +12612,13 @@
               "model": "Grok Bot",
               "lane_sha256": "f9ccad631e267ec040352ad2849b7f9521b96a5b5da894f570e41b7bb3079739",
               "cycle": 14,
-              "round": 1,
-              "pid": 72928,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T16:02:17Z",
-              "finished_phase_status": "passed"
+              "round": 1
             },
-            "fix_status": "passed",
-            "review_status": "passed",
+            "fix_status": "running",
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "stage_entered_at": "2026-11-24T15:53:07Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T16:02:17Z"
-          },
+          "stage_entered_at": "2026-11-24T16:04:42Z",
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-24T16:03:40Z"
@@ -12762,10 +12747,14 @@
               "model": "Grok Bot",
               "lane_sha256": "4f02cf0be2a6f8eff07c807ac20f779697696226e93adb27587f9a580f51f0fb",
               "cycle": 14,
-              "round": 1
+              "round": 1,
+              "pid": 89509,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T16:04:13Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "Grok Bot"
           },
           "stage_entered_at": "2026-11-24T16:04:12Z",
