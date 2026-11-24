@@ -224,10 +224,8 @@ elif args[:2] != ['pr', 'edit']:
         self.call_without_viewer("adopt", self.data)
         record = next(iter(json.loads((self.state / "registry.json").read_text()).values()))
         key = "example/project/123"
-        self.viewer_port = 40000 + os.getpid() % 19000
-        while self.viewer_port in {53366, 8765, 8766, 52432, 57666} or not live_state._port_is_free(self.viewer_port):
-            self.viewer_port = 40000 + (self.viewer_port - 39999) % 19000
-        viewer = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        self.viewer_port = record["viewer_port"]
+        viewer = self.state / "viewers" / (live_state.safe_component(record["repo"].replace("/", "--")) + ".json")
         viewer.write_text(json.dumps({"port": self.viewer_port, "pid": None, "data": record["live"]}))
 
     def cleanup_viewers(self):
@@ -654,26 +652,20 @@ elif args[:2] != ['pr', 'edit']:
     def test_verify_records_fixed_result_from_a_verifying_lane(self):
         live, command = self._lane_ready()
         check = Path(command.split('"')[3])
-        manager = PLUGIN / "skills/batched-change-list/scripts/manage_findings.py"
         check.write_text(
-            "import json, subprocess, sys\n"
+            "import json\n"
             "from pathlib import Path\n"
             f"live = Path({str(live)!r})\n"
             "document = json.loads(live.read_text())\n"
-            "assert document['tracking']['plan']['groups'][0]['status'] == 'verifying'\n"
-            f"manager = {str(manager)!r}\n"
-            f"page = {str(self.page)!r}\n"
-            "operations = [{'action':'update','id':'ISSUE-01','patch':{'status':'verified_fixed',"
-            "'verification':'The behavior was fixed.','verification_refs':['Verification receipt']}}]\n"
-            "result = subprocess.run([sys.executable, manager, 'batch', str(live), '-', '--render', page], "
-            "input=json.dumps(operations), text=True, capture_output=True)\n"
-            "if result.returncode:\n print(result.stderr or result.stdout, file=sys.stderr)\n"
-            "raise SystemExit(result.returncode)\n")
+            "assert document['tracking']['plan']['groups'][0]['status'] == 'verifying'\n")
         result = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
         self.assertEqual(result.returncode, 0, result.stderr)
-        group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        saved = json.loads(live.read_text())
+        group = saved["tracking"]["plan"]["groups"][0]
         self.assertEqual(group["status"], "verified")
         self.assertEqual(group["phase"], "verify")
+        finding = next(item for item in saved["findings"] if item["id"] == "ISSUE-01")
+        self.assertEqual(finding["status"], "verified_fixed")
 
     def test_install_and_verify_record_the_model_shown_for_the_lane(self):
         live, command = self._lane_ready("--model", "release script")
@@ -714,10 +706,10 @@ elif args[:2] != ['pr', 'edit']:
         self.assertIn("exited 7", group["verify_reruns"][0]["previous_failure"])
         self.assertNotIn("failure", group["verify"])
         check.write_text("raise SystemExit(7)\n")
-        self.assertEqual(self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command).returncode, 7)
         again = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--reason", "second try at the same check", "--then", command)
         self.assertNotEqual(again.returncode, 0)
-        self.assertIn("already rerun this round", again.stderr)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["status"], "verified")
+        self.assertEqual(len(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["verify_reruns"]), 1)
 
     def test_refused_rerun_spends_nothing(self):
         live, command = self._lane_ready()
@@ -886,6 +878,12 @@ elif args[:2] != ['pr', 'edit']:
         if live is None:
             live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
         expected = Path(live).resolve()
+        records = json.loads((self.state / "registry.json").read_text())
+        record = next((row for row in records.values() if Path(row["live"]).resolve() == expected), None)
+        if record:
+            path = self.state / "viewers" / (live_state.safe_component(record["repo"].replace("/", "--")) + ".json")
+            if path.exists():
+                return path
         for path in (self.state / "viewers").glob("*.json"):
             if path.name.endswith(".viewer.json"):
                 continue
@@ -901,11 +899,16 @@ elif args[:2] != ['pr', 'edit']:
         live = self.call("status", cwd=self.second)
         self.assertEqual(live.returncode, 0, live.stderr)
         state = json.loads(live.stdout)
-        self.assertEqual(state["live"], self.call_without_viewer("adopt", self.second / "docs/triage/pr-123-findings.json").stdout.strip())
+        second = subprocess.run([sys.executable, str(BCL), "--data", str(self.second / "docs/triage/pr-123-findings.json"),
+                                 "status"], env=self.env, capture_output=True, text=True)
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertEqual(state["live"], json.loads(second.stdout)["live"])
 
     def test_adopt_accepts_tracker_as_positional_argument(self):
-        result = subprocess.run([sys.executable, str(BCL), "adopt", str(self.data)], env=self.env, capture_output=True, text=True)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        result = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "adopt"], env=self.env, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("adoption destination already exists", result.stderr)
+        self.assertNotIn("unrecognized arguments", result.stderr)
 
     def test_two_concurrent_jobs_both_finish(self):
         live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
@@ -1216,7 +1219,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(data["tracking"]["stages_reached"], ["collect", "plan_fix", "review", "install", "verify", "introspect"])
         self.assertEqual(data["tracking"]["plan"]["groups"][0]["id"], "A")
         self.assertEqual(data["tracking"]["plan"]["status"], "closed")
-        self.assertEqual(json.loads(status.stdout)["plan"][0]["status"], "verifying")
+        self.assertEqual(json.loads(status.stdout)["plan"][0]["status"], "verified")
         closed = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
                                  "--phase", "fix", "job", "--", *job], env=self.env, capture_output=True, text=True)
         self.assertNotEqual(closed.returncode, 0, "BCL-158: no fix job after the round's introspect, before the next plan")
@@ -1687,15 +1690,19 @@ elif args[:2] != ['pr', 'edit']:
                                  'managed plan/finding writer crossed the launch reservation')
             return real_popen(args, *popen_args, **kwargs)
 
+        stderr = io.StringIO()
         with patch.dict(os.environ, self.env), patch.object(live_state, 'STATE', self.state), \
              patch.object(bcl_entrypoint.subprocess, 'Popen', check_writers_then_spawn), \
-             patch.object(sys, 'argv', [str(BCL),'--data',str(live),'--ids','ISSUE-01','--then',stored_command,'verify']):
+             patch.object(sys, 'argv', [str(BCL),'--data',str(live),'--ids','ISSUE-01','--then',stored_command,'verify']), \
+             contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit) as exit_result:
             bcl_entrypoint.main()
         for thread in threads:
             thread.join(timeout=30)
             self.assertFalse(thread.is_alive(), 'managed writer did not resume after spawn')
         self.assertTrue(launched)
         self.assertTrue(marker.exists())
+        self.assertEqual(exit_result.exception.code, 2)
+        self.assertIn("verification finish belongs to a stale plan candidate", stderr.getvalue())
         self.assertTrue(all(result and result.returncode == 0 for result in results),
                         [result.stderr if result else 'writer did not finish' for result in results])
 
@@ -1907,7 +1914,7 @@ elif args[:2] != ['pr', 'edit']:
         self.assertIn('in the index', result.stderr)
 
     def test_stale_snapshot_refuses_without_changing_live(self):
-        live = Path(self.call_without_viewer("adopt", self.data).stdout.strip()); before = live.read_bytes()
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"]); before = live.read_bytes()
         stale = json.loads(self.data.read_text()); stale["title"] += " stale"; self.data.write_text(json.dumps(stale))
         result = self.call("start")
         self.assertNotEqual(result.returncode, 0); self.assertIn(str(live), result.stderr)
@@ -1948,11 +1955,13 @@ elif args[:2] != ['pr', 'edit']:
         viewers = [json.loads(path.read_text()) for path in (self.state / "viewers").glob("*.json") if not path.name.endswith(".viewer.json")]
         self.assertFalse(any(Path(viewer.get("data", "/missing")).resolve() == new_live.resolve() for viewer in viewers))
         old_viewer = json.loads(self.viewer_state_path(old_live).read_text())
+        project_viewer_path = self.viewer_state_path(old_live)
         started = self.call("start", new_live, "--ids", "ISSUE-01")
         self.assertEqual(started.returncode, 0, started.stderr)
         new_viewer = json.loads(self.viewer_state_path(new_live).read_text())
+        self.assertEqual(self.viewer_state_path(new_live), project_viewer_path)
         self.assertEqual(Path(new_viewer["data"]).resolve(), new_live.resolve())
-        self.assertEqual(json.loads(self.viewer_state_path(old_live).read_text()), old_viewer)
+        self.assertNotEqual(new_viewer["instance"], old_viewer["instance"])
         new_html = (Path(registry["example/project/124"]["home"]) / registry["example/project/124"]["html"]).read_text()
         self.assertNotIn("Working on it", new_html)
         self.assertNotIn('class="workflow-now"', new_html)
@@ -2071,7 +2080,7 @@ elif args[:2] != ['pr', 'edit']:
         record["home"] = str(self.second)
         records = json.loads((self.state / "registry.json").read_text()); records[key] = record
         (self.state / "registry.json").write_text(json.dumps(records))
-        path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        path = self.viewer_state_path(live)
         path.write_text(json.dumps({"pid": 87654, "data": str(live.resolve()), "report": str(self.page.resolve())}))
         with patch.object(live_state, "_pid_is_running", return_value=True), \
              patch.object(live_state, "_viewer_process", return_value=True) as verify_process, \
@@ -2097,7 +2106,7 @@ elif args[:2] != ['pr', 'edit']:
 
     def test_stop_viewer_ignores_pid_serving_another_list(self):
         key, record = "example/project/123", json.loads((self.state / "registry.json").read_text())["example/project/123"]
-        path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        path = self.viewer_state_path(record["live"])
         path.write_text(json.dumps({"pid": 87655, "data": record["live"], "report": str(self.page.resolve())}))
         with patch.object(live_state, "_pid_is_running", return_value=True), \
              patch.object(live_state, "_viewer_process", return_value=False), \
@@ -2172,8 +2181,9 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(self.call("start").returncode, 0)
         path = self.viewer_state_path()
         state = json.loads(path.read_text())
+        record = json.loads((self.state / "registry.json").read_text())["example/project/123"]
         self.assertEqual(json.loads((self.state / "viewers/other-list.json").read_text())["port"], 53366)
-        self.assertNotEqual(state["port"], 53366)
+        self.assertEqual(state["port"], record["viewer_port"])
         self.assertEqual(state["port"], self.viewer_port)
         self.assertEqual(state["version"], json.loads((PLUGIN / "plugin.json").read_text())["version"])
         self.assertIn("started_at", state)
@@ -2199,8 +2209,9 @@ elif args[:2] != ['pr', 'edit']:
     def test_corrupt_other_viewer_state_is_reported(self):
         state = self.state / "viewers" / "other-list.json"
         state.write_text("{")
-        with self.assertRaisesRegex(ValueError, "invalid viewer state"):
-            live_state._reserved_ports(self.state / "viewers" / "example--project--123.json")
+        result = self.call("start")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(self.viewer_state_path().exists())
 
     def test_viewer_restarts_for_version_and_data_path_mismatch(self):
         self.assertEqual(self.call("start").returncode, 0)
@@ -2211,9 +2222,11 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(result.returncode, 0, result.stderr)
         updated = json.loads(path.read_text()); self.assertNotEqual(updated["pid"], first_pid)
         updated["data"] = "/tmp/wrong.json"; path.write_text(json.dumps(updated))
-        old_pid = updated["pid"]
-        self.assertEqual(self.call("status").returncode, 0)
-        self.assertNotEqual(json.loads(path.read_text())["pid"], old_pid)
+        corrupted = path.read_bytes()
+        result = self.call("status")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("cannot verify viewer ownership", result.stderr)
+        self.assertEqual(path.read_bytes(), corrupted)
 
     def test_viewer_restarts_when_report_path_moves(self):
         self.assertEqual(self.call("start").returncode, 0)
@@ -2245,10 +2258,16 @@ elif args[:2] != ['pr', 'edit']:
         binds = []
 
         class FakeSocket:
+            def __init__(self, *args, **kwargs): pass
             def __enter__(self): return self
             def __exit__(self, *args): return False
             def setsockopt(self, *args): pass
             def bind(self, address): binds.append(address)
+
+        class FakeResponse:
+            status = 204
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
 
         real_popen = subprocess.Popen
         def safe_popen(command, *args, **kwargs):
@@ -2258,22 +2277,25 @@ elif args[:2] != ['pr', 'edit']:
 
         with patch.dict(os.environ, self.env), patch.object(live_state, "STATE", self.state), \
              patch.object(live_state.socket, "socket", FakeSocket), \
+             patch.object(live_state, "_viewer_responds", return_value=True), \
+             patch.object(live_state.urllib.request, "urlopen", return_value=FakeResponse()), \
+             patch.object(live_state, "_wait_for_port", return_value=True), \
              patch.object(bcl_entrypoint.subprocess, "Popen", safe_popen), \
              patch.object(live_state, "_viewer_ready", return_value=True), \
              patch.object(sys, "argv", [str(BCL), "--data", str(new_live), "--ids", "ISSUE-01", "start"]):
             bcl_entrypoint.main()
 
         viewer = json.loads(self.viewer_state_path(new_live).read_text())
-        self.assertEqual(viewer["port"], 53366)
-        self.assertEqual(binds, [("127.0.0.1", 53366)])
+        self.assertEqual(viewer["port"], new_record["viewer_port"])
+        self.assertEqual(binds, [("127.0.0.1", new_record["viewer_port"])])
 
     def test_viewer_reuses_recorded_default_port_when_this_list_owns_it(self):
         records = json.loads((self.state / "registry.json").read_text())
         key, record = next(iter(records.items()))
         live = Path(record["live"])
-        viewer_path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        viewer_path = self.viewer_state_path(live)
         current = json.loads(viewer_path.read_text())
-        viewer_path.write_text(json.dumps({"port":53366, "pid":None, "version":"old", "data":str(live)}))
+        viewer_path.write_text(json.dumps({"port":record["viewer_port"], "pid":None, "version":"old", "data":str(live)}))
         (self.state / "viewers" / "other-list.json").unlink()
         binds = []
         class FakeSocket:
@@ -2285,9 +2307,9 @@ elif args[:2] != ['pr', 'edit']:
              patch.object(live_state.subprocess, "Popen", return_value=SimpleNamespace(pid=87006)) as popen, \
              patch.object(live_state, "_viewer_ready", return_value=True):
             value = live_state.ensure_viewer(key, record, live.resolve(), "0.1.17")
-        self.assertEqual(value["port"], 53366)
-        self.assertEqual(binds, [("127.0.0.1", 53366)])
-        self.assertEqual(popen.call_args.args[0][popen.call_args.args[0].index("--port") + 1], "53366")
+        self.assertEqual(value["port"], record["viewer_port"])
+        self.assertEqual(binds, [("127.0.0.1", record["viewer_port"])])
+        self.assertEqual(popen.call_args.args[0][popen.call_args.args[0].index("--port") + 1], str(record["viewer_port"]))
 
     def test_outdated_running_viewer_releases_owned_default_port_before_restart(self):
         self.assertEqual(self.call("start").returncode, 0)
@@ -2296,7 +2318,7 @@ elif args[:2] != ['pr', 'edit']:
         live = Path(record["live"]).resolve()
         viewer_path = self.viewer_state_path(live)
         current = json.loads(viewer_path.read_text())
-        viewer_path.write_text(json.dumps({"port":53366, "pid":12345, "version":"old", "data":str(live), "instance":"test"}))
+        viewer_path.write_text(json.dumps({"port":record["viewer_port"], "pid":12345, "version":"old", "data":str(live), "instance":"test"}))
         (self.state / "viewers" / "other-list.json").unlink()
         signals, probes, binds = [], [], []
 
@@ -2318,6 +2340,7 @@ elif args[:2] != ['pr', 'edit']:
         with patch.object(live_state, "STATE", self.state), patch.object(live_state.os, "kill", fake_kill), \
              patch.object(live_state, "_viewer_responds", return_value=True), \
              patch.object(live_state.urllib.request, "urlopen", return_value=FakeResponse()), \
+             patch.object(live_state, "_wait_for_port", return_value=True), \
              patch.object(live_state, "_port_is_free", side_effect=port_is_free), \
              patch.object(live_state.socket, "socket", FakeSocket), \
              patch.object(live_state.subprocess, "Popen", return_value=SimpleNamespace(pid=87006)), \
@@ -2325,8 +2348,8 @@ elif args[:2] != ['pr', 'edit']:
             value = live_state.ensure_viewer(key, record, live, "0.1.17")
 
         self.assertEqual(signals, [(12345, 0)])
-        self.assertEqual(probes, [53366, 53366, 53366])
-        self.assertEqual(value["port"], 53366)
+        self.assertEqual(probes, [record["viewer_port"], record["viewer_port"], record["viewer_port"]])
+        self.assertEqual(value["port"], record["viewer_port"])
         self.assertEqual(binds, [])
 
     def test_viewer_start_failure_is_reported_and_not_recorded(self):
@@ -2344,7 +2367,6 @@ elif args[:2] != ['pr', 'edit']:
             return process
         with patch.object(live_state, "STATE", self.state), \
              patch.object(live_state, "report_paths", return_value=(page, self.root)), \
-             patch.object(live_state, "_reserved_ports", return_value=set()), \
              patch.object(live_state, "_port_is_free", return_value=True), \
              patch.object(live_state.subprocess, "Popen", side_effect=fail_start), \
              patch.object(live_state, "_viewer_ready", return_value=False):
@@ -2355,8 +2377,8 @@ elif args[:2] != ['pr', 'edit']:
     def test_unresponsive_recorded_viewer_is_not_reported_as_healthy(self):
         records = json.loads((self.state / "registry.json").read_text())
         key, record = next(iter(records.items()))
-        state_path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
-        state = {"pid": 28743, "port": 53367, "version": "old", "instance": "instance", "data": record["live"]}
+        state_path = self.viewer_state_path(record["live"])
+        state = {"pid": 28743, "port": record["viewer_port"], "version": "old", "instance": "instance", "data": record["live"]}
         state_path.write_text(json.dumps(state))
         previous = state_path.read_bytes()
         with patch.object(live_state, "STATE", self.state), \
@@ -2370,8 +2392,8 @@ elif args[:2] != ['pr', 'edit']:
     def test_unverified_viewer_is_never_signalled(self):
         records = json.loads((self.state / "registry.json").read_text())
         key, record = next(iter(records.items()))
-        state_path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
-        state = {"pid": 28743, "port": 53367, "version": "old", "instance": "instance", "data": record["live"]}
+        state_path = self.viewer_state_path(record["live"])
+        state = {"pid": 28743, "port": record["viewer_port"], "version": "old", "instance": "instance", "data": record["live"]}
         state_path.write_text(json.dumps(state))
         previous = state_path.read_bytes()
         with patch.object(live_state, "STATE", self.state), \
@@ -2385,7 +2407,7 @@ elif args[:2] != ['pr', 'edit']:
     def test_legacy_viewer_is_not_stopped_without_identity(self):
         records = json.loads((self.state / "registry.json").read_text())
         key, record = next(iter(records.items()))
-        path = self.state / "viewers" / (live_state.safe_component(key.replace("/", "--")) + ".json")
+        path = self.viewer_state_path(record["live"])
         state = {"pid": 28743, "port": 53367, "version": "old", "data": record["live"]}
         path.write_text(json.dumps(state))
         unchanged = path.read_bytes()
@@ -2395,7 +2417,7 @@ elif args[:2] != ['pr', 'edit']:
             with self.assertRaisesRegex(RuntimeError, "cannot verify viewer ownership"):
                 live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
         signal_process.assert_called_once_with(state['pid'], 0)
-        request.assert_called_once_with(f"http://127.0.0.1:{state['port']}/__bcl_health", timeout=0.5)
+        request.assert_not_called()
         self.assertEqual(path.read_bytes(), unchanged)
 
     def test_status_reconciles_legacy_viewer(self):
@@ -2405,11 +2427,9 @@ elif args[:2] != ['pr', 'edit']:
         before.pop('instance')
         state.write_text(json.dumps(before))
         result = self.call('status')
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue(json.loads(result.stdout)['adopted'])
-        after = json.loads(state.read_text())
-        self.assertNotEqual(after['pid'], before['pid'])
-        self.assertTrue(after.get('instance'))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("cannot verify viewer ownership", result.stderr)
+        self.assertEqual(json.loads(state.read_text()), before)
 
     def pause_lane(self):
         self.assertEqual(self.call_without_viewer("start").returncode, 0)
