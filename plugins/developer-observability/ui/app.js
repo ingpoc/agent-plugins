@@ -19,7 +19,32 @@ const PRESET_FROM = {'1 h': 'now-1h', '6 h': 'now-6h', '24 h': 'now-24h', '7 d':
 let data = {issues: [], rounds: [], runs: [], lists: {projects: [], prs: []}};
 let project = 'agent-plugins', pr = 'current', round = null, scope = 'now';
 let from = null, to = null, run = null, openGroup = null, showAll = false, drawer = null;
-let timeLabel = 'Now', generation = 0, lastFocus = null, dragging = null;
+let timeLabel = 'Now', generation = 0, lastFocus = null, openerSelector = null, dragging = null;
+
+function prUnset(value) {
+  return !value || value === 'current';
+}
+
+function prNumber() {
+  const chosen = prUnset(pr) ? (data.pr || pr) : pr;
+  return String(chosen || '').replace(/^#/, '');
+}
+
+function publicRef(ref) {
+  if (!ref) return '';
+  const raw = String(ref);
+  const check = raw.match(/^check:([^:]+)/);
+  if (check) return ` · run ${esc(check[1].split('-')[0])}`;
+  return ` · ${esc(raw)}`;
+}
+
+function openerFor(id, node) {
+  const value = CSS.escape(String(id));
+  if (node && node.classList && node.classList.contains('act') && node.dataset.open === String(id)) {
+    return `.need .act[data-open="${value}"]`;
+  }
+  return `.rows .row[data-open="${value}"]`;
+}
 
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const tool = async (name, args) => {
@@ -172,7 +197,7 @@ function updateUrl() {
 
 function issuesQuery() {
   const q = new URLSearchParams({project});
-  if (pr) q.set('pr', pr);
+  if (pr && pr !== 'current') q.set('pr', pr);
   if (run) q.set('run', run);
   else {
     if (round != null && !Number.isNaN(Number(round))) q.set('round', String(round));
@@ -200,7 +225,7 @@ async function load() {
     if(request!==generation)return;
     if (result.error) throw Error(result.error);
     data = result;
-    if (result.pr && !pr) pr = String(result.pr).replace(/^#/, '');
+    if (result.pr && prUnset(pr)) pr = String(result.pr).replace(/^#/, '');
     if (result.round != null && run == null && !(from && to)) round = result.round;
     if (result.run_note && !result.run) timeLabel = result.run_note;
     else if (from && to && !run) timeLabel = windowRangeLabel(from, to) || timeLabel;
@@ -258,7 +283,7 @@ function setPreset(name) {
     from = null;
     to = null;
     if (!last || !((last.started_at || last.installed_at) && (last.ended_at || last.end))) {
-      const prLabel = `#${String(pr || data.pr || '').replace(/^#/, '')}`;
+      const prLabel = `#${prNumber()}`;
       timeLabel = `no ${prLabel} run yet`;
       $('time-label').textContent = timeLabel;
       updateUrl();
@@ -394,7 +419,7 @@ function rows(list, key) {
   return `<div class="rows">${shown.map(i => {
     const [t, c, tip] = lastEvidence(i);
     const carried = i.origin_label && String(i.origin_label).includes('carried')
-      ? `<span class="muted origin">${esc(i.origin_label)}</span>` : '';
+      ? `<span class="muted origin"> · ${esc(i.origin_label)}</span>` : '';
     return `<button class="row" data-open="${esc(i.id)}" title="${esc(tip)}"><span class="mono">${esc(i.id)}</span><span class="title" title="${esc(i.title)}">${esc(i.title)}${carried}</span><span class="e ${c}">${esc(t)}</span></button>`;
   }).join('')}${ordered.length > 8 && !showAll ? `<button class="more" data-more="${esc(key)}">Show all ${ordered.length}</button>` : ''}</div>`;
 }
@@ -404,7 +429,7 @@ function headline() {
   const byState = counts.by_state || {};
   const byReason = counts.by_reason || {};
   const total = data.issues.length;
-  const prLabel = `#${String(pr || data.pr || '').replace(/^#/, '')}`;
+  const prLabel = `#${prNumber()}`;
   const rLabel = data.round != null ? `R${data.round}` : (round != null ? `R${round}` : '');
   if (data.run_note && !data.run) {
     const other = data.last_other_run ? `last: ${runLabel(data.last_other_run)}` : '';
@@ -458,7 +483,7 @@ function drawerHTML() {
   if (!i) return '';
   const f = i.first_seen || {};
   const ev = [...(i.events || [])].sort((a, b) => new Date(a.at) - new Date(b.at) || (a.kind === 'first_seen' ? -1 : 0));
-  return `<div class="scrim" data-close></div><aside class="drawer" id="issue-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"><button class="x" data-close aria-label="Close">×</button><div class="mono muted">${esc(i.id)}</div><h2 id="drawer-title" tabindex="-1">${esc(i.title)}</h2><dl class="facts"><dt>Status</dt><dd>${esc(labels[i.state] || i.state)}</dd><dt>Area</dt><dd>${esc(i.area || 'Not recorded')}</dd><dt>Origin</dt><dd>${esc(i.origin_label || `${i.origin || ''}${i.origin_pr ? ` · PR #${i.origin_pr}` : ''}${i.carried_to ? ` → #${i.carried_to}` : ''}`)}</dd><dt>First seen</dt><dd>${f.at ? formatTime(f.at, true) : 'Not recorded'}</dd><dt>Last fail</dt><dd>${i.last_seen_at ? formatTime(i.last_seen_at, true) : 'No failure recorded'}</dd><dt>Attempts</dt><dd>${esc(i.attempts || 0)}</dd><dt>Lane</dt><dd>${esc(i.lane?.id || 'No lane')}</dd></dl><h3>What we know</h3><p>${esc(i.summary || 'No summary recorded.')}</p>${i.impact ? `<p>${esc(i.impact)}</p>` : ''}${i.done_when ? `<p>${esc(i.done_when)}</p>` : ''}<h3>Timeline</h3><ul class="tl">${ev.map(e => `<li class="${e.kind === 'pass' ? 'pass-dot' : ['fail', 'review_failed', 'owner_rejected'].includes(e.kind) ? 'fail-dot' : e.kind === 'inconclusive' ? 'inconclusive-dot' : ''}"><time>${esc(formatTime(e.at, true))}</time><span>${esc(e.summary || e.kind)}${e.ref ? ` · ${esc(e.ref)}` : ''}</span></li>`).join('') || '<li><span class="muted">No events recorded</span></li>'}</ul><details><summary>Raw data</summary><pre>${esc(JSON.stringify(i.raw, null, 2))}</pre></details></aside>`;
+  return `<div class="scrim" data-close></div><aside class="drawer" id="issue-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"><button class="x" data-close aria-label="Close">×</button><div class="mono muted">${esc(i.id)}</div><h2 id="drawer-title" tabindex="-1">${esc(i.title)}</h2><dl class="facts"><dt>Status</dt><dd>${esc(labels[i.state] || i.state)}</dd><dt>Area</dt><dd>${esc(i.area || 'Not recorded')}</dd><dt>Origin</dt><dd>${esc(i.origin_label || `${i.origin || ''}${i.origin_pr ? ` · PR #${i.origin_pr}` : ''}${i.carried_to ? ` → #${i.carried_to}` : ''}`)}</dd><dt>First seen</dt><dd>${f.at ? formatTime(f.at, true) : 'Not recorded'}</dd><dt>Last fail</dt><dd>${i.last_seen_at ? formatTime(i.last_seen_at, true) : 'No failure recorded'}</dd><dt>Attempts</dt><dd>${esc(i.attempts || 0)}</dd><dt>Lane</dt><dd>${esc(i.lane?.id || 'No lane')}</dd></dl><h3>What we know</h3><p>${esc(i.summary || 'No summary recorded.')}</p>${i.impact ? `<p>${esc(i.impact)}</p>` : ''}${i.done_when ? `<p>${esc(i.done_when)}</p>` : ''}<h3>Timeline</h3><ul class="tl">${ev.map(e => `<li class="${e.kind === 'pass' ? 'pass-dot' : ['fail', 'review_failed', 'owner_rejected'].includes(e.kind) ? 'fail-dot' : e.kind === 'inconclusive' ? 'inconclusive-dot' : ''}"><time>${esc(formatTime(e.at, true))}</time><span>${esc(e.summary || e.kind)}${publicRef(e.ref)}</span></li>`).join('') || '<li><span class="muted">No events recorded</span></li>'}</ul><details><summary>Raw data</summary><pre>${esc(JSON.stringify(i.raw, null, 2))}</pre></details></aside>`;
 }
 
 function recentRuns() {
@@ -616,6 +641,7 @@ function trapFocus(event) {
 
 function openDrawer(id) {
   lastFocus = document.activeElement;
+  openerSelector = openerFor(id, lastFocus);
   drawer = id;
   showAll = showAll;
   updateUrl();
@@ -628,10 +654,13 @@ function openDrawer(id) {
 
 function closeDrawer() {
   const returnTo = drawer;
+  const selector = openerSelector;
   drawer = null;
+  openerSelector = null;
   updateUrl();
   render();
-  const row = returnTo ? document.querySelector(`[data-open="${returnTo}"]`) : null;
+  const row = (selector && document.querySelector(selector))
+    || (returnTo ? document.querySelector(`.rows .row[data-open="${returnTo}"]`) : null);
   if (row) row.focus();
   else if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
   lastFocus = null;

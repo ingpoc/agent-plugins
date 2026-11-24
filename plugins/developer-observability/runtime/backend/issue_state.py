@@ -686,19 +686,57 @@ def _in_span(value, start_at, end_at):
     return True
 
 
-def _bound_issue_to_round(issue, start, end, carried_to=None):
-    """Restrict evidence and state to a past round's window; label leftovers carried forward."""
-    start_at, end_at = instant(start), instant(end)
-    events = [event for event in (issue.get("events") or []) if _in_span(event.get("at"), start_at, end_at)]
+def _at_or_before(value, end_at):
+    """True when value has a timestamp at or before end_at (or any time, if the window has no end)."""
+    return _in_span(value, None, end_at)
+
+
+def _snapshot_at(raw, events, changes, end_at):
+    """Tracker snapshot as of end_at: carried-in facts plus events, never live status from after the round."""
+    resolved_at = None
+    for key in ("resolved_at", "fixed_at", "verified_at", "closed_at"):
+        stamp = instant(raw.get(key))
+        if stamp and (end_at is None or stamp <= end_at):
+            resolved_at = stamp if resolved_at is None else max(resolved_at, stamp)
+    pass_at = max((instant(event.get("at")) for event in events
+                   if event.get("kind") in PASS_KINDS and instant(event.get("at"))), default=None)
+    last_fail = max((instant(event.get("at")) for event in events
+                     if event.get("kind") in FAIL_KINDS and instant(event.get("at"))), default=None)
+    latest_ok = max((stamp for stamp in (resolved_at, pass_at) if stamp), default=None)
+    if latest_ok and (last_fail is None or last_fail <= latest_ok):
+        status = "verified_fixed"
+    else:
+        status = ""
+    snapshot = {**raw, "status": status, "status_raw": status, "verification": "",
+                "verification_evidence": [], "state_changes": changes}
+    for key in ("resolved_at", "fixed_at", "verified_at", "closed_at"):
+        snapshot[key] = raw.get(key) if _at_or_before(raw.get(key), end_at) else None
+    if status == "verified_fixed" and not snapshot.get("resolved_at") and latest_ok:
+        snapshot["resolved_at"] = latest_ok.isoformat().replace("+00:00", "Z")
+    return snapshot
+
+
+def _bound_issue_to_round(issue, start, end, carried_to=None, *, seed_from_tracker=False):
+    """State at a round's end = carried-in state plus every event replayed through ended_at.
+
+    A merged PR's rounds seed from that tracker's final status. Open-PR past rounds
+    never use live status from after the window (so a later fail cannot regress an earlier round).
+    """
+    end_at = instant(end)
+    events = [event for event in (issue.get("events") or []) if _at_or_before(event.get("at"), end_at)]
     events = _sort_events(events)
     bounded = {**issue, "events": events}
     raw = issue.get("raw") if isinstance(issue.get("raw"), dict) else issue
-    changes = [row for row in (raw.get("state_changes") or []) if isinstance(row, dict) and _in_span(row.get("at"), start_at, end_at)]
-    snapshot = {**raw, "status": "", "status_raw": "", "verification": "", "verification_evidence": [],
-                "state_changes": changes}
-    for key in ("resolved_at", "fixed_at", "verified_at", "closed_at"):
-        if not _in_span(raw.get(key), start_at, end_at):
-            snapshot[key] = None
+    changes = [row for row in (raw.get("state_changes") or [])
+               if isinstance(row, dict) and _at_or_before(row.get("at"), end_at)]
+    if seed_from_tracker:
+        status = str(raw.get("status") or issue.get("status_raw") or "").strip().lower()
+        snapshot = {**raw, "status": status, "state_changes": changes}
+        for key in ("resolved_at", "fixed_at", "verified_at", "closed_at"):
+            if instant(raw.get(key)) and end_at and instant(raw.get(key)) > end_at:
+                snapshot[key] = None
+    else:
+        snapshot = _snapshot_at(raw, events, changes, end_at)
     state = lifecycle_state(snapshot, events, lane=None, prior=None)
     last_evidence = max((event for event in events if (event.get("ref") or "").startswith(("job:", "check:"))),
                         key=lambda row: instant(row.get("at")) or datetime.min.replace(tzinfo=timezone.utc),
@@ -1085,8 +1123,10 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
         if round_row and not round_row.get("live"):
             later_pr = None if str(focus_pr) == str(latest_pr) else latest_pr
             later_ids = {issue.get("id") for issue in catalog if str(issue.get("pr")) == str(later_pr)} if later_pr else set()
+            merged = bool(merged_by_pr.get(str(focus_pr)))
             selected = [_bound_issue_to_round(issue, round_row.get("started_at"), round_row.get("ended_at"),
-                                              later_pr if issue.get("id") in later_ids else None)
+                                              later_pr if issue.get("id") in later_ids else None,
+                                              seed_from_tracker=merged)
                         for issue in selected]
 
     gate = current_tracking.get("gate") if isinstance(current_tracking.get("gate"), dict) else {}

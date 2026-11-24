@@ -154,6 +154,17 @@ class CascadeAndAccuracyTests(unittest.TestCase):
             {"id": "OLD-1", "title": "Quiet", "status": "untested", "observed": "14 Nov 2026 10:00 IST",
              "created_at": "2026-11-14T04:30:00Z"},
         ]
+        findings_120.extend([
+            {"id": f"VF-{index:02d}", "title": f"VF-{index:02d}", "status": "verified_fixed",
+             "created_at": "2026-11-20T00:00:00Z", "observed": "20 Nov 2026 10:00 IST"}
+            for index in range(1, 14)
+        ])
+        findings_120.extend([
+            {"id": "IP-1", "title": "IP-1", "status": "in_progress", "created_at": "2026-11-23T00:00:00Z",
+             "observed": "23 Nov 2026 10:00 IST"},
+            {"id": "IP-2", "title": "IP-2", "status": "in_progress", "created_at": "2026-11-23T00:00:00Z",
+             "observed": "23 Nov 2026 10:00 IST"},
+        ])
         (folder / "120.json").write_text(json.dumps(_tracker(
             120, 7, 12, findings_120,
             merged={"commit_sha": "9fc50e95", "merged_at": "2026-11-24T09:08:28Z"},
@@ -517,6 +528,33 @@ class CascadeAndAccuracyTests(unittest.TestCase):
         self.assertFalse(do4["needs_you"])
         self.assertFalse(any(event.get("kind") in {"fail", "review_failed", "owner_rejected"}
                              for event in do4.get("events") or []))
+
+    def test_past_round_replays_all_events_and_merged_pr_matches_tracker(self):
+        tracker = json.loads((self.state / "agent-plugins" / "120.json").read_text())
+        by_status = {}
+        for row in tracker["findings"]:
+            by_status[row["status"]] = by_status.get(row["status"], 0) + 1
+        current = build_issues("agent-plugins", pr="120")
+        counts = current["counts"]["by_state"]
+        self.assertEqual(current["round"], 7)
+        self.assertEqual(counts["resolved"], by_status["verified_fixed"])
+        self.assertEqual(counts["blocked"], by_status["blocked"])
+        self.assertEqual(counts["in_progress"], by_status.get("in_progress", 0))
+        self.assertEqual(counts["untested"], by_status.get("untested", 0))
+        self.assertEqual(sum(counts.values()), len(tracker["findings"]))
+        self.assertEqual(counts["resolved"], 17)
+        self.assertEqual(counts["blocked"], 2)
+        r6 = build_issues("agent-plugins", pr="120", round_id=6)
+        self.assertEqual(r6["counts"]["by_state"]["resolved"], 17)
+        self.assertEqual(r6["counts"]["by_state"]["blocked"], 2)
+        r6_issues = {row["id"]: row for row in r6["issues"]}
+        self.assertEqual(r6_issues["BCL-171"]["state"], "blocked")
+        self.assertEqual(r6_issues["BCL-106"]["state"], "blocked")
+        r1 = build_issues("agent-plugins", pr="121", round_id=1)
+        issues = {row["id"]: row for row in r1["issues"]}
+        self.assertEqual(issues["BCL-171"]["state"], "blocked")
+        self.assertNotEqual(issues["DO-4"]["state"], "regressed")
+        self.assertFalse(issues["DO-4"]["needs_you"])
 
     def test_n3_last_fail_comes_from_the_issue_events_only(self):
         result = build_issues("agent-plugins")
