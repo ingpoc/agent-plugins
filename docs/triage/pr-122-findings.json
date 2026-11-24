@@ -11003,9 +11003,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-24T17:59:37Z",
-      "now": "2026-11-24T17:59:37Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-24T18:01:12Z",
+      "now": "2026-11-24T18:01:12Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 121,
@@ -12494,6 +12494,146 @@
         },
         "round": 2,
         "cycle": 14
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-24T18:01:12Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 10",
+          "Codex write: R1-GUARD",
+          "Codex review: R1-GUARD",
+          "Polling and rework review: R1-GUARD",
+          "Codex write: R1-TOKENS",
+          "Codex review: R1-TOKENS",
+          "Polling and rework review: R1-TOKENS",
+          "Codex write: R1-JOBUX",
+          "Codex review: R1-JOBUX",
+          "Polling and rework review: R1-JOBUX",
+          "Codex write: R1-COSMETIC",
+          "Codex review: R1-COSMETIC",
+          "Polling and rework review: R1-COSMETIC",
+          "Codex write: R4-106",
+          "Codex review: R4-106",
+          "Polling and rework review: R4-106",
+          "Test command: R4-106: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh",
+          "Codex write: R4-171",
+          "Codex review: R4-171",
+          "Polling and rework review: R4-171",
+          "Test command: R4-171: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh",
+          "Codex write: R2-DEADLOCK",
+          "Codex review: R2-DEADLOCK",
+          "Polling and rework review: R2-DEADLOCK",
+          "Test command: R2-DEADLOCK: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
+          "Codex write: R3-TRACKER",
+          "Codex review: R3-TRACKER",
+          "Polling and rework review: R3-TRACKER",
+          "Test command: R3-TRACKER: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-tracker.sh",
+          "Codex write: R3-INTRO",
+          "Codex review: R3-INTRO",
+          "Polling and rework review: R3-INTRO",
+          "Test command: R3-INTRO: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-intro.sh",
+          "Codex write: R3-VERDICT",
+          "Codex review: R3-VERDICT",
+          "Polling and rework review: R3-VERDICT",
+          "Test command: R3-VERDICT: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-verdict.sh",
+          "Job wall time: R3-TRACKER 970165cfc5fb4e989708e3ee8492aa7e 185s",
+          "Job wall time: R3-INTRO 970165cfc5fb4e989708e3ee8492aa7e 185s",
+          "Job wall time: R3-VERDICT 970165cfc5fb4e989708e3ee8492aa7e 185s",
+          "Repeat: interrupted verification runs",
+          "Repeat: review failures on R4-106",
+          "Repeat: review failures on R4-171",
+          "Repeat: review failures on R2-DO1",
+          "Repeat: plan reviews on R2-DO1",
+          "Repeat: review failures on R3-INTRO"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 10",
+          "Codex write: R1-GUARD",
+          "Codex review: R1-GUARD",
+          "Polling and rework review: R1-GUARD",
+          "Codex write: R1-TOKENS",
+          "Codex review: R1-TOKENS",
+          "Polling and rework review: R1-TOKENS",
+          "Codex write: R1-JOBUX",
+          "Codex review: R1-JOBUX",
+          "Polling and rework review: R1-JOBUX",
+          "Codex write: R1-COSMETIC",
+          "Codex review: R1-COSMETIC",
+          "Polling and rework review: R1-COSMETIC",
+          "Codex write: R4-106",
+          "Codex review: R4-106",
+          "Polling and rework review: R4-106",
+          "Test command: R4-106: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh",
+          "Codex write: R4-171",
+          "Codex review: R4-171",
+          "Polling and rework review: R4-171",
+          "Test command: R4-171: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh",
+          "Codex write: R2-DEADLOCK",
+          "Codex review: R2-DEADLOCK",
+          "Polling and rework review: R2-DEADLOCK",
+          "Test command: R2-DEADLOCK: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
+          "Codex review: R3-TRACKER",
+          "Polling and rework review: R3-TRACKER",
+          "Test command: R3-TRACKER: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-tracker.sh",
+          "Codex review: R3-INTRO",
+          "Polling and rework review: R3-INTRO",
+          "Test command: R3-INTRO: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-intro.sh",
+          "Codex review: R3-VERDICT",
+          "Polling and rework review: R3-VERDICT",
+          "Test command: R3-VERDICT: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-verdict.sh",
+          "Job wall time: R3-TRACKER 970165cfc5fb4e989708e3ee8492aa7e 185s",
+          "Job wall time: R3-INTRO 970165cfc5fb4e989708e3ee8492aa7e 185s",
+          "Job wall time: R3-VERDICT 970165cfc5fb4e989708e3ee8492aa7e 185s",
+          "Repeat: interrupted verification runs",
+          "Repeat: review failures on R4-106",
+          "Repeat: review failures on R4-171",
+          "Repeat: review failures on R2-DO1",
+          "Repeat: plan reviews on R2-DO1",
+          "Repeat: review failures on R3-INTRO"
+        ],
+        "sections": {
+          "delete": {
+            "none": "Subtract-before-you-add: no fourth lane was added because BCL-125 and BCL-144 still share files with the three active lanes. DO-1 stayed parked for Guru; DO-11 was folded into PR122-parked-backlog with official merge --into instead of getting a lane. The presuite follow-up only taught existing tests that bcl merge is live again; no new command was added for that."
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Codex write: R3-TRACKER",
+                "evidence": "Commits f0f47571 and b0699c2a, installed revision be5aabd6. Unstamped history archives at rollover; bcl merge --into works during an active run and marks absorbed issues closed; Collect is refused until a post-merge Introspect is recorded; the retired-command test now only bans sync-main.",
+                "outcome": "fixed inline",
+                "proof": "python3 -m unittest test_manage_findings.ManageFindingsTests.test_merge_folds_issues_during_an_active_run_and_refuses_a_gated_lane test_manage_findings.ManageFindingsTests.test_collect_is_refused_until_post_merge_introspect test_manage_findings.ManageFindingsTests.test_archive_history_keeps_ambiguous_rows_and_check_id_lookup test_manage_findings.ManageFindingsTests.test_archive_history_batch_preserves_legacy_and_resolves_archived_check test_references.ReferenceTests.test_docs_do_not_advertise_retired_commands"
+              },
+              {
+                "item": "Codex write: R3-INTRO",
+                "evidence": "Commit bcb91362. The Introspect draft names repeating waste with evidence and requires a workflow change, compares recorded job tokens with the previous round, and can emit a post-merge draft.",
+                "outcome": "fixed inline",
+                "proof": "python3 -m unittest test_check_introspect.IntrospectCheckTests.test_draft_requires_a_workflow_change_for_repeated_review_failures test_check_introspect.IntrospectCheckTests.test_draft_post_merge_introspect_lists_required_changes test_check_introspect.IntrospectCheckTests.test_draft_uses_performed_round_steps_and_requires_review"
+              },
+              {
+                "item": "Codex write: R3-VERDICT",
+                "evidence": "Commits 3783c790 and 4de5669e. The review-verdict table remains, and a walked start/plan/fix/review case fails when the review step exits 9. The early-reject test no longer treats merge as unknown.",
+                "outcome": "fixed inline",
+                "proof": "python3 -m unittest test_bcl.BclTests.test_review_job_verdicts test_bcl.BclTests.test_one_review_verdict_case_walks_start_plan_fix_and_review test_bcl.BclTests.test_failing_review_step_fails_the_walked_verdict_case test_bcl.BclTests.test_unknown_stage_is_rejected_before_viewer_state_is_read"
+              }
+            ]
+          },
+          "optimize": {
+            "none": "Decision before the numbers: 185s is the wall time of one shared presuite job (970165cf, check ok after a follow-up, 67 test processes), copied onto three lanes, not three separate 185s costs. The limiter in that passing run was test_bcl.py at 182.7s; test_manage_findings.py was 32.2s and ran in parallel under --jobs 6. The first presuite (same script) failed in 181.8s on two tests that still treated bcl merge as retired or unknown; that was a code fault in the TRACKER/VERDICT follow-up, not a suite-spread problem. Lane verifies were short: tracker 5 tests in 0.381s, intro 4 tests in 0.000s, verdict 3 tests in 9.129s. Parallel group count 10 is the plan's group list including already-verified R1 and R2 lanes, not ten in-flight lanes (three were in flight; the cap is four). Gate is 15 verified_fixed of 20, open 3 untested (BCL-125, BCL-144, and parked DO-1); the limiter is unfinished untested work, not test spread. Recorded job tokens total 0 and the previous round has no comparable total because these jobs were scripted and left no token receipts; that is missing instrumentation, not a third 185s cost."
+          },
+          "automate": {
+            "none": "No new automation or DO issues under the intake freeze. R3-INTRO's two review failures were tool-fault probe bugs (a check called a missing helper, then expected a deliberately incomplete draft to validate), already recorded as tool faults and uncounted; the passing review did not need a workflow change. Historical interrupted runs and earlier-lane review loops stay in the parked backlog rather than new findings."
+          }
+        },
+        "round": 3,
+        "cycle": 14
       }
     ],
     "archive": {
@@ -12517,7 +12657,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T17:59:37Z",
+    "last_written_at": "2026-11-24T18:01:12Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12823,7 +12963,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "cycle": 14,
@@ -13797,7 +13938,7 @@
             "plugins/batched-change-list/skills/batched-change-list/references/report-rollover.md"
           ],
           "reason": "Same-class tracker upkeep: leftover uncyled history stays over the size limit, and merging issues still needs a stopped run.",
-          "status": "verifying",
+          "status": "verified",
           "phase": "verify",
           "codex": {
             "implementer_session": "grokbot-122-r3-tracker",
@@ -13979,15 +14120,16 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-tracker.sh",
             "method": "Run manage_findings tests for history archive and issue merge.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 2,
             "failed": 0,
-            "total": 2
+            "total": 2,
+            "finished_at": "2026-11-24T17:59:38Z"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-24T17:59:37Z",
-          "stage_entered_at": "2026-11-24T17:59:37Z",
+          "stage_entered_at": "2026-11-24T17:59:38Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -14017,8 +14159,8 @@
             "plugins/batched-change-list/skills/batched-change-list/references/introspect.md"
           ],
           "reason": "Introspect still looks only at the current round and does not gate the next Collect.",
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "codex": {
             "implementer_session": "grokbot-122-r3-intro",
             "reviewer_session": "grokbot-122-r3-intro-review",
@@ -14200,10 +14342,11 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-intro.sh",
             "method": "Run check_introspect tests for cross-round repeats and post-merge Collect gating.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-24T17:59:52Z"
           },
           "failure_history": [
             {
@@ -14230,8 +14373,8 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T17:35:44Z",
-          "stage_entered_at": "2026-11-24T17:58:10Z",
+          "updated_at": "2026-11-24T17:59:51Z",
+          "stage_entered_at": "2026-11-24T17:59:52Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -14242,9 +14385,9 @@
             "started_at": "2026-11-24T17:58:10Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "grokbot",
-            "at": "2026-11-24T17:58:10Z"
+            "at": "2026-11-24T17:59:51Z"
           }
         },
         {
@@ -14259,8 +14402,8 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
           ],
           "reason": "The merged verdict table never checks that start, plan, fix and review themselves succeed.",
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "codex": {
             "implementer_session": "grokbot-122-r3-verdict",
             "reviewer_session": "grokbot-122-r3-verdict-review",
@@ -14437,15 +14580,16 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-verdict.sh",
             "method": "Run the review-verdict table test and the start-plan-fix-review case, including a failing review step.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-24T18:00:10Z"
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T17:35:44Z",
-          "stage_entered_at": "2026-11-24T17:58:10Z",
+          "updated_at": "2026-11-24T18:00:01Z",
+          "stage_entered_at": "2026-11-24T18:00:10Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -14456,12 +14600,13 @@
             "started_at": "2026-11-24T17:58:10Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "grokbot",
-            "at": "2026-11-24T17:58:10Z"
+            "at": "2026-11-24T18:00:01Z"
           }
         }
-      ]
+      ],
+      "status": "closed"
     },
     "verification_run": {
       "id": "pr122-r3-be5aabd6581d0bacc28b6856610250b335e3760d",
@@ -14540,13 +14685,25 @@
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-24T17:27:46Z",
+      "at": "2026-11-24T18:01:12Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 7",
+        "Parallel group count: 10",
+        "Codex write: R1-GUARD",
+        "Codex review: R1-GUARD",
+        "Polling and rework review: R1-GUARD",
+        "Codex write: R1-TOKENS",
+        "Codex review: R1-TOKENS",
+        "Polling and rework review: R1-TOKENS",
+        "Codex write: R1-JOBUX",
+        "Codex review: R1-JOBUX",
+        "Polling and rework review: R1-JOBUX",
+        "Codex write: R1-COSMETIC",
+        "Codex review: R1-COSMETIC",
+        "Polling and rework review: R1-COSMETIC",
         "Codex write: R4-106",
         "Codex review: R4-106",
         "Polling and rework review: R4-106",
@@ -14559,6 +14716,34 @@
         "Codex review: R2-DEADLOCK",
         "Polling and rework review: R2-DEADLOCK",
         "Test command: R2-DEADLOCK: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
+        "Codex write: R3-TRACKER",
+        "Codex review: R3-TRACKER",
+        "Polling and rework review: R3-TRACKER",
+        "Test command: R3-TRACKER: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-tracker.sh",
+        "Codex write: R3-INTRO",
+        "Codex review: R3-INTRO",
+        "Polling and rework review: R3-INTRO",
+        "Test command: R3-INTRO: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-intro.sh",
+        "Codex write: R3-VERDICT",
+        "Codex review: R3-VERDICT",
+        "Polling and rework review: R3-VERDICT",
+        "Test command: R3-VERDICT: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-verdict.sh",
+        "Job wall time: R3-TRACKER 970165cfc5fb4e989708e3ee8492aa7e 185s",
+        "Job wall time: R3-INTRO 970165cfc5fb4e989708e3ee8492aa7e 185s",
+        "Job wall time: R3-VERDICT 970165cfc5fb4e989708e3ee8492aa7e 185s",
+        "Repeat: interrupted verification runs",
+        "Repeat: review failures on R4-106",
+        "Repeat: review failures on R4-171",
+        "Repeat: review failures on R2-DO1",
+        "Repeat: plan reviews on R2-DO1",
+        "Repeat: review failures on R3-INTRO"
+      ],
+      "none": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 10",
         "Codex write: R1-GUARD",
         "Codex review: R1-GUARD",
         "Polling and rework review: R1-GUARD",
@@ -14571,16 +14756,6 @@
         "Codex write: R1-COSMETIC",
         "Codex review: R1-COSMETIC",
         "Polling and rework review: R1-COSMETIC",
-        "Job wall time: R4-106 d0cd489ae6224db5a794b1719cdaf928 181s",
-        "Job wall time: R4-171 d0cd489ae6224db5a794b1719cdaf928 181s",
-        "Job wall time: R2-DEADLOCK d0cd489ae6224db5a794b1719cdaf928 181s"
-      ],
-      "none": [
-        "Stage: Plan & fix",
-        "Stage: Review",
-        "Stage: Install",
-        "Stage: Verify",
-        "Parallel group count: 7",
         "Codex write: R4-106",
         "Codex review: R4-106",
         "Polling and rework review: R4-106",
@@ -14589,47 +14764,63 @@
         "Codex review: R4-171",
         "Polling and rework review: R4-171",
         "Test command: R4-171: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh",
+        "Codex write: R2-DEADLOCK",
         "Codex review: R2-DEADLOCK",
         "Polling and rework review: R2-DEADLOCK",
         "Test command: R2-DEADLOCK: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
-        "Codex write: R1-GUARD",
-        "Codex review: R1-GUARD",
-        "Polling and rework review: R1-GUARD",
-        "Codex write: R1-TOKENS",
-        "Codex review: R1-TOKENS",
-        "Polling and rework review: R1-TOKENS",
-        "Codex write: R1-JOBUX",
-        "Codex review: R1-JOBUX",
-        "Polling and rework review: R1-JOBUX",
-        "Codex write: R1-COSMETIC",
-        "Codex review: R1-COSMETIC",
-        "Polling and rework review: R1-COSMETIC",
-        "Job wall time: R4-106 d0cd489ae6224db5a794b1719cdaf928 181s",
-        "Job wall time: R4-171 d0cd489ae6224db5a794b1719cdaf928 181s",
-        "Job wall time: R2-DEADLOCK d0cd489ae6224db5a794b1719cdaf928 181s"
+        "Codex review: R3-TRACKER",
+        "Polling and rework review: R3-TRACKER",
+        "Test command: R3-TRACKER: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-tracker.sh",
+        "Codex review: R3-INTRO",
+        "Polling and rework review: R3-INTRO",
+        "Test command: R3-INTRO: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-intro.sh",
+        "Codex review: R3-VERDICT",
+        "Polling and rework review: R3-VERDICT",
+        "Test command: R3-VERDICT: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-verdict.sh",
+        "Job wall time: R3-TRACKER 970165cfc5fb4e989708e3ee8492aa7e 185s",
+        "Job wall time: R3-INTRO 970165cfc5fb4e989708e3ee8492aa7e 185s",
+        "Job wall time: R3-VERDICT 970165cfc5fb4e989708e3ee8492aa7e 185s",
+        "Repeat: interrupted verification runs",
+        "Repeat: review failures on R4-106",
+        "Repeat: review failures on R4-171",
+        "Repeat: review failures on R2-DO1",
+        "Repeat: plan reviews on R2-DO1",
+        "Repeat: review failures on R3-INTRO"
       ],
       "sections": {
         "delete": {
-          "none": "Subtract-before-you-add: no fourth lane was added because leftover untested items overlap active files, are nits (DO-11), or are Guru-parked (DO-1). The deadlock fix reused official batch and review commands instead of a new one, and the 171 verify typo was a script path fix plus one allowed rerun, not a new runner."
+          "none": "Subtract-before-you-add: no fourth lane was added because BCL-125 and BCL-144 still share files with the three active lanes. DO-1 stayed parked for Guru; DO-11 was folded into PR122-parked-backlog with official merge --into instead of getting a lane. The presuite follow-up only taught existing tests that bcl merge is live again; no new command was added for that."
         },
         "simplify": {
           "items": [
             {
-              "item": "Codex write: R2-DEADLOCK",
-              "evidence": "Commit 8dc83200 and installed revision 8c4d67ef. Cap validation now runs once on the final plan, a finished fix that still needs review enters review next round, and bcl review starts that phase. Official tests test_batch_can_park_two_overflow_lanes_under_the_cap, test_carried_passed_fix_enters_review_next_round, test_same_round_plan_can_park_overflow_lanes, and test_set_activity_review_enters_review_phase_when_fix_passed passed, and the stored verify reran those four tests in 0.152s.",
+              "item": "Codex write: R3-TRACKER",
+              "evidence": "Commits f0f47571 and b0699c2a, installed revision be5aabd6. Unstamped history archives at rollover; bcl merge --into works during an active run and marks absorbed issues closed; Collect is refused until a post-merge Introspect is recorded; the retired-command test now only bans sync-main.",
               "outcome": "fixed inline",
-              "proof": "python3 -m unittest test_manage_findings.ManageFindingsTests.test_batch_can_park_two_overflow_lanes_under_the_cap test_manage_findings.ManageFindingsTests.test_carried_passed_fix_enters_review_next_round test_manage_findings.ManageFindingsTests.test_same_round_plan_can_park_overflow_lanes test_manage_findings.ManageFindingsTests.test_set_activity_review_enters_review_phase_when_fix_passed"
+              "proof": "python3 -m unittest test_manage_findings.ManageFindingsTests.test_merge_folds_issues_during_an_active_run_and_refuses_a_gated_lane test_manage_findings.ManageFindingsTests.test_collect_is_refused_until_post_merge_introspect test_manage_findings.ManageFindingsTests.test_archive_history_keeps_ambiguous_rows_and_check_id_lookup test_manage_findings.ManageFindingsTests.test_archive_history_batch_preserves_legacy_and_resolves_archived_check test_references.ReferenceTests.test_docs_do_not_advertise_retired_commands"
+            },
+            {
+              "item": "Codex write: R3-INTRO",
+              "evidence": "Commit bcb91362. The Introspect draft names repeating waste with evidence and requires a workflow change, compares recorded job tokens with the previous round, and can emit a post-merge draft.",
+              "outcome": "fixed inline",
+              "proof": "python3 -m unittest test_check_introspect.IntrospectCheckTests.test_draft_requires_a_workflow_change_for_repeated_review_failures test_check_introspect.IntrospectCheckTests.test_draft_post_merge_introspect_lists_required_changes test_check_introspect.IntrospectCheckTests.test_draft_uses_performed_round_steps_and_requires_review"
+            },
+            {
+              "item": "Codex write: R3-VERDICT",
+              "evidence": "Commits 3783c790 and 4de5669e. The review-verdict table remains, and a walked start/plan/fix/review case fails when the review step exits 9. The early-reject test no longer treats merge as unknown.",
+              "outcome": "fixed inline",
+              "proof": "python3 -m unittest test_bcl.BclTests.test_review_job_verdicts test_bcl.BclTests.test_one_review_verdict_case_walks_start_plan_fix_and_review test_bcl.BclTests.test_failing_review_step_fails_the_walked_verdict_case test_bcl.BclTests.test_unknown_stage_is_rejected_before_viewer_state_is_read"
             }
           ]
         },
         "optimize": {
-          "none": "Decision before the numbers: 181s is the wall time of one shared post-merge presuite job (d0cd489a, check ok, 67 test processes), copied onto three lanes, not three separate 181s costs. The limiter in that run was test_bcl.py at 178.8s; test_manage_findings.py was 31.4s and ran in parallel under --jobs 6. Lane verifies were separate and short: 106 10 tests in 1.666s, 171 9+1 tests in 0.024s after a tool-fault script-path rerun, deadlock 4 tests in 0.152s. Parallel group count 7 is the plan's group list including four already-verified R1 lanes, not seven in-flight lanes (three were in flight; the cap is four). Gate is 11 verified_fixed of 19, open 8; the limiter is unfinished untested work, not test spread."
+          "none": "Decision before the numbers: 185s is the wall time of one shared presuite job (970165cf, check ok after a follow-up, 67 test processes), copied onto three lanes, not three separate 185s costs. The limiter in that passing run was test_bcl.py at 182.7s; test_manage_findings.py was 32.2s and ran in parallel under --jobs 6. The first presuite (same script) failed in 181.8s on two tests that still treated bcl merge as retired or unknown; that was a code fault in the TRACKER/VERDICT follow-up, not a suite-spread problem. Lane verifies were short: tracker 5 tests in 0.381s, intro 4 tests in 0.000s, verdict 3 tests in 9.129s. Parallel group count 10 is the plan's group list including already-verified R1 and R2 lanes, not ten in-flight lanes (three were in flight; the cap is four). Gate is 15 verified_fixed of 20, open 3 untested (BCL-125, BCL-144, and parked DO-1); the limiter is unfinished untested work, not test spread. Recorded job tokens total 0 and the previous round has no comparable total because these jobs were scripted and left no token receipts; that is missing instrumentation, not a third 185s cost."
         },
         "automate": {
-          "none": "No new automation. The first 171 verify failed because tests.test_collector is not a package; the stored script now runs test_collector from the tests directory, and the one allowed rerun passed."
+          "none": "No new automation or DO issues under the intake freeze. R3-INTRO's two review failures were tool-fault probe bugs (a check called a missing helper, then expected a deliberately incomplete draft to validate), already recorded as tool faults and uncounted; the passing review did not need a workflow change. Historical interrupted runs and earlier-lane review loops stay in the parked backlog rather than new findings."
         }
       },
-      "round": 2,
+      "round": 3,
       "cycle": 14
     }
   },
@@ -14691,7 +14882,7 @@
       "done_when": "After rollover the live list keeps only the current cycle's runs and Introspect records, earlier ones move to the archive, and the audit passes.",
       "observed": "21 Nov 2026 00:20 IST, the PR 118 list was 841 KB against a 328 KB limit; most of it was run history from earlier pull requests.",
       "recommendation": "Move earlier-cycle run and Introspect history to the existing archive at rollover.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 9",
         "filed_by": "Guru 00:33 IST t1597u",
@@ -14709,12 +14900,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T17:59:38Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T14:05:51.113094Z",
         "source": "verification_check"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-tracker.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-tracker.sh"
     },
     {
       "id": "BCL-120",
@@ -14726,7 +14927,7 @@
       "observed": "21 Nov 2026 08:46 to about 10:25 IST, PR 118 round 3 ran nine plan reviews in a row on the same two lanes, and the orchestrating run was interrupted and resumed three times; nothing in bcl reviews that pattern across the PR.",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 10:21 IST t1605u (north star goal, via parent)",
         "carry_to_round": "4 | Acceptance added Guru 18:52-18:57 IST 22 Nov: evidence on every conclusion, tokens per round/group/step/job vs previous round, evidence-quality verdict filing DO issues. Snapshot 052d5b22, 18:55:18 IST.",
@@ -14749,12 +14950,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T17:59:52Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T17:45:44Z",
         "source": "review"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-intro.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-intro.sh"
     },
     {
       "id": "BCL-125",
@@ -14797,7 +15008,7 @@
       "observed": "21 Nov 2026 22:45 IST, bcl 0.1.58 installed, interrogate review of the shipped change",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "interrogate skill review (Sol 6.2 adversary, rerun by orchestrator)",
         "report": "bcl-119/r1/adv-sol.md, r1/advrepro/f2.py",
@@ -14817,12 +15028,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:00:10Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T14:05:51.126334Z",
         "source": "verification_check"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-verdict.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-verdict.sh"
     },
     {
       "id": "BCL-144",
@@ -15015,7 +15236,7 @@
       "observed": "22 Nov 2026 17:40 IST, bcl 0.1.65, PR 119 round 3",
       "priority": "medium",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 17:33 IST (via parent)",
         "kind": "fix",
@@ -15035,12 +15256,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T17:59:38Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T14:05:51.149569Z",
         "source": "verification_check"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-tracker.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-tracker.sh"
     },
     {
       "id": "BCL-171",
