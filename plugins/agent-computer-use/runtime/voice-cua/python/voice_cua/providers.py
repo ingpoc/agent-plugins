@@ -353,6 +353,38 @@ class XAIProvider(VoiceProvider):
             return [{"type": "response.create"}]
         return [event]
 
+
+    @staticmethod
+    def _usage_counts(usage: dict[str, Any]) -> list[float]:
+        details = [usage.get("input_token_details"), usage.get("output_token_details"),
+                   usage.get("input_tokens_details"), usage.get("output_tokens_details")]
+        counts = [usage.get(key) for key in ("input_tokens", "output_tokens", "total_tokens",
+                                             "prompt_tokens", "completion_tokens")]
+        counts += [detail.get(key) for detail in details if isinstance(detail, dict)
+                   for key in ("cached_tokens", "text_tokens", "audio_tokens")]
+        return [value for value in counts if isinstance(value, (int, float)) and not isinstance(value, bool)]
+
+    @staticmethod
+    def _preferred_usage(event: dict[str, Any], response: dict[str, Any]) -> dict[str, Any]:
+        """Grok Voice puts token counts on the event, and often leaves response.usage empty or zero."""
+        top = event.get("usage") if isinstance(event.get("usage"), dict) else {}
+        inner = response.get("usage") if isinstance(response.get("usage"), dict) else {}
+        top_counts, inner_counts = XAIProvider._usage_counts(top), XAIProvider._usage_counts(inner)
+        if top_counts and any(value > 0 for value in top_counts):
+            chosen = {**inner, **top}
+        elif inner_counts and any(value > 0 for value in inner_counts):
+            chosen = {**top, **inner}
+        else:
+            chosen = {**inner, **top}
+        if "seconds" not in chosen and isinstance(chosen.get("billable_audio_seconds"), (int, float)):
+            chosen = {**chosen, "seconds": int(chosen["billable_audio_seconds"])}
+        counts = XAIProvider._usage_counts(chosen)
+        if counts and not any(value > 0 for value in counts):
+            # All reported token fields are zero: record unknown, not a real zero cost.
+            kept = {key: chosen[key] for key in ("seconds", "billable_audio_seconds") if key in chosen}
+            return kept
+        return chosen
+
     def inbound(self, event: dict[str, Any]) -> list[dict[str, Any]]:
         et = event.get("type")
         if et == "conversation.created":
@@ -367,16 +399,10 @@ class XAIProvider(VoiceProvider):
         response = event.get("response")
         if not isinstance(response, dict):
             return [event]
-        if et == "response.done" and isinstance(response.get("usage"), dict):
-            usage = response["usage"]
-            details = [usage.get("input_token_details"), usage.get("output_token_details")]
-            counts = [usage.get(key) for key in ("input_tokens", "output_tokens", "total_tokens")]
-            counts += [detail.get(key) for detail in details if isinstance(detail, dict)
-                       for key in ("cached_tokens", "text_tokens", "audio_tokens")]
-            numeric = [value for value in counts if isinstance(value, (int, float)) and not isinstance(value, bool)]
-            if numeric and not any(value > 0 for value in numeric):
-                response = {**response, "usage": {}}
-                event = {**event, "response": response}
+        if et == "response.done":
+            usage = self._preferred_usage(event, response)
+            response = {**response, "usage": usage}
+            event = {**event, "response": response, "usage": usage}
         if response.get("metadata"):
             return [event]
         rid = str(response.get("id") or "")
