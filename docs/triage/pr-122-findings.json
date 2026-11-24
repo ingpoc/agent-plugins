@@ -11223,9 +11223,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-24T18:36:07Z",
-      "now": "2026-11-24T18:36:07Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-24T18:37:01Z",
+      "now": "2026-11-24T18:37:01Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 121,
@@ -12882,7 +12882,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T18:36:44Z",
+    "last_written_at": "2026-11-24T18:37:01Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -13187,7 +13187,8 @@
       "collect",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "cycle": 14,
@@ -14711,8 +14712,8 @@
             "plugins/batched-change-list/skills/batched-change-list/statechart.html"
           ],
           "reason": "The separate review and resort-failures commands duplicate the review job, release-check, and unblock.",
-          "status": "installing",
-          "phase": "install",
+          "status": "verifying",
+          "phase": "verify",
           "codex": {
             "implementer_session": "grokbot-122-r4-gates",
             "reviewer_session": "grokbot-122-r4-gates-review",
@@ -14970,7 +14971,7 @@
             "failed": 0,
             "total": 1
           },
-          "stage_entered_at": "2026-11-24T18:36:07Z",
+          "stage_entered_at": "2026-11-24T18:37:01Z",
           "failure_history": [
             {
               "attempt_id": "41a8451169c645b8a4a169e564d0da1c",
@@ -14996,7 +14997,7 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T18:15:28Z",
+          "updated_at": "2026-11-24T18:37:01Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -15007,9 +15008,9 @@
             "started_at": "2026-11-24T18:36:07Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "Grok Bot subagent",
-            "at": "2026-11-24T18:36:07Z"
+            "at": "2026-11-24T18:37:01Z"
           }
         }
       ]
