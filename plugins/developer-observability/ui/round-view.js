@@ -474,19 +474,35 @@ export function mountRoundView(ctx) {
         (tt.covered ? `${formatTokens(tt.tokens)} tokens` : 'tokens unknown'),
         durationLabel(tt.duration_ms) || 'duration unknown',
       ].join(' · ')}),
-      barRow('Time', (tt.by_lane || []).map((lane) => ({
-        id: lane.group_id,
-        value: lane.duration_ms || 0,
-        unknown: !lane.duration_ms,
-      })), tt.duration_ms || 1, durationLabel),
+      barRow('Time', [
+        ...(tt.by_lane || []).map((lane) => ({
+          id: lane.group_id,
+          value: lane.duration_ms || 0,
+          unknown: !lane.duration_ms,
+        })),
+        ...(tt.unrecorded_spans || []).map((span) => ({
+          id: span.name || span.id,
+          value: 0,
+          unknown: true,
+        })),
+      ], tt.duration_ms || 1, durationLabel),
       barRow('Tokens', (tt.by_lane || []).map((lane) => ({
         id: lane.group_id,
         value: lane.tokens || 0,
         unknown: lane.covered === 0,
       })), (tt.tokens || 0) || 1, formatTokens),
-      el('p', {class: 'muted', text: unfinished
-        ? `${unfinished} job${unfinished === 1 ? '' : 's'} never recorded a finish. Unrecorded session time is not in this bar.`
-        : 'Unrecorded session time is not in this bar.'}),
+      el('p', {class: 'muted', text: (() => {
+        const named = (tt.unrecorded_spans || []).map((span) => span.name || span.id).filter(Boolean);
+        const hang = unfinished
+          ? `${unfinished} job${unfinished === 1 ? '' : 's'} never recorded a finish.`
+          : '';
+        if (named.length) {
+          return [hang, `Named unrecorded span: ${named.join(', ')}.`].filter(Boolean).join(' ');
+        }
+        return hang
+          ? `${hang} Unrecorded session time is not in this bar.`
+          : 'Unrecorded session time is not in this bar.';
+      })()}),
     ]);
 
     body.replaceChildren(...[listNote, needs, summary, lanes, bars].filter(Boolean));

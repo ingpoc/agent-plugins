@@ -902,6 +902,28 @@ def build_round(project, pr=None, round=None, state_dir=None):
             "duration_ms": sum(job["duration_ms"] for job in shared_jobs if isinstance(job.get("duration_ms"), int)),
         })
     # Leave by_lane empty when jobs cannot be attributed; the UI shows unknown, not a fake "jobs" segment.
+    unrecorded_spans = []
+    for group in groups:
+        if group.get("view_status") in {"parked", "deferred"} or group.get("id") == "DEFER":
+            continue
+        codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+        session = codex.get("implementer_session")
+        if not (isinstance(session, str) and session.strip()):
+            continue
+        lane_jobs = [job for job in round_jobs if job.get("group_id") == group.get("id")]
+        recorded = any(
+            (job.get("session") == session or job.get("implementer_session") == session)
+            and job.get("event") == "finish"
+            for job in lane_jobs
+        )
+        if recorded:
+            continue
+        unrecorded_spans.append({
+            "id": session,
+            "name": f"implementer session {session}",
+            "group_id": group.get("id"),
+            "unknown": True,
+        })
 
     pull = tracking.get("pull_request") if isinstance(tracking.get("pull_request"), dict) else {"label": f"PR #{found_pr}" if found_pr else None}
     return {
@@ -957,5 +979,6 @@ def build_round(project, pr=None, round=None, state_dir=None):
             "incomplete": sum(job.get("event") == "incomplete" for job in round_jobs),
             "duration_ms": duration_total,
             "by_lane": by_lane,
+            "unrecorded_spans": unrecorded_spans,
         },
     }

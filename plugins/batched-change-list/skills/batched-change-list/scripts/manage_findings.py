@@ -1169,7 +1169,8 @@ def job_transition(document, operation):
         worktree = job.get("worktree")
         if isinstance(worktree, str) and worktree.strip():
             for group in groups:
-                group["worktree"] = worktree
+                if isinstance(group.get("worktree"), str) and group.get("worktree").strip():
+                    group["worktree"] = worktree
         for group in groups:
             codex = group.setdefault("codex", {})
             active_job = codex.get("job")
@@ -1268,6 +1269,17 @@ def job_transition(document, operation):
                 job["output_retained"] = True
             elif job.get("first_error_line"):
                 job["output_retained"] = True
+            if "tokens_source" in operation:
+                job["tokens_source"] = operation.get("tokens_source")
+            if "tokens" in operation:
+                job["tokens"] = operation.get("tokens")
+            wall_time = operation.get("wall_time_s")
+            if isinstance(wall_time, int) and wall_time >= 0:
+                job["wall_time_s"] = wall_time
+            for field in ("session", "gap", "model"):
+                value = operation.get(field)
+                if isinstance(value, str) and value.strip():
+                    job[field] = value.strip()
             job_tool_fault = False
             if phase in LANE["review_phases"]:
                 status = verdict if exit_code == 0 else None

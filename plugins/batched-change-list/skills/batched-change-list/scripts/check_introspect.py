@@ -59,19 +59,78 @@ def performed_round_steps(tracking):
         if not isinstance(prior_steps, list) or any(not isinstance(step, str) or not step.strip() for step in prior_steps):
             raise ValueError("current-round Introspect record needs a steps array")
         steps.extend(step for step in prior_steps if step not in steps)
+    for row in rank_costliest_jobs(tracking):
+        if row["step"] not in steps:
+            steps.append(row["step"])
     return steps
+
+
+def job_receipts(tracking):
+    """Collect finished job receipts from the current plan for cost ranking."""
+    plan = tracking.get("plan") if isinstance(tracking, dict) else None
+    groups = plan.get("groups") if isinstance(plan, dict) else []
+    receipts = []
+    for group in groups or []:
+        if not isinstance(group, dict):
+            continue
+        group_id = group.get("id") or "lane"
+        codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+        jobs = []
+        if isinstance(codex.get("job"), dict):
+            jobs.append(codex["job"])
+        if isinstance(codex.get("jobs"), list):
+            jobs.extend(job for job in codex["jobs"] if isinstance(job, dict))
+        seen = set()
+        for job in jobs:
+            job_id = job.get("id") or job.get("job_id")
+            key = job_id or id(job)
+            if key in seen:
+                continue
+            seen.add(key)
+            if "exit_code" not in job and job.get("finished_phase_status") is None:
+                continue
+            receipts.append({"group_id": group_id, "job_id": job_id, "phase": job.get("phase"),
+                             "wall_time_s": job.get("wall_time_s") if isinstance(job.get("wall_time_s"), int) else None,
+                             "tokens": job.get("tokens") if isinstance(job.get("tokens"), dict) else None,
+                             "model": job.get("model")})
+    return receipts
+
+
+def rank_costliest_jobs(tracking, limit=3):
+    """Rank finished jobs by wall time and tokens, and propose a cut for the top ones."""
+    receipts = job_receipts(tracking)
+    by_time = sorted((row for row in receipts if isinstance(row.get("wall_time_s"), int)),
+                     key=lambda row: row["wall_time_s"], reverse=True)
+    by_tokens = sorted(
+        (row for row in receipts if isinstance((row.get("tokens") or {}).get("total"), int)),
+        key=lambda row: row["tokens"]["total"], reverse=True)
+    ranked = []
+    for source, rows, unit in (("wall time", by_time, "s"), ("tokens", by_tokens, " tokens")):
+        for index, row in enumerate(rows[:limit], start=1):
+            amount = row["wall_time_s"] if unit == "s" else row["tokens"]["total"]
+            step = (f"Job {source}: {row['group_id']}"
+                    + (f" {row['job_id']}" if row.get("job_id") else "")
+                    + f" {amount}{unit}")
+            cut = ("Propose a cut: split or skip this step first; it used the most "
+                   f"{source} in the recorded jobs.")
+            if index > 1:
+                cut = f"Propose a cut: rank {index} by {source}; shorten or defer it after the top step."
+            ranked.append({"step": step, "item": step, "change": cut, "metric": f"{amount}{unit}"})
+    return ranked
 
 
 def draft_introspect(tracking):
     """Build an editable, deliberately incomplete draft from recorded work."""
-    return {
-        "steps": performed_round_steps(tracking),
-        "none": [],
-        "sections": {
-            name: {"none": f"Review performed steps; no {SECTION_NOUNS[name]} can be inferred from the tracker alone."}
-            for name in SECTION_ORDER
-        },
+    steps = performed_round_steps(tracking)
+    sections = {
+        name: {"none": f"Review performed steps; no {SECTION_NOUNS[name]} can be inferred from the tracker alone."}
+        for name in SECTION_ORDER
     }
+    ranked = rank_costliest_jobs(tracking)
+    if ranked:
+        lines = [f"{row['item']}. {row['change']}" for row in ranked]
+        sections["optimize"] = {"none": " ".join(lines)}
+    return {"steps": steps, "none": [], "sections": sections}
 
 
 def validate_introspect(sections, steps, none_steps, tracking):

@@ -822,8 +822,10 @@ elif args[:2] != ['pr', 'edit']:
             job = self.call_job_without_viewer(live, "job", "--ids", "ISSUE-01", "--phase", "fix", "--", "true")
         finally:
             os.chdir(old_cwd)
-        self.assertEqual(job.returncode, 0, job.stderr)
-        self.assertEqual(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["worktree"], "lane-a-r1")
+        self.assertEqual(job.returncode, 3, job.stderr)
+        group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["worktree"], "lane-a-r1")
+        self.assertIn("no commit", (group.get("codex") or {}).get("job", {}).get("first_error_line", ""))
 
     def test_correct_round_moves_the_counter_forward_and_keeps_history(self):
         self.assertEqual(self.call_without_viewer("start").returncode, 0)

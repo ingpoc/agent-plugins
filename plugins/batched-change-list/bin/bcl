@@ -116,10 +116,47 @@ def _read_usage(path, job_id):
                     counts = info.get("total_token_usage") or counts
         if not isinstance(counts, dict):
             return None
-        return {"input": int(counts.get("input_tokens", 0)), "output": int(counts.get("output_tokens", 0)),
+        cached = counts.get("cached_input_tokens", counts.get("cached_tokens", 0))
+        return {"input": int(counts.get("input_tokens", 0)), "cached": int(cached or 0),
+                "output": int(counts.get("output_tokens", 0)),
                 "total": int(counts.get("total_tokens", 0))}
     except (OSError, ValueError, TypeError):
         return None
+
+
+def _repo_head(cwd):
+    try:
+        return subprocess.check_output(["git", "-C", str(cwd), "rev-parse", "HEAD"],
+                                       text=True, stderr=subprocess.DEVNULL).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def _dirty_fingerprint(cwd):
+    try:
+        output = subprocess.check_output(["git", "-C", str(cwd), "status", "--porcelain"],
+                                         text=True, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    fingerprints = {}
+    for line in output.splitlines():
+        if not line.strip():
+            continue
+        rel = line[3:] if len(line) > 3 else line.strip()
+        if " -> " in rel:
+            rel = rel.split(" -> ", 1)[-1]
+        full = Path(cwd) / rel
+        try:
+            digest = hashlib.sha256(full.read_bytes()).hexdigest() if full.is_file() else "missing"
+        except OSError:
+            digest = "unreadable"
+        fingerprints[rel] = (line[:2], digest)
+    return fingerprints
+
+
+def _named_worktree(groups):
+    return any(isinstance(group, dict) and str(group.get("worktree") or "").strip() for group in groups or [])
+
 
 def _last_verdict_block(text):
     lines = text.splitlines()
@@ -245,6 +282,18 @@ def _job_operations(phase, ids, cycle, round_number, job, action, timestamp, exi
             operation["first_error_line"] = job["first_error_line"]
         if job.get("output_path"):
             operation["output_path"] = job["output_path"]
+        if "tokens_source" in job:
+            operation["tokens_source"] = job.get("tokens_source")
+        if "tokens" in job:
+            operation["tokens"] = job.get("tokens")
+        if job.get("wall_time_s") is not None:
+            operation["wall_time_s"] = job["wall_time_s"]
+        if job.get("session"):
+            operation["session"] = job["session"]
+        if job.get("gap"):
+            operation["gap"] = job["gap"]
+        if job.get("model"):
+            operation["model"] = job["model"]
     elif action == "report-step":
         operation["step"] = job.get("step")
         if job.get("result"):
@@ -273,6 +322,10 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
     job["worktree"] = Path.cwd().name
     if model:
         job["model"] = model
+    start_head = start_dirty = None
+    if phase == "fix" and _named_worktree(groups):
+        start_head = _repo_head(Path.cwd())
+        start_dirty = _dirty_fingerprint(Path.cwd())
     event_context = {"group_id": groups[0]["id"], "round": round_number}
     if model is not None:
         event_context["model"] = model
@@ -388,6 +441,22 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
             except OSError: pass
     for thread in copiers: thread.join(timeout=0.1)
     finished_at = _utc_now()
+    if phase == "fix" and _named_worktree(groups) and start_head is not None:
+        end_head = _repo_head(Path.cwd())
+        end_dirty = _dirty_fingerprint(Path.cwd())
+        if end_head == start_head:
+            if code == 0:
+                code = 3
+            job["first_error_line"] = job.get("first_error_line") or "fix job made no commit"
+        elif end_dirty is not None and start_dirty is not None:
+            def _snapshot_path(rel):
+                rel = rel.replace("\\", "/")
+                return rel.startswith("docs/triage/") or rel.endswith("-findings.json") or rel.endswith("-findings.html")
+            leftover = [path for path, mark in end_dirty.items()
+                        if start_dirty.get(path) != mark and not _snapshot_path(path)]
+            if leftover and code == 0:
+                code = 3
+                job["first_error_line"] = "fix job left uncommitted changes"
     reply = None
     if phase in workflow_definition.LANE["review_phases"] and result_path:
         try:
@@ -471,24 +540,6 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
             finish_substitution = GROK_BOT_REVIEW
             job["model"] = GROK_BOT_REVIEW
             # A later review job can record a Grok Bot verdict without a no-op fix.
-    try:
-        if code != 0 or (output_text and output_text.strip()):
-            try:
-                log_path = _write_job_output(list_path, job["id"], output_text)
-                job["output_path"] = str(log_path)
-            except OSError:
-                log_path = None
-            if code != 0:
-                job["first_error_line"] = _first_error_line(output_text) or f"exited {code}"
-        _job_write_retry(record, live, report, base,
-                         _job_operations(phase, ids, cycle, round_number, job, "finish-job", finished_at,
-                                         exit_code=code, reply=reply, fault_kind=finish_fault_kind,
-                                         substitution=finish_substitution))
-    except Exception as error:
-        raise RuntimeError(f"child exited with code {code}; final tracker write failed: {error}") from error
-    finished = json.loads(live.read_text())
-    final = next(group for group in finished["tracking"]["plan"]["groups"] if group["id"] == groups[0]["id"])
-    result_status = final.get("codex", {}).get("job", {}).get("finished_phase_status")
     usage_path = stamped
     usage_source = "stamp" if stamped else "none"
     if usage_path is None:
@@ -505,21 +556,60 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
         if len(candidates) == 1:
             usage_path, usage_source = candidates[0], "inline"
     usage = _read_usage(usage_path, job["id"]) if usage_path else None
-    if usage is None: usage_source = "none"
-    event = {**event_context, "phase": phase, "agent": Path(command_args[0]).name, "repo": repo.name,
-             "exit_code": code, "finished_at": finished_at, "tokens_source": usage_source,
-             "tokens": usage, "session": usage_path.name if usage_path else None,
-             "model": job.get("model") or event_context.get("model"),
-             "first_error_line": job.get("first_error_line"),
-             "output_path": job.get("output_path")}
+    if usage is None:
+        usage_source = "none"
+    implementer = next(((group.get("codex") or {}).get("implementer_session")
+                        for group in groups if isinstance(group, dict)
+                        and (group.get("codex") or {}).get("implementer_session")), None)
+    model = job.get("model") or event_context.get("model")
+    gap = None if model else "no model recorded"
+    wall_time_s = None
     started = job.get("started_at")
     if started and finished_at:
         try:
             start = datetime.fromisoformat(started.replace("Z", "+00:00"))
             end = datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
-            event["wall_time_s"] = max(0, int((end - start).total_seconds()))
+            wall_time_s = max(0, int((end - start).total_seconds()))
         except ValueError:
             pass
+    job["tokens_source"] = usage_source
+    job["tokens"] = usage
+    if wall_time_s is not None:
+        job["wall_time_s"] = wall_time_s
+    if usage_path is not None:
+        job["session"] = usage_path.name
+    elif implementer:
+        job["session"] = implementer
+    if gap:
+        job["gap"] = gap
+    if model:
+        job["model"] = model
+    try:
+        if code != 0 or (output_text and output_text.strip()):
+            try:
+                log_path = _write_job_output(list_path, job["id"], output_text)
+                job["output_path"] = str(log_path)
+            except OSError:
+                log_path = None
+            if code != 0:
+                job["first_error_line"] = job.get("first_error_line") or _first_error_line(output_text) or f"exited {code}"
+        _job_write_retry(record, live, report, base,
+                         _job_operations(phase, ids, cycle, round_number, job, "finish-job", finished_at,
+                                         exit_code=code, reply=reply, fault_kind=finish_fault_kind,
+                                         substitution=finish_substitution))
+    except Exception as error:
+        raise RuntimeError(f"child exited with code {code}; final tracker write failed: {error}") from error
+    finished = json.loads(live.read_text())
+    final = next(group for group in finished["tracking"]["plan"]["groups"] if group["id"] == groups[0]["id"])
+    result_status = final.get("codex", {}).get("job", {}).get("finished_phase_status")
+    event = {**event_context, "phase": phase, "agent": Path(command_args[0]).name, "repo": repo.name,
+             "exit_code": code, "finished_at": finished_at, "tokens_source": usage_source,
+             "tokens": usage, "session": job.get("session"),
+             "model": model, "gap": gap,
+             "first_error_line": job.get("first_error_line"),
+             "output_path": job.get("output_path")}
+    if wall_time_s is not None:
+        event["wall_time_s"] = wall_time_s
     bcl_events.job_event(list_path, job["id"], "finish", state_dir=os.environ.get("BCL_STATE_DIR"), **event)
     return (code if code else 0 if result_status == "passed" else 1) if code >= 0 else 128 - code
 

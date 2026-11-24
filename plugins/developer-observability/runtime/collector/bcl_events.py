@@ -18,6 +18,10 @@ def _gap_name(job):
     model = job.get("model") or job.get("reviewer")
     if model:
         return str(model)
+    if job.get("gap"):
+        return str(job["gap"])
+    if job.get("tokens_source") == "none":
+        return "no token source"
     agent = str(job.get("agent") or "unknown")
     agent_name = Path(agent).name
     wrapper = agent_name in _WRAPPER_AGENTS or agent_name.endswith(".sh")

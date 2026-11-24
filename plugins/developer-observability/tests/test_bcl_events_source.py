@@ -51,6 +51,8 @@ class BclEventSourceTests(unittest.TestCase):
 
         self.assertEqual(_gap_name({"agent": "python3", "model": "Grok Bot"}), "Grok Bot")
         self.assertEqual(_gap_name({"agent": "python3"}), "python3 (wrapper)")
+        self.assertEqual(_gap_name({"agent": "python3", "tokens_source": "none"}), "no token source")
+        self.assertEqual(_gap_name({"agent": "python3", "gap": "no model recorded"}), "no model recorded")
 
 
 if __name__ == "__main__":

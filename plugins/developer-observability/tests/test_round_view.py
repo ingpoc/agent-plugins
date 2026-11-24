@@ -428,6 +428,35 @@ class RoundViewTests(unittest.TestCase):
         self.assertEqual(acu20["phase_label"], "verify")
         self.assertEqual(acu20["view_status"], "verified")
 
+    def test_implementer_session_is_a_named_unrecorded_span(self):
+        group = next(item for item in self.tracker["tracking"]["plan"]["groups"] if item["id"] == "R7-ACU20")
+        group.setdefault("codex", {})["implementer_session"] = "grokbot-demo-session"
+        _write_tracker(self.root, "demo", "42", self.tracker)
+        result = build_round("demo", pr="42", state_dir=str(self.root))
+        spans = result["time_tokens"].get("unrecorded_spans") or []
+        match = next((span for span in spans if span.get("id") == "grokbot-demo-session"), None)
+        self.assertIsNotNone(match)
+        self.assertEqual(match["group_id"], "R7-ACU20")
+        self.assertEqual(match["name"], "implementer session grokbot-demo-session")
+        self.assertTrue(match["unknown"])
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_implementer_session_job_is_timed_not_unrecorded(self):
+        group = next(item for item in self.tracker["tracking"]["plan"]["groups"] if item["id"] == "R7-ACU20")
+        group.setdefault("codex", {})["implementer_session"] = "grokbot-demo-session"
+        _write_tracker(self.root, "demo", "42", self.tracker)
+        _write_events(self.root, [
+            {"event": "start", "job_id": "impl-1", "phase": "fix", "agent": "python3",
+             "group_id": "R7-ACU20", "round": 7, "model": "Grok Bot", "session": "grokbot-demo-session",
+             "started_at": "2026-11-24T07:00:00Z", "at": "2026-11-24T07:00:00Z"},
+            {"event": "finish", "job_id": "impl-1", "phase": "fix", "agent": "python3",
+             "group_id": "R7-ACU20", "round": 7, "model": "Grok Bot", "session": "grokbot-demo-session",
+             "tokens_source": "none", "exit_code": 0,
+             "finished_at": "2026-11-24T07:08:00Z", "at": "2026-11-24T07:08:00Z"},
+        ])
+        result = build_round("demo", pr="42", state_dir=str(self.root))
+        spans = result["time_tokens"].get("unrecorded_spans") or []
+        self.assertFalse(any(span.get("id") == "grokbot-demo-session" for span in spans))
+        lane = next((row for row in result["time_tokens"]["by_lane"] if row.get("group_id") == "R7-ACU20"), None)
+        self.assertIsNotNone(lane)
+        self.assertGreaterEqual(lane["duration_ms"], 8 * 60 * 1000)
+

@@ -98,5 +98,24 @@ class IntrospectCheckTests(unittest.TestCase):
         self.assertEqual(len(result.stderr.strip().splitlines()), 1)
 
 
+    def test_draft_ranks_costliest_jobs_and_proposes_a_cut(self):
+        tracking = self.tracking()
+        tracking["plan"]["groups"][0]["codex"]["job"] = {
+            "id": "slow-job", "phase": "fix", "exit_code": 0, "finished_phase_status": "passed",
+            "wall_time_s": 40, "tokens": {"input": 80, "cached": 0, "output": 20, "total": 100},
+        }
+        tracking["plan"]["groups"][1]["codex"]["job"] = {
+            "id": "quick-job", "phase": "fix", "exit_code": 0, "finished_phase_status": "passed",
+            "wall_time_s": 5, "tokens": {"input": 8, "cached": 0, "output": 2, "total": 10},
+        }
+        draft = check.draft_introspect(tracking)
+        self.assertTrue(any(step.startswith("Job wall time: A") for step in draft["steps"]))
+        reason = draft["sections"]["optimize"]["none"]
+        self.assertIn("Propose a cut", reason)
+        self.assertIn("40s", reason)
+        ranked = check.rank_costliest_jobs(tracking)
+        self.assertEqual(ranked[0]["metric"], "40s")
+
+
 if __name__ == "__main__":
     unittest.main()
