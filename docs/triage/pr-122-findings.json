@@ -12188,7 +12188,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T16:23:29Z",
+    "last_written_at": "2026-11-24T16:29:24Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12531,7 +12531,7 @@
               "phase": "presuite",
               "started_at": "2026-11-24T16:23:29Z",
               "command": "run-presuite-r1.sh",
-              "heartbeat_at": "2026-11-24T16:23:29Z",
+              "heartbeat_at": "2026-11-24T16:29:24Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "PR121-r2-live-state-guard",
@@ -12547,7 +12547,11 @@
               "model": "Grok Bot subagent",
               "lane_sha256": "52e631c9d304de19bb9218b3c3339cd0412e1a7cedbf2e03d1dc1e7aa5e5b202",
               "cycle": 14,
-              "round": 1
+              "round": 1,
+              "pid": 63625,
+              "exit_code": 143,
+              "finished_at": "2026-11-24T16:29:24Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
             "review_status": "passed",
@@ -12556,9 +12560,9 @@
           },
           "stage_entered_at": "2026-11-24T15:38:20Z",
           "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T16:08:25Z"
+            "status": "failed",
+            "exit_code": 143,
+            "finished_at": "2026-11-24T16:29:24Z"
           },
           "failure_history": [],
           "plan_review_history": [],
@@ -12597,7 +12601,7 @@
               "phase": "presuite",
               "started_at": "2026-11-24T16:23:29Z",
               "command": "run-presuite-r1.sh",
-              "heartbeat_at": "2026-11-24T16:23:29Z",
+              "heartbeat_at": "2026-11-24T16:29:24Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "PR121-r2-live-state-guard",
@@ -12613,7 +12617,11 @@
               "model": "Grok Bot subagent",
               "lane_sha256": "f9ccad631e267ec040352ad2849b7f9521b96a5b5da894f570e41b7bb3079739",
               "cycle": 14,
-              "round": 1
+              "round": 1,
+              "pid": 63625,
+              "exit_code": 143,
+              "finished_at": "2026-11-24T16:29:24Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
             "reviewer_model": "Grok Bot",
@@ -12625,9 +12633,9 @@
           "plan_review_history": [],
           "updated_at": "2026-11-24T16:03:40Z",
           "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T16:08:25Z"
+            "status": "failed",
+            "exit_code": 143,
+            "finished_at": "2026-11-24T16:29:24Z"
           }
         },
         {
@@ -12664,7 +12672,7 @@
               "phase": "presuite",
               "started_at": "2026-11-24T16:23:29Z",
               "command": "run-presuite-r1.sh",
-              "heartbeat_at": "2026-11-24T16:23:29Z",
+              "heartbeat_at": "2026-11-24T16:29:24Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "PR121-r2-live-state-guard",
@@ -12680,7 +12688,11 @@
               "model": "Grok Bot subagent",
               "lane_sha256": "d6107db03312c69d29e3502ccd4270b16963a461a51209afb1c42e7d813fc4a6",
               "cycle": 14,
-              "round": 1
+              "round": 1,
+              "pid": 63625,
+              "exit_code": 143,
+              "finished_at": "2026-11-24T16:29:24Z",
+              "finished_phase_status": "failed"
             },
             "fix_status": "passed",
             "review_status": "passed",
@@ -12690,9 +12702,9 @@
           },
           "stage_entered_at": "2026-11-24T15:59:06Z",
           "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T16:08:25Z"
+            "status": "failed",
+            "exit_code": 143,
+            "finished_at": "2026-11-24T16:29:24Z"
           },
           "failure_history": [
             {
@@ -12741,7 +12753,7 @@
               "phase": "presuite",
               "started_at": "2026-11-24T16:23:29Z",
               "command": "run-presuite-r1.sh",
-              "heartbeat_at": "2026-11-24T16:23:29Z",
+              "heartbeat_at": "2026-11-24T16:29:24Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "PR121-r2-live-state-guard",
@@ -12757,7 +12769,11 @@
               "model": "Grok Bot subagent",
               "lane_sha256": "4f02cf0be2a6f8eff07c807ac20f779697696226e93adb27587f9a580f51f0fb",
               "cycle": 14,
-              "round": 1
+              "round": 1,
+              "pid": 63625,
+              "exit_code": 143,
+              "finished_at": "2026-11-24T16:29:24Z",
+              "finished_phase_status": "failed"
             },
             "tool_fault_streak": 0,
             "review_status": "passed",
@@ -12768,9 +12784,9 @@
           "plan_review_history": [],
           "updated_at": "2026-11-24T16:03:40Z",
           "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T16:08:25Z"
+            "status": "failed",
+            "exit_code": 143,
+            "finished_at": "2026-11-24T16:29:24Z"
           }
         },
         {
