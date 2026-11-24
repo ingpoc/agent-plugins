@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "collect",
-      "updated_at": "2026-11-24T09:02:22Z",
-      "now": "2026-11-24T09:02:22Z — Started collection"
+      "stage": "present",
+      "updated_at": "2026-11-24T10:03:27Z",
+      "now": "2026-11-24T10:03:27Z — Started collection"
     },
     "rollover": {
       "source_pr": 120,
@@ -12185,7 +12185,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T09:02:22Z",
+    "last_written_at": "2026-11-24T10:03:27Z",
     "fix_order": {
       "ids": [
         "DO-4",
@@ -12434,7 +12434,8 @@
       }
     ],
     "stages_reached": [
-      "collect"
+      "collect",
+      "present"
     ]
   },
   "findings": [
@@ -12908,13 +12909,31 @@
       "done_when": "A localhost page on the Mini uses one fixed port per project, never the reserved Samantha port, and reuses the existing MCP App page and backend with no second UI. It shows what happened in each round, pull request, stage and lane or job, plus findings, tokens and coverage gaps. Filters combine: round, pull request, stage, plugin, kind, status, since and until. Disclosure is summary, then lane, then evidence. Text is 14 to 16 pixels or larger, with zoom and text-size controls, and the browser's own zoom is never blocked. The live Mini URL is recorded.",
       "observed": "24 Nov 2026 12:37 IST, Asia/Calcutta. Guru approved a local browser viewer. After DO-3 the dashboard is still only the MCP App resource on the stdio server; there is no localhost page and no saved port per project.",
       "recommendation": "Serve the existing dashboard and backend on the loopback interface with one saved port per project, like the change-list viewer, and never bind the reserved Samantha port.",
-      "status": "untested",
+      "status": "verified_fixed",
       "details": {
         "related_to_DO-3": "DO-3 is verified and closed; it added the per-round filters and MCP App UI. This is the missing local HTTP viewer, not a second UI or a new filter API. On 24 Nov 2026 12:39 IST, add --into DO-3 was refused because that finding is closed, so this was added as new.",
         "Technical wording": "Reuse ui/app.js and ObservabilityAPI. Serve 127.0.0.1. Never bind port 8765. Do not touch pid 1338 or ~/.cache/macos-cua/samantha-activity.jsonl.",
         "MCP resource today": "The dashboard is only ui://developer-observability/dashboard on the stdio MCP server."
       },
-      "created_at": "2026-11-24T07:10:26Z"
+      "created_at": "2026-11-24T07:10:26Z",
+      "verification": "The local per-round page was reviewed and is accepted, with only polish follow-ups left.",
+      "verification_refs": [
+        "a7071850:DO-4:ux-pass-5"
+      ],
+      "verification_evidence": [
+        {
+          "checked": "The local per-round page for this project after the latest viewer fix",
+          "expected": "The page opens at a fixed local address, and a review finds no remaining high or top priority gaps",
+          "observed": "The mid-afternoon review of 24 November 2026 concluded the page is ready to ship, with only polish follow-ups",
+          "verdict": "The local per-round page is accepted, with polish follow-ups filed separately",
+          "check_id": "do-4-ux-pass-5-a7071850",
+          "build": "developer-observability a7071850",
+          "session": "uiux-doview-a707",
+          "timestamp": "2026-11-24T10:10:00Z",
+          "reference": "a7071850:DO-4:ux-pass-5",
+          "details": "Evidence file: /Users/gurusharan/.agents/artifacts/bcl-121/live-a7071850/FINDINGS.md copied from the live pass-5 review workdir. Verdict was ship with polish follow-ups; no high or top priority gaps remained. Commit a7071850, served on the project local port. Polish follow-ups were filed as DO-11."
+        }
+      ]
     },
     {
       "id": "DO-5",
@@ -12928,7 +12947,8 @@
       "recommendation": "Have every change-list job start and finish event include the lane id and the round, written by the job runner, not inferred later.",
       "done_when": "A finished job event includes the lane id and the round without inference, a job whose worktree name does not contain the lane id still links to that lane, and a test covers a stamped event and a missing-field gap.",
       "details": {
-        "spec gap": "SPEC section 9 item 2. events.jsonl has no group_id or round. observability_round now infers those fields on the read path when the worktree matches a plan group (17 jobs on PR 120 round 7). BCL-177 asked for a group stamp and is already verified_fixed, so this remaining writer gap is filed separately."
+        "spec gap": "SPEC section 9 item 2. events.jsonl has no group_id or round. observability_round now infers those fields on the read path when the worktree matches a plan group (17 jobs on PR 120 round 7). BCL-177 asked for a group stamp and is already verified_fixed, so this remaining writer gap is filed separately.",
+        "also reported as new entry": "Job events lack a model and version The round view cannot show which model ran a job, because job events do not store a model name or version. 24 Nov 2026, 3:20 PM IST Asia/Calcutta. UI and UX SPEC section 9 item 3, on the live #120/#121 trackers and the viewer at commit a7071850. None of the 14 Round 6 jobs or 26 Round 7 jobs have a model on the event, so the lane Model column is blank or only a tracker stage label without a version."
       },
       "created_at": "2026-11-24T08:04:16Z"
     },
@@ -13011,6 +13031,22 @@
         "spec gap": "SPEC section 9 item 11. observability_round returns gate.fixed=4, pending=35, total=39, threshold=null for PR 120 cycle 12. Forced-gate history has used 15, and the merge bar is 16, but neither is stored on the live verification run. PR120-r6-gate-denominator already tracks the official count command using the report bar; this issue is that the threshold itself is not stored for the viewer."
       },
       "created_at": "2026-11-24T08:04:16Z"
+    },
+    {
+      "id": "DO-11",
+      "title": "The per-round viewer still needs row polish",
+      "status": "untested",
+      "priority": "medium",
+      "source": "Agent reported",
+      "summary": "The local per-round page is ready to ship, but lane rows still share one why across lanes, show an incomplete phase track on verified work, hide column labels, and use dashes instead of clear missing-data wording.",
+      "impact": "A reader cannot tell lanes apart at a glance, or see whether a verified lane is finished, and missing model or token data looks like a broken cell.",
+      "observed": "24 Nov 2026, 3:20 to 3:40 PM IST Asia/Calcutta. A live review of the local per-round page after the latest viewer fix found no remaining high or top priority gaps. The eight polish notes are in the review findings for that pass.",
+      "recommendation": "Use each lane's own latest job for its why, fill a verified lane's track through Verify, say Model not recorded and Tokens unknown in muted text with a short tooltip, keep the reviewer outage note out of the model cell, truncate names at a word with an ellipsis, write less than one minute as less than one min, show compact rows with desktop column headers, move keyboard focus to the opened lane, and drop cache paths from the brief.",
+      "done_when": "Each lane why comes from that lane's own latest job, a verified lane fills the phase track through Verify, missing model and tokens use muted labels with a tooltip, names truncate at a word with an ellipsis, durations under a minute say less than one min, desktop rows are compact and show column headers, opening a lane moves focus to it, and cache paths are not shown in the brief.",
+      "details": {
+        "spec follow-up": "Eight polish notes from the 24 Nov 2026 mid-afternoon live review: per-lane why, verified track fill, muted missing-data labels with tooltip, word-boundary name truncation, unit on sub-minute duration, compact desktop headers, focus on the opened lane, and stripping cache paths from the brief. The review findings file is the evidence cited on the related viewer issue."
+      },
+      "created_at": "2026-11-24T10:00:44Z"
     }
   ]
 }
