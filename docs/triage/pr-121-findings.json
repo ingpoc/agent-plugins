@@ -11252,9 +11252,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T14:29:22Z",
-      "now": "2026-11-24T14:29:22Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-24T14:33:52Z",
+      "now": "2026-11-24T14:33:52Z — Review started"
     },
     "rollover": {
       "source_pr": 120,
@@ -12724,7 +12724,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T14:29:22Z",
+    "last_written_at": "2026-11-24T14:33:52Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -13274,7 +13274,6 @@
             "total": 2
           },
           "parked_to": 3,
-          "blocked_reason": "Awaiting UX re-review",
           "failure_history": [
             {
               "attempt_id": "9209b5a161fc4c63acc2117c5182d3e2",
@@ -13294,6 +13293,17 @@
               "cycle": 13,
               "round": 2,
               "at": "2026-11-24T11:44:38Z"
+            },
+            {
+              "attempt_id": "e41ae714b6184057a9490d80511db6d5",
+              "source": "fix",
+              "reason": "Fix job exited 1",
+              "cycle": 13,
+              "round": 3,
+              "at": "2026-11-24T14:32:19Z",
+              "tool_fault": true,
+              "fault_kind": "fix_job_exit",
+              "tool_fault_reason": "failed fix job, not a review finding"
             }
           ],
           "plan_review_history": [
@@ -13306,11 +13316,45 @@
               "at": "2026-11-24T11:45:44Z"
             }
           ],
-          "status": "blocked",
-          "codex": {},
-          "phase": "fix",
-          "stage_entered_at": "2026-11-24T14:29:22Z",
-          "updated_at": "2026-11-24T14:29:22Z"
+          "status": "review",
+          "codex": {
+            "fix_status": "passed",
+            "job": {
+              "id": "1adc5e4b1e034c859a6474d511a70487",
+              "phase": "review",
+              "started_at": "2026-11-24T14:33:52Z",
+              "command": "write-review-do4-do12.sh",
+              "heartbeat_at": "2026-11-24T14:33:52Z",
+              "plan_sha256": "b492bd391fd64291d28cd66d0685b85da03924e5b2e23180cb9ccdf7ad5bedea",
+              "worktree": "samantha-next-r11",
+              "model": "Grok Bot",
+              "lane_sha256": "7255f8d886c6e9acf974cef492de81efd6e80d4918e254144fda3534bb49cb65",
+              "cycle": 13,
+              "round": 3
+            },
+            "tool_fault_streak": 0,
+            "implementer_session": "grok-bot-r3-do4-do12",
+            "implementer_model": "Grok Bot",
+            "effort": "medium",
+            "review_status": "running",
+            "reviewer_model": "Grok Bot"
+          },
+          "phase": "review",
+          "stage_entered_at": "2026-11-24T14:32:46Z",
+          "updated_at": "2026-11-24T14:33:47Z",
+          "unblock_history": [
+            {
+              "at": "2026-11-24T14:29:48Z",
+              "reason": "UX signed off the served viewer commit as ready to ship",
+              "tool_faults": [],
+              "covered_attempts": [
+                "6b4c58ac99eb45d2a971729b1c8687d8"
+              ],
+              "rows_seen": 2,
+              "by_cycle": 13,
+              "round": 3
+            }
+          ]
         },
         {
           "id": "R2-INTRO",
@@ -13646,7 +13690,6 @@
           "phase": "fix",
           "files": [
             "plugins/developer-observability/ui/app.js",
-            "plugins/developer-observability/ui/template.html",
             "plugins/developer-observability/tests/ui_race.mjs"
           ],
           "reason": "One cosmetic follow-up from the ship review: the last-test-run breadcrumb should take its round from the run, and the Needs-you line should wrap or shorten on a narrow screen. Declares UI template and tests only, not the already-shipped status-accuracy files.",
@@ -13656,7 +13699,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T14:29:22Z",
+          "updated_at": "2026-11-24T14:33:47Z",
           "stage_entered_at": "2026-11-24T14:29:22Z"
         }
       ]
@@ -13850,7 +13893,11 @@
       "round": 2,
       "started_at": "2026-11-24T14:18:14Z"
     },
-    "round_started_at": "2026-11-24T14:29:22Z"
+    "round_started_at": "2026-11-24T14:29:22Z",
+    "gate": {
+      "merge_previous_pr_threshold": 16,
+      "report_threshold": 15
+    }
   },
   "findings": [
     {
@@ -14738,8 +14785,8 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T14:05:51.166199Z",
-        "source": "verification_check"
+        "at": "2026-11-24T14:32:19Z",
+        "source": "lane_failure"
       }
     },
     {
@@ -15014,8 +15061,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-24T14:05:51.186254Z",
-        "source": "verification_check"
+        "at": "2026-11-24T14:32:19Z",
+        "source": "lane_failure"
       }
     },
     {
