@@ -98,11 +98,41 @@ def save_registry(value):
     path = STATE / "registry.json"
     tmp = path.with_suffix(".tmp"); tmp.write_text(json.dumps(value, indent=2) + "\n"); tmp.replace(path)
 
+def _same_path(left, right):
+    left, right = Path(left), Path(right)
+    if left.resolve() == right.resolve():
+        return True
+    try:
+        return left.exists() and right.exists() and os.path.samefile(left, right)
+    except OSError:
+        return False
+
+def _guard_output(path, protected):
+    for label, source in protected:
+        if source and _same_path(path, source):
+            raise ValueError(f"refusing to write {path}: it aliases the {label} {source}")
+
+def _project_port(repo, records=None):
+    records = records if records is not None else registry()
+    existing = next((int(record["viewer_port"]) for record in records.values()
+                     if record.get("repo") == repo and record.get("viewer_port")), None)
+    if existing:
+        return existing
+    ports = {int(record["viewer_port"]) for record in records.values()
+             if record.get("repo") != repo and record.get("viewer_port")}
+    candidate = 53366 if 53366 not in ports and _port_is_free(53366) else 0
+    if not candidate:
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            candidate = sock.getsockname()[1]
+    return candidate
+
 def report_paths(record, live):
     home = Path(record["home"])
     snapshot = home / record["snapshot"]
     base = snapshot.parent if home.exists() else live.parent
     page = home / record["html"] if home.exists() else STATE / "views" / (safe_component(record["repo"] + "--" + record["id"]) + ".html")
+    _guard_output(page, (("tracker", live), ("snapshot", snapshot)))
     page.parent.mkdir(parents=True, exist_ok=True)
     if not page.exists():
         import render
@@ -179,19 +209,6 @@ def register_rollover(record, live, document, worktree):
         raise
     return new_key, new_record, target
 
-def _reserved_ports(current):
-    reserved = set()
-    for path in current.parent.glob("*.json"):
-        if path == current or path.name.endswith(".viewer.json"):
-            continue
-        try:
-            port = int(json.loads(path.read_text()).get("port", 0))
-        except (OSError, ValueError, TypeError) as error:
-            raise ValueError(f"invalid viewer state {path}; repair or remove that state file") from error
-        if port:
-            reserved.add(port)
-    return reserved
-
 def _port_is_free(port):
     with socket.socket() as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -221,44 +238,59 @@ def locate(path, adopt=False, render_path=None):
     key = f"{repo}/{ident}"
     records = registry()
     if adopt:
-        if key in records:
-            existing = Path(records[key]["live"])
-            if path.read_bytes() != existing.read_bytes():
-                raise ValueError(f"tracker is already adopted and differs from live state: {existing}")
-            return key, records[key], existing
         live = STATE.resolve() / safe_component(repo.replace("/", "--")) / f"{safe_component(ident)}.json"
+        if live.exists() or _same_path(path, live):
+            raise ValueError(f"adoption destination already exists: {live}")
         live.parent.mkdir(parents=True, exist_ok=True)
-        live.write_bytes(path.read_bytes())
-        root = Path(git(path.parent, "rev-parse", "--show-toplevel"))
+        root = Path(git(path.parent, "rev-parse", "--show-toplevel")).resolve()
         html_path = Path(render_path).resolve() if render_path else path.with_suffix(".html")
+        snapshot = root / path.relative_to(root)
+        _guard_output(html_path, (("tracker", path), ("snapshot", snapshot)))
         records[key] = {"live": str(live), "snapshot": str(path.relative_to(root)),
-                        "html": str(html_path.relative_to(root)), "home": str(root), "repo": repo, "id": ident}
+                        "html": str(html_path.relative_to(root)), "home": str(root), "repo": repo, "id": ident,
+                        "viewer_port": _project_port(repo, records)}
+        with live.open("xb") as output:
+            output.write(path.read_bytes())
         save_registry(records)
     record = records.get(key)
     if not record: return key, None, None
     return key, record, Path(record["live"]).resolve()
 
 def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=False):
-    state = STATE / "viewers" / (safe_component(key.replace("/", "--")) + ".json")
+    project = record.get("repo")
+    state = STATE / "viewers" / (safe_component(project.replace("/", "--") if project else key.replace("/", "--")) + ".json")
     state.parent.mkdir(parents=True, exist_ok=True)
+    old_state = state
     old = json.loads(state.read_text()) if state.exists() else {}
+    if not old and project:
+        project_lives = {Path(item["live"]).resolve() for item in registry().values()
+                         if item.get("repo") == project and item.get("live")}
+        for candidate in state.parent.glob("*.json"):
+            if candidate == state:
+                continue
+            candidate_data = json.loads(candidate.read_text())
+            if (candidate_data.get("instance") and candidate_data.get("data") and
+                    Path(candidate_data["data"]).resolve() in project_lives):
+                old_state = candidate
+                old = candidate_data
+                break
     running = False
-    if old.get("pid") and int(old["pid"]) != 87005:
+    if old.get("pid"):
         running = _pid_is_running(int(old["pid"]), reject_unverifiable_pid)
     owns_old = bool(old.get("data")) and Path(old["data"]).resolve() == Path(live).resolve()
     old_port = int(old.get("port", 0) or 0)
-    legacy = running and owns_old and not old.get("instance")
-    if legacy and not _legacy_viewer_matches(old_port, old):
-        # A legacy listener has no shutdown capability; only its health response can identify it.
-        raise RuntimeError(f"cannot verify viewer ownership on port {old_port}; inspect its state before retrying")
-    if running and owns_old and not legacy:
+    if running:
+        if not old.get("instance"):
+            raise RuntimeError(f"cannot verify viewer ownership on port {old_port}; inspect its state before retrying")
         if not _viewer_responds(old_port, old):
             raise RuntimeError(f"cannot verify viewer ownership on port {old_port}; inspect its state before retrying")
         page, base = report_paths(record, live)
         scripts = scripts_identity()
         same_target = old.get("report") == str(page.resolve()) and old.get("base") == str(base.resolve()) and old.get("scripts") == str(SCRIPTS.resolve())
-        if old.get("version") == plugin_version and old.get("scripts_identity") == scripts and same_target:
+        same_live = Path(old.get("data", "")).resolve() == Path(live).resolve()
+        if same_live and old.get("version") == plugin_version and old.get("scripts_identity") == scripts and same_target:
             return old
+        shutdown_metadata = old_state.with_suffix(".viewer.json")
         request = urllib.request.Request(f"http://127.0.0.1:{old_port}/__bcl_shutdown", method="POST", headers={"X-BCL-Instance": old["instance"]})
         try:
             with urllib.request.urlopen(request, timeout=2) as response:
@@ -268,29 +300,16 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
             raise RuntimeError(f"viewer shutdown failed on port {old_port}; inspect it before retrying") from error
         if not _wait_for_port(old_port):
             raise RuntimeError(f"viewer on port {old_port} did not stop; inspect it before retrying")
+        if old_state != state:
+            old_state.unlink(missing_ok=True)
+            shutdown_metadata.unlink(missing_ok=True)
     else:
         page, base = report_paths(record, live)
         scripts = scripts_identity()
-    reserved = _reserved_ports(state)
-    candidates = []
-    if owns_old and old_port:
-        candidates.append(old_port)
-    if 53366 not in reserved:
-        candidates.append(53366)
-    if (not owns_old or legacy) and old_port:
-        reserved.add(old_port)
-    port = 0
-    for candidate in dict.fromkeys(candidates):
-        if candidate in reserved:
-            continue
-        if _port_is_free(candidate):
-            port = candidate
-            break
-        if candidate == 53366:
-            print("warning: 127.0.0.1:53366 is occupied; leaving its owner untouched", file=sys.stderr)
-    if not port:
-        with socket.socket() as sock:
-            sock.bind(("127.0.0.1", 0)); port = sock.getsockname()[1]
+    port = int(record.get("viewer_port") or old_port or _project_port(project or key))
+    if not _port_is_free(port):
+        if not running or port != old_port:
+            raise RuntimeError(f"project viewer port {port} is occupied; inspect it before retrying")
     if not page.exists():
         raise RuntimeError(f"viewer report missing: {page}; render the report and retry")
     started = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%b %-d, %Y, %-I:%M %p IST")
@@ -400,17 +419,6 @@ def _viewer_responds(port, expected):
     except (OSError, urllib.error.URLError, ValueError, KeyError):
         return False
 
-def _legacy_viewer_matches(port, expected):
-    """Check legacy listener identity without sending a shutdown request."""
-    try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/__bcl_health", timeout=0.5) as response:
-            health = json.load(response)
-            return (response.status == 200 and isinstance(health, dict) and
-                    health.get("pid") == int(expected["pid"]) and
-                    Path(health.get("path", "")).resolve() == Path(expected["data"]).resolve())
-    except (OSError, urllib.error.URLError, ValueError, TypeError):
-        return False
-
 def _viewer_ready(proc, port, expected):
     deadline = time.monotonic() + 3
     while time.monotonic() < deadline and proc.poll() is None:
@@ -443,7 +451,10 @@ def _active_snapshot_jobs(document):
 def snapshot(record, live, *, pending_only=False):
     home = Path(record["home"])
     snapshot_path = home / record["snapshot"]; html_path = home / record["html"]
+    _guard_output(snapshot_path, (("tracker", live),))
+    _guard_output(html_path, (("tracker", live), ("snapshot", snapshot_path)))
     marker = live.with_suffix(".unsnapshotted")
+    _guard_output(marker, (("tracker", live), ("snapshot", snapshot_path), ("report", html_path)))
     if not home.exists():
         marker.write_text(hashlib.sha256(live.read_bytes()).hexdigest() + "\n")
         raise RuntimeError(f"snapshot home worktree missing: {home}; restore it and retry")
