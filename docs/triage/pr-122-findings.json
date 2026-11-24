@@ -11443,8 +11443,8 @@
       }
     },
     "workflow": {
-      "stage": "report_rollover",
-      "updated_at": "2026-11-24T18:50:55Z"
+      "stage": "merged",
+      "updated_at": "2026-11-24T18:57:45Z"
     },
     "rollover": {
       "source_pr": 121,
@@ -13370,7 +13370,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T18:50:55Z",
+    "last_written_at": "2026-11-24T19:01:31Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -13678,7 +13678,8 @@
       "install",
       "verify",
       "introspect",
-      "report_rollover"
+      "report_rollover",
+      "merged"
     ],
     "plan": {
       "cycle": 14,
@@ -15855,6 +15856,18 @@
       },
       "round": 5,
       "cycle": 14
+    },
+    "merged": {
+      "commit_sha": "94a08a8b464c271d1c2f489d502220627054b0b2",
+      "merged_at": "2026-11-24T18:57:45Z",
+      "stacked_prs": {
+        "status": "complete",
+        "base_branch": "grokbot/samantha-0160-next5",
+        "target_branch": "main",
+        "retargeted_prs": [],
+        "pending_prs": [],
+        "todo": ""
+      }
     }
   },
   "findings": [
