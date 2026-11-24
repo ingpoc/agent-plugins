@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-24T10:25:46Z",
-      "now": "2026-11-24T10:25:46Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-24T10:27:55Z",
+      "now": "2026-11-24T10:27:55Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 120,
@@ -12162,6 +12162,74 @@
           }
         },
         "source_task": "WF-21"
+      },
+      {
+        "result": "Introspect: no issues",
+        "at": "2026-11-24T10:27:55Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 3",
+          "Codex write: R1-DO5",
+          "Codex review: R1-DO5",
+          "Polling and rework review: R1-DO5",
+          "Test command: R1-DO5: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do5.sh",
+          "Codex write: R1-GATE",
+          "Codex review: R1-GATE",
+          "Polling and rework review: R1-GATE",
+          "Test command: R1-GATE: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-gate.sh",
+          "Codex write: R1-DO7",
+          "Codex review: R1-DO7",
+          "Polling and rework review: R1-DO7",
+          "Test command: R1-DO7: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do7.sh",
+          "R1-DO11 fix tests passed, then the lane was deferred to round 2 and not shipped after Guru withdrew the pass-five sign-off",
+          "Shared pre-push suite failed once on a one-second compact timestamp flake, then passed on rerun; the failure was not counted",
+          "Dev-obs token numbers: R1-DO5 Luna reported 53,348 and the job event stamped 681,700 total; R1-GATE 45,690 and 479,994; R1-DO7 77,051 and 2,080,763",
+          "R4-106 and R4-171 stay blocked as findings and were parked to round 2 because they need Guru; DO-1 stays deferred",
+          "DO-4 was reopened as failing after Guru rejected the page; it will be re-planned from the issues-first v2 spec when that spec exists"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 3",
+          "Codex write: R1-DO5",
+          "Codex review: R1-DO5",
+          "Polling and rework review: R1-DO5",
+          "Test command: R1-DO5: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do5.sh",
+          "Codex write: R1-GATE",
+          "Codex review: R1-GATE",
+          "Polling and rework review: R1-GATE",
+          "Test command: R1-GATE: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-gate.sh",
+          "Codex write: R1-DO7",
+          "Codex review: R1-DO7",
+          "Polling and rework review: R1-DO7",
+          "Test command: R1-DO7: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do7.sh",
+          "R1-DO11 fix tests passed, then the lane was deferred to round 2 and not shipped after Guru withdrew the pass-five sign-off",
+          "Shared pre-push suite failed once on a one-second compact timestamp flake, then passed on rerun; the failure was not counted",
+          "Dev-obs token numbers: R1-DO5 Luna reported 53,348 and the job event stamped 681,700 total; R1-GATE 45,690 and 479,994; R1-DO7 77,051 and 2,080,763",
+          "R4-106 and R4-171 stay blocked as findings and were parked to round 2 because they need Guru; DO-1 stays deferred",
+          "DO-4 was reopened as failing after Guru rejected the page; it will be re-planned from the issues-first v2 spec when that spec exists"
+        ],
+        "sections": {
+          "delete": {
+            "none": "Nothing from this round's performed work should be removed; the three shipped fixes and the deferred viewer lanes should stay recorded."
+          },
+          "simplify": {
+            "none": "The Grok Bot reviews were a single pass with no must-fix items, so there is no review loop to simplify this round."
+          },
+          "optimize": {
+            "none": "The compact idempotency test failed once on a one-second timestamp and passed on rerun; that flake is left for a later test fix rather than a code change after verify."
+          },
+          "automate": {
+            "none": "Presuite, release-check, and verify already run as recorded jobs; no new automation would remove as much work as it would add this round."
+          }
+        },
+        "round": 1,
+        "cycle": 13
       }
     ],
     "archive": {
@@ -12185,7 +12253,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T10:25:46Z",
+    "last_written_at": "2026-11-24T10:27:55Z",
     "fix_order": {
       "ids": [
         "DO-11",
@@ -12450,7 +12518,8 @@
       "plan_fix",
       "review",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "cycle": 13,
@@ -12517,7 +12586,7 @@
             "DO-5"
           ],
           "worktree": "samantha-next-r11",
-          "status": "verifying",
+          "status": "verified",
           "phase": "verify",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
@@ -12527,15 +12596,15 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do5.sh",
             "method": "Run the change-list job lifecycle tests for stamped event fields.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-24T10:25:46Z",
-          "stage_entered_at": "2026-11-24T10:25:46Z",
+          "stage_entered_at": "2026-11-24T10:26:56Z",
           "codex": {
             "fix_status": "passed",
             "job": {
@@ -12582,8 +12651,8 @@
             "PR120-r6-gate-denominator"
           ],
           "worktree": "samantha-next-r11",
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/check_gate_count.py"
           ],
@@ -12591,15 +12660,15 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-gate.sh",
             "method": "Run the gate-count unit tests.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T10:17:00Z",
-          "stage_entered_at": "2026-11-24T10:25:45Z",
+          "updated_at": "2026-11-24T10:25:47Z",
+          "stage_entered_at": "2026-11-24T10:26:56Z",
           "codex": {
             "fix_status": "passed",
             "job": {
@@ -12633,9 +12702,9 @@
             "started_at": "2026-11-24T10:25:45Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "Grok Bot",
-            "at": "2026-11-24T10:25:45Z"
+            "at": "2026-11-24T10:25:47Z"
           }
         },
         {
@@ -12646,8 +12715,8 @@
             "DO-7"
           ],
           "worktree": "samantha-next-r11",
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py"
           ],
@@ -12655,15 +12724,15 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do7.sh",
             "method": "Run the change-list findings tests that cover parked and blocked fields.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T10:17:00Z",
-          "stage_entered_at": "2026-11-24T10:25:45Z",
+          "updated_at": "2026-11-24T10:25:52Z",
+          "stage_entered_at": "2026-11-24T10:26:56Z",
           "codex": {
             "fix_status": "passed",
             "job": {
@@ -12697,9 +12766,9 @@
             "started_at": "2026-11-24T10:25:45Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "Grok Bot",
-            "at": "2026-11-24T10:25:45Z"
+            "at": "2026-11-24T10:25:52Z"
           }
         },
         {
@@ -12948,7 +13017,76 @@
             "total": 1
           }
         }
-      ]
+      ],
+      "status": "closed"
+    },
+    "introspect": {
+      "result": "Introspect: no issues",
+      "at": "2026-11-24T10:27:55Z",
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 3",
+        "Codex write: R1-DO5",
+        "Codex review: R1-DO5",
+        "Polling and rework review: R1-DO5",
+        "Test command: R1-DO5: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do5.sh",
+        "Codex write: R1-GATE",
+        "Codex review: R1-GATE",
+        "Polling and rework review: R1-GATE",
+        "Test command: R1-GATE: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-gate.sh",
+        "Codex write: R1-DO7",
+        "Codex review: R1-DO7",
+        "Polling and rework review: R1-DO7",
+        "Test command: R1-DO7: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do7.sh",
+        "R1-DO11 fix tests passed, then the lane was deferred to round 2 and not shipped after Guru withdrew the pass-five sign-off",
+        "Shared pre-push suite failed once on a one-second compact timestamp flake, then passed on rerun; the failure was not counted",
+        "Dev-obs token numbers: R1-DO5 Luna reported 53,348 and the job event stamped 681,700 total; R1-GATE 45,690 and 479,994; R1-DO7 77,051 and 2,080,763",
+        "R4-106 and R4-171 stay blocked as findings and were parked to round 2 because they need Guru; DO-1 stays deferred",
+        "DO-4 was reopened as failing after Guru rejected the page; it will be re-planned from the issues-first v2 spec when that spec exists"
+      ],
+      "none": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 3",
+        "Codex write: R1-DO5",
+        "Codex review: R1-DO5",
+        "Polling and rework review: R1-DO5",
+        "Test command: R1-DO5: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do5.sh",
+        "Codex write: R1-GATE",
+        "Codex review: R1-GATE",
+        "Polling and rework review: R1-GATE",
+        "Test command: R1-GATE: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-gate.sh",
+        "Codex write: R1-DO7",
+        "Codex review: R1-DO7",
+        "Polling and rework review: R1-DO7",
+        "Test command: R1-DO7: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do7.sh",
+        "R1-DO11 fix tests passed, then the lane was deferred to round 2 and not shipped after Guru withdrew the pass-five sign-off",
+        "Shared pre-push suite failed once on a one-second compact timestamp flake, then passed on rerun; the failure was not counted",
+        "Dev-obs token numbers: R1-DO5 Luna reported 53,348 and the job event stamped 681,700 total; R1-GATE 45,690 and 479,994; R1-DO7 77,051 and 2,080,763",
+        "R4-106 and R4-171 stay blocked as findings and were parked to round 2 because they need Guru; DO-1 stays deferred",
+        "DO-4 was reopened as failing after Guru rejected the page; it will be re-planned from the issues-first v2 spec when that spec exists"
+      ],
+      "sections": {
+        "delete": {
+          "none": "Nothing from this round's performed work should be removed; the three shipped fixes and the deferred viewer lanes should stay recorded."
+        },
+        "simplify": {
+          "none": "The Grok Bot reviews were a single pass with no must-fix items, so there is no review loop to simplify this round."
+        },
+        "optimize": {
+          "none": "The compact idempotency test failed once on a one-second timestamp and passed on rerun; that flake is left for a later test fix rather than a code change after verify."
+        },
+        "automate": {
+          "none": "Presuite, release-check, and verify already run as recorded jobs; no new automation would remove as much work as it would add this round."
+        }
+      },
+      "round": 1,
+      "cycle": 13
     }
   },
   "findings": [
@@ -13375,7 +13513,25 @@
       "observed": "24 Nov 2026 11:43 IST, PR 120. check_gate_count.py printed Gate count: 10 of 15 (report gate, default_threshold 15). bcl status already shows report_gate 10/15 and rollover_gate 10/16. The page badge already reads Fixes 10/16 verified with a small 10/15 report gate, but the loop still says under 15 verified. tracking.rollover_threshold is unset. There is no supported command to raise the report threshold. Guru's merge rule is 16+ verified; the bar must not be lowered.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "in_progress"
+      "status": "verified_fixed",
+      "verification_evidence": [
+        {
+          "checked": "The official gate count command after the merge-bar change",
+          "expected": "The official count states the merge bar of sixteen and does not lower it, and the report helper keeps its own bar",
+          "observed": "The official command prints the merge bar, fifteen is not met, sixteen is met, and the report helper still has its exception",
+          "verdict": "The official count now states the merge bar, and the report helper is unchanged",
+          "check_id": "gate-denominator-r1-verify",
+          "build": "list branch after the merge gate count commit",
+          "session": "bcl-121-r1-gate",
+          "timestamp": "2026-11-24T10:26:00Z",
+          "reference": "a87b8ee5:PR120-r6-gate-denominator:r1-verify",
+          "details": "Stored verify script ran test_check_gate_count.py: 13 tests OK. Commit a87b8ee5 on grokbot/samantha-0160-next4."
+        }
+      ],
+      "verification": "The official count now states the sixteen-fix merge bar and leaves the report helper unchanged.",
+      "verification_refs": [
+        "a87b8ee5:PR120-r6-gate-denominator:r1-verify"
+      ]
     },
     {
       "title": "A finished job cannot record its result if another lane's receipt was written while it ran",
@@ -13450,7 +13606,7 @@
     {
       "id": "DO-5",
       "title": "Change-list job events still have no group or round fields",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "source": "Agent reported",
       "summary": "The default round view can only infer a job's lane from the worktree name, because job events still have no group or round fields. That inference fails when a worktree is shared, unnamed, or does not contain the lane id.",
@@ -13462,7 +13618,25 @@
         "spec gap": "SPEC section 9 item 2. events.jsonl has no group_id or round. observability_round now infers those fields on the read path when the worktree matches a plan group (17 jobs on PR 120 round 7). BCL-177 asked for a group stamp and is already verified_fixed, so this remaining writer gap is filed separately.",
         "also reported as new entry": "Job events lack a model and version The round view cannot show which model ran a job, because job events do not store a model name or version. 24 Nov 2026, 3:20 PM IST Asia/Calcutta. UI and UX SPEC section 9 item 3, on the live #120/#121 trackers and the viewer at commit a7071850. None of the 14 Round 6 jobs or 26 Round 7 jobs have a model on the event, so the lane Model column is blank or only a tracker stage label without a version."
       },
-      "created_at": "2026-11-24T08:04:16Z"
+      "created_at": "2026-11-24T08:04:16Z",
+      "verification_evidence": [
+        {
+          "checked": "Job start and finish events after the lane metadata change",
+          "expected": "A finished job event includes the lane id, the round, and the model when one was passed, without guessing missing fields",
+          "observed": "The focused event and job lifecycle tests passed, including a stamped lifecycle and a documented metadata gap",
+          "verdict": "The job runner now writes lane and round on events, and missing fields stay a gap",
+          "check_id": "do-5-r1-verify",
+          "build": "list branch after the lane metadata commit",
+          "session": "bcl-121-r1-do5",
+          "timestamp": "2026-11-24T10:26:00Z",
+          "reference": "3ddf8e71:DO-5:r1-verify",
+          "details": "Stored verify script ran test_events.py and test_job_lifecycle.py: 32 tests OK. Commit 3ddf8e71 on grokbot/samantha-0160-next4."
+        }
+      ],
+      "verification": "Job events now include the lane id, the round, and the model when one was passed.",
+      "verification_refs": [
+        "3ddf8e71:DO-5:r1-verify"
+      ]
     },
     {
       "id": "DO-6",
@@ -13483,7 +13657,7 @@
     {
       "id": "DO-7",
       "title": "Blocked and parked lanes do not carry a stored reason or a target round",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "source": "Agent reported",
       "summary": "Blocked lanes on the tracker have no stored blocked reason or target round, and deferred is not in the status enum, so the default view has to guess why a lane is waiting and where it was parked.",
@@ -13494,7 +13668,25 @@
       "details": {
         "spec gap": "SPEC section 9 item 6. R4-171 and R4-106 are status=blocked with a reason string, but blocked_reason and parked_to are missing. Groups also use status=deferred (R2-DO1, DEFER). The change-list SPEC already asks for those fields."
       },
-      "created_at": "2026-11-24T08:04:16Z"
+      "created_at": "2026-11-24T08:04:16Z",
+      "verification_evidence": [
+        {
+          "checked": "Blocked and parked lane fields after the stored-state change",
+          "expected": "Blocked and parked groups keep a stored reason and target round, deferred is treated as parked, and the default view shows those fields without guessing",
+          "observed": "The focused findings, lane-state, and render tests passed, including stored reasons, a parked target round, and the deferred alias",
+          "verdict": "Blocked and parked lanes now carry a stored reason and target round, and deferred is parked",
+          "check_id": "do-7-r1-verify",
+          "build": "list branch after the parked-state commit",
+          "session": "bcl-121-r1-do7",
+          "timestamp": "2026-11-24T10:26:00Z",
+          "reference": "fbbf86a4:DO-7:r1-verify",
+          "details": "Stored verify script ran test_manage_findings.py, test_lane_state.py, and test_render.py: 260 tests OK. Commit fbbf86a4 on grokbot/samantha-0160-next4."
+        }
+      ],
+      "verification": "Blocked and parked lanes now store a reason and target round, and deferred is treated as parked.",
+      "verification_refs": [
+        "fbbf86a4:DO-7:r1-verify"
+      ]
     },
     {
       "id": "DO-8",
