@@ -11632,8 +11632,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-24T06:49:40Z",
-      "now": "2026-11-24T06:49:40Z — Review started"
+      "updated_at": "2026-11-24T06:49:49Z",
+      "now": "2026-11-24T06:49:49Z — Presuite started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13402,20 +13402,20 @@
           "phase": "review",
           "codex": {
             "job": {
-              "id": "4de40a8a47cb40708a6beefc7876ab95",
+              "id": "5c2a78107cd24b57aeb590d332c348c6",
               "phase": "presuite",
-              "started_at": "2026-11-24T06:43:33Z",
+              "started_at": "2026-11-24T06:49:49Z",
               "command": "run-presuite-r6.sh",
-              "heartbeat_at": "2026-11-24T06:46:40Z",
+              "heartbeat_at": "2026-11-24T06:52:48Z",
               "plan_sha256": "83143053de99d5260a5315f1e044fb21a2e76476f67772d364afbe84840289cb",
               "worktree": "samantha-next-r10",
               "model": "check.py --changed-since 77d2c0b0",
               "cycle": 12,
               "round": 6,
-              "pid": 23185,
-              "exit_code": 1,
-              "finished_at": "2026-11-24T06:46:40Z",
-              "finished_phase_status": "failed"
+              "pid": 42305,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T06:52:48Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "fix_status": "passed",
@@ -13457,9 +13457,9 @@
           "updated_at": "2026-11-24T06:24:10Z",
           "stage_entered_at": "2026-11-24T06:23:49Z",
           "presuite": {
-            "status": "failed",
-            "exit_code": 1,
-            "finished_at": "2026-11-24T06:46:40Z"
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T06:52:48Z"
           }
         },
         {
@@ -13467,19 +13467,19 @@
           "phase": "review",
           "codex": {
             "job": {
-              "id": "ddbed961c3dd4e6da379b6c7a175e1c6",
-              "phase": "review",
-              "started_at": "2026-11-24T06:49:37Z",
-              "command": "run-record-r6-121-followup-grok.sh",
-              "heartbeat_at": "2026-11-24T06:49:37Z",
+              "id": "5c2a78107cd24b57aeb590d332c348c6",
+              "phase": "presuite",
+              "started_at": "2026-11-24T06:49:49Z",
+              "command": "run-presuite-r6.sh",
+              "heartbeat_at": "2026-11-24T06:52:48Z",
               "plan_sha256": "83143053de99d5260a5315f1e044fb21a2e76476f67772d364afbe84840289cb",
               "worktree": "samantha-next-r10",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "model": "check.py --changed-since 77d2c0b0",
               "cycle": 12,
               "round": 6,
-              "pid": 41735,
+              "pid": 42305,
               "exit_code": 0,
-              "finished_at": "2026-11-24T06:49:37Z",
+              "finished_at": "2026-11-24T06:52:48Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -13520,27 +13520,32 @@
             }
           ],
           "updated_at": "2026-11-24T06:41:50Z",
-          "stage_entered_at": "2026-11-24T06:49:36Z"
+          "stage_entered_at": "2026-11-24T06:49:36Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T06:52:48Z"
+          }
         },
         {
           "status": "review",
           "phase": "review",
           "codex": {
             "job": {
-              "id": "4de40a8a47cb40708a6beefc7876ab95",
+              "id": "5c2a78107cd24b57aeb590d332c348c6",
               "phase": "presuite",
-              "started_at": "2026-11-24T06:43:33Z",
+              "started_at": "2026-11-24T06:49:49Z",
               "command": "run-presuite-r6.sh",
-              "heartbeat_at": "2026-11-24T06:46:40Z",
+              "heartbeat_at": "2026-11-24T06:52:48Z",
               "plan_sha256": "83143053de99d5260a5315f1e044fb21a2e76476f67772d364afbe84840289cb",
               "worktree": "samantha-next-r10",
               "model": "check.py --changed-since 77d2c0b0",
               "cycle": 12,
               "round": 6,
-              "pid": 23185,
-              "exit_code": 1,
-              "finished_at": "2026-11-24T06:46:40Z",
-              "finished_phase_status": "failed"
+              "pid": 42305,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T06:52:48Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "fix_status": "passed",
@@ -13584,9 +13589,9 @@
           "updated_at": "2026-11-24T06:33:35Z",
           "stage_entered_at": "2026-11-24T06:30:33Z",
           "presuite": {
-            "status": "failed",
-            "exit_code": 1,
-            "finished_at": "2026-11-24T06:46:40Z"
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T06:52:48Z"
           }
         },
         {
@@ -13594,19 +13599,19 @@
           "phase": "review",
           "codex": {
             "job": {
-              "id": "83620adc02dc4610872c75f8f1a6c23d",
-              "phase": "review",
-              "started_at": "2026-11-24T06:49:40Z",
-              "command": "run-record-r6-do3-followup-grok.sh",
-              "heartbeat_at": "2026-11-24T06:49:40Z",
+              "id": "5c2a78107cd24b57aeb590d332c348c6",
+              "phase": "presuite",
+              "started_at": "2026-11-24T06:49:49Z",
+              "command": "run-presuite-r6.sh",
+              "heartbeat_at": "2026-11-24T06:52:48Z",
               "plan_sha256": "83143053de99d5260a5315f1e044fb21a2e76476f67772d364afbe84840289cb",
               "worktree": "samantha-next-r10",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "model": "check.py --changed-since 77d2c0b0",
               "cycle": 12,
               "round": 6,
-              "pid": 41955,
+              "pid": 42305,
               "exit_code": 0,
-              "finished_at": "2026-11-24T06:49:40Z",
+              "finished_at": "2026-11-24T06:52:48Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -13652,7 +13657,12 @@
             }
           ],
           "updated_at": "2026-11-24T06:41:51Z",
-          "stage_entered_at": "2026-11-24T06:49:39Z"
+          "stage_entered_at": "2026-11-24T06:49:39Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T06:52:48Z"
+          }
         },
         {
           "id": "R4-171",
@@ -14221,7 +14231,7 @@
       "round": 5,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T06:49:40Z",
+    "last_written_at": "2026-11-24T06:52:48Z",
     "fix_order": {
       "ids": [
         "PR120-r5-codex-reviewer-model-fallback",
