@@ -159,8 +159,8 @@ class ManageFindingsTests(unittest.TestCase):
         archive = self.root / "archive.json"
         archive.write_text(json.dumps(moved))
         tracking["archive"] = {"path": str(archive)}
-        self.assertEqual([row["id"] for row in tracking["verification_history"]], ["run-legacy", "run-current"])
-        self.assertEqual([row.get("cycle") for row in tracking["introspect_history"]], [None])
+        self.assertEqual([row["id"] for row in tracking["verification_history"]], ["run-current"])
+        self.assertEqual(tracking["introspect_history"], [])
         self.assertEqual(manage_findings.verification_check({"tracking": tracking}, "ISSUE-01", "check-old")["check_id"], "check-old")
 
     def test_fixed_inline_introspect_requires_a_named_proof(self):
@@ -186,11 +186,65 @@ class ManageFindingsTests(unittest.TestCase):
         result = self.cli("batch", self.data, operations, "--render", self.root / "page.html")
         self.assertEqual(result.returncode, 0, result.stderr)
         saved = json.loads(self.data.read_text())
-        self.assertEqual([row["id"] for row in saved["tracking"]["verification_history"]], ["legacy-run", "new-run"])
-        self.assertEqual(len(saved["tracking"]["introspect_history"]), 1)
+        self.assertEqual([row["id"] for row in saved["tracking"]["verification_history"]], ["new-run"])
+        self.assertEqual(saved["tracking"]["introspect_history"], [])
         self.assertEqual(manage_findings.verification_check(saved, "ISSUE-01", "old-check")["check_id"], "old-check")
         rows = json.loads((self.root / "archive.json").read_text())
         self.assertEqual({row["record_type"] for row in rows}, {"verification_history", "introspect_history"})
+        self.assertEqual(manage_findings.verification_check(saved, "ISSUE-01", "legacy-check")["check_id"], "legacy-check")
+
+    def test_merge_folds_issues_during_an_active_run_and_refuses_a_gated_lane(self):
+        document = copy.deepcopy(self.document)
+        while len(document["findings"]) < 3:
+            extra = copy.deepcopy(document["findings"][0])
+            extra["id"] = f"ISSUE-{len(document['findings'])+1:02d}"
+            extra["title"] = extra["id"]
+            extra["status"] = "untested"
+            document["findings"].append(extra)
+        a, b, c = (item["id"] for item in document["findings"][:3])
+        for item in document["findings"][:3]:
+            item["status"] = "untested"
+        document["tracking"] = {"cycle": 1, "round": 1,
+            "verification_run": {"id": "run-1", "status": "active", "build": "1.0",
+                "revision": "abc", "installed_at": "2026-11-24T17:00:00Z", "install_evidence": "receipt",
+                "checks": {a: {"state": "pending"}}},
+            "plan": {"cycle": 1, "round": 1, "groups": [
+                {"id": "A", "finding_ids": [a, b], "status": "planned", "phase": "fix"}]}}
+        fields = {"title": "Kept title", "summary": "Both symptoms in one issue.",
+                  "recommendation": "Use one merge command.", "done_when": "Absorbed issues are closed pointers."}
+        result = self._replay_batch(document, {"action": "merge", "into": a, "ids": [b], **fields})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved = json.loads(self.data.read_text())
+        kept = next(item for item in saved["findings"] if item["id"] == a)
+        absorbed = next(item for item in saved["findings"] if item["id"] == b)
+        self.assertEqual(kept["title"], "Kept title")
+        self.assertEqual(kept["status"], "untested")
+        self.assertEqual(absorbed["status"], "closed")
+        self.assertEqual(absorbed["merged_into"], a)
+        self.assertEqual(saved["tracking"]["plan"]["groups"][0]["finding_ids"], [a])
+        self.assertEqual(saved["tracking"]["verification_run"]["status"], "active")
+        # gated (parked) lane is refused
+        parked = copy.deepcopy(document)
+        parked["tracking"]["plan"]["groups"][0].update(status="parked", parked_to=2, finding_ids=[c])
+        parked["findings"][2]["status"] = "untested"
+        refused = self._replay_batch(parked, {"action": "merge", "into": a, "ids": [c], **fields})
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("gated lane", refused.stderr)
+
+    def test_collect_is_refused_until_post_merge_introspect(self):
+        document = copy.deepcopy(self.document)
+        document["findings"][0]["status"] = "in_progress"
+        document["tracking"] = {"cycle": 2, "round": 1, "stages_reached": [],
+            "rollover": {"source_merge": {"sha": "abc", "merged_at": "2026-11-24T12:00:00Z"}},
+            "workflow": {"stage": "collect"}}
+        start = {"action": "set-activity", "stage": "collect", "ids": [document["findings"][0]["id"]],
+                 "now": "Started collection"}
+        result = self._replay_batch(document, start)
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("post-merge Introspect", result.stderr)
+        document["tracking"]["post_merge_introspect"] = {"scope": "post_merge", "at": "2026-11-24T12:01:00Z"}
+        allowed = self._replay_batch(document, start)
+        self.assertEqual(allowed.returncode, 0, allowed.stderr)
 
     def test_cleanup_outcome_is_separate_from_verification_verdict(self):
         document = copy.deepcopy(self.document)

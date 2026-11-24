@@ -1963,11 +1963,88 @@ def archive_cycle_history(tracking, through_cycle):
         history = tracking.get(key, [])
         if not isinstance(history, list) or any(not isinstance(row, dict) for row in history):
             raise ValueError(f"tracking.{key} must be an array of records")
-        moved.extend({**copy.deepcopy(row), "record_type": key, "archived_cycle": row["cycle"]}
-                     for row in history if type(row.get("cycle")) is int and row["cycle"] <= through_cycle)
-        tracking[key] = [row for row in history
-                         if not (type(row.get("cycle")) is int and row["cycle"] <= through_cycle)]
+        def earlier(row):
+            cycle = row.get("cycle")
+            return True if type(cycle) is not int else cycle <= through_cycle
+        moved.extend({**copy.deepcopy(row), "record_type": key,
+                      "archived_cycle": row["cycle"] if type(row.get("cycle")) is int else through_cycle}
+                     for row in history if earlier(row))
+        tracking[key] = [row for row in history if not earlier(row)]
     return moved
+
+
+
+def merge_findings(document, operation, timestamp=None):
+    """Fold absorbed issues into one kept issue without deleting rows or stopping a run."""
+    into, absorbed = operation.get("into"), operation.get("ids")
+    if not isinstance(into, str) or not into.strip():
+        raise ValueError("merge requires --into ID")
+    if not isinstance(absorbed, list) or not absorbed or any(not isinstance(i, str) or not i.strip() for i in absorbed):
+        raise ValueError("merge requires --ids of absorbed finding IDs")
+    if into in absorbed or len(absorbed) != len(set(absorbed)):
+        raise ValueError("merge IDs must be unique and must not include the kept issue")
+    findings = document.setdefault("findings", [])
+    by_id = {item.get("id"): item for item in findings if isinstance(item, dict)}
+    if into not in by_id:
+        raise ValueError(f"finding not found: {into}")
+    missing = [identifier for identifier in absorbed if identifier not in by_id]
+    if missing:
+        raise ValueError("merge requires existing finding IDs: " + ", ".join(missing))
+    kept, rows = by_id[into], [by_id[identifier] for identifier in absorbed]
+    if kept.get("status") in CLOSED_STATUSES:
+        raise ValueError(f"cannot merge into closed finding {into}")
+    if any(row.get("status") == "closed" for row in rows):
+        raise ValueError("cannot absorb a closed finding")
+    tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else {}
+    plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
+    groups = plan.get("groups") if isinstance(plan.get("groups"), list) else []
+    involved = {into, *absorbed}
+    for group in groups:
+        if not isinstance(group, dict) or not involved.intersection(group.get("finding_ids") or []):
+            continue
+        if group.get("status") in ("blocked", "parked") or (
+                isinstance(group.get("codex"), dict) and isinstance(group["codex"].get("job"), dict)
+                and "exit_code" not in group["codex"]["job"]):
+            raise ValueError(f"merge refuses gated lane {group.get('id')}")
+    for field in ("title", "summary", "recommendation", "done_when"):
+        value = operation.get(field)
+        if not isinstance(value, str) or not value.strip() or "\n" in value or "\r" in value:
+            raise ValueError(f"merge requires a one-line {field}")
+        kept[field] = value.strip()
+    stamp = timestamp or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    details = dict(kept.get("details") or {})
+    details["merged_from"] = ", ".join(absorbed)
+    kept["details"] = details
+    validate_detail_limits(kept)
+    for row in rows:
+        row["status"] = "closed"
+        row["merged_into"] = into
+        row["merged_at"] = stamp
+    for group in groups:
+        ids = list(group.get("finding_ids") or [])
+        if not involved.intersection(ids):
+            continue
+        group["finding_ids"] = [into if identifier in absorbed else identifier for identifier in ids]
+        # unique, keep order
+        seen, unique = set(), []
+        for identifier in group["finding_ids"]:
+            if identifier not in seen:
+                seen.add(identifier)
+                unique.append(identifier)
+        group["finding_ids"] = unique
+        if not unique:
+            raise ValueError(f"merge would empty lane {group.get('id')}")
+    return kept
+
+
+
+def collect_requires_post_merge_introspect(tracking):
+    if not isinstance(tracking, dict):
+        return False
+    rollover = tracking.get("rollover") if isinstance(tracking.get("rollover"), dict) else {}
+    if not (tracking.get("merged") or rollover.get("source_merge")):
+        return False
+    return not isinstance(tracking.get("post_merge_introspect"), dict)
 
 
 def parked_finding(entry):
@@ -3350,6 +3427,9 @@ def run(args, parser):
                               "none": coverage["none"], "sections": sections,
                               "round": RENDERER.rollover_round(tracking),
                               "cycle": RENDERER.rollover_cycle(tracking)}
+                    if operation.get("scope") == "post_merge":
+                        record["scope"] = "post_merge"
+                        tracking["post_merge_introspect"] = record
                     history = tracking.setdefault("introspect_history", [])
                     if not isinstance(history, list) or any(not isinstance(item, dict) for item in history):
                         raise ValueError("tracking.introspect_history must be an array of records")
@@ -3413,6 +3493,8 @@ def run(args, parser):
                         actual = hashlib.sha256(json.dumps(original_plan, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
                         if operation['expected_plan_sha256'] != actual:
                             raise ValueError('plan changed; refusing activity update')
+                    if stage == "collect" and collect_requires_post_merge_introspect(tracking):
+                        raise ValueError("Collect is refused until the post-merge Introspect is recorded")
                     if stage not in RENDERER.WORKFLOW_STAGES:
                         raise ValueError("set-activity requires a valid stage")
                     current_workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
@@ -3503,6 +3585,10 @@ def run(args, parser):
                     validate_detail_limits(item)
                     trim_verification_evidence(item)
                     place_new_finding(findings, item, operation.get("new"), operation.get("into"))
+                    continue
+                if action == "merge":
+                    merge_findings(store["document"], operation, datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
+                    findings = store["document"]["findings"]
                     continue
                 index = find_index(findings, operation.get("id"))
                 if action == "update":

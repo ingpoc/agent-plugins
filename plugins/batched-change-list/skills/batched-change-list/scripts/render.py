@@ -14,7 +14,7 @@ import workflow_definition as WF
 import live_state
 
 STATUSES = {"verified_fixed", "failing", "untested", "in_progress", "awaiting_user_test",
-            "awaiting_verification", "blocked", "investigation"}
+            "awaiting_verification", "blocked", "investigation", "closed"}
 SOURCES = {"User reported", "User requested", "Agent reported", "Telemetry lead", "Source hypothesis"}
 CHECK_STATES = {"pending", "checking", "fixed", "not_fixed", "blocked", "inconclusive"}
 WORKFLOW_STAGES = {**WF.STAGE_LABELS, "gate": WF.DEFINITION["gate"]["badge_label"]}
@@ -522,7 +522,7 @@ def finding_lane_status(finding, lane, round_number):
     copy = {"failing": "Failing · no lane yet", "untested": "Untested",
             "in_progress": "In progress · no lane yet", "verified_fixed": "Verified fixed",
             "awaiting_user_test": "Awaiting user test", "awaiting_verification": "Awaiting verification",
-            "blocked": "Blocked", "investigation": "Investigation needed"}.get(status, str(status).replace("_", " ").title())
+            "blocked": "Blocked", "investigation": "Investigation needed", "closed": "Closed"}.get(status, str(status).replace("_", " ").title())
     kind = {"failing": "bad", "verified_fixed": "ok", "in_progress": "run", "blocked": "blk"}.get(status, "idle")
     return {"copy": copy, "kind": kind, "status": "no_lane", "outcome": outcome}
 
