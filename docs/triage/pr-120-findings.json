@@ -11631,9 +11631,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-24T06:04:40Z",
-      "now": "2026-11-24T06:04:40Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-24T06:11:53Z",
+      "now": "2026-11-24T06:11:53Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 119,
@@ -13289,6 +13289,77 @@
         },
         "round": 4,
         "cycle": 12
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-24T06:11:53Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 1",
+          "Codex write: R5-177",
+          "Codex review: R5-177",
+          "Polling and rework review: R5-177",
+          "Test command: R5-177: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r5-177.sh"
+        ],
+        "none": [
+          "Stage: Install",
+          "Parallel group count: 1",
+          "Codex review: R5-177",
+          "Test command: R5-177: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r5-177.sh"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Polling and rework review: R5-177",
+                "evidence": "After the first Terra CHANGES (54,709 tokens, review-177-1-terra.md) Luna wrote a second fix (130,582 tokens, luna-177-2.log). The next Terra review failed immediately (model_not_found, review-177-2-terra.log), an Astra 6.2 probe failed the same way (astra-probe-177.log), and the workflow required a no-op fix before a substitute Grok Bot review could be recorded. Two Grok Bot reviews then passed, with no token source. That recovery added a tool-fault job, a failed probe, a no-op fix, and two substitute reviews, and none of it needed a second product write. Before: those five extra jobs to recover from a rejected reviewer. After: a rejected reviewer automatically retries the next allowed reviewer and records the substitution, with no no-op fix. Dev-obs collector 0.1.36 snapshots 0cda0dd1 and 9e04f496 still report bcl_jobs coverage 0/13 and tokens 0, so these figures are from Codex logs (PR120-r5-codex-reviewer-model-fallback, BCL-149).",
+                "outcome": "issue",
+                "issue_id": "PR120-r5-codex-reviewer-model-fallback"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Stage: Plan & fix",
+                "evidence": "Plan review ran seven times before the first fix: six CHANGES and one PASS (73,234 + 36,450 + 31,510 + 35,861 + 30,546 + 12,733 + 24,580 = 244,914 tokens; planreview-r5-177.md through planreview-r5-177-7.md). That is 42% of this round's measured Codex spend (579,503) and worse than round 4's 157 lane (three plan reviews, 131,323 tokens). The same session-binding must-fix was restated in reviews 2 through 5. A cap of one plan review per lane has been claimed since 0.1.64 (BCL-121), but a second plan review was not refused. Before: 7 plan reviews and 244,914 tokens before the first fix. After: a second plan review is refused until open items are filed, and plan-review tokens before the first fix stay at or under two attempts. Codex logs only; official collect still has no usable token total (DO-2).",
+                "outcome": "issue",
+                "issue_id": "BCL-121"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Codex write: R5-177",
+                "evidence": "Measured Codex tokens from job logs: 579,503 (plan reviews 244,914, fix 1 149,298, review 1 54,709, fix 2 130,582) against a 120,000 estimate. Round 4 used 1,528,794 across four lanes and parked two; this round used one lane and shipped, but still spent 4.8 times the estimate, with 130,582 tokens of product rework after the first review (22% of the Codex total). The round 4 waste fix BCL-177 did move capture: official collect 0.1.36 now reports bcl_jobs in collector_stats (13 jobs, coverage 0/13, tokens 0, incomplete 14, gaps all named python3; snapshots 0cda0dd1 and 9e04f496, 146 findings each) where collector 0.1.34 recorded none. The token total itself still did not land, because this round's Codex work ran before 0.1.73 was installed and collect marks bcl_events stale with read_in_collect false and last_event_at unknown. Do not revert 0.1.73 or 0.1.36; re-measure next round on jobs run under the installed runner. If those jobs still show coverage 0, revert the capture commits and record why. Grok Bot work has no usage source (DO-2).",
+                "outcome": "issue",
+                "issue_id": "DO-2"
+              },
+              {
+                "item": "Stage: Review",
+                "evidence": "The scoped presuite from BCL-176 still held. The 0.1.73 ship used CI=1 python3 scripts/check.py --jobs 6 --changed-since 302a1a70 and passed on the second run after a first failure in the new job-runner tests (job-presuite-177-2.log, check ok; test_bcl.py about 172s). The later snapshot-only push used --changed-since 77d2c0b0 (docs only, check ok in 15s). This was not a full-suite accident, so the 176 metric moved and should not be reverted. Official collect did not record suite duration (bcl_events stale in snapshots 0cda0dd1 and 9e04f496).",
+                "outcome": "issue",
+                "issue_id": "BCL-176"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Stage: Verify",
+                "evidence": "Evidence-quality verdict: medium for pass/fail, low for tokens. Verify 5/5 passed on the installed 0.1.73 change-list and 0.1.36 observability (verify-r5-177.log). Before-snapshot 0cda0dd1 (11:34 IST, 146 findings) and after-snapshot 9e04f496 (11:35 IST, 146 findings, snapshot 388368a8) have the same finding count, but bcl_events is marked stale with read_in_collect false and last_event_at unknown, so Introspect cannot take a per-round token total or filter from the official snapshot. collector_stats still show 13 jobs, coverage 0/13, tokens 0, and gaps named python3 rather than the job model. Introspect therefore still uses Codex job logs for 579,503 tokens and cannot separate this pull request or round inside collect. That is a filter and capture gap, not a new event format. Before: official collect cannot filter this list and round or yield a complete token total. After: a collect snapshot can be filtered to this pull request and round, names the job model or a real token-source gap, and is marked collected with a last event time when the log exists (DO-3, DO-2).",
+                "outcome": "issue",
+                "issue_id": "DO-3"
+              }
+            ]
+          }
+        },
+        "round": 5,
+        "cycle": 12
       }
     ],
     "archive": {
@@ -13318,7 +13389,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 5,
@@ -13799,7 +13871,8 @@
           }
         }
       ],
-      "cycle": 12
+      "cycle": 12,
+      "status": "closed"
     },
     "verification_run": {
       "id": "r5-77d2c0b0-120",
@@ -13936,81 +14009,56 @@
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-22T18:34:10Z",
+      "at": "2026-11-24T06:11:53Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 2",
-        "Codex write: R4-157",
-        "Codex review: R4-157",
-        "Polling and rework review: R4-157",
-        "Test command: R4-157: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-157.sh",
-        "Codex write: R4-103",
-        "Codex review: R4-103",
-        "Polling and rework review: R4-103",
-        "Test command: R4-103: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-103.sh",
-        "Codex write: R4-106",
-        "Codex review: R4-106",
-        "Polling and rework review: R4-106",
-        "Codex write: R4-171",
-        "Codex review: R4-171",
-        "Polling and rework review: R4-171",
-        "Integration hotfix: parked-lane reblock"
+        "Parallel group count: 1",
+        "Codex write: R5-177",
+        "Codex review: R5-177",
+        "Polling and rework review: R5-177",
+        "Test command: R5-177: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r5-177.sh"
       ],
       "none": [
-        "Stage: Plan & fix",
         "Stage: Install",
-        "Parallel group count: 2",
-        "Codex review: R4-103",
-        "Polling and rework review: R4-103",
-        "Test command: R4-157: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-157.sh",
-        "Test command: R4-103: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r4-103.sh",
-        "Codex write: R4-106",
-        "Codex review: R4-106",
-        "Codex write: R4-171",
-        "Codex review: R4-171",
-        "Codex review: R4-157"
+        "Parallel group count: 1",
+        "Codex review: R5-177",
+        "Test command: R5-177: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r5-177.sh"
       ],
       "sections": {
         "delete": {
           "items": [
             {
-              "item": "Polling and rework review: R4-106",
-              "evidence": "After the first Terra CHANGES (45,755 tokens, review-106-terra.md) a plan review passed (41,364 tokens, planreview-106.md). The second write still missed a skipped shared check in the self-test (123,851 tokens, luna-106-fix2.log) and Terra again asked for changes (46,078 tokens, review-106-2-terra.md). The lane was parked for round 5 after that second counted failure. Follow-up tokens after the first review were 211,293, and the lane did not ship. A second full write should wait until the must-fix is a failing test in the brief. Codex logs only; dev-obs has no token or review source (BCL-177, DO-2).",
+              "item": "Polling and rework review: R5-177",
+              "evidence": "After the first Terra CHANGES (54,709 tokens, review-177-1-terra.md) Luna wrote a second fix (130,582 tokens, luna-177-2.log). The next Terra review failed immediately (model_not_found, review-177-2-terra.log), an Astra 6.2 probe failed the same way (astra-probe-177.log), and the workflow required a no-op fix before a substitute Grok Bot review could be recorded. Two Grok Bot reviews then passed, with no token source. That recovery added a tool-fault job, a failed probe, a no-op fix, and two substitute reviews, and none of it needed a second product write. Before: those five extra jobs to recover from a rejected reviewer. After: a rejected reviewer automatically retries the next allowed reviewer and records the substitution, with no no-op fix. Dev-obs collector 0.1.36 snapshots 0cda0dd1 and 9e04f496 still report bcl_jobs coverage 0/13 and tokens 0, so these figures are from Codex logs (PR120-r5-codex-reviewer-model-fallback, BCL-149).",
               "outcome": "issue",
-              "issue_id": "BCL-106"
-            },
-            {
-              "item": "Polling and rework review: R4-171",
-              "evidence": "Same pattern: first Terra CHANGES (58,294 tokens, review-171-terra.md), plan review PASS (30,756 tokens, planreview-171.md), second write (67,953 tokens, luna-171-fix2.log), second Terra CHANGES on uncovered project-dir reuse (19,928 tokens, review-171-2-terra.md), then parked. Follow-up tokens after the first review were 118,637, and the lane did not ship. Codex logs only; dev-obs has no token or review source (BCL-177, DO-2).",
-              "outcome": "issue",
-              "issue_id": "BCL-171"
+              "issue_id": "PR120-r5-codex-reviewer-model-fallback"
             }
           ]
         },
         "simplify": {
           "items": [
             {
-              "item": "Codex write: R4-157",
-              "evidence": "Plan-review-first ran three times before the first fix: two CHANGES and one PASS (49,758 + 40,136 + 41,429 tokens, planreview-157.md, planreview-157-2.md, planreview-157-3.md). That caught stamp-scope gaps, but the first Luna write was still 267,496 tokens (luna-157.log) and the first Terra review asked for a same-ID replan case and a ban on supplying stage_entered_at (39,230 tokens, review-157-terra.md). Those cases should have been in the first coding brief after the plan passed. Codex logs only (BCL-177, DO-2).",
+              "item": "Stage: Plan & fix",
+              "evidence": "Plan review ran seven times before the first fix: six CHANGES and one PASS (73,234 + 36,450 + 31,510 + 35,861 + 30,546 + 12,733 + 24,580 = 244,914 tokens; planreview-r5-177.md through planreview-r5-177-7.md). That is 42% of this round's measured Codex spend (579,503) and worse than round 4's 157 lane (three plan reviews, 131,323 tokens). The same session-binding must-fix was restated in reviews 2 through 5. A cap of one plan review per lane has been claimed since 0.1.64 (BCL-121), but a second plan review was not refused. Before: 7 plan reviews and 244,914 tokens before the first fix. After: a second plan review is refused until open items are filed, and plan-review tokens before the first fix stay at or under two attempts. Codex logs only; official collect still has no usable token total (DO-2).",
               "outcome": "issue",
-              "issue_id": "BCL-157"
+              "issue_id": "BCL-121"
             }
           ]
         },
         "optimize": {
           "items": [
             {
-              "item": "Codex write: R4-103",
-              "evidence": "Lane splitting and plan-review-first cut the share of rework but not the absolute spend. Measured Codex tokens from job logs: round 4 1,528,794 (R4-157 721,263, R4-103 133,233, R4-106 340,927, R4-171 275,897, park-guard 57,474) versus round 3 396,079 and round 2 565,672 (round 1 42,909, coverage differs). Rework after a first review was 670,618 tokens, 44% of the round, down from 59% in round 3, but higher in absolute terms (235,540 in round 3). The split 103 lane shipped on a first-pass review (85,278 + 47,955, review-103-terra.md PASS). 157 still used 721,263 against a 100k estimate, with 283,214 tokens of rework after the first Terra CHANGES including a third write after the 23:07 IST presuite failure. Plan reviews prevented some 157 design mistakes before coding, but they did not prevent 157s first-review CHANGES or the second failures on 106 and 171. Four lanes were started; two were later parked. Grok Bot and helper tokens were not counted. None of these figures reached dev-obs (collector 0.1.34, snapshots 9c8c1e1e and 3dd53e40).",
+              "item": "Codex write: R5-177",
+              "evidence": "Measured Codex tokens from job logs: 579,503 (plan reviews 244,914, fix 1 149,298, review 1 54,709, fix 2 130,582) against a 120,000 estimate. Round 4 used 1,528,794 across four lanes and parked two; this round used one lane and shipped, but still spent 4.8 times the estimate, with 130,582 tokens of product rework after the first review (22% of the Codex total). The round 4 waste fix BCL-177 did move capture: official collect 0.1.36 now reports bcl_jobs in collector_stats (13 jobs, coverage 0/13, tokens 0, incomplete 14, gaps all named python3; snapshots 0cda0dd1 and 9e04f496, 146 findings each) where collector 0.1.34 recorded none. The token total itself still did not land, because this round's Codex work ran before 0.1.73 was installed and collect marks bcl_events stale with read_in_collect false and last_event_at unknown. Do not revert 0.1.73 or 0.1.36; re-measure next round on jobs run under the installed runner. If those jobs still show coverage 0, revert the capture commits and record why. Grok Bot work has no usage source (DO-2).",
               "outcome": "issue",
-              "issue_id": "BCL-177"
+              "issue_id": "DO-2"
             },
             {
               "item": "Stage: Review",
-              "evidence": "The scoped presuite from BCL-176 ran as intended for the 0.1.72 ship: CI=1 python3 scripts/check.py --jobs 6 --changed-since 37ea398c, plugins touched: batched-change-list, 37 test processes, check ok in presuite-r4-157-103.log (about 153s; test_bcl.py 149.9s). That is a change from round 3, when presuite-175.log accidentally ran the full suite. Dev-obs snapshots 9c8c1e1e and 3dd53e40 did not record the suite duration (collector 0.1.34).",
+              "evidence": "The scoped presuite from BCL-176 still held. The 0.1.73 ship used CI=1 python3 scripts/check.py --jobs 6 --changed-since 302a1a70 and passed on the second run after a first failure in the new job-runner tests (job-presuite-177-2.log, check ok; test_bcl.py about 172s). The later snapshot-only push used --changed-since 77d2c0b0 (docs only, check ok in 15s). This was not a full-suite accident, so the 176 metric moved and should not be reverted. Official collect did not record suite duration (bcl_events stale in snapshots 0cda0dd1 and 9e04f496).",
               "outcome": "issue",
               "issue_id": "BCL-176"
             }
@@ -14020,29 +14068,17 @@
           "items": [
             {
               "item": "Stage: Verify",
-              "evidence": "Evidence-quality verdict: low to medium. Before-snapshot 9c8c1e1e (23:55:02 IST, 150 findings) and after-snapshot 3dd53e40 (23:58:07 IST, 151 findings) did not capture tokens, review verdicts, or presuite duration. The after snapshot added col-8394fc3bec1b1387 (samantha-next-r10 git_state/unpushed_commits failed 1x) because a tracker snapshot commit was still unpushed at collect time; this is the same class as DO-1. Installed collector is still 0.1.34. Token and job stamps remain a gap (BCL-177).",
+              "evidence": "Evidence-quality verdict: medium for pass/fail, low for tokens. Verify 5/5 passed on the installed 0.1.73 change-list and 0.1.36 observability (verify-r5-177.log). Before-snapshot 0cda0dd1 (11:34 IST, 146 findings) and after-snapshot 9e04f496 (11:35 IST, 146 findings, snapshot 388368a8) have the same finding count, but bcl_events is marked stale with read_in_collect false and last_event_at unknown, so Introspect cannot take a per-round token total or filter from the official snapshot. collector_stats still show 13 jobs, coverage 0/13, tokens 0, and gaps named python3 rather than the job model. Introspect therefore still uses Codex job logs for 579,503 tokens and cannot separate this pull request or round inside collect. That is a filter and capture gap, not a new event format. Before: official collect cannot filter this list and round or yield a complete token total. After: a collect snapshot can be filtered to this pull request and round, names the job model or a real token-source gap, and is marked collected with a last event time when the log exists (DO-3, DO-2).",
               "outcome": "issue",
-              "issue_id": "DO-1"
-            },
-            {
-              "item": "Polling and rework review: R4-157",
-              "evidence": "After the first Terra CHANGES, a plan review passed (28,957 tokens, planreview-157-4.md), a second write and review passed (58,024 + 56,830, review-157-2-terra.md), then the 23:07 IST presuite failed 17 test_bcl cases and a third write and review were needed (118,357 + 21,046, review-157-3-terra.md). That is 283,214 rework tokens after the first review, and the failing cases were not in dev-obs (collector 0.1.34, no job or test source, BCL-177 / DO-2).",
-              "outcome": "issue",
-              "issue_id": "BCL-177"
-            },
-            {
-              "item": "Integration hotfix: parked-lane reblock",
-              "evidence": "Parking 106 succeeded, but parking 171 then re-blocked the already parked lane because _lane_history rewrote parked status to blocked. Luna session 01a20471-e19b-7a32-a152-ee6b6907a62c committed 3d8ecf9c (57,474 tokens, luna-park-guard.log) and test_bcl180_multiple_blocked_lanes_stay_parked_until_next_round passed. This was unplanned integration work, not a planned lane. Dev-obs did not record the job or tokens.",
-              "outcome": "fixed inline",
-              "proof": "python3 -m unittest test_manage_findings.ManageFindingsTests.test_bcl180_multiple_blocked_lanes_stay_parked_until_next_round"
+              "issue_id": "DO-3"
             }
           ]
         }
       },
-      "round": 4,
+      "round": 5,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T06:07:00Z"
+    "last_written_at": "2026-11-24T06:11:53Z"
   },
   "findings": [
     {
