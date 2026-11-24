@@ -10930,9 +10930,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T17:52:27Z",
-      "now": "2026-11-24T17:52:27Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T17:53:11Z",
+      "now": "2026-11-24T17:53:11Z — Review started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12444,7 +12444,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T17:52:27Z",
+    "last_written_at": "2026-11-24T17:53:11Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -13722,18 +13722,18 @@
             "plugins/batched-change-list/skills/batched-change-list/references/report-rollover.md"
           ],
           "reason": "Same-class tracker upkeep: leftover uncyled history stays over the size limit, and merging issues still needs a stopped run.",
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "codex": {
             "implementer_session": "grokbot-122-r3-tracker",
             "reviewer_session": "grokbot-122-r3-tracker-review",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
               "id": "31ef672e22394287bda80a409f5f2032",
               "phase": "fix",
               "started_at": "2026-11-24T17:52:27Z",
               "command": "commit-tracker-followup.sh",
-              "heartbeat_at": "2026-11-24T17:52:27Z",
+              "heartbeat_at": "2026-11-24T17:52:28Z",
               "plan_sha256": "dc81d9716a53a33cf1c221f4d01e93bea79b78c66b9ca57da1443d6375402d9d",
               "finding_ids": [
                 "BCL-108",
@@ -13743,7 +13743,17 @@
               "model": "grokbot",
               "lane_sha256": "ab2207fa9dbc449bbf1d0d767624acc7f0a9cbcf0cef800a5d99e976b29a767c",
               "cycle": 14,
-              "round": 3
+              "round": 3,
+              "pid": 6945,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T17:52:28Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/31ef672e22394287bda80a409f5f2032.log",
+              "output_retained": true,
+              "tokens_source": "none",
+              "tokens": null,
+              "wall_time_s": 1,
+              "session": "grokbot-122-r3-tracker",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "jobs": [
@@ -13845,7 +13855,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-24T17:35:44Z",
-          "stage_entered_at": "2026-11-24T17:52:27Z"
+          "stage_entered_at": "2026-11-24T17:52:28Z"
         },
         {
           "id": "R3-INTRO",
@@ -14072,16 +14082,13 @@
             "reviewer_session": "grokbot-122-r3-verdict-review",
             "fix_status": "passed",
             "job": {
-              "id": "391f7d4b94f645899d83df0c29909e6d",
-              "phase": "presuite",
-              "started_at": "2026-11-24T17:47:48Z",
-              "command": "run-presuite-r3.sh",
-              "heartbeat_at": "2026-11-24T17:50:52Z",
+              "id": "3fb465221e604625ab1b477b99ea16bb",
+              "phase": "fix",
+              "started_at": "2026-11-24T17:52:42Z",
+              "command": "commit-verdict-followup.sh",
+              "heartbeat_at": "2026-11-24T17:52:53Z",
               "plan_sha256": "dc81d9716a53a33cf1c221f4d01e93bea79b78c66b9ca57da1443d6375402d9d",
               "finding_ids": [
-                "BCL-108",
-                "BCL-166",
-                "BCL-120",
                 "BCL-139"
               ],
               "worktree": "samantha-next-r12",
@@ -14089,17 +14096,16 @@
               "lane_sha256": "abb520304b2b6bc00179e6709b0a3f40bd2c51bf51fc266e8da0655213836198",
               "cycle": 14,
               "round": 3,
-              "pid": 92003,
-              "exit_code": 1,
-              "finished_at": "2026-11-24T17:50:52Z",
-              "first_error_line": "validate plugins/agent-computer-use",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/391f7d4b94f645899d83df0c29909e6d.log",
+              "pid": 7128,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T17:52:53Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/3fb465221e604625ab1b477b99ea16bb.log",
               "output_retained": true,
               "tokens_source": "none",
               "tokens": null,
-              "wall_time_s": 184,
-              "session": "grokbot-122-r3-tracker",
-              "finished_phase_status": "failed"
+              "wall_time_s": 11,
+              "session": "grokbot-122-r3-verdict",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "jobs": [
@@ -14154,9 +14160,38 @@
                 "wall_time_s": 10,
                 "session": "grokbot-122-r3-verdict",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "391f7d4b94f645899d83df0c29909e6d",
+                "phase": "presuite",
+                "started_at": "2026-11-24T17:47:48Z",
+                "command": "run-presuite-r3.sh",
+                "heartbeat_at": "2026-11-24T17:50:52Z",
+                "plan_sha256": "dc81d9716a53a33cf1c221f4d01e93bea79b78c66b9ca57da1443d6375402d9d",
+                "finding_ids": [
+                  "BCL-108",
+                  "BCL-166",
+                  "BCL-120",
+                  "BCL-139"
+                ],
+                "worktree": "samantha-next-r12",
+                "model": "grokbot",
+                "lane_sha256": "abb520304b2b6bc00179e6709b0a3f40bd2c51bf51fc266e8da0655213836198",
+                "cycle": 14,
+                "round": 3,
+                "pid": 92003,
+                "exit_code": 1,
+                "finished_at": "2026-11-24T17:50:52Z",
+                "first_error_line": "validate plugins/agent-computer-use",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/391f7d4b94f645899d83df0c29909e6d.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 184,
+                "session": "grokbot-122-r3-tracker",
+                "finished_phase_status": "failed"
               }
             ],
-            "review_status": "passed",
             "reviewer_model": "grokbot"
           },
           "verify": {
@@ -14170,12 +14205,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-24T17:35:44Z",
-          "stage_entered_at": "2026-11-24T17:43:14Z",
-          "presuite": {
-            "status": "failed",
-            "exit_code": 1,
-            "finished_at": "2026-11-24T17:50:52Z"
-          }
+          "stage_entered_at": "2026-11-24T17:52:53Z"
         }
       ]
     },
