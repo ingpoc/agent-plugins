@@ -10930,9 +10930,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-24T17:24:03Z",
-      "now": "2026-11-24T17:24:03Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-24T17:27:46Z",
+      "now": "2026-11-24T17:27:46Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 121,
@@ -12322,6 +12322,100 @@
         },
         "round": 1,
         "cycle": 14
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-24T17:27:46Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 7",
+          "Codex write: R4-106",
+          "Codex review: R4-106",
+          "Polling and rework review: R4-106",
+          "Test command: R4-106: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh",
+          "Codex write: R4-171",
+          "Codex review: R4-171",
+          "Polling and rework review: R4-171",
+          "Test command: R4-171: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh",
+          "Codex write: R2-DEADLOCK",
+          "Codex review: R2-DEADLOCK",
+          "Polling and rework review: R2-DEADLOCK",
+          "Test command: R2-DEADLOCK: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
+          "Codex write: R1-GUARD",
+          "Codex review: R1-GUARD",
+          "Polling and rework review: R1-GUARD",
+          "Codex write: R1-TOKENS",
+          "Codex review: R1-TOKENS",
+          "Polling and rework review: R1-TOKENS",
+          "Codex write: R1-JOBUX",
+          "Codex review: R1-JOBUX",
+          "Polling and rework review: R1-JOBUX",
+          "Codex write: R1-COSMETIC",
+          "Codex review: R1-COSMETIC",
+          "Polling and rework review: R1-COSMETIC",
+          "Job wall time: R4-106 d0cd489ae6224db5a794b1719cdaf928 181s",
+          "Job wall time: R4-171 d0cd489ae6224db5a794b1719cdaf928 181s",
+          "Job wall time: R2-DEADLOCK d0cd489ae6224db5a794b1719cdaf928 181s"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 7",
+          "Codex write: R4-106",
+          "Codex review: R4-106",
+          "Polling and rework review: R4-106",
+          "Test command: R4-106: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh",
+          "Codex write: R4-171",
+          "Codex review: R4-171",
+          "Polling and rework review: R4-171",
+          "Test command: R4-171: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh",
+          "Codex review: R2-DEADLOCK",
+          "Polling and rework review: R2-DEADLOCK",
+          "Test command: R2-DEADLOCK: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
+          "Codex write: R1-GUARD",
+          "Codex review: R1-GUARD",
+          "Polling and rework review: R1-GUARD",
+          "Codex write: R1-TOKENS",
+          "Codex review: R1-TOKENS",
+          "Polling and rework review: R1-TOKENS",
+          "Codex write: R1-JOBUX",
+          "Codex review: R1-JOBUX",
+          "Polling and rework review: R1-JOBUX",
+          "Codex write: R1-COSMETIC",
+          "Codex review: R1-COSMETIC",
+          "Polling and rework review: R1-COSMETIC",
+          "Job wall time: R4-106 d0cd489ae6224db5a794b1719cdaf928 181s",
+          "Job wall time: R4-171 d0cd489ae6224db5a794b1719cdaf928 181s",
+          "Job wall time: R2-DEADLOCK d0cd489ae6224db5a794b1719cdaf928 181s"
+        ],
+        "sections": {
+          "delete": {
+            "none": "Subtract-before-you-add: no fourth lane was added because leftover untested items overlap active files, are nits (DO-11), or are Guru-parked (DO-1). The deadlock fix reused official batch and review commands instead of a new one, and the 171 verify typo was a script path fix plus one allowed rerun, not a new runner."
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Codex write: R2-DEADLOCK",
+                "evidence": "Commit 8dc83200 and installed revision 8c4d67ef. Cap validation now runs once on the final plan, a finished fix that still needs review enters review next round, and bcl review starts that phase. Official tests test_batch_can_park_two_overflow_lanes_under_the_cap, test_carried_passed_fix_enters_review_next_round, test_same_round_plan_can_park_overflow_lanes, and test_set_activity_review_enters_review_phase_when_fix_passed passed, and the stored verify reran those four tests in 0.152s.",
+                "outcome": "fixed inline",
+                "proof": "python3 -m unittest test_manage_findings.ManageFindingsTests.test_batch_can_park_two_overflow_lanes_under_the_cap test_manage_findings.ManageFindingsTests.test_carried_passed_fix_enters_review_next_round test_manage_findings.ManageFindingsTests.test_same_round_plan_can_park_overflow_lanes test_manage_findings.ManageFindingsTests.test_set_activity_review_enters_review_phase_when_fix_passed"
+              }
+            ]
+          },
+          "optimize": {
+            "none": "Decision before the numbers: 181s is the wall time of one shared post-merge presuite job (d0cd489a, check ok, 67 test processes), copied onto three lanes, not three separate 181s costs. The limiter in that run was test_bcl.py at 178.8s; test_manage_findings.py was 31.4s and ran in parallel under --jobs 6. Lane verifies were separate and short: 106 10 tests in 1.666s, 171 9+1 tests in 0.024s after a tool-fault script-path rerun, deadlock 4 tests in 0.152s. Parallel group count 7 is the plan's group list including four already-verified R1 lanes, not seven in-flight lanes (three were in flight; the cap is four). Gate is 11 verified_fixed of 19, open 8; the limiter is unfinished untested work, not test spread."
+          },
+          "automate": {
+            "none": "No new automation. The first 171 verify failed because tests.test_collector is not a package; the stored script now runs test_collector from the tests directory, and the one allowed rerun passed."
+          }
+        },
+        "round": 2,
+        "cycle": 14
       }
     ],
     "archive": {
@@ -12345,7 +12439,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T17:24:04Z",
+    "last_written_at": "2026-11-24T17:27:46Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12651,7 +12745,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "cycle": 14,
@@ -12666,10 +12761,10 @@
           "label": "106",
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
-          "status": "verifying",
+          "status": "verified",
           "phase": "verify",
           "parked_to": 2,
-          "stage_entered_at": "2026-11-24T17:24:03Z",
+          "stage_entered_at": "2026-11-24T17:24:06Z",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -12866,10 +12961,11 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh",
             "method": "Run verify_driver tests plus driver self-test and cleanup-keeps-pass bcl tests.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-24T17:24:06Z"
           },
           "presuite": {
             "status": "passed",
@@ -12890,10 +12986,10 @@
           "label": "171",
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "parked_to": 2,
-          "stage_entered_at": "2026-11-24T17:22:19Z",
+          "stage_entered_at": "2026-11-24T17:26:16Z",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -13060,14 +13156,15 @@
               }
             ]
           },
-          "updated_at": "2026-11-24T17:22:09Z",
+          "updated_at": "2026-11-24T17:26:16Z",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh",
             "method": "Run collect_observability path-coverage tests and discover_project resolved path test.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-24T17:26:16Z"
           },
           "presuite": {
             "status": "passed",
@@ -13077,7 +13174,15 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-24T17:22:19Z"
-          }
+          },
+          "verify_reruns": [
+            {
+              "round": 2,
+              "reason": "The collector test module path was wrong so the check failed before the test ran",
+              "at": "2026-11-24T17:26:16Z",
+              "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+            }
+          ]
         },
         {
           "id": "R2-DEADLOCK",
@@ -13094,15 +13199,16 @@
             "plugins/batched-change-list/skills/batched-change-list/references/review.md"
           ],
           "reason": "Park overflow lanes in one batch and carry a finished fix into review next round.",
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
             "method": "Run the manage_findings tests for batch parking and carried review entry.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-24T17:26:24Z"
           },
           "codex": {
             "implementer_session": "grokbot-122-r2-deadlock",
@@ -13223,8 +13329,8 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T17:04:16Z",
-          "stage_entered_at": "2026-11-24T17:22:19Z",
+          "updated_at": "2026-11-24T17:26:24Z",
+          "stage_entered_at": "2026-11-24T17:26:24Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -13599,7 +13705,8 @@
           "codex": {},
           "updated_at": "2026-11-24T17:04:16Z"
         }
-      ]
+      ],
+      "status": "closed"
     },
     "verification_run": {
       "id": "pr122-r2-8c4d67ef1b5b00bfe74386b25309736ed7e640e2",
@@ -13675,84 +13782,96 @@
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-24T16:58:01Z",
+      "at": "2026-11-24T17:27:46Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 4",
+        "Parallel group count: 7",
+        "Codex write: R4-106",
+        "Codex review: R4-106",
+        "Polling and rework review: R4-106",
+        "Test command: R4-106: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh",
+        "Codex write: R4-171",
+        "Codex review: R4-171",
+        "Polling and rework review: R4-171",
+        "Test command: R4-171: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh",
+        "Codex write: R2-DEADLOCK",
+        "Codex review: R2-DEADLOCK",
+        "Polling and rework review: R2-DEADLOCK",
+        "Test command: R2-DEADLOCK: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
         "Codex write: R1-GUARD",
         "Codex review: R1-GUARD",
         "Polling and rework review: R1-GUARD",
-        "Test command: R1-GUARD: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-guard.sh",
         "Codex write: R1-TOKENS",
         "Codex review: R1-TOKENS",
         "Polling and rework review: R1-TOKENS",
-        "Test command: R1-TOKENS: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh",
         "Codex write: R1-JOBUX",
         "Codex review: R1-JOBUX",
         "Polling and rework review: R1-JOBUX",
-        "Test command: R1-JOBUX: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh",
         "Codex write: R1-COSMETIC",
         "Codex review: R1-COSMETIC",
         "Polling and rework review: R1-COSMETIC",
-        "Test command: R1-COSMETIC: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-cosmetic.sh",
-        "Pre-push suite after merging origin: job 4bbb9486 exit 0, check ok, 66 test processes",
-        "Earlier pre-push jobs were interrupted when the observer dropped and were finished officially with exit 143",
-        "Parked R4-106 and R4-171 to round 2 to break the release versus four-lane deadlock; fix commits kept",
-        "Local install at revision 2ecafbab8718d393f4254bcfe336371bcf40d1bd with install-local receipt",
-        "Serial stored verify of four R1 groups on that revision: 4, 19+2+18, 35+22, and 6+1 tests, all passed"
+        "Job wall time: R4-106 d0cd489ae6224db5a794b1719cdaf928 181s",
+        "Job wall time: R4-171 d0cd489ae6224db5a794b1719cdaf928 181s",
+        "Job wall time: R2-DEADLOCK d0cd489ae6224db5a794b1719cdaf928 181s"
       ],
       "none": [
-        "Codex write: R1-GUARD",
-        "Codex review: R1-GUARD",
-        "Codex write: R1-TOKENS",
-        "Codex review: R1-TOKENS",
-        "Codex write: R1-JOBUX",
-        "Codex review: R1-JOBUX",
-        "Codex write: R1-COSMETIC",
-        "Codex review: R1-COSMETIC",
-        "Test command: R1-GUARD: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-guard.sh",
-        "Test command: R1-TOKENS: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh",
-        "Test command: R1-JOBUX: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh",
-        "Test command: R1-COSMETIC: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-cosmetic.sh",
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 4",
+        "Parallel group count: 7",
+        "Codex write: R4-106",
+        "Codex review: R4-106",
+        "Polling and rework review: R4-106",
+        "Test command: R4-106: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh",
+        "Codex write: R4-171",
+        "Codex review: R4-171",
+        "Polling and rework review: R4-171",
+        "Test command: R4-171: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh",
+        "Codex review: R2-DEADLOCK",
+        "Polling and rework review: R2-DEADLOCK",
+        "Test command: R2-DEADLOCK: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
+        "Codex write: R1-GUARD",
+        "Codex review: R1-GUARD",
         "Polling and rework review: R1-GUARD",
+        "Codex write: R1-TOKENS",
+        "Codex review: R1-TOKENS",
         "Polling and rework review: R1-TOKENS",
+        "Codex write: R1-JOBUX",
+        "Codex review: R1-JOBUX",
         "Polling and rework review: R1-JOBUX",
+        "Codex write: R1-COSMETIC",
+        "Codex review: R1-COSMETIC",
         "Polling and rework review: R1-COSMETIC",
-        "Pre-push suite after merging origin: job 4bbb9486 exit 0, check ok, 66 test processes",
-        "Earlier pre-push jobs were interrupted when the observer dropped and were finished officially with exit 143",
-        "Local install at revision 2ecafbab8718d393f4254bcfe336371bcf40d1bd with install-local receipt",
-        "Serial stored verify of four R1 groups on that revision: 4, 19+2+18, 35+22, and 6+1 tests, all passed"
+        "Job wall time: R4-106 d0cd489ae6224db5a794b1719cdaf928 181s",
+        "Job wall time: R4-171 d0cd489ae6224db5a794b1719cdaf928 181s",
+        "Job wall time: R2-DEADLOCK d0cd489ae6224db5a794b1719cdaf928 181s"
       ],
       "sections": {
         "delete": {
-          "none": "Reviewed every recorded write, review, install, and verify step in this round; nothing in that work should be removed. Subtract-before-you-add kept this pass from inventing extra process steps."
+          "none": "Subtract-before-you-add: no fourth lane was added because leftover untested items overlap active files, are nits (DO-11), or are Guru-parked (DO-1). The deadlock fix reused official batch and review commands instead of a new one, and the 171 verify typo was a script path fix plus one allowed rerun, not a new runner."
         },
         "simplify": {
           "items": [
             {
-              "item": "Parked R4-106 and R4-171 to round 2 to break the release versus four-lane deadlock; fix commits kept",
-              "evidence": "release-check with the eight R1 ids stayed uncleared while two unreviewed lanes were in flight, and official parking of those two lanes in one batch failed after the first park with: a round runs at most 4 lanes (plan has 5). The same-round plan command also cannot park because it restores the old status. Filed as PR122-r1-release-deadlock.",
-              "outcome": "issue",
-              "issue_id": "PR122-r1-release-deadlock"
+              "item": "Codex write: R2-DEADLOCK",
+              "evidence": "Commit 8dc83200 and installed revision 8c4d67ef. Cap validation now runs once on the final plan, a finished fix that still needs review enters review next round, and bcl review starts that phase. Official tests test_batch_can_park_two_overflow_lanes_under_the_cap, test_carried_passed_fix_enters_review_next_round, test_same_round_plan_can_park_overflow_lanes, and test_set_activity_review_enters_review_phase_when_fix_passed passed, and the stored verify reran those four tests in 0.152s.",
+              "outcome": "fixed inline",
+              "proof": "python3 -m unittest test_manage_findings.ManageFindingsTests.test_batch_can_park_two_overflow_lanes_under_the_cap test_manage_findings.ManageFindingsTests.test_carried_passed_fix_enters_review_next_round test_manage_findings.ManageFindingsTests.test_same_round_plan_can_park_overflow_lanes test_manage_findings.ManageFindingsTests.test_set_activity_review_enters_review_phase_when_fix_passed"
             }
           ]
         },
         "optimize": {
-          "none": "Decision before the numbers: a lane counts as verified only after its stored command was run against the installed revision and exited 0, not from compile or self-report. One run each: guard 4 tests in 0.861s, tokens 19+2+18 tests, jobux 35+22 tests (unittest OK; mock-stderr thread noise in the harness), cosmetic 6 breadcrumb cases plus 1 wrap test. That is 8 verified_fixed of 19 findings (open 11). Why not 19? Only the four R1 lanes were in this install; two parked lanes still need review; eight older findings were unplanned; one new product bug was filed. Limiter is unfinished work, not test spread. No optimize change this round."
+          "none": "Decision before the numbers: 181s is the wall time of one shared post-merge presuite job (d0cd489a, check ok, 67 test processes), copied onto three lanes, not three separate 181s costs. The limiter in that run was test_bcl.py at 178.8s; test_manage_findings.py was 31.4s and ran in parallel under --jobs 6. Lane verifies were separate and short: 106 10 tests in 1.666s, 171 9+1 tests in 0.024s after a tool-fault script-path rerun, deadlock 4 tests in 0.152s. Parallel group count 7 is the plan's group list including four already-verified R1 lanes, not seven in-flight lanes (three were in flight; the cap is four). Gate is 11 verified_fixed of 19, open 8; the limiter is unfinished untested work, not test spread."
         },
         "automate": {
-          "none": "The two-lane park workaround is the same defect as PR122-r1-release-deadlock; no separate automation item."
+          "none": "No new automation. The first 171 verify failed because tests.test_collector is not a package; the stored script now runs test_collector from the tests directory, and the one allowed rerun passed."
         }
       },
-      "round": 1,
+      "round": 2,
       "cycle": 14
     }
   },
@@ -13767,7 +13886,7 @@
       "done_when": "One tested driver runs every check with a built-in self-test, cleanup never changes a verdict, and no per-round copies remain; tests cover each.",
       "observed": "20 Nov 2026 23:10 IST, a PR 118 lane had all four cases passing but failed because its cleanup step misread results; similar checker faults hit PR 117 six times.",
       "recommendation": "Promote one tested driver for shared checks, lane checks, cleanup and judging, delete the per-round copies and keep cleanup out of the verdict; run one self-test step inside the verify start in place of the manual preflight.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 7",
         "filed_by": "Guru 00:33 IST t1597u",
@@ -13787,12 +13906,22 @@
           "from": "blocked",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T17:24:06Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T17:02:35Z",
         "source": "review"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh"
     },
     {
       "id": "BCL-108",
@@ -14137,7 +14266,7 @@
       "observed": "22 Nov 2026 18:54 IST, Guru rule and read-only audit; last collector run before today 20 Nov 16:41 IST; fresh snapshot 052d5b22 taken 18:55 IST",
       "priority": "high",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "needs": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
       "first_seen": {
         "at": null,
@@ -14151,12 +14280,22 @@
           "from": "blocked",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T17:26:16Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T04:43:44Z",
         "source": "review"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh"
     },
     {
       "id": "DO-1",
@@ -14439,7 +14578,7 @@
       "impact": "Reviewed and tested work cannot be installed or checked, and the extra lanes cannot be scheduled for review without breaking the limit.",
       "recommendation": "Count the lane limit on the final plan after a batch of parks, and do not treat a deferred or parked lane as still in flight for a release of other finished lanes. Keep the four-lane limit for work that is actually still open.",
       "done_when": "A release of four finished lanes succeeds after the extra unfinished lanes are parked together, and those parked lanes can be planned for review in the next round without being blocked as still in flight.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "On 24 Nov 2026 after R1 fix, review, and presuite passed, release-check with the eight R1 ids exited 2 with clear false and lanes R4-106 and R4-171 still in review. Official update-plan-group parking both in one batch failed with: a round runs at most 4 lanes (plan has 5). Same-round bcl plan cannot park because carry_plan_runtime_state restores status and parked_to from the prior group.",
       "details": {
         "release_check": "clear false; in-flight R4-106 and R4-171 status review phase review; included R1-GUARD TOKENS JOBUX COSMETIC",
@@ -14463,8 +14602,18 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T17:26:24Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
-      ]
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh"
     }
   ]
 }
