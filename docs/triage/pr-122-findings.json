@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T16:04:11Z",
-      "now": "2026-11-24T16:04:11Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T16:04:13Z",
+      "now": "2026-11-24T16:04:13Z — Review started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12188,7 +12188,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T16:04:12Z",
+    "last_written_at": "2026-11-24T16:04:13Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12742,18 +12742,18 @@
             "failed": 0,
             "total": 1
           },
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "codex": {
             "implementer_session": "grokbot-122-r1-cosmetic",
             "reviewer_session": "grokbot-122-r1-cosmetic-review",
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "fccf39266dc343d4beb1cf00d31fd501",
-              "phase": "fix",
-              "started_at": "2026-11-24T16:04:11Z",
-              "command": "r1-cosmetic.sh",
-              "heartbeat_at": "2026-11-24T16:04:11Z",
+              "id": "c3ca9229f5924bf1adf8014ee459b4a6",
+              "phase": "review",
+              "started_at": "2026-11-24T16:04:13Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T16:04:13Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "DO-13"
@@ -12763,9 +12763,12 @@
               "lane_sha256": "4f02cf0be2a6f8eff07c807ac20f779697696226e93adb27587f9a580f51f0fb",
               "cycle": 14,
               "round": 1
-            }
+            },
+            "tool_fault_streak": 0,
+            "review_status": "running",
+            "reviewer_model": "Grok Bot"
           },
-          "stage_entered_at": "2026-11-24T16:04:11Z",
+          "stage_entered_at": "2026-11-24T16:04:12Z",
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-24T16:03:40Z"
