@@ -11003,9 +11003,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-24T18:01:12Z",
-      "now": "2026-11-24T18:01:12Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T18:03:04Z",
+      "now": "2026-11-24T18:03:04Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 121,
@@ -11071,7 +11071,7 @@
       }
     },
     "cycle": 14,
-    "round": 3,
+    "round": 4,
     "round_history": [
       {
         "round": 2,
@@ -11307,6 +11307,11 @@
         "round": 2,
         "fixed": 11,
         "ended_at": "2026-11-24T17:35:44Z"
+      },
+      {
+        "round": 3,
+        "fixed": 15,
+        "ended_at": "2026-11-24T18:03:04Z"
       }
     ],
     "introspect_history": [
@@ -12657,7 +12662,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T18:01:12Z",
+    "last_written_at": "2026-11-24T18:03:04Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12953,7 +12958,7 @@
         ]
       }
     ],
-    "round_started_at": "2026-11-24T17:35:44Z",
+    "round_started_at": "2026-11-24T18:03:04Z",
     "gate": {
       "merge_previous_pr_threshold": 16,
       "report_threshold": 15
@@ -12961,14 +12966,11 @@
     "stages_reached": [
       "collect",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
       "cycle": 14,
-      "round": 3,
+      "round": 4,
       "groups": [
         {
           "id": "R1-GUARD",
@@ -13037,7 +13039,7 @@
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T17:35:44Z"
+          "updated_at": "2026-11-24T18:03:04Z"
         },
         {
           "id": "R1-TOKENS",
@@ -13106,7 +13108,7 @@
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T17:35:44Z"
+          "updated_at": "2026-11-24T18:03:04Z"
         },
         {
           "id": "R1-JOBUX",
@@ -13189,7 +13191,7 @@
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T17:35:44Z"
+          "updated_at": "2026-11-24T18:03:04Z"
         },
         {
           "id": "R1-COSMETIC",
@@ -13255,7 +13257,7 @@
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T17:35:44Z"
+          "updated_at": "2026-11-24T18:03:04Z"
         },
         {
           "id": "R4-106",
@@ -13462,7 +13464,7 @@
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T17:35:44Z",
+          "updated_at": "2026-11-24T18:03:04Z",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh",
             "method": "Run verify_driver tests plus driver self-test and cleanup-keeps-pass bcl tests.",
@@ -13661,7 +13663,7 @@
               }
             ]
           },
-          "updated_at": "2026-11-24T17:35:44Z",
+          "updated_at": "2026-11-24T18:03:04Z",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh",
             "method": "Run collect_observability path-coverage tests and discover_project resolved path test.",
@@ -13834,7 +13836,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T17:35:44Z",
+          "updated_at": "2026-11-24T18:03:04Z",
           "stage_entered_at": "2026-11-24T17:26:24Z",
           "presuite": {
             "status": "passed",
@@ -13845,80 +13847,6 @@
             "status": "running",
             "started_at": "2026-11-24T17:22:19Z"
           }
-        },
-        {
-          "id": "R2-DO1",
-          "finding_ids": [
-            "DO-1"
-          ],
-          "parked_to": 2,
-          "reason": "Needs Guru later round",
-          "failure_history": [
-            {
-              "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
-              "source": "review",
-              "reason": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Empty commits produce no changed paths and are silently ignored, although other ahead commits must still count. A failed `diff-tree` call is also silently ignored, which can hide an unpushed commit. Count empty commits and handle inspection failures without reporting false success; add behavioral coverage.",
-              "cycle": 12,
-              "round": 2,
-              "at": "2026-11-22T13:47:58Z"
-            },
-            {
-              "attempt_id": "97d390f143b64b1f84744481175417da",
-              "source": "plan_review",
-              "reason": "Reviewer exited 1",
-              "cycle": 12,
-              "round": 2,
-              "at": "2026-11-22T13:48:55Z",
-              "tool_fault": true,
-              "fault_kind": "runner_exit",
-              "tool_fault_reason": "Reviewer exited 1"
-            },
-            {
-              "attempt_id": "da6ebb99274244d1b7c92e594ab3ed34",
-              "source": "review",
-              "reason": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Git quotes paths containing non-ASCII characters or certain special characters by default. A snapshot such as `docs/triage/café.json` is returned as a quoted string that does not start with `docs/triage/`, so the collector still reports it as an unpushed commit. Use NUL-delimited output and parse the actual paths; add a behavioral test.",
-              "cycle": 12,
-              "round": 2,
-              "at": "2026-11-22T13:56:04Z"
-            }
-          ],
-          "plan_review_history": [
-            {
-              "job_id": "8ed5a5892da64c9383d7cdcd6fcc20b6",
-              "after_failure": "3c9e094c725a400b95a22641c1cf7369",
-              "status": "passed",
-              "cycle": 12,
-              "round": 2,
-              "at": "2026-11-22T13:50:18Z"
-            },
-            {
-              "job_id": "84ed2b23b4db442f802a39aeea6d79ab",
-              "after_failure": "da6ebb99274244d1b7c92e594ab3ed34",
-              "status": "passed",
-              "cycle": 12,
-              "round": 3,
-              "at": "2026-11-22T15:11:59Z"
-            }
-          ],
-          "unblock_history": [
-            {
-              "at": "2026-11-22T14:56:28Z",
-              "reason": "Guru approved 2026-11-22 20:26 IST: defer to round 3 so R2-176 can ship",
-              "tool_faults": [],
-              "covered_attempts": [
-                "3c9e094c725a400b95a22641c1cf7369",
-                "da6ebb99274244d1b7c92e594ab3ed34"
-              ],
-              "rows_seen": 3,
-              "by_cycle": 12,
-              "round": 2,
-              "owner_override": true
-            }
-          ],
-          "status": "parked",
-          "codex": {},
-          "stage_entered_at": "2026-11-24T15:22:33Z",
-          "updated_at": "2026-11-24T17:35:44Z"
         },
         {
           "id": "R3-TRACKER",
@@ -14128,7 +14056,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T17:59:37Z",
+          "updated_at": "2026-11-24T18:03:04Z",
           "stage_entered_at": "2026-11-24T17:59:38Z",
           "presuite": {
             "status": "passed",
@@ -14373,7 +14301,7 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T17:59:51Z",
+          "updated_at": "2026-11-24T18:03:04Z",
           "stage_entered_at": "2026-11-24T17:59:52Z",
           "presuite": {
             "status": "passed",
@@ -14588,7 +14516,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T18:00:01Z",
+          "updated_at": "2026-11-24T18:03:04Z",
           "stage_entered_at": "2026-11-24T18:00:10Z",
           "presuite": {
             "status": "passed",
@@ -14604,9 +14532,119 @@
             "model": "grokbot",
             "at": "2026-11-24T18:00:01Z"
           }
+        },
+        {
+          "id": "R2-DO1",
+          "finding_ids": [
+            "DO-1"
+          ],
+          "parked_to": 2,
+          "reason": "Needs Guru later round",
+          "failure_history": [
+            {
+              "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
+              "source": "review",
+              "reason": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Empty commits produce no changed paths and are silently ignored, although other ahead commits must still count. A failed `diff-tree` call is also silently ignored, which can hide an unpushed commit. Count empty commits and handle inspection failures without reporting false success; add behavioral coverage.",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:47:58Z"
+            },
+            {
+              "attempt_id": "97d390f143b64b1f84744481175417da",
+              "source": "plan_review",
+              "reason": "Reviewer exited 1",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:48:55Z",
+              "tool_fault": true,
+              "fault_kind": "runner_exit",
+              "tool_fault_reason": "Reviewer exited 1"
+            },
+            {
+              "attempt_id": "da6ebb99274244d1b7c92e594ab3ed34",
+              "source": "review",
+              "reason": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Git quotes paths containing non-ASCII characters or certain special characters by default. A snapshot such as `docs/triage/café.json` is returned as a quoted string that does not start with `docs/triage/`, so the collector still reports it as an unpushed commit. Use NUL-delimited output and parse the actual paths; add a behavioral test.",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:56:04Z"
+            }
+          ],
+          "plan_review_history": [
+            {
+              "job_id": "8ed5a5892da64c9383d7cdcd6fcc20b6",
+              "after_failure": "3c9e094c725a400b95a22641c1cf7369",
+              "status": "passed",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:50:18Z"
+            },
+            {
+              "job_id": "84ed2b23b4db442f802a39aeea6d79ab",
+              "after_failure": "da6ebb99274244d1b7c92e594ab3ed34",
+              "status": "passed",
+              "cycle": 12,
+              "round": 3,
+              "at": "2026-11-22T15:11:59Z"
+            }
+          ],
+          "unblock_history": [
+            {
+              "at": "2026-11-22T14:56:28Z",
+              "reason": "Guru approved 2026-11-22 20:26 IST: defer to round 3 so R2-176 can ship",
+              "tool_faults": [],
+              "covered_attempts": [
+                "3c9e094c725a400b95a22641c1cf7369",
+                "da6ebb99274244d1b7c92e594ab3ed34"
+              ],
+              "rows_seen": 3,
+              "by_cycle": 12,
+              "round": 2,
+              "owner_override": true
+            }
+          ],
+          "status": "parked",
+          "codex": {},
+          "stage_entered_at": "2026-11-24T15:22:33Z",
+          "updated_at": "2026-11-24T18:03:04Z"
+        },
+        {
+          "id": "R4-GATES",
+          "name": "One review command and one uncount path",
+          "label": "GATES",
+          "finding_ids": [
+            "BCL-125"
+          ],
+          "worktree": "samantha-next-r12",
+          "files": [
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_release_checks.py",
+            "plugins/batched-change-list/skills/batched-change-list/references/review.md",
+            "plugins/batched-change-list/skills/batched-change-list/references/release.md"
+          ],
+          "reason": "The separate review and resort-failures commands duplicate the review job, release-check, and unblock.",
+          "status": "planned",
+          "phase": "fix",
+          "codex": {
+            "implementer_session": "grokbot-122-r4-gates",
+            "reviewer_session": "grokbot-122-r4-gates-review"
+          },
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-gates.sh",
+            "method": "Run tests that the review job is the only review command, release-check lists tool-fault candidates, and unblock is the only uncount path.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T18:03:04Z",
+          "stage_entered_at": "2026-11-24T18:03:04Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "verification_run": {
       "id": "pr122-r3-be5aabd6581d0bacc28b6856610250b335e3760d",
@@ -14977,7 +15015,7 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
@@ -14992,7 +15030,14 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-24T18:03:04Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-24T14:05:51.119725Z",
         "source": "verification_check"
