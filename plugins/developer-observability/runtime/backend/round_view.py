@@ -92,24 +92,38 @@ def _pr_number(value):
     return match.group(1) if match else None
 
 
-def find_tracker(project, pr=None, state_dir=None):
-    """Locate the live tracker JSON for a project (and optional PR). Read only."""
+def _plan_groups(data):
+    tracking = data.get("tracking") if isinstance(data, dict) and isinstance(data.get("tracking"), dict) else {}
+    plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else (data.get("plan") if isinstance(data, dict) and isinstance(data.get("plan"), dict) else {})
+    groups = plan.get("groups") if isinstance(plan, dict) and isinstance(plan.get("groups"), list) else []
+    return [group for group in groups if isinstance(group, dict)]
+
+
+def _tracker_sort_key(item):
+    path, data, found = item
+    tracking = data.get("tracking") if isinstance(data.get("tracking"), dict) else {}
+    written = _parse_time(tracking.get("last_written_at")) or datetime.fromtimestamp(0, tz=timezone.utc)
+    try:
+        pr_num = int(found or 0)
+    except ValueError:
+        pr_num = 0
+    return (pr_num, written, path.stat().st_mtime)
+
+
+def _iter_trackers(project, state_dir=None):
+    """Yield (path, data, pr) for every tracker that belongs to this project. Read only."""
     if not project or not isinstance(project, str):
         raise ValueError("unknown_project: project is required")
     root = _state_root(state_dir)
-    wanted = _pr_number(pr)
-    matches = []
     if not root.exists():
         raise ValueError("tracker_unavailable: no change-list state directory")
     for path in sorted(root.glob("*/*.json")):
         if path.name in {"archive.json", "parked.json"} or path.name.startswith("."):
             continue
         folder = path.parent.name
-        if project not in folder and not folder.endswith(f"--{project}") and project not in path.stem:
-            # still allow a later tracking.repo / label match after parse
-            tentative = False
-        else:
-            tentative = True
+        if folder == "viewers" or path.name.endswith(".viewer.json") or not path.stem.isdigit():
+            continue
+        tentative = project in folder or folder.endswith(f"--{project}") or project in path.stem
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -133,27 +147,49 @@ def find_tracker(project, pr=None, state_dir=None):
         if not belongs:
             continue
         found_pr = _pr_number(tracking.get("pull_request")) or _pr_number(path.stem)
-        if wanted and found_pr != wanted:
-            continue
-        matches.append((path, data, found_pr))
+        yield path, data, found_pr
+
+
+def list_trackers(project, state_dir=None):
+    """Summaries for every list of this project, newest PR first. Read only."""
+    rows = []
+    for path, data, found_pr in _iter_trackers(project, state_dir):
+        tracking = data.get("tracking") if isinstance(data.get("tracking"), dict) else {}
+        plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
+        groups = _plan_groups(data)
+        pull = tracking.get("pull_request") if isinstance(tracking.get("pull_request"), dict) else {}
+        rows.append({
+            "pr": found_pr,
+            "label": pull.get("label") or (f"PR #{found_pr}" if found_pr else path.stem),
+            "url": pull.get("url"),
+            "cycle": tracking.get("cycle") or plan.get("cycle"),
+            "round": tracking.get("round") or plan.get("round"),
+            "group_count": len(groups),
+            "has_lanes": bool(groups),
+        })
+    rows.sort(key=lambda row: int(row["pr"] or 0), reverse=True)
+    return rows
+
+
+def find_tracker(project, pr=None, state_dir=None, prefer_lanes=None):
+    """Locate the live tracker JSON for a project (and optional PR). Read only.
+
+    When no PR is named, prefer the newest list that has lanes, so a fresh
+    rollover list with no groups does not hide the previous list's work.
+    """
+    wanted = _pr_number(pr)
+    matches = list(_iter_trackers(project, state_dir))
     if wanted:
         exact = [item for item in matches if item[2] == wanted or item[0].stem == wanted]
         if exact:
             matches = exact
     if not matches:
         raise ValueError("tracker_unavailable: no tracker for this project")
-    # Prefer the highest PR number when unspecified, then the most recently written.
-    def sort_key(item):
-        path, data, found = item
-        tracking = data.get("tracking") if isinstance(data.get("tracking"), dict) else {}
-        written = _parse_time(tracking.get("last_written_at")) or datetime.fromtimestamp(0, tz=timezone.utc)
-        try:
-            pr_num = int(found or 0)
-        except ValueError:
-            pr_num = 0
-        return (pr_num, written, path.stat().st_mtime)
-
-    return max(matches, key=sort_key)
+    if wanted is None and prefer_lanes is not False:
+        with_lanes = [item for item in matches if _plan_groups(item[1])]
+        if with_lanes:
+            matches = with_lanes
+    return max(matches, key=_tracker_sort_key)
 
 
 def _fold_jobs(state_dir=None):
@@ -325,12 +361,20 @@ def _infer_history_cycles(history):
 
 
 def _history_for_cycle(history, current_round, current_cycle):
-    """Chips for one cycle only, one row per round, plus the live round if it has not ended."""
+    """Chips for this list's own cycle only, plus the live round if it has not ended.
+
+    Untagged history is often copied onto a new list at rollover. If that
+    trailing cycle's last completed round is after this list's live round,
+    it belongs to the previous list and is dropped.
+    """
+    tagged = [item for item in history if isinstance(item, dict) and item.get("cycle") == current_cycle]
+    if any(isinstance(item, dict) and item.get("cycle") is not None for item in history):
+        history = tagged
     cycles = _infer_history_cycles(history)
     selected = cycles[-1] if cycles else []
-    if isinstance(current_cycle, int) and cycles:
-        # Prefer the trailing cycle; label it with the tracker's current cycle when it matches the tail.
-        selected = cycles[-1]
+    max_round = max((item["round"] for item in selected), default=None)
+    if isinstance(current_round, int) and max_round is not None and max_round > current_round:
+        selected = []
     by_round = {}
     for item in selected:
         by_round[item["round"]] = {**item, "cycle": current_cycle, "live": False}
@@ -444,7 +488,9 @@ def _rank_needs(groups, findings_by_id, parked, jobs, selected_round):
 
     incomplete = [job for job in jobs if job.get("event") == "incomplete" and (selected_round is None or job.get("round") == selected_round)]
     if incomplete:
-        add(2, "incomplete_jobs", f"{len(incomplete)} job(s) never recorded a finish",
+        add(2, "incomplete_jobs",
+            f"{len(incomplete)} job never recorded a finish" if len(incomplete) == 1
+            else f"{len(incomplete)} jobs never recorded a finish",
             "The time bar cannot close these runs.")
 
     for group in groups:
@@ -462,7 +508,7 @@ def _rank_needs(groups, findings_by_id, parked, jobs, selected_round):
     if isinstance(parked, dict) and parked.get("needs"):
         needs = parked.get("needs")
         if isinstance(needs, list) and needs:
-            add(3, "parked", f"{len(needs)} parked need(s) still open",
+            add(3, "parked", f"{len(needs)} parked need still open" if len(needs) == 1 else f"{len(needs)} parked needs still open",
                 "; ".join(str(x) for x in needs[:3]))
 
     cards.sort(key=lambda card: (card["priority"], card.get("title") or ""))
@@ -483,7 +529,9 @@ def _rank_needs(groups, findings_by_id, parked, jobs, selected_round):
 
 def build_round(project, pr=None, round=None, state_dir=None):
     """Return plan groups, annotated jobs and the gate for one project/PR/round. Read only."""
-    path, data, found_pr = find_tracker(project, pr, state_dir)
+    requested_pr = pr
+    path, data, found_pr = find_tracker(project, pr, state_dir, prefer_lanes=(pr in (None, "")))
+    lists = list_trackers(project, state_dir)
     tracking = data.get("tracking") if isinstance(data.get("tracking"), dict) else {}
     plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else (data.get("plan") if isinstance(data.get("plan"), dict) else {})
     selected_round = round if isinstance(round, int) else tracking.get("round") or plan.get("round")
@@ -512,6 +560,26 @@ def build_round(project, pr=None, round=None, state_dir=None):
     else:
         visible_jobs = jobs
     groups = _round_groups(all_groups, visible_jobs, selected_round, current_round)
+
+    newest = lists[0] if lists else None
+    suggest = next((row for row in lists if row.get("has_lanes") and row.get("pr") != found_pr), None)
+    fallback = None
+    if requested_pr in (None, "") and newest and newest.get("pr") != found_pr and not newest.get("has_lanes"):
+        fallback = {
+            "auto": True,
+            "from_pr": newest.get("pr"),
+            "from_label": newest.get("label"),
+            "viewing_pr": found_pr,
+            "viewing_label": next((row.get("label") for row in lists if row.get("pr") == found_pr), f"PR #{found_pr}"),
+        }
+    elif not groups and suggest:
+        fallback = {
+            "auto": False,
+            "from_pr": found_pr,
+            "from_label": next((row.get("label") for row in lists if row.get("pr") == found_pr), f"PR #{found_pr}"),
+            "suggest_pr": suggest.get("pr"),
+            "suggest_label": suggest.get("label"),
+        }
 
     history = tracking.get("round_history") if isinstance(tracking.get("round_history"), list) else []
     compact_history = _history_for_cycle(history, current_round, current_cycle)
@@ -571,6 +639,14 @@ def build_round(project, pr=None, round=None, state_dir=None):
             "tokens": sum(job["tokens"]["total"] for job in covered),
             "duration_ms": sum(job["duration_ms"] for job in lane_jobs if isinstance(job.get("duration_ms"), int)),
         })
+    if not by_lane and round_jobs:
+        by_lane.append({
+            "group_id": "jobs",
+            "jobs": len(round_jobs),
+            "covered": len(eligible),
+            "tokens": token_total,
+            "duration_ms": duration_total,
+        })
 
     pull = tracking.get("pull_request") if isinstance(tracking.get("pull_request"), dict) else {"label": f"PR #{found_pr}" if found_pr else None}
     return {
@@ -607,6 +683,8 @@ def build_round(project, pr=None, round=None, state_dir=None):
             )} )}
         ),
         "parked": parked_out,
+        "lists": lists,
+        "fallback": fallback,
         "needs_you": needs,
         "needs_you_more": more,
         "groups": groups,

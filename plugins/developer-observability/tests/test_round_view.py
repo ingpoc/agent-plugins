@@ -10,7 +10,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "runtime"))
-from backend.round_view import build_round, find_tracker  # noqa: E402
+from backend.round_view import build_round, find_tracker, list_trackers  # noqa: E402
 
 
 def _write_tracker(root: Path, project: str, pr: str, payload: dict) -> Path:
@@ -213,6 +213,83 @@ class RoundViewTests(unittest.TestCase):
         self.assertEqual(card["view_status"], "blocked")
 
 
+
+    def _write_lists(self):
+        previous = {
+            "title": "demo",
+            "tracking": {
+                "pull_request": {"label": "PR #120", "url": "https://example.test/120"},
+                "cycle": 12,
+                "round": 7,
+                "last_written_at": "2026-11-24T09:08:28Z",
+                "round_history": [
+                    {"round": 1, "fixed": 4, "ended_at": "2026-11-20T10:00:00Z"},
+                    {"round": 6, "fixed": 14, "ended_at": "2026-11-24T07:07:37Z"},
+                ],
+                "plan": {
+                    "round": 7,
+                    "cycle": 12,
+                    "groups": [
+                        {"id": "R7-ACU20", "status": "verified", "phase": "verify", "finding_ids": ["ACU-20"]},
+                        {"id": "R4-171", "status": "blocked", "phase": "fix", "finding_ids": ["BCL-171"]},
+                    ],
+                },
+            },
+            "findings": [
+                {"id": "ACU-20", "status": "verified_fixed", "title": "Island"},
+                {"id": "BCL-171", "status": "blocked", "title": "Blocked"},
+            ],
+        }
+        newest = {
+            "title": "demo",
+            "tracking": {
+                "pull_request": {"label": "PR #121", "url": "https://example.test/121"},
+                "cycle": 13,
+                "round": 1,
+                "last_written_at": "2026-11-24T09:32:00Z",
+                "round_history": [
+                    {"round": 1, "fixed": 4, "ended_at": "2026-11-20T10:00:00Z"},
+                    {"round": 6, "fixed": 14, "ended_at": "2026-11-24T07:07:37Z"},
+                    {"round": 7, "fixed": 17, "ended_at": "2026-11-24T09:08:28Z"},
+                ],
+                "plan": {"round": 1, "cycle": 13, "groups": []},
+            },
+            "findings": [
+                {"id": "DO-4", "status": "untested", "title": "Viewer"},
+            ],
+        }
+        _write_tracker(self.root, "demo", "120", previous)
+        _write_tracker(self.root, "demo", "121", newest)
+
+    def test_empty_newest_list_falls_back_to_list_with_lanes(self):
+        self._write_lists()
+        summaries = list_trackers("demo", state_dir=str(self.root))
+        self.assertEqual([row["pr"] for row in summaries], ["121", "120", "42"])
+        self.assertFalse(next(row for row in summaries if row["pr"] == "121")["has_lanes"])
+        self.assertTrue(next(row for row in summaries if row["pr"] == "120")["has_lanes"])
+
+        result = build_round("demo", state_dir=str(self.root))
+        self.assertEqual(result["pr"]["number"], "120")
+        self.assertEqual(result["cycle"], 12)
+        self.assertTrue(any(group["id"] == "R7-ACU20" for group in result["groups"]))
+        self.assertTrue(result["fallback"]["auto"])
+        self.assertEqual(result["fallback"]["from_pr"], "121")
+        self.assertEqual(result["fallback"]["viewing_pr"], "120")
+        self.assertEqual({item["round"] for item in result["round_history"]}, {1, 6, 7})
+        self.assertTrue(all(item.get("cycle") == 12 for item in result["round_history"]))
+
+    def test_empty_list_keeps_own_cycle_chips_and_offers_previous_list(self):
+        self._write_lists()
+        result = build_round("demo", pr="121", state_dir=str(self.root))
+        self.assertEqual(result["pr"]["number"], "121")
+        self.assertEqual(result["cycle"], 13)
+        self.assertEqual(result["groups"], [])
+        self.assertEqual([item["round"] for item in result["round_history"]], [1])
+        self.assertTrue(result["round_history"][0]["live"])
+        self.assertEqual(result["round_history"][0]["cycle"], 13)
+        self.assertFalse(result["fallback"]["auto"])
+        self.assertEqual(result["fallback"]["from_pr"], "121")
+        self.assertEqual(result["fallback"]["suggest_pr"], "120")
 
 
 if __name__ == "__main__":

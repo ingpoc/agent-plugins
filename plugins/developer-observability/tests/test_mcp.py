@@ -143,3 +143,14 @@ class MCPTests(unittest.TestCase):
         for marker in ('What we know', 'Raw evidence', 'tracker_unavailable'):
             self.assertIn(marker, source)
             self.assertIn(marker, bundle)
+
+    def test_hidden_toolbar_is_not_shown_in_round_mode(self):
+        """The leaked desk toolbar must stay hidden; [hidden] must beat label display rules."""
+        import re
+        source = (ROOT/'ui/template.html').read_text()
+        bundle = (ROOT/'ui/dashboard.html').read_text()
+        for html in (source, bundle):
+            compact = re.sub(r'\s+', '', html)
+            self.assertIn('[hidden]{display:none!important}', compact)
+            self.assertIn('body.round-mode.toolbar.embedded{display:none!important}', compact)
+            self.assertNotIn('body.round-mode.toolbar.embedded{display:flex;flex-direction:column', compact)

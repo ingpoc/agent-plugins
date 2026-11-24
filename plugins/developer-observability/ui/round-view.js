@@ -137,18 +137,21 @@ export function mountRoundView(ctx) {
     const err = el('p', {id: 'round-error', class: 'banner', hidden: true, role: 'alert'});
     const body = el('div', {id: 'round-body'});
     const host = el('div', {id: 'round-toolbar-host'});
+    const switcher = el('div', {id: 'round-switch'});
     const toolbar = document.querySelector('.toolbar');
     if (toolbar) {
-      toolbar.hidden = false;
       toolbar.classList.add('embedded');
-      host.append(toolbar);
-      for (const node of toolbar.querySelectorAll('label, .seg, [id^="filter-"], #text-smaller, #text-default, #text-larger, #ts-val, #status, #decide, #evaluate, #more')) {
-        const id = node.id || '';
-        if (['project', 'version', 'refresh'].includes(id)) continue;
-        if (node.matches('label') && node.querySelector('#project, #version, #refresh')) continue;
-        node.hidden = true;
-      }
+      toolbar.hidden = true;
+      const move = (selector) => {
+        const node = toolbar.querySelector(selector);
+        if (node) switcher.append(node);
+      };
+      move('label:has(#project)');
+      move('label:has(#version)');
+      const refresh = document.getElementById('refresh');
+      if (refresh) switcher.append(refresh);
     }
+    host.append(switcher);
     chrome.append(host);
     root.replaceChildren(chrome, err, body);
   }
@@ -286,6 +289,7 @@ export function mountRoundView(ctx) {
         type: 'button',
         'aria-current': current ? 'page' : null,
         text: `R${item.round} · ${fixed}`,
+        'aria-label': `Round ${item.round}, cycle ${item.cycle ?? data.cycle ?? 'unknown'}, ${fixed}`,
         onclick: () => load(project, data.pr?.number, item.round),
       });
     }));
@@ -303,6 +307,17 @@ export function mountRoundView(ctx) {
     const viewingCurrent = data.viewing_current !== false;
 
     const needsCards = (data.needs_you || []).filter((card) => kindAllows(card.kind));
+    const fallback = data.fallback || {};
+    const listNote = fallback.from_pr ? el('p', {class: 'list-note'}, [
+      fallback.auto
+        ? `No lanes yet in #${fallback.from_pr} · viewing #${fallback.viewing_pr}`
+        : `No lanes yet in #${fallback.from_pr}`,
+      (fallback.suggest_pr || (fallback.auto && fallback.from_pr)) ? el('button', {
+        type: 'button',
+        text: fallback.auto ? `View #${fallback.from_pr}` : `View #${fallback.suggest_pr}`,
+        onclick: () => load(project, fallback.auto ? fallback.from_pr : fallback.suggest_pr),
+      }) : null,
+    ]) : null;
     const needs = el('section', {'aria-labelledby': 'needs-h'}, [
       el('h2', {id: 'needs-h'}, [
         'Needs you ',
@@ -342,7 +357,11 @@ export function mountRoundView(ctx) {
     const summary = el('section', {class: 'summary', 'aria-labelledby': 'sum-h'}, [
       el('h2', {id: 'sum-h', class: 'sr', text: 'Round summary'}),
       el('div', {class: 'gate'}, [
-        gateRing(viewingCurrent && threshold != null ? (gate.fixed || 0) / Math.max(threshold, 1) : ((viewingCurrent ? verified : (gate.fixed || verified)) ? 1 : 0), ringLabel),
+        (threshold == null && !(viewingCurrent ? verified : (gate.fixed || verified))
+          ? null
+          : gateRing(threshold != null && viewingCurrent
+            ? (gate.fixed || 0) / Math.max(threshold, 1)
+            : 1, ringLabel)),
         el('p', {}, [summaryBits]),
       ]),
     ]);
@@ -401,6 +420,9 @@ export function mountRoundView(ctx) {
         return node;
       })),
       parkedGroups.length ? el('p', {class: 'parked', text: parkedLine(parkedGroups)}) : null,
+      !currentGroups.length ? el('p', {class: 'muted', text: fallback.suggest_pr
+        ? `No lanes yet in #${fallback.from_pr || data.pr?.number} · view #${fallback.suggest_pr}`
+        : (data.pr?.number ? `No lanes yet in #${data.pr.number}.` : 'No lanes in this round.')}) : null,
     ]);
 
     const tt = data.time_tokens || {};
@@ -423,7 +445,7 @@ export function mountRoundView(ctx) {
         : 'Unrecorded session time is not in this bar.'}),
     ]);
 
-    body.replaceChildren(needs, summary, lanes, bars);
+    body.replaceChildren(...[listNote, needs, summary, lanes, bars].filter(Boolean));
     const health = $('health');
     if (health) {
       health.textContent = data.updated_at
@@ -567,5 +589,7 @@ export function mountRoundView(ctx) {
     }
   };
 
-  return {load, boot};
+  const reload = () => load(currentProject, currentData?.pr?.number, currentData?.round);
+
+  return {load, boot, reload};
 }
