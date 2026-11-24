@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T11:44:38Z",
-      "now": "2026-11-24T11:44:38Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T11:45:45Z",
+      "now": "2026-11-24T11:45:45Z — Fix started"
     },
     "rollover": {
       "source_pr": 120,
@@ -12258,7 +12258,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T11:44:38Z",
+    "last_written_at": "2026-11-24T11:45:45Z",
     "fix_order": {
       "ids": [
         "BCL-110",
@@ -12720,8 +12720,8 @@
           "id": "R2-DO4",
           "name": "Replace the viewer with the v3 calm UI",
           "label": "DO-4",
-          "status": "review",
-          "phase": "review",
+          "status": "running",
+          "phase": "fix",
           "finding_ids": [
             "DO-4",
             "DO-12"
@@ -12756,22 +12756,39 @@
               "tool_fault": true,
               "fault_kind": "incomplete_review",
               "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
+            },
+            {
+              "attempt_id": "6b4c58ac99eb45d2a971729b1c8687d8",
+              "source": "review",
+              "reason": "- Update test_bcl.py and its viewer health-check stubs so the integration suite matches the single instance-id viewer path and the per-project saved port.",
+              "cycle": 13,
+              "round": 2,
+              "at": "2026-11-24T11:44:38Z"
             }
           ],
-          "plan_review_history": [],
+          "plan_review_history": [
+            {
+              "job_id": "a1cd79aa4f5d4b6682bde62429a0b63d",
+              "after_failure": "6b4c58ac99eb45d2a971729b1c8687d8",
+              "status": "passed",
+              "cycle": 13,
+              "round": 2,
+              "at": "2026-11-24T11:45:44Z"
+            }
+          ],
           "updated_at": "2026-11-24T11:43:37Z",
-          "stage_entered_at": "2026-11-24T11:44:37Z",
+          "stage_entered_at": "2026-11-24T11:45:45Z",
           "codex": {
-            "fix_status": "passed",
+            "fix_status": "running",
             "job": {
-              "id": "6b4c58ac99eb45d2a971729b1c8687d8",
-              "phase": "review",
-              "started_at": "2026-11-24T11:44:38Z",
-              "command": "run-record-do4.sh",
-              "heartbeat_at": "2026-11-24T11:44:38Z",
+              "id": "233e81f7112b4e589ac56bc912d37573",
+              "phase": "fix",
+              "started_at": "2026-11-24T11:45:45Z",
+              "command": "run-luna-do4-tests.sh",
+              "heartbeat_at": "2026-11-24T11:45:45Z",
               "plan_sha256": "a683eedd9436598ae2e2d69d1f93341389e1956d9ce3aa59ef43392b9a94eee5",
               "worktree": "bcl121-r2-do4",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "model": "gpt-6-luna fast medium",
               "cycle": 13,
               "round": 2
             },
@@ -12780,8 +12797,7 @@
             "implementer_model": "gpt-6-luna",
             "effort": "medium",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
-            "review_status": "running"
+            "must_fix_note": "- Update test_bcl.py and its viewer health-check stubs so the integration suite matches the single instance-id viewer path and the per-project saved port."
           }
         },
         {
