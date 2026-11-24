@@ -366,11 +366,23 @@ function toggle(id) {
   if (button) button.setAttribute('aria-expanded', String(!pop.hidden));
 }
 
+function breadcrumbRound(selectedRound, selectedRun, runRecord, windowView) {
+  // A selected run takes its own round; other window views show a dash.
+  if (selectedRun) {
+    const value = runRecord && runRecord.round != null ? Number(runRecord.round) : null;
+    return value != null && !Number.isNaN(value) ? value : null;
+  }
+  if (windowView) return null;
+  const value = selectedRound != null ? Number(selectedRound) : null;
+  return value != null && !Number.isNaN(value) ? value : null;
+}
+
 function scopeBar() {
   $('project-label').textContent = (data.lists?.projects || []).find(row => row.id === project)?.label || 'Agent Plugins';
   const row = currentPrRow();
   $('pr-label').textContent = row ? `#${row.pr}` : (pr && pr !== 'current' ? `#${pr}` : '');
-  $('round-label').textContent = round != null && !Number.isNaN(Number(round)) ? `R${round}` : 'R—';
+  const shown = breadcrumbRound(round, run, data.run, Boolean((from && to) || scope === 'window'));
+  $('round-label').textContent = shown != null ? `R${shown}` : 'R—';
   $('time-label').textContent = timeLabel;
 }
 
@@ -395,7 +407,7 @@ function needRows() {
   const fresh = data.issues.filter(i => i.state === 'untested').length;
   const rows = failures.map(i => `<div class="need" title="${esc(i.last_evidence?.summary || i.summary)}"><span class="id mono"><span class="dot" style="background:${colors[i.state]}"></span>${esc(i.id)}</span><span class="what">${esc(i.state === 'regressed' ? 'Failed after resolution' : `Blocked · ${i.attempts || 0} failures`)}</span><button class="act" data-open="${esc(i.id)}">Review</button></div>`);
   if (fresh && rows.length < 3) {
-    rows.push(`<div class="need"><span class="id mono"><span class="dot" style="background:${colors.untested}"></span>${fresh} untested</span><span class="what">No attempt recorded</span><button class="act" data-group="untested">Show</button></div>`);
+    rows.push(`<div class="need"><span class="id mono"><span class="dot" style="background:${colors.untested}"></span>${fresh} untested</span><span class="what">No attempts</span><button class="act" data-group="untested">Show</button></div>`);
   }
   return rows.length ? rows.join('') : '<div class="empty">Nothing needs your attention</div>';
 }
