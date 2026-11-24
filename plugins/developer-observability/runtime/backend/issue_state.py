@@ -783,7 +783,8 @@ def _fill_round_starts(rows, opened_by_pr=None):
     return result
 
 
-def build_issues(project, pr="current", scope="now", from_time=None, to_time=None, state=None, state_dir=None, round_id=None, run=None):
+def build_issues(project, pr="current", scope="now", from_time=None, to_time=None, state=None, state_dir=None, round_id=None, run=None,
+                 issue_id=None, include=None):
     """Read trackers and job events and return the shared UI/MCP issue contract."""
     try:
         from .round_view import (_fold_jobs, _history_for_cycle, _iter_trackers, _plan_groups,
@@ -1014,7 +1015,13 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
                           "lane": lane, "needs_you": computed in {"blocked", "regressed"}, "events": events,
                           "summary": strip_paths(finding.get("summary") or finding.get("description") or "No summary recorded."),
                           "impact": finding.get("impact"), "done_when": finding.get("done_when"),
-                          "jobs": issue_jobs, "raw": finding, "pr": tracker_pr})
+                          "jobs": issue_jobs, "raw": finding, "pr": tracker_pr,
+                          "_lane_plan": ({"lane": group.get("id"),
+                                          "at": group.get("plan_recorded_at") or group.get("recorded_at") or plan.get("recorded_at"),
+                                          "what": group.get("reason") or group.get("name"),
+                                          "round": lane_round,
+                                          "round_start": iso((spans.get(lane_round) or (None, None))[0]) if lane_round in spans else None}
+                                         if group else None)})
             prior_findings[identifier] = finding
 
     catalog = built
@@ -1117,10 +1124,12 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
                 present = select_scope(present, scope="all", state=state)
         selected = present
 
+    trail_end = None
     if scope_round is not None and selected and not timed and selected_run is None:
         focus_rounds = [row for row in all_rounds if str(row.get("pr")) == str(focus_pr) and row.get("round") == scope_round]
         round_row = focus_rounds[0] if focus_rounds else None
         if round_row and not round_row.get("live"):
+            trail_end = instant(round_row.get("ended_at"))
             later_pr = None if str(focus_pr) == str(latest_pr) else latest_pr
             later_ids = {issue.get("id") for issue in catalog if str(issue.get("pr")) == str(later_pr)} if later_pr else set()
             merged = bool(merged_by_pr.get(str(focus_pr)))
@@ -1193,6 +1202,56 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
         count_payload["tested"] = len(selected)
         count_payload["fixed"] = sum(issue.get("window_reason") == "fixed" for issue in selected)
         count_payload["inconclusive"] = sum(issue.get("window_reason") == "inconclusive" for issue in selected)
+    try:
+        from .issue_trail import decorate, parse_include, read_trail_events, rollup
+    except ImportError:
+        from issue_trail import decorate, parse_include, read_trail_events, rollup
+    includes = parse_include(include)
+    detail = issue_id not in (None, "")
+    if detail:
+        wanted = str(issue_id)
+        picked = [issue for issue in selected if issue.get("id") == wanted]
+        if not picked:
+            picked = [issue for issue in _dedupe_latest_pr(catalog) if issue.get("id") == wanted]
+        if not picked:
+            raise ValueError("invalid_issue: no issue with that id in this project")
+        selected = [dict(picked[0])]
+        includes = sorted(set(includes) | {"trail", "jobs"}, key=("trail", "jobs", "rollup").index)
+    selected = [{key: value for key, value in issue.items()} for issue in selected]
+    rollup_rows = None
+    if includes:
+        emitted = read_trail_events(state_dir)
+
+        def tracker_for(issue):
+            return f"{str(issue.get('pr')).lstrip('#')}.json"
+
+        def merged_for(issue):
+            return (merged_by_pr.get(str(issue.get("pr"))) or {}).get("merged_at")
+
+        def lane_plan_for(issue, linked):
+            hint = issue.get("_lane_plan") or {}
+            lane = hint.get("lane")
+            if not lane:
+                return None
+            if hint.get("at"):
+                return {"lane": lane, "at": hint["at"], "source": f"{lane} plan recorded_at", "what": hint.get("what")}
+            starts = [job.get("started_at") or job.get("at") for job, _ in linked
+                      if job.get("group_id") == lane and instant(job.get("started_at") or job.get("at"))]
+            if starts:
+                return {"lane": lane, "at": min(starts, key=instant), "source": f"first job on lane {lane}", "what": hint.get("what")}
+            if hint.get("round_start"):
+                return {"lane": lane, "at": hint["round_start"], "source": f"R{hint.get('round')} plan start", "what": hint.get("what")}
+            return None
+
+        decorate(selected, jobs, emitted, tracker_for, lane_plan_for, merged_for, includes, end_at=trail_end, now=now)
+        if "rollup" in includes:
+            ordered = sorted({str(issue.get("pr")) for issue in catalog}, key=_pr_key)
+            focus = str(focus_pr if not timed else (requested_pr or latest_pr))
+            wanted_prs = [value for value in ordered if _pr_key(value) <= _pr_key(focus)][-2:][::-1]
+            issue_sets = {value: [issue for issue in catalog if str(issue.get("pr")) == value] for value in wanted_prs}
+            rollup_rows = rollup(issue_sets, all_rounds, jobs, emitted, tracker_for, lane_plan_for, merged_for, now=now)
+    for issue in selected:
+        issue.pop("_lane_plan", None)
     return {"schema_version": 1, "project": project, "pr": display_pr, "cycle": current_tracking.get("cycle"),
             "round": display_round, "round_started_at": current_tracking.get("round_started_at"),
             "pull_request": ({**pull, "opened_at": pull.get("opened_at")} if pull else None),
@@ -1210,6 +1269,8 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
             "gate": {"verified": verification.get("fixed") if isinstance(verification.get("fixed"), int) else sum(issue["state"] == "resolved" for issue in selected if not timed),
                      "threshold": threshold,
                      "threshold_source": "stored" if threshold is not None else None},
+            "include": includes,
+            **({"rollup": rollup_rows} if rollup_rows is not None else {}),
             "issues": selected}
 
 

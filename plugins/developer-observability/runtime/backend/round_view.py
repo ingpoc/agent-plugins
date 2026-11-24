@@ -292,6 +292,10 @@ def find_tracker(project, pr=None, state_dir=None, prefer_lanes=None):
     return max(matches, key=_tracker_sort_key)
 
 
+# Issue trail events share events.jsonl but are not job lifecycle rows (see issue_trail.py).
+_TRAIL_EVENT_NAMES = frozenset({"issue_failed_first", "root_cause_identified", "fix_verified"})
+
+
 def _fold_jobs(state_dir=None):
     """Fold every job in events.jsonl by job_id. Includes incomplete jobs. Read only."""
     root = _state_root(state_dir)
@@ -312,7 +316,7 @@ def _fold_jobs(state_dir=None):
             if not isinstance(item, dict):
                 continue
             job_id = item.get("job_id")
-            if not job_id:
+            if not job_id or item.get("event") in _TRAIL_EVENT_NAMES:
                 continue
             folded[job_id] = {**folded.get(job_id, {}), **item}
         for item in folded.values():

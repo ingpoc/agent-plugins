@@ -60,7 +60,7 @@ def iter_events(stats=None, state_dir=None):
                     if event_time is not None and (latest_time is None or event_time > latest_time):
                         latest_at, latest_time = at, event_time
                 job_id = item.get("job_id")
-                if job_id:
+                if job_id and item.get("event") not in {"issue_failed_first", "root_cause_identified", "fix_verified"}:
                     folded[job_id] = {**folded.get(job_id, {}), **item}
             jobs.extend({**item, "event": "incomplete"} if item.get("event") == "start" else item
                         for item in folded.values())
