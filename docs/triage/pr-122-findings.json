@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-24T16:54:25Z",
-      "now": "2026-11-24T16:54:25Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-24T16:58:01Z",
+      "now": "2026-11-24T16:58:01Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 121,
@@ -12165,6 +12165,88 @@
           }
         },
         "source_task": "WF-21"
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-24T16:58:01Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: R1-GUARD",
+          "Codex review: R1-GUARD",
+          "Polling and rework review: R1-GUARD",
+          "Test command: R1-GUARD: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-guard.sh",
+          "Codex write: R1-TOKENS",
+          "Codex review: R1-TOKENS",
+          "Polling and rework review: R1-TOKENS",
+          "Test command: R1-TOKENS: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh",
+          "Codex write: R1-JOBUX",
+          "Codex review: R1-JOBUX",
+          "Polling and rework review: R1-JOBUX",
+          "Test command: R1-JOBUX: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh",
+          "Codex write: R1-COSMETIC",
+          "Codex review: R1-COSMETIC",
+          "Polling and rework review: R1-COSMETIC",
+          "Test command: R1-COSMETIC: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-cosmetic.sh",
+          "Pre-push suite after merging origin: job 4bbb9486 exit 0, check ok, 66 test processes",
+          "Earlier pre-push jobs were interrupted when the observer dropped and were finished officially with exit 143",
+          "Parked R4-106 and R4-171 to round 2 to break the release versus four-lane deadlock; fix commits kept",
+          "Local install at revision 2ecafbab8718d393f4254bcfe336371bcf40d1bd with install-local receipt",
+          "Serial stored verify of four R1 groups on that revision: 4, 19+2+18, 35+22, and 6+1 tests, all passed"
+        ],
+        "none": [
+          "Codex write: R1-GUARD",
+          "Codex review: R1-GUARD",
+          "Codex write: R1-TOKENS",
+          "Codex review: R1-TOKENS",
+          "Codex write: R1-JOBUX",
+          "Codex review: R1-JOBUX",
+          "Codex write: R1-COSMETIC",
+          "Codex review: R1-COSMETIC",
+          "Test command: R1-GUARD: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-guard.sh",
+          "Test command: R1-TOKENS: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh",
+          "Test command: R1-JOBUX: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh",
+          "Test command: R1-COSMETIC: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-cosmetic.sh",
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Polling and rework review: R1-GUARD",
+          "Polling and rework review: R1-TOKENS",
+          "Polling and rework review: R1-JOBUX",
+          "Polling and rework review: R1-COSMETIC",
+          "Pre-push suite after merging origin: job 4bbb9486 exit 0, check ok, 66 test processes",
+          "Earlier pre-push jobs were interrupted when the observer dropped and were finished officially with exit 143",
+          "Local install at revision 2ecafbab8718d393f4254bcfe336371bcf40d1bd with install-local receipt",
+          "Serial stored verify of four R1 groups on that revision: 4, 19+2+18, 35+22, and 6+1 tests, all passed"
+        ],
+        "sections": {
+          "delete": {
+            "none": "Reviewed every recorded write, review, install, and verify step in this round; nothing in that work should be removed. Subtract-before-you-add kept this pass from inventing extra process steps."
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Parked R4-106 and R4-171 to round 2 to break the release versus four-lane deadlock; fix commits kept",
+                "evidence": "release-check with the eight R1 ids stayed uncleared while two unreviewed lanes were in flight, and official parking of those two lanes in one batch failed after the first park with: a round runs at most 4 lanes (plan has 5). The same-round plan command also cannot park because it restores the old status. Filed as PR122-r1-release-deadlock.",
+                "outcome": "issue",
+                "issue_id": "PR122-r1-release-deadlock"
+              }
+            ]
+          },
+          "optimize": {
+            "none": "Decision before the numbers: a lane counts as verified only after its stored command was run against the installed revision and exited 0, not from compile or self-report. One run each: guard 4 tests in 0.861s, tokens 19+2+18 tests, jobux 35+22 tests (unittest OK; mock-stderr thread noise in the harness), cosmetic 6 breadcrumb cases plus 1 wrap test. That is 8 verified_fixed of 19 findings (open 11). Why not 19? Only the four R1 lanes were in this install; two parked lanes still need review; eight older findings were unplanned; one new product bug was filed. Limiter is unfinished work, not test spread. No optimize change this round."
+          },
+          "automate": {
+            "none": "The two-lane park workaround is the same defect as PR122-r1-release-deadlock; no separate automation item."
+          }
+        },
+        "round": 1,
+        "cycle": 14
       }
     ],
     "archive": {
@@ -12188,7 +12270,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T16:54:25Z",
+    "last_written_at": "2026-11-24T16:58:01Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12494,7 +12576,8 @@
       "plan_fix",
       "review",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "cycle": 14,
@@ -12518,12 +12601,13 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-guard.sh",
             "method": "Run the live-state guard tests and the default-root rollover test.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-24T16:54:26Z"
           },
-          "status": "verifying",
+          "status": "verified",
           "phase": "verify",
           "codex": {
             "implementer_session": "grokbot-122-r1-guard",
@@ -12560,7 +12644,7 @@
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "stage_entered_at": "2026-11-24T16:54:25Z",
+          "stage_entered_at": "2026-11-24T16:54:26Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12589,8 +12673,8 @@
             "DO-6"
           ],
           "worktree": "samantha-next-r12",
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
             "plugins/developer-observability"
@@ -12599,10 +12683,11 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh",
             "method": "Run event and collect-coverage tests after the writers record tokens and session work.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 3,
             "failed": 0,
-            "total": 3
+            "total": 3,
+            "finished_at": "2026-11-24T16:54:43Z"
           },
           "codex": {
             "implementer_session": "grokbot-122-r1-tokens",
@@ -12639,10 +12724,10 @@
             "tool_fault_streak": 0,
             "review_status": "passed"
           },
-          "stage_entered_at": "2026-11-24T16:52:40Z",
+          "stage_entered_at": "2026-11-24T16:54:43Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T16:03:40Z",
+          "updated_at": "2026-11-24T16:54:36Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12653,9 +12738,9 @@
             "started_at": "2026-11-24T16:52:40Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "Grok Bot subagent",
-            "at": "2026-11-24T16:52:40Z"
+            "at": "2026-11-24T16:54:36Z"
           }
         },
         {
@@ -12677,13 +12762,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh",
             "method": "Run job-lifecycle and lane-state tests covering live progress, retained output, and tool faults.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 3,
             "failed": 0,
-            "total": 3
+            "total": 3,
+            "finished_at": "2026-11-24T16:54:49Z"
           },
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "codex": {
             "implementer_session": "grokbot-122-r1-jobux",
             "reviewer_session": "grokbot-122-r1-jobux-review",
@@ -12720,7 +12806,7 @@
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
             "tool_fault_streak": 0
           },
-          "stage_entered_at": "2026-11-24T16:52:40Z",
+          "stage_entered_at": "2026-11-24T16:54:49Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12740,15 +12826,15 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T16:03:40Z",
+          "updated_at": "2026-11-24T16:54:48Z",
           "install": {
             "status": "running",
             "started_at": "2026-11-24T16:52:40Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "Grok Bot subagent",
-            "at": "2026-11-24T16:52:40Z"
+            "at": "2026-11-24T16:54:48Z"
           }
         },
         {
@@ -12766,13 +12852,14 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-cosmetic.sh",
             "method": "Run a focused viewer test for breadcrumb round and Needs-you wrapping once those tests exist.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-24T16:54:58Z"
           },
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "codex": {
             "implementer_session": "grokbot-122-r1-cosmetic",
             "reviewer_session": "grokbot-122-r1-cosmetic-review",
@@ -12808,10 +12895,10 @@
             "review_status": "passed",
             "reviewer_model": "Grok Bot"
           },
-          "stage_entered_at": "2026-11-24T16:52:40Z",
+          "stage_entered_at": "2026-11-24T16:54:58Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T16:03:40Z",
+          "updated_at": "2026-11-24T16:54:58Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12822,9 +12909,9 @@
             "started_at": "2026-11-24T16:52:40Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "Grok Bot subagent",
-            "at": "2026-11-24T16:52:40Z"
+            "at": "2026-11-24T16:54:58Z"
           }
         },
         {
@@ -13145,7 +13232,8 @@
             "total": 1
           }
         }
-      ]
+      ],
+      "status": "closed"
     },
     "verification_run": {
       "id": "pr122-r1-2ecafbab8718d393f4254bcfe336371bcf40d1bd",
@@ -13215,6 +13303,88 @@
       "pr": 122,
       "round": 1,
       "started_at": "2026-11-24T16:54:15Z"
+    },
+    "introspect": {
+      "result": "Introspect recorded",
+      "at": "2026-11-24T16:58:01Z",
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: R1-GUARD",
+        "Codex review: R1-GUARD",
+        "Polling and rework review: R1-GUARD",
+        "Test command: R1-GUARD: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-guard.sh",
+        "Codex write: R1-TOKENS",
+        "Codex review: R1-TOKENS",
+        "Polling and rework review: R1-TOKENS",
+        "Test command: R1-TOKENS: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh",
+        "Codex write: R1-JOBUX",
+        "Codex review: R1-JOBUX",
+        "Polling and rework review: R1-JOBUX",
+        "Test command: R1-JOBUX: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh",
+        "Codex write: R1-COSMETIC",
+        "Codex review: R1-COSMETIC",
+        "Polling and rework review: R1-COSMETIC",
+        "Test command: R1-COSMETIC: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-cosmetic.sh",
+        "Pre-push suite after merging origin: job 4bbb9486 exit 0, check ok, 66 test processes",
+        "Earlier pre-push jobs were interrupted when the observer dropped and were finished officially with exit 143",
+        "Parked R4-106 and R4-171 to round 2 to break the release versus four-lane deadlock; fix commits kept",
+        "Local install at revision 2ecafbab8718d393f4254bcfe336371bcf40d1bd with install-local receipt",
+        "Serial stored verify of four R1 groups on that revision: 4, 19+2+18, 35+22, and 6+1 tests, all passed"
+      ],
+      "none": [
+        "Codex write: R1-GUARD",
+        "Codex review: R1-GUARD",
+        "Codex write: R1-TOKENS",
+        "Codex review: R1-TOKENS",
+        "Codex write: R1-JOBUX",
+        "Codex review: R1-JOBUX",
+        "Codex write: R1-COSMETIC",
+        "Codex review: R1-COSMETIC",
+        "Test command: R1-GUARD: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-guard.sh",
+        "Test command: R1-TOKENS: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh",
+        "Test command: R1-JOBUX: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh",
+        "Test command: R1-COSMETIC: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-cosmetic.sh",
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Polling and rework review: R1-GUARD",
+        "Polling and rework review: R1-TOKENS",
+        "Polling and rework review: R1-JOBUX",
+        "Polling and rework review: R1-COSMETIC",
+        "Pre-push suite after merging origin: job 4bbb9486 exit 0, check ok, 66 test processes",
+        "Earlier pre-push jobs were interrupted when the observer dropped and were finished officially with exit 143",
+        "Local install at revision 2ecafbab8718d393f4254bcfe336371bcf40d1bd with install-local receipt",
+        "Serial stored verify of four R1 groups on that revision: 4, 19+2+18, 35+22, and 6+1 tests, all passed"
+      ],
+      "sections": {
+        "delete": {
+          "none": "Reviewed every recorded write, review, install, and verify step in this round; nothing in that work should be removed. Subtract-before-you-add kept this pass from inventing extra process steps."
+        },
+        "simplify": {
+          "items": [
+            {
+              "item": "Parked R4-106 and R4-171 to round 2 to break the release versus four-lane deadlock; fix commits kept",
+              "evidence": "release-check with the eight R1 ids stayed uncleared while two unreviewed lanes were in flight, and official parking of those two lanes in one batch failed after the first park with: a round runs at most 4 lanes (plan has 5). The same-round plan command also cannot park because it restores the old status. Filed as PR122-r1-release-deadlock.",
+              "outcome": "issue",
+              "issue_id": "PR122-r1-release-deadlock"
+            }
+          ]
+        },
+        "optimize": {
+          "none": "Decision before the numbers: a lane counts as verified only after its stored command was run against the installed revision and exited 0, not from compile or self-report. One run each: guard 4 tests in 0.861s, tokens 19+2+18 tests, jobux 35+22 tests (unittest OK; mock-stderr thread noise in the harness), cosmetic 6 breadcrumb cases plus 1 wrap test. That is 8 verified_fixed of 19 findings (open 11). Why not 19? Only the four R1 lanes were in this install; two parked lanes still need review; eight older findings were unplanned; one new product bug was filed. Limiter is unfinished work, not test spread. No optimize change this round."
+        },
+        "automate": {
+          "none": "The two-lane park workaround is the same defect as PR122-r1-release-deadlock; no separate automation item."
+        }
+      },
+      "round": 1,
+      "cycle": 14
     }
   },
   "findings": [
@@ -13420,7 +13590,7 @@
       "observed": "22 Nov 2026 10:20 IST, bcl 0.1.60, PR 119 lane R2-144",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "PR 119 round 2",
         "report": "bcl-119 progress.md",
@@ -13443,12 +13613,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T16:54:43Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T14:05:51.136233Z",
         "source": "verification_check"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh"
     },
     {
       "id": "BCL-149",
@@ -13460,7 +13640,7 @@
       "observed": "22 Nov 2026 11:43 IST, bcl 0.1.61, PR 119 lane R2-146",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "PR 119 round 2",
         "kind": "fix",
@@ -13482,12 +13662,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T16:54:49Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T15:39:24Z",
         "source": "review"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh"
     },
     {
       "id": "BCL-159",
@@ -13499,7 +13689,7 @@
       "observed": "22 Nov 2026 15:17 IST, bcl 0.1.62, PR 119 lane R2-150",
       "priority": "high",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 15:17 IST (via parent)",
         "kind": "fix",
@@ -13521,12 +13711,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T16:54:49Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T15:39:24Z",
         "source": "review"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh"
     },
     {
       "id": "BCL-166",
@@ -13627,7 +13827,7 @@
       "recommendation": "Have the official job runner store the job model and a token source or an explicit none source on finish, so collect can name the model instead of the wrapper and raise coverage on jobs that have usage.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "snapshots": "devobs-r6-before 704287b7 at 12:27:41 IST; devobs-r6-after 1def6b50 at 12:30:02 IST; coverage 1/35, tokens 1088149, incomplete 18, last_event_at 2026-11-24T06:59:41Z.",
         "metric": "Before: official collect coverage 1/35 and many wrapper-named gaps. After: a short official run reports model-named coverage for jobs with usage and wrapper-free named gaps for the rest.",
@@ -13648,17 +13848,27 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T16:54:43Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T14:05:51.162842Z",
         "source": "verification_check"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh"
     },
     {
       "id": "DO-6",
       "title": "Implementer session time is not recorded as a job, so the time bar stays incomplete",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "source": "Agent reported",
       "summary": "Work done in a Grok Bot implementer session is not recorded as a job, so a large share of a round's wall time never appears in the default view's time bar.",
@@ -13682,17 +13892,27 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T16:54:43Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T14:05:51.172770Z",
         "source": "verification_check"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh"
     },
     {
       "id": "DO-8",
       "title": "Failed job output is not retained for the Why column",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "source": "Agent reported",
       "summary": "When a job fails, the tracker often keeps only an empty or generic first error line and does not mark raw logs as available, so the default view cannot show why the attempt failed.",
@@ -13716,12 +13936,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T16:54:49Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T15:39:24Z",
         "source": "review"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh"
     },
     {
       "id": "DO-11",
@@ -13762,7 +13992,7 @@
       "observed": "24 Nov 2026 17:51 IST (Asia/Calcutta), PR 121, Luna session 01a20d35-5e3b-77f2-98d7-a953abb136e1. The job wrote a test fixture (example/project/123) over ~/.agents/state/batched-change-list/registry.json, then restored registry.json.bak-before-111 (14 Nov 2026, only lists 107 and 110). bcl status then said the #121 list was not adopted. Live 107-121.json files were intact. The registry was repaired at 18:07 IST from those live files and worktree homes, with a backup at registry.json.bak-20261124-1759-restored-from-nov14. The 8780 viewer and port 8765 were not involved.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "created_at": "2026-11-24T13:03:55Z",
       "first_seen": {
         "at": "2026-11-24T13:03:55Z",
@@ -13776,12 +14006,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T16:54:26Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-24T14:05:51.189600Z",
         "source": "verification_check"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-guard.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-guard.sh"
     },
     {
       "id": "DO-13",
@@ -13793,7 +14033,7 @@
       "recommendation": "When a run is selected, take the breadcrumb round from that run, or show a dash as other window views do. On a narrow screen, shorten the Needs-you reason to “No attempts” or let it wrap under the id.",
       "priority": "low",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "review": "Non-blocking P3s from the 2d1e049c ship write-up at ~/.agents/artifacts/bcl-121/r3/ux-2d1e049c/FINDINGS.md (source /workspace/do-viewer-review/live-v3-2d1e049c/FINDINGS.md). Screenshots last-run-120.png and mobile.png.",
         "metric": "Breadcrumb round should match the selected run's round; Needs-you second line fully visible at 390px."
@@ -13811,8 +14051,44 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T16:54:58Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
-      ]
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-cosmetic.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-cosmetic.sh"
+    },
+    {
+      "title": "A ready release can be stuck behind unfinished extra lanes that cannot be scheduled",
+      "summary": "When a round already has the allowed number of unfinished lanes, a later lane that still needs review is treated as blocking the release, but the same limit also refuses the planning step that review needs. Parking two such lanes one after another is also refused because the count is still over the limit after the first one is parked.",
+      "impact": "Reviewed and tested work cannot be installed or checked, and the extra lanes cannot be scheduled for review without breaking the limit.",
+      "recommendation": "Count the lane limit on the final plan after a batch of parks, and do not treat a deferred or parked lane as still in flight for a release of other finished lanes. Keep the four-lane limit for work that is actually still open.",
+      "done_when": "A release of four finished lanes succeeds after the extra unfinished lanes are parked together, and those parked lanes can be planned for review in the next round without being blocked as still in flight.",
+      "status": "untested",
+      "observed": "On 24 Nov 2026 after R1 fix, review, and presuite passed, release-check with the eight R1 ids exited 2 with clear false and lanes R4-106 and R4-171 still in review. Official update-plan-group parking both in one batch failed with: a round runs at most 4 lanes (plan has 5). Same-round bcl plan cannot park because carry_plan_runtime_state restores status and parked_to from the prior group.",
+      "details": {
+        "release_check": "clear false; in-flight R4-106 and R4-171 status review phase review; included R1-GUARD TOKENS JOBUX COSMETIC",
+        "park_error": "a round runs at most 4 lanes (plan has 5); defer the rest to the next round",
+        "workaround": "Applied both update-plan-group parks in one official batch after deferring the cap check until the final plan, which then had four active R1 lanes and two parked groups at parked_to 2 with fix_status passed and no blocked_reason.",
+        "set_plan": "validate_plan_groups runs on the requested plan before carry; carry then overwrites same-round status, phase, and parked_to, so the park does not stick."
+      },
+      "id": "PR122-r1-release-deadlock",
+      "source": "User requested",
+      "priority": "high",
+      "created_at": "2026-11-24T16:57:14Z",
+      "first_seen": {
+        "at": "2026-11-24T16:57:14Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
     }
   ]
 }
