@@ -11764,9 +11764,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T08:10:14Z",
-      "now": "2026-11-24T08:10:14Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T08:11:52Z",
+      "now": "2026-11-24T08:11:52Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13633,8 +13633,8 @@
             "DO-4"
           ],
           "worktree": "bcl120-r7-doview",
-          "status": "review",
-          "phase": "review",
+          "status": "running",
+          "phase": "fix",
           "files": [
             "plugins/developer-observability/runtime/viewer.py",
             "plugins/developer-observability/tests/test_viewer.py",
@@ -13655,7 +13655,7 @@
             }
           ],
           "updated_at": "2026-11-24T07:18:47Z",
-          "stage_entered_at": "2026-11-24T08:09:46Z",
+          "stage_entered_at": "2026-11-24T08:11:52Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13664,22 +13664,21 @@
           },
           "codex": {
             "job": {
-              "id": "ab16229495254e5c90da365d8309fa77",
-              "phase": "review",
-              "started_at": "2026-11-24T08:10:14Z",
-              "command": "run-record-r7-doview2-review.sh",
-              "heartbeat_at": "2026-11-24T08:10:14Z",
+              "id": "c43c00fb6e6d438ea1f8926e25b37c17",
+              "phase": "fix",
+              "started_at": "2026-11-24T08:11:52Z",
+              "command": "run-record-r7-doview-fix.sh",
+              "heartbeat_at": "2026-11-24T08:11:52Z",
               "plan_sha256": "01f22297541454d2413c930b3e2ea6a75951463db517e35f8429ff5aa78ebd99",
               "worktree": "bcl120-r7-doview",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "model": "Grok Bot inline fix (Astra 6.2 and Terra 6.1 unavailable)",
               "cycle": 12,
               "round": 7
             },
             "tool_fault_streak": 0,
-            "fix_status": "passed",
+            "fix_status": "running",
             "implementer_session": "grokbot-r7-doview",
-            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
-            "review_status": "running"
+            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           }
         },
         {
@@ -14448,7 +14447,7 @@
       "round": 6,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T08:10:14Z",
+    "last_written_at": "2026-11-24T08:11:52Z",
     "fix_order": {
       "ids": [
         "DO-4",
