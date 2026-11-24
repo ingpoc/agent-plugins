@@ -11209,6 +11209,226 @@
           "at": "2026-11-24T18:35:47Z"
         },
         "ended_at": "2026-11-24T18:35:47Z"
+      },
+      {
+        "id": "pr122-r4-4031c6faf6456d381d8852ae0557a2ab979751b6",
+        "build": "batched-change-list 0.1.74 from samantha-next-r12",
+        "revision": "4031c6faf6456d381d8852ae0557a2ab979751b6",
+        "installed_at": "2026-11-24T18:36:44Z",
+        "install_evidence": "bcl install-local receipt /Users/gurusharan/.agents/artifacts/bcl-122/r4/install-local-r4.txt: bcl install-local: revision 4031c6faf6456d381d8852ae0557a2ab979751b6 /Users/gurusharan/.agents/plugins/batched-change-list (70 files, sha256 75d30ccef01b5356ac197204ad476dfbfcc452b574072f5194a8af7024fbe701) /Users/gurusharan/.agents/skills/batched-change-list (63 files, sha256 e1533e109f28c82430a817df87a6b2c7c19e2180d4ac581d839739b2d5ff2434) /Users/gurusharan/.cursor/plugins/cache/ingpoc-agent-plugins/batched-change-list/0.1.74 (70 files, sha256 75d30ccef01b5356ac197204ad476dfbfcc452b574072f5194a8af7024fbe701) /Users/gurusharan/.cursor/plugins/cache/ingpoc-agent-plugins/batched-change-list/4031c6faf6456d381d8852ae0557a2ab979751b6 (70 files, sha256 75d30ccef01b5356ac197204ad476dfbfcc452b574072f5194a8af7024fbe701) /Users/gurusharan/.codex/plugins/cache/ingpoc-agent-plugins/batched-change-list/0.1.74 (70 files, sha256 75d30ccef01b5356ac197204ad476dfbfcc452b574072f5194a8af7024fbe701) /Users/gurusharan/.codex/plugins/cache/ingpoc-agent-plugins/batched-change-list/4031c6faf6456d381d8852ae0557a2ab979751b6 (70 files, sha256 75d30ccef01b5356ac197204ad476dfbfcc452b574072f5194a8af7024fbe701)",
+        "cycle": 14,
+        "status": "complete",
+        "checks": {
+          "BCL-106": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "BCL-108": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "BCL-120": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "BCL-125": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "BCL-139": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "BCL-144": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "BCL-147": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "BCL-149": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "BCL-159": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "BCL-166": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "BCL-171": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "DO-1": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "PR120-r6-collect-job-coverage": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "DO-6": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "DO-8": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "DO-11": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "PR121-r2-live-state-guard": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "DO-13": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "PR122-r1-release-deadlock": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          },
+          "PR122-parked-backlog": {
+            "state": "inconclusive",
+            "started_at": "2026-11-24T18:48:49Z",
+            "stopped": true,
+            "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+            "observed_at": "2026-11-24T18:48:49Z",
+            "updated_at": "2026-11-24T18:48:49Z",
+            "finished_at": "2026-11-24T18:48:49Z"
+          }
+        },
+        "run_id": "pr122-r4-4031c6faf6456d381d8852ae0557a2ab979751b6",
+        "pr": 122,
+        "round": 4,
+        "started_at": "2026-11-24T18:36:44Z",
+        "stopped": {
+          "reason": "R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "at": "2026-11-24T18:48:49Z"
+        },
+        "ended_at": "2026-11-24T18:48:49Z"
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -13015,7 +13235,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T18:48:50Z",
+    "last_written_at": "2026-11-24T18:49:00Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -15286,224 +15506,79 @@
       ]
     },
     "verification_run": {
-      "id": "pr122-r4-4031c6faf6456d381d8852ae0557a2ab979751b6",
+      "id": "pr122-r5-acb790bb4837ef5b93bf3e824808ac032fb7efef",
       "build": "batched-change-list 0.1.74 from samantha-next-r12",
-      "revision": "4031c6faf6456d381d8852ae0557a2ab979751b6",
-      "installed_at": "2026-11-24T18:36:44Z",
-      "install_evidence": "bcl install-local receipt /Users/gurusharan/.agents/artifacts/bcl-122/r4/install-local-r4.txt: bcl install-local: revision 4031c6faf6456d381d8852ae0557a2ab979751b6 /Users/gurusharan/.agents/plugins/batched-change-list (70 files, sha256 75d30ccef01b5356ac197204ad476dfbfcc452b574072f5194a8af7024fbe701) /Users/gurusharan/.agents/skills/batched-change-list (63 files, sha256 e1533e109f28c82430a817df87a6b2c7c19e2180d4ac581d839739b2d5ff2434) /Users/gurusharan/.cursor/plugins/cache/ingpoc-agent-plugins/batched-change-list/0.1.74 (70 files, sha256 75d30ccef01b5356ac197204ad476dfbfcc452b574072f5194a8af7024fbe701) /Users/gurusharan/.cursor/plugins/cache/ingpoc-agent-plugins/batched-change-list/4031c6faf6456d381d8852ae0557a2ab979751b6 (70 files, sha256 75d30ccef01b5356ac197204ad476dfbfcc452b574072f5194a8af7024fbe701) /Users/gurusharan/.codex/plugins/cache/ingpoc-agent-plugins/batched-change-list/0.1.74 (70 files, sha256 75d30ccef01b5356ac197204ad476dfbfcc452b574072f5194a8af7024fbe701) /Users/gurusharan/.codex/plugins/cache/ingpoc-agent-plugins/batched-change-list/4031c6faf6456d381d8852ae0557a2ab979751b6 (70 files, sha256 75d30ccef01b5356ac197204ad476dfbfcc452b574072f5194a8af7024fbe701)",
+      "revision": "acb790bb4837ef5b93bf3e824808ac032fb7efef",
+      "installed_at": "2026-11-24T18:49:00Z",
+      "install_evidence": "bcl install-local receipt /Users/gurusharan/.agents/artifacts/bcl-122/r4/install-local-r5.txt: bcl install-local: revision acb790bb4837ef5b93bf3e824808ac032fb7efef /Users/gurusharan/.agents/plugins/batched-change-list (70 files, sha256 a63bfa667ca0de5b8de5f4269f1aaaecf42e09e5fe5d6db3a249045276e9e39c) /Users/gurusharan/.agents/skills/batched-change-list (63 files, sha256 89ecc1ecef38ce0addb4527077bdd39aa1e027b85679e4003d74744d003ef195) /Users/gurusharan/.cursor/plugins/cache/ingpoc-agent-plugins/batched-change-list/0.1.74 (70 files, sha256 a63bfa667ca0de5b8de5f4269f1aaaecf42e09e5fe5d6db3a249045276e9e39c) /Users/gurusharan/.cursor/plugins/cache/ingpoc-agent-plugins/batched-change-list/acb790bb4837ef5b93bf3e824808ac032fb7efef (70 files, sha256 a63bfa667ca0de5b8de5f4269f1aaaecf42e09e5fe5d6db3a249045276e9e39c) /Users/gurusharan/.codex/plugins/cache/ingpoc-agent-plugins/batched-change-list/0.1.74 (70 files, sha256 a63bfa667ca0de5b8de5f4269f1aaaecf42e09e5fe5d6db3a249045276e9e39c) /Users/gurusharan/.codex/plugins/cache/ingpoc-agent-plugins/batched-change-list/acb790bb4837ef5b93bf3e824808ac032fb7efef (70 files, sha256 a63bfa667ca0de5b8de5f4269f1aaaecf42e09e5fe5d6db3a249045276e9e39c)",
       "cycle": 14,
-      "status": "complete",
+      "status": "active",
       "checks": {
         "BCL-106": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "BCL-108": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "BCL-120": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "BCL-125": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "BCL-139": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "BCL-144": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "BCL-147": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "BCL-149": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "BCL-159": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "BCL-166": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "BCL-171": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "DO-1": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "PR120-r6-collect-job-coverage": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "DO-6": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "DO-8": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "DO-11": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "PR121-r2-live-state-guard": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "DO-13": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "PR122-r1-release-deadlock": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         },
         "PR122-parked-backlog": {
-          "state": "inconclusive",
-          "started_at": "2026-11-24T18:48:49Z",
-          "stopped": true,
-          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-          "observed_at": "2026-11-24T18:48:49Z",
-          "updated_at": "2026-11-24T18:48:49Z",
-          "finished_at": "2026-11-24T18:48:49Z"
+          "state": "pending"
         }
       },
-      "run_id": "pr122-r4-4031c6faf6456d381d8852ae0557a2ab979751b6",
+      "run_id": "pr122-r5-acb790bb4837ef5b93bf3e824808ac032fb7efef",
       "pr": 122,
-      "round": 4,
-      "started_at": "2026-11-24T18:36:44Z",
-      "stopped": {
-        "reason": "R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
-        "at": "2026-11-24T18:48:49Z"
-      },
-      "ended_at": "2026-11-24T18:48:49Z"
+      "round": 5,
+      "started_at": "2026-11-24T18:49:00Z"
     },
     "introspect": {
       "result": "Introspect recorded",
