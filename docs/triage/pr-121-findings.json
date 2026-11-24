@@ -3,7 +3,8 @@
   "tracking": {
     "pull_request": {
       "label": "PR #121",
-      "url": "https://origin.cursor.com/gurusharan/agent-plugins/pull/121"
+      "url": "https://origin.cursor.com/gurusharan/agent-plugins/pull/121",
+      "opened_at": null
     },
     "worktree": "samantha-next-r11",
     "verification_history": [
@@ -10859,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T12:50:14Z",
-      "now": "2026-11-24T12:50:14Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-24T13:51:00Z",
+      "now": "2026-11-24T13:51:00Z — Install in progress"
     },
     "rollover": {
       "source_pr": 120,
@@ -12258,9 +12259,10 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T12:50:14Z",
+    "last_written_at": "2026-11-24T13:51:00Z",
     "fix_order": {
       "ids": [
+        "PR121-r2-live-state-guard",
         "BCL-110",
         "BCL-113",
         "PR120-r6-stale-job-finish",
@@ -12274,8 +12276,8 @@
         "BCL-139"
       ],
       "by": "Grok Bot",
-      "at": "2026-11-24T10:31:37Z",
-      "reason": "Status accuracy first, then tracker upkeep, observability data, and Introspect tests"
+      "at": "2026-11-24T13:04:06Z",
+      "reason": "P0: tests and coding jobs must not write the live registry; then status accuracy, tracker upkeep, observability data, and Introspect tests"
     },
     "fix_order_history": [
       {
@@ -12324,6 +12326,24 @@
         "by": "Grok Bot",
         "at": "2026-11-24T10:03:28Z",
         "reason": "Viewer polish first, then event stamps, then the gate count and parked-reason gaps"
+      },
+      {
+        "ids": [
+          "BCL-110",
+          "BCL-113",
+          "PR120-r6-stale-job-finish",
+          "BCL-160",
+          "BCL-94",
+          "BCL-115",
+          "BCL-124",
+          "DO-9",
+          "DO-10",
+          "BCL-120",
+          "BCL-139"
+        ],
+        "by": "Grok Bot",
+        "at": "2026-11-24T10:31:37Z",
+        "reason": "Status accuracy first, then tracker upkeep, observability data, and Introspect tests"
       }
     ],
     "carried_gates": [
@@ -12539,7 +12559,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "cycle": 13,
@@ -12549,8 +12570,8 @@
           "id": "R2-STATUS",
           "name": "Keep lane and verify status accurate",
           "label": "STATUS",
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "finding_ids": [
             "BCL-110",
             "BCL-113",
@@ -12564,7 +12585,7 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_job_lifecycle.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_lane_state.py"
           ],
-          "worktree": "bcl121-r2-status",
+          "worktree": "samantha-next-r11",
           "reason": "Status-accuracy first: writers must not strip gate state, a running job must survive edits, a successful finish must record, and a passing verify must record each finding.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh",
@@ -12574,24 +12595,24 @@
             "failed": 0,
             "total": 4
           },
-          "stage_entered_at": "2026-11-24T10:51:22Z",
+          "stage_entered_at": "2026-11-24T13:51:00Z",
           "failure_history": [],
           "plan_review_history": [],
           "codex": {
             "job": {
-              "id": "f62f0c1a2e4d471ea9141d69a52842c2",
-              "phase": "review",
-              "started_at": "2026-11-24T10:59:52Z",
-              "command": "run-record-status.sh",
-              "heartbeat_at": "2026-11-24T10:59:52Z",
-              "plan_sha256": "070550ceb1ce3e619ee7f4365571c0ffaaff488ca5c0c68f5d34b59080233f72",
-              "worktree": "bcl121-r2-status",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "id": "14f5c36f80874bd6adde4f0e0f5d4798",
+              "phase": "presuite",
+              "started_at": "2026-11-24T13:06:26Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T13:09:30Z",
+              "plan_sha256": "a683eedd9436598ae2e2d69d1f93341389e1956d9ce3aa59ef43392b9a94eee5",
+              "worktree": "samantha-next-r11",
+              "model": "check.py --jobs 6 --changed-since origin/main",
               "cycle": 13,
               "round": 2,
-              "pid": 31473,
+              "pid": 12204,
               "exit_code": 0,
-              "finished_at": "2026-11-24T10:59:52Z",
+              "finished_at": "2026-11-24T13:09:30Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -12602,14 +12623,28 @@
             "review_status": "passed",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           },
-          "updated_at": "2026-11-24T10:58:49Z"
+          "updated_at": "2026-11-24T10:58:49Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T13:09:30Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T13:51:00Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-24T13:51:00Z"
+          }
         },
         {
           "id": "R2-TRACKER",
           "name": "One viewer port per project and safe adopt paths",
           "label": "TRACKER",
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "finding_ids": [
             "BCL-94",
             "BCL-115",
@@ -12621,7 +12656,7 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_live_state.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_serve.py"
           ],
-          "worktree": "bcl121-r2-tracker",
+          "worktree": "samantha-next-r11",
           "reason": "Tracker upkeep that does not touch the job runner: one saved port per project, exclusive adopt, and delete the legacy viewer path.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh",
@@ -12631,24 +12666,24 @@
             "failed": 0,
             "total": 3
           },
-          "stage_entered_at": "2026-11-24T10:39:32Z",
+          "stage_entered_at": "2026-11-24T13:51:00Z",
           "failure_history": [],
           "plan_review_history": [],
           "codex": {
             "job": {
-              "id": "b94f680ea415486195e7785359050d3d",
-              "phase": "review",
-              "started_at": "2026-11-24T10:59:52Z",
-              "command": "run-record-tracker.sh",
-              "heartbeat_at": "2026-11-24T10:59:52Z",
-              "plan_sha256": "070550ceb1ce3e619ee7f4365571c0ffaaff488ca5c0c68f5d34b59080233f72",
-              "worktree": "bcl121-r2-tracker",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "id": "14f5c36f80874bd6adde4f0e0f5d4798",
+              "phase": "presuite",
+              "started_at": "2026-11-24T13:06:26Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T13:09:30Z",
+              "plan_sha256": "a683eedd9436598ae2e2d69d1f93341389e1956d9ce3aa59ef43392b9a94eee5",
+              "worktree": "samantha-next-r11",
+              "model": "check.py --jobs 6 --changed-since origin/main",
               "cycle": 13,
               "round": 2,
-              "pid": 31470,
+              "pid": 12204,
               "exit_code": 0,
-              "finished_at": "2026-11-24T10:59:52Z",
+              "finished_at": "2026-11-24T13:09:30Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -12659,14 +12694,28 @@
             "review_status": "passed",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           },
-          "updated_at": "2026-11-24T10:58:49Z"
+          "updated_at": "2026-11-24T10:58:49Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T13:09:30Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T13:51:00Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-24T13:51:00Z"
+          }
         },
         {
           "id": "R2-DOVIEW",
           "name": "Coverage gaps as objects and a stored merge bar",
           "label": "DOVIEW",
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "finding_ids": [
             "DO-9",
             "DO-10"
@@ -12676,7 +12725,7 @@
             "plugins/developer-observability/runtime/backend/round_view.py",
             "plugins/developer-observability/tests/test_round_view.py"
           ],
-          "worktree": "bcl121-r2-doview",
+          "worktree": "samantha-next-r11",
           "reason": "Non-viewer-polish observability: return coverage gaps as objects and expose the stored merge-bar threshold without hard-coding it.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh",
@@ -12686,24 +12735,24 @@
             "failed": 0,
             "total": 2
           },
-          "stage_entered_at": "2026-11-24T10:35:52Z",
+          "stage_entered_at": "2026-11-24T13:51:00Z",
           "failure_history": [],
           "plan_review_history": [],
           "codex": {
             "job": {
-              "id": "510a63fef9ab40b8a5983945d8c56ebf",
-              "phase": "review",
-              "started_at": "2026-11-24T10:59:52Z",
-              "command": "run-record-doview.sh",
-              "heartbeat_at": "2026-11-24T10:59:52Z",
-              "plan_sha256": "070550ceb1ce3e619ee7f4365571c0ffaaff488ca5c0c68f5d34b59080233f72",
-              "worktree": "bcl121-r2-doview",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "id": "14f5c36f80874bd6adde4f0e0f5d4798",
+              "phase": "presuite",
+              "started_at": "2026-11-24T13:06:26Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T13:09:30Z",
+              "plan_sha256": "a683eedd9436598ae2e2d69d1f93341389e1956d9ce3aa59ef43392b9a94eee5",
+              "worktree": "samantha-next-r11",
+              "model": "check.py --jobs 6 --changed-since origin/main",
               "cycle": 13,
               "round": 2,
-              "pid": 31477,
+              "pid": 12204,
               "exit_code": 0,
-              "finished_at": "2026-11-24T10:59:52Z",
+              "finished_at": "2026-11-24T13:09:30Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -12714,14 +12763,28 @@
             "review_status": "passed",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           },
-          "updated_at": "2026-11-24T10:58:49Z"
+          "updated_at": "2026-11-24T10:58:49Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T13:09:30Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T13:51:00Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-24T13:51:00Z"
+          }
         },
         {
           "id": "R2-DO4",
           "name": "Replace the viewer with the v3 calm UI",
           "label": "DO-4",
-          "status": "review",
-          "phase": "review",
+          "status": "parked",
+          "phase": "fix",
           "finding_ids": [
             "DO-4",
             "DO-12"
@@ -12735,8 +12798,8 @@
             "plugins/developer-observability/tests/test_issue_state.py",
             "plugins/developer-observability/tests/test_issues_api.py"
           ],
-          "worktree": "bcl121-r2-do4",
-          "reason": "Guru approved the v3 calm design at 16:19 IST. Replace the current viewer; use the v2 data contract, not its layout. Tracker fields are DO-12. Do not claim exclusive ownership of observability_api.py, round_view.py, manage_findings.py, or live_state.py; those belong to other open R2 lanes, but this worktree starts from their already-landed commits.",
+          "worktree": "samantha-next-r11",
+          "reason": "UX review said no-ship",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-do4.sh",
             "method": "Run the state-model and issues-API tests. Do not record verified_fixed until the UX Comet review passes.",
@@ -12776,21 +12839,25 @@
               "at": "2026-11-24T11:45:44Z"
             }
           ],
-          "updated_at": "2026-11-24T11:43:37Z",
-          "stage_entered_at": "2026-11-24T12:49:41Z",
+          "updated_at": "2026-11-24T13:27:57Z",
+          "stage_entered_at": "2026-11-24T13:27:57Z",
           "codex": {
             "fix_status": "passed",
             "job": {
-              "id": "adf2348451ae4ba4927419435d645b7b",
-              "phase": "review",
-              "started_at": "2026-11-24T12:50:14Z",
-              "command": "run-record-do4-tests3.sh",
-              "heartbeat_at": "2026-11-24T12:50:14Z",
+              "id": "e8ebed031e16412b9273c2ba2b212efd",
+              "phase": "presuite",
+              "started_at": "2026-11-24T12:56:04Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T12:59:05Z",
               "plan_sha256": "a683eedd9436598ae2e2d69d1f93341389e1956d9ce3aa59ef43392b9a94eee5",
-              "worktree": "bcl121-r2-do4",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "worktree": "samantha-next-r11",
+              "model": "check.py --jobs 6 --changed-since origin/main",
               "cycle": 13,
-              "round": 2
+              "round": 2,
+              "pid": 84298,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T12:59:05Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "implementer_session": "01a20d35-5e3b-77f2-98d7-a953abb136e1",
@@ -12798,8 +12865,15 @@
             "effort": "medium",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
             "must_fix_note": "- Update test_bcl.py and its viewer health-check stubs so the integration suite matches the single instance-id viewer path and the per-project saved port.",
-            "review_status": "running"
-          }
+            "review_status": "passed"
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T12:59:05Z"
+          },
+          "parked_to": 3,
+          "blocked_reason": "Awaiting UX re-review"
         },
         {
           "id": "R2-INTRO",
@@ -13201,12 +13275,30 @@
       "done_when": "Each project keeps one fixed viewer port saved in the change list state; a rollover or a new PR's viewer reuses it and replaces that project's old viewer, a different project gets its own fixed port, and every viewer a test starts stops when that test ends. After a rollover the same address shows the new PR and no stale viewer is left.",
       "observed": "20 Nov 2026 20:04 IST, Guru: PR 117 viewer on port 52432 and PR 118 viewer on port 59151; Guru stopped the stale PR 117 viewer by hand. Test viewers for temporary projects were also seen still running.",
       "recommendation": "Save the port per repository in the change list state, reuse it on start and rollover after stopping the old viewer for that repository, and stop test viewers in each test's cleanup.",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "ports": "PR 117 :52432, PR 118 :59151",
         "stopped_by_owner": "pid 73523",
         "test_projects": "example--project--123, repo--1",
         "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)"
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": [
+        {
+          "at": "2026-11-24T13:51:00Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
+      "last_seen": {
+        "at": "2026-11-20T17:43:34.152742Z",
+        "source": "verification_check"
       }
     },
     {
@@ -13226,7 +13318,18 @@
         "root_cause_group": "M-VERIFY (merged by class, Guru 17:33)",
         "merged_from": "BCL-96: Check scripts are not self-tested before Verify"
       },
-      "needs": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test."
+      "needs": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test.",
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T04:34:33Z",
+        "source": "review"
+      }
     },
     {
       "id": "BCL-108",
@@ -13243,7 +13346,14 @@
         "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 9",
         "filed_by": "Guru 00:33 IST t1597u",
         "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)"
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": []
     },
     {
       "id": "BCL-110",
@@ -13255,7 +13365,7 @@
       "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
         "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 1",
@@ -13264,7 +13374,21 @@
         "commit": "0fac47be",
         "root_cause_group": "M-WRITERS (merged by class, Guru 17:33)",
         "merged_from": "BCL-112: Several writers can overwrite a blocked lane's status; BCL-114: Legacy history, the lane cap after unblock, and restore-main on single updates; BCL-132: Batch finalizer changes lanes the batch did not mean to change"
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": [
+        {
+          "at": "2026-11-24T13:51:00Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     },
     {
       "id": "BCL-113",
@@ -13276,7 +13400,7 @@
       "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
         "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 4",
@@ -13285,7 +13409,21 @@
         "commit": "0fac47be",
         "root_cause_group": "M-WRITERS (merged by class, Guru 17:33)",
         "merged_from": "BCL-133: Plan edits can strand a running job or reset the review count"
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": [
+        {
+          "at": "2026-11-24T13:51:00Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     },
     {
       "id": "BCL-115",
@@ -13297,7 +13435,7 @@
       "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
         "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 6",
@@ -13305,7 +13443,21 @@
         "technical": "A new adopt key can overwrite an existing sanitized destination, and report, draft and progress outputs can resolve to a tracker or snapshot.",
         "commit": "0fac47be",
         "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)"
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": [
+        {
+          "at": "2026-11-24T13:51:00Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     },
     {
       "id": "BCL-120",
@@ -13327,7 +13479,14 @@
         "root_cause_group": "M-INTROSPECT (merged by class, Guru 17:33)",
         "merged_from": "BCL-100: Introspect does not look across rounds for repeated waste",
         "also reported as BCL-173": "Introspect conclusions carry no observability evidence The Introspect draft is built from the agent's own step list; nothing seeds it from recorded observability issues for the verify window, and conclusions need no evidence. 22 Nov 2026 18:54 IST, Guru rule and read-only audit; last collector run before today 20 Nov 16:41 IST; fresh snapshot 052d5b22 taken 18:55 IST | Token source (spec 19:15 IST): tokens per job in the event log with source Codex capture, Grok Bot or none; sum only when complete; report coverage and name jobs with no source."
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": []
     },
     {
       "id": "BCL-124",
@@ -13339,7 +13498,7 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
@@ -13348,7 +13507,21 @@
         "deferred": "Round 2 (owner t1627u 21:49 IST): Terra 2 found deleting it orphans live instance-less viewers; deletion reverted in fbe629dc",
         "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)"
       },
-      "needs": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it."
+      "needs": "1. [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl119-direct/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:243) treats every instance-less viewer record as stopped without checking its PID. If an older viewer is still running, `ensure_viewer` starts a second viewer and overwrites the only record of the first, leaving it running and unmanageable through the tracker. The audit establishes that two local records were dead, but that does not establish the same for other installations. Handle a live instance-less record safely and add coverage for that case.\n\nReview 1’s README item is closed: the advertised command was removed and a regression test covers it.",
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": [
+        {
+          "at": "2026-11-24T13:51:00Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     },
     {
       "id": "BCL-125",
@@ -13368,7 +13541,14 @@
         "kind": "delete",
         "root_cause_group": "M-GATES: Fewer gates and an honest failure cap (BCL-154, BCL-162, BCL-163, BCL-131, BCL-121, BCL-125, BCL-127, BCL-137, BCL-149, BCL-103)",
         "merged_from": "BCL-127: Fold the failure re-sort into the release check and the unblock command"
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": []
     },
     {
       "id": "BCL-130",
@@ -13387,7 +13567,14 @@
         "evidence": "Sol plan reviews release-2 and release-7 reproduced the in-memory change at e922ca0f",
         "kind": "fix",
         "root_cause_group": "M-RELEASE: Release and install path (BCL-148, BCL-161, BCL-144, BCL-130)"
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": []
     },
     {
       "id": "BCL-139",
@@ -13406,7 +13593,14 @@
         "evidence": "f2.py: with the review stage forced to exit 9, test_review_job_verdicts passes while the 0.1.57 helper fails 9 != 0",
         "kind": "fix",
         "root_cause_group": "M-VERIFY: Verify records and reuses its checks (BCL-160, BCL-96, BCL-97, BCL-106, BCL-139)"
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": []
     },
     {
       "id": "BCL-140",
@@ -13426,7 +13620,14 @@
         "kind": "fix",
         "root_cause_group": "M-TRACKER: Tracker and viewer upkeep (BCL-94, BCL-108, BCL-115, BCL-124, BCL-140, BCL-142)",
         "also reported as BCL-181": "A viewer left running across a local install breaks every stage Local install replaced the scripts under a viewer started by the previous version; the viewer then failed each request on a stale import, its health check stopped answering, and install and verify both crashed with a traceback saying viewer ownership could not be verified, until stop-viewer was run by hand. 22 Nov 2026 20:58 IST, PR 120 install of 0.1.70 (viewer from 0.1.69 on its own port)"
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": []
     },
     {
       "id": "BCL-144",
@@ -13448,7 +13649,14 @@
         "kind": "fix",
         "root_cause_group": "M-RELEASE: Release and install path (BCL-148, BCL-161, BCL-144, BCL-130)",
         "merged_from": "BCL-148: No bcl command records an approved release-check exception"
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": []
     },
     {
       "id": "BCL-147",
@@ -13470,7 +13678,14 @@
         "merged_from": "BCL-119: Goal: every job records tokens and wall time, and Introspect ranks the costliest steps",
         "also reported as BCL-174": "Change list job and verify logs are not observability sources The logs of verify, the full suite and lane jobs are not registered as collector sources, so failures and slow steps in the change list workflow never reach observability. 22 Nov 2026 18:54 IST, Guru rule and read-only audit; last collector run before today 20 Nov 16:41 IST; fresh snapshot 052d5b22 taken 18:55 IST Round 2 (20:30 IST): dev-obs finding col-77ecdb6e5fd5a2b1 last_seen 18:08 IST, so four suite runs and the presuite job after that were not collected (snapshot 95e60008).",
         "also reported as BCL-177": "The change list writes no event log with round, stage and job for observability No stage or job of the change list records pull request, round, stage, group, job, run, build, plugin, start and end times, outcome and tokens in one place, and round history has no start time or run, so observability cannot stamp or window anything by round. 22 Nov 2026 19:15 IST, per-round view spec ~/.agents/artifacts/bcl-120/devobs-round-view.md"
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": []
     },
     {
       "id": "BCL-149",
@@ -13491,7 +13706,14 @@
         "root_cause_group": "M-GATES (merged by class, Guru 17:33)",
         "merged_from": "BCL-131: Listed tool faults often cannot be uncounted",
         "also reported as PR120-r5-verdict-blank-line": "A blank line after a review verdict is recorded as a tool fault When a review's first non-blank line is a valid verdict, a blank line before the Must-fix list can still make the job wrapper fail, and the change list then records a tool-fault runner exit instead of the real verdict. 24 Nov 2026 10:05 IST, PR 120, installed bcl 0.1.72. R4-171 Terra review-171-3 and R5-177 planreview-r5-177-3 both returned VERDICT: CHANGES with a blank line before Must-fix. The job wrapper's extract missed that shape, exited 1, and _run_job only reads --result on exit 0, so both were stored as tool_fault runner_e"
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": []
     },
     {
       "id": "BCL-159",
@@ -13512,7 +13734,14 @@
         "evidence": "The R2-150 fix job started 14:50 IST through bcl job --phase fix (pid and heartbeat recorded, page showed Fixing). It ran OpenCode for sub-lanes a then b, and sub-lane a committed 3587f94a at 15:05. The page's latest line stayed at 'Fix started 14:50' for 27 min because no command records a step.",
         "root_cause_group": "M-LIVE (merged by class, Guru 17:33)",
         "merged_from": "BCL-118: Goal: the page shows the full orchestration timeline"
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": []
     },
     {
       "id": "BCL-160",
@@ -13524,7 +13753,7 @@
       "observed": "22 Nov 2026 16:18 IST, bcl 0.1.63, PR 119 lane R2-150",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 16:21 IST (via parent)",
         "kind": "fix",
@@ -13533,7 +13762,21 @@
         "root_cause_group": "M-VERIFY (merged by class, Guru 17:33)",
         "merged_from": "BCL-97: Rechecks fold into an issue's verdict",
         "also reported as BCL-172": "Verify does not take or cite observability snapshots Verify guidance asks for observability snapshots, but no step takes one; checks record no finding key or session reference, and an old snapshot could be cited as proof. 22 Nov 2026 18:54 IST, Guru rule and read-only audit; last collector run before today 20 Nov 16:41 IST; fresh snapshot 052d5b22 taken 18:55 IST"
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": [
+        {
+          "at": "2026-11-24T13:51:00Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     },
     {
       "id": "BCL-161",
@@ -13552,7 +13795,14 @@
         "report": "bcl-119 progress.md",
         "evidence": "install-local from the home checkout at eadc2408 failed with 'plugin checkout has local changes'; the only changes were the tracker snapshot and page under docs/triage. It succeeded from a clean detached worktree at the same commit.",
         "root_cause_group": "M-RELEASE: Release and install path (BCL-148, BCL-161, BCL-144, BCL-130)"
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": []
     },
     {
       "id": "BCL-166",
@@ -13571,7 +13821,14 @@
         "report": "bcl-119 progress.md",
         "evidence": "17:40 IST merge by class: 15 absorbed issues were folded via update and delete after bcl stop-verify on run r3-048c36c3-119.",
         "root_cause_group": "M-TRACKER"
-      }
+      },
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": []
     },
     {
       "id": "BCL-171",
@@ -13584,7 +13841,18 @@
       "priority": "high",
       "source": "User reported",
       "status": "blocked",
-      "needs": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`."
+      "needs": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T04:43:44Z",
+        "source": "review"
+      }
     },
     {
       "id": "DO-1",
@@ -13602,7 +13870,18 @@
         "evidence": "snapshots 0ea4fb35 (19:07:32 IST) and d017c9e9 (19:08:11 IST), ~/.agents/artifacts/bcl-120/devobs-after-142.json",
         "review_notes": "Lane R2-DO1 blocked after two counted Terra reviews (19:24 IST). Fixed: empty and uninspectable ahead commits now count (f755797f). Open: git quotes non-ASCII or special-character paths by default, so docs/triage/café.json misses the rule; use NUL-delimited diff-tree output and add a test (review-do1-terra-2.md). Owner 19:28 IST: do not unblock (Guru only); move to round 3. Commits ec2ee7d6, f755797f in bcl120-r2-do1-r2."
       },
-      "needs": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Git quotes paths containing non-ASCII characters or certain special characters by default. A snapshot such as `docs/triage/café.json` is returned as a quoted string that does not start with `docs/triage/`, so the collector still reports it as an unpushed commit. Use NUL-delimited output and parse the actual paths; add a behavioral test."
+      "needs": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Git quotes paths containing non-ASCII characters or certain special characters by default. A snapshot such as `docs/triage/café.json` is returned as a quoted string that does not start with `docs/triage/`, so the collector still reports it as an unpushed commit. Use NUL-delimited output and parse the actual paths; add a behavioral test.",
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-22T13:56:04Z",
+        "source": "review"
+      }
     },
     {
       "id": "PR120-r6-gate-denominator",
@@ -13632,7 +13911,14 @@
       "verification": "The official count now states the sixteen-fix merge bar and leaves the report helper unchanged.",
       "verification_refs": [
         "a87b8ee5:PR120-r6-gate-denominator:r1-verify"
-      ]
+      ],
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": []
     },
     {
       "title": "A finished job cannot record its result if another lane's receipt was written while it ran",
@@ -13643,13 +13929,27 @@
       "recommendation": "Let a successful finish land against the current plan when the job id is still running, or keep a stable plan generation for in-flight jobs so a receipt on another lane does not invalidate them.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "lanes": "R6-121 job 947b61265d184d2b922aea49bf15a996 and R6-DO3 job 08e131b7a81941f5ae17100c87d6b293; logs job-fix-r6-121.log and job-fix-r6-do3.log; no-op receipts then recorded through bcl job --phase fix -- /usr/bin/true.",
         "metric": "Before: 2 of 3 parallel finish writes failed after exit 0, plus 2 no-op receipts. After: 0 stale-plan finish failures on a three-lane parallel run."
       },
       "id": "PR120-r6-stale-job-finish",
-      "created_at": "2026-11-24T07:02:02Z"
+      "created_at": "2026-11-24T07:02:02Z",
+      "first_seen": {
+        "at": "2026-11-24T07:02:02Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": [
+        {
+          "at": "2026-11-24T13:51:00Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     },
     {
       "title": "Official collect still misses tokens for most change-list jobs",
@@ -13667,7 +13967,14 @@
         "also reported as DO-spec-job-model": "Job events have no model, model version, effort, or fallback list Job events have no model field, and the lane model field sometimes holds a command or a review fallback sentence instead of a model id and version, so the default view cannot label which model ran a job. 24 Nov 2026 13:30 IST Asia/Calcutta. UI and UX SPEC section 9, measured on the live tracker for PR 120 and the new round tool at commit 57f78423, served at http://127.0.0.1:8780/. SPEC section 9 item 3: no model on job events; Luna appears with no version; fallback prose was stored in the model field. This is the same class as o"
       },
       "id": "PR120-r6-collect-job-coverage",
-      "created_at": "2026-11-24T07:02:02Z"
+      "created_at": "2026-11-24T07:02:02Z",
+      "first_seen": {
+        "at": "2026-11-24T07:02:02Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": []
     },
     {
       "id": "DO-4",
@@ -13705,7 +14012,18 @@
           "reference": "a7071850:DO-4:ux-pass-5",
           "details": "Evidence file: /Users/gurusharan/.agents/artifacts/bcl-121/live-a7071850/FINDINGS.md copied from the live pass-5 review workdir. Verdict was ship with polish follow-ups; no high or top priority gaps remained. Commit a7071850, served on the project local port. Polish follow-ups were filed as DO-11."
         }
-      ]
+      ],
+      "first_seen": {
+        "at": "2026-11-24T07:10:26Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T11:44:38Z",
+        "source": "review"
+      }
     },
     {
       "id": "DO-5",
@@ -13740,7 +14058,14 @@
       "verification": "Job events now include the lane id, the round, and the model when one was passed.",
       "verification_refs": [
         "3ddf8e71:DO-5:r1-verify"
-      ]
+      ],
+      "first_seen": {
+        "at": "2026-11-24T08:04:16Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": []
     },
     {
       "id": "DO-6",
@@ -13756,7 +14081,14 @@
       "details": {
         "spec gap": "SPEC section 9 item 5. About 15 of 21 Round 7 minutes had no job. implementer_session values such as grokbot-r7-doview are stored on the plan, not as job start and finish events."
       },
-      "created_at": "2026-11-24T08:04:16Z"
+      "created_at": "2026-11-24T08:04:16Z",
+      "first_seen": {
+        "at": "2026-11-24T08:04:16Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": []
     },
     {
       "id": "DO-7",
@@ -13790,7 +14122,14 @@
       "verification": "Blocked and parked lanes now store a reason and target round, and deferred is treated as parked.",
       "verification_refs": [
         "fbbf86a4:DO-7:r1-verify"
-      ]
+      ],
+      "first_seen": {
+        "at": "2026-11-24T08:04:16Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": []
     },
     {
       "id": "DO-8",
@@ -13806,12 +14145,19 @@
       "details": {
         "spec gap": "SPEC section 9 item 7. first_error_line was 'Failure with an empty message' and raw_logs_available was false on a failed attempt."
       },
-      "created_at": "2026-11-24T08:04:16Z"
+      "created_at": "2026-11-24T08:04:16Z",
+      "first_seen": {
+        "at": "2026-11-24T08:04:16Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": []
     },
     {
       "id": "DO-9",
       "title": "Coverage gap items are returned as Python strings, not objects",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "source": "Agent reported",
       "summary": "When coverage detail is requested, coverage gap items are stringified with a Python repr, so a client cannot reliably read source, status, or age as fields.",
@@ -13822,12 +14168,26 @@
       "details": {
         "spec gap": "SPEC section 9 item 9. observability_api._summary still redacts coverage_gaps with str() when include_coverage is true. The string coverage line is separate and can stay a sentence."
       },
-      "created_at": "2026-11-24T08:04:16Z"
+      "created_at": "2026-11-24T08:04:16Z",
+      "first_seen": {
+        "at": "2026-11-24T08:04:16Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": [
+        {
+          "at": "2026-11-24T13:51:00Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     },
     {
       "id": "DO-10",
       "title": "The tracker does not store the merge gate threshold for a cycle",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "source": "Agent reported",
       "summary": "The default view can count verified and pending checks, but the tracker has no explicit gate threshold for the current cycle, so the ring cannot show how many verified fixes are required.",
@@ -13838,7 +14198,21 @@
       "details": {
         "spec gap": "SPEC section 9 item 11. observability_round returns gate.fixed=4, pending=35, total=39, threshold=null for PR 120 cycle 12. Forced-gate history has used 15, and the merge bar is 16, but neither is stored on the live verification run. PR120-r6-gate-denominator already tracks the official count command using the report bar; this issue is that the threshold itself is not stored for the viewer."
       },
-      "created_at": "2026-11-24T08:04:16Z"
+      "created_at": "2026-11-24T08:04:16Z",
+      "first_seen": {
+        "at": "2026-11-24T08:04:16Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": [
+        {
+          "at": "2026-11-24T13:51:00Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     },
     {
       "id": "DO-11",
@@ -13856,7 +14230,14 @@
         "Cancelled": "24 Nov 2026 16:19 IST Asia/Calcutta. Guru approved the v3 calm viewer, which replaces the current page. DO-11 is superseded and cancelled; do not ship the old polish. Official render statuses do not include closed or cancelled, so the finding was not given a closed status."
       },
       "created_at": "2026-11-24T10:00:44Z",
-      "verification": "Cancelled as superseded by the DO-4 v3 viewer replacement approved 24 Nov 2026 16:19 IST Asia/Calcutta. Official live statuses have no cancelled state, so this issue stays untested and its lane stays deferred; do not ship the old row polish."
+      "verification": "Cancelled as superseded by the DO-4 v3 viewer replacement approved 24 Nov 2026 16:19 IST Asia/Calcutta. Official live statuses have no cancelled state, so this issue stays untested and its lane stays deferred; do not ship the old row polish.",
+      "first_seen": {
+        "at": "2026-11-24T10:00:44Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": []
     },
     {
       "id": "DO-12",
@@ -13875,7 +14256,38 @@
         "spec": "v2-signal SPEC.md section 8a/8b and RESEARCH.md, used as the data contract only. Fields: first_seen, last_seen, state_changes, round_started_at, pull_request.opened_at, finding_ids on jobs, stored gate threshold.",
         "approved": "Guru approved the v3 design at 16:19 IST on 24 Nov 2026."
       },
-      "created_at": "2026-11-24T10:57:47Z"
+      "created_at": "2026-11-24T10:57:47Z",
+      "first_seen": {
+        "at": "2026-11-24T10:57:47Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T11:44:38Z",
+        "source": "review"
+      }
+    },
+    {
+      "id": "PR121-r2-live-state-guard",
+      "title": "Tests and coding jobs can overwrite the live change-list registry",
+      "summary": "A coding job wrote a test fixture over the live change-list registry, so later commands could not find the open lists until the registry was repaired by hand.",
+      "impact": "The official lists can go missing from the tool, and a repair from an old backup can omit newer lists.",
+      "recommendation": "Refuse any test or coding-job write to the real ~/.agents/state change-list directory. Only the real change-list command may write there. Keep using a temporary directory in tests.",
+      "done_when": "A test or coding-job process that tries to write the real change-list state is refused, a test covers that refusal, and tests and the real command still work with a temporary directory or the official command path.",
+      "observed": "24 Nov 2026 17:51 IST (Asia/Calcutta), PR 121, Luna session 01a20d35-5e3b-77f2-98d7-a953abb136e1. The job wrote a test fixture (example/project/123) over ~/.agents/state/batched-change-list/registry.json, then restored registry.json.bak-before-111 (14 Nov 2026, only lists 107 and 110). bcl status then said the #121 list was not adopted. Live 107-121.json files were intact. The registry was repaired at 18:07 IST from those live files and worktree homes, with a backup at registry.json.bak-20261124-1759-restored-from-nov14. The 8780 viewer and port 8765 were not involved.",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "created_at": "2026-11-24T13:03:55Z",
+      "first_seen": {
+        "at": "2026-11-24T13:03:55Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": []
     }
   ]
 }
