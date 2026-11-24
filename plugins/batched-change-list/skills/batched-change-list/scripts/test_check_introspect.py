@@ -33,8 +33,10 @@ class IntrospectCheckTests(unittest.TestCase):
         self.assertEqual(draft["steps"], check.performed_round_steps(self.tracking()))
         self.assertEqual(draft["none"], [])
         self.assertEqual(list(draft["sections"]), list(check.SECTION_ORDER))
-        self.assertTrue(all(section["none"].startswith("Review performed steps")
-                            for section in draft["sections"].values()))
+        self.assertTrue(draft["sections"]["delete"]["none"].startswith("Review performed steps"))
+        self.assertTrue(draft["sections"]["simplify"]["none"].startswith("Review performed steps"))
+        self.assertIn("token", draft["sections"]["optimize"]["none"].lower())
+        self.assertIn("Evidence quality", draft["sections"]["automate"]["none"])
         with self.assertRaisesRegex(ValueError, "lack section or none coverage"):
             check.validate_introspect(draft["sections"], draft["steps"], draft["none"], self.tracking())
 
@@ -115,6 +117,33 @@ class IntrospectCheckTests(unittest.TestCase):
         self.assertIn("40s", reason)
         ranked = check.rank_costliest_jobs(tracking)
         self.assertEqual(ranked[0]["metric"], "40s")
+        self.assertIn("100", draft["sections"]["optimize"]["none"])
+
+    def test_draft_requires_a_workflow_change_for_repeated_review_failures(self):
+        tracking = self.tracking()
+        tracking["verification_history"] = [
+            {"id": "run-a", "status": "interrupted"},
+            {"id": "run-b", "status": "interrupted"},
+        ]
+        tracking["plan"]["groups"][0]["failure_history"] = [
+            {"source": "review", "attempt_id": "r1"},
+            {"source": "review", "attempt_id": "r2"},
+        ]
+        draft = check.draft_introspect(tracking)
+        items = draft["sections"]["simplify"]["items"]
+        self.assertTrue(any(item["item"] == "Repeat: interrupted verification runs" for item in items))
+        self.assertTrue(any(item["item"] == "Repeat: review failures on A" for item in items))
+        self.assertTrue(all(item.get("evidence") and "workflow change" in item.get("change", "") for item in items))
+        self.assertIn("Repeat: interrupted verification runs", draft["steps"])
+
+    def test_draft_post_merge_introspect_lists_required_changes(self):
+        tracking = self.tracking()
+        tracking["verification_history"] = [{"id": "run-a", "status": "interrupted"},
+                                            {"id": "run-b", "status": "interrupted"}]
+        draft = check.draft_post_merge_introspect(tracking)
+        self.assertEqual(draft["scope"], "post_merge")
+        self.assertTrue(draft["required_changes"])
+        self.assertTrue(any("interrupted" in change for change in draft["required_changes"]))
 
 
 if __name__ == "__main__":
