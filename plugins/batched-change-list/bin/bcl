@@ -245,10 +245,15 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
     job["worktree"] = Path.cwd().name
     if model:
         job["model"] = model
+    event_context = {"group_id": groups[0]["id"], "round": round_number}
+    if model is not None:
+        event_context["model"] = model
+    if job.get("model_version") is not None:
+        event_context["model_version"] = job["model_version"]
     repo = Path.cwd()
     list_path = Path(live).resolve()
     bcl_events.job_event(list_path, job["id"], "start", state_dir=os.environ.get("BCL_STATE_DIR"),
-                         phase=phase, agent=Path(command_args[0]).name, repo=repo.name, started_at=started_at)
+                         **event_context, phase=phase, agent=Path(command_args[0]).name, repo=repo.name, started_at=started_at)
     try:
         _job_write_retry(record, live, report, base,
                          _job_operations(phase, ids, cycle, round_number, job, "start-job", started_at,
@@ -256,7 +261,7 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
     except Exception as error:
         try:
             bcl_events.job_event(list_path, job["id"], "failed_start", state_dir=os.environ.get("BCL_STATE_DIR"),
-                                 phase=phase, agent=Path(command_args[0]).name, error=str(error))
+                               **event_context, phase=phase, agent=Path(command_args[0]).name, error=str(error))
         except OSError:
             pass
         raise
@@ -270,7 +275,7 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
                          _job_operations(phase, ids, cycle, round_number, job, "finish-job", _utc_now(), exit_code=127))
         print(f"bcl: job command could not start: {error}", file=sys.stderr)
         bcl_events.job_event(list_path, job["id"], "failed_start", state_dir=os.environ.get("BCL_STATE_DIR"),
-                             phase=phase, agent=Path(command_args[0]).name, error=str(error))
+                             **event_context, phase=phase, agent=Path(command_args[0]).name, error=str(error))
         return 127
     output = {"stdout": bytearray(), "stderr": bytearray()}
     output_chunks = []
@@ -463,7 +468,7 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
             usage_path, usage_source = candidates[0], "inline"
     usage = _read_usage(usage_path, job["id"]) if usage_path else None
     if usage is None: usage_source = "none"
-    event = {"phase": phase, "agent": Path(command_args[0]).name, "repo": repo.name,
+    event = {**event_context, "phase": phase, "agent": Path(command_args[0]).name, "repo": repo.name,
              "exit_code": code, "finished_at": finished_at, "tokens_source": usage_source,
              "tokens": usage, "session": usage_path.name if usage_path else None}
     bcl_events.job_event(list_path, job["id"], "finish", state_dir=os.environ.get("BCL_STATE_DIR"), **event)

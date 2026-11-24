@@ -25,6 +25,7 @@ def append(list_path: str | Path, event: dict, state_dir: str | Path | None = No
 
 
 def job_event(list_path: str | Path, job_id: str, kind: str, *, state_dir=None, **fields) -> None:
+    """Persist supplied event fields verbatim; absent metadata remains a gap."""
     if kind not in {"start", "finish", "failed_start", "incomplete"}:
         raise ValueError(f"unsupported job event: {kind}")
     append(list_path, {"event": kind, "job_id": job_id, "at": datetime.now(timezone.utc).isoformat(), **fields}, state_dir)

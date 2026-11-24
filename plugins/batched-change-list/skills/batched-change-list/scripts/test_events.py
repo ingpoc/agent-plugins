@@ -9,6 +9,31 @@ import events
 
 
 class EventTests(unittest.TestCase):
+    def test_stamped_lifecycle_metadata_is_persisted_without_worktree_inference(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            metadata = {"group_id": "lane-7", "round": 3, "model": "gpt-6-luna"}
+            events.job_event("repo", "job-1", "start", state_dir=tmp, **metadata)
+            events.job_event("repo", "job-1", "finish", state_dir=tmp, **metadata,
+                             tokens_source="stamp", tokens={"total": 12})
+            raw = [json.loads(line) for line in events.events_path("repo", tmp).read_text().splitlines()]
+            self.assertEqual([row["event"] for row in raw], ["start", "finish"])
+            for row in raw:
+                self.assertEqual({key: row[key] for key in metadata}, metadata)
+            rows = events.read("repo", tmp)
+            self.assertEqual(len(rows), 1)
+            self.assertEqual({key: rows[0][key] for key in metadata}, metadata)
+            self.assertEqual(rows[0]["tokens"], {"total": 12})
+            self.assertEqual(rows[0]["tokens_source"], "stamp")
+
+    def test_missing_event_metadata_remains_a_documented_gap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            events.job_event("repo", "job-1", "start", state_dir=tmp, agent="Codex")
+            row = events.read("repo", tmp)[0]
+            self.assertNotIn("group_id", row)
+            self.assertNotIn("round", row)
+            self.assertNotIn("model", row)
+            self.assertNotIn("model_version", row)
+
     def test_lifecycle_folds_by_stable_job_id_and_keeps_incomplete(self):
         with tempfile.TemporaryDirectory() as tmp:
             events.job_event("repo", "job-1", "start", state_dir=tmp, agent="Codex")
