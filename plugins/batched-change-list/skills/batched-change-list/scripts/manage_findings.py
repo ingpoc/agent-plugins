@@ -19,6 +19,7 @@ import tracker_lock
 
 import live_state
 import check_install_sessions
+import check_introspect
 import workflow_definition
 import check_gate_count
 
@@ -3390,9 +3391,14 @@ def run(args, parser):
                                            "verified_fixed": fixed, "threshold": threshold, "reason": reason.strip()})
                 if action == "introspect":
                     tracking = store["document"].setdefault("tracking", {})
-                    workflow_definition.require_transition("introspect", tracking.get("stages_reached", []))
+                    scope = operation.get("scope")
+                    if scope not in (None, "post_merge"):
+                        raise ValueError("introspect scope must be post_merge or omitted")
+                    if scope != "post_merge":
+                        workflow_definition.require_transition("introspect", tracking.get("stages_reached", []))
+                    coverage_tracking = check_introspect.coverage_tracking(path, tracking, scope)
                     coverage = workflow_definition.run_stage_check("introspect",
-                        operation.get("sections"), operation.get("steps"), operation.get("none"), tracking)
+                        operation.get("sections"), operation.get("steps"), operation.get("none"), coverage_tracking)
                     sections = validate_introspect_sections(operation.get("sections"))
                     issues = operation.get("issues") or []
                     if issues:
@@ -3418,12 +3424,14 @@ def run(args, parser):
                               "none": coverage["none"], "sections": sections,
                               "round": RENDERER.rollover_round(tracking),
                               "cycle": RENDERER.rollover_cycle(tracking)}
-                    if operation.get("scope") == "post_merge":
-                        record["scope"] = "post_merge"
-                        tracking["post_merge_introspect"] = record
                     history = tracking.setdefault("introspect_history", [])
                     if not isinstance(history, list) or any(not isinstance(item, dict) for item in history):
                         raise ValueError("tracking.introspect_history must be an array of records")
+                    if operation.get("scope") == "post_merge":
+                        record["scope"] = "post_merge"
+                        tracking["post_merge_introspect"] = record
+                        history.append(copy.deepcopy(record))
+                        continue
                     tracking["introspect"] = record
                     history.append(copy.deepcopy(record))
                     reached = tracking.setdefault("stages_reached", [])

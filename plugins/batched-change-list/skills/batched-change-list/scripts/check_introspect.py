@@ -229,6 +229,37 @@ def draft_post_merge_introspect(tracking):
     return draft
 
 
+def source_list_path(live_path, tracking):
+    """Return the sibling live tracker for rollover.source_pr, if it exists."""
+    if not live_path or not isinstance(tracking, dict):
+        return None
+    rollover = tracking.get("rollover") if isinstance(tracking.get("rollover"), dict) else {}
+    source_pr = rollover.get("source_pr")
+    if source_pr is None:
+        return None
+    candidate = Path(live_path).expanduser().resolve().parent / f"{source_pr}.json"
+    return candidate if candidate.is_file() else None
+
+
+def coverage_tracking(live_path, tracking, scope=None):
+    """For a post-merge Introspect, use the merged list's job data when this list has not reached Verify."""
+    if not isinstance(tracking, dict):
+        raise ValueError("tracker tracking must be an object")
+    if scope != "post_merge":
+        return tracking
+    reached = tracking.get("stages_reached") or []
+    if isinstance(reached, list) and "verify" in reached:
+        return tracking
+    source = source_list_path(live_path, tracking)
+    if source is None:
+        return tracking
+    document = json.loads(source.read_text(encoding="utf-8"))
+    source_tracking = document.get("tracking") if isinstance(document, dict) else None
+    if not isinstance(source_tracking, dict):
+        raise ValueError(f"source list {source} has no tracking object")
+    return source_tracking
+
+
 def validate_introspect(sections, steps, none_steps, tracking):
     if not isinstance(sections, dict) or list(sections) != list(SECTION_ORDER):
         raise ValueError("sections must appear in order: delete, simplify, optimize, automate")
@@ -284,13 +315,15 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", required=True, type=Path, help="live BCL tracker JSON")
     parser.add_argument("--sections", required=True, type=Path, help="Introspect JSON containing steps, none, and ordered sections")
+    parser.add_argument("--scope", choices=("post_merge",), help="validate a post-merge Introspect against the merged list when needed")
     args = parser.parse_args(argv)
     try:
         tracker = json.loads(args.data.read_text(encoding="utf-8"))
         payload = json.loads(args.sections.read_text(encoding="utf-8"))
         if not isinstance(payload, dict) or set(payload) != {"steps", "none", "sections"}:
             raise ValueError("input must contain exactly steps, none, and sections")
-        validate_introspect(payload["sections"], payload["steps"], payload["none"], tracker.get("tracking"))
+        tracking = coverage_tracking(args.data, tracker.get("tracking"), args.scope)
+        validate_introspect(payload["sections"], payload["steps"], payload["none"], tracking)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"FAIL: {error}; fix: list every performed step under a section or none, then rerun Introspect", file=sys.stderr)
         return 1

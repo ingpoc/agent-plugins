@@ -145,6 +145,22 @@ class IntrospectCheckTests(unittest.TestCase):
         self.assertTrue(draft["required_changes"])
         self.assertTrue(any("interrupted" in change for change in draft["required_changes"]))
 
+    def test_coverage_tracking_uses_source_list_when_fresh_list_has_no_steps(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            source = {"tracking": self.tracking()}
+            (folder / "122.json").write_text(json.dumps(source))
+            fresh = folder / "123.json"
+            fresh.write_text(json.dumps({"tracking": {
+                "cycle": 2, "round": 1, "stages_reached": [],
+                "rollover": {"source_pr": 122, "source_merge": {"commit_sha": "abc", "merged_at": "2026-11-24T12:00:00Z"}},
+            }}))
+            tracking = json.loads(fresh.read_text())["tracking"]
+            self.assertEqual(check.coverage_tracking(fresh, tracking, "post_merge")["stages_reached"],
+                             source["tracking"]["stages_reached"])
+            self.assertEqual(check.coverage_tracking(fresh, tracking, None), tracking)
+
 
 if __name__ == "__main__":
     unittest.main()
