@@ -830,14 +830,19 @@ def build_round(project, pr=None, round=None, state_dir=None):
     checks = verification.get("checks") if isinstance(verification.get("checks"), dict) else {}
     fixed = sum(1 for item in checks.values() if isinstance(item, dict) and item.get("state") == "fixed")
     pending = sum(1 for item in checks.values() if isinstance(item, dict) and item.get("state") == "pending")
-    # Do not invent a threshold; surface one only when the tracker stored it.
+    # Surface the stored merge bar, never the lower report threshold.
     threshold = None
     for source in (verification, tracking.get("gate") if isinstance(tracking.get("gate"), dict) else {}, tracking):
-        if isinstance(source, dict) and isinstance(source.get("threshold"), int):
-            threshold = source["threshold"]
-            break
-        if isinstance(source, dict) and isinstance(source.get("merge_previous_pr_threshold"), int):
-            threshold = source["merge_previous_pr_threshold"]
+        if not isinstance(source, dict):
+            continue
+        if source.get("cycle") not in (None, current_cycle):
+            continue
+        for key in ("merge_previous_pr_threshold", "merge_threshold"):
+            value = source.get(key)
+            if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+                threshold = value
+                break
+        if threshold is not None:
             break
 
     parked = tracking.get("parked") if isinstance(tracking.get("parked"), dict) else {}

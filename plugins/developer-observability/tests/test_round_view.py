@@ -87,6 +87,8 @@ class RoundViewTests(unittest.TestCase):
                     "status": "active",
                     "cycle": 3,
                     "revision": "abc",
+                    "threshold": 15,
+                    "merge_previous_pr_threshold": 16,
                     "checks": {
                         "ACU-20": {"state": "pending"},
                         "BCL-121": {"state": "fixed"},
@@ -121,7 +123,7 @@ class RoundViewTests(unittest.TestCase):
         self.assertEqual(result["round"], 7)
         self.assertEqual(result["cycle"], 3)
         self.assertEqual(result["round_started_at"], "2026-11-24T07:07:37Z")
-        self.assertIsNone(result["gate"]["threshold"])
+        self.assertEqual(result["gate"]["threshold"], 16)
         self.assertEqual(result["gate"]["fixed"], 1)
         self.assertEqual(result["gate"]["pending"], 1)
         self.assertEqual({group["id"] for group in result["groups"]}, {"R7-ACU20", "R4-171", "R4-106"})

@@ -319,13 +319,17 @@ class ObservabilityAPI:
                            or key in legacy and legacy_activity}
         legacy_missing = sorted(legacy) if legacy_activity else []
         gaps = []
+        gap_items = []
         for source, item in project_details.items():
             if source in legacy and not item.get('read_in_collect'):
                 continue
             if item.get('status') != 'collected':
+                age = item.get('age_seconds')
+                gap_items.append({'source': redact(source, 60),
+                                  'status': redact(str(item.get('status', 'unknown')), 20),
+                                  'age_seconds': age if isinstance(age, int) and not isinstance(age, bool) and age >= 0 else None})
                 short = source.rsplit(':', 1)[-1]
                 if item.get('status') == 'stale':
-                    age = item.get('age_seconds')
                     if isinstance(age, int) and not isinstance(age, bool) and age >= 0:
                         short += f" stale {age // 86400}d" if age >= 86400 else f" stale {age // 3600}h"
                     else:
@@ -334,18 +338,26 @@ class ObservabilityAPI:
                     short += f" {item.get('status', 'unknown')}"
                 gaps.append(short)
         if not gaps:
-            gaps = [redact(str(item.get('source', item)), 60) for item in data.get('coverage_gaps', [])
-                    if isinstance(item, dict) and (project_id is None or isinstance(item.get('source'), str) and
-                    (item['source'] in project_details or ':' in item['source'] and
-                     item['source'].split(':', 1)[0] == project_id or
-                     item['source'] in legacy and legacy_activity)) and
-                    (not isinstance(item.get('source'), str) or item['source'] not in legacy) and
-                    (not isinstance(item.get('source'), str) or item['source'] not in project_details or
-                     not project_details[item['source']].get('read_in_collect'))]
+            raw_gap_items = [item for item in data.get('coverage_gaps', []) if isinstance(item, dict)
+                             and isinstance(item.get('source'), str)
+                             and (project_id is None or item['source'] in project_details or
+                                  ':' in item['source'] and item['source'].split(':', 1)[0] == project_id or
+                                  item['source'] in legacy and legacy_activity)
+                             and item['source'] not in legacy
+                             and (item['source'] not in project_details or
+                                  not project_details[item['source']].get('read_in_collect'))]
+            gap_items = [{'source': redact(item['source'], 60),
+                          'status': redact(str(item.get('status', 'unknown')), 20),
+                          'age_seconds': item.get('age_seconds') if isinstance(item.get('age_seconds'), int)
+                          and not isinstance(item.get('age_seconds'), bool) and item.get('age_seconds') >= 0 else None}
+                         for item in raw_gap_items]
+            gaps = [f"{item['source']} {item['status']}" for item in gap_items]
         if not gaps:
-            gaps = [f"{redact(str(source).rsplit(':', 1)[-1], 60)} {redact(str(status), 20)}"
-                    for source, status in project_sources.items() if status != 'collected' and
-                    not (source in project_details and project_details[source].get('read_in_collect'))]
+            gap_items = [{'source': redact(str(source), 60),
+                          'status': redact(str(status), 20), 'age_seconds': None}
+                         for source, status in project_sources.items() if status != 'collected' and
+                         not (source in project_details and project_details[source].get('read_in_collect'))]
+            gaps = [f"{item['source']} {item['status']}" for item in gap_items]
         legacy_gap = None
         if legacy_missing:
             stamps = [self._safe_time(project_details[key].get('collector_heartbeat_at')) for key in legacy_missing]
@@ -367,7 +379,7 @@ class ObservabilityAPI:
                     **({'version_scope': data['version_scope']} if 'version_scope' in data else {})}
         if include_coverage:
             envelope.update(coverage_details=project_details,
-                            coverage_gaps=[redact(str(x), 200) for x in data.get('coverage_gaps', [])],
+                            coverage_gaps=gap_items,
                             coverage_gap_scope=redact(str(data.get('coverage_gap_scope', 'unknown')), 200),
                             sources={key: self._safe_time(value) for key, value in (data.get('sources') or {}).items()
                                      if key in ('primary', 'collector')})

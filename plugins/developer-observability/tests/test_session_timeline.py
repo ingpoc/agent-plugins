@@ -37,7 +37,7 @@ class SessionTimelineTests(unittest.TestCase):
                         {'pull_request':'120', 'round':3, 'stage':'verify', 'job':'tests', 'tokens':42, 'outcome':'passed'},
                         {'pull_request':'120', 'round':2, 'stage':'verify', 'job':'old tests', 'tokens':10},
                         {'pull_request':'121', 'round':3, 'stage':'verify', 'job':'other tests', 'tokens':9},
-                    ], 'coverage_gaps':[{'source':'origin-ci', 'status':'missing'}]}
+                    ], 'coverage_gaps':[{'source':'a:origin-ci', 'status':'missing'}]}
             (root / 'findings.json').write_text(json.dumps(data))
             api = ObservabilityAPI(root, {'a':{'owners':['owner:a']}}, None)
             result = api.issues('a', pull_request='120', round=3, stage='verify',
@@ -49,7 +49,9 @@ class SessionTimelineTests(unittest.TestCase):
             self.assertEqual(result['stamp_gaps'], {'round':1, 'pull_request':1})
             self.assertEqual([row['job'] for row in result['round_timeline']], ['tests'])
             self.assertEqual(result['round_timeline'][0]['tokens'], 42)
-            self.assertIn('origin-ci', result['coverage_gaps'][0])
+            self.assertEqual(result['coverage_gaps'], [
+                {'source': 'a:origin-ci', 'status': 'missing', 'age_seconds': None},
+            ])
 
     def test_issues_time_filter_rejects_invalid_window(self):
         with tempfile.TemporaryDirectory() as td:
