@@ -11004,8 +11004,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-24T18:27:31Z",
-      "now": "2026-11-24T18:27:31Z — Review started"
+      "updated_at": "2026-11-24T18:30:50Z",
+      "now": "2026-11-24T18:30:50Z — Presuite started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12662,7 +12662,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T18:27:31Z",
+    "last_written_at": "2026-11-24T18:33:54Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -14472,7 +14472,7 @@
           "finding_ids": [
             "BCL-125"
           ],
-          "worktree": "gurusharan",
+          "worktree": "samantha-next-r12",
           "files": [
             "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -14497,20 +14497,30 @@
             "reviewer_session": "grokbot-122-r4-gates-review",
             "fix_status": "passed",
             "job": {
-              "id": "e32be2f9a2d04dc68f8c99328f1ff2a5",
-              "phase": "review",
-              "started_at": "2026-11-24T18:27:31Z",
-              "command": "review-gates-followup.sh",
-              "heartbeat_at": "2026-11-24T18:27:31Z",
+              "id": "c007f6cc0e4d40dab778820d9e9b8fed",
+              "phase": "presuite",
+              "started_at": "2026-11-24T18:30:50Z",
+              "command": "run-presuite-r3.sh",
+              "heartbeat_at": "2026-11-24T18:33:54Z",
               "plan_sha256": "2bf45d1c726c10555d7766be1accdf48e1d827fd659b406c55854100390d0a16",
               "finding_ids": [
                 "BCL-125"
               ],
-              "worktree": "gurusharan",
+              "worktree": "samantha-next-r12",
               "model": "Grok Bot subagent",
               "lane_sha256": "42dba8f7ff7b6658108bd544aaf9a256437b2060506b6fc77ddcdd73f06ba7c2",
               "cycle": 14,
-              "round": 4
+              "round": 4,
+              "pid": 75851,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T18:33:54Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/c007f6cc0e4d40dab778820d9e9b8fed.log",
+              "output_retained": true,
+              "tokens_source": "none",
+              "tokens": null,
+              "wall_time_s": 184,
+              "session": "grokbot-122-r4-gates",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "jobs": [
@@ -14672,11 +14682,64 @@
                 "wall_time_s": 1,
                 "session": "grokbot-122-r4-gates",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "e32be2f9a2d04dc68f8c99328f1ff2a5",
+                "phase": "review",
+                "started_at": "2026-11-24T18:27:31Z",
+                "command": "review-gates-followup.sh",
+                "heartbeat_at": "2026-11-24T18:27:43Z",
+                "plan_sha256": "2bf45d1c726c10555d7766be1accdf48e1d827fd659b406c55854100390d0a16",
+                "finding_ids": [
+                  "BCL-125"
+                ],
+                "worktree": "gurusharan",
+                "model": "Grok Bot subagent",
+                "lane_sha256": "42dba8f7ff7b6658108bd544aaf9a256437b2060506b6fc77ddcdd73f06ba7c2",
+                "cycle": 14,
+                "round": 4,
+                "pid": 71643,
+                "exit_code": 0,
+                "finished_at": "2026-11-24T18:27:43Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/e32be2f9a2d04dc68f8c99328f1ff2a5.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 12,
+                "session": "grokbot-122-r4-gates",
+                "finished_phase_status": "incomplete",
+                "must_fix": "Review incomplete: strict verdict or Must-fix section missing"
+              },
+              {
+                "id": "4bcb3457fee74f50b853b6d78134a67f",
+                "phase": "review",
+                "started_at": "2026-11-24T18:28:29Z",
+                "command": "review-gates-followup.sh",
+                "heartbeat_at": "2026-11-24T18:28:41Z",
+                "plan_sha256": "2bf45d1c726c10555d7766be1accdf48e1d827fd659b406c55854100390d0a16",
+                "finding_ids": [
+                  "BCL-125"
+                ],
+                "worktree": "gurusharan",
+                "model": "Grok Bot subagent",
+                "lane_sha256": "42dba8f7ff7b6658108bd544aaf9a256437b2060506b6fc77ddcdd73f06ba7c2",
+                "cycle": 14,
+                "round": 4,
+                "pid": 73233,
+                "exit_code": 0,
+                "finished_at": "2026-11-24T18:28:41Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/4bcb3457fee74f50b853b6d78134a67f.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 12,
+                "session": "grokbot-122-r4-gates",
+                "finished_phase_status": "passed"
               }
             ],
             "reviewer_model": "Grok Bot subagent",
-            "must_fix_note": "Reviewer exited 1",
-            "review_status": "running"
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
+            "review_status": "passed"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-gates.sh",
@@ -14698,10 +14761,26 @@
               "tool_fault": true,
               "fault_kind": "runner_exit",
               "tool_fault_reason": "Reviewer exited 1"
+            },
+            {
+              "attempt_id": "e32be2f9a2d04dc68f8c99328f1ff2a5",
+              "source": "review",
+              "reason": "Review incomplete: strict verdict or Must-fix section missing",
+              "cycle": 14,
+              "round": 4,
+              "at": "2026-11-24T18:27:43Z",
+              "tool_fault": true,
+              "fault_kind": "incomplete_review",
+              "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T18:15:28Z"
+          "updated_at": "2026-11-24T18:15:28Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T18:33:54Z"
+          }
         }
       ]
     },
@@ -15098,7 +15177,7 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:26:10Z",
+        "at": "2026-11-24T18:27:43Z",
         "source": "review"
       }
     },
