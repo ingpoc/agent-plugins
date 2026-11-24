@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "runtime"))
-from backend.issue_state import first_seen_for, lifecycle_state, select_scope, window_reason
+from backend.issue_state import _event, first_seen_for, lifecycle_state, select_scope, strip_paths, window_reason
 
 
 class IssueStateTests(unittest.TestCase):
@@ -69,6 +69,16 @@ class IssueStateTests(unittest.TestCase):
         finding["observed"] = "24 Nov 2026 12:37 IST, first visit on #120"
         seen = first_seen_for(finding, 121, 2)
         self.assertTrue("07:07" in (seen["at"] or "") or "12:37" in (seen["at"] or ""))
+
+    def test_path_stripping_keeps_a_separator_and_drops_raw_bullets(self):
+        relative = "`plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:69`"
+        self.assertIn("plugins/collect_observability.py:69", strip_paths(relative))
+        self.assertNotIn("pluginscollect", strip_paths(relative))
+        absolute = "review failed at /Users/gurusharan/code/worktrees/agent-plugins/demo/collect.py:69"
+        self.assertEqual(strip_paths(absolute), "review failed at collect.py:69")
+        event = _event("fail", "2026-11-24T11:44:38Z", "- Update test_bcl.py and its stubs.")
+        self.assertEqual(event["summary"], "Update test_bcl.py and its stubs.")
+        self.assertFalse(event["summary"].startswith("- "))
 
 if __name__ == "__main__":
     unittest.main()

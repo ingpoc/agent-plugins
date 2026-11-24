@@ -170,21 +170,26 @@ function updateUrl() {
   history.replaceState(null, '', u);
 }
 
+function issuesQuery() {
+  const q = new URLSearchParams({project});
+  if (pr) q.set('pr', pr);
+  if (run) q.set('run', run);
+  else {
+    if (round != null && !Number.isNaN(Number(round))) q.set('round', String(round));
+    else q.set('scope', scope);
+    if (from && to) {
+      q.set('from', from);
+      q.set('to', to);
+    }
+  }
+  return q;
+}
+
 async function load() {
   const request=++generation;
   try {
     $('error').hidden = true;
-    const q = new URLSearchParams({project});
-    if (run) q.set('run', run);
-    else {
-      if (pr) q.set('pr', pr);
-      if (round != null && !Number.isNaN(Number(round))) q.set('round', String(round));
-      else q.set('scope', scope);
-      if (from && to) {
-        q.set('from', from);
-        q.set('to', to);
-      }
-    }
+    const q = issuesQuery();
     const result = http
       ? await (await fetch(`/api/issues?${q}`)).json()
       : await tool('observability_issues', {
@@ -195,7 +200,7 @@ async function load() {
     if(request!==generation)return;
     if (result.error) throw Error(result.error);
     data = result;
-    if (result.pr) pr = String(result.pr).replace(/^#/, '');
+    if (result.pr && !pr) pr = String(result.pr).replace(/^#/, '');
     if (result.round != null && run == null && !(from && to)) round = result.round;
     if (result.run_note && !result.run) timeLabel = result.run_note;
     else if (from && to && !run) timeLabel = windowRangeLabel(from, to) || timeLabel;
@@ -371,11 +376,14 @@ function needRows() {
 }
 
 function lastEvidence(i) {
-  const e = i.last_evidence || {};
+  const runScoped = i.check_outcome != null || i.check_at;
+  const e = runScoped
+    ? {at: i.check_at, kind: i.check_outcome, summary: i.check_reason}
+    : (i.last_evidence || {});
   if (!e.at) return ['', 'muted', 'No check on record'];
-  const kind = ['pass', 'fixed', 'resolved'].includes(e.kind) ? 'pass'
-    : ['fail', 'review_failed', 'owner_rejected'].includes(e.kind) ? 'fail'
-    : e.kind === 'inconclusive' ? 'inconclusive' : 'run';
+  const kind = ['pass', 'fixed', 'resolved', 'passed'].includes(e.kind) ? 'pass'
+    : ['fail', 'review_failed', 'owner_rejected', 'not_fixed', 'failed'].includes(e.kind) ? 'fail'
+    : (e.kind === 'inconclusive' || e.kind === 'blocked' || e.kind === 'stopped') ? 'inconclusive' : 'run';
   const mark = kind === 'pass' ? '✓ ' : kind === 'fail' ? '× ' : kind === 'inconclusive' ? '○ ' : '● ';
   return [`${mark}${formatTime(e.at, !isToday(e.at))}`, kind, `${i.check_reason || e.summary || e.kind} · ${formatTime(e.at, true)}`];
 }
@@ -385,7 +393,9 @@ function rows(list, key) {
   const shown = showAll ? ordered : ordered.slice(0, 8);
   return `<div class="rows">${shown.map(i => {
     const [t, c, tip] = lastEvidence(i);
-    return `<button class="row" data-open="${esc(i.id)}" title="${esc(tip)}"><span class="mono">${esc(i.id)}</span><span class="title" title="${esc(i.title)}">${esc(i.title)}</span><span class="e ${c}">${esc(t)}</span></button>`;
+    const carried = i.origin_label && String(i.origin_label).includes('carried')
+      ? `<span class="muted origin">${esc(i.origin_label)}</span>` : '';
+    return `<button class="row" data-open="${esc(i.id)}" title="${esc(tip)}"><span class="mono">${esc(i.id)}</span><span class="title" title="${esc(i.title)}">${esc(i.title)}${carried}</span><span class="e ${c}">${esc(t)}</span></button>`;
   }).join('')}${ordered.length > 8 && !showAll ? `<button class="more" data-more="${esc(key)}">Show all ${ordered.length}</button>` : ''}</div>`;
 }
 
@@ -394,7 +404,7 @@ function headline() {
   const byState = counts.by_state || {};
   const byReason = counts.by_reason || {};
   const total = data.issues.length;
-  const prLabel = `#${String(data.pr || pr || '').replace(/^#/, '')}`;
+  const prLabel = `#${String(pr || data.pr || '').replace(/^#/, '')}`;
   const rLabel = data.round != null ? `R${data.round}` : (round != null ? `R${round}` : '');
   if (data.run_note && !data.run) {
     const other = data.last_other_run ? `last: ${runLabel(data.last_other_run)}` : '';
@@ -617,10 +627,13 @@ function openDrawer(id) {
 }
 
 function closeDrawer() {
+  const returnTo = drawer;
   drawer = null;
   updateUrl();
   render();
-  if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
+  const row = returnTo ? document.querySelector(`[data-open="${returnTo}"]`) : null;
+  if (row) row.focus();
+  else if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
   lastFocus = null;
 }
 

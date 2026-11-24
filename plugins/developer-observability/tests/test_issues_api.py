@@ -175,7 +175,8 @@ class CascadeAndAccuracyTests(unittest.TestCase):
              "verification_evidence": [{"observed": "The mid-afternoon review of 24 November 2026 concluded the page is ready to ship."}],
              "last_seen": {"at": "2026-11-24T11:44:38Z", "source": "review"}},
             {"id": "DO-12", "title": "Tracker fields", "status": "untested",
-             "created_at": "2026-11-24T12:00:00Z", "observed": "24 Nov 2026 17:30 IST"},
+             "created_at": "2026-11-24T12:00:00Z", "observed": "24 Nov 2026 17:30 IST",
+             "last_seen": {"at": "2026-11-24T11:44:38Z", "source": "review"}},
             {"id": "DO-8", "title": "DO-8", "status": "untested",
              "created_at": "2026-11-24T08:04:16Z", "observed": "24 Nov 2026 13:30 IST Asia/Calcutta."},
             {"id": "DO-6", "title": "DO-6", "status": "untested",
@@ -447,6 +448,7 @@ class CascadeAndAccuracyTests(unittest.TestCase):
                          sum(issue["state"] == "untested" for issue in result["issues"]))
         self.assertEqual(result["counts"]["by_state"]["parked"],
                          sum(issue["state"] == "parked" for issue in result["issues"]))
+        self.assertIsNone(do12.get("last_seen_at"))
 
     def test_p2c_live_rounds_and_runs_follow_the_source_pr(self):
         result = build_issues("agent-plugins")
@@ -467,7 +469,82 @@ class CascadeAndAccuracyTests(unittest.TestCase):
         # Runs copied or hosted elsewhere still keep their source PR from the id suffix.
         from backend.issue_state import run_source_pr
         self.assertEqual(run_source_pr({"id": "r7-acu-0.2.163-11517de1-120"}, 121), "120")
+        self.assertEqual(run_source_pr({"id": "acu-0.2.114-67173c9-20261107"}, 121, {"107", "117", "120", "121"}), "121")
+        self.assertEqual(run_source_pr({"id": "acu-0.2.114-accessible-20261107-0638"}, 107, {"107", "117", "120", "121"}), "107")
 
+    def test_n1_pr_plus_last_run_shows_48_with_that_pr(self):
+        tracker = json.loads((self.state / "agent-plugins" / "120.json").read_text())
+        checks = {}
+        findings = list(tracker["findings"])
+        existing = {row["id"] for row in findings}
+        for index in range(45):
+            identifier = f"CHK-I{index}"
+            checks[identifier] = {"state": "inconclusive", "finished_at": f"2026-11-24T08:40:{index:02d}Z",
+                                  "summary": "run stopped"}
+            if identifier not in existing:
+                findings.append({"id": identifier, "title": identifier, "status": "untested",
+                                 "created_at": "2026-11-20T00:00:00Z"})
+        for index, identifier in enumerate(("BCL-121", "DO-2", "DO-3")):
+            checks[identifier] = {"state": "fixed", "finished_at": f"2026-11-24T08:50:{index:02d}Z",
+                                  "summary": "fixed"}
+        tracker["findings"] = findings
+        tracker["tracking"].setdefault("verification_history", []).append({
+            "id": "r7-acu-48-120",
+            "pr": 120,
+            "round": 7,
+            "installed_at": "2026-11-24T08:31:56Z",
+            "ended_at": "2026-11-24T08:50:24Z",
+            "status": "complete",
+            "checks": checks,
+        })
+        (self.state / "agent-plugins" / "120.json").write_text(json.dumps(tracker))
+        result = build_issues("agent-plugins", pr="120", run="last")
+        self.assertEqual(str(result["pr"]), "120")
+        self.assertEqual(result["run"]["id"], "r7-acu-48-120")
+        self.assertEqual(result["counts"]["tested"], 48)
+        self.assertEqual(len(result["issues"]), 48)
+        self.assertEqual(result["counts"]["fixed"], 3)
+        self.assertEqual(result["counts"]["inconclusive"], 45)
+
+    def test_n2_past_round_state_uses_in_round_events_and_fills_r1_start(self):
+        result = build_issues("agent-plugins", pr="121", round_id=1)
+        r1 = next(row for row in result["rounds"] if str(row.get("pr")) == "121" and row.get("round") == 1)
+        self.assertEqual(r1["started_at"], "2026-11-24T09:08:28Z")
+        issues = {row["id"]: row for row in result["issues"]}
+        do4 = issues["DO-4"]
+        self.assertNotEqual(do4["state"], "regressed")
+        self.assertIn(do4["state"], {"untested", "in_progress"})
+        self.assertFalse(do4["needs_you"])
+        self.assertFalse(any(event.get("kind") in {"fail", "review_failed", "owner_rejected"}
+                             for event in do4.get("events") or []))
+
+    def test_n3_last_fail_comes_from_the_issue_events_only(self):
+        result = build_issues("agent-plugins")
+        issues = {row["id"]: row for row in result["issues"]}
+        self.assertIsNone(issues["DO-12"].get("last_seen_at"))
+        self.assertEqual(issues["DO-12"]["attempts"], 0)
+        self.assertEqual(issues["DO-4"]["last_seen_at"], "2026-11-24T11:44:38Z")
+
+    def test_n5_run_rows_use_this_run_result_and_time(self):
+        tracker = json.loads((self.state / "agent-plugins" / "120.json").read_text())
+        tracker["tracking"].setdefault("verification_history", []).append({
+            "id": "r7-acu-times-120",
+            "pr": 120,
+            "round": 7,
+            "installed_at": "2026-11-24T08:31:56Z",
+            "ended_at": "2026-11-24T08:50:24Z",
+            "status": "complete",
+            "checks": {
+                "BCL-171": {"state": "inconclusive", "finished_at": "2026-11-24T08:44:00Z",
+                            "summary": "this run"},
+            },
+        })
+        (self.state / "agent-plugins" / "120.json").write_text(json.dumps(tracker))
+        result = build_issues("agent-plugins", pr="120", run="r7-acu-times-120")
+        issue = next(row for row in result["issues"] if row["id"] == "BCL-171")
+        self.assertEqual(issue["check_outcome"], "inconclusive")
+        self.assertEqual(issue["check_at"], "2026-11-24T08:44:00Z")
+        self.assertNotEqual(issue.get("last_seen_at"), "2026-11-24T08:44:00Z")
 
 
 if __name__ == "__main__":

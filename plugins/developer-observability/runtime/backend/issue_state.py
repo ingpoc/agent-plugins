@@ -82,7 +82,17 @@ def iso(value):
 def strip_paths(text):
     if not isinstance(text, str) or not text:
         return text
-    return PATH_RE.sub(lambda match: match.group(1) + (match.group(2) or ""), text)
+
+    def repl(match):
+        name = match.group(1) + (match.group(2) or "")
+        start = match.start()
+        previous = text[start - 1] if start else ""
+        # Keep a slash when the match ate the rest of a relative path.
+        if start > 0 and text[start] == "/" and previous not in "/ \t\n`'\"[(<":
+            return "/" + name
+        return name
+
+    return PATH_RE.sub(repl, text)
 
 
 def clean_ref(ref):
@@ -98,7 +108,10 @@ def clean_ref(ref):
 def _event(kind, at, summary, ref=None):
     if not at:
         return None
-    return {"kind": kind, "at": at, "summary": strip_paths(str(summary or kind)), "ref": clean_ref(ref)}
+    text = strip_paths(str(summary or kind)).strip()
+    if text.startswith("- "):
+        text = text[2:].strip()
+    return {"kind": kind, "at": at, "summary": text, "ref": clean_ref(ref)}
 
 
 def _as_ids(value):
@@ -403,18 +416,36 @@ def _sort_events(events):
 
 
 
-def run_source_pr(run, tracker_pr=None):
-    """Attribute a run to its source PR from the id suffix, recorded pr, or host tracker."""
+def _looks_like_pr_number(value, known=None):
+    text = str(value or "").lstrip("#")
+    if not text.isdigit():
+        return False
+    if known is not None:
+        return text in known
+    # Dates such as 20261107 are not pull request numbers.
+    if len(text) == 8 and text.startswith("20"):
+        return False
+    return 1 <= len(text) <= 5
+
+
+def run_source_pr(run, tracker_pr=None, known_prs=None):
+    """Attribute a run to its source tracker, or a -NNN suffix that is a known PR."""
+    host = str(tracker_pr).lstrip("#") if tracker_pr is not None else None
+    known = None
+    if known_prs is not None:
+        known = {str(p).lstrip("#") for p in known_prs if p is not None and str(p).lstrip("#")}
+        if host:
+            known.add(host)
     if not isinstance(run, dict):
-        return str(tracker_pr) if tracker_pr is not None else None
+        return host
     ident = str(run.get("id") or run.get("run_id") or "")
     match = re.search(r"-(\d+)$", ident)
-    if match:
+    if match and _looks_like_pr_number(match.group(1), known):
         return match.group(1)
     recorded = run.get("pr")
-    if recorded is not None and str(recorded).lstrip("#").isdigit():
+    if recorded is not None and _looks_like_pr_number(recorded, known):
         return str(recorded).lstrip("#")
-    return str(tracker_pr).lstrip("#") if tracker_pr is not None else None
+    return host
 
 
 def resolve_run(runs, key, pr=None):
@@ -625,8 +656,9 @@ def _select_run_issues(issues, run, state=None):
         if start_at and end_at:
             events = [event for event in issue.get("events", []) if instant(event.get("at")) and start_at <= instant(event["at"]) <= end_at]
         reason_text = check.get("evidence") or check.get("summary") or check.get("observation") or check.get("state")
+        check_at = check.get("finished_at") or check.get("updated_at") or check.get("at")
         selected.append({**issue, "window_reason": reason, "window_events": events, "check_outcome": check.get("state"),
-                         "check_reason": reason_text})
+                         "check_reason": reason_text, "check_at": check_at})
     selected.sort(key=lambda row: (row["window_reason"] == "regressed", row["window_reason"] == "new",
                                   row.get("last_seen_at") or ""), reverse=True)
     if state:
@@ -643,20 +675,31 @@ def _select_run_issues(issues, run, state=None):
     return selected
 
 
+def _in_span(value, start_at, end_at):
+    stamp = instant(value)
+    if stamp is None:
+        return False
+    if start_at and stamp < start_at:
+        return False
+    if end_at and stamp > end_at:
+        return False
+    return True
+
+
 def _bound_issue_to_round(issue, start, end, carried_to=None):
     """Restrict evidence and state to a past round's window; label leftovers carried forward."""
-    end_at = instant(end)
-    events = issue.get("events") or []
-    if end_at:
-        events = [event for event in events if instant(event.get("at")) and instant(event["at"]) <= end_at]
+    start_at, end_at = instant(start), instant(end)
+    events = [event for event in (issue.get("events") or []) if _in_span(event.get("at"), start_at, end_at)]
     events = _sort_events(events)
     bounded = {**issue, "events": events}
     raw = issue.get("raw") if isinstance(issue.get("raw"), dict) else issue
-    status = str(raw.get("status") or issue.get("status_raw") or "").strip().lower()
-    snapshot = {**raw, "status": status}
+    changes = [row for row in (raw.get("state_changes") or []) if isinstance(row, dict) and _in_span(row.get("at"), start_at, end_at)]
+    snapshot = {**raw, "status": "", "status_raw": "", "verification": "", "verification_evidence": [],
+                "state_changes": changes}
+    for key in ("resolved_at", "fixed_at", "verified_at", "closed_at"):
+        if not _in_span(raw.get(key), start_at, end_at):
+            snapshot[key] = None
     state = lifecycle_state(snapshot, events, lane=None, prior=None)
-    if state == "parked" and status not in {"parked", "deferred"}:
-        state = "untested"
     last_evidence = max((event for event in events if (event.get("ref") or "").startswith(("job:", "check:"))),
                         key=lambda row: instant(row.get("at")) or datetime.min.replace(tzinfo=timezone.utc),
                         default=None)
@@ -671,6 +714,35 @@ def _bound_issue_to_round(issue, start, end, carried_to=None):
                    needs_you=state in {"blocked", "regressed"}, origin=origin_label or issue.get("origin"),
                    attempts=len(failures) or 0)
     return bounded
+
+
+
+def _fill_round_starts(rows, opened_by_pr=None):
+    """Backfill missing started_at from the previous PR's last end, then this PR's opening."""
+    opened_by_pr = opened_by_pr or {}
+    ordered = sorted(
+        (row for row in rows if isinstance(row, dict) and row.get("round") is not None),
+        key=lambda row: (_pr_key(row.get("pr")), row.get("round") or 0),
+    )
+    previous_end = None
+    filled = []
+    index_by_key = {}
+    for row in ordered:
+        pr = str(row.get("pr"))
+        started = row.get("started_at") or previous_end or opened_by_pr.get(pr)
+        updated = {**row, "started_at": started}
+        filled.append(updated)
+        index_by_key[(pr, row.get("round"))] = updated
+        previous_end = row.get("ended_at") or started or previous_end
+    # Preserve original order, with filled starts.
+    result = []
+    for row in rows:
+        if not isinstance(row, dict):
+            result.append(row)
+            continue
+        key = (str(row.get("pr")), row.get("round"))
+        result.append(index_by_key.get(key, row))
+    return result
 
 
 def build_issues(project, pr="current", scope="now", from_time=None, to_time=None, state=None, state_dir=None, round_id=None, run=None):
@@ -789,6 +861,21 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
     all_rounds = []
     all_runs = []
     seen_round_keys = set()
+    known_prs = {str(item[2]).lstrip("#") for item in source_trackers}
+    opened_by_pr = {}
+    for item in source_trackers:
+        tracking = item[1].get("tracking") if isinstance(item[1].get("tracking"), dict) else {}
+        pull = tracking.get("pull_request") if isinstance(tracking.get("pull_request"), dict) else {}
+        opened = pull.get("opened_at") or tracking.get("opened_at")
+        if opened:
+            opened_by_pr[str(item[2])] = opened
+    # Fill starts before issue bounds so #121 R1 inherits #120's last end.
+    prelim_rounds = []
+    for _, document, tracker_pr in sorted(source_trackers, key=_tracker_sort_key):
+        prelim_rounds.extend(_history_rows(document, tracker_pr))
+    filled_rounds = _fill_round_starts(prelim_rounds, opened_by_pr)
+    filled_by_key = {(str(row.get("pr")), row.get("round")): row for row in filled_rounds
+                     if isinstance(row, dict)}
     for _, document, tracker_pr in sorted(source_trackers, key=_tracker_sort_key):
         tracking, plan, round_number, cycle = _meta(document)
         rollover = tracking.get("rollover") if isinstance(tracking.get("rollover"), dict) else {}
@@ -800,7 +887,8 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
         groups = _plan_groups(document)
         by_finding = {identifier: group for group in groups
                       for identifier in (group.get("finding_ids") if isinstance(group.get("finding_ids"), list) else [])}
-        history_rows = _history_rows(document, tracker_pr)
+        history_rows = [filled_by_key.get((str(row.get("pr")), row.get("round")), row)
+                        for row in _history_rows(document, tracker_pr)]
         spans = _round_span(history_rows, round_number, tracking.get("round_started_at"))
         for row in history_rows:
             key = (str(row.get("pr")), row.get("round"))
@@ -814,7 +902,7 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
         for history_run in runs:
             normalized = normalize_run(history_run)
             if normalized:
-                attributed = {**normalized, "pr": run_source_pr(normalized, tracker_pr)}
+                attributed = {**normalized, "pr": run_source_pr(normalized, tracker_pr, known_prs)}
                 existing = next((row for row in all_runs if str(row.get("id") or row.get("run_id")) == str(attributed.get("id") or attributed.get("run_id"))), None)
                 if existing:
                     # Prefer the source-tracker attribution already recorded; merge checks.
@@ -872,11 +960,7 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
                 lane = {"id": group.get("id"), "state": group.get("status"), "phase": group.get("phase"), "round": lane_round or round_number}
             computed = lifecycle_state(finding, events, lane=lane, prior=prior_findings.get(identifier))
             failures = [event for event in events if event["kind"] in {"fail", "review_failed", "owner_rejected"}]
-            last_seen = finding.get("last_seen")
-            last_seen_at = last_seen.get("at") if isinstance(last_seen, dict) else last_seen if isinstance(last_seen, str) else None
-            if failures:
-                seen_candidates = [value for value in [last_seen_at, *(event["at"] for event in failures if event.get("at"))] if value]
-                last_seen_at = max(seen_candidates, default=None)
+            last_seen_at = max((event["at"] for event in failures if event.get("at")), default=None)
             evidence = [event for event in events if (event.get("ref") or "").startswith(("job:", "check:"))]
             latest_evidence = max(evidence, key=lambda row: row["at"], default=None)
             if latest_evidence:
