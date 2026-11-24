@@ -347,7 +347,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T19:08:04Z",
+    "last_written_at": "2026-11-24T19:14:24Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -709,6 +709,30 @@
         "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       }
+    },
+    {
+      "id": "BCL-178",
+      "title": "A fresh change list cannot record a post-merge Introspect",
+      "summary": "After a pull request merges, the next list refuses Collect until a post-merge Introspect is recorded, but there is no supported command that can record one on that fresh list.",
+      "impact": "Operators cannot start Collect on the next list without writing the tracker by hand, which is forbidden.",
+      "recommendation": "Add a supported bcl introspect --scope post_merge that records the post-merge Introspect on a new list that has not reached Verify, drafts and checks coverage from the merged list's job data, and does not mark the new list as having finished ordinary Introspect.",
+      "done_when": "An official command records the post-merge Introspect on a new list that has not finished Verify, collection can then start, and a test covers this without a hand-edited tracker.",
+      "observed": "On list 123, bcl start failed with Collect is refused until the post-merge Introspect is recorded. bcl introspect has no --scope flag, and manage_findings require_transition introspect requires Verify. A script then copied 122 tracking.post_merge_introspect onto 123.json through manage_findings.write; that was a direct tracker write, not a supported bcl command.",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "command": "bcl introspect --scope post_merge --draft FILE.json, then bcl introspect --scope post_merge --sections FILE.json",
+        "gap": "require_transition introspect requires verify; CLI has no --scope; official introspect would also mark stages_reached and close the plan"
+      },
+      "created_at": "2026-11-24T19:14:24Z",
+      "first_seen": {
+        "at": "2026-11-24T19:14:24Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
     }
   ]
 }
