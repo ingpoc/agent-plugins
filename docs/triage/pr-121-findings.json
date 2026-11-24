@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-24T13:51:00Z",
-      "now": "2026-11-24T13:51:00Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-24T14:02:57Z",
+      "now": "2026-11-24T14:02:57Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 120,
@@ -12259,7 +12259,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T13:51:00Z",
+    "last_written_at": "2026-11-24T14:02:57Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12560,7 +12560,8 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "cycle": 13,
@@ -12570,8 +12571,8 @@
           "id": "R2-STATUS",
           "name": "Keep lane and verify status accurate",
           "label": "STATUS",
-          "status": "installing",
-          "phase": "install",
+          "status": "verifying",
+          "phase": "verify",
           "finding_ids": [
             "BCL-110",
             "BCL-113",
@@ -12595,7 +12596,7 @@
             "failed": 0,
             "total": 4
           },
-          "stage_entered_at": "2026-11-24T13:51:00Z",
+          "stage_entered_at": "2026-11-24T14:02:57Z",
           "failure_history": [],
           "plan_review_history": [],
           "codex": {
@@ -12623,7 +12624,7 @@
             "review_status": "passed",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           },
-          "updated_at": "2026-11-24T10:58:49Z",
+          "updated_at": "2026-11-24T14:02:57Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12634,9 +12635,9 @@
             "started_at": "2026-11-24T13:51:00Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "Grok Bot",
-            "at": "2026-11-24T13:51:00Z"
+            "at": "2026-11-24T14:02:57Z"
           }
         },
         {
@@ -13262,6 +13263,159 @@
       },
       "round": 1,
       "cycle": 13
+    },
+    "verification_run": {
+      "id": "r2-62036ff4-121",
+      "build": "batched-change-list 0.1.74, developer-observability 0.1.38",
+      "revision": "62036ff497ccf4353c7dd04fd799044bba19f7ef",
+      "installed_at": "2026-11-24T13:37:21Z",
+      "install_evidence": "/Users/gurusharan/.agents/artifacts/bcl-121/r2/install-receipt-62036ff4.json",
+      "cycle": 13,
+      "status": "active",
+      "checks": {
+        "BCL-94": {
+          "state": "checking",
+          "observation": "Checking the installed TRACKER live-state guard and serve tests on 0.1.74 at 62036ff4.",
+          "observed_at": "2026-11-24T14:02:45Z",
+          "started_at": "2026-11-24T14:02:45Z",
+          "updated_at": "2026-11-24T14:02:45Z"
+        },
+        "BCL-106": {
+          "state": "pending"
+        },
+        "BCL-108": {
+          "state": "pending"
+        },
+        "BCL-110": {
+          "state": "checking",
+          "observation": "Checking the installed STATUS writer, job lifecycle, and lane-state fixes on 0.1.74 at 62036ff4.",
+          "observed_at": "2026-11-24T14:02:45Z",
+          "started_at": "2026-11-24T14:02:45Z",
+          "updated_at": "2026-11-24T14:02:45Z"
+        },
+        "BCL-113": {
+          "state": "checking",
+          "observation": "Checking the installed STATUS writer, job lifecycle, and lane-state fixes on 0.1.74 at 62036ff4.",
+          "observed_at": "2026-11-24T14:02:45Z",
+          "started_at": "2026-11-24T14:02:45Z",
+          "updated_at": "2026-11-24T14:02:45Z"
+        },
+        "BCL-115": {
+          "state": "checking",
+          "observation": "Checking the installed TRACKER live-state guard and serve tests on 0.1.74 at 62036ff4.",
+          "observed_at": "2026-11-24T14:02:45Z",
+          "started_at": "2026-11-24T14:02:45Z",
+          "updated_at": "2026-11-24T14:02:45Z"
+        },
+        "BCL-120": {
+          "state": "pending"
+        },
+        "BCL-124": {
+          "state": "checking",
+          "observation": "Checking the installed TRACKER live-state guard and serve tests on 0.1.74 at 62036ff4.",
+          "observed_at": "2026-11-24T14:02:45Z",
+          "started_at": "2026-11-24T14:02:45Z",
+          "updated_at": "2026-11-24T14:02:45Z"
+        },
+        "BCL-125": {
+          "state": "pending"
+        },
+        "BCL-130": {
+          "state": "pending"
+        },
+        "BCL-139": {
+          "state": "pending"
+        },
+        "BCL-140": {
+          "state": "pending"
+        },
+        "BCL-144": {
+          "state": "pending"
+        },
+        "BCL-147": {
+          "state": "pending"
+        },
+        "BCL-149": {
+          "state": "pending"
+        },
+        "BCL-159": {
+          "state": "pending"
+        },
+        "BCL-160": {
+          "state": "checking",
+          "observation": "Checking the installed STATUS writer, job lifecycle, and lane-state fixes on 0.1.74 at 62036ff4.",
+          "observed_at": "2026-11-24T14:02:45Z",
+          "started_at": "2026-11-24T14:02:45Z",
+          "updated_at": "2026-11-24T14:02:45Z"
+        },
+        "BCL-161": {
+          "state": "pending"
+        },
+        "BCL-166": {
+          "state": "pending"
+        },
+        "BCL-171": {
+          "state": "pending"
+        },
+        "DO-1": {
+          "state": "pending"
+        },
+        "PR120-r6-gate-denominator": {
+          "state": "pending"
+        },
+        "PR120-r6-stale-job-finish": {
+          "state": "checking",
+          "observation": "Checking the installed STATUS writer, job lifecycle, and lane-state fixes on 0.1.74 at 62036ff4.",
+          "observed_at": "2026-11-24T14:02:45Z",
+          "started_at": "2026-11-24T14:02:45Z",
+          "updated_at": "2026-11-24T14:02:45Z"
+        },
+        "PR120-r6-collect-job-coverage": {
+          "state": "pending"
+        },
+        "DO-4": {
+          "state": "pending"
+        },
+        "DO-5": {
+          "state": "pending"
+        },
+        "DO-6": {
+          "state": "pending"
+        },
+        "DO-7": {
+          "state": "pending"
+        },
+        "DO-8": {
+          "state": "pending"
+        },
+        "DO-9": {
+          "state": "checking",
+          "observation": "Checking the installed developer-observability unit tests on 0.1.38 at 62036ff4.",
+          "observed_at": "2026-11-24T14:02:45Z",
+          "started_at": "2026-11-24T14:02:45Z",
+          "updated_at": "2026-11-24T14:02:45Z"
+        },
+        "DO-10": {
+          "state": "checking",
+          "observation": "Checking the installed developer-observability unit tests on 0.1.38 at 62036ff4.",
+          "observed_at": "2026-11-24T14:02:45Z",
+          "started_at": "2026-11-24T14:02:45Z",
+          "updated_at": "2026-11-24T14:02:45Z"
+        },
+        "DO-11": {
+          "state": "pending"
+        },
+        "DO-12": {
+          "state": "pending"
+        },
+        "PR121-r2-live-state-guard": {
+          "state": "pending"
+        }
+      },
+      "run_id": "r2-62036ff4-121",
+      "pr": 121,
+      "round": 2,
+      "started_at": "2026-11-24T13:37:21Z"
     }
   },
   "findings": [
