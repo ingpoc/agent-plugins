@@ -11003,9 +11003,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T18:16:01Z",
-      "now": "2026-11-24T18:16:01Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T18:25:00Z",
+      "now": "2026-11-24T18:25:00Z — Fix started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12662,7 +12662,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T18:16:01Z",
+    "last_written_at": "2026-11-24T18:25:00Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -14472,7 +14472,7 @@
           "finding_ids": [
             "BCL-125"
           ],
-          "worktree": "samantha-next-r12",
+          "worktree": "gurusharan",
           "files": [
             "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -14490,24 +14490,24 @@
             "plugins/batched-change-list/skills/batched-change-list/statechart.html"
           ],
           "reason": "The separate review and resort-failures commands duplicate the review job, release-check, and unblock.",
-          "status": "review",
-          "phase": "review",
+          "status": "running",
+          "phase": "fix",
           "codex": {
             "implementer_session": "grokbot-122-r4-gates",
             "reviewer_session": "grokbot-122-r4-gates-review",
-            "fix_status": "passed",
+            "fix_status": "running",
             "job": {
-              "id": "53425c72dacd4cd1b3cae671a3eb0f53",
-              "phase": "review",
-              "started_at": "2026-11-24T18:16:01Z",
-              "command": "review-gates.sh",
-              "heartbeat_at": "2026-11-24T18:16:01Z",
+              "id": "16aaff4b1a5440089048d9d5f91719d9",
+              "phase": "fix",
+              "started_at": "2026-11-24T18:25:00Z",
+              "command": "commit-gates-followup.sh",
+              "heartbeat_at": "2026-11-24T18:25:00Z",
               "plan_sha256": "2bf45d1c726c10555d7766be1accdf48e1d827fd659b406c55854100390d0a16",
               "finding_ids": [
                 "BCL-125"
               ],
-              "worktree": "samantha-next-r12",
-              "model": "grokbot",
+              "worktree": "gurusharan",
+              "model": "Grok Bot subagent",
               "lane_sha256": "42dba8f7ff7b6658108bd544aaf9a256437b2060506b6fc77ddcdd73f06ba7c2",
               "cycle": 14,
               "round": 4
@@ -14539,9 +14539,61 @@
                 "wall_time_s": 12,
                 "session": "grokbot-122-r4-gates",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "53425c72dacd4cd1b3cae671a3eb0f53",
+                "phase": "review",
+                "started_at": "2026-11-24T18:16:01Z",
+                "command": "review-gates.sh",
+                "heartbeat_at": "2026-11-24T18:16:13Z",
+                "plan_sha256": "2bf45d1c726c10555d7766be1accdf48e1d827fd659b406c55854100390d0a16",
+                "finding_ids": [
+                  "BCL-125"
+                ],
+                "worktree": "samantha-next-r12",
+                "model": "grokbot",
+                "lane_sha256": "42dba8f7ff7b6658108bd544aaf9a256437b2060506b6fc77ddcdd73f06ba7c2",
+                "cycle": 14,
+                "round": 4,
+                "pid": 48008,
+                "exit_code": 0,
+                "finished_at": "2026-11-24T18:16:13Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/53425c72dacd4cd1b3cae671a3eb0f53.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 12,
+                "session": "grokbot-122-r4-gates",
+                "finished_phase_status": "passed"
+              },
+              {
+                "id": "a45debf54d0e41c99a67024fb4f88676",
+                "phase": "presuite",
+                "started_at": "2026-11-24T18:16:20Z",
+                "command": "run-presuite-r3.sh",
+                "heartbeat_at": "2026-11-24T18:19:26Z",
+                "plan_sha256": "2bf45d1c726c10555d7766be1accdf48e1d827fd659b406c55854100390d0a16",
+                "finding_ids": [
+                  "BCL-125"
+                ],
+                "worktree": "samantha-next-r12",
+                "model": "grokbot",
+                "lane_sha256": "42dba8f7ff7b6658108bd544aaf9a256437b2060506b6fc77ddcdd73f06ba7c2",
+                "cycle": 14,
+                "round": 4,
+                "pid": 48823,
+                "exit_code": 1,
+                "finished_at": "2026-11-24T18:19:26Z",
+                "first_error_line": "validate plugins/agent-computer-use",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/a45debf54d0e41c99a67024fb4f88676.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 186,
+                "session": "grokbot-122-r4-gates",
+                "finished_phase_status": "failed"
               }
             ],
-            "review_status": "running",
             "reviewer_model": "grokbot"
           },
           "verify": {
@@ -14552,7 +14604,7 @@
             "failed": 0,
             "total": 1
           },
-          "stage_entered_at": "2026-11-24T18:15:40Z",
+          "stage_entered_at": "2026-11-24T18:25:00Z",
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-24T18:15:28Z"
@@ -15439,7 +15491,7 @@
     {
       "id": "DO-11",
       "title": "The per-round viewer still needs row polish",
-      "status": "blocked",
+      "status": "closed",
       "priority": "medium",
       "source": "Agent reported",
       "summary": "The local per-round page is ready to ship, but lane rows still share one why across lanes, show an incomplete phase track on verified work, hide column labels, and use dashes instead of clear missing-data wording.",
@@ -15471,7 +15523,9 @@
       "last_seen": {
         "at": "2026-11-24T14:05:51.182849Z",
         "source": "verification_check"
-      }
+      },
+      "merged_into": "PR122-parked-backlog",
+      "merged_at": "2026-11-24T18:23:42Z"
     },
     {
       "id": "PR121-r2-live-state-guard",
@@ -15610,7 +15664,8 @@
       "recommendation": "Append nits here with into, and leave this issue blocked until the owner asks to take one up.",
       "details": {
         "purpose": "Single parked backlog for frozen-intake nits and process ideas.",
-        "also reported as DO-11": "The per-round viewer still needs row polish Lane rows still share one why, hide column labels, and use dashes for missing data. Guru later approved the v3 calm viewer, which supersedes this polish. 24 Nov 2026 mid-afternoon live review, then cancelled 16:19 IST because the v3 viewer replaces the current page."
+        "also reported as DO-11": "The per-round viewer still needs row polish Lane rows still share one why, hide column labels, and use dashes for missing data. Guru later approved the v3 calm viewer, which supersedes this polish. 24 Nov 2026 mid-afternoon live review, then cancelled 16:19 IST because the v3 viewer replaces the current page.",
+        "merged_from": "DO-11"
       },
       "created_at": "2026-11-24T17:34:53Z",
       "first_seen": {
