@@ -13411,14 +13411,18 @@
               "worktree": "bcl120-r6-fallback",
               "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
               "cycle": 12,
-              "round": 6
+              "round": 6,
+              "pid": 79728,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T06:24:10Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "fix_status": "passed",
             "model": "Grok Bot",
             "implementer_session": "grokbot-r6-fallback",
             "reviewer_session": "grokbot-r6-fallback-review",
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           },
           "verify": {
@@ -14192,7 +14196,7 @@
       "round": 5,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T06:24:10Z",
+    "last_written_at": "2026-11-24T06:24:11Z",
     "fix_order": {
       "ids": [
         "PR120-r5-codex-reviewer-model-fallback",
