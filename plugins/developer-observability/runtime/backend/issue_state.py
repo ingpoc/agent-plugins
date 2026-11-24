@@ -176,7 +176,10 @@ def _events_for(finding, group, jobs):
 
 def build_issues(project, pr="current", scope="now", from_time=None, to_time=None, state=None, state_dir=None):
     """Read trackers and job events and return the shared UI/MCP issue contract."""
-    from round_view import _fold_jobs, _iter_trackers, _plan_groups, _tracker_sort_key
+    try:
+        from .round_view import _fold_jobs, _iter_trackers, _plan_groups, _tracker_sort_key
+    except ImportError:
+        from round_view import _fold_jobs, _iter_trackers, _plan_groups, _tracker_sort_key
 
     trackers = []
     for item in _iter_trackers(project, state_dir):

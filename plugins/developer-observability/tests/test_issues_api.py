@@ -72,5 +72,15 @@ class IssuesAPITests(unittest.TestCase):
         self.assertEqual(issue["window_reason"], "fixed")
 
 
+
+    def test_viewer_import_path_does_not_need_backend_on_sys_path(self):
+        """The loopback viewer only adds runtime/ to sys.path."""
+        backend = str(RUNTIME / "backend")
+        restored = [path for path in sys.path if path == backend]
+        sys.path[:] = [path for path in sys.path if path != backend]
+        self.addCleanup(lambda: [sys.path.insert(0, path) for path in restored])
+        via_http = issues_payload({"project": ["agent-plugins"], "pr": ["current"], "scope": ["all"]})
+        self.assertEqual({row["id"] for row in via_http["issues"]}, {"DO-1", "DO-2", "DO-3"})
+
 if __name__ == "__main__":
     unittest.main()
