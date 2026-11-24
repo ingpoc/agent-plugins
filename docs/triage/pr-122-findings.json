@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T16:04:42Z",
-      "now": "2026-11-24T16:04:42Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T16:04:43Z",
+      "now": "2026-11-24T16:04:43Z — Review started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12188,7 +12188,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T16:04:42Z",
+    "last_written_at": "2026-11-24T16:04:43Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12578,8 +12578,8 @@
             "DO-6"
           ],
           "worktree": "samantha-next-r12",
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
             "plugins/developer-observability"
@@ -12597,11 +12597,11 @@
             "implementer_session": "grokbot-122-r1-tokens",
             "reviewer_session": "grokbot-122-r1-tokens-review",
             "job": {
-              "id": "083231b9e20344ceb003c43abcdea3ec",
-              "phase": "fix",
-              "started_at": "2026-11-24T16:04:42Z",
-              "command": "commit-eof.sh",
-              "heartbeat_at": "2026-11-24T16:04:42Z",
+              "id": "8bc85c3f96f546ab861f0e01935e286b",
+              "phase": "review",
+              "started_at": "2026-11-24T16:04:43Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T16:04:43Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "PR120-r6-collect-job-coverage",
@@ -12614,9 +12614,10 @@
               "cycle": 14,
               "round": 1
             },
-            "fix_status": "running",
+            "fix_status": "passed",
             "reviewer_model": "Grok Bot",
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "review_status": "running"
           },
           "stage_entered_at": "2026-11-24T16:04:42Z",
           "failure_history": [],
