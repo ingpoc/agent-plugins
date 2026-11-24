@@ -597,7 +597,14 @@ def capture_issue_metadata(document, before, operations, timestamp):
         tracking["round_started_at"] = timestamp
     pull = tracking.get("pull_request")
     if isinstance(pull, dict) and pull:
-        pull.setdefault("opened_at", tracking.get("pull_request_opened_at"))
+        if not pull.get("opened_at"):
+            pull["opened_at"] = tracking.get("pull_request_opened_at") or None
+    gate = tracking.get("gate")
+    if not isinstance(gate, dict):
+        gate = {}
+        tracking["gate"] = gate
+    gate.setdefault("merge_previous_pr_threshold", RENDERER.WF.MERGE_PREVIOUS_PR_THRESHOLD)
+    gate.setdefault("report_threshold", RENDERER.WF.DEFAULT_ROLLOVER_THRESHOLD)
 
     old_findings = {row.get("id"): row for row in before.get("findings", []) if isinstance(row, dict)}
     groups = plan.get("groups", []) if isinstance(plan.get("groups"), list) else []

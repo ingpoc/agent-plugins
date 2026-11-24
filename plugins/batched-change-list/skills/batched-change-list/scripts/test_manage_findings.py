@@ -45,6 +45,17 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIsNone(after["tracking"]["pull_request"]["opened_at"])
         self.assertEqual(after["tracking"]["gate"]["merge_previous_pr_threshold"], 12)
 
+    def test_capture_fills_opened_at_and_default_gate(self):
+        before = {"findings": [{"id": "DO-4", "status": "untested", "created_at": "2026-11-23T09:00:00Z"}],
+                  "tracking": {"round": 1, "pull_request": {"number": 121, "opened_at": None},
+                               "pull_request_opened_at": "2026-11-24T08:30:00Z",
+                               "plan": {"round": 1, "groups": []}}}
+        after = copy.deepcopy(before)
+        manage_findings.capture_issue_metadata(after, before, [], "2026-11-24T10:01:00Z")
+        self.assertEqual(after["tracking"]["pull_request"]["opened_at"], "2026-11-24T08:30:00Z")
+        self.assertEqual(after["tracking"]["gate"]["merge_previous_pr_threshold"], 16)
+        self.assertEqual(after["tracking"]["gate"]["report_threshold"], 15)
+
     def test_owner_rejection_records_regression_transition(self):
         document = {"findings": [{"id": "DO-4", "status": "verified"}], "tracking": {"round": 2, "plan": {"round": 2}}}
         manage_findings.capture_issue_metadata(document, {"findings": [{"id": "DO-4", "status": "verified"}],

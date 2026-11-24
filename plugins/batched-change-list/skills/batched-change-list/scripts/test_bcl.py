@@ -392,12 +392,14 @@ elif args[:2] != ['pr', 'edit']:
         issue_id = document["findings"][0]["id"]
         plan = {"cycle": 1, "round": 1, "groups": [{"id": "LANE-A", "finding_ids": [issue_id], "status": "planned"}]}
         document.setdefault("tracking", {}).update(cycle=1, round=1, plan=plan)
-        job = {"id": "start-before-pid", "plan_sha256": bcl_entrypoint.manage_findings.plan_candidate_sha256(plan)}
+        job = {"id": "start-before-pid", "plan_sha256": bcl_entrypoint.manage_findings.plan_candidate_sha256(plan),
+               "finding_ids": [issue_id]}
         bcl_entrypoint.manage_findings.job_transition(document, {
             "action": "start-job", "phase": "fix", "ids": [issue_id],
             "cycle": 1, "round": 1, "timestamp": "2026-11-22T00:00:00Z", "job": job,
         })
         receipt = document["tracking"]["plan"]["groups"][0]["codex"]["job"]
+        self.assertEqual(receipt.get("finding_ids"), [issue_id])
         self.assertNotIn("exit_code", receipt)
         self.assertNotIn("finished_at", receipt)
         self.assertNotIn("pid", receipt)

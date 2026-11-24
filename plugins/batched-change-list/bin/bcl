@@ -241,7 +241,8 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
         previous_result = None
     job = {"id": uuid.uuid4().hex, "phase": phase, "started_at": started_at,
            "command": Path(command_args[0]).name, "heartbeat_at": started_at,
-           "plan_sha256": manage_findings.plan_candidate_sha256(plan)}
+           "plan_sha256": manage_findings.plan_candidate_sha256(plan),
+           "finding_ids": list(ids)}
     job["worktree"] = Path.cwd().name
     if model:
         job["model"] = model
