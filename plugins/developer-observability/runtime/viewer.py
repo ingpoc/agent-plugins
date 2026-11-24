@@ -11,7 +11,7 @@ import os
 import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 RESERVED_PORTS = {8765}
 PORT_FLOOR = 8780
@@ -122,7 +122,8 @@ def issues_payload(query):
     from backend.issue_state import build_issues
     value = lambda key, default=None: query.get(key, [default])[0]
     return build_issues(value('project', 'agent-plugins'), value('pr', 'current'), value('scope', 'now'),
-                        value('from'), value('to'), value('state'), round_id=value('round'), run=value('run'))
+                        value('from'), value('to'), value('state'), round_id=value('round'), run=value('run'),
+                        issue_id=value('issue'), include=value('include'))
 
 
 def tool_payload(name, arguments):
@@ -156,8 +157,11 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if self.headers.get("Host") not in {f"127.0.0.1:{port}", f"localhost:{port}"}:
             self.send_error(403)
             return
-        if path == "/api/issues":
+        if path == "/api/issues" or path.startswith("/api/issues/"):
             query = parse_qs(request.query, keep_blank_values=False)
+            if path.startswith("/api/issues/"):
+                # One issue with its full trail and per-job usage, same scope rules as the list.
+                query["issue"] = [unquote(path[len("/api/issues/"):])]
             try:
                 payload = issues_payload(query)
                 self._send(json.dumps(payload), "application/json; charset=utf-8")

@@ -145,8 +145,9 @@ def observability_issues(project_id: str, status: str = 'all', cursor: str | Non
                          change_class: str | None = None, since: str | None = None,
                          until: str | None = None, scope: str = 'now', pr: str = 'current',
                          state: str | None = None, from_time: str | None = None,
-                         to_time: str | None = None, run: str | None = None) -> CallToolResult:
-    """List issues using the dashboard's now, round and timeframe state rules."""
+                         to_time: str | None = None, run: str | None = None,
+                         issue_id: str | None = None, include: list[str] | str | None = None) -> CallToolResult:
+    """List issues using the dashboard's now, round and timeframe state rules. include=["trail","jobs","rollup"] adds each issue's root-cause trail, timing and jobs (model, tokens) plus per-round rollup, with recorded/derived/missing provenance; issue_id returns one issue with trail and jobs."""
     if from_time is None:
         from_time = since
     if to_time is None:
@@ -156,13 +157,13 @@ def observability_issues(project_id: str, status: str = 'all', cursor: str | Non
     if round not in (None, '') and scope == 'now':
         scope = f'round:{round}'
     if (project_id != 'agent-plugins' and scope == 'now' and pr == 'current'
-            and from_time is None and to_time is None and state is None):
+            and from_time is None and to_time is None and state is None and issue_id is None and include is None):
         return invoke('issues', project_id, status, cursor, limit, kind, version, attribution, include_coverage,
                       pull_request, round, stage, plugin, change_class, since, until)
     from backend.issue_state import build_issues
     from backend.observability_api import NEXT_STEPS
     try:
-        payload = build_issues(project_id, pr, scope, from_time, to_time, state, round_id=round, run=run)
+        payload = build_issues(project_id, pr, scope, from_time, to_time, state, round_id=round, run=run, issue_id=issue_id, include=include)
         return CallToolResult(content=[TextContent(type='text', text=json.dumps(payload, separators=(',', ':')))],
                               structuredContent=payload)
     except Exception as error:
@@ -170,7 +171,7 @@ def observability_issues(project_id: str, status: str = 'all', cursor: str | Non
         if code == 'tracker_unavailable':
             return invoke('issues', project_id, status, cursor, limit, kind, version, attribution, include_coverage,
                           pull_request, round, stage, plugin, change_class, since, until)
-        if code not in ('unknown_project', 'tracker_unavailable', 'invalid_scope', 'invalid_state', 'invalid_time_window', 'invalid_run'):
+        if code not in ('unknown_project', 'tracker_unavailable', 'invalid_scope', 'invalid_state', 'invalid_time_window', 'invalid_run', 'invalid_issue', 'invalid_include'):
             code = 'backend_or_decision_failed'
         payload = {'error': code, 'next_step': NEXT_STEPS.get(code, 'Check the tracker and use a valid scope or time window.')}
         return CallToolResult(isError=True, content=[TextContent(type='text', text=json.dumps(payload))], structuredContent=payload)

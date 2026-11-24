@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Each issue can carry a root-cause trail (first failing run, root cause identified, fix verified, and regressions as new cycles) with time to root cause and time to verified, plus its linked jobs with model, version and tokens. Every value says whether it was recorded, derived from notes, or not recorded, and official and estimated tokens are never added together. The issues API and observability_issues take include=trail,jobs,rollup, GET /api/issues/<id> returns one issue's trail and jobs, and the viewer shows the same trail in the issue drawer, a three-dot cue on issue rows, and a collapsed Timing and tokens line. The emitter field contract is in docs/trail-emitter-contract.md.
+
 ## 0.1.38
 
 - A localhost page serves the existing observability dashboard and backend on a saved loopback port for each project, never the reserved Samantha port, with text-size controls and without blocking browser zoom (DO-4).
