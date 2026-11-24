@@ -11764,9 +11764,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T07:18:53Z",
-      "now": "2026-11-24T07:18:53Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T07:35:47Z",
+      "now": "2026-11-24T07:35:47Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13632,7 +13632,7 @@
           "finding_ids": [
             "DO-4"
           ],
-          "worktree": "bcl120-r7-doview",
+          "worktree": "samantha-next-r10",
           "status": "review",
           "phase": "review",
           "files": [
@@ -13664,22 +13664,31 @@
           },
           "codex": {
             "job": {
-              "id": "c6299c66021945179fad62822a535458",
-              "phase": "review",
-              "started_at": "2026-11-24T07:18:53Z",
-              "command": "run-record-r7-doview-review.sh",
-              "heartbeat_at": "2026-11-24T07:18:53Z",
+              "id": "78e0aa0f76124968990283777e73e264",
+              "phase": "presuite",
+              "started_at": "2026-11-24T07:26:05Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T07:29:02Z",
               "plan_sha256": "98694a6ff430c209e5ecd737a474396a415498512fd702dd641b0607f6d509a2",
-              "worktree": "bcl120-r7-doview",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "worktree": "samantha-next-r10",
+              "model": "check.py --changed-since e18667d6",
               "cycle": 12,
-              "round": 7
+              "round": 7,
+              "pid": 12295,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T07:29:02Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "fix_status": "passed",
             "implementer_session": "grokbot-r7-doview",
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T07:29:02Z"
           }
         },
         {
@@ -13690,8 +13699,8 @@
             "ACU-20"
           ],
           "worktree": "bcl120-r7-acu20",
-          "status": "planned",
-          "phase": "pending",
+          "status": "review",
+          "phase": "plan_review",
           "files": [
             "plugins/agent-computer-use/bin/island_activity.py",
             "plugins/agent-computer-use/bin/island_hook.py",
@@ -13701,10 +13710,38 @@
             "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandCodexThreadsTests.swift"
           ],
           "reason": "Product first: the island already shows Codex CLI runs and must also show Grok Bot's own subagents as running, done, or stopped with a reason, from a supported credential-free record. Do not read credentials, dual-drive Comet, or touch port 8765, pid 1338, or ~/.cache/macos-cua/samantha-activity.jsonl. About 90k tokens.",
-          "stage_entered_at": "2026-11-24T07:07:37Z",
+          "stage_entered_at": "2026-11-24T07:20:53Z",
           "failure_history": [],
-          "plan_review_history": [],
-          "codex": {},
+          "plan_review_history": [
+            {
+              "job_id": "8630c088c1194890b9f7a1e793e1bda3",
+              "after_failure": null,
+              "status": "passed",
+              "cycle": 12,
+              "round": 7,
+              "at": "2026-11-24T07:20:53Z"
+            }
+          ],
+          "codex": {
+            "job": {
+              "id": "8630c088c1194890b9f7a1e793e1bda3",
+              "phase": "plan_review",
+              "started_at": "2026-11-24T07:20:53Z",
+              "command": "run-record-r7-acu20-planreview.sh",
+              "heartbeat_at": "2026-11-24T07:20:53Z",
+              "plan_sha256": "98694a6ff430c209e5ecd737a474396a415498512fd702dd641b0607f6d509a2",
+              "worktree": "bcl120-r7-acu20",
+              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "cycle": 12,
+              "round": 7,
+              "pid": 1588,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T07:20:53Z",
+              "finished_phase_status": "passed"
+            },
+            "plan_review_status": "passed",
+            "tool_fault_streak": 0
+          },
           "updated_at": "2026-11-24T07:10:46Z",
           "verify": {
             "status": "pending",
@@ -13721,8 +13758,8 @@
             "ACU-10"
           ],
           "worktree": "bcl120-r7-acu10",
-          "status": "planned",
-          "phase": "pending",
+          "status": "review",
+          "phase": "plan_review",
           "files": [
             "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua/providers.py",
             "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua/live_session.py",
@@ -13730,10 +13767,38 @@
             "plugins/agent-computer-use/runtime/voice-cua/tests/test_usage_and_backoff.py"
           ],
           "reason": "Product: re-read provider usage fields for Grok Voice and the GPT live model, with AirPods Pro and typed prompts allowed for checks. Keep unknown rather than zero when a provider still omits counts; do not invent tokens. Serial live checks only; never touch port 8765, pid 1338, or the live Samantha activity log, and do not unlock the Mini or retry notarization. Not a duplicate of DO-2 or collect-job-coverage. About 80k tokens.",
-          "stage_entered_at": "2026-11-24T07:07:37Z",
+          "stage_entered_at": "2026-11-24T07:20:54Z",
           "failure_history": [],
-          "plan_review_history": [],
-          "codex": {},
+          "plan_review_history": [
+            {
+              "job_id": "491e97e788ca41eb9109af15eabc4cb5",
+              "after_failure": null,
+              "status": "passed",
+              "cycle": 12,
+              "round": 7,
+              "at": "2026-11-24T07:20:54Z"
+            }
+          ],
+          "codex": {
+            "job": {
+              "id": "491e97e788ca41eb9109af15eabc4cb5",
+              "phase": "plan_review",
+              "started_at": "2026-11-24T07:20:54Z",
+              "command": "run-record-r7-acu10-planreview.sh",
+              "heartbeat_at": "2026-11-24T07:20:54Z",
+              "plan_sha256": "98694a6ff430c209e5ecd737a474396a415498512fd702dd641b0607f6d509a2",
+              "worktree": "bcl120-r7-acu10",
+              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "cycle": 12,
+              "round": 7,
+              "pid": 1767,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T07:20:54Z",
+              "finished_phase_status": "passed"
+            },
+            "plan_review_status": "passed",
+            "tool_fault_streak": 0
+          },
           "updated_at": "2026-11-24T07:10:46Z",
           "verify": {
             "status": "pending",
@@ -13750,17 +13815,41 @@
             "ACU-21"
           ],
           "worktree": "bcl120-r7-acu21",
-          "status": "planned",
-          "phase": "pending",
+          "status": "running",
+          "phase": "fix",
           "files": [
             "scripts/test_release_agent_computer_use.py",
             "plugins/agent-computer-use/runtime/voice-cua/tests/test_dev_tools.py"
           ],
           "reason": "Product: replace the short fixed waits in test_connected_but_unresponsive_service_times_out_on_runtime_contract and test_background_jobs_track_and_stop_only_the_returned_job_id so both pass 50 runs under four busy CPU loops and the pre-push suite passes first time. Tests only; do not edit production voice or island files owned by the other ACU lanes. About 40k tokens.",
-          "stage_entered_at": "2026-11-24T07:07:37Z",
+          "stage_entered_at": "2026-11-24T07:35:47Z",
           "failure_history": [],
-          "plan_review_history": [],
-          "codex": {},
+          "plan_review_history": [
+            {
+              "job_id": "6cfd977f39b44bc39b06d7daeb93c49d",
+              "after_failure": null,
+              "status": "passed",
+              "cycle": 12,
+              "round": 7,
+              "at": "2026-11-24T07:20:56Z"
+            }
+          ],
+          "codex": {
+            "job": {
+              "id": "72cf8d0cbf3941a7884d76f8033e848e",
+              "phase": "fix",
+              "started_at": "2026-11-24T07:35:47Z",
+              "command": "run-record-r7-acu21-fix.sh",
+              "heartbeat_at": "2026-11-24T07:35:47Z",
+              "plan_sha256": "98694a6ff430c209e5ecd737a474396a415498512fd702dd641b0607f6d509a2",
+              "worktree": "bcl120-r7-acu21",
+              "model": "Grok Bot subagent (Astra 6.2 and Terra 6.1 unavailable)",
+              "cycle": 12,
+              "round": 7
+            },
+            "tool_fault_streak": 0,
+            "fix_status": "running"
+          },
           "updated_at": "2026-11-24T07:10:46Z",
           "verify": {
             "status": "pending",
@@ -14326,7 +14415,7 @@
       "round": 6,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T07:18:54Z",
+    "last_written_at": "2026-11-24T07:35:47Z",
     "fix_order": {
       "ids": [
         "DO-4",
