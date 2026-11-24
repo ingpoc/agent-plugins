@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-24T14:02:57Z",
-      "now": "2026-11-24T14:02:57Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-24T14:06:46Z",
+      "now": "2026-11-24T14:06:46Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 120,
@@ -12236,6 +12236,74 @@
         },
         "round": 1,
         "cycle": 13
+      },
+      {
+        "result": "Introspect: no issues",
+        "at": "2026-11-24T14:06:46Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 3",
+          "Codex write: R2-STATUS",
+          "Codex review: R2-STATUS",
+          "Polling and rework review: R2-STATUS",
+          "Test command: R2-STATUS: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh",
+          "Codex write: R2-TRACKER",
+          "Codex review: R2-TRACKER",
+          "Polling and rework review: R2-TRACKER",
+          "Test command: R2-TRACKER: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh",
+          "Codex write: R2-DOVIEW",
+          "Codex review: R2-DOVIEW",
+          "Polling and rework review: R2-DOVIEW",
+          "Test command: R2-DOVIEW: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh",
+          "After Codex quota ran out, Grok Bot implemented remaining STATUS, TRACKER, and DOVIEW work and recorded official install, verify, and this Introspect; no fresh Luna or Codex token totals were stamped for those verifies",
+          "Official install was from 94980b40 at 19:07:21 IST, then bcl install, start-verification r2-62036ff4-121, and lane verify used pushed revision 62036ff4 of batched-change-list 0.1.74 and developer-observability 0.1.38",
+          "R2-STATUS stored command passed 191 tests in 25.252s, R2-TRACKER passed 36 tests in 13.378s including the live-state guard, and R2-DOVIEW passed 216 tests with 2 skipped in 8.440s",
+          "UX re-review of 62036ff4 signed off P1-A, P1-B, and P2-A through P2-D, then N1 and the cheap follow-ups landed as dfa758c3, served on 8780 at 19:31 IST, and DO-4 was not marked verified",
+          "R4-106 and R4-171 stay blocked because they need Guru; R2-DO1, R2-INTRO, and R1-DO11 stay deferred; the ungrouped live-state guard was covered by the TRACKER tests but is not in a plan group"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 3",
+          "Codex write: R2-STATUS",
+          "Codex review: R2-STATUS",
+          "Polling and rework review: R2-STATUS",
+          "Test command: R2-STATUS: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh",
+          "Codex write: R2-TRACKER",
+          "Codex review: R2-TRACKER",
+          "Polling and rework review: R2-TRACKER",
+          "Test command: R2-TRACKER: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh",
+          "Codex write: R2-DOVIEW",
+          "Codex review: R2-DOVIEW",
+          "Polling and rework review: R2-DOVIEW",
+          "Test command: R2-DOVIEW: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh",
+          "After Codex quota ran out, Grok Bot implemented remaining STATUS, TRACKER, and DOVIEW work and recorded official install, verify, and this Introspect; no fresh Luna or Codex token totals were stamped for those verifies",
+          "Official install was from 94980b40 at 19:07:21 IST, then bcl install, start-verification r2-62036ff4-121, and lane verify used pushed revision 62036ff4 of batched-change-list 0.1.74 and developer-observability 0.1.38",
+          "R2-STATUS stored command passed 191 tests in 25.252s, R2-TRACKER passed 36 tests in 13.378s including the live-state guard, and R2-DOVIEW passed 216 tests with 2 skipped in 8.440s",
+          "UX re-review of 62036ff4 signed off P1-A, P1-B, and P2-A through P2-D, then N1 and the cheap follow-ups landed as dfa758c3, served on 8780 at 19:31 IST, and DO-4 was not marked verified",
+          "R4-106 and R4-171 stay blocked because they need Guru; R2-DO1, R2-INTRO, and R1-DO11 stay deferred; the ungrouped live-state guard was covered by the TRACKER tests but is not in a plan group"
+        ],
+        "sections": {
+          "delete": {
+            "none": "Nothing from this round's performed work should be removed; the three shipped STATUS, TRACKER, and DOVIEW lanes and the parked viewer follow-up should stay recorded."
+          },
+          "simplify": {
+            "none": "The review-passed lanes had stored verify commands and a single official install, so there is no extra review loop to simplify this round."
+          },
+          "optimize": {
+            "none": "Verify was already the stored STATUS, TRACKER, and DOVIEW commands; no leftover flake in those runs was left that would be cheaper to fix now than later."
+          },
+          "automate": {
+            "none": "Presuite, release-check, official install, and stored verify already run as recorded commands; no new automation would remove as much work as it would add this round."
+          }
+        },
+        "round": 2,
+        "cycle": 13
       }
     ],
     "archive": {
@@ -12259,7 +12327,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T14:02:57Z",
+    "last_written_at": "2026-11-24T14:06:46Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12561,7 +12629,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "cycle": 13,
@@ -12571,7 +12640,7 @@
           "id": "R2-STATUS",
           "name": "Keep lane and verify status accurate",
           "label": "STATUS",
-          "status": "verifying",
+          "status": "verified",
           "phase": "verify",
           "finding_ids": [
             "BCL-110",
@@ -12591,12 +12660,13 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh",
             "method": "Run the change-list writer, job lifecycle, and lane-state tests.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 4,
             "failed": 0,
-            "total": 4
+            "total": 4,
+            "finished_at": "2026-11-24T14:03:23Z"
           },
-          "stage_entered_at": "2026-11-24T14:02:57Z",
+          "stage_entered_at": "2026-11-24T14:03:23Z",
           "failure_history": [],
           "plan_review_history": [],
           "codex": {
@@ -12644,8 +12714,8 @@
           "id": "R2-TRACKER",
           "name": "One viewer port per project and safe adopt paths",
           "label": "TRACKER",
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "finding_ids": [
             "BCL-94",
             "BCL-115",
@@ -12662,12 +12732,13 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh",
             "method": "Run the live-state and serve tests.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 3,
             "failed": 0,
-            "total": 3
+            "total": 3,
+            "finished_at": "2026-11-24T14:03:38Z"
           },
-          "stage_entered_at": "2026-11-24T13:51:00Z",
+          "stage_entered_at": "2026-11-24T14:03:38Z",
           "failure_history": [],
           "plan_review_history": [],
           "codex": {
@@ -12695,7 +12766,7 @@
             "review_status": "passed",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           },
-          "updated_at": "2026-11-24T10:58:49Z",
+          "updated_at": "2026-11-24T14:03:24Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12706,17 +12777,17 @@
             "started_at": "2026-11-24T13:51:00Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "Grok Bot",
-            "at": "2026-11-24T13:51:00Z"
+            "at": "2026-11-24T14:03:24Z"
           }
         },
         {
           "id": "R2-DOVIEW",
           "name": "Coverage gaps as objects and a stored merge bar",
           "label": "DOVIEW",
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "finding_ids": [
             "DO-9",
             "DO-10"
@@ -12731,12 +12802,13 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh",
             "method": "Run the developer-observability unit tests.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 2,
             "failed": 0,
-            "total": 2
+            "total": 2,
+            "finished_at": "2026-11-24T14:03:48Z"
           },
-          "stage_entered_at": "2026-11-24T13:51:00Z",
+          "stage_entered_at": "2026-11-24T14:03:48Z",
           "failure_history": [],
           "plan_review_history": [],
           "codex": {
@@ -12764,7 +12836,7 @@
             "review_status": "passed",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           },
-          "updated_at": "2026-11-24T10:58:49Z",
+          "updated_at": "2026-11-24T14:03:38Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12775,9 +12847,9 @@
             "started_at": "2026-11-24T13:51:00Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "Grok Bot",
-            "at": "2026-11-24T13:51:00Z"
+            "at": "2026-11-24T14:03:38Z"
           }
         },
         {
@@ -13194,34 +13266,35 @@
             "total": 1
           }
         }
-      ]
+      ],
+      "status": "closed"
     },
     "introspect": {
       "result": "Introspect: no issues",
-      "at": "2026-11-24T10:27:55Z",
+      "at": "2026-11-24T14:06:46Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
         "Parallel group count: 3",
-        "Codex write: R1-DO5",
-        "Codex review: R1-DO5",
-        "Polling and rework review: R1-DO5",
-        "Test command: R1-DO5: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do5.sh",
-        "Codex write: R1-GATE",
-        "Codex review: R1-GATE",
-        "Polling and rework review: R1-GATE",
-        "Test command: R1-GATE: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-gate.sh",
-        "Codex write: R1-DO7",
-        "Codex review: R1-DO7",
-        "Polling and rework review: R1-DO7",
-        "Test command: R1-DO7: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do7.sh",
-        "R1-DO11 fix tests passed, then the lane was deferred to round 2 and not shipped after Guru withdrew the pass-five sign-off",
-        "Shared pre-push suite failed once on a one-second compact timestamp flake, then passed on rerun; the failure was not counted",
-        "Dev-obs token numbers: R1-DO5 Luna reported 53,348 and the job event stamped 681,700 total; R1-GATE 45,690 and 479,994; R1-DO7 77,051 and 2,080,763",
-        "R4-106 and R4-171 stay blocked as findings and were parked to round 2 because they need Guru; DO-1 stays deferred",
-        "DO-4 was reopened as failing after Guru rejected the page; it will be re-planned from the issues-first v2 spec when that spec exists"
+        "Codex write: R2-STATUS",
+        "Codex review: R2-STATUS",
+        "Polling and rework review: R2-STATUS",
+        "Test command: R2-STATUS: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh",
+        "Codex write: R2-TRACKER",
+        "Codex review: R2-TRACKER",
+        "Polling and rework review: R2-TRACKER",
+        "Test command: R2-TRACKER: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh",
+        "Codex write: R2-DOVIEW",
+        "Codex review: R2-DOVIEW",
+        "Polling and rework review: R2-DOVIEW",
+        "Test command: R2-DOVIEW: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh",
+        "After Codex quota ran out, Grok Bot implemented remaining STATUS, TRACKER, and DOVIEW work and recorded official install, verify, and this Introspect; no fresh Luna or Codex token totals were stamped for those verifies",
+        "Official install was from 94980b40 at 19:07:21 IST, then bcl install, start-verification r2-62036ff4-121, and lane verify used pushed revision 62036ff4 of batched-change-list 0.1.74 and developer-observability 0.1.38",
+        "R2-STATUS stored command passed 191 tests in 25.252s, R2-TRACKER passed 36 tests in 13.378s including the live-state guard, and R2-DOVIEW passed 216 tests with 2 skipped in 8.440s",
+        "UX re-review of 62036ff4 signed off P1-A, P1-B, and P2-A through P2-D, then N1 and the cheap follow-ups landed as dfa758c3, served on 8780 at 19:31 IST, and DO-4 was not marked verified",
+        "R4-106 and R4-171 stay blocked because they need Guru; R2-DO1, R2-INTRO, and R1-DO11 stay deferred; the ungrouped live-state guard was covered by the TRACKER tests but is not in a plan group"
       ],
       "none": [
         "Stage: Plan & fix",
@@ -13229,39 +13302,39 @@
         "Stage: Install",
         "Stage: Verify",
         "Parallel group count: 3",
-        "Codex write: R1-DO5",
-        "Codex review: R1-DO5",
-        "Polling and rework review: R1-DO5",
-        "Test command: R1-DO5: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do5.sh",
-        "Codex write: R1-GATE",
-        "Codex review: R1-GATE",
-        "Polling and rework review: R1-GATE",
-        "Test command: R1-GATE: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-gate.sh",
-        "Codex write: R1-DO7",
-        "Codex review: R1-DO7",
-        "Polling and rework review: R1-DO7",
-        "Test command: R1-DO7: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do7.sh",
-        "R1-DO11 fix tests passed, then the lane was deferred to round 2 and not shipped after Guru withdrew the pass-five sign-off",
-        "Shared pre-push suite failed once on a one-second compact timestamp flake, then passed on rerun; the failure was not counted",
-        "Dev-obs token numbers: R1-DO5 Luna reported 53,348 and the job event stamped 681,700 total; R1-GATE 45,690 and 479,994; R1-DO7 77,051 and 2,080,763",
-        "R4-106 and R4-171 stay blocked as findings and were parked to round 2 because they need Guru; DO-1 stays deferred",
-        "DO-4 was reopened as failing after Guru rejected the page; it will be re-planned from the issues-first v2 spec when that spec exists"
+        "Codex write: R2-STATUS",
+        "Codex review: R2-STATUS",
+        "Polling and rework review: R2-STATUS",
+        "Test command: R2-STATUS: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh",
+        "Codex write: R2-TRACKER",
+        "Codex review: R2-TRACKER",
+        "Polling and rework review: R2-TRACKER",
+        "Test command: R2-TRACKER: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh",
+        "Codex write: R2-DOVIEW",
+        "Codex review: R2-DOVIEW",
+        "Polling and rework review: R2-DOVIEW",
+        "Test command: R2-DOVIEW: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh",
+        "After Codex quota ran out, Grok Bot implemented remaining STATUS, TRACKER, and DOVIEW work and recorded official install, verify, and this Introspect; no fresh Luna or Codex token totals were stamped for those verifies",
+        "Official install was from 94980b40 at 19:07:21 IST, then bcl install, start-verification r2-62036ff4-121, and lane verify used pushed revision 62036ff4 of batched-change-list 0.1.74 and developer-observability 0.1.38",
+        "R2-STATUS stored command passed 191 tests in 25.252s, R2-TRACKER passed 36 tests in 13.378s including the live-state guard, and R2-DOVIEW passed 216 tests with 2 skipped in 8.440s",
+        "UX re-review of 62036ff4 signed off P1-A, P1-B, and P2-A through P2-D, then N1 and the cheap follow-ups landed as dfa758c3, served on 8780 at 19:31 IST, and DO-4 was not marked verified",
+        "R4-106 and R4-171 stay blocked because they need Guru; R2-DO1, R2-INTRO, and R1-DO11 stay deferred; the ungrouped live-state guard was covered by the TRACKER tests but is not in a plan group"
       ],
       "sections": {
         "delete": {
-          "none": "Nothing from this round's performed work should be removed; the three shipped fixes and the deferred viewer lanes should stay recorded."
+          "none": "Nothing from this round's performed work should be removed; the three shipped STATUS, TRACKER, and DOVIEW lanes and the parked viewer follow-up should stay recorded."
         },
         "simplify": {
-          "none": "The Grok Bot reviews were a single pass with no must-fix items, so there is no review loop to simplify this round."
+          "none": "The review-passed lanes had stored verify commands and a single official install, so there is no extra review loop to simplify this round."
         },
         "optimize": {
-          "none": "The compact idempotency test failed once on a one-second timestamp and passed on rerun; that flake is left for a later test fix rather than a code change after verify."
+          "none": "Verify was already the stored STATUS, TRACKER, and DOVIEW commands; no leftover flake in those runs was left that would be cheaper to fix now than later."
         },
         "automate": {
-          "none": "Presuite, release-check, and verify already run as recorded jobs; no new automation would remove as much work as it would add this round."
+          "none": "Presuite, release-check, official install, and stored verify already run as recorded commands; no new automation would remove as much work as it would add this round."
         }
       },
-      "round": 1,
+      "round": 2,
       "cycle": 13
     },
     "verification_run": {
@@ -13271,151 +13344,390 @@
       "installed_at": "2026-11-24T13:37:21Z",
       "install_evidence": "/Users/gurusharan/.agents/artifacts/bcl-121/r2/install-receipt-62036ff4.json",
       "cycle": 13,
-      "status": "active",
+      "status": "complete",
       "checks": {
         "BCL-94": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Checking the installed TRACKER live-state guard and serve tests on 0.1.74 at 62036ff4.",
           "observed_at": "2026-11-24T14:02:45Z",
           "started_at": "2026-11-24T14:02:45Z",
-          "updated_at": "2026-11-24T14:02:45Z"
+          "updated_at": "2026-11-24T14:02:45Z",
+          "check_id": "cf50a3cf23924e3d8474a47e7df8c0e3",
+          "evidence": "Checked: the official TRACKER lane verification command on the installed change-list plugin; Expected: the live-state guard and serve tests all pass; Observed: all 36 tests passed in 13 seconds at 19:33 IST on 24 Nov 2026, and the lane was recorded as verified; Verdict because: the stored TRACKER command passed on the installed build.",
+          "details": "Lane R2-TRACKER. Command: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-121/r2/verify-tracker.log. 36 tests OK in 13.378s. finish-verification at 2026-11-24T14:03:38Z. Includes test_live_state. Build: batched-change-list 0.1.74 revision 62036ff497ccf4353c7dd04fd799044bba19f7ef.",
+          "finished_at": "2026-11-24T14:05:25.945650Z"
         },
         "BCL-106": {
-          "state": "pending"
+          "state": "blocked",
+          "observation": "Checking BCL-106, which remains blocked pending Guru.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "13d7d8f2a0cd46db826eabb423ec5fe3",
+          "evidence": "Checked: whether this blocked finding could be verified in the current install; Expected: an external owner decision that would unblock it; Observed: the finding is still blocked and still needs Guru, so this run cannot accept it; Verdict because: unblocking remains an external owner decision.",
+          "details": "BCL-106 stays blocked Needs Guru. Not part of the STATUS, TRACKER, or DOVIEW verify this run.",
+          "blocker": "Needs Guru",
+          "finished_at": "2026-11-24T14:05:51.109333Z"
         },
         "BCL-108": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this ungrouped finding was in the current STATUS, TRACKER, or DOVIEW install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "0e6af948a8464c1fa15dc9f244827c9c",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "BCL-108 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.113094Z"
         },
         "BCL-110": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Checking the installed STATUS writer, job lifecycle, and lane-state fixes on 0.1.74 at 62036ff4.",
           "observed_at": "2026-11-24T14:02:45Z",
           "started_at": "2026-11-24T14:02:45Z",
-          "updated_at": "2026-11-24T14:02:45Z"
+          "updated_at": "2026-11-24T14:02:45Z",
+          "check_id": "648968a08da24141b306f63ed6136109",
+          "evidence": "Checked: the official STATUS lane verification command on the installed change-list plugin; Expected: the writer, job lifecycle, and lane-state tests all pass; Observed: all 191 tests passed in 25 seconds at 19:33 IST on 24 Nov 2026, and the lane was recorded as verified; Verdict because: the stored STATUS command passed on the installed build.",
+          "details": "Lane R2-STATUS. Command: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-121/r2/verify-status.log. 191 tests OK in 25.252s. finish-verification at 2026-11-24T14:03:23Z. Build: batched-change-list 0.1.74 revision 62036ff497ccf4353c7dd04fd799044bba19f7ef.",
+          "finished_at": "2026-11-24T14:05:25.932185Z"
         },
         "BCL-113": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Checking the installed STATUS writer, job lifecycle, and lane-state fixes on 0.1.74 at 62036ff4.",
           "observed_at": "2026-11-24T14:02:45Z",
           "started_at": "2026-11-24T14:02:45Z",
-          "updated_at": "2026-11-24T14:02:45Z"
+          "updated_at": "2026-11-24T14:02:45Z",
+          "check_id": "2b0fb40106024b2caf3333af8f416f06",
+          "evidence": "Checked: the official STATUS lane verification command on the installed change-list plugin; Expected: the writer, job lifecycle, and lane-state tests all pass; Observed: all 191 tests passed in 25 seconds at 19:33 IST on 24 Nov 2026, and the lane was recorded as verified; Verdict because: the stored STATUS command passed on the installed build.",
+          "details": "Lane R2-STATUS. Command: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-121/r2/verify-status.log. 191 tests OK in 25.252s. finish-verification at 2026-11-24T14:03:23Z. Build: batched-change-list 0.1.74 revision 62036ff497ccf4353c7dd04fd799044bba19f7ef.",
+          "finished_at": "2026-11-24T14:05:25.935897Z"
         },
         "BCL-115": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Checking the installed TRACKER live-state guard and serve tests on 0.1.74 at 62036ff4.",
           "observed_at": "2026-11-24T14:02:45Z",
           "started_at": "2026-11-24T14:02:45Z",
-          "updated_at": "2026-11-24T14:02:45Z"
+          "updated_at": "2026-11-24T14:02:45Z",
+          "check_id": "436626d92ba2442d9a7d1d3bcf6fbd0b",
+          "evidence": "Checked: the official TRACKER lane verification command on the installed change-list plugin; Expected: the live-state guard and serve tests all pass; Observed: all 36 tests passed in 13 seconds at 19:33 IST on 24 Nov 2026, and the lane was recorded as verified; Verdict because: the stored TRACKER command passed on the installed build.",
+          "details": "Lane R2-TRACKER. Command: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-121/r2/verify-tracker.log. 36 tests OK in 13.378s. finish-verification at 2026-11-24T14:03:38Z. Includes test_live_state. Build: batched-change-list 0.1.74 revision 62036ff497ccf4353c7dd04fd799044bba19f7ef.",
+          "finished_at": "2026-11-24T14:05:25.948966Z"
         },
         "BCL-120": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this deferred Introspect-lane finding is in the current install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "7aecebcd0b584108b0f09f74dc047f19",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "BCL-120 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.116401Z"
         },
         "BCL-124": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Checking the installed TRACKER live-state guard and serve tests on 0.1.74 at 62036ff4.",
           "observed_at": "2026-11-24T14:02:45Z",
           "started_at": "2026-11-24T14:02:45Z",
-          "updated_at": "2026-11-24T14:02:45Z"
+          "updated_at": "2026-11-24T14:02:45Z",
+          "check_id": "5927e478dc6048899b41c35aa3191353",
+          "evidence": "Checked: the official TRACKER lane verification command on the installed change-list plugin; Expected: the live-state guard and serve tests all pass; Observed: all 36 tests passed in 13 seconds at 19:33 IST on 24 Nov 2026, and the lane was recorded as verified; Verdict because: the stored TRACKER command passed on the installed build.",
+          "details": "Lane R2-TRACKER. Command: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-121/r2/verify-tracker.log. 36 tests OK in 13.378s. finish-verification at 2026-11-24T14:03:38Z. Includes test_live_state. Build: batched-change-list 0.1.74 revision 62036ff497ccf4353c7dd04fd799044bba19f7ef.",
+          "finished_at": "2026-11-24T14:05:25.952262Z"
         },
         "BCL-125": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this ungrouped finding was in the current STATUS, TRACKER, or DOVIEW install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "bf40e84b0d4f4f9183c3f9c257a8cdb6",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "BCL-125 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.119725Z"
         },
         "BCL-130": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this ungrouped finding was in the current STATUS, TRACKER, or DOVIEW install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "c687fa4063f5469fb1f7f397fde76dca",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "BCL-130 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.123036Z"
         },
         "BCL-139": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this deferred Introspect-lane finding is in the current install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "249ed2628ef84455abc6b2539d0f2ac7",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "BCL-139 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.126334Z"
         },
         "BCL-140": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this ungrouped finding was in the current STATUS, TRACKER, or DOVIEW install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "ce4184abf7614230bb3acbb1d3d85f2a",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "BCL-140 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.129616Z"
         },
         "BCL-144": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this ungrouped finding was in the current STATUS, TRACKER, or DOVIEW install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "018fb65515d44e7ebb11e14dbc235a68",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "BCL-144 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.132992Z"
         },
         "BCL-147": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this ungrouped finding was in the current STATUS, TRACKER, or DOVIEW install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "842c48c9ad244b3eb171d0127597f7b0",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "BCL-147 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.136233Z"
         },
         "BCL-149": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this ungrouped finding was in the current STATUS, TRACKER, or DOVIEW install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "829d3e7e74c0468e8192c1bb22f4c0fc",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "BCL-149 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.139588Z"
         },
         "BCL-159": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this ungrouped finding was in the current STATUS, TRACKER, or DOVIEW install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "85c4d4299f41416bb8c3e9f5a9c79b1e",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "BCL-159 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.142999Z"
         },
         "BCL-160": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Checking the installed STATUS writer, job lifecycle, and lane-state fixes on 0.1.74 at 62036ff4.",
           "observed_at": "2026-11-24T14:02:45Z",
           "started_at": "2026-11-24T14:02:45Z",
-          "updated_at": "2026-11-24T14:02:45Z"
+          "updated_at": "2026-11-24T14:02:45Z",
+          "check_id": "862a56acbfea45319b8a4c5a473535fa",
+          "evidence": "Checked: the official STATUS lane verification command on the installed change-list plugin; Expected: the writer, job lifecycle, and lane-state tests all pass; Observed: all 191 tests passed in 25 seconds at 19:33 IST on 24 Nov 2026, and the lane was recorded as verified; Verdict because: the stored STATUS command passed on the installed build.",
+          "details": "Lane R2-STATUS. Command: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-121/r2/verify-status.log. 191 tests OK in 25.252s. finish-verification at 2026-11-24T14:03:23Z. Build: batched-change-list 0.1.74 revision 62036ff497ccf4353c7dd04fd799044bba19f7ef.",
+          "finished_at": "2026-11-24T14:05:25.942418Z"
         },
         "BCL-161": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this ungrouped finding was in the current STATUS, TRACKER, or DOVIEW install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "6eb18c3555ae479194dbe13408ec8459",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "BCL-161 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.146306Z"
         },
         "BCL-166": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this ungrouped finding was in the current STATUS, TRACKER, or DOVIEW install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "d84b669378a44f21b8c00c429b51fb25",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "BCL-166 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.149569Z"
         },
         "BCL-171": {
-          "state": "pending"
+          "state": "blocked",
+          "observation": "Checking BCL-171, which remains blocked pending Guru.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "7154da53c047478fa59e2e7a0d353329",
+          "evidence": "Checked: whether this blocked finding could be verified in the current install; Expected: an external owner decision that would unblock it; Observed: the finding is still blocked and still needs Guru, so this run cannot accept it; Verdict because: unblocking remains an external owner decision.",
+          "details": "BCL-171 stays blocked Needs Guru. Not part of the STATUS, TRACKER, or DOVIEW verify this run.",
+          "blocker": "Needs Guru",
+          "finished_at": "2026-11-24T14:05:51.152840Z"
         },
         "DO-1": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this deferred DO-1 finding is in the current install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "08a9a6557fa642eb898c6d046f626ed1",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "DO-1 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.156116Z"
         },
         "PR120-r6-gate-denominator": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Reconfirming the already verified gate-denominator finding on the installed 0.1.74 build.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "6b9fc452604c4bdeabc4c58ba0b58315",
+          "evidence": "Checked: the already verified finding against the current installed build and this verification run; Expected: the earlier verified-fixed status and references still hold; Observed: the finding remains verified fixed with verification references on the installed build, and no regression was recorded in this run; Verdict because: the earlier verification still stands on the installed build.",
+          "details": "Reconfirmed PR120-r6-gate-denominator during run r2-62036ff4-121. Status remains verified_fixed with existing verification_refs. Official install at 2026-11-24T13:37:21Z, revision 62036ff497ccf4353c7dd04fd799044bba19f7ef.",
+          "finished_at": "2026-11-24T14:05:51.159391Z"
         },
         "PR120-r6-stale-job-finish": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Checking the installed STATUS writer, job lifecycle, and lane-state fixes on 0.1.74 at 62036ff4.",
           "observed_at": "2026-11-24T14:02:45Z",
           "started_at": "2026-11-24T14:02:45Z",
-          "updated_at": "2026-11-24T14:02:45Z"
+          "updated_at": "2026-11-24T14:02:45Z",
+          "check_id": "ca9d0e1d828f406587405eaab92bcd8c",
+          "evidence": "Checked: the official STATUS lane verification command on the installed change-list plugin; Expected: the writer, job lifecycle, and lane-state tests all pass; Observed: all 191 tests passed in 25 seconds at 19:33 IST on 24 Nov 2026, and the lane was recorded as verified; Verdict because: the stored STATUS command passed on the installed build.",
+          "details": "Lane R2-STATUS. Command: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-121/r2/verify-status.log. 191 tests OK in 25.252s. finish-verification at 2026-11-24T14:03:23Z. Build: batched-change-list 0.1.74 revision 62036ff497ccf4353c7dd04fd799044bba19f7ef.",
+          "finished_at": "2026-11-24T14:05:25.939217Z"
         },
         "PR120-r6-collect-job-coverage": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this ungrouped finding was in the current STATUS, TRACKER, or DOVIEW install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "5b30d1e286b74c4889c0ca97321d758a",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "PR120-r6-collect-job-coverage was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.162842Z"
         },
         "DO-4": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking DO-4 against the latest viewer commit while UX review is still outstanding.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "90c14752f1db4f1db1e0acebac63e8d1",
+          "evidence": "Checked: the parked viewer lane after the latest follow-up commit was served; Expected: a passing UX review before this issue can be recorded as verified; Observed: UX has not signed off the latest viewer commit yet, so the issue stays unverified in this run; Verdict because: the standing rule is not to mark the viewer issue verified until UX review passes.",
+          "details": "DO-4 is in parked lane R2-DO4. Latest viewer commit dfa758c3 served on 8780 at 19:31 IST 24 Nov 2026, awaiting UX review. Not marked verified_fixed.",
+          "finished_at": "2026-11-24T14:05:51.166199Z"
         },
         "DO-5": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Reconfirming the already verified DO-5 finding on the installed 0.1.38 build.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "26f673e352cc4616bf1ebb02d0023c4a",
+          "evidence": "Checked: the already verified finding against the current installed build and this verification run; Expected: the earlier verified-fixed status and references still hold; Observed: the finding remains verified fixed with verification references on the installed build, and no regression was recorded in this run; Verdict because: the earlier verification still stands on the installed build.",
+          "details": "Reconfirmed DO-5 during run r2-62036ff4-121. Status remains verified_fixed with existing verification_refs. Official install at 2026-11-24T13:37:21Z, revision 62036ff497ccf4353c7dd04fd799044bba19f7ef.",
+          "finished_at": "2026-11-24T14:05:51.169500Z"
         },
         "DO-6": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this ungrouped finding was in the current STATUS, TRACKER, or DOVIEW install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "89dafaade492432e8df914b65cb4171b",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "DO-6 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.172770Z"
         },
         "DO-7": {
-          "state": "pending"
+          "state": "fixed",
+          "observation": "Reconfirming the already verified DO-7 finding on the installed 0.1.38 build.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "3f6e7072a01f458180fa003450635b1a",
+          "evidence": "Checked: the already verified finding against the current installed build and this verification run; Expected: the earlier verified-fixed status and references still hold; Observed: the finding remains verified fixed with verification references on the installed build, and no regression was recorded in this run; Verdict because: the earlier verification still stands on the installed build.",
+          "details": "Reconfirmed DO-7 during run r2-62036ff4-121. Status remains verified_fixed with existing verification_refs. Official install at 2026-11-24T13:37:21Z, revision 62036ff497ccf4353c7dd04fd799044bba19f7ef.",
+          "finished_at": "2026-11-24T14:05:51.176064Z"
         },
         "DO-8": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this ungrouped finding was in the current STATUS, TRACKER, or DOVIEW install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "d4095b767ffc44248dea4272ad470d16",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "DO-8 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.179370Z"
         },
         "DO-9": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Checking the installed developer-observability unit tests on 0.1.38 at 62036ff4.",
           "observed_at": "2026-11-24T14:02:45Z",
           "started_at": "2026-11-24T14:02:45Z",
-          "updated_at": "2026-11-24T14:02:45Z"
+          "updated_at": "2026-11-24T14:02:45Z",
+          "check_id": "d2331644e0bc448681f83071a5518e8c",
+          "evidence": "Checked: the official DOVIEW lane verification command on the installed developer-observability plugin; Expected: the plugin unit tests all pass; Observed: 216 tests passed with 2 skipped in 8 seconds at 19:33 IST on 24 Nov 2026, and the lane was recorded as verified; Verdict because: the stored DOVIEW command passed on the installed build.",
+          "details": "Lane R2-DOVIEW. Command: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-121/r2/verify-doview.log. 216 tests OK, 2 skipped, in 8.440s. finish-verification at 2026-11-24T14:03:48Z. Build: developer-observability 0.1.38 revision 62036ff497ccf4353c7dd04fd799044bba19f7ef.",
+          "finished_at": "2026-11-24T14:05:25.955470Z"
         },
         "DO-10": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Checking the installed developer-observability unit tests on 0.1.38 at 62036ff4.",
           "observed_at": "2026-11-24T14:02:45Z",
           "started_at": "2026-11-24T14:02:45Z",
-          "updated_at": "2026-11-24T14:02:45Z"
+          "updated_at": "2026-11-24T14:02:45Z",
+          "check_id": "4679308c5d9d47c98bcf43736d29e18d",
+          "evidence": "Checked: the official DOVIEW lane verification command on the installed developer-observability plugin; Expected: the plugin unit tests all pass; Observed: 216 tests passed with 2 skipped in 8 seconds at 19:33 IST on 24 Nov 2026, and the lane was recorded as verified; Verdict because: the stored DOVIEW command passed on the installed build.",
+          "details": "Lane R2-DOVIEW. Command: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh. Log: /Users/gurusharan/.agents/artifacts/bcl-121/r2/verify-doview.log. 216 tests OK, 2 skipped, in 8.440s. finish-verification at 2026-11-24T14:03:48Z. Build: developer-observability 0.1.38 revision 62036ff497ccf4353c7dd04fd799044bba19f7ef.",
+          "finished_at": "2026-11-24T14:05:25.958709Z"
         },
         "DO-11": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking whether this deferred DO-11 finding is in the current install.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "5a3f85ade60e422896317efa44e56162",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "DO-11 was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.182849Z"
         },
         "DO-12": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking DO-12 in the parked DO-4 lane, which is not being marked verified in this run.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "13504f56417c4f339483ef31a46e854a",
+          "evidence": "Checked: the parked viewer lane after the latest follow-up commit was served; Expected: a passing UX review before this issue can be recorded as verified; Observed: UX has not signed off the latest viewer commit yet, so the issue stays unverified in this run; Verdict because: the standing rule is not to mark the viewer issue verified until UX review passes.",
+          "details": "DO-12 is in parked lane R2-DO4. Latest viewer commit dfa758c3 served on 8780 at 19:31 IST 24 Nov 2026, awaiting UX review. Not marked verified_fixed.",
+          "finished_at": "2026-11-24T14:05:51.186254Z"
         },
         "PR121-r2-live-state-guard": {
-          "state": "pending"
+          "state": "inconclusive",
+          "observation": "Checking the ungrouped live-state guard against the TRACKER command that already ran those tests.",
+          "observed_at": "2026-11-24T14:05:38Z",
+          "started_at": "2026-11-24T14:05:39Z",
+          "updated_at": "2026-11-24T14:05:39Z",
+          "check_id": "1e130e16510d4e32a23620902f070ba8",
+          "evidence": "Checked: whether this finding was in the current STATUS, TRACKER, or DOVIEW install; Expected: it would be verified only if it was part of those review-passed lanes; Observed: it was not in this install, so this run cannot accept it as fixed; Verdict because: the finding is deferred, ungrouped, or otherwise outside this install.",
+          "details": "PR121-r2-live-state-guard was not in the official R2-STATUS, R2-TRACKER, or R2-DOVIEW verify this run.",
+          "finished_at": "2026-11-24T14:05:51.189600Z"
         }
       },
       "run_id": "r2-62036ff4-121",
       "pr": 121,
       "round": 2,
-      "started_at": "2026-11-24T13:37:21Z"
+      "started_at": "2026-11-24T13:37:21Z",
+      "ended_at": "2026-11-24T14:05:51.189600Z"
     }
   },
   "findings": [
@@ -13429,7 +13741,7 @@
       "done_when": "Each project keeps one fixed viewer port saved in the change list state; a rollover or a new PR's viewer reuses it and replaces that project's old viewer, a different project gets its own fixed port, and every viewer a test starts stops when that test ends. After a rollover the same address shows the new PR and no stale viewer is left.",
       "observed": "20 Nov 2026 20:04 IST, Guru: PR 117 viewer on port 52432 and PR 118 viewer on port 59151; Guru stopped the stale PR 117 viewer by hand. Test viewers for temporary projects were also seen still running.",
       "recommendation": "Save the port per repository in the change list state, reuse it on start and rollover after stopping the old viewer for that repository, and stop test viewers in each test's cleanup.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "ports": "PR 117 :52432, PR 118 :59151",
         "stopped_by_owner": "pid 73523",
@@ -13448,12 +13760,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T14:03:38Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-20T17:43:34.152742Z",
         "source": "verification_check"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh"
     },
     {
       "id": "BCL-106",
@@ -13507,7 +13829,11 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.113094Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-110",
@@ -13519,7 +13845,7 @@
       "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
         "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 1",
@@ -13541,8 +13867,18 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T14:03:23Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
-      ]
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh"
     },
     {
       "id": "BCL-113",
@@ -13554,7 +13890,7 @@
       "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
         "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 4",
@@ -13576,8 +13912,18 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T14:03:23Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
-      ]
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh"
     },
     {
       "id": "BCL-115",
@@ -13589,7 +13935,7 @@
       "observed": "21 Nov 2026 ~10:05 IST, a read-only source review of the 0.1.56 candidate on PR 118 round 3.",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 10:16 IST (narrowed scope, via parent)",
         "report": "Sol 6.2 medium plan review 8, 21 Nov 2026 ~10:05 IST (bcl-118/direct/planreview-int8.md), item 6",
@@ -13610,8 +13956,18 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T14:03:38Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
-      ]
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh"
     },
     {
       "id": "BCL-120",
@@ -13640,7 +13996,11 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.116401Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-124",
@@ -13652,7 +14012,7 @@
       "observed": "21 Nov 2026 19:50 IST, bcl 0.1.57 quality audit for PR 119 round 1",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 19:39 IST pt1619u quality and deletion pass",
         "report": "bcl-119 quality-audit.md",
@@ -13674,8 +14034,18 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T14:03:38Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
-      ]
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh"
     },
     {
       "id": "BCL-125",
@@ -13702,7 +14072,11 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.119725Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-130",
@@ -13728,7 +14102,11 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.123036Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-139",
@@ -13754,7 +14132,11 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.126334Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-140",
@@ -13781,7 +14163,11 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.129616Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-144",
@@ -13810,7 +14196,11 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.132992Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-147",
@@ -13839,7 +14229,11 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.136233Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-149",
@@ -13867,7 +14261,11 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.139588Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-159",
@@ -13895,7 +14293,11 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.142999Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-160",
@@ -13907,7 +14309,7 @@
       "observed": "22 Nov 2026 16:18 IST, bcl 0.1.63, PR 119 lane R2-150",
       "priority": "high",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "filed_by": "Guru 16:21 IST (via parent)",
         "kind": "fix",
@@ -13929,8 +14331,18 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T14:03:23Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
-      ]
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh"
     },
     {
       "id": "BCL-161",
@@ -13956,7 +14368,11 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.146306Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-166",
@@ -13982,7 +14398,11 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.149569Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-171",
@@ -14033,8 +14453,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-22T13:56:04Z",
-        "source": "review"
+        "at": "2026-11-24T14:05:51.156116Z",
+        "source": "verification_check"
       }
     },
     {
@@ -14083,7 +14503,7 @@
       "recommendation": "Let a successful finish land against the current plan when the job id is still running, or keep a stable plan generation for in-flight jobs so a receipt on another lane does not invalidate them.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "lanes": "R6-121 job 947b61265d184d2b922aea49bf15a996 and R6-DO3 job 08e131b7a81941f5ae17100c87d6b293; logs job-fix-r6-121.log and job-fix-r6-do3.log; no-op receipts then recorded through bcl job --phase fix -- /usr/bin/true.",
         "metric": "Before: 2 of 3 parallel finish writes failed after exit 0, plus 2 no-op receipts. After: 0 stale-plan finish failures on a three-lane parallel run."
@@ -14102,8 +14522,18 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T14:03:23Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
-      ]
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh"
     },
     {
       "title": "Official collect still misses tokens for most change-list jobs",
@@ -14128,7 +14558,11 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.162842Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "DO-4",
@@ -14175,8 +14609,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-24T11:44:38Z",
-        "source": "review"
+        "at": "2026-11-24T14:05:51.166199Z",
+        "source": "verification_check"
       }
     },
     {
@@ -14242,7 +14676,11 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.172770Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "DO-7",
@@ -14306,12 +14744,16 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.179370Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "DO-9",
       "title": "Coverage gap items are returned as Python strings, not objects",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "source": "Agent reported",
       "summary": "When coverage detail is requested, coverage gap items are stringified with a Python repr, so a client cannot reliably read source, status, or age as fields.",
@@ -14335,13 +14777,23 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T14:03:48Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
-      ]
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh"
     },
     {
       "id": "DO-10",
       "title": "The tracker does not store the merge gate threshold for a cycle",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "source": "Agent reported",
       "summary": "The default view can count verified and pending checks, but the tracker has no explicit gate threshold for the current cycle, so the ring cannot show how many verified fixes are required.",
@@ -14365,8 +14817,18 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T14:03:48Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
-      ]
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh"
     },
     {
       "id": "DO-11",
@@ -14391,7 +14853,11 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.182849Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "DO-12",
@@ -14419,8 +14885,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-24T11:44:38Z",
-        "source": "review"
+        "at": "2026-11-24T14:05:51.186254Z",
+        "source": "verification_check"
       }
     },
     {
@@ -14441,7 +14907,11 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T14:05:51.189600Z",
+        "source": "verification_check"
+      }
     }
   ]
 }
