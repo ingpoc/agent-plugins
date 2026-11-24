@@ -1114,6 +1114,44 @@ elif args[:2] != ['pr', 'edit']:
             ("VERDICT: PASS", False),
         ])
 
+    def _walk_start_plan_fix_and_review(self, review_script):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        plan = self.root / "walk-verdict-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"],
+            "status": "planned", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer"}}]}))
+        planned = self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01")
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        fix = self.call_job_without_viewer(live, "--ids", "ISSUE-01", "--phase", "fix", "job", "--",
+                                           sys.executable, "-c", "pass")
+        started = self.call_without_viewer("review", "--ids", "ISSUE-01")
+        result = self.root / "walk-review.txt"
+        result.unlink(missing_ok=True)
+        review = self.call_job_without_viewer(live, "--ids", "ISSUE-01", "--result", str(result),
+                                              "--phase", "review", "job", "--", sys.executable, "-c", review_script)
+        group = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        return planned, fix, started, review, group
+
+    def test_one_review_verdict_case_walks_start_plan_fix_and_review(self):
+        result = self.root / "walk-review.txt"
+        script = (
+            "from pathlib import Path; "
+            f"Path({str(result)!r}).write_text('VERDICT: PASS\\n## Must-fix\\nnone\\n')"
+        )
+        planned, fix, started, review, group = self._walk_start_plan_fix_and_review(script)
+        self.assertEqual(planned.returncode, 0, planned.stderr)
+        self.assertEqual(fix.returncode, 0, fix.stderr)
+        self.assertEqual(started.returncode, 0, started.stderr)
+        self.assertEqual(review.returncode, 0, review.stderr)
+        self.assertEqual(group["codex"].get("review_status"), "passed")
+
+    def test_failing_review_step_fails_the_walked_verdict_case(self):
+        planned, fix, started, review, group = self._walk_start_plan_fix_and_review("raise SystemExit(9)")
+        self.assertEqual(planned.returncode, 0, planned.stderr)
+        self.assertEqual(fix.returncode, 0, fix.stderr)
+        self.assertEqual(started.returncode, 0, started.stderr)
+        self.assertNotEqual(review.returncode, 0)
+        self.assertNotEqual(group["codex"].get("review_status"), "passed")
+
     def test_last_incomplete_changes_is_incomplete_but_complete_changes_survives_nonzero_exit(self):
         live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
         document = json.loads(self.data.read_text())
