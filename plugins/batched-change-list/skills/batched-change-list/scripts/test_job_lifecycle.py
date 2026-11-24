@@ -530,20 +530,6 @@ class JobLifecycleTests(unittest.TestCase):
                                        "timestamp": STAMP})
         self.assertEqual(json.dumps(doc, sort_keys=True), before)
 
-    def test_resort_replay_changes_nothing(self):
-        doc = document()
-        manager._record_lane_failure(doc, "ISSUE-01", "cut-1", "review", manager.INCOMPLETE_REVIEW_REASON,
-                                     tool_fault=False, fault_kind="incomplete_review")
-        group = doc["tracking"]["plan"]["groups"][0]
-        manager.resort_failures(doc, {"apply": True, "reason": "confirmed tool fault",
-                                      "timestamp": STAMP, "tool_faults": ["cut-1"]})
-        self.assertTrue(group["failure_history"][0]["tool_fault"])
-        after = json.dumps(doc, sort_keys=True)
-        second = manager.resort_failures(doc, {"apply": True, "reason": "confirmed tool fault",
-                                               "timestamp": "2026-11-21T00:01:00Z", "tool_faults": ["cut-1"]})
-        self.assertEqual(json.dumps(doc, sort_keys=True), after)
-        self.assertFalse(any(lane.get("attempts") for lane in second.get("lanes", [])))
-
 
 if __name__ == "__main__":
     unittest.main()

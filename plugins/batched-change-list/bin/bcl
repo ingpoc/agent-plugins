@@ -899,7 +899,6 @@ def main():
     parser.add_argument("--new-pr", type=int); parser.add_argument("--new-url"); parser.add_argument("--worktree")
     parser.add_argument("--merge-commit"); parser.add_argument("--merged-at"); parser.add_argument("--base-branch")
     parser.add_argument("--force", action="store_true")
-    parser.add_argument("--apply", action="store_true", help="resort-failures: apply the listed tool-fault uncounts")
     parser.add_argument("--run-id"); parser.add_argument("--outcome", choices=("passed", "failed", "not_run"))
     parser.add_argument("--through-cycle", type=int)
     parser.add_argument("stage")
@@ -950,7 +949,7 @@ def main():
         if not record: parser.error("could not register tracker")
         print(live); return
     if not record:
-        if args.stage in ("status", "release-check", "resort-failures"):
+        if args.stage in ("status", "release-check"):
             print(json.dumps({"adopted": False, "message": "Run bcl adopt <tracker-in-repo> first."}))
             if args.stage == "release-check":
                 sys.exit(2)  # an unknown lane state is never a clear release
