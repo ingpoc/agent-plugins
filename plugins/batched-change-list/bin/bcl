@@ -989,6 +989,7 @@ def main():
     stamp = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     stage = args.stage
     expected_verify_plan = None
+    expected_verify_plan_sha256 = None
     rerun_op = None
     if stage == "start": operations = [{"action":"set-activity","stage":"collect" if record.get("rollover_pending") else "present" if "collect" in stages else "collect","ids":args.ids,"now":"Started collection"}]
     elif stage == "plan":
@@ -1108,9 +1109,10 @@ def main():
                     finding['status'] = 'in_progress'
             manage_findings.start_verification_lanes(expected_document, ids, verification_started_at,
                                                      manage_findings.validate_stage_model(args.model))
-            manage_findings.sync_plan_verify(expected_document)
+            manage_findings.sync_plan_verify(expected_document, ids)
             manage_findings.stamp_changed_stages(data, expected_document, verification_started_at)
             expected_verify_plan = expected_document['tracking']['plan']
+            expected_verify_plan_sha256 = manage_findings.plan_candidate_sha256(expected_verify_plan)
     elif stage == "introspect":
         if not args.sections or args.draft: parser.error("introspect requires --sections FILE.json (use --draft FILE.json to prepare an editable draft)")
         payload = json.loads(args.sections.read_text())
@@ -1238,6 +1240,16 @@ def main():
                 if recorded:
                     live_state.snapshot(record, live)
                 raise SystemExit(code if code > 0 else 128 - code)
+            finished = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+            result = subprocess.run(command, input=json.dumps([{
+                "action": "finish-verification", "ids": ids,
+                "plan_sha256": expected_verify_plan_sha256,
+                "command": expected, "timestamp": finished,
+            }]), text=True, capture_output=True)
+            if result.returncode:
+                sys.stderr.write(result.stderr or result.stdout)
+                raise SystemExit(result.returncode)
+            live_state.snapshot(record, live)
         elif args.then_command: subprocess.run(args.then_command, shell=True, check=True)
         elif command_args: subprocess.run(command_args, check=True)
         if args.progress:

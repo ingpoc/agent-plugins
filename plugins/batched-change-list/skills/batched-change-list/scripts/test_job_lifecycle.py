@@ -32,6 +32,25 @@ def finish(doc, phase, job_id, code=0, reply=None, timestamp=STAMP):
 
 
 class JobLifecycleTests(unittest.TestCase):
+    def test_parallel_lane_receipt_does_not_stale_a_running_jobs_finish(self):
+        doc = document()
+        doc["findings"].append({"id": "ISSUE-02", "status": "in_progress"})
+        doc["tracking"]["plan"]["groups"].append(
+            {"id": "B", "finding_ids": ["ISSUE-02"], "status": "planned"})
+        transition(doc, "start-job", "fix", "job-a", ids=["ISSUE-01"])
+        transition(doc, "start-job", "fix", "job-b", ids=["ISSUE-02"])
+        finish(doc, "fix", "job-a", code=0)
+        transition(doc, "finish-job", "fix", "job-b", ids=["ISSUE-02"], exit_code=0)
+        jobs = [group["codex"]["job"] for group in doc["tracking"]["plan"]["groups"]]
+        self.assertEqual([job["exit_code"] for job in jobs], [0, 0])
+
+    def test_stale_lane_plan_cannot_finish_as_passed(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "job-a")
+        doc["tracking"]["plan"]["groups"][0]["files"] = ["changed.py"]
+        with self.assertRaisesRegex(ValueError, "stale fix completion"):
+            finish(doc, "fix", "job-a", code=0)
+
     def test_second_plan_review_waits_for_a_standalone_filing(self):
         doc = document()
         transition(doc, "start-job", "plan_review", "plan-1")
