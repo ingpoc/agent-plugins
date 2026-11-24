@@ -11252,9 +11252,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-24T14:41:09Z",
-      "now": "2026-11-24T14:41:09Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-24T14:41:10Z",
+      "now": "2026-11-24T14:41:10Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 120,
@@ -12724,7 +12724,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T14:41:09Z",
+    "last_written_at": "2026-11-24T14:41:10Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -13025,7 +13025,8 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "cycle": 13,
@@ -13317,7 +13318,7 @@
               "at": "2026-11-24T11:45:44Z"
             }
           ],
-          "status": "installing",
+          "status": "verifying",
           "codex": {
             "fix_status": "passed",
             "job": {
@@ -13344,9 +13345,9 @@
             "review_status": "passed",
             "reviewer_model": "Grok Bot"
           },
-          "phase": "install",
-          "stage_entered_at": "2026-11-24T14:41:09Z",
-          "updated_at": "2026-11-24T14:33:47Z",
+          "phase": "verify",
+          "stage_entered_at": "2026-11-24T14:41:10Z",
+          "updated_at": "2026-11-24T14:41:10Z",
           "unblock_history": [
             {
               "at": "2026-11-24T14:29:48Z",
@@ -13370,9 +13371,9 @@
             "started_at": "2026-11-24T14:41:09Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "Grok Bot",
-            "at": "2026-11-24T14:41:09Z"
+            "at": "2026-11-24T14:41:10Z"
           }
         },
         {
