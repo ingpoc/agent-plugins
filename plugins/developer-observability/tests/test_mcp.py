@@ -140,7 +140,7 @@ class MCPTests(unittest.TestCase):
         """Fails when dashboard.html was not rebuilt from ui/round-view.js (no esbuild required)."""
         source = (ROOT/'ui/round-view.js').read_text()
         bundle = (ROOT/'ui/dashboard.html').read_text()
-        for marker in ('What we know', 'Raw evidence', 'tracker_unavailable', 'No lane data recorded', 'parked-line', 'track-ring'):
+        for marker in ('What we know', 'Raw evidence', 'tracker_unavailable', 'No lane data recorded', 'parked-line', 'track-ring', 'Model not recorded', 'Tokens unknown'):
             self.assertIn(marker, source)
             self.assertIn(marker, bundle)
 

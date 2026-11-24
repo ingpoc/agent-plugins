@@ -58,12 +58,13 @@ function statusClass(status) {
 function shortName(group) {
   const raw = String((group && (group.name || group.label || group.id)) || '').trim();
   const words = raw.split(/\s+/).filter(Boolean);
-  return words.slice(0, 5).join(' ');
+  if (words.length <= 5) return words.join(' ');
+  return `${words.slice(0, 5).join(' ')}…`;
 }
 
 function durationLabel(ms) {
   if (!Number.isFinite(ms) || ms <= 0) return '';
-  if (ms < 60000) return '<1';
+  if (ms < 60000) return '<1 min';
   const minutes = ms / 60000;
   if (minutes < 60) return `${minutes < 10 ? minutes.toFixed(1) : Math.round(minutes)} min`;
   return `${(minutes / 60).toFixed(1)} h`;
@@ -108,10 +109,8 @@ export function publicText(value) {
       const parts = path.replace(/^file:\/\//i, '').split('/').filter(Boolean);
       return parts[parts.length - 1] || 'file';
     })
-    .replace(/~\/\.cache\/\S+/g, (path) => {
-      const parts = path.split('/').filter(Boolean);
-      return parts[parts.length - 1] || 'file';
-    });
+    .replace(/(?:~|\/(?:Users|home)\/[^/]+)?\/\.cache\/\S+/g, 'file')
+    .replace(/~\/\.cache\/\S+/g, 'file');
 }
 
 export function mountRoundView(ctx) {
@@ -416,11 +415,14 @@ export function mountRoundView(ctx) {
               phaseTrack(group),
             ]),
             el('span', {class: `why${displayStatus(group) === 'blocked' || group.flagged ? ' warn' : ''}`, text: why || '—'}),
-            el('span', {class: 'muted', text: durationLabel(minutes) || '—'}),
-            el('span', {class: 'muted', text: tokens ? formatTokens(tokens) : '—'}),
-            el('span', {class: 'model'}, [
-              model,
-              group.model_note ? el('span', {class: 'muted', text: group.model_note}) : null,
+            el('span', {class: 'mmeta'}, [
+              el('span', {class: 'muted', text: durationLabel(minutes) || '—'}),
+              tokens
+                ? el('span', {class: 'muted', text: formatTokens(tokens)})
+                : el('span', {class: 'muted unk', title: "Job events don't record token totals yet", text: 'Tokens unknown'}),
+              group.model
+                ? el('span', {class: 'model', text: group.model})
+                : el('span', {class: 'model muted unk', title: "Job events don't record a model yet", text: 'Model not recorded'}),
             ]),
             el('span', {class: 'chev', 'aria-hidden': 'true'}),
           ]),
@@ -428,6 +430,8 @@ export function mountRoundView(ctx) {
             el('h3', {text: 'What we know'}),
             group.flagged ? el('p', {class: 'gap'}, [el('b', {text: 'Flag. '}), `A verified lane has a job that exited ${(group.flagged_exits || []).map((item) => item.exit_code).filter((code) => code != null).join(', ') || 'non-zero'}.`]) : null,
             brief ? el('p', {text: brief}) : (why ? el('p', {text: why}) : el('p', {class: 'muted', text: 'No written reason for this lane.'})),
+            group.shared_why ? el('p', {class: 'muted', text: `Shared ship presuite: ${publicText(group.shared_why)}`}) : null,
+            group.model_note ? el('p', {class: 'muted', text: publicText(group.model_note)}) : null,
             group.findings?.length ? el('ul', {}, group.findings.map((finding) => el('li', {}, [
               el('strong', {class: 'mono', text: finding.id}),
               ` ${finding.title || ''} `,
@@ -502,6 +506,11 @@ export function mountRoundView(ctx) {
     if (parked && parked.contains(node)) parked.open = true;
     node.open = true;
     node.scrollIntoView({block: 'start', behavior: 'smooth'});
+    const summary = node.querySelector('summary');
+    if (summary && typeof summary.focus === 'function') {
+      if (!summary.hasAttribute('tabindex')) summary.setAttribute('tabindex', '-1');
+      summary.focus();
+    }
   }
 
   function groupBelongs(group, selected) {

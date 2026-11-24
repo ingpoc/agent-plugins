@@ -104,6 +104,8 @@ body.round-mode .toolbar.embedded label{font-size:.875rem}
 .lanes{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 #round-view .lhead,#round-view .lane>summary{display:grid;grid-template-columns:minmax(230px,1.5fr) 158px minmax(200px,1.5fr) 64px 92px minmax(150px,1fr) 18px;gap:14px;align-items:center;padding:12px 18px}
 #round-view .lhead{font-size:.875rem;color:var(--muted);border-bottom:1px solid var(--line);padding-top:10px;padding-bottom:10px}
+#round-view .mmeta{display:contents}
+#round-view .unk{color:var(--muted)}
 #round-view .lhead .r,#round-view .num{text-align:right;font-variant-numeric:tabular-nums}
 #round-view .lane{border-bottom:1px solid var(--line)}
 #round-view .lane:last-of-type{border-bottom:0}
@@ -157,6 +159,7 @@ body.round-mode .toolbar.embedded label{font-size:.875rem}
 #round-view .c4{background:#c98a1b}
 #round-view .note{font-size:.875rem;color:var(--muted);grid-column:2/4;margin:-8px 0 0}
 #round-view .foot{margin-top:28px;font-size:.875rem;color:var(--muted)}
+@media(max-width:760px){
 #round-view h1{font-size:1.5rem}
 #round-view .controls{margin-left:0;width:100%;justify-content:space-between}
 #round-view .pop .sheet{right:auto;left:auto;width:min(340px,calc(100vw - 32px));right:0}
@@ -176,6 +179,8 @@ body.round-mode .toolbar.embedded label{font-size:.875rem}
 #round-view .legend,#round-view .note{grid-column:1}
 #round-view .note{margin:0}
 #round-view .mmeta{display:none}
+}
+
 
 #round-view .seg-bar,#round-view .hatched,#round-view .kicker,#round-view .id,#round-view .mono{font-size:max(.875rem,14px);line-height:1.35}
 #round-view .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}

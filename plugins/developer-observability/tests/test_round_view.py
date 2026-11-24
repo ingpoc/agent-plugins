@@ -357,7 +357,8 @@ class RoundViewTests(unittest.TestCase):
         self.assertIn("~/.cache", group["reason"])
         self.assertNotIn("~/.cache", lane["why"] or "")
         self.assertNotIn("~/.cache", lane["brief"] or "")
-        self.assertIn("samantha-activity.jsonl", lane["brief"])
+        self.assertNotIn("macos-cua", lane["brief"] or "")
+        self.assertNotIn("samantha-activity.jsonl", lane["brief"] or "")
         self.assertEqual(lane["model"], "Grok Bot (version not recorded)")
         self.assertNotIn(".sh", lane["model"] or "")
         self.assertNotIn("check.py", lane["model"] or "")
@@ -384,6 +385,46 @@ class RoundViewTests(unittest.TestCase):
         self.assertTrue(result["fallback"].get("persist") or result["fallback"].get("auto"))
         self.assertEqual(result["fallback"]["from_pr"], "121")
         self.assertEqual(result["fallback"]["viewing_pr"], "120")
+
+
+    def test_lane_why_uses_own_jobs_and_verified_fills_the_track(self):
+        group = self.tracker["tracking"]["plan"]["groups"][0]
+        group["name"] = "Island shows Grok Bot subagent runs"
+        group["status"] = "verified"
+        group["phase"] = "review"
+        group["worktree"] = "bcl42-r7-acu20"
+        _write_tracker(self.root, "demo", "42", self.tracker)
+        _write_events(self.root, [
+            {"event": "finish", "job_id": "own", "phase": "review", "agent": "run-record-r7-acu20-review.sh",
+             "repo": "bcl42-r7-acu20", "round": 7, "exit_code": 0,
+             "started_at": "2026-11-24T08:09:10Z", "finished_at": "2026-11-24T08:09:10Z"},
+            {"event": "finish", "job_id": "shared-fail", "phase": "presuite", "agent": "run-presuite-r7-acu-ship.sh",
+             "repo": "bcl42-r7-ship", "round": 7, "exit_code": 2,
+             "started_at": "2026-11-24T08:19:41Z", "finished_at": "2026-11-24T08:19:41Z"},
+            {"event": "finish", "job_id": "shared-ok", "phase": "presuite", "agent": "run-presuite-r7-acu-ship.sh",
+             "repo": "bcl42-r7-ship", "round": 7, "exit_code": 0,
+             "started_at": "2026-11-24T08:19:58Z", "finished_at": "2026-11-24T08:23:21Z"},
+        ])
+        # Share the ship worktree across two verified lanes.
+        self.tracker["tracking"]["plan"]["groups"].append({
+            "id": "R7-ACU10",
+            "name": "Voice and live-model usage rows carry real token counts",
+            "label": "ACU-10",
+            "status": "verified",
+            "phase": "verify",
+            "finding_ids": ["ACU-10"],
+            "worktree": "bcl42-r7-ship",
+        })
+        self.tracker["tracking"]["plan"]["groups"][0]["worktree"] = "bcl42-r7-ship"
+        _write_tracker(self.root, "demo", "42", self.tracker)
+        result = build_round("demo", pr="42", state_dir=str(self.root))
+        acu20 = next(item for item in result["groups"] if item["id"] == "R7-ACU20")
+        self.assertTrue(acu20["why"].lower().startswith("review passed"))
+        self.assertIsNotNone(acu20["shared_why"])
+        self.assertIn("presuite", (acu20["shared_why"] or "").lower())
+        self.assertEqual(acu20["phase_index"], 4)
+        self.assertEqual(acu20["phase_label"], "verify")
+        self.assertEqual(acu20["view_status"], "verified")
 
 
 if __name__ == "__main__":

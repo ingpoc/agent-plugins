@@ -12,7 +12,7 @@ _ROUND_RE = re.compile(r"^R(\d+)-", re.I)
 _WORKTREE_ROUND_RE = re.compile(r"-r(\d+)-", re.I)
 _WORKTREE_GROUP_RE = re.compile(r"-r(\d+)-([a-z0-9]+)", re.I)
 _SHARED_WORKTREE_SUFFIXES = {"ship", "wt", "tmp", "job", "work"}
-_CACHE_PATH_RE = re.compile(r"~/\.cache/\S+")
+_CACHE_PATH_RE = re.compile(r"(?:~|/Users/[^/]+|/home/[^/]+)?/\.cache/\S+|~/\.cache/\S+")
 _MODEL_HINT_RE = re.compile(r"\b(grok|astra|terra|sol|luna|codex|gpt|claude|gemini)\b", re.I)
 _MODEL_BAD_RE = re.compile(r"(?i)(?:\.sh\b|check\.py|--|/)")
 _PHASES = ("fix", "review", "install", "verify", "introspect")
@@ -52,7 +52,7 @@ def _public_text(value):
         return Path(match.group(1).rstrip("/")).name or "file"
     text = _ABS_PATH_RE.sub(bare, text)
     def cache(match):
-        return Path(match.group(0).rstrip("/")).name or "file"
+        return "file"
     return _CACHE_PATH_RE.sub(cache, text)
 
 
@@ -697,13 +697,13 @@ def _lane_model_note(group):
 
 
 def _phase_track(group):
+    status = _view_status(group)
+    if status == "verified":
+        return 4, "verify"
     raw = str(group.get("phase") or "").strip().lower()
     name = _PHASE_ALIASES.get(raw, raw if raw in _PHASES else None)
-    status = _view_status(group)
     if status in {"parked", "deferred"} and name is None:
         return None, None
-    if name is None and status == "verified":
-        name = "verify"
     if name not in _PHASES:
         return None, name
     return _PHASES.index(name) + 1, name
@@ -714,15 +714,18 @@ def _enrich_group(group, jobs):
     shared = [job for job in jobs if group.get("id") in (job.get("shared_group_ids") or [])]
     related = lane_jobs + [job for job in shared if job not in lane_jobs]
     related = sorted(related, key=lambda job: job.get("finished_at") or job.get("started_at") or "")
-    group["brief"] = _public_text(group.get("reason"))
-    group["why"] = _lane_why(group, related)
+    group["reason"] = _public_text(group.get("reason"))
+    group["brief"] = group.get("reason")
+    # Row why comes from this lane's own jobs; a shared run is a separate note.
+    group["why"] = _lane_why(group, lane_jobs)
+    group["shared_why"] = _lane_why({"status": "historical", "view_status": "historical"}, shared) if shared else None
     group["duration_ms"] = sum(
         job["duration_ms"] for job in related if isinstance(job.get("duration_ms"), int) and job["duration_ms"] > 0
     )
     group["model"] = _lane_model(group, related)
     group["model_note"] = _lane_model_note(group)
-    # Reconstructed lanes take their phase from the last recorded job.
-    if group.get("reconstructed") and related:
+    # Reconstructed lanes take their phase from the last recorded job, unless already verified.
+    if group.get("reconstructed") and related and _view_status(group) != "verified":
         last_phase = next((job.get("phase") for job in reversed(related) if job.get("phase")), None)
         if last_phase:
             group["phase"] = last_phase
