@@ -11631,9 +11631,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T06:41:38Z",
-      "now": "2026-11-24T06:41:38Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T06:41:51Z",
+      "now": "2026-11-24T06:41:51Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13458,23 +13458,28 @@
           "stage_entered_at": "2026-11-24T06:23:49Z"
         },
         {
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "codex": {
             "job": {
-              "id": "201df9946842401599a77ca05e688563",
-              "phase": "fix",
-              "started_at": "2026-11-24T06:41:38Z",
-              "command": "true",
-              "heartbeat_at": "2026-11-24T06:41:38Z",
-              "plan_sha256": "be4f8602d10478670207965703c5f5ac2d52f4fcf9bb30c181de604998f26be5",
+              "id": "0a9fa0366a1b41f69f3e640781fe79e2",
+              "phase": "review",
+              "started_at": "2026-11-24T06:41:51Z",
+              "command": "run-record-r6-121-grok.sh",
+              "heartbeat_at": "2026-11-24T06:41:51Z",
+              "plan_sha256": "83143053de99d5260a5315f1e044fb21a2e76476f67772d364afbe84840289cb",
               "worktree": "bcl120-r6-121",
-              "model": "gpt-6-luna fast medium (Codex CLI)",
+              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
               "cycle": 12,
               "round": 6
             },
             "tool_fault_streak": 0,
-            "fix_status": "running"
+            "fix_status": "passed",
+            "model": "Grok Bot",
+            "implementer_session": "01a20c3d-3174-7353-a7c9-fd09efec5305",
+            "reviewer_session": "grokbot-r6-121-review",
+            "review_status": "running",
+            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           },
           "verify": {
             "status": "pending",
@@ -13505,8 +13510,8 @@
               "at": "2026-11-24T06:20:50Z"
             }
           ],
-          "updated_at": "2026-11-24T06:19:20Z",
-          "stage_entered_at": "2026-11-24T06:27:45Z"
+          "updated_at": "2026-11-24T06:41:50Z",
+          "stage_entered_at": "2026-11-24T06:41:38Z"
         },
         {
           "status": "review",
@@ -13571,24 +13576,30 @@
           "stage_entered_at": "2026-11-24T06:30:33Z"
         },
         {
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "codex": {
             "job": {
-              "id": "08e131b7a81941f5ae17100c87d6f293",
+              "id": "a6fc277f0e3f45ffbb02e083e31391b7",
               "phase": "fix",
-              "started_at": "2026-11-24T06:28:01Z",
-              "command": "run-luna-r6-do3-job.sh",
-              "heartbeat_at": "2026-11-24T06:40:05Z",
-              "plan_sha256": "9e3279ec5ebf142fe88a2cfc41b7c3473888bbd85fe4005b59825736be046dca",
+              "started_at": "2026-11-24T06:41:39Z",
+              "command": "true",
+              "heartbeat_at": "2026-11-24T06:41:40Z",
+              "plan_sha256": "be4f8602d10478670207965703c5f5ac2d52f4fcf9bb30c181de604998f26be5",
               "worktree": "bcl120-r6-do3",
               "model": "gpt-6-luna fast medium (Codex CLI)",
               "cycle": 12,
               "round": 6,
-              "pid": 88933
+              "pid": 19970,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T06:41:40Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
-            "fix_status": "running"
+            "fix_status": "passed",
+            "model": "Grok Bot",
+            "implementer_session": "01a20c3d-6db7-7ec1-9106-e357e2ea27e1",
+            "reviewer_session": "grokbot-r6-do3-review"
           },
           "verify": {
             "status": "pending",
@@ -13624,8 +13635,8 @@
               "at": "2026-11-24T06:20:53Z"
             }
           ],
-          "updated_at": "2026-11-24T06:19:20Z",
-          "stage_entered_at": "2026-11-24T06:28:01Z"
+          "updated_at": "2026-11-24T06:41:51Z",
+          "stage_entered_at": "2026-11-24T06:41:40Z"
         },
         {
           "id": "R4-171",
@@ -14194,7 +14205,7 @@
       "round": 5,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T06:41:38Z",
+    "last_written_at": "2026-11-24T06:41:51Z",
     "fix_order": {
       "ids": [
         "PR120-r5-codex-reviewer-model-fallback",
