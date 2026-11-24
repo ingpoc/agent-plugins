@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.37
+
+- Official collect marks the change-list job log collected with a last event time, names token gaps from the job's model instead of a wrapper such as python3, and does not total incomplete tokens (DO-2). The issues query, used by both the agent and the dashboard, can filter a snapshot by pull request, round, stage, plugin, change class, and a time window, returning only stamped rows plus unstamped counts and a per-round timeline (DO-3).
+
 ## 0.1.36
 
 - Collect reads the change list's job event log as a source and reports token coverage, named usage gaps, and incomplete jobs without totaling incomplete tokens (BCL-177).
