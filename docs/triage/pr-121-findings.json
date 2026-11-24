@@ -11252,9 +11252,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-24T14:56:49Z",
-      "now": "2026-11-24T14:56:49Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-24T14:56:59Z",
+      "now": "2026-11-24T14:56:59Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 120,
@@ -12724,7 +12724,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T14:56:49Z",
+    "last_written_at": "2026-11-24T14:56:59Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -13684,8 +13684,8 @@
             "BCL-161",
             "BCL-130"
           ],
-          "status": "installing",
-          "phase": "install",
+          "status": "verifying",
+          "phase": "verify",
           "files": [
             "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -13714,8 +13714,8 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T14:46:04Z",
-          "stage_entered_at": "2026-11-24T14:56:49Z",
+          "updated_at": "2026-11-24T14:56:59Z",
+          "stage_entered_at": "2026-11-24T14:56:59Z",
           "parked_to": 4,
           "blocked_reason": "Hold for ready-lane install",
           "codex": {
@@ -13760,9 +13760,9 @@
             "started_at": "2026-11-24T14:56:49Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "Grok Bot",
-            "at": "2026-11-24T14:56:49Z"
+            "at": "2026-11-24T14:56:59Z"
           }
         },
         {
@@ -13897,13 +13897,21 @@
           "state": "pending"
         },
         "BCL-130": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Listing tool-fault candidates no longer rewrites lane history, and a release check no longer starts the viewer or changes the live list. Focused tests for that behaviour have just been prepared.",
+          "observed_at": "2026-11-24T14:56:55Z",
+          "started_at": "2026-11-24T14:56:55Z",
+          "updated_at": "2026-11-24T14:56:55Z"
         },
         "BCL-139": {
           "state": "pending"
         },
         "BCL-140": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "The command line now rejects unknown and retired commands before it opens a viewer record. Focused tests for that behaviour have just been prepared.",
+          "observed_at": "2026-11-24T14:56:55Z",
+          "started_at": "2026-11-24T14:56:55Z",
+          "updated_at": "2026-11-24T14:56:55Z"
         },
         "BCL-144": {
           "state": "pending"
@@ -13921,7 +13929,11 @@
           "state": "pending"
         },
         "BCL-161": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "Local install now ignores the list's own snapshot and page, and still refuses when the plugin tree itself is dirty. Focused tests for that behaviour have just been prepared.",
+          "observed_at": "2026-11-24T14:56:55Z",
+          "started_at": "2026-11-24T14:56:55Z",
+          "updated_at": "2026-11-24T14:56:55Z"
         },
         "BCL-166": {
           "state": "pending"
