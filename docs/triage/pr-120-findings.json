@@ -11480,9 +11480,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T05:34:14Z",
-      "now": "2026-11-24T05:34:14Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T05:45:35Z",
+      "now": "2026-11-24T05:45:35Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13177,7 +13177,7 @@
             "BCL-177"
           ],
           "label": "BCL-177",
-          "status": "review",
+          "status": "running",
           "worktree": "bcl120-r5-177",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r5-177.sh",
@@ -13191,22 +13191,21 @@
             "implementer_session": "01a20c01-4fd3-76b1-b5c7-c05e95e22500",
             "reviewer_session": "codex-terra-120-177-2",
             "job": {
-              "id": "ef27ecbf759e40d3add34980634fdab1",
-              "phase": "review",
-              "started_at": "2026-11-24T05:34:14Z",
-              "command": "run-review-177-2-job.sh",
-              "heartbeat_at": "2026-11-24T05:34:14Z",
+              "id": "1a6a5a0e018946c8b8bd7bcadd3e961d",
+              "phase": "fix",
+              "started_at": "2026-11-24T05:45:35Z",
+              "command": "true",
+              "heartbeat_at": "2026-11-24T05:45:35Z",
               "plan_sha256": "24cbbc0299efb5555bb9c4853e744bff7bcf3e0de5288b468b1090244be88378",
               "worktree": "bcl120-r5-177",
-              "model": "gpt-6.1-terra medium (review)",
+              "model": "record-177-2-review (no-op fix to re-enter review after tool-fault runner_exit)",
               "cycle": 12,
               "round": 5
             },
-            "tool_fault_streak": 0,
-            "fix_status": "passed",
+            "tool_fault_streak": 1,
+            "fix_status": "running",
             "reviewer_model": "gpt-6.1-terra medium (review)",
-            "must_fix_note": "1. `plugins/batched-change-list/bin/bcl:323` — The copier timeout does not prevent a hang. If a descendant outside the process group retains a pipe, its copier can remain blocked in `read()`. The subsequent `pipe.close()` waits for the same buffered-reader lock. A read-only pipe experiment reproduced the blocked close. Avoid closing a pipe from the main thread while its copier is blocked.\n\n2. `plugins/batched-change-list/bin/bcl:338` — Concatenating all stdout before all stderr loses their actual order. An earlier incomplete CHANGES on stderr followed by a valid PASS on stdout is treated as the last verdict, even though PASS came later; the reverse can falsely pass. Preserve the observed order of verdict output across streams.\n\n3. `plugins/batched-change-list/bin/bcl:333` — A changed `--result` file is used whenever it contains a verdict-starting line, even if that block fails parsing. A malformed result file therefore masks a valid teed verdict. Use the changed result only after `parse_review_reply` accepts it; otherwise inspect the teed output.\n\n4. `plugins/batched-change-list/skills/batched-change-list/scripts/events.py:14` — Events are keyed by the current directory’s basename, rather than the adopted list’s identity and state location. Different lists in the same worktree share a file, while the same list run from different worktrees writes separate files. Use the resolved list identity and state location for both job and stage events, and update collector discovery accordingly.",
-            "review_status": "running"
+            "must_fix_note": "Reviewer exited 1"
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
@@ -13238,6 +13237,17 @@
               "round": 5,
               "at": "2026-11-24T05:21:12Z",
               "plan_answered": true
+            },
+            {
+              "attempt_id": "ef27ecbf759e40d3add34980634fdab1",
+              "source": "review",
+              "reason": "Reviewer exited 1",
+              "cycle": 12,
+              "round": 5,
+              "at": "2026-11-24T05:34:22Z",
+              "tool_fault": true,
+              "fault_kind": "runner_exit",
+              "tool_fault_reason": "Reviewer exited 1"
             }
           ],
           "plan_review_history": [
@@ -13251,8 +13261,8 @@
             }
           ],
           "updated_at": "2026-11-24T05:34:13Z",
-          "stage_entered_at": "2026-11-24T05:32:30Z",
-          "phase": "review"
+          "stage_entered_at": "2026-11-24T05:34:21Z",
+          "phase": "fix"
         },
         {
           "id": "R4-171",
@@ -13878,7 +13888,7 @@
       "round": 4,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T05:34:14Z"
+    "last_written_at": "2026-11-24T05:45:35Z"
   },
   "findings": [
     {
