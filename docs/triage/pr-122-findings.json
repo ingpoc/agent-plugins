@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T17:01:35Z",
-      "now": "2026-11-24T17:01:35Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T17:04:16Z",
+      "now": "2026-11-24T17:04:16Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 121,
@@ -12275,7 +12275,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T17:01:35Z",
+    "last_written_at": "2026-11-24T17:04:16Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12587,25 +12587,17 @@
       "groups": [
         {
           "id": "R4-106",
-          "name": "Per-round verify scripts",
-          "label": "106",
           "finding_ids": [
             "BCL-106"
           ],
+          "name": "Per-round verify scripts",
+          "label": "106",
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
-          },
-          "codex": {
-            "fix_status": "passed",
-            "implementer_session": "grokbot-122-r2-106",
-            "reviewer_session": "grokbot-122-r2-106-review"
-          },
+          "status": "review",
+          "phase": "review",
           "parked_to": 2,
+          "stage_entered_at": "2026-11-24T17:02:34Z",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -12632,6 +12624,17 @@
               "round": 5,
               "at": "2026-11-24T04:34:33Z",
               "plan_answered": true
+            },
+            {
+              "attempt_id": "d20c7ad3fc704231a5714908fc638f1b",
+              "source": "review",
+              "reason": "Review incomplete: strict verdict or Must-fix section missing",
+              "cycle": 14,
+              "round": 2,
+              "at": "2026-11-24T17:02:35Z",
+              "tool_fault": true,
+              "fault_kind": "incomplete_review",
+              "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
             }
           ],
           "plan_review_history": [
@@ -12673,31 +12676,79 @@
               "owner_override": true
             }
           ],
-          "status": "planned",
-          "updated_at": "2026-11-24T16:58:53Z",
-          "stage_entered_at": "2026-11-24T16:58:53Z"
+          "codex": {
+            "job": {
+              "id": "23bd5601d6854e11b476a372101da91a",
+              "phase": "review",
+              "started_at": "2026-11-24T17:02:57Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T17:02:58Z",
+              "plan_sha256": "b4c874b16e20834519f04f548fc0d27cd11a6ad3086906f3d5b800c153a5f49d",
+              "finding_ids": [
+                "BCL-106"
+              ],
+              "worktree": "samantha-next-r12",
+              "model": "Grok Bot subagent",
+              "lane_sha256": "8fce01dcf04720e5b9f9f690ebbcccabe8bd822b178923227630afded4e80783",
+              "cycle": 14,
+              "round": 2,
+              "pid": 21477,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T17:02:58Z",
+              "tokens_source": "none",
+              "tokens": null,
+              "wall_time_s": 1,
+              "session": "grokbot-122-r2-106",
+              "finished_phase_status": "passed"
+            },
+            "jobs": [
+              {
+                "id": "d20c7ad3fc704231a5714908fc638f1b",
+                "phase": "review",
+                "started_at": "2026-11-24T17:02:34Z",
+                "command": "python3",
+                "heartbeat_at": "2026-11-24T17:02:35Z",
+                "plan_sha256": "b4c874b16e20834519f04f548fc0d27cd11a6ad3086906f3d5b800c153a5f49d",
+                "finding_ids": [
+                  "BCL-106"
+                ],
+                "worktree": "samantha-next-r12",
+                "model": "Grok Bot subagent",
+                "lane_sha256": "8fce01dcf04720e5b9f9f690ebbcccabe8bd822b178923227630afded4e80783",
+                "cycle": 14,
+                "round": 2,
+                "pid": 20865,
+                "exit_code": 0,
+                "finished_at": "2026-11-24T17:02:35Z",
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 1,
+                "session": "grokbot-122-r2-106",
+                "finished_phase_status": "incomplete",
+                "must_fix": "Review incomplete: strict verdict or Must-fix section missing"
+              }
+            ],
+            "fix_status": "passed",
+            "review_status": "passed",
+            "reviewer_model": "Grok Bot subagent",
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
+            "tool_fault_streak": 0
+          },
+          "updated_at": "2026-11-24T17:04:16Z"
         },
         {
           "id": "R4-171",
-          "name": "Collect reads developer observability findings",
-          "label": "171",
           "finding_ids": [
             "BCL-171"
           ],
+          "name": "Collect reads developer observability findings",
+          "label": "171",
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
-          },
-          "codex": {
-            "fix_status": "passed",
-            "implementer_session": "grokbot-122-r2-171",
-            "reviewer_session": "grokbot-122-r2-171-review"
-          },
+          "status": "review",
+          "phase": "review",
           "parked_to": 2,
+          "stage_entered_at": "2026-11-24T17:03:06Z",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -12776,17 +12827,79 @@
               "owner_override": true
             }
           ],
+          "codex": {
+            "job": {
+              "id": "91d160dd07524c229ef70a786630a632",
+              "phase": "review",
+              "started_at": "2026-11-24T17:03:06Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T17:03:07Z",
+              "plan_sha256": "b4c874b16e20834519f04f548fc0d27cd11a6ad3086906f3d5b800c153a5f49d",
+              "finding_ids": [
+                "BCL-171"
+              ],
+              "worktree": "samantha-next-r12",
+              "model": "Grok Bot subagent",
+              "lane_sha256": "92a6fb4fba96ad44c4aabb0b207b55c272127b6502e7e98394d78033725bd0b8",
+              "cycle": 14,
+              "round": 2,
+              "pid": 21735,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T17:03:07Z",
+              "tokens_source": "none",
+              "tokens": null,
+              "wall_time_s": 1,
+              "session": "grokbot-122-r2-171",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed",
+            "review_status": "passed",
+            "reviewer_model": "Grok Bot subagent",
+            "tool_fault_streak": 0
+          },
+          "updated_at": "2026-11-24T17:04:16Z"
+        },
+        {
+          "id": "R2-DEADLOCK",
+          "name": "Release and parking cannot deadlock under the lane cap",
+          "label": "DEADLOCK",
+          "finding_ids": [
+            "PR122-r1-release-deadlock"
+          ],
+          "worktree": "samantha-next-r12",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/references/release.md",
+            "plugins/batched-change-list/skills/batched-change-list/references/review.md"
+          ],
+          "reason": "Park overflow lanes in one batch and carry a finished fix into review next round.",
           "status": "planned",
-          "updated_at": "2026-11-24T16:58:53Z",
-          "stage_entered_at": "2026-11-24T16:58:53Z"
+          "phase": "fix",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
+            "method": "Run the manage_findings tests for batch parking and carried review entry.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "implementer_session": "grokbot-122-r2-deadlock",
+            "reviewer_session": "grokbot-122-r2-deadlock-review"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T17:04:16Z",
+          "stage_entered_at": "2026-11-24T17:04:16Z"
         },
         {
           "id": "R1-GUARD",
-          "name": "Refuse test and job writes to live change-list state",
-          "label": "GUARD",
           "finding_ids": [
             "PR121-r2-live-state-guard"
           ],
+          "name": "Refuse test and job writes to live change-list state",
+          "label": "GUARD",
           "worktree": "samantha-next-r12",
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -12795,20 +12908,26 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
           ],
           "reason": "Keep the live registry writable only by the official command, including rollover.",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-guard.sh",
-            "method": "Run the live-state guard tests and the default-root rollover test.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "finished_at": "2026-11-24T16:54:26Z"
-          },
           "status": "verified",
           "phase": "verify",
+          "stage_entered_at": "2026-11-24T16:54:26Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T16:44:21Z"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T16:52:40Z"
+          },
+          "stage_model": {
+            "stage": "verify",
+            "model": "Grok Bot subagent",
+            "at": "2026-11-24T16:54:25Z"
+          },
           "codex": {
-            "implementer_session": "grokbot-122-r1-guard",
-            "reviewer_session": "grokbot-122-r1-guard-review",
             "job": {
               "id": "4bbb9486bfba402faea37aac7eb6e1b6",
               "phase": "presuite",
@@ -12841,7 +12960,26 @@
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "stage_entered_at": "2026-11-24T16:54:26Z",
+          "updated_at": "2026-11-24T17:04:16Z"
+        },
+        {
+          "id": "R1-TOKENS",
+          "finding_ids": [
+            "PR120-r6-collect-job-coverage",
+            "BCL-147",
+            "DO-6"
+          ],
+          "name": "Record job tokens and implementer session work",
+          "label": "TOKENS",
+          "worktree": "samantha-next-r12",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
+            "plugins/developer-observability"
+          ],
+          "reason": "Same-class coverage: official collect still misses job tokens, receipts, and implementer session work.",
+          "status": "verified",
+          "phase": "verify",
+          "stage_entered_at": "2026-11-24T16:54:43Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12849,7 +12987,6 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T16:58:53Z",
           "install": {
             "status": "running",
             "started_at": "2026-11-24T16:52:40Z"
@@ -12857,38 +12994,9 @@
           "stage_model": {
             "stage": "verify",
             "model": "Grok Bot subagent",
-            "at": "2026-11-24T16:54:25Z"
-          }
-        },
-        {
-          "id": "R1-TOKENS",
-          "name": "Record job tokens and implementer session work",
-          "label": "TOKENS",
-          "finding_ids": [
-            "PR120-r6-collect-job-coverage",
-            "BCL-147",
-            "DO-6"
-          ],
-          "worktree": "samantha-next-r12",
-          "status": "verified",
-          "phase": "verify",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
-            "plugins/developer-observability"
-          ],
-          "reason": "Same-class coverage: official collect still misses job tokens, receipts, and implementer session work.",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh",
-            "method": "Run event and collect-coverage tests after the writers record tokens and session work.",
-            "status": "verified",
-            "fixed": 3,
-            "failed": 0,
-            "total": 3,
-            "finished_at": "2026-11-24T16:54:43Z"
+            "at": "2026-11-24T16:54:36Z"
           },
           "codex": {
-            "implementer_session": "grokbot-122-r1-tokens",
-            "reviewer_session": "grokbot-122-r1-tokens-review",
             "job": {
               "id": "4bbb9486bfba402faea37aac7eb6e1b6",
               "phase": "presuite",
@@ -12917,38 +13025,21 @@
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
+            "review_status": "passed",
             "reviewer_model": "Grok Bot",
-            "tool_fault_streak": 0,
-            "review_status": "passed"
+            "tool_fault_streak": 0
           },
-          "stage_entered_at": "2026-11-24T16:54:43Z",
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-24T16:58:53Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T16:44:21Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-24T16:52:40Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "Grok Bot subagent",
-            "at": "2026-11-24T16:54:36Z"
-          }
+          "updated_at": "2026-11-24T17:04:16Z"
         },
         {
           "id": "R1-JOBUX",
-          "name": "Show running jobs and keep failed output and tool faults accurate",
-          "label": "JOBUX",
           "finding_ids": [
             "BCL-159",
             "DO-8",
             "BCL-149"
           ],
+          "name": "Show running jobs and keep failed output and tool faults accurate",
+          "label": "JOBUX",
           "worktree": "samantha-next-r12",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
@@ -12956,20 +13047,38 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_lane_state.py"
           ],
           "reason": "Job status-accuracy: the page should show live job progress, keep failed output, and not treat tool faults as code failures.",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh",
-            "method": "Run job-lifecycle and lane-state tests covering live progress, retained output, and tool faults.",
-            "status": "verified",
-            "fixed": 3,
-            "failed": 0,
-            "total": 3,
-            "finished_at": "2026-11-24T16:54:49Z"
-          },
           "status": "verified",
           "phase": "verify",
+          "stage_entered_at": "2026-11-24T16:54:49Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T16:44:21Z"
+          },
+          "failure_history": [
+            {
+              "attempt_id": "c90f1bee31c74eea9c9d0b720a953282",
+              "source": "review",
+              "reason": "Review incomplete: strict verdict or Must-fix section missing",
+              "cycle": 14,
+              "round": 1,
+              "at": "2026-11-24T15:39:24Z",
+              "tool_fault": true,
+              "fault_kind": "incomplete_review",
+              "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
+            }
+          ],
+          "plan_review_history": [],
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T16:52:40Z"
+          },
+          "stage_model": {
+            "stage": "verify",
+            "model": "Grok Bot subagent",
+            "at": "2026-11-24T16:54:48Z"
+          },
           "codex": {
-            "implementer_session": "grokbot-122-r1-jobux",
-            "reviewer_session": "grokbot-122-r1-jobux-review",
             "job": {
               "id": "4bbb9486bfba402faea37aac7eb6e1b6",
               "phase": "presuite",
@@ -13003,27 +13112,30 @@
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
             "tool_fault_streak": 0
           },
-          "stage_entered_at": "2026-11-24T16:54:49Z",
+          "updated_at": "2026-11-24T17:04:16Z"
+        },
+        {
+          "id": "R1-COSMETIC",
+          "finding_ids": [
+            "DO-13"
+          ],
+          "name": "Fix Last-test-run breadcrumb and wrap Needs-you text",
+          "label": "COSMETIC",
+          "worktree": "samantha-next-r12",
+          "files": [
+            "plugins/developer-observability/runtime/viewer.py"
+          ],
+          "reason": "Viewer polish carried from #121: breadcrumb round, Needs-you wrap, and remaining per-round row polish.",
+          "status": "verified",
+          "phase": "verify",
+          "stage_entered_at": "2026-11-24T16:54:58Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-24T16:44:21Z"
           },
-          "failure_history": [
-            {
-              "attempt_id": "c90f1bee31c74eea9c9d0b720a953282",
-              "source": "review",
-              "reason": "Review incomplete: strict verdict or Must-fix section missing",
-              "cycle": 14,
-              "round": 1,
-              "at": "2026-11-24T15:39:24Z",
-              "tool_fault": true,
-              "fault_kind": "incomplete_review",
-              "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
-            }
-          ],
+          "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T16:58:53Z",
           "install": {
             "status": "running",
             "started_at": "2026-11-24T16:52:40Z"
@@ -13031,36 +13143,9 @@
           "stage_model": {
             "stage": "verify",
             "model": "Grok Bot subagent",
-            "at": "2026-11-24T16:54:48Z"
-          }
-        },
-        {
-          "id": "R1-COSMETIC",
-          "name": "Fix Last-test-run breadcrumb and wrap Needs-you text",
-          "label": "COSMETIC",
-          "finding_ids": [
-            "DO-13"
-          ],
-          "worktree": "samantha-next-r12",
-          "files": [
-            "plugins/developer-observability/runtime/viewer.py"
-          ],
-          "reason": "Viewer polish carried from #121: breadcrumb round, Needs-you wrap, and remaining per-round row polish.",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-cosmetic.sh",
-            "method": "Run a focused viewer test for breadcrumb round and Needs-you wrapping once those tests exist.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "finished_at": "2026-11-24T16:54:58Z"
+            "at": "2026-11-24T16:54:58Z"
           },
-          "status": "verified",
-          "phase": "verify",
           "codex": {
-            "implementer_session": "grokbot-122-r1-cosmetic",
-            "reviewer_session": "grokbot-122-r1-cosmetic-review",
-            "fix_status": "passed",
             "job": {
               "id": "4bbb9486bfba402faea37aac7eb6e1b6",
               "phase": "presuite",
@@ -13088,45 +13173,25 @@
               "finished_at": "2026-11-24T16:44:21Z",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0,
+            "fix_status": "passed",
             "review_status": "passed",
-            "reviewer_model": "Grok Bot"
+            "reviewer_model": "Grok Bot",
+            "tool_fault_streak": 0
           },
-          "stage_entered_at": "2026-11-24T16:54:58Z",
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-24T16:58:53Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T16:44:21Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-24T16:52:40Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "Grok Bot subagent",
-            "at": "2026-11-24T16:54:58Z"
-          }
+          "updated_at": "2026-11-24T17:04:16Z"
         },
         {
           "id": "R2-DO1",
-          "name": "Snapshot commits should not look like failures",
-          "label": "DO1",
           "finding_ids": [
             "DO-1"
           ],
+          "name": "Snapshot commits should not look like failures",
+          "label": "DO1",
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
-          },
+          "status": "parked",
           "parked_to": 2,
+          "stage_entered_at": "2026-11-24T15:22:33Z",
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -13189,10 +13254,8 @@
               "owner_override": true
             }
           ],
-          "status": "parked",
           "codex": {},
-          "stage_entered_at": "2026-11-24T15:22:33Z",
-          "updated_at": "2026-11-24T16:58:53Z"
+          "updated_at": "2026-11-24T17:04:16Z"
         }
       ]
     },
@@ -13382,7 +13445,7 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T04:34:33Z",
+        "at": "2026-11-24T17:02:35Z",
         "source": "review"
       }
     },
@@ -14031,7 +14094,7 @@
       "impact": "Reviewed and tested work cannot be installed or checked, and the extra lanes cannot be scheduled for review without breaking the limit.",
       "recommendation": "Count the lane limit on the final plan after a batch of parks, and do not treat a deferred or parked lane as still in flight for a release of other finished lanes. Keep the four-lane limit for work that is actually still open.",
       "done_when": "A release of four finished lanes succeeds after the extra unfinished lanes are parked together, and those parked lanes can be planned for review in the next round without being blocked as still in flight.",
-      "status": "untested",
+      "status": "in_progress",
       "observed": "On 24 Nov 2026 after R1 fix, review, and presuite passed, release-check with the eight R1 ids exited 2 with clear false and lanes R4-106 and R4-171 still in review. Official update-plan-group parking both in one batch failed with: a round runs at most 4 lanes (plan has 5). Same-round bcl plan cannot park because carry_plan_runtime_state restores status and parked_to from the prior group.",
       "details": {
         "release_check": "clear false; in-flight R4-106 and R4-171 status review phase review; included R1-GUARD TOKENS JOBUX COSMETIC",
@@ -14049,7 +14112,14 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-24T17:04:16Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     }
   ]
 }
