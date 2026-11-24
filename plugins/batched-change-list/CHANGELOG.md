@@ -1,3 +1,7 @@
+## 0.1.73
+
+- Job and stage events are written for a per-round view, with Codex tokens bound by a verified open-file stamp and a named gap when the source is missing; a review records the last verdict-starting block, keeps a complete CHANGES result on a nonzero exit or a missing Must-fix heading, and does not hang if a descendant retains a pipe (BCL-177, BCL-149 slice).
+
 ## 0.1.72
 
 - Stage timestamps follow the lane's real progress, including a same-ID replan, and a finished review shows "Review passed" rather than "Paused · needs resume"; plan writes cannot supply `stage_entered_at`; review guides assign version and changelog bumps to integration (BCL-157, BCL-103). Parked and deferred lanes stay parked when another lane is updated.
