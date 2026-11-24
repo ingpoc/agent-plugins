@@ -2,37 +2,38 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 from pathlib import Path
 from datetime import datetime, timezone
 
 
-def _repo_key(repo: str | Path) -> str:
-    return Path(repo).resolve().name
+def _list_key(list_path: str | Path) -> str:
+    return hashlib.sha256(str(Path(list_path).resolve()).encode("utf-8")).hexdigest()
 
 
-def events_path(repo: str | Path, state_dir: str | Path | None = None) -> Path:
+def events_path(list_path: str | Path, state_dir: str | Path | None = None) -> Path:
     root = Path(state_dir or os.environ.get("BCL_STATE_DIR", "~/.agents/state/batched-change-list")).expanduser()
-    return root / _repo_key(repo) / "events.jsonl"
+    return root / _list_key(list_path) / "events.jsonl"
 
 
-def append(repo: str | Path, event: dict, state_dir: str | Path | None = None) -> None:
-    path = events_path(repo, state_dir)
+def append(list_path: str | Path, event: dict, state_dir: str | Path | None = None) -> None:
+    path = events_path(list_path, state_dir)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(event, separators=(",", ":"), sort_keys=True) + "\n")
 
 
-def job_event(repo_path: str | Path, job_id: str, kind: str, *, state_dir=None, **fields) -> None:
+def job_event(list_path: str | Path, job_id: str, kind: str, *, state_dir=None, **fields) -> None:
     if kind not in {"start", "finish", "failed_start", "incomplete"}:
         raise ValueError(f"unsupported job event: {kind}")
-    append(repo_path, {"event": kind, "job_id": job_id, "at": datetime.now(timezone.utc).isoformat(), **fields}, state_dir)
+    append(list_path, {"event": kind, "job_id": job_id, "at": datetime.now(timezone.utc).isoformat(), **fields}, state_dir)
 
 
-def stage_event(repo: str | Path, stage: str, kind: str, *, state_dir=None, **fields) -> None:
+def stage_event(list_path: str | Path, stage: str, kind: str, *, state_dir=None, **fields) -> None:
     if kind not in {"start", "finish"}:
         raise ValueError(f"unsupported stage event: {kind}")
-    append(repo, {"event": f"stage_{kind}", "stage": stage, "at": datetime.now(timezone.utc).isoformat(), **fields}, state_dir)
+    append(list_path, {"event": f"stage_{kind}", "stage": stage, "at": datetime.now(timezone.utc).isoformat(), **fields}, state_dir)
 
 
 def fold(rows: list[dict]) -> list[dict]:
@@ -55,8 +56,8 @@ def fold(rows: list[dict]) -> list[dict]:
     return visible
 
 
-def read(repo: str | Path, state_dir: str | Path | None = None) -> list[dict]:
-    path = events_path(repo, state_dir)
+def read(list_path: str | Path, state_dir: str | Path | None = None) -> list[dict]:
+    path = events_path(list_path, state_dir)
     try:
         rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
     except OSError:

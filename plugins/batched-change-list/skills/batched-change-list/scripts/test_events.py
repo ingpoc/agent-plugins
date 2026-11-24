@@ -24,6 +24,27 @@ class EventTests(unittest.TestCase):
             events.job_event("repo", "job", "failed_start", state_dir=tmp, agent="Codex")
             self.assertEqual(events.read("repo", tmp)[0]["event"], "failed_start")
 
+    def test_events_are_scoped_to_resolved_list_identity_for_jobs_and_stages(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first = root / "one" / "list.json"
+            same = root / "other-worktree" / "list.json"
+            second = root / "one" / "another-list.json"
+            for path in (first, same, second):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("{}")
+            alias = root / "alias.json"
+            alias.symlink_to(first)
+            events.job_event(first, "j1", "start", state_dir=root / "state")
+            events.stage_event(alias, "review", "start", state_dir=root / "state")
+            events.job_event(first, "j1", "finish", state_dir=root / "state")
+            events.job_event(second, "j2", "start", state_dir=root / "state")
+            events.job_event(same, "j3", "start", state_dir=root / "state")
+            self.assertEqual(events.events_path(first, root / "state"), events.events_path(alias, root / "state"))
+            self.assertNotEqual(events.events_path(first, root / "state"), events.events_path(second, root / "state"))
+            self.assertEqual([row["event"] for row in events.read(first, root / "state")], ["stage_start", "finish"])
+            self.assertEqual([row["job_id"] for row in events.read(same, root / "state")], ["j3"])
+
 
 if __name__ == "__main__":
     unittest.main()

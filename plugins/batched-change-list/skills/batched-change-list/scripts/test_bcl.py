@@ -37,6 +37,21 @@ def tearDownModule():
     viewer_test_guard.assert_no_viewers(viewer_test_guard.TEMP_ROOTS)
 
 class BclTests(unittest.TestCase):
+    def _prepare_review_plan(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        document = json.loads(self.data.read_text())
+        document["findings"][0]["status"] = "in_progress"
+        document["tracking"].update(stages_reached=["collect", "plan_fix", "review"],
+            workflow={"stage": "review", "updated_at": bcl_entrypoint._utc_now()}, cycle=1,
+            plan={"cycle": 1, "round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "review",
+                "phase": "review", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer",
+                    "fix_status": "passed"}}]})
+        prepared = json.dumps(document).encode()
+        live.write_bytes(prepared)
+        self.data.write_bytes(prepared)
+        return live, prepared
+
     def test_job_stamp_is_create_only_and_bound_to_open_codex_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             sessions = Path(tmp) / "sessions"
@@ -56,6 +71,54 @@ class BclTests(unittest.TestCase):
     def test_last_verdict_block_never_falls_back_to_earlier_pass(self):
         text = "log\nVERDICT: PASS\n## Must-fix\nnone\nVERDICT: CHANGES\n## Notes\ncut off"
         self.assertEqual(bcl_entrypoint._last_verdict_block(text), "VERDICT: CHANGES\n## Notes\ncut off\n")
+
+    def test_job_does_not_close_pipe_while_escaped_descendant_retains_it(self):
+        self._prepare_review_plan()
+        result = self.root / "retained-pipe.txt"
+        script = ("import os,time; pid=os.fork(); "
+                  "(os.setsid(), time.sleep(8), os._exit(0)) if pid == 0 else os._exit(0)")
+        started = time.monotonic()
+        job = self.call_job_without_viewer(self.data, "--ids", "ISSUE-01", "--result", result,
+            "--phase", "review", "job", "--", sys.executable, "-c", script)
+        self.assertLess(time.monotonic() - started, 6, job.stderr)
+        self.assertEqual(job.returncode, 1, job.stdout + job.stderr)
+
+    def test_review_verdict_order_across_streams_and_malformed_result_fallback(self):
+        live, prepared = self._prepare_review_plan()
+        result = self.root / "stream-order-result.txt"
+        cases = [
+            ("earlier stderr CHANGES then later stdout PASS", "changes", "pass", "passed", 0),
+            ("earlier stdout PASS then later stderr CHANGES", "pass", "changes", "changes_requested", 1),
+        ]
+        for label, earlier, later, expected, code in cases:
+            with self.subTest(label=label):
+                live.write_bytes(prepared); self.data.write_bytes(prepared)
+                result.unlink(missing_ok=True)
+                first_stream = "sys.stderr" if earlier == "changes" else "sys.stdout"
+                last_stream = "sys.stderr" if later == "changes" else "sys.stdout"
+                replies = {"changes": "VERDICT: CHANGES\n## Must-fix\n- issue\n",
+                           "pass": "VERDICT: PASS\n## Must-fix\nnone\n"}
+                earlier_reply, later_reply = replies[earlier], replies[later]
+                script = ("import sys,time; "
+                    f"print({earlier_reply!r}, end='', file={first_stream}, flush=True); time.sleep(.2); "
+                    f"print({later_reply!r}, end='', file={last_stream}, flush=True)")
+                job = self.call_job_without_viewer(self.data, "--ids", "ISSUE-01", "--result", result,
+                    "--phase", "review", "job", "--", sys.executable, "-c", script)
+                group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
+                self.assertEqual(job.returncode, code, f"{job.stdout}{job.stderr}\n{group['codex']}")
+                self.assertEqual(group["codex"]["review_status"], expected)
+
+        live.write_bytes(prepared); self.data.write_bytes(prepared)
+        result.unlink(missing_ok=True)
+        malformed = "VERDICT: PASS\n## Must-fix\n- not allowed for PASS\n"
+        valid = "VERDICT: PASS\n## Must-fix\nnone\n"
+        script = ("from pathlib import Path; import sys; "
+                  f"Path({str(result)!r}).write_text({malformed!r}); "
+                  f"print({valid!r}, end='', flush=True)")
+        job = self.call_job_without_viewer(self.data, "--ids", "ISSUE-01", "--result", result,
+            "--phase", "review", "job", "--", sys.executable, "-c", script)
+        self.assertEqual(job.returncode, 0, job.stdout + job.stderr)
+        self.assertEqual(json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["codex"]["review_status"], "passed")
 
     def test_bcl179_fresh_worktree_name_replaces_one_round_marker(self):
         for old, expected in (("bcl120-r2-do1", "bcl120-r3-do1"),

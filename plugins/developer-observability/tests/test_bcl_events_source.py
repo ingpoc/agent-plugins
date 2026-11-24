@@ -15,7 +15,7 @@ class BclEventSourceTests(unittest.TestCase):
     def test_collect_combines_verified_codex_tokens_and_named_grok_gap(self):
         with tempfile.TemporaryDirectory() as tmp:
             state = Path(tmp) / "bcl"
-            root = state / "example-repo"
+            root = state / "list-identity" / "events"
             root.mkdir(parents=True)
             rows = [
                 {"event": "start", "job_id": "codex-job", "agent": "Codex"},

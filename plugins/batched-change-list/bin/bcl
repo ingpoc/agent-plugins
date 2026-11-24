@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Stage-oriented entrypoint for batched-change-list."""
-import argparse, hashlib, json, os, re, shlex, shutil, subprocess, sys, threading, time, uuid
+import argparse, hashlib, json, os, re, shlex, shutil, subprocess, sys, threading, time, uuid, selectors
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -237,7 +237,8 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
     if model:
         job["model"] = model
     repo = Path.cwd()
-    bcl_events.job_event(repo, job["id"], "start", state_dir=os.environ.get("BCL_STATE_DIR"),
+    list_path = Path(live).resolve()
+    bcl_events.job_event(list_path, job["id"], "start", state_dir=os.environ.get("BCL_STATE_DIR"),
                          phase=phase, agent=Path(command_args[0]).name, repo=repo.name, started_at=started_at)
     try:
         _job_write_retry(record, live, report, base,
@@ -245,7 +246,7 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
                                          load_override=load_override))
     except Exception as error:
         try:
-            bcl_events.job_event(repo, job["id"], "failed_start", state_dir=os.environ.get("BCL_STATE_DIR"),
+            bcl_events.job_event(list_path, job["id"], "failed_start", state_dir=os.environ.get("BCL_STATE_DIR"),
                                  phase=phase, agent=Path(command_args[0]).name, error=str(error))
         except OSError:
             pass
@@ -259,24 +260,37 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
         _job_write_retry(record, live, report, base,
                          _job_operations(phase, ids, cycle, round_number, job, "finish-job", _utc_now(), exit_code=127))
         print(f"bcl: job command could not start: {error}", file=sys.stderr)
-        bcl_events.job_event(repo, job["id"], "failed_start", state_dir=os.environ.get("BCL_STATE_DIR"),
+        bcl_events.job_event(list_path, job["id"], "failed_start", state_dir=os.environ.get("BCL_STATE_DIR"),
                              phase=phase, agent=Path(command_args[0]).name, error=str(error))
         return 127
     output = {"stdout": bytearray(), "stderr": bytearray()}
-    def copy_stream(pipe, key, destination):
+    output_chunks = []
+    output_lock = threading.Lock()
+    def copy_streams():
         try:
-            while True:
-                chunk = pipe.read(65536)
-                if not chunk: break
-                output[key].extend(chunk)
-                try:
-                    destination.buffer.write(chunk); destination.buffer.flush()
-                except (AttributeError, OSError, BrokenPipeError):
-                    pass
+            with selectors.DefaultSelector() as selector:
+                selector.register(process.stdout, selectors.EVENT_READ, ("stdout", sys.stdout))
+                selector.register(process.stderr, selectors.EVENT_READ, ("stderr", sys.stderr))
+                while selector.get_map():
+                    for ready, _ in selector.select(timeout=1):
+                        pipe = ready.fileobj
+                        key, destination = ready.data
+                        # A single selector reader observes both streams. os.read
+                        # returns available bytes without BufferedReader fill waits.
+                        chunk = os.read(pipe.fileno(), 65536)
+                        if not chunk:
+                            selector.unregister(pipe)
+                            continue
+                        with output_lock:
+                            output[key].extend(chunk)
+                            output_chunks.append(chunk)
+                        try:
+                            destination.buffer.write(chunk); destination.buffer.flush()
+                        except (AttributeError, OSError, BrokenPipeError):
+                            pass
         except (OSError, ValueError):
             pass
-    copiers = [threading.Thread(target=copy_stream, args=(process.stdout, "stdout", sys.stdout), daemon=True),
-               threading.Thread(target=copy_stream, args=(process.stderr, "stderr", sys.stderr), daemon=True)]
+    copiers = [threading.Thread(target=copy_streams, daemon=True)]
     for thread in copiers: thread.start()
     pgid = process.pid
     sessions = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "sessions"
@@ -322,8 +336,11 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
         except OSError: pass
     for thread in copiers: thread.join(timeout=2)
     for pipe in (process.stdout, process.stderr):
-        try: pipe.close()
-        except OSError: pass
+        # A blocked copier owns the buffered reader lock; closing its pipe here
+        # can wait forever when an escaped descendant still has the fd open.
+        if not copiers[0].is_alive():
+            try: pipe.close()
+            except OSError: pass
     for thread in copiers: thread.join(timeout=0.1)
     finished_at = _utc_now()
     reply = None
@@ -331,11 +348,13 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
         try:
             current_result = result_path.stat()
             if previous_result is None or (current_result.st_ino, current_result.st_size, current_result.st_mtime_ns) != (previous_result.st_ino, previous_result.st_size, previous_result.st_mtime_ns):
-                reply = _last_verdict_block(result_path.read_text(encoding="utf-8"))
+                candidate = _last_verdict_block(result_path.read_text(encoding="utf-8"))
+                if candidate is not None and manage_findings.parse_review_reply(candidate)[0] is not None:
+                    reply = candidate
         except (OSError, UnicodeError):
             pass
     if phase in workflow_definition.LANE["review_phases"] and reply is None:
-        reply = _last_verdict_block(output["stdout"].decode("utf-8", errors="replace") + "\n" + output["stderr"].decode("utf-8", errors="replace"))
+        reply = _last_verdict_block(b"".join(output_chunks).decode("utf-8", errors="replace"))
     try:
         _job_write_retry(record, live, report, base,
                          _job_operations(phase, ids, cycle, round_number, job, "finish-job", finished_at,
@@ -365,7 +384,7 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
     event = {"phase": phase, "agent": Path(command_args[0]).name, "repo": repo.name,
              "exit_code": code, "finished_at": finished_at, "tokens_source": usage_source,
              "tokens": usage, "session": usage_path.name if usage_path else None}
-    bcl_events.job_event(repo, job["id"], "finish", state_dir=os.environ.get("BCL_STATE_DIR"), **event)
+    bcl_events.job_event(list_path, job["id"], "finish", state_dir=os.environ.get("BCL_STATE_DIR"), **event)
     return (code if code else 0 if result_status == "passed" else 1) if code >= 0 else 128 - code
 
 def _install_tree_digest(root):
@@ -1042,11 +1061,11 @@ def main():
             verification_claim = None
             parser.error("lane verify requires the shared check to pass first; run bcl verify --shared --then CMD")
     try:
-        bcl_events.stage_event(Path.cwd(), stage, "start", state_dir=os.environ.get("BCL_STATE_DIR"), ids=args.ids)
+        bcl_events.stage_event(live.resolve(), stage, "start", state_dir=os.environ.get("BCL_STATE_DIR"), ids=args.ids)
         result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
         if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
         live_state.snapshot(record, live)
-        bcl_events.stage_event(Path.cwd(), stage, "finish", state_dir=os.environ.get("BCL_STATE_DIR"), ids=args.ids, outcome="completed")
+        bcl_events.stage_event(live.resolve(), stage, "finish", state_dir=os.environ.get("BCL_STATE_DIR"), ids=args.ids, outcome="completed")
         if rerun_op:
             print(f"Rerunning the check for {', '.join(rerun_op['ids'])}: {args.reason.strip()}")
         if stage == "verify" and args.shared:

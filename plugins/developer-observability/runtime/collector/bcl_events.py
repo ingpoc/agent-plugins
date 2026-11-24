@@ -16,7 +16,7 @@ def iter_events(stats=None, state_dir=None):
     jobs = []
     root = _root(state_dir)
     if root.exists():
-        for path in sorted(root.glob("*/events.jsonl")):
+        for path in sorted(root.glob("**/events.jsonl")):
             folded = {}
             try:
                 lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
