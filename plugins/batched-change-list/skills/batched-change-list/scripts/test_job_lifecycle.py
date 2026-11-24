@@ -67,6 +67,9 @@ class JobLifecycleTests(unittest.TestCase):
         after = {"groups": [{"id": "A", "phase": "review", "finding_ids": ["ISSUE-01", "ISSUE-02"]}]}
         with self.assertRaisesRegex(ValueError, "cannot add findings to lane A"):
             manager._refuse_review_lane_membership(before, after)
+        # A replan that leaves review may replace membership (runtime identity reset).
+        replaced = {"groups": [{"id": "A", "phase": "planned", "finding_ids": ["ISSUE-02"]}]}
+        manager._refuse_review_lane_membership(before, replaced)
         findings = [{"id": "ISSUE-01", "title": "Existing", "status": "open"}]
         item = {"id": "ISSUE-02", "title": "Standalone follow-up", "status": "open"}
         self.assertTrue(manager.place_new_finding(findings, item, new=True))

@@ -491,6 +491,8 @@ def _refuse_review_lane_membership(before, after):
         phase = old.get("phase")
         if phase not in ("review", "plan_review"):
             continue
+        if group.get("phase") not in ("review", "plan_review"):
+            continue
         added = set(group.get("finding_ids", [])) - set(old.get("finding_ids", []))
         if added:
             raise ValueError(f"cannot add findings to lane {group.get('id')} during {phase}; "
