@@ -11223,9 +11223,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T18:44:41Z",
-      "now": "2026-11-24T18:44:41Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-24T18:48:50Z",
+      "now": "2026-11-24T18:48:50Z — Install in progress"
     },
     "rollover": {
       "source_pr": 121,
@@ -13015,7 +13015,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T18:44:41Z",
+    "last_written_at": "2026-11-24T18:48:50Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -13319,7 +13319,8 @@
     "stages_reached": [
       "collect",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "cycle": 14,
@@ -15165,18 +15166,18 @@
             "plugins/batched-change-list/skills/batched-change-list/references/gate.md"
           ],
           "reason": "Verified fixes should ship each round as a patch; the merge/rollover threshold should not hold a round, and tool-bug exceptions need a recorded hotfix command.",
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "codex": {
             "implementer_session": "grokbot-122-r4-ship",
             "reviewer_session": "grokbot-122-r4-ship-review",
             "fix_status": "passed",
             "job": {
-              "id": "0109a6a616cc4160ac1caa29d17f6e9e",
-              "phase": "review",
-              "started_at": "2026-11-24T18:44:41Z",
-              "command": "review-ship.sh",
-              "heartbeat_at": "2026-11-24T18:44:41Z",
+              "id": "ed8eca0b12e145b7975f6f246dbe03f0",
+              "phase": "presuite",
+              "started_at": "2026-11-24T18:45:20Z",
+              "command": "run-presuite-r3.sh",
+              "heartbeat_at": "2026-11-24T18:48:25Z",
               "plan_sha256": "63ec78bd1b6c417ea4d0c312d73c55f7d18c5642a7b96460c41e9880de25d592",
               "finding_ids": [
                 "BCL-144"
@@ -15185,7 +15186,17 @@
               "model": "Grok Bot subagent",
               "lane_sha256": "8c8422b33acbc37a1de552a65646e08ea4d6723e767ae67e585d956ea46f9f06",
               "cycle": 14,
-              "round": 5
+              "round": 5,
+              "pid": 5220,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T18:48:25Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/ed8eca0b12e145b7975f6f246dbe03f0.log",
+              "output_retained": true,
+              "tokens_source": "none",
+              "tokens": null,
+              "wall_time_s": 185,
+              "session": "grokbot-122-r4-ship",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "jobs": [
@@ -15214,9 +15225,35 @@
                 "wall_time_s": 28,
                 "session": "grokbot-122-r4-ship",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "0109a6a616cc4160ac1caa29d17f6e9e",
+                "phase": "review",
+                "started_at": "2026-11-24T18:44:41Z",
+                "command": "review-ship.sh",
+                "heartbeat_at": "2026-11-24T18:45:09Z",
+                "plan_sha256": "63ec78bd1b6c417ea4d0c312d73c55f7d18c5642a7b96460c41e9880de25d592",
+                "finding_ids": [
+                  "BCL-144"
+                ],
+                "worktree": "samantha-next-r12",
+                "model": "Grok Bot subagent",
+                "lane_sha256": "8c8422b33acbc37a1de552a65646e08ea4d6723e767ae67e585d956ea46f9f06",
+                "cycle": 14,
+                "round": 5,
+                "pid": 4122,
+                "exit_code": 0,
+                "finished_at": "2026-11-24T18:45:09Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/0109a6a616cc4160ac1caa29d17f6e9e.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 28,
+                "session": "grokbot-122-r4-ship",
+                "finished_phase_status": "passed"
               }
             ],
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "Grok Bot subagent"
           },
           "verify": {
@@ -15230,7 +15267,21 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-24T18:39:33Z",
-          "stage_entered_at": "2026-11-24T18:44:24Z"
+          "stage_entered_at": "2026-11-24T18:48:50Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T18:48:25Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T18:48:50Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot subagent",
+            "at": "2026-11-24T18:48:50Z"
+          }
         }
       ]
     },
@@ -15241,73 +15292,218 @@
       "installed_at": "2026-11-24T18:36:44Z",
       "install_evidence": "bcl install-local receipt /Users/gurusharan/.agents/artifacts/bcl-122/r4/install-local-r4.txt: bcl install-local: revision 4031c6faf6456d381d8852ae0557a2ab979751b6 /Users/gurusharan/.agents/plugins/batched-change-list (70 files, sha256 75d30ccef01b5356ac197204ad476dfbfcc452b574072f5194a8af7024fbe701) /Users/gurusharan/.agents/skills/batched-change-list (63 files, sha256 e1533e109f28c82430a817df87a6b2c7c19e2180d4ac581d839739b2d5ff2434) /Users/gurusharan/.cursor/plugins/cache/ingpoc-agent-plugins/batched-change-list/0.1.74 (70 files, sha256 75d30ccef01b5356ac197204ad476dfbfcc452b574072f5194a8af7024fbe701) /Users/gurusharan/.cursor/plugins/cache/ingpoc-agent-plugins/batched-change-list/4031c6faf6456d381d8852ae0557a2ab979751b6 (70 files, sha256 75d30ccef01b5356ac197204ad476dfbfcc452b574072f5194a8af7024fbe701) /Users/gurusharan/.codex/plugins/cache/ingpoc-agent-plugins/batched-change-list/0.1.74 (70 files, sha256 75d30ccef01b5356ac197204ad476dfbfcc452b574072f5194a8af7024fbe701) /Users/gurusharan/.codex/plugins/cache/ingpoc-agent-plugins/batched-change-list/4031c6faf6456d381d8852ae0557a2ab979751b6 (70 files, sha256 75d30ccef01b5356ac197204ad476dfbfcc452b574072f5194a8af7024fbe701)",
       "cycle": 14,
-      "status": "active",
+      "status": "complete",
       "checks": {
         "BCL-106": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "BCL-108": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "BCL-120": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "BCL-125": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "BCL-139": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "BCL-144": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "BCL-147": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "BCL-149": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "BCL-159": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "BCL-166": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "BCL-171": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "DO-1": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "PR120-r6-collect-job-coverage": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "DO-6": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "DO-8": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "DO-11": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "PR121-r2-live-state-guard": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "DO-13": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "PR122-r1-release-deadlock": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         },
         "PR122-parked-backlog": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:48:49Z",
+          "stopped": true,
+          "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observation": "Run stopped: R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+          "observed_at": "2026-11-24T18:48:49Z",
+          "updated_at": "2026-11-24T18:48:49Z",
+          "finished_at": "2026-11-24T18:48:49Z"
         }
       },
       "run_id": "pr122-r4-4031c6faf6456d381d8852ae0557a2ab979751b6",
       "pr": 122,
       "round": 4,
-      "started_at": "2026-11-24T18:36:44Z"
+      "started_at": "2026-11-24T18:36:44Z",
+      "stopped": {
+        "reason": "R4 verification run is superseded by the R5-SHIP install of 0d807c790bde7cd10e25e660b22d1386647b8cd3",
+        "at": "2026-11-24T18:48:49Z"
+      },
+      "ended_at": "2026-11-24T18:48:49Z"
     },
     "introspect": {
       "result": "Introspect recorded",
@@ -15481,10 +15677,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15532,10 +15734,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15588,10 +15796,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15636,10 +15850,16 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15689,10 +15909,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15736,7 +15962,7 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       }
     },
@@ -15785,10 +16011,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15840,10 +16072,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15895,10 +16133,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15948,10 +16192,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15995,10 +16245,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -16031,7 +16287,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       }
     },
@@ -16077,10 +16333,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -16127,10 +16389,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -16177,10 +16445,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -16221,7 +16495,7 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       },
       "merged_into": "PR122-parked-backlog",
@@ -16263,10 +16537,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -16314,6 +16594,12 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
@@ -16321,7 +16607,7 @@
       ],
       "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-cosmetic.sh",
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       }
     },
@@ -16367,6 +16653,12 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-24T18:48:49Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
@@ -16374,7 +16666,7 @@
       ],
       "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       }
     },
@@ -16409,7 +16701,7 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:35:47Z",
+        "at": "2026-11-24T18:48:49Z",
         "source": "verification_check"
       }
     }
