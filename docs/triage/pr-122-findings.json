@@ -11003,9 +11003,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T18:03:04Z",
-      "now": "2026-11-24T18:03:04Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-24T18:16:01Z",
+      "now": "2026-11-24T18:16:01Z — Review started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12662,7 +12662,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T18:03:04Z",
+    "last_written_at": "2026-11-24T18:16:01Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12977,16 +12977,6 @@
           "finding_ids": [
             "PR121-r2-live-state-guard"
           ],
-          "name": "Refuse test and job writes to live change-list state",
-          "label": "GUARD",
-          "worktree": "samantha-next-r12",
-          "files": [
-            "plugins/batched-change-list/bin/bcl",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_live_state.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
-          ],
-          "reason": "Keep the live registry writable only by the official command, including rollover.",
           "status": "verified",
           "phase": "verify",
           "stage_entered_at": "2026-11-24T16:54:26Z",
@@ -13039,7 +13029,7 @@
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:03:04Z"
+          "updated_at": "2026-11-24T18:15:28Z"
         },
         {
           "id": "R1-TOKENS",
@@ -13048,14 +13038,6 @@
             "BCL-147",
             "DO-6"
           ],
-          "name": "Record job tokens and implementer session work",
-          "label": "TOKENS",
-          "worktree": "samantha-next-r12",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
-            "plugins/developer-observability"
-          ],
-          "reason": "Same-class coverage: official collect still misses job tokens, receipts, and implementer session work.",
           "status": "verified",
           "phase": "verify",
           "stage_entered_at": "2026-11-24T16:54:43Z",
@@ -13108,7 +13090,7 @@
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:03:04Z"
+          "updated_at": "2026-11-24T18:15:28Z"
         },
         {
           "id": "R1-JOBUX",
@@ -13117,15 +13099,6 @@
             "DO-8",
             "BCL-149"
           ],
-          "name": "Show running jobs and keep failed output and tool faults accurate",
-          "label": "JOBUX",
-          "worktree": "samantha-next-r12",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_job_lifecycle.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_lane_state.py"
-          ],
-          "reason": "Job status-accuracy: the page should show live job progress, keep failed output, and not treat tool faults as code failures.",
           "status": "verified",
           "phase": "verify",
           "stage_entered_at": "2026-11-24T16:54:49Z",
@@ -13191,20 +13164,13 @@
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:03:04Z"
+          "updated_at": "2026-11-24T18:15:28Z"
         },
         {
           "id": "R1-COSMETIC",
           "finding_ids": [
             "DO-13"
           ],
-          "name": "Fix Last-test-run breadcrumb and wrap Needs-you text",
-          "label": "COSMETIC",
-          "worktree": "samantha-next-r12",
-          "files": [
-            "plugins/developer-observability/runtime/viewer.py"
-          ],
-          "reason": "Viewer polish carried from #121: breadcrumb round, Needs-you wrap, and remaining per-round row polish.",
           "status": "verified",
           "phase": "verify",
           "stage_entered_at": "2026-11-24T16:54:58Z",
@@ -13257,21 +13223,22 @@
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:03:04Z"
+          "updated_at": "2026-11-24T18:15:28Z"
         },
         {
           "id": "R4-106",
           "finding_ids": [
             "BCL-106"
           ],
-          "name": "Per-round verify scripts",
-          "label": "106",
-          "worktree": "samantha-next-r12",
-          "reason": "Needs Guru later round",
           "status": "verified",
           "phase": "verify",
           "parked_to": 2,
           "stage_entered_at": "2026-11-24T17:24:06Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T17:19:35Z"
+          },
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -13350,6 +13317,10 @@
               "owner_override": true
             }
           ],
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T17:22:19Z"
+          },
           "codex": {
             "job": {
               "id": "d0cd489ae6224db5a794b1719cdaf928",
@@ -13464,39 +13435,22 @@
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:03:04Z",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh",
-            "method": "Run verify_driver tests plus driver self-test and cleanup-keeps-pass bcl tests.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "finished_at": "2026-11-24T17:24:06Z"
-          },
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T17:19:35Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-24T17:22:19Z"
-          }
+          "updated_at": "2026-11-24T18:15:28Z"
         },
         {
           "id": "R4-171",
           "finding_ids": [
             "BCL-171"
           ],
-          "name": "Collect reads developer observability findings",
-          "label": "171",
-          "worktree": "samantha-next-r12",
-          "reason": "Needs Guru later round",
           "status": "verified",
           "phase": "verify",
           "parked_to": 2,
           "stage_entered_at": "2026-11-24T17:26:16Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T17:19:35Z"
+          },
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -13575,6 +13529,18 @@
               "owner_override": true
             }
           ],
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T17:22:19Z"
+          },
+          "verify_reruns": [
+            {
+              "round": 2,
+              "reason": "The collector test module path was wrong so the check failed before the test ran",
+              "at": "2026-11-24T17:26:16Z",
+              "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+            }
+          ],
           "codex": {
             "job": {
               "id": "d0cd489ae6224db5a794b1719cdaf928",
@@ -13604,10 +13570,6 @@
               "gap": "no model recorded",
               "finished_phase_status": "passed"
             },
-            "fix_status": "passed",
-            "review_status": "passed",
-            "reviewer_model": "Grok Bot subagent",
-            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "91d160dd07524c229ef70a786630a632",
@@ -13661,66 +13623,34 @@
                 "gap": "no model recorded",
                 "finished_phase_status": "passed"
               }
-            ]
+            ],
+            "fix_status": "passed",
+            "review_status": "passed",
+            "reviewer_model": "Grok Bot subagent",
+            "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:03:04Z",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh",
-            "method": "Run collect_observability path-coverage tests and discover_project resolved path test.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "finished_at": "2026-11-24T17:26:16Z"
-          },
+          "updated_at": "2026-11-24T18:15:28Z"
+        },
+        {
+          "id": "R2-DEADLOCK",
+          "finding_ids": [
+            "PR122-r1-release-deadlock"
+          ],
+          "status": "verified",
+          "phase": "verify",
+          "stage_entered_at": "2026-11-24T17:26:24Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-24T17:19:35Z"
           },
+          "failure_history": [],
+          "plan_review_history": [],
           "install": {
             "status": "running",
             "started_at": "2026-11-24T17:22:19Z"
           },
-          "verify_reruns": [
-            {
-              "round": 2,
-              "reason": "The collector test module path was wrong so the check failed before the test ran",
-              "at": "2026-11-24T17:26:16Z",
-              "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
-            }
-          ]
-        },
-        {
-          "id": "R2-DEADLOCK",
-          "name": "Release and parking cannot deadlock under the lane cap",
-          "label": "DEADLOCK",
-          "finding_ids": [
-            "PR122-r1-release-deadlock"
-          ],
-          "worktree": "samantha-next-r12",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/references/release.md",
-            "plugins/batched-change-list/skills/batched-change-list/references/review.md"
-          ],
-          "reason": "Park overflow lanes in one batch and carry a finished fix into review next round.",
-          "status": "verified",
-          "phase": "verify",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
-            "method": "Run the manage_findings tests for batch parking and carried review entry.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "finished_at": "2026-11-24T17:26:24Z"
-          },
           "codex": {
-            "implementer_session": "grokbot-122-r2-deadlock",
-            "reviewer_session": "grokbot-122-r2-deadlock-review",
-            "fix_status": "passed",
             "job": {
               "id": "d0cd489ae6224db5a794b1719cdaf928",
               "phase": "presuite",
@@ -13749,7 +13679,6 @@
               "gap": "no model recorded",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "8d15ca97a96244dc9f9eb14986356936",
@@ -13832,46 +13761,38 @@
                 "finished_phase_status": "passed"
               }
             ],
-            "review_status": "passed"
+            "fix_status": "passed",
+            "review_status": "passed",
+            "tool_fault_streak": 0
           },
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-24T18:03:04Z",
-          "stage_entered_at": "2026-11-24T17:26:24Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T17:19:35Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-24T17:22:19Z"
-          }
+          "updated_at": "2026-11-24T18:15:28Z"
         },
         {
           "id": "R3-TRACKER",
-          "name": "Archive earlier-cycle history and merge issues in one command",
-          "label": "TRACKER",
           "finding_ids": [
             "BCL-108",
             "BCL-166"
           ],
-          "worktree": "samantha-next-r12",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
-            "plugins/batched-change-list/bin/bcl",
-            "plugins/batched-change-list/skills/batched-change-list/references/tracker.md",
-            "plugins/batched-change-list/skills/batched-change-list/references/report-rollover.md"
-          ],
-          "reason": "Same-class tracker upkeep: leftover uncyled history stays over the size limit, and merging issues still needs a stopped run.",
           "status": "verified",
           "phase": "verify",
+          "stage_entered_at": "2026-11-24T17:59:38Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T17:56:45Z"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T17:58:10Z"
+          },
+          "stage_model": {
+            "stage": "verify",
+            "model": "grokbot",
+            "at": "2026-11-24T17:59:37Z"
+          },
           "codex": {
-            "implementer_session": "grokbot-122-r3-tracker",
-            "reviewer_session": "grokbot-122-r3-tracker-review",
-            "fix_status": "passed",
             "job": {
               "id": "970165cfc5fb4e989708e3ee8492aa7e",
               "phase": "presuite",
@@ -13901,7 +13822,6 @@
               "session": "grokbot-122-r3-tracker",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "6c99b6da33e949a28293e69320d0292c",
@@ -14042,27 +13962,51 @@
                 "finished_phase_status": "passed"
               }
             ],
+            "fix_status": "passed",
+            "review_status": "passed",
             "reviewer_model": "grokbot",
-            "review_status": "passed"
+            "tool_fault_streak": 0
           },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-tracker.sh",
-            "method": "Run manage_findings tests for history archive and issue merge.",
-            "status": "verified",
-            "fixed": 2,
-            "failed": 0,
-            "total": 2,
-            "finished_at": "2026-11-24T17:59:38Z"
-          },
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-24T18:03:04Z",
-          "stage_entered_at": "2026-11-24T17:59:38Z",
+          "updated_at": "2026-11-24T18:15:28Z"
+        },
+        {
+          "id": "R3-INTRO",
+          "finding_ids": [
+            "BCL-120"
+          ],
+          "status": "verified",
+          "phase": "verify",
+          "stage_entered_at": "2026-11-24T17:59:52Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-24T17:56:45Z"
           },
+          "failure_history": [
+            {
+              "attempt_id": "9473cd91c1434e89bc7cb4662d805067",
+              "source": "review",
+              "reason": "Reviewer exited 1",
+              "cycle": 14,
+              "round": 3,
+              "at": "2026-11-24T17:45:03Z",
+              "tool_fault": true,
+              "fault_kind": "runner_exit",
+              "tool_fault_reason": "Reviewer exited 1"
+            },
+            {
+              "attempt_id": "45fbb1fa63d44f0a886f9c48cb7f5034",
+              "source": "review",
+              "reason": "Reviewer exited 1",
+              "cycle": 14,
+              "round": 3,
+              "at": "2026-11-24T17:45:44Z",
+              "tool_fault": true,
+              "fault_kind": "runner_exit",
+              "tool_fault_reason": "Reviewer exited 1"
+            }
+          ],
+          "plan_review_history": [],
           "install": {
             "status": "running",
             "started_at": "2026-11-24T17:58:10Z"
@@ -14070,29 +14014,9 @@
           "stage_model": {
             "stage": "verify",
             "model": "grokbot",
-            "at": "2026-11-24T17:59:37Z"
-          }
-        },
-        {
-          "id": "R3-INTRO",
-          "name": "Introspect across rounds and gate Collect after merge",
-          "label": "INTRO",
-          "finding_ids": [
-            "BCL-120"
-          ],
-          "worktree": "samantha-next-r12",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/check_introspect.py",
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_check_introspect.py",
-            "plugins/batched-change-list/skills/batched-change-list/references/introspect.md"
-          ],
-          "reason": "Introspect still looks only at the current round and does not gate the next Collect.",
-          "status": "verified",
-          "phase": "verify",
+            "at": "2026-11-24T17:59:51Z"
+          },
           "codex": {
-            "implementer_session": "grokbot-122-r3-intro",
-            "reviewer_session": "grokbot-122-r3-intro-review",
-            "fix_status": "passed",
             "job": {
               "id": "970165cfc5fb4e989708e3ee8492aa7e",
               "phase": "presuite",
@@ -14122,7 +14046,6 @@
               "session": "grokbot-122-r3-tracker",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "e70ebac485074ad1b6d9e3ea3d3ed47a",
@@ -14263,51 +14186,29 @@
                 "finished_phase_status": "failed"
               }
             ],
+            "fix_status": "passed",
             "review_status": "passed",
             "reviewer_model": "grokbot",
-            "must_fix_note": "Reviewer exited 1"
+            "must_fix_note": "Reviewer exited 1",
+            "tool_fault_streak": 0
           },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-intro.sh",
-            "method": "Run check_introspect tests for cross-round repeats and post-merge Collect gating.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "finished_at": "2026-11-24T17:59:52Z"
-          },
-          "failure_history": [
-            {
-              "attempt_id": "9473cd91c1434e89bc7cb4662d805067",
-              "source": "review",
-              "reason": "Reviewer exited 1",
-              "cycle": 14,
-              "round": 3,
-              "at": "2026-11-24T17:45:03Z",
-              "tool_fault": true,
-              "fault_kind": "runner_exit",
-              "tool_fault_reason": "Reviewer exited 1"
-            },
-            {
-              "attempt_id": "45fbb1fa63d44f0a886f9c48cb7f5034",
-              "source": "review",
-              "reason": "Reviewer exited 1",
-              "cycle": 14,
-              "round": 3,
-              "at": "2026-11-24T17:45:44Z",
-              "tool_fault": true,
-              "fault_kind": "runner_exit",
-              "tool_fault_reason": "Reviewer exited 1"
-            }
+          "updated_at": "2026-11-24T18:15:28Z"
+        },
+        {
+          "id": "R3-VERDICT",
+          "finding_ids": [
+            "BCL-139"
           ],
-          "plan_review_history": [],
-          "updated_at": "2026-11-24T18:03:04Z",
-          "stage_entered_at": "2026-11-24T17:59:52Z",
+          "status": "verified",
+          "phase": "verify",
+          "stage_entered_at": "2026-11-24T18:00:10Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-24T17:56:45Z"
           },
+          "failure_history": [],
+          "plan_review_history": [],
           "install": {
             "status": "running",
             "started_at": "2026-11-24T17:58:10Z"
@@ -14315,27 +14216,9 @@
           "stage_model": {
             "stage": "verify",
             "model": "grokbot",
-            "at": "2026-11-24T17:59:51Z"
-          }
-        },
-        {
-          "id": "R3-VERDICT",
-          "name": "Drive one review-verdict case through start, plan, fix and review",
-          "label": "VERDICT",
-          "finding_ids": [
-            "BCL-139"
-          ],
-          "worktree": "samantha-next-r12",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
-          ],
-          "reason": "The merged verdict table never checks that start, plan, fix and review themselves succeed.",
-          "status": "verified",
-          "phase": "verify",
+            "at": "2026-11-24T18:00:01Z"
+          },
           "codex": {
-            "implementer_session": "grokbot-122-r3-verdict",
-            "reviewer_session": "grokbot-122-r3-verdict-review",
-            "fix_status": "passed",
             "job": {
               "id": "970165cfc5fb4e989708e3ee8492aa7e",
               "phase": "presuite",
@@ -14365,7 +14248,6 @@
               "session": "grokbot-122-r3-tracker",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "d68bda6460994efb869276724466c7ca",
@@ -14502,44 +14384,22 @@
                 "finished_phase_status": "passed"
               }
             ],
+            "fix_status": "passed",
+            "review_status": "passed",
             "reviewer_model": "grokbot",
-            "review_status": "passed"
+            "tool_fault_streak": 0
           },
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-verdict.sh",
-            "method": "Run the review-verdict table test and the start-plan-fix-review case, including a failing review step.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "finished_at": "2026-11-24T18:00:10Z"
-          },
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-24T18:03:04Z",
-          "stage_entered_at": "2026-11-24T18:00:10Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T17:56:45Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-24T17:58:10Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "grokbot",
-            "at": "2026-11-24T18:00:01Z"
-          }
+          "updated_at": "2026-11-24T18:15:28Z"
         },
         {
           "id": "R2-DO1",
           "finding_ids": [
             "DO-1"
           ],
+          "status": "parked",
           "parked_to": 2,
           "reason": "Needs Guru later round",
+          "stage_entered_at": "2026-11-24T15:22:33Z",
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -14602,10 +14462,8 @@
               "owner_override": true
             }
           ],
-          "status": "parked",
           "codex": {},
-          "stage_entered_at": "2026-11-24T15:22:33Z",
-          "updated_at": "2026-11-24T18:03:04Z"
+          "updated_at": "2026-11-24T18:15:28Z"
         },
         {
           "id": "R4-GATES",
@@ -14622,14 +14480,69 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_release_checks.py",
             "plugins/batched-change-list/skills/batched-change-list/references/review.md",
-            "plugins/batched-change-list/skills/batched-change-list/references/release.md"
+            "plugins/batched-change-list/skills/batched-change-list/references/release.md",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_lane_state.py",
+            "plugins/batched-change-list/skills/batched-change-list/references/install.md",
+            "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_skill.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_references.py",
+            "plugins/batched-change-list/skills/batched-change-list/statechart.html"
           ],
           "reason": "The separate review and resort-failures commands duplicate the review job, release-check, and unblock.",
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "codex": {
             "implementer_session": "grokbot-122-r4-gates",
-            "reviewer_session": "grokbot-122-r4-gates-review"
+            "reviewer_session": "grokbot-122-r4-gates-review",
+            "fix_status": "passed",
+            "job": {
+              "id": "53425c72dacd4cd1b3cae671a3eb0f53",
+              "phase": "review",
+              "started_at": "2026-11-24T18:16:01Z",
+              "command": "review-gates.sh",
+              "heartbeat_at": "2026-11-24T18:16:01Z",
+              "plan_sha256": "2bf45d1c726c10555d7766be1accdf48e1d827fd659b406c55854100390d0a16",
+              "finding_ids": [
+                "BCL-125"
+              ],
+              "worktree": "samantha-next-r12",
+              "model": "grokbot",
+              "lane_sha256": "42dba8f7ff7b6658108bd544aaf9a256437b2060506b6fc77ddcdd73f06ba7c2",
+              "cycle": 14,
+              "round": 4
+            },
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "9934a3d0ca8b4bdf9e6d50ad06b31faa",
+                "phase": "fix",
+                "started_at": "2026-11-24T18:15:28Z",
+                "command": "commit-gates.sh",
+                "heartbeat_at": "2026-11-24T18:15:40Z",
+                "plan_sha256": "2bf45d1c726c10555d7766be1accdf48e1d827fd659b406c55854100390d0a16",
+                "finding_ids": [
+                  "BCL-125"
+                ],
+                "worktree": "samantha-next-r12",
+                "model": "grokbot",
+                "lane_sha256": "42dba8f7ff7b6658108bd544aaf9a256437b2060506b6fc77ddcdd73f06ba7c2",
+                "cycle": 14,
+                "round": 4,
+                "pid": 47363,
+                "exit_code": 0,
+                "finished_at": "2026-11-24T18:15:40Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/9934a3d0ca8b4bdf9e6d50ad06b31faa.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 12,
+                "session": "grokbot-122-r4-gates",
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "running",
+            "reviewer_model": "grokbot"
           },
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-gates.sh",
@@ -14639,10 +14552,10 @@
             "failed": 0,
             "total": 1
           },
+          "stage_entered_at": "2026-11-24T18:15:40Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T18:03:04Z",
-          "stage_entered_at": "2026-11-24T18:03:04Z"
+          "updated_at": "2026-11-24T18:15:28Z"
         }
       ]
     },
