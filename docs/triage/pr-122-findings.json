@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T15:39:24Z",
-      "now": "2026-11-24T15:39:24Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T15:40:55Z",
+      "now": "2026-11-24T15:40:55Z — Fix started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12188,7 +12188,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T15:39:24Z",
+    "last_written_at": "2026-11-24T15:40:56Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12525,27 +12525,29 @@
             "implementer_session": "grokbot-122-r1-guard",
             "reviewer_session": "grokbot-122-r1-guard-review",
             "job": {
-              "id": "c3fb8952e9f14507bb8f0ecf47e16446",
-              "phase": "fix",
-              "started_at": "2026-11-24T15:38:18Z",
-              "command": "confirm-guard.sh",
-              "heartbeat_at": "2026-11-24T15:38:20Z",
-              "plan_sha256": "e1e609fec5300f47e303c77ff1c6f25999b7ba40c63e8bb8ad3b9184a7900b59",
+              "id": "ea4dc7fbbf044605a7954d2d2a14b31c",
+              "phase": "review",
+              "started_at": "2026-11-24T15:40:51Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T15:40:51Z",
+              "plan_sha256": "c06c5647d35b2c5a3ac0ff656ce6a551942e5bf68ff8fc2d197defed10c07d68",
               "finding_ids": [
                 "PR121-r2-live-state-guard"
               ],
               "worktree": "samantha-next-r12",
               "model": "Grok Bot",
-              "lane_sha256": "85aef41a1c0c01aa9333cd5abb8a8fc08ba4095cbacc5577d725977ee723c592",
+              "lane_sha256": "52e631c9d304de19bb9218b3c3339cd0412e1a7cedbf2e03d1dc1e7aa5e5b202",
               "cycle": 14,
               "round": 1,
-              "pid": 28215,
+              "pid": 33016,
               "exit_code": 0,
-              "finished_at": "2026-11-24T15:38:20Z",
+              "finished_at": "2026-11-24T15:40:51Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "review_status": "passed",
+            "reviewer_model": "Grok Bot"
           },
           "status": "review",
           "phase": "review",
@@ -12609,11 +12611,11 @@
             "implementer_session": "grokbot-122-r1-jobux",
             "reviewer_session": "grokbot-122-r1-jobux-review",
             "job": {
-              "id": "c90f1bee31c74eea9c9d0b720a953282",
-              "phase": "review",
-              "started_at": "2026-11-24T15:39:24Z",
-              "command": "true",
-              "heartbeat_at": "2026-11-24T15:39:24Z",
+              "id": "29b7a0e780ec4a1ab3223f65a1f2ad22",
+              "phase": "fix",
+              "started_at": "2026-11-24T15:40:55Z",
+              "command": "r1-jobux.sh",
+              "heartbeat_at": "2026-11-24T15:40:55Z",
               "plan_sha256": "c06c5647d35b2c5a3ac0ff656ce6a551942e5bf68ff8fc2d197defed10c07d68",
               "finding_ids": [
                 "BCL-159",
@@ -12626,15 +12628,27 @@
               "cycle": 14,
               "round": 1
             },
-            "fix_status": "passed",
-            "tool_fault_streak": 0,
-            "review_status": "running",
-            "reviewer_model": "Grok Bot"
+            "fix_status": "running",
+            "tool_fault_streak": 1,
+            "reviewer_model": "Grok Bot",
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
           },
-          "status": "review",
-          "phase": "review",
-          "stage_entered_at": "2026-11-24T15:37:56Z",
-          "failure_history": [],
+          "status": "running",
+          "phase": "fix",
+          "stage_entered_at": "2026-11-24T15:39:24Z",
+          "failure_history": [
+            {
+              "attempt_id": "c90f1bee31c74eea9c9d0b720a953282",
+              "source": "review",
+              "reason": "Review incomplete: strict verdict or Must-fix section missing",
+              "cycle": 14,
+              "round": 1,
+              "at": "2026-11-24T15:39:24Z",
+              "tool_fault": true,
+              "fault_kind": "incomplete_review",
+              "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
+            }
+          ],
           "plan_review_history": [],
           "updated_at": "2026-11-24T15:39:19Z"
         },
@@ -12646,7 +12660,7 @@
             "DO-13",
             "DO-11"
           ],
-          "worktree": "gurusharan",
+          "worktree": "samantha-next-r12",
           "files": [
             "plugins/developer-observability/runtime/viewer.py"
           ],
@@ -12663,27 +12677,29 @@
             "implementer_session": "grokbot-122-r1-cosmetic",
             "reviewer_session": "grokbot-122-r1-cosmetic-review",
             "job": {
-              "id": "e8f57fb355e34cc895c5ec96791a6469",
-              "phase": "fix",
-              "started_at": "2026-11-24T15:38:04Z",
-              "command": "commit-cosmetic.sh",
-              "heartbeat_at": "2026-11-24T15:38:05Z",
-              "plan_sha256": "e1e609fec5300f47e303c77ff1c6f25999b7ba40c63e8bb8ad3b9184a7900b59",
+              "id": "25ff199fb030464aa98e8744b0441d26",
+              "phase": "review",
+              "started_at": "2026-11-24T15:40:50Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T15:40:50Z",
+              "plan_sha256": "c06c5647d35b2c5a3ac0ff656ce6a551942e5bf68ff8fc2d197defed10c07d68",
               "finding_ids": [
                 "DO-13"
               ],
-              "worktree": "gurusharan",
+              "worktree": "samantha-next-r12",
               "model": "Grok Bot",
-              "lane_sha256": "e1f25c2a7bba72c579546ce7b51527391b93c62aaf73e03f4729cd288a1ae412",
+              "lane_sha256": "9ee3b46a90e6702bb176ea180df41df3141285262cb38331df0630ca64046d72",
               "cycle": 14,
               "round": 1,
-              "pid": 27728,
+              "pid": 32907,
               "exit_code": 0,
-              "finished_at": "2026-11-24T15:38:05Z",
+              "finished_at": "2026-11-24T15:40:50Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "review_status": "passed",
+            "reviewer_model": "Grok Bot"
           },
           "status": "review",
           "phase": "review",
@@ -13170,8 +13186,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-24T14:05:51.139588Z",
-        "source": "verification_check"
+        "at": "2026-11-24T15:39:24Z",
+        "source": "review"
       }
     },
     {
@@ -13202,8 +13218,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-24T14:05:51.142999Z",
-        "source": "verification_check"
+        "at": "2026-11-24T15:39:24Z",
+        "source": "review"
       }
     },
     {
@@ -13368,8 +13384,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-24T14:05:51.179370Z",
-        "source": "verification_check"
+        "at": "2026-11-24T15:39:24Z",
+        "source": "review"
       }
     },
     {
