@@ -11252,9 +11252,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T14:53:23Z",
-      "now": "2026-11-24T14:53:23Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-24T14:56:49Z",
+      "now": "2026-11-24T14:56:49Z — Install in progress"
     },
     "rollover": {
       "source_pr": 120,
@@ -12724,7 +12724,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T14:53:23Z",
+    "last_written_at": "2026-11-24T14:56:49Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -13684,8 +13684,8 @@
             "BCL-161",
             "BCL-130"
           ],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "files": [
             "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -13715,7 +13715,7 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-24T14:46:04Z",
-          "stage_entered_at": "2026-11-24T14:53:09Z",
+          "stage_entered_at": "2026-11-24T14:56:49Z",
           "parked_to": 4,
           "blocked_reason": "Hold for ready-lane install",
           "codex": {
@@ -13724,11 +13724,11 @@
             "effort": "medium",
             "fix_status": "passed",
             "job": {
-              "id": "06aa7aaa5f734c10950d6b804eb0ebe5",
-              "phase": "review",
-              "started_at": "2026-11-24T14:53:23Z",
-              "command": "write-review-r3-cli.sh",
-              "heartbeat_at": "2026-11-24T14:53:23Z",
+              "id": "79ad018f107c489da6a81014c948c8a0",
+              "phase": "presuite",
+              "started_at": "2026-11-24T14:53:30Z",
+              "command": "env",
+              "heartbeat_at": "2026-11-24T14:56:29Z",
               "plan_sha256": "1f5a25f912d1170e641eace98c0817df7a7e0817877689060c1eba995823b4a5",
               "finding_ids": [
                 "BCL-140",
@@ -13739,13 +13739,31 @@
               "model": "Grok Bot",
               "lane_sha256": "25dbb2e90f03fc35e0d372c28f77d67be3d0920156b93004d27d1e37374dbed0",
               "cycle": 13,
-              "round": 3
+              "round": 3,
+              "pid": 38892,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T14:56:29Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "Grok Bot"
           },
-          "worktree": "samantha-next-r11"
+          "worktree": "samantha-next-r11",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T14:56:29Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T14:56:49Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-24T14:56:49Z"
+          }
         },
         {
           "id": "R3-COSMETIC",
@@ -13754,7 +13772,7 @@
           "finding_ids": [
             "DO-13"
           ],
-          "status": "planned",
+          "status": "parked",
           "phase": "fix",
           "files": [
             "plugins/developer-observability/ui/app.js",
@@ -13767,8 +13785,8 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T14:41:46Z",
-          "stage_entered_at": "2026-11-24T14:41:46Z",
+          "updated_at": "2026-11-24T14:56:46Z",
+          "stage_entered_at": "2026-11-24T14:56:46Z",
           "parked_to": 4,
           "blocked_reason": "Hold for ready-lane install"
         }
@@ -14339,7 +14357,7 @@
       "observed": "21 Nov 2026 22:20 IST, PR 119 round 1 reviews (bcl 0.1.57 source)",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "PR 119 round 1 reviews",
         "report": "r1/planreview-release-2.md, -7.md",
@@ -14353,7 +14371,14 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-24T14:56:49Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-24T14:49:26Z",
         "source": "lane_failure"
@@ -14399,7 +14424,7 @@
       "observed": "21 Nov 2026 22:45 IST, bcl 0.1.58 installed, interrogate review; also present in 0.1.57",
       "priority": "low",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "interrogate skill review (Sol 6.2 adversary, rerun by orchestrator)",
         "report": "bcl-119/r1/adv-sol.md, r1/advrepro/f1.py",
@@ -14414,7 +14439,14 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-24T14:56:49Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-24T14:49:26Z",
         "source": "lane_failure"
@@ -14605,7 +14637,7 @@
       "observed": "22 Nov 2026 16:16 IST, bcl 0.1.63, PR 119 lane R2-150",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 16:21 IST (via parent)",
         "kind": "fix",
@@ -14619,7 +14651,14 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-24T14:56:49Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-24T14:49:26Z",
         "source": "lane_failure"
