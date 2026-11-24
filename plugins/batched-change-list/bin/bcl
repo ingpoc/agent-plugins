@@ -53,7 +53,7 @@ def _session_files(pid, sessions):
             resolved = candidate.resolve()
             if resolved.is_relative_to(root) and resolved.name.endswith(".jsonl") and resolved.is_file():
                 found.add(resolved)
-        except (OSError, ValueError):
+        except (OSError, ValueError, KeyError):
             pass
     return sorted(found)
 
@@ -305,6 +305,7 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
         process.wait()
         raise
     wait_deadline = time.monotonic() + 3600
+    last_heartbeat = time.monotonic()
     while time.monotonic() < wait_deadline:
         live_pids = _group_pids(pgid)
         for pid in sorted(live_pids):
@@ -321,7 +322,8 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
                 break
         except subprocess.TimeoutExpired:
             pass
-        if time.monotonic() % 60 < 1.1:
+        if time.monotonic() - last_heartbeat >= 60:
+            last_heartbeat = time.monotonic()
             job["heartbeat_at"] = _utc_now()
             try:
                 _job_write(record, live, report, base,
