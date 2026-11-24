@@ -7,6 +7,38 @@ from zoneinfo import ZoneInfo
 
 SCRIPTS = Path(__file__).resolve().parent
 STATE = Path(os.environ.get("BCL_STATE_DIR", Path.home() / ".agents/state/batched-change-list"))
+_LIVE_WRITES_ALLOWED = False
+
+
+def default_live_root():
+    return (Path.home() / ".agents/state/batched-change-list").resolve()
+
+
+def allow_live_writes():
+    """Permit writes to the real state dir in this process only (the bcl entrypoint)."""
+    global _LIVE_WRITES_ALLOWED
+    _LIVE_WRITES_ALLOWED = True
+
+
+def is_live_state_path(path=None):
+    root = default_live_root()
+    try:
+        resolved = Path(path if path is not None else STATE).resolve()
+    except OSError:
+        return False
+    return resolved == root or resolved.is_relative_to(root)
+
+
+def guard_live_state_write(path=None):
+    """Refuse test and coding-job writes to ~/.agents/state/batched-change-list."""
+    if not is_live_state_path(path):
+        return
+    if "unittest" in sys.modules or "pytest" in sys.modules:
+        raise RuntimeError(
+            "refusing to write the live BCL state from a test; set BCL_STATE_DIR to a temporary directory"
+        )
+    if not _LIVE_WRITES_ALLOWED:
+        raise RuntimeError("refusing to write the live BCL state; use the bcl command")
 
 class ViewerPIDProbeError(Exception):
     """A PID could not be checked because the process is not accessible."""
@@ -94,8 +126,9 @@ def registry():
     return json.loads(path.read_text()) if path.exists() else {}
 
 def save_registry(value):
-    STATE.mkdir(parents=True, exist_ok=True)
     path = STATE / "registry.json"
+    guard_live_state_write(path)
+    STATE.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp"); tmp.write_text(json.dumps(value, indent=2) + "\n"); tmp.replace(path)
 
 def _same_path(left, right):
@@ -176,6 +209,7 @@ def register_rollover(record, live, document, worktree):
         raise ValueError(f"new list is already adopted: {new_key}")
     old_id = record["id"]
     target = STATE.resolve() / safe_component(record["repo"].replace("/", "--")) / f"{safe_component(new_id)}.json"
+    guard_live_state_write(target)
     snapshot = _renamed_report_path(record["snapshot"], old_id, new_id, f"pr-{new_id}-findings.json")
     html = _renamed_report_path(record["html"], old_id, new_id, f"pr-{new_id}.html")
     if target.exists():
@@ -239,6 +273,7 @@ def locate(path, adopt=False, render_path=None):
     records = registry()
     if adopt:
         live = STATE.resolve() / safe_component(repo.replace("/", "--")) / f"{safe_component(ident)}.json"
+        guard_live_state_write(live)
         if live.exists() or _same_path(path, live):
             raise ValueError(f"adoption destination already exists: {live}")
         live.parent.mkdir(parents=True, exist_ok=True)
@@ -259,6 +294,7 @@ def locate(path, adopt=False, render_path=None):
 def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=False):
     project = record.get("repo")
     state = STATE / "viewers" / (safe_component(project.replace("/", "--") if project else key.replace("/", "--")) + ".json")
+    guard_live_state_write(state)
     state.parent.mkdir(parents=True, exist_ok=True)
     old_state = state
     old = json.loads(state.read_text()) if state.exists() else {}
@@ -398,6 +434,7 @@ def stop_viewer(key, record):
             raise RuntimeError(f"viewer process {pid} exited before it could be stopped") from error
         if not _wait_for_pid(pid):
             raise RuntimeError(f"viewer process {pid} did not stop")
+    guard_live_state_write(state)
     state.unlink()
     return True
 

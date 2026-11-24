@@ -460,5 +460,34 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(errors, [])
 
 
+
+
+class LiveStateGuardTests(unittest.TestCase):
+    def test_save_registry_refuses_the_real_state_dir_from_a_test(self):
+        live_root = live_state.default_live_root()
+        registry = live_root / "registry.json"
+        before = registry.read_bytes() if registry.exists() else None
+        with patch.object(live_state, "STATE", live_root), patch.object(live_state, "_LIVE_WRITES_ALLOWED", True):
+            with self.assertRaisesRegex(RuntimeError, "live BCL state from a test"):
+                live_state.save_registry({"example/project/123": {"live": "/tmp/fixture.json"}})
+        after = registry.read_bytes() if registry.exists() else None
+        self.assertEqual(after, before)
+
+    def test_save_registry_allows_a_temporary_state_dir(self):
+        temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
+        state = Path(temp.name) / "state"
+        with patch.object(live_state, "STATE", state):
+            live_state.save_registry({"example/project/123": {"live": str(state / "123.json")}})
+        saved = json.loads((state / "registry.json").read_text())
+        self.assertEqual(saved["example/project/123"]["live"], str(state / "123.json"))
+
+    def test_job_child_cannot_rely_on_an_inherited_allow_flag(self):
+        # The process-local flag is what bcl sets; job children must still be refused
+        # if they import live_state and point STATE at the real tree.
+        self.assertFalse(live_state._LIVE_WRITES_ALLOWED)
+        self.assertIn("unittest", __import__("sys").modules)
+        self.assertTrue(live_state.is_live_state_path(live_state.default_live_root() / "registry.json"))
+
+
 if __name__ == '__main__':
     unittest.main()

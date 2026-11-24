@@ -267,6 +267,7 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
         raise
     try:
         child_env = os.environ.copy()
+        child_env.pop("BCL_ALLOW_LIVE_STATE", None)
         child_env["BCL_JOB_ID"] = job["id"]
         process = subprocess.Popen(command_args, env=child_env, start_new_session=True,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -378,6 +379,7 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
             and manage_findings.reviewer_model_rejected(output_text)):
         for fallback_model in REVIEWER_FALLBACK_MODELS:
             retry_env = os.environ.copy()
+            retry_env.pop("BCL_ALLOW_LIVE_STATE", None)
             retry_env["BCL_JOB_ID"] = job["id"]
             retry_env["BCL_REVIEWER_MODEL"] = fallback_model
             retry_env["BCL_REVIEWER_FALLBACK"] = fallback_model
@@ -685,6 +687,7 @@ def _fresh_worktree_name(name, round_number):
     return re.sub(r"-r[0-9]+(?=-|$)", f"-r{round_number}", name, count=1) if marker else f"{name}-r{round_number}"
 
 def main():
+    live_state.allow_live_writes()
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=Path); parser.add_argument("--render", type=Path)
     parser.add_argument("--progress", type=Path); parser.add_argument("--now")
