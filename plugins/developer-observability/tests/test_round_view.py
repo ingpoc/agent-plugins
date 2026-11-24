@@ -459,4 +459,3 @@ class RoundViewTests(unittest.TestCase):
         lane = next((row for row in result["time_tokens"]["by_lane"] if row.get("group_id") == "R7-ACU20"), None)
         self.assertIsNotNone(lane)
         self.assertGreaterEqual(lane["duration_ms"], 8 * 60 * 1000)
-
