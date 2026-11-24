@@ -1321,7 +1321,10 @@ def job_transition(document, operation):
                     if phase == "review":
                         codex["review_status"] = "failed" if incomplete else state
                         codex["must_fix_note"] = reason
-                        if tool_fault:
+                        # A crash with no verdict returns to fix. A finished
+                        # PASS/incomplete review or a rejected model stays here.
+                        stay = rejected or (tool_fault and not (runner_failed and verdict is None))
+                        if stay:
                             group.update(status="review", phase="review")
                             if rejected:
                                 substitution = operation.get("substitution")
