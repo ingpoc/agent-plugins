@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T15:59:05Z",
-      "now": "2026-11-24T15:59:05Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T15:59:07Z",
+      "now": "2026-11-24T15:59:07Z — Review started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12188,7 +12188,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T15:59:05Z",
+    "last_written_at": "2026-11-24T15:59:07Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12666,11 +12666,11 @@
             "implementer_session": "grokbot-122-r1-jobux",
             "reviewer_session": "grokbot-122-r1-jobux-review",
             "job": {
-              "id": "b8f19f6e9a144de1850ed81f1462fa4b",
-              "phase": "fix",
-              "started_at": "2026-11-24T15:59:05Z",
-              "command": "commit-jobux-followup.sh",
-              "heartbeat_at": "2026-11-24T15:59:05Z",
+              "id": "4b22780cc9c74f369cd3514887da1a9c",
+              "phase": "review",
+              "started_at": "2026-11-24T15:59:07Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T15:59:07Z",
               "plan_sha256": "ec9669f3e3483036c4624aff34bf407edbe6550e472d463761e078c528b2dde1",
               "finding_ids": [
                 "BCL-159",
@@ -12683,14 +12683,15 @@
               "cycle": 14,
               "round": 1
             },
-            "fix_status": "running",
+            "fix_status": "passed",
             "reviewer_model": "Grok Bot",
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "review_status": "running"
           },
-          "status": "running",
-          "phase": "fix",
-          "stage_entered_at": "2026-11-24T15:59:05Z",
+          "status": "review",
+          "phase": "review",
+          "stage_entered_at": "2026-11-24T15:59:06Z",
           "failure_history": [
             {
               "attempt_id": "c90f1bee31c74eea9c9d0b720a953282",
