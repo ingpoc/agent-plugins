@@ -10861,8 +10861,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-24T16:23:29Z",
-      "now": "2026-11-24T16:23:29Z — Presuite started"
+      "updated_at": "2026-11-24T16:51:15Z",
+      "now": "2026-11-24T16:51:15Z — Lane R4-171 updated"
     },
     "rollover": {
       "source_pr": 121,
@@ -12188,7 +12188,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T16:29:24Z",
+    "last_written_at": "2026-11-24T16:51:15Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12527,11 +12527,11 @@
             "implementer_session": "grokbot-122-r1-guard",
             "reviewer_session": "grokbot-122-r1-guard-review",
             "job": {
-              "id": "8868c3c2c1fd421dac8dbe31ac01118e",
+              "id": "4bbb9486bfba402faea37aac7eb6e1b6",
               "phase": "presuite",
-              "started_at": "2026-11-24T16:23:29Z",
+              "started_at": "2026-11-24T16:40:54Z",
               "command": "run-presuite-r1.sh",
-              "heartbeat_at": "2026-11-24T16:29:24Z",
+              "heartbeat_at": "2026-11-24T16:44:21Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "PR121-r2-live-state-guard",
@@ -12548,10 +12548,10 @@
               "lane_sha256": "52e631c9d304de19bb9218b3c3339cd0412e1a7cedbf2e03d1dc1e7aa5e5b202",
               "cycle": 14,
               "round": 1,
-              "pid": 63625,
-              "exit_code": 143,
-              "finished_at": "2026-11-24T16:29:24Z",
-              "finished_phase_status": "failed"
+              "pid": 22621,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T16:44:21Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "review_status": "passed",
@@ -12560,9 +12560,9 @@
           },
           "stage_entered_at": "2026-11-24T15:38:20Z",
           "presuite": {
-            "status": "failed",
-            "exit_code": 143,
-            "finished_at": "2026-11-24T16:29:24Z"
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T16:44:21Z"
           },
           "failure_history": [],
           "plan_review_history": [],
@@ -12597,11 +12597,11 @@
             "implementer_session": "grokbot-122-r1-tokens",
             "reviewer_session": "grokbot-122-r1-tokens-review",
             "job": {
-              "id": "8868c3c2c1fd421dac8dbe31ac01118e",
+              "id": "4bbb9486bfba402faea37aac7eb6e1b6",
               "phase": "presuite",
-              "started_at": "2026-11-24T16:23:29Z",
+              "started_at": "2026-11-24T16:40:54Z",
               "command": "run-presuite-r1.sh",
-              "heartbeat_at": "2026-11-24T16:29:24Z",
+              "heartbeat_at": "2026-11-24T16:44:21Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "PR121-r2-live-state-guard",
@@ -12618,10 +12618,10 @@
               "lane_sha256": "f9ccad631e267ec040352ad2849b7f9521b96a5b5da894f570e41b7bb3079739",
               "cycle": 14,
               "round": 1,
-              "pid": 63625,
-              "exit_code": 143,
-              "finished_at": "2026-11-24T16:29:24Z",
-              "finished_phase_status": "failed"
+              "pid": 22621,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T16:44:21Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "reviewer_model": "Grok Bot",
@@ -12633,9 +12633,9 @@
           "plan_review_history": [],
           "updated_at": "2026-11-24T16:03:40Z",
           "presuite": {
-            "status": "failed",
-            "exit_code": 143,
-            "finished_at": "2026-11-24T16:29:24Z"
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T16:44:21Z"
           }
         },
         {
@@ -12668,11 +12668,11 @@
             "implementer_session": "grokbot-122-r1-jobux",
             "reviewer_session": "grokbot-122-r1-jobux-review",
             "job": {
-              "id": "8868c3c2c1fd421dac8dbe31ac01118e",
+              "id": "4bbb9486bfba402faea37aac7eb6e1b6",
               "phase": "presuite",
-              "started_at": "2026-11-24T16:23:29Z",
+              "started_at": "2026-11-24T16:40:54Z",
               "command": "run-presuite-r1.sh",
-              "heartbeat_at": "2026-11-24T16:29:24Z",
+              "heartbeat_at": "2026-11-24T16:44:21Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "PR121-r2-live-state-guard",
@@ -12689,10 +12689,10 @@
               "lane_sha256": "d6107db03312c69d29e3502ccd4270b16963a461a51209afb1c42e7d813fc4a6",
               "cycle": 14,
               "round": 1,
-              "pid": 63625,
-              "exit_code": 143,
-              "finished_at": "2026-11-24T16:29:24Z",
-              "finished_phase_status": "failed"
+              "pid": 22621,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T16:44:21Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "review_status": "passed",
@@ -12702,9 +12702,9 @@
           },
           "stage_entered_at": "2026-11-24T15:59:06Z",
           "presuite": {
-            "status": "failed",
-            "exit_code": 143,
-            "finished_at": "2026-11-24T16:29:24Z"
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T16:44:21Z"
           },
           "failure_history": [
             {
@@ -12749,11 +12749,11 @@
             "reviewer_session": "grokbot-122-r1-cosmetic-review",
             "fix_status": "passed",
             "job": {
-              "id": "8868c3c2c1fd421dac8dbe31ac01118e",
+              "id": "4bbb9486bfba402faea37aac7eb6e1b6",
               "phase": "presuite",
-              "started_at": "2026-11-24T16:23:29Z",
+              "started_at": "2026-11-24T16:40:54Z",
               "command": "run-presuite-r1.sh",
-              "heartbeat_at": "2026-11-24T16:29:24Z",
+              "heartbeat_at": "2026-11-24T16:44:21Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "PR121-r2-live-state-guard",
@@ -12770,10 +12770,10 @@
               "lane_sha256": "4f02cf0be2a6f8eff07c807ac20f779697696226e93adb27587f9a580f51f0fb",
               "cycle": 14,
               "round": 1,
-              "pid": 63625,
-              "exit_code": 143,
-              "finished_at": "2026-11-24T16:29:24Z",
-              "finished_phase_status": "failed"
+              "pid": 22621,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T16:44:21Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "review_status": "passed",
@@ -12784,9 +12784,9 @@
           "plan_review_history": [],
           "updated_at": "2026-11-24T16:03:40Z",
           "presuite": {
-            "status": "failed",
-            "exit_code": 143,
-            "finished_at": "2026-11-24T16:29:24Z"
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T16:44:21Z"
           }
         },
         {
@@ -12798,9 +12798,9 @@
           ],
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
-          "status": "review",
+          "status": "parked",
           "phase": "review",
-          "stage_entered_at": "2026-11-24T16:19:23Z",
+          "stage_entered_at": "2026-11-24T16:51:15Z",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -12892,13 +12892,14 @@
             },
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T16:03:40Z",
+          "updated_at": "2026-11-24T16:51:15Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 1
-          }
+          },
+          "parked_to": 2
         },
         {
           "id": "R4-171",
@@ -12909,9 +12910,9 @@
           ],
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
-          "status": "review",
+          "status": "parked",
           "phase": "review",
-          "stage_entered_at": "2026-11-24T16:22:02Z",
+          "stage_entered_at": "2026-11-24T16:51:15Z",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -13014,13 +13015,14 @@
             },
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T16:03:40Z",
+          "updated_at": "2026-11-24T16:51:15Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 1
-          }
+          },
+          "parked_to": 2
         },
         {
           "id": "R2-DO1",
@@ -13097,7 +13099,13 @@
             }
           ],
           "codex": {},
-          "updated_at": "2026-11-24T16:03:40Z"
+          "updated_at": "2026-11-24T16:03:40Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          }
         }
       ]
     }
@@ -13495,7 +13503,8 @@
       "details": {
         "snapshots": "devobs-r6-before 704287b7 at 12:27:41 IST; devobs-r6-after 1def6b50 at 12:30:02 IST; coverage 1/35, tokens 1088149, incomplete 18, last_event_at 2026-11-24T06:59:41Z.",
         "metric": "Before: official collect coverage 1/35 and many wrapper-named gaps. After: a short official run reports model-named coverage for jobs with usage and wrapper-free named gaps for the rest.",
-        "also reported as DO-spec-job-model": "Job events have no model, model version, effort, or fallback list Job events have no model field, and the lane model field sometimes holds a command or a review fallback sentence instead of a model id and version, so the default view cannot label which model ran a job. 24 Nov 2026 13:30 IST Asia/Calcutta. UI and UX SPEC section 9, measured on the live tracker for PR 120 and the new round tool at commit 57f78423, served at http://127.0.0.1:8780/. SPEC section 9 item 3: no model on job events; Luna appears with no version; fallback prose was stored in the model field. This is the same class as o"
+        "also reported as DO-spec-job-model": "Job events have no model, model version, effort, or fallback list Job events have no model field, and the lane model field sometimes holds a command or a review fallback sentence instead of a model id and version, so the default view cannot label which model ran a job. 24 Nov 2026 13:30 IST Asia/Calcutta. UI and UX SPEC section 9, measured on the live tracker for PR 120 and the new round tool at commit 57f78423, served at http://127.0.0.1:8780/. SPEC section 9 item 3: no model on job events; Luna appears with no version; fallback prose was stored in the model field. This is the same class as o",
+        "also reported as PR122-trail-emitter": "Change-list jobs still omit model and token counts Finished change-list jobs still do not record which model ran or how many tokens it used, and they do not write a first-failure, root-cause, or verified-fix trail for each issue. 24 Nov 2026 21:56 IST Asia/Calcutta. Contract: plugins/developer-observability/docs/trail-emitter-contract.md at afd2f918. Today 0 of 64 linked jobs carry tokens or a model. Required job fields: finding_ids, group_id, round, model, model_version; on finish also tokens {input,output,total}, tokens_source, tokens_method. Trail events issue_failed_first, root_cause_ident"
       },
       "id": "PR120-r6-collect-job-coverage",
       "created_at": "2026-11-24T07:02:02Z",
