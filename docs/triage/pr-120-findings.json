@@ -13330,12 +13330,12 @@
             "BCL-177"
           ],
           "label": "BCL-177",
-          "status": "verifying",
+          "status": "verified",
           "worktree": "samantha-next-r10",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r5-177.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
             "total": 1
           },
@@ -13419,7 +13419,7 @@
             }
           ],
           "updated_at": "2026-11-24T06:04:40Z",
-          "stage_entered_at": "2026-11-24T06:04:40Z",
+          "stage_entered_at": "2026-11-24T06:07:00Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -13919,11 +13919,15 @@
           "state": "pending"
         },
         "BCL-177": {
-          "state": "checking",
+          "state": "fixed",
           "observation": "Checking the installed 0.1.73 change-list and 0.1.36 observability now",
           "observed_at": "2026-11-24T06:04:00Z",
           "started_at": "2026-11-24T06:04:20Z",
-          "updated_at": "2026-11-24T06:04:20Z"
+          "updated_at": "2026-11-24T06:04:20Z",
+          "check_id": "6a0e149bc69146ceb4797f94c4f885b0",
+          "evidence": "Checked: The installed change-list and observability versions, their tests for job events and verdict recording, collector coverage of a complete job plus a named missing source, and a live collect after install\nExpected: The installed copies match the shipped versions, those tests pass, a complete job plus a missing token source reports coverage with the missing source named and no incomplete total, and a live collect after install shows coverage, names any gaps, and does not total incomplete tokens\nObserved: All five checks passed on the installed copies; the before and after observability snapshots had the same finding count, and the live collect reported coverage and named gaps without an incomplete token total",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r5-177.log; installed batched-change-list 0.1.73 from 77d2c0b01836bd8fa35eca066ed17d3f8c075063; plugin sha e07aa5d8, skill sha 15f1d9e4, installed_at 2026-11-24T06:01:47Z; developer-observability 0.1.36 copied to ~/.agents/plugins/developer-observability; dev-obs before 0cda0dd1 (146 findings, 11:34 IST), after 9e04f496 (146 findings, 11:35 IST), same build. Run r5-77d2c0b0-120.",
+          "finished_at": "2026-11-24T06:07:00.249191Z"
         },
         "PR120-r5-codex-reviewer-model-fallback": {
           "state": "pending"
@@ -14038,7 +14042,7 @@
       "round": 4,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T06:04:40Z"
+    "last_written_at": "2026-11-24T06:07:00Z"
   },
   "findings": [
     {
@@ -14909,12 +14913,30 @@
       "observed": "22 Nov 2026 19:15 IST design in ~/.agents/artifacts/bcl-120/devobs-round-view.md; task-usage.sqlite3 has 1 row; round 3 measured 396,079 Codex tokens only in job logs",
       "priority": "high",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "spec": "devobs-round-view.md capture-time fields and Tokens sections; acceptance checks 9 and the events.jsonl contract. Query filters, tiers, and UI stay with DO-3.",
         "related": "Split from the capture half of DO-3. Related to BCL-147 (job receipts and fail-if-no-commit, not in this slice) and DO-2 (token sources, covered here for Codex and Grok Bot).",
         "kind": "fix"
-      }
+      },
+      "verification": "The installed change-list and observability passed all five checks for versions, event and verdict tests, collector coverage with a named missing source, and a live collect that reports coverage and named gaps without totaling incomplete tokens.",
+      "verification_refs": [
+        "77d2c0b0:BCL-177:installed-check"
+      ],
+      "verification_evidence": [
+        {
+          "checked": "The installed change-list and observability versions, their tests for job events and verdict recording, collector coverage of a complete job plus a named missing source, and a live collect after install",
+          "expected": "The installed copies match the shipped versions, those tests pass, a complete job plus a missing token source reports coverage with the missing source named and no incomplete total, and a live collect after install shows coverage, names any gaps, and does not total incomplete tokens",
+          "observed": "All five checks passed on the installed copies; the before and after observability snapshots had the same finding count, and the live collect reported coverage and named gaps without an incomplete token total",
+          "verdict": "All five checks passed on the installed copies",
+          "check_id": "bcl-177-0.1.73-77d2c0b0",
+          "build": "bcl 0.1.73 and developer-observability 0.1.36",
+          "session": "r5-77d2c0b0-120",
+          "timestamp": "2026-11-24T06:07:00Z",
+          "reference": "77d2c0b0:BCL-177:installed-check",
+          "details": "Log: ~/.agents/artifacts/bcl-120/verify-r5-177.log; installed batched-change-list 0.1.73 from 77d2c0b01836bd8fa35eca066ed17d3f8c075063; plugin sha e07aa5d8, skill sha 15f1d9e4, installed_at 2026-11-24T06:01:47Z; developer-observability 0.1.36 copied to ~/.agents/plugins/developer-observability; dev-obs before 0cda0dd1 (146 findings, 11:34 IST), after 9e04f496 (146 findings, 11:35 IST), same build. Run r5-77d2c0b0-120."
+        }
+      ]
     },
     {
       "id": "PR120-r5-codex-reviewer-model-fallback",
