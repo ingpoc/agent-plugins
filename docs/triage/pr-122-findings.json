@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T16:58:53Z",
-      "now": "2026-11-24T16:58:53Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-24T17:01:35Z",
+      "now": "2026-11-24T17:01:35Z — Review started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12275,7 +12275,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T16:58:53Z",
+    "last_written_at": "2026-11-24T17:01:35Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
