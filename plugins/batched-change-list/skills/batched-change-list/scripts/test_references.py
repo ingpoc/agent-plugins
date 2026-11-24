@@ -11,10 +11,13 @@ class ReferenceTests(unittest.TestCase):
     def test_docs_do_not_advertise_retired_commands(self):
         docs = [SKILL.parent.parent / "README.md", SKILL / "SKILL.md",
                 *(SKILL / "references").rglob("*.md")]
-        command = re.compile(r"\bbcl(?:\s+--data\s+\S+)?\s+sync-main\b")
+        command = re.compile(r"\bbcl(?:\s+--data\s+\S+)?\s+(?:sync-main|resort-failures|review)\b")
         self.assertRegex("bcl --data FINDINGS.json sync-main", command)
+        self.assertRegex("bcl review --ids ISSUE-01", command)
+        self.assertRegex("bcl resort-failures", command)
         self.assertIsNone(command.search("bcl merge --into ID"))
         self.assertIsNone(command.search("bcl merged; merging branches"))
+        self.assertIsNone(command.search("bcl job --phase review"))
         for path in docs:
             text = path.read_text(encoding="utf-8")
             self.assertIsNone(command.search(text), f"{path} advertises a retired command")

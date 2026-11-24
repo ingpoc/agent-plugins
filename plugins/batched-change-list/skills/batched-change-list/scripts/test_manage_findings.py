@@ -3155,11 +3155,11 @@ class ManageFindingsTests(unittest.TestCase):
             "tracking": {"plan": {"cycle": 1, "round": 1, "groups": [group]}},
         }
         before = json.dumps(document, sort_keys=True)
-        report = manage_findings.resort_failures(document, {"apply": False})
+        report = manage_findings.release_check_payload(document)
         self.assertEqual(group["status"], "verified")
         self.assertIsNone(group.get("blocked_reason"))
         self.assertEqual(json.dumps(document, sort_keys=True), before)
-        self.assertFalse(report["applied"])
+        self.assertIn("tool_fault_candidates", report)
         # A write still applies the two-failure gate.
         rows = manage_findings._lane_history(group, "failure_history")
         self.assertEqual(len(rows), 2)

@@ -88,7 +88,7 @@
     "codex_fields": ["implementer_session", "reviewer_session", "one_file", "model", "effort", "service_tier", "fast", "implementer", "implementer_model", "implementer_effort", "reviewer_effort", "session_id", "worktree", "started_at", "ended_at", "duration_s", "status", "commit", "review_note", "reviewer_verdict", "updated_at", "usage", "job_id"],
     "pending_defaults": ["codex.fix_status", "codex.review_status", "codex.plan_review_status"],
     "record_states": {"verify_done": ["done", "complete", "verified"], "verify_running": ["running", "partial"], "verify_attention": ["running", "partial", "failed", "blocked"], "install_active": ["running", "queued", "done"], "review_active": ["running", "request-changes"]},
-    "review_cleared": ["passed", "skipped_one_file"],
+    "review_cleared": ["passed"],
     "presuite_blocking": ["failed", "running"],
     "job_phase_labels": {"fix": "Fixing", "plan_review": "Plan review", "review": "Review", "presuite": "Presuite"},
     "display_states": ["paused", "interrupted"],

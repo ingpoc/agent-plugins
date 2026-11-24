@@ -210,13 +210,15 @@ class LaneStateTests(unittest.TestCase):
         group.update(phase="review", presuite={"status": "passed"})
         self.assertFalse(self.install_ready(group))
 
-    def test_one_file_lane_skips_review(self):
+    def test_one_file_lane_still_needs_a_passed_review(self):
         group = self.lane("planned", one_file=True, fix_status="passed")
         self.assertEqual(check_install_sessions.validate_review_sessions({"groups": [group]}, ["ISSUE-01"]), ["A"])
         group.update(status="review", phase="review")
         self.assertFalse(self.install_ready(group))
         group["codex"]["review_status"] = "skipped_one_file"
         group["presuite"] = {"status": "passed"}
+        self.assertFalse(self.install_ready(group))
+        group["codex"]["review_status"] = "passed"
         self.assertTrue(self.install_ready(group))
 
     def test_stale_hidden_for_completed_receipt_with_live_pid(self):
@@ -270,8 +272,7 @@ class LaneStateTests(unittest.TestCase):
         rows = statechart.router((ROOT / "SKILL.md").read_text())
         row = next(row for row in rows if row["step"] == "Review")
         self.assertEqual(row["path"], "review.md")
-        self.assertIn("bcl review", row["run"])
-        self.assertIn("bcl job", row["run"])
+        self.assertIn("bcl job --phase review", row["run"])
 
 
 

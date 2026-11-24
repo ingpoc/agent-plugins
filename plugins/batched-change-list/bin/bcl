@@ -866,10 +866,8 @@ KNOWN_STAGES = frozenset((
     "refresh-worktrees",
     "release-check",
     "report",
-    "resort-failures",
     "resume",
     "report-step",
-    "review",
     "rollover",
     "snapshot",
     "start",
@@ -893,8 +891,8 @@ def main():
     parser.add_argument("--model", help="job, install or verify: who runs this step, shown in the lane model column")
     parser.add_argument("--round", type=int, help="correct-round: the real round number")
     parser.add_argument("--by", help="fix-order: who set the order")
-    parser.add_argument("--reason", help="why an override, fix order, verify rerun, cleanup failure, stopped run, resort-failures apply, or pause is recorded")
-    parser.add_argument("--tool-fault", action="append", default=[], help="unblock or resort-failures --apply: failure attempt ID recorded as a tool fault; repeat for each attempt")
+    parser.add_argument("--reason", help="why an override, fix order, verify rerun, cleanup failure, stopped run, or pause is recorded")
+    parser.add_argument("--tool-fault", action="append", default=[], help="unblock: failure attempt ID recorded as a tool fault; repeat for each attempt")
     parser.add_argument("--repo", type=Path); parser.add_argument("--then", dest="then_command")
     parser.add_argument("--dry-run", action="store_true"); parser.add_argument("--no-record", action="store_true")
     parser.add_argument("--shared", action="store_true")
@@ -1043,24 +1041,9 @@ def main():
         payload = manage_findings.release_check_payload(data, args.ids)
         print(json.dumps(payload, indent=2))
         raise SystemExit(0 if payload["clear"] else 2)
-    if args.stage == "resort-failures":
-        if args.apply:
-            try:
-                reason = manage_findings.require_override_reason(args.reason, "resort-failures")
-                report, base = live_state.report_paths(record, live)
-                _job_write(record, live, report, base, [{"action": "resort-failures", "apply": True,
-                             "reason": reason, "tool_faults": list(args.tool_fault), "timestamp": _utc_now()}])
-            except (OSError, RuntimeError, ValueError) as error:
-                parser.error(str(error))
-            print(json.dumps(manage_findings.resort_failures(json.loads(live.read_text()), {"apply": False}), indent=2))
-            return
-        if args.tool_fault:
-            parser.error("resort-failures --tool-fault needs --apply and --reason")
-        print(json.dumps(manage_findings.resort_failures(data, {"apply": False}), indent=2))
-        return
     if record.get("rollover_pending") and (args.stage != "start" or not begins_collect):
         parser.error("run bcl start to begin Collect before using the new list")
-    if manage_findings.pause_record(tracking) is not None and args.stage in ("job", "review", "install", "verify"):
+    if manage_findings.pause_record(tracking) is not None and args.stage in ("job", "install", "verify"):
         parser.error("round paused; run bcl resume")
     load_override = _require_machine_load(parser, args) if args.stage in ("job", "verify") else None
     if args.stage == "merge":
@@ -1147,34 +1130,6 @@ def main():
                          "reason": reason, "tool_faults": args.tool_fault, "timestamp": _utc_now()}])
         except (OSError, RuntimeError, ValueError) as error:
             parser.error(str(error))
-        return
-    if args.stage == "review":
-        if not args.ids:
-            parser.error("review requires --ids ID (repeat for each finding)")
-        groups = [group for group in tracking.get("plan", {}).get("groups", [])
-                  if set(args.ids).intersection(group.get("finding_ids", []))]
-        covered = {identifier for group in groups for identifier in group.get("finding_ids", [])}
-        if not groups or not set(args.ids).issubset(covered):
-            parser.error("review IDs must be covered by current plan groups")
-        for group in groups:
-            codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
-            if codex.get("fix_status") != "passed":
-                parser.error(f"review cannot start: lane {group.get('id')} has not finished fix")
-        try:
-            workflow_definition.run_stage_check("review", tracking.get("plan"), args.ids)
-        except ValueError as error:
-            parser.error(str(error))
-        operations = [{"action": "set-activity", "stage": "review", "ids": args.ids, "now": "Review started"}]
-        for group in groups:
-            if (group.get("codex") or {}).get("one_file"):
-                operations.append({"action": "skip-review", "ids": sorted(set(args.ids).intersection(group.get("finding_ids", [])))})
-        report, base = live_state.report_paths(record, live)
-        command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
-        result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
-        if result.returncode:
-            sys.stderr.write(result.stderr or result.stdout)
-            raise SystemExit(result.returncode)
-        live_state.snapshot(record, live)
         return
     if args.stage == "rollover":
         if not args.new_pr or args.new_pr < 1 or not args.worktree:
