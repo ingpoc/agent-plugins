@@ -136,7 +136,8 @@ main{max-width:880px;margin:0 auto;padding:0 32px 72px}
 .stg .hd{color:var(--mute);border-top:0}
 .stg .num{font-variant-numeric:tabular-nums}
 @media(max-width:600px){
-.row{grid-template-columns:100px 1fr auto}.row .cue{grid-column:3;grid-row:1}.row .e{grid-column:2/4}
+.row{grid-template-columns:auto 1fr auto;row-gap:2px}.row .mono{grid-column:1;grid-row:1}.row .cue{grid-column:2;grid-row:1;justify-self:start}.row .e{grid-column:3;grid-row:1;text-align:right}.row .title{grid-column:1/-1;grid-row:2;white-space:normal;overflow:visible;overflow-wrap:anywhere}
+.need .act{order:2;margin-left:auto}.need .what{order:3}
 .stats{padding-left:4px}.stg{grid-template-columns:1fr 1fr 1fr}.stg .hd:first-child{display:none}.stg .sc{grid-column:1/-1;font-weight:500;padding-bottom:0}.stg .sc+span,.stg .sc+span+span,.stg .sc+span+span+span{border-top:0;padding-top:2px}
 .tt{gap:20px}
 }

@@ -414,7 +414,7 @@ function needRows() {
     .sort((a, b) => (b.state === 'regressed') - (a.state === 'regressed'))
     .slice(0, 2);
   const fresh = data.issues.filter(i => i.state === 'untested').length;
-  const rows = failures.map(i => `<div class="need" title="${esc(i.last_evidence?.summary || i.summary)}"><span class="id mono"><span class="dot" style="background:${colors[i.state]}"></span>${esc(i.id)}</span><span class="what">${esc(i.state === 'regressed' ? 'Failed after resolution' : `Blocked · ${i.attempts || 0} failures`)}</span><button class="act" data-open="${esc(i.id)}">Review</button></div>`);
+  const rows = failures.map(i => `<div class="need" title="${esc(i.last_evidence?.summary || i.summary)}"><span class="id mono"><span class="dot" style="background:${colors[i.state]}"></span>${esc(i.id)}</span><span class="what">${esc(i.state === 'regressed' ? 'Failed after resolution' : `Blocked · ${i.attempts || 0} failure${(i.attempts || 0) === 1 ? '' : 's'}`)}</span><button class="act" data-open="${esc(i.id)}">Review</button></div>`);
   if (fresh && rows.length < 3) {
     rows.push(`<div class="need"><span class="id mono"><span class="dot" style="background:${colors.untested}"></span>${fresh} untested</span><span class="what">No attempts</span><button class="act" data-group="untested">Show</button></div>`);
   }
@@ -479,7 +479,7 @@ function headline() {
   const gate = data.gate || {};
   const verified = gate.verified;
   const threshold = gate.threshold;
-  const gateText = typeof threshold === 'number' ? `${verified ?? 0}/${threshold} verified` : (typeof verified === 'number' ? `${verified} verified` : '');
+  const gateText = typeof threshold === 'number' ? ((verified ?? 0) >= threshold ? `${verified} verified · gate ${threshold} ✓` : `${verified ?? 0}/${threshold} verified`) : (typeof verified === 'number' ? `${verified} verified` : '');
   const last = data.last_fail?.at ? `last fail ${formatTime(data.last_fail.at)}` : '';
   const parts = [prLabel, rLabel, blocked ? `<span class="bad">${blocked} blocked</span>` : null, gateText, last].filter(Boolean);
   return parts.join('<span class="d">·</span>');
@@ -573,7 +573,7 @@ function keyHTML() {
  <span class="mis">—</span><span>None · not recorded</span></div>`;
 }
 function modelTxt(j) {
-  if (!j.model) return pv(null, 'missing');
+  if (!j.model) return j.harness ? `<span title="harness: ${esc(j.harness)} · model not recorded">${pv(null, 'missing')}</span>` : pv(null, 'missing');
   return j.model_version ? esc(`${j.model} ${j.model_version}`) : `${esc(j.model)} <span class="mis" title="Model version not recorded">· version —</span>`;
 }
 function tokTxt(j) {
@@ -604,10 +604,10 @@ function trailHTML(i) {
 function statsHTML() {
   const R = data.rollup;
   if (!R) return '';
-  const m = x => x ? pv(x.ms != null ? fmtD(x.ms) : null, x.provenance, 'median includes steps from notes') : '<span class="mis">none closed</span>';
+  const m = (x, closed) => x ? `${pv(x.ms != null ? fmtD(x.ms) : null, x.provenance, 'median includes steps from notes')}${x.inputs != null && x.inputs !== closed ? ` <span class="mis" title="Closed cycles with both ends dated">· ${x.inputs} of ${closed}</span>` : ''}` : '<span class="mis">none closed</span>';
   const btn = `<button class="grp" data-stats aria-expanded="${statsOn}" title="Median time to root cause and to verified, and token coverage, per round">Timing and tokens<span class="chev">›</span></button>`;
   if (!statsOn) return btn;
-  return `${btn}<div class="stats"><div class="stg"><span class="hd">Scope</span><span class="hd">Median to root cause</span><span class="hd">Median to verified</span><span class="hd">Jobs with tokens</span>${R.map(r => `<span class="sc">${esc(r.scope)}${r.closed ? ` <span class="mis">· ${r.closed} closed</span>` : ''}</span><span class="num">${m(r.ttr_median)}</span><span class="num">${m(r.ttv_median)}</span><span class="num">${r.tokens.official + r.tokens.estimated} of ${r.jobs} jobs${r.tokens.estimated ? ` <span class="mis">· ${r.tokens.estimated} est.</span>` : ''}</span>`).join('')}</div></div>`;
+  return `${btn}<div class="stats"><div class="stg"><span class="hd">Scope</span><span class="hd">Median to root cause</span><span class="hd">Median to verified</span><span class="hd">Jobs with tokens</span>${R.map(r => `<span class="sc">${esc(r.scope)}${r.closed ? ` <span class="mis">· ${r.closed} closed</span>` : ''}</span><span class="num">${m(r.ttr_median, r.closed)}</span><span class="num">${m(r.ttv_median, r.closed)}</span><span class="num">${r.tokens.official + r.tokens.estimated} of ${r.jobs} jobs${r.tokens.estimated ? ` <span class="mis">· ${r.tokens.estimated} est.</span>` : ''}</span>`).join('')}</div></div>`;
 }
 
 function drawerHTML() {
@@ -615,7 +615,7 @@ function drawerHTML() {
   if (!i) return '';
   const f = i.first_seen || {};
   const ev = [...(i.events || [])].sort((a, b) => new Date(a.at) - new Date(b.at) || (a.kind === 'first_seen' ? -1 : 0));
-  return `<div class="scrim" data-close></div><aside class="drawer" id="issue-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"><button class="x" data-close aria-label="Close">×</button><div class="mono muted">${esc(i.id)}</div><h2 id="drawer-title" tabindex="-1">${esc(i.title)}</h2><dl class="facts"><dt>Status</dt><dd>${esc(labels[i.state] || i.state)}</dd><dt>Area</dt><dd>${esc(i.area || 'Not recorded')}</dd><dt>Origin</dt><dd>${esc(i.origin_label || `${i.origin || ''}${i.origin_pr ? ` · PR #${i.origin_pr}` : ''}${i.carried_to ? ` → #${i.carried_to}` : ''}`)}</dd><dt>First seen</dt><dd>${f.at ? formatTime(f.at, true) : 'Not recorded'}</dd><dt>Last fail</dt><dd>${i.last_seen_at ? formatTime(i.last_seen_at, true) : 'No failure recorded'}</dd><dt>Attempts</dt><dd>${esc(i.attempts || 0)}</dd><dt>Lane</dt><dd>${esc(i.lane?.id || 'No lane')}</dd></dl>${trailHTML(i)}<details class="wk"><summary>What we know</summary><p>${esc(i.summary || 'No summary recorded.')}</p>${i.impact ? `<p>${esc(i.impact)}</p>` : ''}${i.done_when ? `<p>${esc(i.done_when)}</p>` : ''}</details><details class="wk"><summary>All events · ${ev.length}</summary><ul class="tl">${ev.map(e => `<li class="${e.kind === 'pass' ? 'pass-dot' : ['fail', 'review_failed', 'owner_rejected'].includes(e.kind) ? 'fail-dot' : e.kind === 'inconclusive' ? 'inconclusive-dot' : ''}"><time>${esc(formatTime(e.at, true))}</time><span>${esc(e.summary || e.kind)}${publicRef(e.ref)}</span></li>`).join('') || '<li><span class="muted">No events recorded</span></li>'}</ul></details><details><summary>Raw data</summary><pre>${esc(JSON.stringify(i.raw, null, 2))}</pre></details></aside>`;
+  return `<div class="scrim" data-close></div><aside class="drawer" id="issue-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"><button class="x" data-close aria-label="Close">×</button><div class="mono muted">${esc(i.id)}</div><h2 id="drawer-title" tabindex="-1">${esc(i.title)}</h2><dl class="facts"><dt>Status</dt><dd>${esc(labels[i.state] || i.state)}</dd><dt>Area</dt><dd>${esc(i.area || 'Not recorded')}</dd><dt>Origin</dt><dd>${esc(i.origin_label || `${i.origin || ''}${i.origin_pr ? ` · PR #${i.origin_pr}` : ''}${i.carried_to ? ` → #${i.carried_to}` : ''}`)}</dd><dt>First seen</dt><dd>${f.at ? formatTime(f.at, true) : 'Not recorded'}</dd><dt>Last fail</dt><dd>${i.last_seen_at ? formatTime(i.last_seen_at, true) : 'No failure recorded'}</dd><dt>Attempts</dt><dd>${esc(i.attempts || 0)}</dd><dt>Lane</dt><dd>${esc(i.lane?.id || 'No lane')}</dd></dl>${trailHTML(i)}<details class="wk"><summary>What we know</summary><p>${esc(i.summary || 'No summary recorded.')}</p>${i.impact ? `<p>${esc(i.impact)}</p>` : ''}${i.done_when ? `<p>${esc(i.done_when)}</p>` : ''}</details><details class="wk"><summary>All events · ${ev.length}</summary><ul class="tl">${ev.map(e => `<li class="${e.kind === 'pass' ? 'pass-dot' : ['fail', 'review_failed', 'owner_rejected'].includes(e.kind) ? 'fail-dot' : e.kind === 'inconclusive' ? 'inconclusive-dot' : ''}"><time>${esc(formatTime(e.at, true))}</time><span>${esc(e.summary || e.kind)}${publicRef(e.ref)}</span></li>`).join('') || '<li><span class="muted">No events recorded</span></li>'}</ul></details><details data-raw="${esc(i.id)}"><summary>Raw data</summary><pre>${i.raw !== undefined ? esc(JSON.stringify(i.raw, null, 2)) : 'Loading…'}</pre></details></aside>`;
 }
 
 function recentRuns() {
@@ -894,8 +894,34 @@ document.addEventListener('click', event => {
   }
 });
 
+// Raw data and job receipts are not in the list payload; fetch them from /api/issues/<id> when opened.
+async function loadRaw(node) {
+  const id = node.dataset.raw;
+  const i = data.issues.find(x => x.id === id);
+  const pre = node.querySelector('pre');
+  if (!i || !pre || i.raw !== undefined) return;
+  try {
+    const q = issuesQuery();
+    q.delete('include');
+    const result = http
+      ? await (await fetch(`/api/issues/${encodeURIComponent(id)}?${q}`)).json()
+      : await tool('observability_issues', {
+          project_id: project, pr, scope, from_time: from, to_time: to,
+          round: round != null ? String(round) : undefined, run: run || undefined, issue_id: id
+        });
+    if (result.error) throw Error(result.error);
+    const found = (result.issues || [])[0] || {};
+    i.raw = found.raw ?? null;
+    i.jobs = found.jobs;
+    pre.textContent = JSON.stringify(i.raw, null, 2);
+  } catch (e) {
+    pre.textContent = 'Could not load raw data';
+  }
+}
+
 document.addEventListener('toggle', event => {
   const node = event.target;
+  if (node instanceof HTMLDetailsElement && node.dataset.raw && node.open) { loadRaw(node); return; }
   if (!(node instanceof HTMLDetailsElement) || !node.dataset.det) return;
   if (node.dataset.det === 'jobs') jobsOn = node.open;
   if (node.dataset.det === 'cycles') cycAll = node.open;

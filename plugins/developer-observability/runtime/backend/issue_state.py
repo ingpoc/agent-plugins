@@ -1125,6 +1125,9 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
         selected = present
 
     trail_end = None
+    if selected_run is not None and not run_unrecorded:
+        # A run view shows the trail as it stood when the run ended (SPEC-trail r2).
+        trail_end = instant(run_window(selected_run)[1])
     if scope_round is not None and selected and not timed and selected_run is None:
         focus_rounds = [row for row in all_rounds if str(row.get("pr")) == str(focus_pr) and row.get("round") == scope_round]
         round_row = focus_rounds[0] if focus_rounds else None
@@ -1218,9 +1221,44 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
         selected = [dict(picked[0])]
         includes = sorted(set(includes) | {"trail", "jobs"}, key=("trail", "jobs", "rollup").index)
     selected = [{key: value for key, value in issue.items()} for issue in selected]
+    _carry_failures(selected, catalog, trail_end)
     rollup_rows = None
     if includes:
         emitted = read_trail_events(state_dir)
+        try:
+            from .round_view import _finding_for_group_id, _group_id_from_repo
+        except ImportError:
+            from round_view import _finding_for_group_id, _group_id_from_repo
+        full_by_key = {(issue.get("id"), str(issue.get("pr"))): issue.get("events") or [] for issue in catalog}
+        lane_members = {}
+        for _, document, _pr in all_trackers:
+            tracking_doc = document.get("tracking") if isinstance(document.get("tracking"), dict) else {}
+            carried = tracking_doc.get("carried_gates") if isinstance(tracking_doc.get("carried_gates"), list) else []
+            for group in [*_plan_groups(document), *carried]:
+                if isinstance(group, dict) and group.get("id") and isinstance(group.get("finding_ids"), list):
+                    lane_members.setdefault(str(group["id"]), set()).update(str(item) for item in group["finding_ids"] if item)
+        known_ids = {issue.get("id"): issue for issue in catalog if issue.get("id")}
+        credit_by_job = {}
+        for job in jobs:
+            lane_id = job.get("group_id") or _group_id_from_repo(job.get("repo"))
+            if not lane_id:
+                continue
+            if str(lane_id) in lane_members:
+                credit_by_job[job.get("job_id")] = lane_members[str(lane_id)]
+            else:
+                # No membership record for the lane: match its R<n>-<ID> name (R6-DO2 -> DO-2), as the round view does.
+                match = _finding_for_group_id(str(lane_id), known_ids)
+                if match:
+                    credit_by_job[job.get("job_id")] = {match.get("id")}
+
+        def lane_credit(job, issue):
+            return issue.get("id") in credit_by_job.get(job.get("job_id"), ())
+
+        def full_events_for(issue):
+            return full_by_key.get((issue.get("id"), str(issue.get("pr"))))
+
+        def inherited_for(issue):
+            return issue.get("_inherited") or []
 
         def tracker_for(issue):
             return f"{str(issue.get('pr')).lstrip('#')}.json"
@@ -1243,15 +1281,25 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
                 return {"lane": lane, "at": hint["round_start"], "source": f"R{hint.get('round')} plan start", "what": hint.get("what")}
             return None
 
-        decorate(selected, jobs, emitted, tracker_for, lane_plan_for, merged_for, includes, end_at=trail_end, now=now)
+        ctx = {"jobs": jobs, "emitted": emitted, "tracker_for": tracker_for, "lane_plan_for": lane_plan_for,
+               "merged_for": merged_for, "lane_credit": lane_credit, "full_events_for": full_events_for,
+               "inherited_for": inherited_for}
+        decorate(selected, ctx, includes, end_at=trail_end, now=now)
         if "rollup" in includes:
             ordered = sorted({str(issue.get("pr")) for issue in catalog}, key=_pr_key)
             focus = str(focus_pr if not timed else (requested_pr or latest_pr))
             wanted_prs = [value for value in ordered if _pr_key(value) <= _pr_key(focus)][-2:][::-1]
             issue_sets = {value: [issue for issue in catalog if str(issue.get("pr")) == value] for value in wanted_prs}
-            rollup_rows = rollup(issue_sets, all_rounds, jobs, emitted, tracker_for, lane_plan_for, merged_for, now=now)
+            rollup_rows = rollup(issue_sets, all_rounds, ctx, now=now)
     for issue in selected:
         issue.pop("_lane_plan", None)
+        issue.pop("_inherited", None)
+        if not detail:
+            # Heavy fields are served only by /api/issues/<id> (the drawer's Raw data box fetches them).
+            issue.pop("raw", None)
+            issue.pop("jobs", None)
+    # Per-check run detail stays in the trackers; the issue rows already carry each check's outcome.
+    all_runs = [_light_run(row) for row in all_runs]
     return {"schema_version": 1, "project": project, "pr": display_pr, "cycle": current_tracking.get("cycle"),
             "round": display_round, "round_started_at": current_tracking.get("round_started_at"),
             "pull_request": ({**pull, "opened_at": pull.get("opened_at")} if pull else None),
@@ -1272,6 +1320,45 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
             "include": includes,
             **({"rollup": rollup_rows} if rollup_rows is not None else {}),
             "issues": selected}
+
+
+def _light_run(run):
+    if not isinstance(run, dict):
+        return run
+    return {key: value for key, value in run.items() if key not in {"checks", "install_evidence"}}
+
+
+def _carry_failures(selected, catalog, end_at=None):
+    """Carry failure history from earlier PRs' trackers for the same issue id. Output only:
+    state and counts were already computed, so they do not move."""
+    kinds = {"fail", "review_failed", "owner_rejected"}
+    earlier = {}
+    for issue in catalog:
+        earlier.setdefault(issue.get("id"), []).append(issue)
+    for issue in selected:
+        own = issue.get("events") or []
+        keys = {(event.get("kind"), event.get("at")) for event in own}
+        carried = []
+        for prior in earlier.get(issue.get("id"), []):
+            if _pr_key(str(prior.get("pr"))) >= _pr_key(str(issue.get("pr"))):
+                continue
+            for event in prior.get("events") or []:
+                stamp = instant(event.get("at"))
+                if event.get("kind") not in kinds or not stamp or (end_at is not None and stamp > end_at):
+                    continue
+                if (event.get("kind"), event.get("at")) in keys:
+                    continue
+                keys.add((event.get("kind"), event.get("at")))
+                carried.append({**event, "pr": prior.get("pr"), "carried": True})
+        if not carried:
+            continue
+        issue["_inherited"] = carried
+        issue["events"] = _sort_events([*own, *carried])
+        failures = [event for event in issue["events"] if event.get("kind") in kinds and event.get("at")]
+        issue["attempts"] = max(int(issue.get("attempts") or 0), len(failures))
+        latest = max(failures, key=lambda event: instant(event["at"]))
+        if not issue.get("last_seen_at") or instant(latest["at"]) > instant(issue["last_seen_at"]):
+            issue["last_seen_at"] = latest["at"]
 
 
 def _existed_without_dates(issue, number):
