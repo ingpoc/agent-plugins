@@ -2,7 +2,7 @@ import importlib.util
 import contextlib
 import io
 from importlib.machinery import SourceFileLoader
-import errno, json, os, shutil, socket, subprocess, sys, tempfile, threading, time, unittest
+import errno, json, os, shlex, shutil, socket, subprocess, sys, tempfile, threading, time, unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -660,6 +660,57 @@ elif args[:2] != ['pr', 'edit']:
         _, command = self._lane_ready()
         lane = self.call("verify", "--ids", "ISSUE-01", "--then", command)
         self.assertEqual(lane.returncode, 0, lane.stderr)
+
+    def test_verify_uses_driver_and_cleanup_failure_keeps_pass(self):
+        live, command = self._lane_ready()
+        original_run_check = bcl_entrypoint.verify_driver.run_check
+        original_exclusive_lock = tracker_lock.exclusive_lock
+        calls = []
+
+        def recording_run_check(words, **kwargs):
+            calls.append(tuple(words))
+            return original_run_check(words, **kwargs)
+
+        verify_lock = tracker_lock.verify_lock_path(live)
+
+        class FailingExit:
+            def __init__(self, context):
+                self.context = context
+
+            def __enter__(self):
+                return self.context.__enter__()
+
+            def __exit__(self, *exc):
+                self.context.__exit__(*exc)
+                raise RuntimeError("injected cleanup failure")
+
+        def lock_with_failing_verify_cleanup(path, *, blocking=True):
+            context = original_exclusive_lock(path, blocking=blocking)
+            return FailingExit(context) if Path(path) == verify_lock else context
+
+        shared_check = self.root / "shared-check.py"
+        shared_check.write_text("pass\n")
+        shared_command = f'"{sys.executable}" "{shared_check}"'
+
+        with patch.object(bcl_entrypoint.verify_driver, "run_check", recording_run_check), \
+             patch.object(tracker_lock, "exclusive_lock", lock_with_failing_verify_cleanup):
+            shared_result = self.call_without_viewer("verify", "--shared", "--then", shared_command)
+            result = self.call_without_viewer("verify", "--ids", "ISSUE-01", "--then", command)
+
+        self.assertEqual(shared_result.returncode, 0, shared_result.stderr)
+        self.assertIn("Verification cleanup failed", shared_result.stderr)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(tuple(shlex.split(shared_command)), calls)
+        self.assertIn(tuple(shlex.split(command)), calls)
+        self.assertIn("Verification cleanup failed", result.stderr)
+        written = json.loads(live.read_text())
+        self.assertEqual(written["tracking"]["verification_run"]["shared_check"]["state"], "passed")
+        group = written["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "verified")
+
+    def test_verify_start_runs_driver_self_test(self):
+        import inspect
+        self.assertIn("verify_driver.self_test()", inspect.getsource(bcl_entrypoint.main))
 
     def test_verify_records_fixed_result_from_a_verifying_lane(self):
         live, command = self._lane_ready()
@@ -1707,6 +1758,7 @@ elif args[:2] != ['pr', 'edit']:
         stderr = io.StringIO()
         with patch.dict(os.environ, self.env), patch.object(live_state, 'STATE', self.state), \
              patch.object(bcl_entrypoint.subprocess, 'Popen', check_writers_then_spawn), \
+             patch.object(bcl_entrypoint.verify_driver.subprocess, 'Popen', check_writers_then_spawn), \
              patch.object(sys, 'argv', [str(BCL),'--data',str(live),'--ids','ISSUE-01','--then',stored_command,'verify']), \
              contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit) as exit_result:
             bcl_entrypoint.main()

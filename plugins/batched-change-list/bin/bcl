@@ -17,6 +17,7 @@ import tracker_lock
 import workflow_definition
 import check_introspect
 import events as bcl_events
+import verify_driver
 
 def _process_rows():
     """Read only pid/parent/group/comm; never inspect process arguments or environment."""
@@ -1367,6 +1368,10 @@ def main():
     if stage == "report" and args.force: command.append("--force")
     verification_claim = None
     if stage == "verify":
+        try:
+            verify_driver.self_test()
+        except AssertionError as error:
+            raise SystemExit(f"Verify driver self-test failed: {error}") from error
         verification_claim = tracker_lock.exclusive_lock(tracker_lock.verify_lock_path(live), blocking=False)
         try:
             verification_claim.__enter__()
@@ -1378,6 +1383,21 @@ def main():
             verification_claim.__exit__(None, None, None)
             verification_claim = None
             parser.error("lane verify requires the shared check to pass first; run bcl verify --shared --then CMD")
+
+    def release_verification_claim():
+        nonlocal verification_claim
+        if verification_claim is None:
+            return
+        claim = verification_claim
+        try:
+            claim.__exit__(None, None, None)
+        finally:
+            verification_claim = None
+
+    def report_cleanup_failure(cleanup_code):
+        if cleanup_code:
+            print("Verification cleanup failed; check verdict was recorded independently.", file=sys.stderr)
+
     try:
         bcl_events.stage_event(live.resolve(), stage, "start", state_dir=os.environ.get("BCL_STATE_DIR"), ids=args.ids)
         result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
@@ -1387,12 +1407,11 @@ def main():
         if rerun_op:
             print(f"Rerunning the check for {', '.join(rerun_op['ids'])}: {args.reason.strip()}")
         if stage == "verify" and args.shared:
-            try:
-                result = subprocess.run(words, check=False)
-                code = result.returncode
-            except OSError as error:
-                print(f"Shared verification command could not start: {error}", file=sys.stderr)
-                code = 127
+            results, cleanup_code = verify_driver.run_round(
+                shared=None, lanes=[words], cleanup=release_verification_claim)
+            check = results[0]
+            code = check.exit_code
+            report_cleanup_failure(cleanup_code)
             finished = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
             saved = subprocess.run(command, input=json.dumps([{"action":"finish-shared-check", "run_id":tracking['verification_run']['id'], "exit_code":code, "finished_at":finished}]), text=True, capture_output=True)
             if saved.returncode:
@@ -1410,33 +1429,47 @@ def main():
             live_state.save_registry(records)
             _ensure_viewer(parser, key, current, live, plugin_version, stage)
         if stage == "verify":
+            plan_claim = tracker_lock.exclusive_lock(tracker_lock.plan_lock_path(live))
+            plan_claim.__enter__()
+            plan_claim_released = False
+
+            def release_plan_claim():
+                nonlocal plan_claim_released
+                if not plan_claim_released:
+                    plan_claim.__exit__(None, None, None)
+                    plan_claim_released = True
+
             try:
-                with tracker_lock.exclusive_lock(tracker_lock.plan_lock_path(live)):
-                    current = json.loads(live.read_text())
-                    current_tracking = current.get('tracking', {})
-                    started_plan = current_tracking['plan']
-                    started_groups = {group['id']: group for group in started_plan['groups']}
-                    if started_plan != expected_verify_plan or any(group['id'] not in started_groups or
-                           started_groups[group['id']].get('finding_ids') != group.get('finding_ids') or
-                           started_groups[group['id']].get('verify', {}).get('command') != expected
-                           for group in groups) or any(started_plan.get(k) != tracking['plan'].get(k) for k in ('cycle', 'round')):
-                        raise SystemExit('plan changed before verification command started; reload and retry')
-                    try:
-                        manage_findings.validate_dependencies(
-                            started_plan['groups'], current['findings'], current_tracking)
-                    except ValueError as error:
-                        raise SystemExit(f'verification prerequisites changed before command started: {error}') from error
-                    process = subprocess.Popen(words)
-                # Release the reservation immediately after successful spawn so the
-                # verifier can use the managed tracker writers itself.
-                code = process.wait()
-                reason = f"Verification command exited {code}" if code else ""
+                current = json.loads(live.read_text())
+                current_tracking = current.get('tracking', {})
+                started_plan = current_tracking['plan']
+                started_groups = {group['id']: group for group in started_plan['groups']}
+                if started_plan != expected_verify_plan or any(group['id'] not in started_groups or
+                       started_groups[group['id']].get('finding_ids') != group.get('finding_ids') or
+                       started_groups[group['id']].get('verify', {}).get('command') != expected
+                       for group in groups) or any(started_plan.get(k) != tracking['plan'].get(k) for k in ('cycle', 'round')):
+                    raise SystemExit('plan changed before verification command started; reload and retry')
+                try:
+                    manage_findings.validate_dependencies(
+                        started_plan['groups'], current['findings'], current_tracking)
+                except ValueError as error:
+                    raise SystemExit(f'verification prerequisites changed before command started: {error}') from error
+                results, cleanup_code = verify_driver.run_round(
+                    shared=None, lanes=[words], cleanup=release_verification_claim,
+                    on_spawn=release_plan_claim)
+                check = results[0]
+                code = check.exit_code
+                report_cleanup_failure(cleanup_code)
+                verdict = check.verdict
+                reason = f"Verification command exited {code}" if verdict != "passed" else ""
             except OSError as error:
                 code = 127
                 reason = "Verification command could not start"
                 spawn_error = str(error)
             else:
                 spawn_error = ""
+            finally:
+                release_plan_claim()
             if code:
                 reason = _verification_failure_reason(expected, reason)
                 print(reason, file=sys.stderr)
@@ -1486,7 +1519,6 @@ def main():
             with args.progress.open("a") as out: out.write(f"{stamp} {stage}\n")
 
     finally:
-        if verification_claim is not None:
-            verification_claim.__exit__(None, None, None)
+        release_verification_claim()
 
 if __name__ == "__main__": main()
