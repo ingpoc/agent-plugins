@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-24T10:27:55Z",
-      "now": "2026-11-24T10:27:55Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T10:31:36Z",
+      "now": "2026-11-24T10:31:36Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 120,
@@ -10940,7 +10940,7 @@
       }
     },
     "cycle": 13,
-    "round": 1,
+    "round": 2,
     "round_history": [
       {
         "round": 2,
@@ -11151,6 +11151,11 @@
         "round": 7,
         "fixed": 17,
         "ended_at": "2026-11-24T09:02:09Z"
+      },
+      {
+        "round": 1,
+        "fixed": 3,
+        "ended_at": "2026-11-24T10:31:36Z"
       }
     ],
     "introspect_history": [
@@ -12253,7 +12258,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T10:27:55Z",
+    "last_written_at": "2026-11-24T10:31:36Z",
     "fix_order": {
       "ids": [
         "DO-11",
@@ -12515,260 +12520,181 @@
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix",
       "review",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
       "cycle": 13,
-      "round": 1,
+      "round": 2,
       "groups": [
         {
+          "id": "R2-STATUS",
+          "name": "Keep lane and verify status accurate",
+          "label": "STATUS",
+          "finding_ids": [
+            "BCL-110",
+            "BCL-113",
+            "PR120-r6-stale-job-finish",
+            "BCL-160"
+          ],
+          "worktree": "bcl121-r2-status",
+          "status": "planned",
+          "phase": "fix",
+          "files": [
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_job_lifecycle.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_lane_state.py"
+          ],
+          "reason": "Status-accuracy first: writers must not strip gate state, a running job must survive edits, a successful finish must record, and a passing verify must record each finding.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-status.sh",
+            "method": "Run the change-list writer, job lifecycle, and lane-state tests.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 4
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T10:31:36Z",
+          "stage_entered_at": "2026-11-24T10:31:36Z"
+        },
+        {
+          "id": "R2-TRACKER",
+          "name": "One viewer port per project and safe adopt paths",
+          "label": "TRACKER",
+          "finding_ids": [
+            "BCL-94",
+            "BCL-115",
+            "BCL-124"
+          ],
+          "worktree": "bcl121-r2-tracker",
+          "status": "planned",
+          "phase": "fix",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/serve.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_live_state.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_serve.py"
+          ],
+          "reason": "Tracker upkeep that does not touch the job runner: one saved port per project, exclusive adopt, and delete the legacy viewer path.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-tracker.sh",
+            "method": "Run the live-state and viewer tests.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 3
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T10:31:36Z",
+          "stage_entered_at": "2026-11-24T10:31:36Z"
+        },
+        {
+          "id": "R2-DOVIEW",
+          "name": "Coverage gaps as objects and a stored merge bar",
+          "label": "DOVIEW",
+          "finding_ids": [
+            "DO-9",
+            "DO-10"
+          ],
+          "worktree": "bcl121-r2-doview",
+          "status": "planned",
+          "phase": "fix",
+          "files": [
+            "plugins/developer-observability/runtime/backend/observability_api.py",
+            "plugins/developer-observability/runtime/backend/round_view.py",
+            "plugins/developer-observability/tests/test_round_view.py"
+          ],
+          "reason": "Non-viewer-polish observability: return coverage gaps as objects and expose the stored merge-bar threshold without hard-coding it.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-doview.sh",
+            "method": "Run the developer-observability unit tests.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T10:31:36Z",
+          "stage_entered_at": "2026-11-24T10:31:36Z"
+        },
+        {
+          "id": "R2-INTRO",
+          "name": "Cross-round Introspect and a real review-path test",
+          "label": "INTRO",
+          "finding_ids": [
+            "BCL-120",
+            "BCL-139"
+          ],
+          "worktree": "bcl121-r2-intro",
+          "status": "planned",
+          "phase": "fix",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/check_introspect.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_check_introspect.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py"
+          ],
+          "reason": "Independent of the job runner and live-state: Introspect should flag repeats across rounds, and the merged verdict test should drive a real review path.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r2-intro.sh",
+            "method": "Run the Introspect and change-list CLI tests.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T10:31:36Z",
+          "stage_entered_at": "2026-11-24T10:31:36Z"
+        },
+        {
           "id": "R1-DO11",
-          "name": "Polish per-round viewer rows",
+          "name": "Viewer row polish",
           "label": "DO-11",
           "finding_ids": [
             "DO-11"
           ],
-          "worktree": "bcl121-r1-do11",
           "status": "deferred",
           "phase": "deferred",
-          "files": [
-            "plugins/developer-observability/runtime/backend/round_view.py",
-            "plugins/developer-observability/ui/round-view.js",
-            "plugins/developer-observability/ui/template.html",
-            "plugins/developer-observability/ui/dashboard.html",
-            "plugins/developer-observability/tests/test_round_view.py",
-            "plugins/developer-observability/tests/test_mcp.py"
-          ],
-          "reason": "Guru withdrew pass-5 sign-off",
+          "parked_to": 3,
+          "reason": "Waiting on v2 spec",
+          "stage_entered_at": "2026-11-24T10:15:23Z",
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T10:31:36Z",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do11.sh",
-            "method": "Run the per-round view unit tests that cover own-job why, verified tracks, and hidden cache paths.",
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 1
-          },
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-24T10:15:23Z",
-          "stage_entered_at": "2026-11-24T10:15:23Z",
-          "codex": {
-            "fix_status": "passed",
-            "job": {
-              "id": "36c88fb4da884f0899c09a9f076c35ef",
-              "phase": "fix",
-              "started_at": "2026-11-24T10:09:23Z",
-              "command": "run-fix-do11.sh",
-              "heartbeat_at": "2026-11-24T10:09:24Z",
-              "plan_sha256": "fc8d5205eb091ddc8eb0bf67f595930b147504389aa53fec009783b73c9e87cb",
-              "worktree": "bcl121-r1-do11",
-              "model": "existing bae7f221 tests",
-              "cycle": 13,
-              "round": 1,
-              "pid": 15911,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T10:09:24Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0
-          },
-          "parked_to": 2
-        },
-        {
-          "id": "R1-DO5",
-          "name": "Stamp lane and round on job events",
-          "label": "DO-5",
-          "finding_ids": [
-            "DO-5"
-          ],
-          "worktree": "samantha-next-r11",
-          "status": "verified",
-          "phase": "verify",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
-            "plugins/batched-change-list/bin/bcl"
-          ],
-          "reason": "Job events still omit the lane, round, model, and version the per-round view needs.",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do5.sh",
-            "method": "Run the change-list job lifecycle tests for stamped event fields.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-24T10:25:46Z",
-          "stage_entered_at": "2026-11-24T10:26:56Z",
-          "codex": {
-            "fix_status": "passed",
-            "job": {
-              "id": "f2f95825c4a44d6e85ffc2c3b0ee6d38",
-              "phase": "presuite",
-              "started_at": "2026-11-24T10:21:16Z",
-              "command": "python3",
-              "heartbeat_at": "2026-11-24T10:24:13Z",
-              "plan_sha256": "d91698ebc5fc3d4dc3120caa72331f7098f7d16e36217ccfd605a9671e3741f3",
-              "worktree": "samantha-next-r11",
-              "model": "check.py --changed-since 9fc50e95 (rerun after flaky compact timestamp)",
-              "cycle": 13,
-              "round": 1,
-              "pid": 49875,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T10:24:13Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "implementer_session": "01a20d08-1bde-7553-90ec-6b8dc296b684",
-            "review_status": "passed",
-            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
-          },
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T10:24:13Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-24T10:25:45Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "Grok Bot",
-            "at": "2026-11-24T10:25:46Z"
           }
         },
         {
-          "id": "R1-GATE",
-          "name": "Gate count should use the merge bar",
-          "label": "PR120-r6-gate",
+          "id": "R3-DO4",
+          "name": "Local per-round viewer",
+          "label": "DO-4",
           "finding_ids": [
-            "PR120-r6-gate-denominator"
+            "DO-4"
           ],
-          "worktree": "samantha-next-r11",
-          "status": "verified",
-          "phase": "verify",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/check_gate_count.py"
-          ],
-          "reason": "The official gate count still reports the lower report bar instead of the merge bar.",
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-gate.sh",
-            "method": "Run the gate-count unit tests.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1
-          },
+          "status": "deferred",
+          "phase": "deferred",
+          "parked_to": 3,
+          "reason": "Waiting on v2 spec",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T10:25:47Z",
-          "stage_entered_at": "2026-11-24T10:26:56Z",
-          "codex": {
-            "fix_status": "passed",
-            "job": {
-              "id": "f2f95825c4a44d6e85ffc2c3b0ee6d38",
-              "phase": "presuite",
-              "started_at": "2026-11-24T10:21:16Z",
-              "command": "python3",
-              "heartbeat_at": "2026-11-24T10:24:13Z",
-              "plan_sha256": "d91698ebc5fc3d4dc3120caa72331f7098f7d16e36217ccfd605a9671e3741f3",
-              "worktree": "samantha-next-r11",
-              "model": "check.py --changed-since 9fc50e95 (rerun after flaky compact timestamp)",
-              "cycle": 13,
-              "round": 1,
-              "pid": 49875,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T10:24:13Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "implementer_session": "01a20d08-1d3a-7f90-ae8b-f9ec14ce3b9f",
-            "review_status": "passed",
-            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
-          },
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T10:24:13Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-24T10:25:45Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "Grok Bot",
-            "at": "2026-11-24T10:25:47Z"
-          }
-        },
-        {
-          "id": "R1-DO7",
-          "name": "Store blocked reason and parked target",
-          "label": "DO-7",
-          "finding_ids": [
-            "DO-7"
-          ],
-          "worktree": "samantha-next-r11",
-          "status": "verified",
-          "phase": "verify",
-          "files": [
-            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py"
-          ],
-          "reason": "Blocked and parked lanes still have no stored reason or target round for the default view.",
+          "updated_at": "2026-11-24T10:31:36Z",
+          "stage_entered_at": "2026-11-24T10:31:36Z",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do7.sh",
-            "method": "Run the change-list findings tests that cover parked and blocked fields.",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
+            "status": "failed",
+            "fixed": 0,
+            "failed": 1,
             "total": 1
-          },
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-24T10:25:52Z",
-          "stage_entered_at": "2026-11-24T10:26:56Z",
-          "codex": {
-            "fix_status": "passed",
-            "job": {
-              "id": "f2f95825c4a44d6e85ffc2c3b0ee6d38",
-              "phase": "presuite",
-              "started_at": "2026-11-24T10:21:16Z",
-              "command": "python3",
-              "heartbeat_at": "2026-11-24T10:24:13Z",
-              "plan_sha256": "d91698ebc5fc3d4dc3120caa72331f7098f7d16e36217ccfd605a9671e3741f3",
-              "worktree": "samantha-next-r11",
-              "model": "check.py --changed-since 9fc50e95 (rerun after flaky compact timestamp)",
-              "cycle": 13,
-              "round": 1,
-              "pid": 49875,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T10:24:13Z",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "implementer_session": "01a20d08-1e22-7a61-8576-03d112b1e6fd",
-            "review_status": "passed",
-            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
-          },
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T10:24:13Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-24T10:25:45Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "Grok Bot",
-            "at": "2026-11-24T10:25:52Z"
           }
         },
         {
@@ -12778,8 +12704,8 @@
           "finding_ids": [
             "BCL-106"
           ],
-          "status": "parked",
-          "parked_to": 2,
+          "status": "blocked",
+          "parked_to": 3,
           "reason": "Needs Guru",
           "failure_history": [
             {
@@ -12838,8 +12764,8 @@
           "failure_block_reason": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test.",
           "codex": {},
           "phase": "fix",
-          "updated_at": "2026-11-24T10:24:57Z",
-          "stage_entered_at": "2026-11-24T10:24:57Z",
+          "stage_entered_at": "2026-11-24T10:31:36Z",
+          "updated_at": "2026-11-24T10:31:36Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -12854,8 +12780,8 @@
           "finding_ids": [
             "BCL-171"
           ],
-          "status": "parked",
-          "parked_to": 2,
+          "status": "blocked",
+          "parked_to": 3,
           "reason": "Needs Guru",
           "failure_history": [
             {
@@ -12925,8 +12851,8 @@
           "failure_block_reason": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
           "codex": {},
           "phase": "fix",
-          "updated_at": "2026-11-24T10:24:57Z",
-          "stage_entered_at": "2026-11-24T10:24:57Z",
+          "stage_entered_at": "2026-11-24T10:31:36Z",
+          "updated_at": "2026-11-24T10:31:36Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -12941,7 +12867,7 @@
           "finding_ids": [
             "DO-1"
           ],
-          "parked_to": 2,
+          "parked_to": 3,
           "reason": "Needs Guru",
           "failure_history": [
             {
@@ -13008,8 +12934,8 @@
           "status": "deferred",
           "phase": "deferred",
           "codex": {},
-          "updated_at": "2026-11-24T10:03:39Z",
           "stage_entered_at": "2026-11-24T10:03:39Z",
+          "updated_at": "2026-11-24T10:31:36Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13017,8 +12943,7 @@
             "total": 1
           }
         }
-      ],
-      "status": "closed"
+      ]
     },
     "introspect": {
       "result": "Introspect: no issues",
