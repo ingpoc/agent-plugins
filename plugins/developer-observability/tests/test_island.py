@@ -33,6 +33,20 @@ class FakeActivity:
 
 
 class IslandTests(unittest.TestCase):
+    def test_dashboard_and_agent_use_the_same_issues_query_path(self):
+        root = Path(__file__).resolve().parents[1]
+        app = (root / 'ui/app.js').read_text()
+        server = (root / 'runtime/server.py').read_text()
+        backend = (root / 'runtime/backend/observability_api.py').read_text()
+        self.assertIn("function issueQuery(extra={})", app)
+        self.assertIn("call('observability_issues',issueQuery())", app)
+        self.assertIn("call('observability_issues',issueQuery({cursor}))", app)
+        self.assertIn("def observability_issues(", server)
+        self.assertIn("return invoke('issues'", server)
+        self.assertIn("getattr(backend(), method)(*args, **kwargs)", server)
+        self.assertIn("def issues(self, project_id", backend)
+        self.assertNotIn('_matches_issue_filters', app, 'filter semantics belong to the shared issues API')
+
     def setUp(self):
         island.FAILURES['count'] = 0
 

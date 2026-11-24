@@ -12,6 +12,53 @@ from collector.sources import iter_jsonl, iter_textlog
 
 
 class SessionTimelineTests(unittest.TestCase):
+    def test_issues_query_scopes_pr_and_round_and_counts_unstamped_rows(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            findings = [
+                {'finding_key':'target', 'owner_ref':'owner:a', 'kind':'failure', 'status':'active',
+                 'headline':'target round finding', 'pull_request':'120', 'round':3, 'stage':'verify',
+                 'plugin':'developer-observability', 'change_class':'new', 'last_seen':'2026-11-24T10:00:00Z'},
+                {'finding_key':'past-round', 'owner_ref':'owner:a', 'kind':'failure', 'status':'active',
+                 'headline':'previous round', 'pull_request':'120', 'round':2, 'stage':'verify',
+                 'plugin':'developer-observability', 'change_class':'new', 'last_seen':'2026-11-24T09:00:00Z'},
+                {'finding_key':'other-pr', 'owner_ref':'owner:a', 'kind':'failure', 'status':'active',
+                 'headline':'different pull request', 'pull_request':'121', 'round':3, 'stage':'verify',
+                 'plugin':'developer-observability', 'change_class':'new', 'last_seen':'2026-11-24T09:00:00Z'},
+                {'finding_key':'missing-round', 'owner_ref':'owner:a', 'kind':'failure', 'status':'active',
+                 'headline':'missing round', 'pull_request':'120', 'stage':'verify', 'plugin':'developer-observability',
+                 'change_class':'new', 'last_seen':'2026-11-24T09:00:00Z'},
+                {'finding_key':'missing-pr', 'owner_ref':'owner:a', 'kind':'failure', 'status':'active',
+                 'headline':'missing pull request', 'round':3, 'stage':'verify', 'plugin':'developer-observability',
+                 'change_class':'new', 'last_seen':'2026-11-24T09:00:00Z'},
+            ]
+            data = {'generated_at':'2026-11-24T10:00:00Z', 'snapshot_id':'snap', 'findings':findings,
+                    'round_timeline':[
+                        {'pull_request':'120', 'round':3, 'stage':'verify', 'job':'tests', 'tokens':42, 'outcome':'passed'},
+                        {'pull_request':'120', 'round':2, 'stage':'verify', 'job':'old tests', 'tokens':10},
+                        {'pull_request':'121', 'round':3, 'stage':'verify', 'job':'other tests', 'tokens':9},
+                    ], 'coverage_gaps':[{'source':'origin-ci', 'status':'missing'}]}
+            (root / 'findings.json').write_text(json.dumps(data))
+            api = ObservabilityAPI(root, {'a':{'owners':['owner:a']}}, None)
+            result = api.issues('a', pull_request='120', round=3, stage='verify',
+                                plugin='developer-observability', kind='failure', status='active',
+                                change_class='new', since='2026-11-24T00:00:00Z',
+                                until='2026-11-24T23:59:59Z', include_coverage=True)
+            self.assertEqual([row['issue_id'] for row in result['issues']], ['target'])
+            self.assertEqual(result['unstamped_count'], 2)
+            self.assertEqual(result['stamp_gaps'], {'round':1, 'pull_request':1})
+            self.assertEqual([row['job'] for row in result['round_timeline']], ['tests'])
+            self.assertEqual(result['round_timeline'][0]['tokens'], 42)
+            self.assertIn('origin-ci', result['coverage_gaps'][0])
+
+    def test_issues_time_filter_rejects_invalid_window(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / 'findings.json').write_text(json.dumps({'findings':[]}))
+            api = ObservabilityAPI(root, {'a':{'owners':['owner:a']}}, None)
+            with self.assertRaisesRegex(ValueError, 'invalid_time_window'):
+                api.issues('a', since='2026-11-25T00:00:00Z', until='2026-11-24T00:00:00Z')
+
     def test_ledger_start_scope_is_task_linked_and_unknown_scope_is_dropped(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

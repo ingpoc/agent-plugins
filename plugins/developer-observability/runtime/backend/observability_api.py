@@ -37,6 +37,10 @@ NEXT_STEPS = {
     'invalid_limit': 'Pass limit as an integer: 1–100 for observability_sessions and observability_issues (larger issue limits are clamped), '
                      '1–10 for observability_inspect_issue.',
     'invalid_status': 'Use status all, active, recovered or stale.',
+    'invalid_change_class': 'Use change_class new, recurring, resolved or carried.',
+    'invalid_since': 'Pass since as an ISO-8601 timestamp.',
+    'invalid_until': 'Pass until as an ISO-8601 timestamp.',
+    'invalid_time_window': 'Pass since at or before until.',
     'invalid_issue_ids': 'Pass 1–5 full issue IDs returned by observability_issues.',
     'invalid_version_scope': 'Select an observed version and attribution from observability_version_scopes.',
     'version_scope_unavailable': 'Collect a new snapshot before requesting a version-scoped view.',
@@ -419,7 +423,7 @@ class ObservabilityAPI:
     def _summary(finding):
         investigation = finding.get('mac_investigation', {})
         investigation = investigation if isinstance(investigation, dict) else {}
-        return {'issue_id': finding['finding_key'], 'headline': redact(finding.get('headline'), 180),
+        summary = {'issue_id': finding['finding_key'], 'headline': redact(finding.get('headline'), 180),
                 'source': redact(finding.get('source'), 40), 'status': finding.get('status', 'unknown'),
                 'error_class': redact(finding.get('error_class'), 60), 'last_seen': finding.get('last_seen'),
                 'failed_attempts': finding.get('failed_attempt_count', 0),
@@ -432,6 +436,11 @@ class ObservabilityAPI:
                 'step_id': redact(finding.get('step_id', 'unknown'), 100),
                 'first_seen': ObservabilityAPI._safe_time(finding.get('first_seen')) or 'unknown',
                 **ObservabilityAPI._collector_fields(finding)}
+        for field in ('pull_request', 'round', 'stage', 'plugin', 'change_class'):
+            value = finding.get(field)
+            if isinstance(value, (str, int)) and not isinstance(value, bool):
+                summary[field] = value
+        return summary
 
     @staticmethod
     def _collector_fields(finding):
@@ -621,7 +630,8 @@ class ObservabilityAPI:
         return ','.join(facet for facet in order if facet in kinds)
 
     def issues(self, project_id, status='all', cursor=None, limit=20, kind='all', version=None, attribution=None,
-               include_coverage=False):
+               include_coverage=False, pull_request=None, round=None, stage=None, plugin=None,
+               change_class=None, since=None, until=None):
         # Local edit (0.1.7): validate the page size first, even for a project with no findings, and clamp.
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
             raise ValueError('invalid_limit: use an integer 1–100')
@@ -631,6 +641,25 @@ class ObservabilityAPI:
             limit_note = 'limit clamped to 100 (the maximum)'
         if kind not in KINDS:
             raise ValueError('invalid_kind: use all, failure, latency_hotspot, redundancy, turn_latency, island_layout or storage')
+        if status not in ('all', 'active', 'recovered', 'stale'):
+            raise ValueError('invalid_status')
+        if change_class is not None and change_class not in ('new', 'recurring', 'resolved', 'carried'):
+            raise ValueError('invalid_change_class: use new, recurring, resolved or carried')
+        window = {}
+        for name, value in (('since', since), ('until', until)):
+            if value is not None:
+                try:
+                    parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                    if parsed.tzinfo is None:
+                        parsed = parsed.replace(tzinfo=timezone.utc)
+                    window[name] = parsed
+                except (ValueError, TypeError, AttributeError):
+                    raise ValueError(f'invalid_{name}: use an ISO-8601 timestamp') from None
+        if 'since' in window and 'until' in window and window['since'] > window['until']:
+            raise ValueError('invalid_time_window: since must be before until')
+        filters = {'pull_request': pull_request, 'round': round, 'stage': stage, 'plugin': plugin,
+                   'kind': None if kind == 'all' else kind, 'status': None if status == 'all' else status,
+                   'change_class': change_class, 'since': since, 'until': until}
         if not self._findings_present():
             if version is not None or attribution is not None:
                 raise ValueError('version_scope_unavailable: collect a snapshot with version scopes')
@@ -638,13 +667,23 @@ class ObservabilityAPI:
             self._project(project_id)
             return {**self._empty(project_id, include_coverage), 'issues': [], 'total': 0, 'active': 0, 'next_cursor': None, 'by_kind': {},
                     'by_status': {}, 'by_source': {}, 'slowest': [], 'top_failures': [], 'limit': limit,
+                    'unstamped_count': 0, 'stamp_gaps': {}, 'round_timeline': [],
                     **({'limit_note': limit_note, 'limits': [limit_note]} if limit_note else {})}
         data, revision = self._read(project_id, version, attribution)
         self._project(project_id)
-        if status not in ('all', 'active', 'recovered', 'stale'):
-            raise ValueError('invalid_status')
-        rows = [self._summary(f) for f in data['findings'] if self._matches(f, project_id)
-                and (status == 'all' or f.get('status') == status)]
+        project_rows = [f for f in data['findings'] if isinstance(f, dict) and self._matches(f, project_id)]
+        stamp_gaps = {}
+        unstamped_count = 0
+        rows = []
+        for finding in project_rows:
+            missing = self._missing_filter_dimensions(finding, filters)
+            if missing:
+                unstamped_count += 1
+                for dimension in missing:
+                    stamp_gaps[dimension] = stamp_gaps.get(dimension, 0) + 1
+            if not self._matches_issue_filters(finding, filters, window):
+                continue
+            rows.append(self._summary(finding))
         by_kind = {}
         for row in rows:
             by_kind[row['kind']] = by_kind.get(row['kind'], 0) + 1
@@ -661,11 +700,112 @@ class ObservabilityAPI:
             origin = 'collector' if str(row['issue_id']).startswith('col-') else 'primary'
             by_source[origin] = by_source.get(origin, 0) + 1
         rows.sort(key=lambda f: (f.get('last_seen') or '', f['issue_id']), reverse=True)
-        page, next_cursor = self._page(rows, cursor, revision, f'{project_id}:{status}:{kind}', limit)
+        query_scope = json.dumps([project_id, filters], sort_keys=True, separators=(',', ':'))
+        page, next_cursor = self._page(rows, cursor, revision, query_scope, limit)
+        round_timeline = self._round_timeline(data, pull_request, round)
         return {**self._envelope(data, revision, project_id, include_coverage), 'issues': page, 'total': len(rows),
                 'active': by_status.get('active', 0), 'next_cursor': next_cursor, 'by_kind': by_kind,
                 'by_status': by_status, 'by_source': by_source, 'slowest': slowest, 'top_failures': top_failures,
-                'limit': limit, **({'limit_note': limit_note, 'limits': [limit_note]} if limit_note else {})}
+                'limit': limit, 'unstamped_count': unstamped_count, 'stamp_gaps': stamp_gaps,
+                'round_timeline': round_timeline,
+                **({'limit_note': limit_note, 'limits': [limit_note]} if limit_note else {})}
+
+    @staticmethod
+    def _issue_stamp(finding, dimension):
+        """Read only explicit row stamps; absent or malformed metadata stays unknown."""
+        value = finding.get(dimension)
+        if value is None and isinstance(finding.get('tracking'), dict):
+            value = finding['tracking'].get(dimension)
+        if dimension == 'pull_request' and isinstance(value, dict):
+            value = value.get('number', value.get('id'))
+        if isinstance(value, bool) or not isinstance(value, (str, int)):
+            return None
+        text = str(value).strip()
+        return text or None
+
+    @classmethod
+    def _matches_issue_filters(cls, finding, filters, window):
+        for dimension in ('pull_request', 'round', 'stage', 'plugin', 'kind', 'status', 'change_class'):
+            wanted = filters.get(dimension)
+            if wanted is None:
+                continue
+            actual = cls._issue_stamp(finding, dimension)
+            if actual is None or str(actual).casefold() != str(wanted).casefold():
+                return False
+        if 'since' in window or 'until' in window:
+            stamp = finding.get('last_seen') or finding.get('timestamp') or finding.get('at')
+            try:
+                observed = datetime.fromisoformat(stamp.replace('Z', '+00:00'))
+                if observed.tzinfo is None:
+                    observed = observed.replace(tzinfo=timezone.utc)
+                if observed.tzinfo is None:
+                    observed = observed.replace(tzinfo=timezone.utc)
+            except (ValueError, TypeError, AttributeError):
+                return False
+            if 'since' in window and observed < window['since']:
+                return False
+            if 'until' in window and observed > window['until']:
+                return False
+        return True
+
+    @classmethod
+    def _missing_filter_dimensions(cls, finding, filters):
+        missing = []
+        for dimension in ('pull_request', 'round', 'stage', 'plugin', 'kind', 'status', 'change_class'):
+            if filters.get(dimension) is not None and cls._issue_stamp(finding, dimension) is None:
+                missing.append(dimension)
+        if (filters.get('since') is not None or filters.get('until') is not None) and not (
+                finding.get('last_seen') or finding.get('timestamp') or finding.get('at')):
+            missing.append('time')
+        elif filters.get('since') is not None or filters.get('until') is not None:
+            stamp = finding.get('last_seen') or finding.get('timestamp') or finding.get('at')
+            try:
+                datetime.fromisoformat(stamp.replace('Z', '+00:00'))
+            except (ValueError, TypeError, AttributeError):
+                missing.append('time')
+        return missing
+
+    @staticmethod
+    def _round_timeline(data, pull_request, round):
+        """Project optional snapshot step/job rows without inventing missing timeline data."""
+        timeline = data.get('round_timeline')
+        if not isinstance(timeline, list):
+            timeline = []
+            containers = [data]
+            if isinstance(data.get('tracking'), dict):
+                containers.append(data['tracking'])
+            if isinstance(data.get('rounds'), list):
+                for round_row in data['rounds']:
+                    if isinstance(round_row, dict):
+                        for field in ('steps', 'jobs'):
+                            values = round_row.get(field)
+                            if isinstance(values, list):
+                                timeline.extend({**row, 'round': row.get('round', round_row.get('round')),
+                                                 'pull_request': row.get('pull_request', round_row.get('pull_request')),
+                                                 'timeline_type': field[:-1]}
+                                                for row in values if isinstance(row, dict))
+            for container in containers:
+                for field in ('steps', 'jobs'):
+                    values = container.get(field)
+                    if isinstance(values, list):
+                        timeline.extend({**row, 'timeline_type': field[:-1]} for row in values if isinstance(row, dict))
+        result = []
+        for row in timeline:
+            if not isinstance(row, dict):
+                continue
+            if pull_request is not None and ObservabilityAPI._issue_stamp(row, 'pull_request') != str(pull_request):
+                continue
+            if round is not None and ObservabilityAPI._issue_stamp(row, 'round') != str(round):
+                continue
+            item = {key: (redact(row[key], 120) if isinstance(row[key], str) else row[key])
+                    for key in ('round', 'pull_request', 'stage', 'step', 'job', 'name', 'status', 'outcome',
+                                'result', 'tokens', 'tokens_used', 'token_count', 'total_tokens', 'effective_tokens',
+                                'input_tokens', 'output_tokens', 'total_input_tokens', 'total_output_tokens',
+                                'started_at', 'finished_at', 'duration_ms', 'timeline_type')
+                    if key in row and (isinstance(row[key], (str, int, float, bool)) or row[key] is None)}
+            if item:
+                result.append(item)
+        return result
 
     # Local edit (0.1.19): one-call triage and bounded batch inspection, so an agent does not page
     # projects -> issues -> inspect for every candidate before it can name the next action.
