@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T17:10:46Z",
-      "now": "2026-11-24T17:10:46Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-24T17:22:19Z",
+      "now": "2026-11-24T17:22:19Z — Install in progress"
     },
     "rollover": {
       "source_pr": 121,
@@ -12275,7 +12275,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T17:10:46Z",
+    "last_written_at": "2026-11-24T17:22:19Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12579,7 +12579,8 @@
     "stages_reached": [
       "collect",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "cycle": 14,
@@ -12594,10 +12595,10 @@
           "label": "106",
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "parked_to": 2,
-          "stage_entered_at": "2026-11-24T17:02:34Z",
+          "stage_entered_at": "2026-11-24T17:22:19Z",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -12678,27 +12679,31 @@
           ],
           "codex": {
             "job": {
-              "id": "23bd5601d6854e11b476a372101da91a",
-              "phase": "review",
-              "started_at": "2026-11-24T17:02:57Z",
-              "command": "python3",
-              "heartbeat_at": "2026-11-24T17:02:58Z",
-              "plan_sha256": "b4c874b16e20834519f04f548fc0d27cd11a6ad3086906f3d5b800c153a5f49d",
+              "id": "d0cd489ae6224db5a794b1719cdaf928",
+              "phase": "presuite",
+              "started_at": "2026-11-24T17:16:34Z",
+              "command": "run-presuite-r1.sh",
+              "heartbeat_at": "2026-11-24T17:19:35Z",
+              "plan_sha256": "e58d368a33848b61c4968d10f8cc39c4982d78bf926e4907ed079251417da40b",
               "finding_ids": [
-                "BCL-106"
+                "BCL-106",
+                "BCL-171",
+                "PR122-r1-release-deadlock"
               ],
               "worktree": "samantha-next-r12",
-              "model": "Grok Bot subagent",
-              "lane_sha256": "8fce01dcf04720e5b9f9f690ebbcccabe8bd822b178923227630afded4e80783",
+              "lane_sha256": "8d576d40deea23ac0fdb102d804683869846403067f8a1ea39f5635e3b86a2d1",
               "cycle": 14,
               "round": 2,
-              "pid": 21477,
+              "pid": 47680,
               "exit_code": 0,
-              "finished_at": "2026-11-24T17:02:58Z",
+              "finished_at": "2026-11-24T17:19:35Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/d0cd489ae6224db5a794b1719cdaf928.log",
+              "output_retained": true,
               "tokens_source": "none",
               "tokens": null,
-              "wall_time_s": 1,
-              "session": "grokbot-122-r2-106",
+              "wall_time_s": 181,
+              "session": "grokbot-122-r2-deadlock",
+              "gap": "no model recorded",
               "finished_phase_status": "passed"
             },
             "jobs": [
@@ -12726,6 +12731,58 @@
                 "session": "grokbot-122-r2-106",
                 "finished_phase_status": "incomplete",
                 "must_fix": "Review incomplete: strict verdict or Must-fix section missing"
+              },
+              {
+                "id": "23bd5601d6854e11b476a372101da91a",
+                "phase": "review",
+                "started_at": "2026-11-24T17:02:57Z",
+                "command": "python3",
+                "heartbeat_at": "2026-11-24T17:02:58Z",
+                "plan_sha256": "b4c874b16e20834519f04f548fc0d27cd11a6ad3086906f3d5b800c153a5f49d",
+                "finding_ids": [
+                  "BCL-106"
+                ],
+                "worktree": "samantha-next-r12",
+                "model": "Grok Bot subagent",
+                "lane_sha256": "8fce01dcf04720e5b9f9f690ebbcccabe8bd822b178923227630afded4e80783",
+                "cycle": 14,
+                "round": 2,
+                "pid": 21477,
+                "exit_code": 0,
+                "finished_at": "2026-11-24T17:02:58Z",
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 1,
+                "session": "grokbot-122-r2-106",
+                "finished_phase_status": "passed"
+              },
+              {
+                "id": "818ef550b24646018726aafc3fa583db",
+                "phase": "presuite",
+                "started_at": "2026-11-24T17:11:34Z",
+                "command": "run-presuite-r1.sh",
+                "heartbeat_at": "2026-11-24T17:14:34Z",
+                "plan_sha256": "e58d368a33848b61c4968d10f8cc39c4982d78bf926e4907ed079251417da40b",
+                "finding_ids": [
+                  "BCL-106",
+                  "BCL-171",
+                  "PR122-r1-release-deadlock"
+                ],
+                "worktree": "samantha-next-r12",
+                "lane_sha256": "8d576d40deea23ac0fdb102d804683869846403067f8a1ea39f5635e3b86a2d1",
+                "cycle": 14,
+                "round": 2,
+                "pid": 32329,
+                "exit_code": 0,
+                "finished_at": "2026-11-24T17:14:34Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/818ef550b24646018726aafc3fa583db.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 180,
+                "session": "grokbot-122-r2-deadlock",
+                "gap": "no model recorded",
+                "finished_phase_status": "passed"
               }
             ],
             "fix_status": "passed",
@@ -12734,7 +12791,24 @@
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T17:04:16Z"
+          "updated_at": "2026-11-24T17:22:09Z",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh",
+            "method": "Run verify_driver tests plus driver self-test and cleanup-keeps-pass bcl tests.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T17:19:35Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T17:22:19Z"
+          }
         },
         {
           "id": "R4-171",
@@ -12745,10 +12819,10 @@
           "label": "171",
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "parked_to": 2,
-          "stage_entered_at": "2026-11-24T17:03:06Z",
+          "stage_entered_at": "2026-11-24T17:22:19Z",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -12829,35 +12903,110 @@
           ],
           "codex": {
             "job": {
-              "id": "91d160dd07524c229ef70a786630a632",
-              "phase": "review",
-              "started_at": "2026-11-24T17:03:06Z",
-              "command": "python3",
-              "heartbeat_at": "2026-11-24T17:03:07Z",
-              "plan_sha256": "b4c874b16e20834519f04f548fc0d27cd11a6ad3086906f3d5b800c153a5f49d",
+              "id": "d0cd489ae6224db5a794b1719cdaf928",
+              "phase": "presuite",
+              "started_at": "2026-11-24T17:16:34Z",
+              "command": "run-presuite-r1.sh",
+              "heartbeat_at": "2026-11-24T17:19:35Z",
+              "plan_sha256": "e58d368a33848b61c4968d10f8cc39c4982d78bf926e4907ed079251417da40b",
               "finding_ids": [
-                "BCL-171"
+                "BCL-106",
+                "BCL-171",
+                "PR122-r1-release-deadlock"
               ],
               "worktree": "samantha-next-r12",
-              "model": "Grok Bot subagent",
-              "lane_sha256": "92a6fb4fba96ad44c4aabb0b207b55c272127b6502e7e98394d78033725bd0b8",
+              "lane_sha256": "9e9abba2384f1bdeec6f20d9a733fc8c8685c924741d93addc2d353bd17fdd68",
               "cycle": 14,
               "round": 2,
-              "pid": 21735,
+              "pid": 47680,
               "exit_code": 0,
-              "finished_at": "2026-11-24T17:03:07Z",
+              "finished_at": "2026-11-24T17:19:35Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/d0cd489ae6224db5a794b1719cdaf928.log",
+              "output_retained": true,
               "tokens_source": "none",
               "tokens": null,
-              "wall_time_s": 1,
-              "session": "grokbot-122-r2-171",
+              "wall_time_s": 181,
+              "session": "grokbot-122-r2-deadlock",
+              "gap": "no model recorded",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "review_status": "passed",
             "reviewer_model": "Grok Bot subagent",
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "91d160dd07524c229ef70a786630a632",
+                "phase": "review",
+                "started_at": "2026-11-24T17:03:06Z",
+                "command": "python3",
+                "heartbeat_at": "2026-11-24T17:03:07Z",
+                "plan_sha256": "b4c874b16e20834519f04f548fc0d27cd11a6ad3086906f3d5b800c153a5f49d",
+                "finding_ids": [
+                  "BCL-171"
+                ],
+                "worktree": "samantha-next-r12",
+                "model": "Grok Bot subagent",
+                "lane_sha256": "92a6fb4fba96ad44c4aabb0b207b55c272127b6502e7e98394d78033725bd0b8",
+                "cycle": 14,
+                "round": 2,
+                "pid": 21735,
+                "exit_code": 0,
+                "finished_at": "2026-11-24T17:03:07Z",
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 1,
+                "session": "grokbot-122-r2-171",
+                "finished_phase_status": "passed"
+              },
+              {
+                "id": "818ef550b24646018726aafc3fa583db",
+                "phase": "presuite",
+                "started_at": "2026-11-24T17:11:34Z",
+                "command": "run-presuite-r1.sh",
+                "heartbeat_at": "2026-11-24T17:14:34Z",
+                "plan_sha256": "e58d368a33848b61c4968d10f8cc39c4982d78bf926e4907ed079251417da40b",
+                "finding_ids": [
+                  "BCL-106",
+                  "BCL-171",
+                  "PR122-r1-release-deadlock"
+                ],
+                "worktree": "samantha-next-r12",
+                "lane_sha256": "9e9abba2384f1bdeec6f20d9a733fc8c8685c924741d93addc2d353bd17fdd68",
+                "cycle": 14,
+                "round": 2,
+                "pid": 32329,
+                "exit_code": 0,
+                "finished_at": "2026-11-24T17:14:34Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/818ef550b24646018726aafc3fa583db.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 180,
+                "session": "grokbot-122-r2-deadlock",
+                "gap": "no model recorded",
+                "finished_phase_status": "passed"
+              }
+            ]
           },
-          "updated_at": "2026-11-24T17:04:16Z"
+          "updated_at": "2026-11-24T17:22:09Z",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh",
+            "method": "Run collect_observability path-coverage tests and discover_project resolved path test.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T17:19:35Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T17:22:19Z"
+          }
         },
         {
           "id": "R2-DEADLOCK",
@@ -12874,8 +13023,8 @@
             "plugins/batched-change-list/skills/batched-change-list/references/review.md"
           ],
           "reason": "Park overflow lanes in one batch and carry a finished fix into review next round.",
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
             "method": "Run the manage_findings tests for batch parking and carried review entry.",
@@ -12889,37 +13038,131 @@
             "reviewer_session": "grokbot-122-r2-deadlock-review",
             "fix_status": "passed",
             "job": {
-              "id": "8d15ca97a96244dc9f9eb14986356936",
-              "phase": "fix",
-              "started_at": "2026-11-24T17:08:46Z",
-              "command": "commit-deadlock.sh",
-              "heartbeat_at": "2026-11-24T17:08:47Z",
+              "id": "d0cd489ae6224db5a794b1719cdaf928",
+              "phase": "presuite",
+              "started_at": "2026-11-24T17:16:34Z",
+              "command": "run-presuite-r1.sh",
+              "heartbeat_at": "2026-11-24T17:19:35Z",
               "plan_sha256": "e58d368a33848b61c4968d10f8cc39c4982d78bf926e4907ed079251417da40b",
               "finding_ids": [
+                "BCL-106",
+                "BCL-171",
                 "PR122-r1-release-deadlock"
               ],
               "worktree": "samantha-next-r12",
               "lane_sha256": "a460c2a07fc2cafdc025f1af7d1f10f698ece02bfe80319254ccea42112c1c31",
               "cycle": 14,
               "round": 2,
-              "pid": 29071,
+              "pid": 47680,
               "exit_code": 0,
-              "finished_at": "2026-11-24T17:08:47Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/8d15ca97a96244dc9f9eb14986356936.log",
+              "finished_at": "2026-11-24T17:19:35Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/d0cd489ae6224db5a794b1719cdaf928.log",
               "output_retained": true,
               "tokens_source": "none",
               "tokens": null,
-              "wall_time_s": 1,
+              "wall_time_s": 181,
               "session": "grokbot-122-r2-deadlock",
               "gap": "no model recorded",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "8d15ca97a96244dc9f9eb14986356936",
+                "phase": "fix",
+                "started_at": "2026-11-24T17:08:46Z",
+                "command": "commit-deadlock.sh",
+                "heartbeat_at": "2026-11-24T17:08:47Z",
+                "plan_sha256": "e58d368a33848b61c4968d10f8cc39c4982d78bf926e4907ed079251417da40b",
+                "finding_ids": [
+                  "PR122-r1-release-deadlock"
+                ],
+                "worktree": "samantha-next-r12",
+                "lane_sha256": "a460c2a07fc2cafdc025f1af7d1f10f698ece02bfe80319254ccea42112c1c31",
+                "cycle": 14,
+                "round": 2,
+                "pid": 29071,
+                "exit_code": 0,
+                "finished_at": "2026-11-24T17:08:47Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/8d15ca97a96244dc9f9eb14986356936.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 1,
+                "session": "grokbot-122-r2-deadlock",
+                "gap": "no model recorded",
+                "finished_phase_status": "passed"
+              },
+              {
+                "id": "7021cda0575644e68e736d0787b6abf3",
+                "phase": "review",
+                "started_at": "2026-11-24T17:10:47Z",
+                "command": "python3",
+                "heartbeat_at": "2026-11-24T17:10:47Z",
+                "plan_sha256": "e58d368a33848b61c4968d10f8cc39c4982d78bf926e4907ed079251417da40b",
+                "finding_ids": [
+                  "PR122-r1-release-deadlock"
+                ],
+                "worktree": "samantha-next-r12",
+                "lane_sha256": "a460c2a07fc2cafdc025f1af7d1f10f698ece02bfe80319254ccea42112c1c31",
+                "cycle": 14,
+                "round": 2,
+                "pid": 31197,
+                "exit_code": 0,
+                "finished_at": "2026-11-24T17:10:47Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/7021cda0575644e68e736d0787b6abf3.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 0,
+                "session": "grokbot-122-r2-deadlock",
+                "gap": "no model recorded",
+                "finished_phase_status": "passed"
+              },
+              {
+                "id": "818ef550b24646018726aafc3fa583db",
+                "phase": "presuite",
+                "started_at": "2026-11-24T17:11:34Z",
+                "command": "run-presuite-r1.sh",
+                "heartbeat_at": "2026-11-24T17:14:34Z",
+                "plan_sha256": "e58d368a33848b61c4968d10f8cc39c4982d78bf926e4907ed079251417da40b",
+                "finding_ids": [
+                  "BCL-106",
+                  "BCL-171",
+                  "PR122-r1-release-deadlock"
+                ],
+                "worktree": "samantha-next-r12",
+                "lane_sha256": "a460c2a07fc2cafdc025f1af7d1f10f698ece02bfe80319254ccea42112c1c31",
+                "cycle": 14,
+                "round": 2,
+                "pid": 32329,
+                "exit_code": 0,
+                "finished_at": "2026-11-24T17:14:34Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/30f5ef15221794a410a9bd32c3ab0cc6d65a92f4e9f0e23d47a2e1869d0f4db7/jobs/818ef550b24646018726aafc3fa583db.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 180,
+                "session": "grokbot-122-r2-deadlock",
+                "gap": "no model recorded",
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "passed"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-24T17:04:16Z",
-          "stage_entered_at": "2026-11-24T17:08:47Z"
+          "stage_entered_at": "2026-11-24T17:22:19Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T17:19:35Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T17:22:19Z"
+          }
         },
         {
           "id": "R1-GUARD",
