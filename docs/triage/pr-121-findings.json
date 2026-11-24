@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T10:03:39Z",
-      "now": "2026-11-24T10:03:39Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-24T10:17:01Z",
+      "now": "2026-11-24T10:17:01Z — Review started"
     },
     "rollover": {
       "source_pr": 120,
@@ -12185,7 +12185,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T10:03:39Z",
+    "last_written_at": "2026-11-24T10:17:01Z",
     "fix_order": {
       "ids": [
         "DO-11",
@@ -12447,7 +12447,8 @@
     "stages_reached": [
       "collect",
       "present",
-      "plan_fix"
+      "plan_fix",
+      "review"
     ],
     "plan": {
       "cycle": 13,
@@ -12461,8 +12462,8 @@
             "DO-11"
           ],
           "worktree": "bcl121-r1-do11",
-          "status": "planned",
-          "phase": "fix",
+          "status": "deferred",
+          "phase": "deferred",
           "files": [
             "plugins/developer-observability/runtime/backend/round_view.py",
             "plugins/developer-observability/ui/round-view.js",
@@ -12471,7 +12472,7 @@
             "plugins/developer-observability/tests/test_round_view.py",
             "plugins/developer-observability/tests/test_mcp.py"
           ],
-          "reason": "The first ship left eight row-polish notes that belong in one viewer lane.",
+          "reason": "Guru withdrew pass-5 sign-off",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do11.sh",
             "method": "Run the per-round view unit tests that cover own-job why, verified tracks, and hidden cache paths.",
@@ -12482,8 +12483,29 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T10:03:39Z",
-          "stage_entered_at": "2026-11-24T10:03:39Z"
+          "updated_at": "2026-11-24T10:15:23Z",
+          "stage_entered_at": "2026-11-24T10:15:23Z",
+          "codex": {
+            "fix_status": "passed",
+            "job": {
+              "id": "36c88fb4da884f0899c09a9f076c35ef",
+              "phase": "fix",
+              "started_at": "2026-11-24T10:09:23Z",
+              "command": "run-fix-do11.sh",
+              "heartbeat_at": "2026-11-24T10:09:24Z",
+              "plan_sha256": "fc8d5205eb091ddc8eb0bf67f595930b147504389aa53fec009783b73c9e87cb",
+              "worktree": "bcl121-r1-do11",
+              "model": "existing bae7f221 tests",
+              "cycle": 13,
+              "round": 1,
+              "pid": 15911,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T10:09:24Z",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
+          },
+          "parked_to": 2
         },
         {
           "id": "R1-DO5",
@@ -12493,8 +12515,8 @@
             "DO-5"
           ],
           "worktree": "bcl121-r1-do5",
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
             "plugins/batched-change-list/bin/bcl"
@@ -12510,8 +12532,27 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T10:03:39Z",
-          "stage_entered_at": "2026-11-24T10:03:39Z"
+          "updated_at": "2026-11-24T10:17:00Z",
+          "stage_entered_at": "2026-11-24T10:11:18Z",
+          "codex": {
+            "fix_status": "passed",
+            "job": {
+              "id": "c8fbea22168a49a3a2073b71176130bd",
+              "phase": "review",
+              "started_at": "2026-11-24T10:17:01Z",
+              "command": "run-record-do5.sh",
+              "heartbeat_at": "2026-11-24T10:17:01Z",
+              "plan_sha256": "d91698ebc5fc3d4dc3120caa72331f7098f7d16e36217ccfd605a9671e3741f3",
+              "worktree": "bcl121-r1-do5",
+              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "cycle": 13,
+              "round": 1
+            },
+            "tool_fault_streak": 0,
+            "implementer_session": "01a20d08-1bde-7553-90ec-6b8dc296b684",
+            "review_status": "running",
+            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
+          }
         },
         {
           "id": "R1-GATE",
@@ -12521,8 +12562,8 @@
             "PR120-r6-gate-denominator"
           ],
           "worktree": "bcl121-r1-gate",
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/check_gate_count.py"
           ],
@@ -12537,8 +12578,29 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T10:03:39Z",
-          "stage_entered_at": "2026-11-24T10:03:39Z"
+          "updated_at": "2026-11-24T10:17:00Z",
+          "stage_entered_at": "2026-11-24T10:12:43Z",
+          "codex": {
+            "fix_status": "passed",
+            "job": {
+              "id": "838fd404ea81412abc08198939e82412",
+              "phase": "fix",
+              "started_at": "2026-11-24T10:09:24Z",
+              "command": "run-luna-gate.sh",
+              "heartbeat_at": "2026-11-24T10:12:43Z",
+              "plan_sha256": "fc8d5205eb091ddc8eb0bf67f595930b147504389aa53fec009783b73c9e87cb",
+              "worktree": "bcl121-r1-gate",
+              "model": "gpt-6-luna fast medium",
+              "cycle": 13,
+              "round": 1,
+              "pid": 16101,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T10:12:43Z",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0,
+            "implementer_session": "01a20d08-1d3a-7f90-ae8b-f9ec14ce3b9f"
+          }
         },
         {
           "id": "R1-DO7",
@@ -12548,8 +12610,8 @@
             "DO-7"
           ],
           "worktree": "bcl121-r1-do7",
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py"
           ],
@@ -12564,8 +12626,29 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T10:03:39Z",
-          "stage_entered_at": "2026-11-24T10:03:39Z"
+          "updated_at": "2026-11-24T10:17:00Z",
+          "stage_entered_at": "2026-11-24T10:14:53Z",
+          "codex": {
+            "fix_status": "passed",
+            "job": {
+              "id": "bb7d114920a54dc0b30adf5e52346ad4",
+              "phase": "fix",
+              "started_at": "2026-11-24T10:09:24Z",
+              "command": "run-luna-do7.sh",
+              "heartbeat_at": "2026-11-24T10:14:53Z",
+              "plan_sha256": "fc8d5205eb091ddc8eb0bf67f595930b147504389aa53fec009783b73c9e87cb",
+              "worktree": "bcl121-r1-do7",
+              "model": "gpt-6-luna fast medium",
+              "cycle": 13,
+              "round": 1,
+              "pid": 16139,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T10:14:53Z",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0,
+            "implementer_session": "01a20d08-1e22-7a61-8576-03d112b1e6fd"
+          }
         },
         {
           "id": "R4-106",
@@ -13287,17 +13370,16 @@
       "done_when": "A localhost page on the Mini uses one fixed port per project, never the reserved Samantha port, and reuses the existing MCP App page and backend with no second UI. It shows what happened in each round, pull request, stage and lane or job, plus findings, tokens and coverage gaps. Filters combine: round, pull request, stage, plugin, kind, status, since and until. Disclosure is summary, then lane, then evidence. Text is 14 to 16 pixels or larger, with zoom and text-size controls, and the browser's own zoom is never blocked. The live Mini URL is recorded.",
       "observed": "24 Nov 2026 12:37 IST, Asia/Calcutta. Guru approved a local browser viewer. After DO-3 the dashboard is still only the MCP App resource on the stdio server; there is no localhost page and no saved port per project.",
       "recommendation": "Serve the existing dashboard and backend on the loopback interface with one saved port per project, like the change-list viewer, and never bind the reserved Samantha port.",
-      "status": "verified_fixed",
+      "status": "failing",
       "details": {
         "related_to_DO-3": "DO-3 is verified and closed; it added the per-round filters and MCP App UI. This is the missing local HTTP viewer, not a second UI or a new filter API. On 24 Nov 2026 12:39 IST, add --into DO-3 was refused because that finding is closed, so this was added as new.",
         "Technical wording": "Reuse ui/app.js and ObservabilityAPI. Serve 127.0.0.1. Never bind port 8765. Do not touch pid 1338 or ~/.cache/macos-cua/samantha-activity.jsonl.",
-        "MCP resource today": "The dashboard is only ui://developer-observability/dashboard on the stdio MCP server."
+        "MCP resource today": "The dashboard is only ui://developer-observability/dashboard on the stdio MCP server.",
+        "Guru rejection": "On 24 November 2026 mid-afternoon IST Asia/Calcutta, Guru found the list 121 page not understandable: no issue list, unclear project, pull request, cycle and round scope, a repeated no-lanes message, twenty-nine untested items with no list, and unknown bars. The pass-five sign-off was withdrawn. The issue stays open and will be re-planned from the issues-first v2 spec when that spec exists."
       },
       "created_at": "2026-11-24T07:10:26Z",
-      "verification": "The local per-round page was reviewed and is accepted, with only polish follow-ups left.",
-      "verification_refs": [
-        "a7071850:DO-4:ux-pass-5"
-      ],
+      "verification": "Guru rejected the page: it is not understandable, so the earlier sign-off is withdrawn.",
+      "verification_refs": [],
       "verification_evidence": [
         {
           "checked": "The local per-round page for this project after the latest viewer fix",
