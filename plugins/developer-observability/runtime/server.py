@@ -27,7 +27,7 @@ class AppsExtension(Extension):
         return {'mimeTypes': ['text/html;profile=mcp-app']}
 
 
-server = MCPServer('developer-observability', extensions=[AppsExtension()], version='0.1.34', instructions=(
+server = MCPServer('developer-observability', extensions=[AppsExtension()], version='0.1.38', instructions=(
     'Start with observability_tasks or observability_task for what happened in a task; '
     'start with observability_diagnose for triage and selected issue evidence. '
     'If findings are missing or stale, call observability_collect once, then repeat diagnosis. '
@@ -91,7 +91,10 @@ def invoke(method, *args, **kwargs):
         allowed = ('backend_unavailable', 'unknown_project', 'invalid_limit', 'invalid_status', 'snapshot_changed',
                    'issue_not_in_project', 'unsupported_recommendation_scope', 'invalid_operation',
                    'recommendation_failed', 'snapshot_changed_or_stale', 'invalid_state', 'invalid_question', 'decider_unavailable',
-                   'invalid_kind', 'invalid_issue_ids', 'invalid_diagnosis', 'invalid_version_scope', 'version_scope_unavailable', 'collector_failed', 'invalid_session_ref', 'session_not_in_project', 'invalid_diagnostics', 'invalid_task_status', 'invalid_task_ref', 'invalid_cursor')
+                   'invalid_kind', 'invalid_change_class', 'invalid_since', 'invalid_until', 'invalid_time_window',
+                   'invalid_issue_ids', 'invalid_diagnosis', 'invalid_version_scope', 'version_scope_unavailable',
+                   'collector_failed', 'invalid_session_ref', 'session_not_in_project', 'invalid_diagnostics',
+                   'invalid_task_status', 'invalid_task_ref', 'invalid_cursor')
         message = code if code in allowed else 'backend_or_decision_failed'
         payload = {'error': message, 'next_step': NEXT_STEPS.get(
             code, 'Check configured backend and snapshot/Decider health; refresh projects before retrying. No fallback decision was made.')}
@@ -137,9 +140,13 @@ def observability_sessions(project_id: str, session_ref: str | None = None,
 @track
 def observability_issues(project_id: str, status: str = 'all', cursor: str | None = None, limit: int = 20,
                          kind: str = 'all', version: str | None = None, attribution: str | None = None,
-                         include_coverage: bool = False) -> CallToolResult:
-    """List project issues. Optional version and attribution select an observed scope; cursors are bound to scope and snapshot. Omit both for historical aggregates."""
-    return invoke('issues', project_id, status, cursor, limit, kind, version, attribution, include_coverage)
+                         include_coverage: bool = False, pull_request: str | None = None,
+                         round: str | None = None, stage: str | None = None, plugin: str | None = None,
+                         change_class: str | None = None, since: str | None = None,
+                         until: str | None = None) -> CallToolResult:
+    """List project issues. Filters combine and cursors stay bound to the full query and snapshot."""
+    return invoke('issues', project_id, status, cursor, limit, kind, version, attribution, include_coverage,
+                  pull_request, round, stage, plugin, change_class, since, until)
 
 
 @server.tool(annotations=READ)

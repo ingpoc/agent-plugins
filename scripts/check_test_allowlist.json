@@ -56,6 +56,14 @@
       "reason": "live probe of the installed Comet Control under a minimal env; opt-in via VOICE_CUA_LIVE_COMET=1"
     },
     {
+      "id": "test_collector.CollectorTests.test_git_state_handles_invalid_utf8_expected_path",
+      "reason": "filesystem may refuse invalid UTF-8 filenames, so the byte-path collector case cannot run"
+    },
+    {
+      "id": "test_collector.CollectorTests.test_git_state_counts_invalid_utf8_source_path",
+      "reason": "filesystem may refuse invalid UTF-8 filenames, so the byte-path collector case cannot run"
+    },
+    {
       "id": "test_install_release.InstallReleaseTests.test_icns_built_by_iconutil",
       "when": "platform != darwin",
       "reason": "iconutil ships only with macOS; the icns build is proven on the Mini check"

@@ -19,6 +19,7 @@ if str(RUNTIME) not in sys.path:
 from collector.analyze import ACTIVE_WINDOW_H, HOTSPOT_MS, TEST_HOTSPOT_MS, build  # noqa: E402
 from collector.sources import iter_spec, known_sources, ref  # noqa: E402
 from collector import retention  # noqa: E402
+from collector import bcl_events  # noqa: E402
 
 DEFAULT_OUT = '~/.local/share/developer-observability/collected'
 DEFAULT_CONFIG = '~/.config/developer-observability/config.json'
@@ -127,6 +128,7 @@ def collect(specs, out, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H,
     def events():
         for spec in specs:
             yield from iter_spec(spec, stats)
+        yield from bcl_events.iter_events(stats)
 
     collected = list(events())
     out = Path(out).expanduser()
@@ -161,6 +163,8 @@ def collect(specs, out, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H,
             'mirrored_events': sum(item.get('mirrors', 0) for item in stats.values()),
             'include_tests': include_tests,
             'events': event_count, 'sources': len(stats),
+            'bcl_jobs': stats.get('bcl_events', {'jobs': 0, 'covered': 0, 'coverage': '0/0', 'gaps': [], 'tokens': 0,
+                                                 'incomplete': 0, 'failed_starts': 0}),
             'runtime_ms': int((time.perf_counter() - started) * 1000), 'peak_rss_mb': _peak_rss_mb(),
             'generated_at': document['generated_at'],
             **({'pruned': {k: pruned[k] for k in ('moved', 'bytes', 'capped') if k in pruned},

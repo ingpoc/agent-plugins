@@ -22,6 +22,7 @@ if not BCL.is_file():
 EXAMPLE = PLUGIN / "skills/batched-change-list/examples/findings.json"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import live_state
+import tracker_lock
 import viewer_test_guard
 import check_introspect
 loader = SourceFileLoader("bcl_entrypoint", str(BCL))
@@ -36,6 +37,97 @@ def tearDownModule():
     viewer_test_guard.assert_no_viewers(viewer_test_guard.TEMP_ROOTS)
 
 class BclTests(unittest.TestCase):
+    def _prepare_review_plan(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        document = json.loads(self.data.read_text())
+        document["findings"][0]["status"] = "in_progress"
+        document["tracking"].update(stages_reached=["collect", "plan_fix", "review"],
+            workflow={"stage": "review", "updated_at": bcl_entrypoint._utc_now()}, cycle=1,
+            plan={"cycle": 1, "round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "review",
+                "phase": "review", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer",
+                    "fix_status": "passed"}}]})
+        prepared = json.dumps(document).encode()
+        live.write_bytes(prepared)
+        self.data.write_bytes(prepared)
+        return live, prepared
+
+    def test_job_stamp_is_create_only_and_bound_to_open_codex_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = Path(tmp) / "sessions"
+            sessions.mkdir()
+            first = sessions / "first.jsonl"
+            second = sessions / "second.jsonl"
+            first.write_text("{}\n"); second.write_text("{}\n")
+            with patch.object(bcl_entrypoint, "_process_rows", return_value=[(41, 1, 41, "codex")]), \
+                 patch.object(bcl_entrypoint.subprocess, "check_output", return_value=f"p41\nn{first}\n"):
+                self.assertEqual(bcl_entrypoint._session_files(41, sessions), [first.resolve()])
+            self.assertTrue(bcl_entrypoint._stamp_session(first, "job-a"))
+            self.assertFalse(bcl_entrypoint._stamp_session(first, "job-b"))
+            self.assertTrue(bcl_entrypoint._stamp_session(first, "job-a"))
+            self.assertEqual(Path(str(first) + ".bcl-job").read_text().strip(), "job-a")
+            self.assertFalse(Path(str(second) + ".bcl-job").exists())
+
+    def test_last_verdict_block_never_falls_back_to_earlier_pass(self):
+        text = "log\nVERDICT: PASS\n## Must-fix\nnone\nVERDICT: CHANGES\n## Notes\ncut off"
+        self.assertEqual(bcl_entrypoint._last_verdict_block(text), "VERDICT: CHANGES\n## Notes\ncut off\n")
+
+    def test_job_does_not_close_pipe_while_escaped_descendant_retains_it(self):
+        self._prepare_review_plan()
+        result = self.root / "retained-pipe.txt"
+        script = ("import os,time; pid=os.fork(); "
+                  "(os.setsid(), time.sleep(8), os._exit(0)) if pid == 0 else os._exit(0)")
+        started = time.monotonic()
+        job = self.call_job_without_viewer(self.data, "--ids", "ISSUE-01", "--result", result,
+            "--phase", "review", "job", "--", sys.executable, "-c", script)
+        self.assertLess(time.monotonic() - started, 6, job.stderr)
+        self.assertEqual(job.returncode, 1, job.stdout + job.stderr)
+
+    def test_review_verdict_order_across_streams_and_malformed_result_fallback(self):
+        live, prepared = self._prepare_review_plan()
+        result = self.root / "stream-order-result.txt"
+        cases = [
+            ("earlier stderr CHANGES then later stdout PASS", "changes", "pass", "passed", 0),
+            ("earlier stdout PASS then later stderr CHANGES", "pass", "changes", "changes_requested", 1),
+        ]
+        for label, earlier, later, expected, code in cases:
+            with self.subTest(label=label):
+                live.write_bytes(prepared); self.data.write_bytes(prepared)
+                result.unlink(missing_ok=True)
+                first_stream = "sys.stderr" if earlier == "changes" else "sys.stdout"
+                last_stream = "sys.stderr" if later == "changes" else "sys.stdout"
+                replies = {"changes": "VERDICT: CHANGES\n## Must-fix\n- issue\n",
+                           "pass": "VERDICT: PASS\n## Must-fix\nnone\n"}
+                earlier_reply, later_reply = replies[earlier], replies[later]
+                script = ("import sys,time; "
+                    f"print({earlier_reply!r}, end='', file={first_stream}, flush=True); time.sleep(.2); "
+                    f"print({later_reply!r}, end='', file={last_stream}, flush=True)")
+                job = self.call_job_without_viewer(self.data, "--ids", "ISSUE-01", "--result", result,
+                    "--phase", "review", "job", "--", sys.executable, "-c", script)
+                group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
+                self.assertEqual(job.returncode, code, f"{job.stdout}{job.stderr}\n{group['codex']}")
+                self.assertEqual(group["codex"]["review_status"], expected)
+
+        live.write_bytes(prepared); self.data.write_bytes(prepared)
+        result.unlink(missing_ok=True)
+        malformed = "VERDICT: PASS\n## Must-fix\n- not allowed for PASS\n"
+        valid = "VERDICT: PASS\n## Must-fix\nnone\n"
+        script = ("from pathlib import Path; import sys; "
+                  f"Path({str(result)!r}).write_text({malformed!r}); "
+                  f"print({valid!r}, end='', flush=True)")
+        job = self.call_job_without_viewer(self.data, "--ids", "ISSUE-01", "--result", result,
+            "--phase", "review", "job", "--", sys.executable, "-c", script)
+        self.assertEqual(job.returncode, 0, job.stdout + job.stderr)
+        self.assertEqual(json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["codex"]["review_status"], "passed")
+
+    def test_bcl179_fresh_worktree_name_replaces_one_round_marker(self):
+        for old, expected in (("bcl120-r2-do1", "bcl120-r3-do1"),
+                              ("bcl120-r2", "bcl120-r3"),
+                              ("bcl120-r2-r2", "bcl120-r3-r2"),
+                              ("bcl120", "bcl120-r3")):
+            with self.subTest(old=old):
+                self.assertEqual(bcl_entrypoint._fresh_worktree_name(old, 3), expected)
+
     def test_plugin_root_stays_inside_plugin_or_installed(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); plugin = root / "plugins/batched-change-list"
@@ -154,6 +246,174 @@ elif args[:2] != ['pr', 'edit']:
             self.cleanup_viewers()
             proc.wait(timeout=5)
         self.assertFalse(live_state._pid_is_running(proc.pid), "orphan process still running")
+
+    def _live_record(self):
+        record = next(iter(json.loads((self.state / "registry.json").read_text()).values()))
+        return record, Path(record["live"])
+
+    def _run_snapshot(self, live, timeout=5, extra=()):
+        return subprocess.run(
+            [sys.executable, str(BCL), "--data", str(live), *map(str, extra), "snapshot"],
+            env=self.env, capture_output=True, text=True, timeout=timeout,
+        )
+
+    def _pending_edit(self, live, text="pending-snapshot-edit-BCL-142"):
+        document = json.loads(live.read_text())
+        document["findings"][0]["description"] = text
+        live.write_text(json.dumps(document))
+        marker = live.with_suffix(".unsnapshotted")
+        marker.write_text(__import__("hashlib").sha256(live.read_bytes()).hexdigest() + "\n")
+        return marker, text
+
+    def test_snapshot_pending_save(self):
+        record, live = self._live_record()
+        baseline = self.git(self.home, "rev-parse", "HEAD").stdout.strip()
+        marker, edit = self._pending_edit(live)
+        unrelated = self.home / "unrelated-bcl-142.txt"
+        unrelated.write_text("staged but unrelated\n")
+        self.git(self.home, "add", "--", str(unrelated))
+        result = self.call_without_viewer("snapshot", live)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        after = self.git(self.home, "rev-parse", "HEAD").stdout.strip()
+        self.assertNotEqual(after, baseline)
+        self.assertEqual(self.git(self.home, "rev-list", "--count", f"{baseline}..HEAD").stdout.strip(), "1")
+        committed = self.git(self.home, "show", f"HEAD:{record['snapshot']}").stdout
+        self.assertEqual(committed.encode(), live.read_bytes())
+        html = self.git(self.home, "show", f"HEAD:{record['html']}").stdout
+        self.assertIn(edit, html)
+        staged = self.git(self.home, "diff", "--cached", "--name-only").stdout
+        self.assertIn(unrelated.name, staged)
+        self.assertFalse(marker.exists())
+        again = self.call_without_viewer("snapshot", live)
+        self.assertEqual(again.returncode, 0, again.stderr)
+        self.assertIn("nothing to save", again.stdout)
+        self.assertEqual(self.git(self.home, "rev-parse", "HEAD").stdout.strip(), after)
+        marker.write_text("pending\n")
+        already = self.call_without_viewer("snapshot", live)
+        self.assertEqual(already.returncode, 0, already.stderr)
+        self.assertIn("already saved", already.stdout)
+        self.assertEqual(self.git(self.home, "rev-parse", "HEAD").stdout.strip(), after)
+        self.assertFalse(marker.exists())
+
+    def test_snapshot_rejects_draft(self):
+        record, live = self._live_record()
+        marker, _ = self._pending_edit(live)
+        before = self.git(self.home, "rev-parse", "HEAD").stdout.strip()
+        draft = self.root / "snapshot-draft.json"
+        draft.write_text("{}\n")
+        result = self.call_without_viewer("snapshot", live, "--draft", str(draft))
+        self.assertEqual(result.returncode, 2, result.stderr + result.stdout)
+        self.assertEqual(self.git(self.home, "rev-parse", "HEAD").stdout.strip(), before)
+        self.assertTrue(marker.exists())
+
+    def test_snapshot_guard_contention(self):
+        record, live = self._live_record()
+        marker, _ = self._pending_edit(live)
+        before = self.git(self.home, "rev-parse", "HEAD").stdout.strip()
+        before_json = (self.home / record["snapshot"]).read_bytes() if (self.home / record["snapshot"]).exists() else b""
+        before_html = (self.home / record["html"]).read_bytes() if (self.home / record["html"]).exists() else b""
+        locks = (
+            ("home", live_state.snapshot_lock_path(record["home"])),
+            ("tracker", tracker_lock.tracker_lock_path(live)),
+        )
+        for name, path in locks:
+            with self.subTest(lock=name):
+                with tracker_lock.exclusive_lock(path):
+                    result = self._run_snapshot(live, timeout=5)
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertIn("busy", result.stderr)
+                    self.assertTrue(marker.exists())
+                    self.assertEqual(self.git(self.home, "rev-parse", "HEAD").stdout.strip(), before)
+                    current_json = (self.home / record["snapshot"]).read_bytes() if (self.home / record["snapshot"]).exists() else b""
+                    current_html = (self.home / record["html"]).read_bytes() if (self.home / record["html"]).exists() else b""
+                    self.assertEqual(current_json, before_json)
+                    self.assertEqual(current_html, before_html)
+
+    def test_snapshot_guard_ordinary_first(self):
+        record, live = self._live_record()
+        # Commit a same-stage baseline so the ordinary snapshot will skip Git.
+        with patch("render.render", return_value="baseline-page"):
+            live_state.snapshot(record, live)
+        baseline = self.git(self.home, "rev-parse", "HEAD").stdout.strip()
+        marker, edit = self._pending_edit(live, "ordinary-first-pending-BCL-142")
+        entered = threading.Event()
+        release = threading.Event()
+        errors = []
+
+        def render_wait(document, base):
+            entered.set()
+            if not release.wait(5):
+                raise RuntimeError("test timed out waiting to release ordinary render")
+            return json.dumps(document)
+
+        def ordinary():
+            try:
+                with patch("render.render", side_effect=render_wait):
+                    live_state.snapshot(record, live)
+            except Exception as error:
+                errors.append(str(error))
+
+        thread = threading.Thread(target=ordinary)
+        thread.start()
+        self.assertTrue(entered.wait(5))
+        result = self._run_snapshot(live, timeout=5)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("busy", result.stderr)
+        release.set()
+        thread.join(10)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(errors, [])
+        self.assertEqual(self.git(self.home, "rev-parse", "HEAD").stdout.strip(), baseline)
+        self.assertIn(edit, (self.home / record["html"]).read_text())
+        self.assertTrue(marker.exists())
+        saved = self.call_without_viewer("snapshot", live)
+        self.assertEqual(saved.returncode, 0, saved.stderr)
+        after = self.git(self.home, "rev-parse", "HEAD").stdout.strip()
+        parent = self.git(self.home, "rev-parse", "HEAD^").stdout.strip()
+        self.assertEqual(parent, baseline)
+        self.assertEqual(self.git(self.home, "rev-list", "--count", f"{baseline}..HEAD").stdout.strip(), "1")
+        committed_json = self.git(self.home, "show", f"{after}:{record['snapshot']}").stdout
+        self.assertIn(edit, committed_json)
+        committed_html = self.git(self.home, "show", f"{after}:{record['html']}").stdout
+        self.assertIn(edit, committed_html)
+        self.assertFalse(marker.exists())
+
+    def test_snapshot_guard_start_job(self):
+        record, live = self._live_record()
+        document = json.loads(live.read_text())
+        issue_id = document["findings"][0]["id"]
+        plan = {"cycle": 1, "round": 1, "groups": [{"id": "LANE-A", "finding_ids": [issue_id], "status": "planned"}]}
+        document.setdefault("tracking", {}).update(cycle=1, round=1, plan=plan)
+        job = {"id": "start-before-pid", "plan_sha256": bcl_entrypoint.manage_findings.plan_candidate_sha256(plan)}
+        bcl_entrypoint.manage_findings.job_transition(document, {
+            "action": "start-job", "phase": "fix", "ids": [issue_id],
+            "cycle": 1, "round": 1, "timestamp": "2026-11-22T00:00:00Z", "job": job,
+        })
+        receipt = document["tracking"]["plan"]["groups"][0]["codex"]["job"]
+        self.assertNotIn("exit_code", receipt)
+        self.assertNotIn("finished_at", receipt)
+        self.assertNotIn("pid", receipt)
+        live.write_text(json.dumps(document))
+        marker = live.with_suffix(".unsnapshotted")
+        marker.write_text("pending\n")
+        before = self.git(self.home, "rev-parse", "HEAD").stdout.strip()
+        result = self.call_without_viewer("snapshot", live)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("active codex.job", result.stderr)
+        self.assertTrue(marker.exists())
+        self.assertEqual(self.git(self.home, "rev-parse", "HEAD").stdout.strip(), before)
+        bcl_entrypoint.manage_findings.job_transition(document, {
+            "action": "finish-job", "phase": "fix", "ids": [issue_id],
+            "cycle": 1, "round": 1, "timestamp": "2026-11-22T00:00:01Z",
+            "job_id": job["id"], "exit_code": 0,
+            "plan_sha256": job["plan_sha256"],
+        })
+        live.write_text(json.dumps(document))
+        marker.write_text("pending\n")
+        saved = self.call_without_viewer("snapshot", live)
+        self.assertEqual(saved.returncode, 0, saved.stderr)
+        self.assertFalse(marker.exists())
+        self.assertNotEqual(self.git(self.home, "rev-parse", "HEAD").stdout.strip(), before)
 
     @staticmethod
     def merge_ready(document):
@@ -481,6 +741,86 @@ elif args[:2] != ['pr', 'edit']:
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("none of these lanes failed", result.stderr)
 
+    def test_fix_order_is_set_by_one_command_and_shown_in_order(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        refused = self.call_without_viewer("fix-order", "--ids", "ISSUE-02", "--ids", "ISSUE-01")
+        self.assertNotEqual(refused.returncode, 0)
+        result = self.call_without_viewer("fix-order", "--ids", "ISSUE-02", "--ids", "ISSUE-01",
+                                          "--reason", "owner wants the second issue first", "--by", "Guru")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        order = json.loads(live.read_text())["tracking"]["fix_order"]
+        self.assertEqual((order["ids"], order["by"], order["reason"]), (["ISSUE-02", "ISSUE-01"], "Guru", "owner wants the second issue first"))
+        self.assertTrue(order["at"])
+        page = self.page.read_text()
+        self.assertIn("Fix order: ISSUE-02 → ISSUE-01", page)
+        data = page.split('id="findings-data"', 1)[1]
+        self.assertLess(data.index('"ISSUE-02"'), data.index('"ISSUE-01"'))
+        unknown = self.call_without_viewer("fix-order", "--ids", "NOPE-1", "--reason", "an unknown issue id here")
+        self.assertNotEqual(unknown.returncode, 0)
+
+    def test_refresh_worktrees_replays_lane_commits_on_the_list_head_or_names_conflicts(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        lane = self.root / "lane-a"
+        self.git(self.home, "worktree", "add", "-qb", "lane-a", str(lane))
+        (lane / "lane.txt").write_text("lane work\n"); (lane / "shared.txt").write_text("lane\n")
+        self.git(lane, "add", "."); self.git(lane, "commit", "-qm", "lane fix")
+        (self.home / "list.txt").write_text("list work\n")
+        self.git(self.home, "add", "list.txt"); self.git(self.home, "commit", "-qm", "list moved on")
+        plan = self.root / "round-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned", "worktree": "lane-a"}]}))
+        self.assertEqual(self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        result = self.call_without_viewer("refresh-worktrees", "--repo", str(self.home))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        fresh = self.root / "lane-a-r1"
+        self.assertEqual(((fresh / "lane.txt").read_text(), (fresh / "list.txt").read_text()), ("lane work\n", "list work\n"))
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        self.assertEqual(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["worktree"], "lane-a-r1")
+        self.git(self.root / "lane-a-r1", "checkout", "-q", "--detach")
+        self.git(self.home, "worktree", "remove", "--force", str(fresh)); self.git(self.home, "branch", "-D", "bcl/lane-a-r1")
+        (self.home / "shared.txt").write_text("list\n")
+        self.git(self.home, "add", "shared.txt"); self.git(self.home, "commit", "-qm", "list conflicts")
+        doc = json.loads(live.read_text()); doc["tracking"]["plan"]["groups"][0]["worktree"] = "lane-a"
+        live.write_text(json.dumps(doc)); self.data.write_text(json.dumps(doc))
+        conflict = self.call_without_viewer("refresh-worktrees", "--repo", str(self.home))
+        self.assertNotEqual(conflict.returncode, 0)
+        self.assertIn("shared.txt", conflict.stderr + conflict.stdout)
+        self.assertFalse(fresh.exists())
+
+    def test_bcl175_refresh_worktrees_dry_run_and_no_record(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        lane = self.root / "lane-a"
+        self.git(self.home, "worktree", "add", "-qb", "lane-a", str(lane))
+        (lane / "lane.txt").write_text("lane work\n")
+        self.git(lane, "add", "."); self.git(lane, "commit", "-qm", "lane fix")
+        (self.home / "list.txt").write_text("list work\n")
+        self.git(self.home, "add", "list.txt"); self.git(self.home, "commit", "-qm", "list moved")
+        plan = self.root / "round-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned", "worktree": "lane-a"}]}))
+        self.assertEqual(self.call_without_viewer("plan", "--plan", str(plan), "--ids", "ISSUE-01").returncode, 0)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        before = live.read_bytes()
+        dry = self.call_without_viewer("refresh-worktrees", "--repo", str(self.home), "--dry-run")
+        self.assertEqual(dry.returncode, 0, dry.stderr)
+        self.assertIn("commits to replay", dry.stdout)
+        self.assertIn("base ", dry.stdout)
+        fresh = self.root / "lane-a-r1"
+        self.assertFalse(fresh.exists())
+        self.assertEqual(live.read_bytes(), before)
+        made = self.call_without_viewer("refresh-worktrees", "--repo", str(self.home), "--no-record")
+        self.assertEqual(made.returncode, 0, made.stderr)
+        self.assertTrue(fresh.is_dir())
+        self.assertEqual(live.read_bytes(), before)
+        result_file = self.root / "job-result.txt"
+        old_cwd = Path.cwd()
+        try:
+            os.chdir(fresh)
+            job = self.call_job_without_viewer(live, "job", "--ids", "ISSUE-01", "--phase", "fix", "--", "true")
+        finally:
+            os.chdir(old_cwd)
+        self.assertEqual(job.returncode, 0, job.stderr)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["worktree"], "lane-a-r1")
+
     def test_correct_round_moves_the_counter_forward_and_keeps_history(self):
         self.assertEqual(self.call_without_viewer("start").returncode, 0)
         plan = self.root / "round-plan.json"
@@ -662,9 +1002,11 @@ elif args[:2] != ['pr', 'edit']:
                     writer = f"from pathlib import Path; Path({str(result)!r}).write_text({contents!r})"
                 job = self.call_job_without_viewer(self.data, "--ids", "ISSUE-01", "--result", result,
                     "--phase", "review", "job", "--", sys.executable, "-c", writer)
-                self.assertEqual(job.returncode, 0 if writes and verdict == "VERDICT: PASS" else 1, job.stderr)
+                last_verdict = next((line for line in reversed((verdict or "").splitlines())
+                                     if line in {"VERDICT: PASS", "VERDICT: CHANGES"}), None)
+                self.assertEqual(job.returncode, 0 if writes and last_verdict == "VERDICT: PASS" else 1, job.stderr)
                 group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
-                expected_status = "passed" if writes and verdict == "VERDICT: PASS" else "changes_requested" if verdict == "VERDICT: CHANGES" else "failed"
+                expected_status = "passed" if writes and last_verdict == "VERDICT: PASS" else "changes_requested" if last_verdict == "VERDICT: CHANGES" else "failed"
                 self.assertEqual(group["codex"].get("review_status"), expected_status, job.stdout + job.stderr)
                 if writes and not isinstance(verdict, bytes):
                     self.assertIn("review note", result.read_text())
@@ -703,6 +1045,33 @@ elif args[:2] != ['pr', 'edit']:
             (b"\xff", True),
             ("VERDICT: PASS", False),
         ])
+
+    def test_last_incomplete_changes_is_incomplete_but_complete_changes_survives_nonzero_exit(self):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        document = json.loads(self.data.read_text())
+        document["findings"][0]["status"] = "in_progress"
+        document["tracking"].update(stages_reached=["collect", "plan_fix", "review"],
+            workflow={"stage": "review", "updated_at": bcl_entrypoint._utc_now()}, cycle=1,
+            plan={"cycle": 1, "round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "review",
+                "phase": "review", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer", "fix_status": "passed"}}]})
+        prepared = json.dumps(document).encode()
+        result = self.root / "review-result.txt"
+        cases = [
+            ("import sys; print('VERDICT: PASS\\n## Must-fix\\nnone\\n'); print('VERDICT: CHANGES\\n## Notes\\ntruncated')", 0,
+             "failed", "incomplete"),
+            (f"from pathlib import Path; Path({str(result)!r}).write_text('VERDICT: CHANGES\\n\\n## Must-fix\\n- issue\\n'); raise SystemExit(1)", 1,
+             "changes_requested", "changes_requested"),
+        ]
+        for script, exit_code, review_status, finished_status in cases:
+            with self.subTest(review_status=review_status):
+                live.write_bytes(prepared); self.data.write_bytes(prepared)
+                result.unlink(missing_ok=True)
+                job = self.call_job_without_viewer(self.data, "--ids", "ISSUE-01", "--result", result,
+                    "--phase", "review", "job", "--", sys.executable, "-c", script)
+                self.assertEqual(job.returncode, 1, job.stderr)
+                group = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]
+                self.assertEqual(group["codex"]["review_status"], review_status)
+                self.assertEqual(group["codex"]["job"]["finished_phase_status"], finished_status)
 
     def test_release_check_on_an_unadopted_tracker_is_not_clear(self):
         stray = self.root / "stray" / "list.json"; stray.parent.mkdir()
@@ -848,6 +1217,10 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(data["tracking"]["plan"]["groups"][0]["id"], "A")
         self.assertEqual(data["tracking"]["plan"]["status"], "closed")
         self.assertEqual(json.loads(status.stdout)["plan"][0]["status"], "verifying")
+        closed = subprocess.run([sys.executable, str(BCL), "--data", str(self.data), "--ids", "ISSUE-01",
+                                 "--phase", "fix", "job", "--", *job], env=self.env, capture_output=True, text=True)
+        self.assertNotEqual(closed.returncode, 0, "BCL-158: no fix job after the round's introspect, before the next plan")
+        self.assertIn("record the next round's plan", closed.stderr)
 
     def test_introspect_draft_rejects_input_tracker_and_live_hard_link(self):
         input_before = self.data.read_bytes()
@@ -880,6 +1253,8 @@ elif args[:2] != ['pr', 'edit']:
         fail = self.root / 'fail.py'; fail.write_text('raise SystemExit(7)\n')
         command = f'"{sys.executable}" "{fail}"'
         plan['groups'][0]['verify']['command'] = command
+        # BCL-145: resubmitting the lane restates its stored review result instead of claiming pending
+        plan['groups'][0]['codex'] = {'review_status': 'passed'}
         path.write_text(json.dumps(plan))
         self.assertEqual(self.call('plan','--plan',str(path),'--ids','ISSUE-01').returncode, 0)
         result = self.call('verify','--ids','ISSUE-01','--then',command)
@@ -1601,6 +1976,27 @@ elif args[:2] != ['pr', 'edit']:
         new_live = Path(json.loads((self.state / "registry.json").read_text())["example/project/124"]["live"])
         self.assertNotIn("plan", json.loads(new_live.read_text())["tracking"])
 
+    def test_rollover_carries_a_gated_lane_and_the_successor_enforces_it(self):
+        self.git(self.home, "worktree", "add", "-qb", "feature-124", str(self.root / "feature-124"))
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        doc = json.loads(live.read_text())
+        doc["tracking"]["plan"] = {"round": 2, "cycle": 1, "groups": [{"id": "G", "finding_ids": ["ISSUE-01"], "status": "running",
+            "failure_history": [{"attempt_id": "f1", "source": "review", "reason": "changes", "at": "2026-11-21T00:00:00Z"}]}]}
+        live.write_text(json.dumps(doc)); self.data.write_text(json.dumps(doc))
+        result = self.call("rollover", "--new-pr", "124", "--worktree", "feature-124", "--force", "--reason", "test override")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        new_live = Path(json.loads((self.state / "registry.json").read_text())["example/project/124"]["live"])
+        tracking = json.loads(new_live.read_text())["tracking"]
+        self.assertEqual([gate["id"] for gate in tracking["carried_gates"]], ["G"])
+        self.assertEqual(tracking["carried_gates"][0]["failure_history"][0]["attempt_id"], "f1")
+        import manage_findings
+        with self.assertRaisesRegex(ValueError, "gated lane G"):
+            manage_findings.carry_plan_runtime_state([{"id": "FRESH", "finding_ids": ["ISSUE-01"], "status": "planned"}],
+                                                     {"groups": tracking["carried_gates"]}, False)
+        lane = [{"id": "G", "finding_ids": ["ISSUE-01"], "status": "planned"}]
+        manage_findings.carry_plan_runtime_state(lane, {"groups": tracking["carried_gates"]}, False)
+        self.assertEqual(lane[0]["failure_history"][0]["attempt_id"], "f1")
+
     def test_merged_records_terminal_state_and_retargets_stacked_prs(self):
         sha = "a" * 40; merged_at = "2026-11-14T12:00:00Z"
         live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
@@ -2150,5 +2546,250 @@ elif args[:2] != ['pr', 'edit']:
         self.assertIn("round paused; run bcl resume", install.stderr)
         stopped = self.call_without_viewer("stop-viewer")
         self.assertNotIn("round paused", stopped.stderr)
+
+    def _definition_copy(self, group, members):
+        """Copy the package under test, change one lane group, return the copy's bcl."""
+        copy_root = self.root / "pkg"
+        shutil.copytree(BCL.parent.parent, copy_root, ignore=shutil.ignore_patterns("__pycache__", ".build"))
+        definition = copy_root / "skills/batched-change-list/scripts/workflow_definition.json"
+        data = json.loads(definition.read_text())
+        data["lane"]["groups"][group] = members
+        definition.write_text(json.dumps(data, indent=2))
+        return copy_root / "bin/bcl"
+
+    def _run_bcl(self, bcl, *args):
+        return subprocess.run([sys.executable, str(bcl), "--data", str(self.data), *map(str, args)],
+                              env=self.env, capture_output=True, text=True)
+
+    def test_definition_controls_manager(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        data = json.loads(live.read_text())
+        extra = [dict(data["findings"][0], id=f"ISSUE-X{index}") for index in range(5)]
+        data["findings"].extend(extra); live.write_text(json.dumps(data)); self.data.write_text(json.dumps(data))
+        plan = self.root / "five.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "status": "planned",
+            "finding_ids": [item["id"] for item in extra]}]}))
+        refused = self._run_bcl(BCL, "--plan", plan, "--ids", extra[0]["id"], "plan")
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("cap a parallel fix group", refused.stderr)
+        released = sorted(__import__("workflow_definition").LANE["groups"]["released"] | {"planned"})
+        accepted = self._run_bcl(self._definition_copy("released", released), "--plan", plan, "--ids", extra[0]["id"], "plan")
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        self.assertEqual(len(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["finding_ids"]), 5)
+
+    def test_definition_controls_release_check_open_group(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        data = json.loads(live.read_text())
+        data.setdefault("tracking", {})["plan"] = {"round": 1, "groups": [
+            {"id": "A", "finding_ids": ["ISSUE-01"], "status": "verifying"}]}
+        live.write_text(json.dumps(data)); self.data.write_text(json.dumps(data))
+        base = self._run_bcl(BCL, "release-check")
+        self.assertEqual(json.loads(base.stdout)["lanes"], [])
+        opened = sorted(__import__("workflow_definition").LANE["groups"]["open"] | {"verifying"})
+        changed = self._run_bcl(self._definition_copy("open", opened), "release-check")
+        self.assertEqual(changed.returncode, 2, changed.stderr)
+        self.assertEqual([lane["id"] for lane in json.loads(changed.stdout)["lanes"]], ["A"])
+
+    def _runtime_identity_setup(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        first = self.root / "identity-plan.json"
+        first.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned"}]}))
+        self.assertEqual(self._run_bcl(BCL, "--plan", first, "--ids", "ISSUE-01", "plan").returncode, 0)
+        data = json.loads(live.read_text())
+        group = data["tracking"]["plan"]["groups"][0]
+        group.update(status="review", phase="review")
+        group["codex"] = {"fix_status": "passed", "review_status": "passed",
+                          "job": {"id": "j1", "phase": "review", "exit_code": 0, "pid": 1}}
+        live.write_text(json.dumps(data)); self.data.write_text(json.dumps(data))
+        return live
+
+    def _submit_plan(self, groups):
+        plan = self.root / "identity-next.json"
+        plan.write_text(json.dumps({"round": 1, "groups": groups}))
+        return self._run_bcl(BCL, "--plan", plan, "--ids", "ISSUE-01", "plan")
+
+    def test_plan_runtime_identity(self):
+        live = self._runtime_identity_setup()
+        stored = json.loads(live.read_text())["tracking"]["plan"]
+        for claim in ({"failure_history": [{"attempt_id": "x", "counted": True}]}, {"install": {"started_at": "2026-11-18T08:00:00Z"}},
+                      {"verify_reruns": [{"reason": "x"}]}, {"codex": {"fix_status": "passed"}}):
+            with self.subTest(claim=sorted(claim)):
+                result = self._submit_plan([json.loads(json.dumps(stored["groups"][0])),
+                                            {"id": "B", "finding_ids": ["ISSUE-02"], "status": "planned", **claim}])
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("set-plan cannot claim", result.stderr)
+                self.assertEqual(json.loads(live.read_text())["tracking"]["plan"], stored)
+        changed = json.loads(json.dumps(stored["groups"][0])); changed["codex"]["review_status"] = "pending"
+        result = self._submit_plan([changed])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("set-plan cannot change codex.review_status", result.stderr)
+        nulled = json.loads(json.dumps(stored["groups"][0])); nulled["codex"]["job"] = None
+        self.assertIn("set-plan cannot change codex.job", self._submit_plan([nulled]).stderr)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["plan"], stored)
+
+    def test_plan_runtime_identity_controls(self):
+        live = self._runtime_identity_setup()
+        stored = json.loads(live.read_text())["tracking"]["plan"]
+        self.assertEqual(self._run_bcl(BCL, "--ids", "ISSUE-01", "plan").returncode, 0)
+        equal = self._submit_plan([json.loads(json.dumps(stored["groups"][0]))])
+        self.assertEqual(equal.returncode, 0, equal.stderr)
+        omitted = self._submit_plan([{"id": "A", "finding_ids": ["ISSUE-01"], "status": "review", "phase": "review"},
+            {"id": "B", "finding_ids": ["ISSUE-02"], "status": "planned",
+             "codex": {"fix_status": "pending", "review_status": "pending", "plan_review_status": "pending"}}])
+        self.assertEqual(omitted.returncode, 0, omitted.stderr)
+        kept = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["codex"]
+        self.assertEqual((kept["fix_status"], kept["review_status"], kept["job"]["id"]), ("passed", "passed", "j1"))
+        replaced = self._submit_plan([{"id": "A", "finding_ids": ["ISSUE-02"], "status": "planned"},
+                                      {"id": "B", "finding_ids": ["ISSUE-01"], "status": "planned"}])
+        self.assertEqual(replaced.returncode, 0, replaced.stderr)
+        fresh = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]
+        self.assertNotIn("job", fresh.get("codex") or {})
+        self.assertNotIn("fix_status", fresh.get("codex") or {})
+
+    def test_plan_refuses_pending_claim_when_existing_protected_value_is_absent(self):
+        live = self._runtime_identity_setup()
+        data = json.loads(live.read_text())
+        group = data["tracking"]["plan"]["groups"][0]
+        group.setdefault("codex", {}).pop("fix_status", None)
+        live.write_text(json.dumps(data)); self.data.write_text(json.dumps(data))
+        before = live.read_bytes()
+        result = self._submit_plan([{"id": "A", "finding_ids": ["ISSUE-01"], "status": "review",
+                                     "phase": "review", "codex": {"fix_status": "pending"}}])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("set-plan cannot claim completed job state (codex.fix_status)", result.stderr)
+        self.assertEqual(live.read_bytes(), before)
+
+    def test_update_plan_group_refuses_pending_claim_when_existing_value_is_absent(self):
+        live = self._one_lane()
+        before = live.read_bytes()
+        result = self._lane_batch(live, [{"action": "update-plan-group", "id": "A",
+                                          "patch": {"codex": {"review_status": "pending"}}}])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("update-plan-group cannot claim completed job state (codex.review_status)", result.stderr)
+        self.assertEqual(live.read_bytes(), before)
+
+    def test_new_plan_lane_strips_pending_protected_defaults(self):
+        live = self._runtime_identity_setup()
+        result = self._submit_plan([
+            {"id": "A", "finding_ids": ["ISSUE-01"], "status": "review", "phase": "review"},
+            {"id": "B", "finding_ids": ["ISSUE-02"], "status": "planned",
+             "codex": {"fix_status": "pending", "review_status": "pending", "plan_review_status": "pending"}},
+        ])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        new_lane = next(group for group in json.loads(live.read_text())["tracking"]["plan"]["groups"] if group["id"] == "B")
+        for field in ("fix_status", "review_status", "plan_review_status"):
+            self.assertNotIn(field, new_lane.get("codex") or {})
+
+    def _lane_copy(self, mutate):
+        """Copy the package under test, let mutate change its lane table, return the copy's root."""
+        copy_root = self.root / "lanepkg"
+        shutil.copytree(BCL.parent.parent, copy_root, ignore=shutil.ignore_patterns("__pycache__", ".build"))
+        definition = copy_root / "skills/batched-change-list/scripts/workflow_definition.json"
+        data = json.loads(definition.read_text()); mutate(data["lane"])
+        definition.write_text(json.dumps(data, indent=2))
+        return copy_root
+
+    def _lane_batch(self, live, operations, root=None):
+        manager = (root or PLUGIN) / "skills/batched-change-list/scripts/manage_findings.py"
+        return subprocess.run([sys.executable, str(manager), "batch", str(live), "-", "--render", str(self.page)],
+                              input=json.dumps(operations), text=True, capture_output=True, env=self.env)
+
+    def test_bcl180_blocked_lane_move_to_verifying_remains_refused(self):
+        live, command = self._lane_ready()
+        marker = self.root / "lane-ran"
+        (self.root / "lane.py").write_text(f"from pathlib import Path; Path({str(marker)!r}).touch()\n")
+        document = json.loads(live.read_text())
+        document["tracking"]["plan"]["groups"][0].update(status="blocked", phase="verify")
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+        baseline = self._run_bcl(BCL, "verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertNotEqual(baseline.returncode, 0)
+        self.assertIn("verify cannot start a blocked, failed, or parked lane", baseline.stderr)
+        self.assertFalse(marker.exists())
+        root = self._lane_copy(lambda lane: lane["groups"]["verify_refused"].remove("blocked"))
+        changed = self._run_bcl(root / "bin/bcl", "verify", "--ids", "ISSUE-01", "--then", command)
+        self.assertNotEqual(changed.returncode, 0)
+        self.assertIn("cannot move from blocked to verifying", changed.stderr)
+        self.assertFalse(marker.exists())
+
+    def test_one_dependency_group_controls_validation_and_invalidation(self):
+        script = ("import json, manage_findings as m\n"
+                  "groups=[{'id':'A','finding_ids':['A'],'status':'verified','phase':'verify'},"
+                  "{'id':'B','finding_ids':['B'],'status':'running','phase':'fix','depends_on':['A']}]\n"
+                  "try:\n"
+                  "    waiting=json.loads(json.dumps(groups)); waiting[0]['status']='review'; waiting[0]['phase']='review'\n"
+                  "    m.validate_dependencies(waiting, [{'id':'A','status':'in_progress'},{'id':'B','status':'in_progress'}], {})\n"
+                  "    print('accepted')\n"
+                  "except ValueError as error:\n"
+                  "    print('refused' if 'must wait for verified dependencies' in str(error) else 'other:'+str(error).replace(' ','_'))\n"
+                  "d={'findings':[{'id':'A','status':'in_progress'},{'id':'B','status':'in_progress'}],"
+                  "'tracking':{'round':1,'plan':{'round':1,'groups':json.loads(json.dumps(groups))}}}\n"
+                  "p={'findings':[{'id':'A','status':'verified_fixed','verification_refs':['receipt']},{'id':'B','status':'in_progress'}],"
+                  "'tracking':{'round':1,'verification_run':{'checks':{'A':{'state':'passed'}}}}}\n"
+                  "m.invalidate_dependents(d,p)\n"
+                  "print(d['tracking']['plan']['groups'][1]['status'])\n")
+        def decisions(root):
+            scripts = root / "skills/batched-change-list/scripts"
+            run = subprocess.run([sys.executable, "-c", script], cwd=scripts, env={**self.env, "PYTHONPATH": str(scripts)},
+                                 capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            return run.stdout.split()
+        self.assertEqual(decisions(PLUGIN), ["refused", "blocked"])
+        self.assertEqual(decisions(self._lane_copy(lambda lane: lane["groups"]["dependency"].remove("running"))), ["accepted", "running"])
+
+    def _one_lane(self):
+        live = self._runtime_identity_setup()
+        data = json.loads(live.read_text())
+        data["tracking"]["plan"]["groups"][0].update(status="planned", phase="fix", codex={})
+        live.write_text(json.dumps(data)); self.data.write_text(json.dumps(data))
+        return live
+
+    def test_lane_table_refuses_moves_it_does_not_declare(self):
+        live = self._one_lane()
+        parked = self._lane_batch(live, [{"action": "update-plan-group", "id": "A", "patch": {"status": "deferred", "parked_to": 2}}])
+        self.assertEqual(parked.returncode, 0, parked.stderr)
+        stored = live.read_bytes()
+        jump = [{"action": "update-plan-group", "id": "A", "patch": {"status": "verifying", "phase": "verify"}}]
+        refused = self._lane_batch(live, jump)
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("lane A cannot move from parked to verifying", refused.stderr)
+        self.assertEqual(live.read_bytes(), stored)
+        widened = self._lane_copy(lambda lane: lane["moves"]["parked"].append("verifying"))
+        allowed = self._lane_batch(live, jump, widened)
+        self.assertEqual(allowed.returncode, 0, allowed.stderr)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["status"], "verifying")
+
+    def test_plan_writes_refuse_runtime_fields_the_table_does_not_declare(self):
+        live = self._runtime_identity_setup()
+        stored = json.loads(live.read_text())["tracking"]["plan"]
+        for extra in ({"codex": {**stored["groups"][0]["codex"], "exit_code": 0}}, {"attempts": 3}):
+            with self.subTest(extra=sorted(extra)):
+                result = self._submit_plan([{**json.loads(json.dumps(stored["groups"][0])), **extra}])
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("cannot write undeclared runtime field", result.stderr)
+                self.assertEqual(json.loads(live.read_text())["tracking"]["plan"], stored)
+        resubmit = self._run_bcl(BCL, "--ids", "ISSUE-01", "plan")
+        self.assertEqual(resubmit.returncode, 0, resubmit.stderr)
+        declared = self._lane_copy(lambda lane: lane["plan_fields"].append("attempts"))
+        plan = self.root / "declared.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{**json.loads(json.dumps(stored["groups"][0])), "attempts": 3}]}))
+        accepted = self._run_bcl(declared / "bin/bcl", "--plan", plan, "--ids", "ISSUE-01", "plan")
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+
+    def test_update_plan_group_guards_declared_runtime_paths(self):
+        live = self._runtime_identity_setup()
+        stored = live.read_bytes()
+        for patch in ({"presuite": {"status": "passed"}}, {"codex": {"review_status": "pending"}},
+                      {"codex": {"tool_fault_streak": 0}}, {"finding_ids": ["ISSUE-02"]}):
+            with self.subTest(patch=patch):
+                refused = self._lane_batch(live, [{"action": "update-plan-group", "id": "A", "patch": patch}])
+                self.assertNotEqual(refused.returncode, 0)
+                self.assertEqual(live.read_bytes(), stored)
+        session = self._lane_batch(live, [{"action": "update-plan-group", "id": "A", "patch": {"codex": {"implementer_session": "s2"}}}])
+        self.assertEqual(session.returncode, 0, session.stderr)
+        codex = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["codex"]
+        self.assertEqual((codex["implementer_session"], codex["review_status"], codex["job"]["id"]), ("s2", "passed", "j1"))
 
 if __name__ == "__main__": unittest.main()

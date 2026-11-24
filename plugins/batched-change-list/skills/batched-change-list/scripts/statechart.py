@@ -10,6 +10,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from workflow_definition import _lane_contract  # noqa: E402  one lane table for the page and this chart
+
 ROOT = Path(__file__).resolve().parents[1]
 SKILL, OUTPUT = ROOT / "SKILL.md", ROOT / "statechart.html"
 
@@ -182,13 +185,16 @@ def render(skill_content=None, suggested_verdicts=None, definition_path=None):
     refs = router(skill) + side_references(skill)
     definition_hash = hashlib.sha256((definition_path or ROOT / "scripts/workflow_definition.json").read_bytes()).hexdigest()
     fingerprint = source_fingerprint(skill.encode())
+    lane = _lane_contract(data["lane"])
+    lane_html = "; ".join(f'{plain(lane["status_labels"][status])} can move to {plain(", ".join(lane["status_labels"][target] for target in lane["statuses"] if target in lane["moves"][status]) or "none")}'
+                           for status in lane["statuses"])
     svg = chart_svg(data, refs, verdicts, "current")
     after_svg = chart_svg(data, refs, verdicts, "after")
     refs_html = "".join(f'<button class="side-ref selectable" data-id="{plain(r["path"])}">{plain(r["path"])} · {plain(r["trigger"])}</button>' for r in refs if r["path"] in ("tracker.md", "viewer.md", "principles.md"))
     return f'''<!doctype html><html lang="en" data-source-hash="{fingerprint}" data-definition-hash="{definition_hash}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Batched Change List workflow statechart</title>
 <style>:root{{font:15px/1.45 system-ui,sans-serif;color:#20242b;background:#f7f8fa}}body{{margin:2rem auto;padding:0 1rem;max-width:1200px}}h1{{margin-bottom:.25rem}}.tabs{{display:flex;gap:.5rem;margin:1rem 0}}button{{font:inherit;padding:.45rem .8rem;border:1px solid #9aa3ad;border-radius:.5rem;background:white;cursor:pointer}}button[aria-selected=true]{{background:#26364b;color:white}}.chart{{width:100%;min-width:1100px}}.stage{{display:inline-block;border:2px solid #17804b;background:#e3f5ea;border-radius:.7rem;padding:.65rem}}.selectable{{cursor:pointer}}.hit{{fill:transparent;stroke:transparent}}.selectable.selected rect{{stroke:#e3a320;stroke-width:4}}.selectable:focus-visible{{outline:3px solid #e3a320}}.side-ref{{display:block;margin:.5rem 0}}.side-ref.selected{{outline:3px solid #e3a320}}.edge{{fill:none;stroke:#57616d;stroke-width:2;marker-end:url(#arrow)}}.node rect{{fill:white;stroke:#66717d;stroke-width:2}}.node-label,.badge,.edge-label,.detail,.command{{text-anchor:middle;font-family:system-ui,sans-serif}}.node-label{{font-weight:650;font-size:17px}}.badge{{font-size:12px;fill:#485362;text-transform:uppercase}}.edge-label{{font-weight:600;font-size:14px;fill:#303843}}.detail{{font-size:12px;fill:#7542a8}}.command{{font:12px ui-monospace,monospace;fill:#59636e}}.side{{border:1px solid #c7cdd3;border-radius:1rem;padding:1rem;margin-top:1.5rem;background:#fff}}small{{color:#59636e}}.view[hidden]{{display:none}}@media(max-width:700px){{body{{overflow-x:auto}}}}</style><body>
 <h1>Batched Change List</h1><p>Green loads with SKILL.md; purple references load on their trigger; grey labels are commands and checks.</p><div class="tabs" role="tablist"><button role="tab" aria-selected="true" data-view="current">Current</button><button role="tab" aria-selected="false" data-view="after">After</button></div>
-<div class="stage always" id="skill"><b>SKILL.md</b><br><small>Always loaded rules and router</small></div><main id="flow"><section class="view current">{svg}</section><section class="view after" hidden>{after_svg}</section></main><section class="side"><strong>Side references</strong><div id="side">{refs_html}</div></section><small>Definition SHA-256: {definition_hash} · Source SHA-256: {fingerprint}</small>
+<div class="stage always" id="skill"><b>SKILL.md</b><br><small>Always loaded rules and router</small></div><main id="flow"><section class="view current">{svg}</section><section class="view after" hidden>{after_svg}</section></main><section class="side"><strong>Side references</strong><div id="side">{refs_html}</div></section><section class="side"><strong>Lane states and moves</strong><div id="lane-states">{lane_html}</div></section><small>Definition SHA-256: {definition_hash} · Source SHA-256: {fingerprint}</small>
 <script>function select(el){{document.querySelectorAll('.selected').forEach(x=>x.classList.remove('selected'));el.classList.add('selected');if(el.dataset.id)document.querySelectorAll('[data-owner]').forEach(x=>{{if(x.dataset.owner===el.dataset.id)x.classList.add('selected')}})}}document.querySelectorAll('.selectable').forEach(el=>{{el.addEventListener('click',()=>select(el));if(el.tagName.toLowerCase()!=='button')el.addEventListener('keydown',e=>{{if(e.key==='Enter'||e.key===' '){{e.preventDefault();select(el)}}}})}});document.querySelectorAll('[role=tab]').forEach(b=>b.onclick=()=>{{document.querySelectorAll('[role=tab]').forEach(x=>x.setAttribute('aria-selected',x===b));document.querySelectorAll('.view').forEach(x=>x.hidden=!x.classList.contains(b.dataset.view))}});</script></body></html>'''
 
 

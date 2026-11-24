@@ -399,5 +399,61 @@ class BackoffTests(_LogCase):
         self.assertLessEqual(min_delay, LiveSession.RETRY_AFTER_MAX)
 
 
+
+
+class ProviderUsageFieldTests(unittest.TestCase):
+    def test_xai_top_level_usage_is_recorded_for_grok_voice(self) -> None:
+        from voice_cua.providers import XAIProvider
+        from voice_cua.activity_log import usage_row
+        provider = XAIProvider("grok-voice-latest")
+        event = {
+            "type": "response.done",
+            "usage": {
+                "input_tokens": 120,
+                "output_tokens": 45,
+                "input_token_details": {"text_tokens": 80, "audio_tokens": 40},
+                "output_token_details": {"text_tokens": 10, "audio_tokens": 35},
+                "billable_audio_seconds": 3,
+            },
+            "response": {"id": "resp_xai", "usage": {}},
+        }
+        (out,) = provider.inbound(event)
+        row = usage_row(out["response"], labels=provider.usage_labels(out["response"]))
+        self.assertEqual(row["model"], "grok-voice-latest")
+        self.assertEqual(row["provider"], "xai")
+        self.assertEqual(row["input_tokens"], 120)
+        self.assertEqual(row["output_tokens"], 45)
+        self.assertEqual(row["input_text_tokens"], 80)
+        self.assertEqual(row["output_audio_tokens"], 35)
+        self.assertEqual(row["voice_seconds"], 3)
+
+    def test_xai_all_zero_usage_is_unknown_not_zero(self) -> None:
+        from voice_cua.providers import XAIProvider
+        from voice_cua.activity_log import usage_row
+        provider = XAIProvider("grok-voice-latest")
+        event = {
+            "type": "response.done",
+            "response": {"id": "resp_zero", "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}},
+        }
+        (out,) = provider.inbound(event)
+        row = usage_row(out["response"], labels=provider.usage_labels(out["response"]))
+        self.assertIsNone(row["input_tokens"])
+        self.assertIsNone(row["output_tokens"])
+        self.assertIsNone(row["total_tokens"])
+
+    def test_gpt_live_usage_row_records_the_live_model_tokens(self) -> None:
+        from voice_cua.activity_log import usage_row
+        row = usage_row(
+            {"id": "sess_live", "usage": {"input_tokens": 40, "output_tokens": 12, "seconds": 9}},
+            labels={"provider": "openai-live", "model": "gpt-live-1", "live_model": "gpt-live-1"},
+        )
+        self.assertEqual(row["provider"], "openai-live")
+        self.assertEqual(row["model"], "gpt-live-1")
+        self.assertEqual(row["live_model"], "gpt-live-1")
+        self.assertEqual(row["input_tokens"], 40)
+        self.assertEqual(row["output_tokens"], 12)
+        self.assertEqual(row["voice_seconds"], 9)
+
+
 if __name__ == "__main__":
     unittest.main()

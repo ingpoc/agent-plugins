@@ -47,7 +47,8 @@ def main(argv: list[str]) -> int:
     after_merge = argv[1:] == ["post-merge"]
     if not touched(after_merge) or not (ROOT / SKILL / "scripts/statechart.py").is_file():
         return 0
-    script = [sys.executable, str(ROOT / SKILL / "scripts/statechart.py")]
+    # -B: the chart script imports the lane table (BCL-145); a hook must not leave bytecode in the tree.
+    script = [sys.executable, "-B", str(ROOT / SKILL / "scripts/statechart.py")]
     if subprocess.run([*script, "--check"], cwd=ROOT, capture_output=True).returncode == 0:
         return 0
     built = subprocess.run(script, cwd=ROOT, capture_output=True, text=True)

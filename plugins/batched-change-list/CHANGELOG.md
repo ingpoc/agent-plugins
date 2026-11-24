@@ -1,3 +1,37 @@
+## 0.1.74
+
+- A rejected Codex reviewer model is recorded as a named model_rejected tool fault; the lane stays in review with a passed fix so a later review can record a Grok Bot verdict, after one Astra 6.2 retry (PR120-r5-codex-reviewer-model-fallback). A second plan review, or a fourth post-fix review, is refused until remaining items are filed as standalone findings, and a finding cannot be added to a lane under review (BCL-121).
+
+## 0.1.73
+
+- Job and stage events are written for a per-round view, with Codex tokens bound by a verified open-file stamp and a named gap when the source is missing; a review records the last verdict-starting block, keeps a complete CHANGES result on a nonzero exit or a missing Must-fix heading, and does not hang if a descendant retains a pipe (BCL-177, BCL-149 slice).
+
+## 0.1.72
+
+- Stage timestamps follow the lane's real progress, including a same-ID replan, and a finished review shows "Review passed" rather than "Paused · needs resume"; plan writes cannot supply `stage_entered_at`; review guides assign version and changelog bumps to integration (BCL-157, BCL-103). Parked and deferred lanes stay parked when another lane is updated.
+
+## 0.1.71
+
+- Fresh lane worktrees can be planned with `--dry-run` and created without writing the live list (`--no-record`); the next job from that worktree records the name; a fresh name replaces one existing `-rN` marker; a blocked lane can be parked for a later round with a reason and stays blocked until unblock (BCL-175, BCL-179, BCL-180).
+
+## 0.1.70
+
+- One lane-state table: lane states, moves and named groups are declared once in the workflow definition and every writer, the release check, the page and the chart read it; plan writes cannot claim protected runtime state, new lanes drop pending defaults, and verify admission and prerequisite checks follow the named groups (BCL-145).
+
+## 0.1.69
+
+- Release guidance: a lane release runs presuite scoped with `check.py --changed-since <last release>` and records which plugins ran; merge to main and Origin CI still run the full suite (BCL-176).
+
+## 0.1.68
+
+- `bcl snapshot` saves a pending tracker copy on its own: it saves the live list, renders the page, commits when the saved copy differs, and clears the pending mark (BCL-142).
+
+## 0.1.67
+
+- A new round starts cleanly: plan and fix jobs are refused after the round's introspect until the next plan is recorded; verified lanes stay verified and need not be re-planned; `bcl refresh-worktrees` gives each unverified lane a fresh worktree at the list head with its commits replayed, naming conflicting files; rollover carries gated lanes so the next list must plan them under the same id (BCL-158).
+- `bcl fix-order --ids A --ids B --reason` records the fix order (who, when, why), shown on the page in that order; `bcl plan` refuses two open lanes whose declared `files` overlap (BCL-151).
+- The fast pre-push gate checks the state chart from the pushed commit whenever the change-list skill changes, deletes included (BCL-134).
+
 ## 0.1.66
 
 - Only a post-fix review's declared CHANGES counts toward the two-failure lane cap. A failed fix job is recorded as an uncounted attempt and the lane stays in fix; three failed jobs in a row still block it (BCL-163).

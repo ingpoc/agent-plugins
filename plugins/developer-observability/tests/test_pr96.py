@@ -25,6 +25,18 @@ class PR96Tests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(dir=ROOT, prefix='.pr96-')
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
+        # collect() always reads live BCL events; point them at an empty dir so
+        # this machine's tracker cannot add a third version scope.
+        self._bcl_state = os.environ.get('BCL_STATE_DIR')
+        os.environ['BCL_STATE_DIR'] = str(self.root / 'bcl-state')
+        Path(os.environ['BCL_STATE_DIR']).mkdir()
+        self.addCleanup(self._restore_bcl_state)
+
+    def _restore_bcl_state(self):
+        if self._bcl_state is None:
+            os.environ.pop('BCL_STATE_DIR', None)
+        else:
+            os.environ['BCL_STATE_DIR'] = self._bcl_state
 
     def api_for(self, out):
         return ObservabilityAPI(self.root / 'runtime', {'p': {'owners': ['owner:p']}}, None, collected=out)

@@ -18,6 +18,37 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_stage_duration_uses_explicit_entry_and_missing_is_unknown(self):
+        now = renderer.datetime.fromisoformat('2026-11-22T10:05:00+00:00')
+        self.assertEqual(renderer.stage_duration({'stage_entered_at':'2026-11-22T10:00:00Z'}, now), '5 min')
+        self.assertEqual(renderer.stage_duration({}, now), '—')
+        group = {'stage_entered_at':'2026-11-22T10:00:00Z'}
+        earlier = renderer.stage_duration(group, renderer.datetime.fromisoformat('2026-11-22T10:01:00Z'))
+        later = renderer.stage_duration(group, renderer.datetime.fromisoformat('2026-11-22T10:03:00Z'))
+        self.assertEqual((earlier, later), ('1 min', '3 min'))
+
+    def test_review_passed_copy_precedes_resume_prompt_but_not_pause_or_interrupt(self):
+        passed = {'id':'A','status':'review','codex':{'review_status':'passed'}}
+        self.assertEqual(renderer.lane_display(passed, 1)['label'], 'Review passed')
+        paused = renderer.lane_display(passed, 1, {'reason':'round paused'})
+        self.assertEqual(paused['label'], 'Paused · round paused')
+        interrupted = renderer.lane_display({'id':'A','status':'review','codex':{
+            'review_status':'passed','job':{'phase':'review'}}}, 1)
+        self.assertTrue(interrupted['label'].startswith('Interrupted · resume at'))
+
+    def test_updated_prefers_last_write_with_legacy_fallback(self):
+        data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
+        data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-14T07:00:00Z'},
+                            'last_written_at':'2026-11-14T07:30:00Z'}
+        page = renderer.render(data, Path(__file__).parent.parent,
+            now=renderer.datetime.fromisoformat('2026-11-14T07:55:00+00:00'))
+        self.assertIn('Updated <time datetime="2026-11-14T07:30:00+00:00"', page)
+        self.assertIn('1:00 PM IST</time> · <span data-relative-time>25 min ago</span>', page)
+        del data['tracking']['last_written_at']
+        legacy = renderer.render(data, Path(__file__).parent.parent,
+            now=renderer.datetime.fromisoformat('2026-11-14T07:55:00+00:00'))
+        self.assertIn('Updated <time datetime="2026-11-14T07:00:00+00:00"', legacy)
+
     def test_all_active_lanes_in_review_make_review_current(self):
         groups = [{'id': 'A', 'status': 'review'}, {'id': 'B', 'status': 'review'},
                   {'id': 'DONE', 'status': 'verified', 'phase': 'fix'}]
@@ -641,16 +672,14 @@ if(badge.hidden||clock>=Date.parse({json.dumps(updated)})+{stale_after}*60000)pr
                 self.assertIn(f'>{label}</span>', self._lane_display_row(page, 'A'))
                 self.assertNotIn('Paused', self._lane_display_row(page, 'A'))
 
-    def test_lane_display_passed_review_without_live_job_is_paused(self):
+    def test_lane_display_passed_review_without_live_job_says_review_passed(self):
         group = {'id': 'A', 'finding_ids': ['ISSUE-01'], 'status': 'review', 'phase': 'review',
                  'codex': {'review_status': 'passed',
                            'job': {'pid': 99999, 'phase': 'review', 'exit_code': 0}}}
         page = self._lane_display_page([group])
-        self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'], 'Paused · needs resume · A')
-        self.assertIn('>Paused · needs resume</span>', self._lane_display_row(page, 'A'))
-        self.assertIn('<b>1</b> paused', self._lane_display_tally(page))
-        self.assertNotIn('Review passed', page)
-        self.assertNotIn('<b>1</b> in review', self._lane_display_tally(page))
+        self.assertEqual(self._lane_display_chips(page)['ISSUE-01']['copy'], 'Review passed · A')
+        self.assertIn('>Review passed</span>', self._lane_display_row(page, 'A'))
+        self.assertIn('<b>1</b> in review', self._lane_display_tally(page))
 
     def test_lane_display_paused_round_keeps_settled_verified_lane(self):
         child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])
@@ -716,11 +745,11 @@ if(badge.hidden||clock>=Date.parse({json.dumps(updated)})+{stale_after}*60000)pr
     def test_compact_plan_labels_duration_status_details_and_fallbacks(self):
         data = copy.deepcopy(self.data)
         data['tracking'] = {'workflow': {'stage':'plan_fix','updated_at':'2026-11-14T09:00:00Z'}, 'plan': {'round': 1, 'groups': [
-            {'id':'A','name':'Render label','finding_ids':['ISSUE-01'],'status':'done','install':{'started_at':'2026-11-14T09:00:00Z'},'codex':{'model':'gpt-6-luna','effort':'medium','service_tier':'priority','duration_s':300,'started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z'},'verify':{'status':'pending','method':'Run the focused test and inspect the live page carefully'}},
+            {'id':'A','name':'Render label','finding_ids':['ISSUE-01'],'status':'done','stage_entered_at':'2026-11-14T09:00:00Z','install':{'started_at':'2026-11-14T09:00:00Z'},'codex':{'model':'gpt-6-luna','effort':'medium','service_tier':'priority','duration_s':300,'started_at':'2026-11-14T09:00:00Z','ended_at':'2026-11-14T09:05:00Z'},'verify':{'status':'pending','method':'Run the focused test and inspect the live page carefully'}},
             {'id':'B','finding_ids':['ISSUE-02'],'status':'done','verify':{'status':'done','method':'Verified on runtime'}},
             {'id':'C','finding_ids':['ISSUE-01'],'status':'verifying','verify':{'status':'running','method':'Verify running'}},
             {'id':'D','finding_ids':['ISSUE-02'],'status':'blocked','verify':{'status':'pending','failure':'Codex job failed tests did not pass','method':'Blocked'}}]}}
-        page = renderer.render(data, self.base)
+        page = renderer.render(data, self.base, now=renderer.datetime.fromisoformat('2026-11-14T09:05:00+00:00'))
         row = page.split('<details class="grp installing">', 1)[1].split('</details>', 1)[0]
         self.assertIn('5 min', row); self.assertIn('No model (scripted check)', row); self.assertIn('gpt-6-luna · medium · priority', row)
         self.assertIn('Render label', row); self.assertIn('Install', row)
@@ -1033,7 +1062,8 @@ setImmediate(async()=>{
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
         data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-10T10:00:00Z',
                                          'now':'2026-11-10T11:00:00Z — Checking the installed build'}}
-        page = renderer.render(data, Path(__file__).parents[1])
+        page = renderer.render(data, Path(__file__).parents[1],
+            now=renderer.datetime.fromisoformat('2026-11-10T11:00:00+00:00'))
         self.assertEqual(page.count('<time datetime='), 1)
         self.assertIn('Updated <time datetime=', page)
         self.assertIn('3:30 PM IST', page)
@@ -1043,7 +1073,9 @@ setImmediate(async()=>{
         self.assertNotIn('Intl.RelativeTimeFormat', page)
         self.assertIn('setInterval(formatPageTimes,60000)', page)
         data['tracking']['workflow']['now'] = '2026-11-12T10:00:00Z — Checking the installed build'
-        self.assertIn('2 days ago', renderer.render(data, Path(__file__).parents[1]))
+        later = renderer.render(data, Path(__file__).parents[1],
+            now=renderer.datetime.fromisoformat('2026-11-12T10:00:00+00:00'))
+        self.assertIn('2 days ago', later)
 
     def test_workflow_strip_shows_gate_loop_round_and_report_last_deterministically(self):
         data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())

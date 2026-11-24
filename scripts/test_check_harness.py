@@ -10,6 +10,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import textwrap
 import unittest
 from pathlib import Path
@@ -546,6 +547,44 @@ class PythonSelectionTests(unittest.TestCase):
             runtime.unlink()
             with mock.patch.object(check.Path, "home", return_value=home):
                 self.assertEqual(check._python_for(ROOT / "plugins/developer-observability", {}), check.sys.executable)
+
+class PrepushChartTest(unittest.TestCase):
+    """BCL-134: the fast gate checks the chart from the pushed commit, deletes included."""
+
+    def test_chart_checked_from_pushed_commit_on_skill_changes_only(self):
+        import prepush
+        def sh(*args):
+            return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=True).stdout.strip()
+        with tempfile.TemporaryDirectory() as path:
+            repo = Path(path)
+            skill = repo / prepush.CHART_SKILL
+            (skill / "scripts").mkdir(parents=True)
+            (skill / "scripts/statechart.py").write_text(
+                "import pathlib, sys\nroot = pathlib.Path(__file__).resolve().parents[1]\n"
+                "sys.exit(1 if (root / 'stale').exists() else 0)\n")
+            (skill / "SKILL.md").write_text("skill\n")
+            (repo / "other.txt").write_text("x\n")
+            sh("init", "-q")
+            sh("-c", "user.email=t@t", "-c", "user.name=t", "add", ".")
+            sh("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "base")
+            base = sh("rev-parse", "HEAD")
+            def commit(message):
+                sh("add", "-A")
+                sh("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", message)
+                return sh("rev-parse", "HEAD")
+            with mock.patch.object(prepush, "ROOT", repo):
+                (repo / "other.txt").write_text("y\n")
+                unrelated = commit("unrelated")
+                self.assertEqual(prepush.chart_heads([(base, unrelated)]), [])
+                (skill / "stale").write_text("1\n")
+                stale = commit("stale chart")
+                self.assertEqual(prepush.chart_heads([(unrelated, stale)]), [stale])
+                (skill / "stale").unlink()  # fixed only in the working tree, not in the pushed commit
+                self.assertNotEqual(prepush.chart_step(stale)[1], 0)
+                deleted = commit("delete the chart input")
+                self.assertEqual(prepush.chart_heads([(stale, deleted)]), [deleted])
+                self.assertEqual(prepush.chart_step(deleted)[1], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -32,6 +32,49 @@ def finish(doc, phase, job_id, code=0, reply=None, timestamp=STAMP):
 
 
 class JobLifecycleTests(unittest.TestCase):
+    def test_second_plan_review_waits_for_a_standalone_filing(self):
+        doc = document()
+        transition(doc, "start-job", "plan_review", "plan-1")
+        finish(doc, "plan_review", "plan-1", reply="VERDICT: CHANGES\n## Must-fix\n1. revise the plan")
+        for n in range(2, 8):
+            with self.assertRaisesRegex(ValueError, "filed as standalone findings"):
+                transition(doc, "start-job", "plan_review", f"plan-{n}")
+        group = doc["tracking"]["plan"]["groups"][0]
+        self.assertEqual(len(group["plan_review_history"]), 1)
+        item = {"id": "ISSUE-02", "title": "Remaining plan review item", "status": "open"}
+        manager.place_new_finding(doc["findings"], item, new=True)
+        transition(doc, "start-job", "plan_review", "plan-8")
+
+    def test_fourth_post_fix_review_waits_for_a_standalone_filing(self):
+        doc = document()
+        group = doc["tracking"]["plan"]["groups"][0]
+        group.update(status="review", phase="review", codex={"fix_status": "passed"})
+        group["failure_history"] = [
+            {"attempt_id": f"review-{n}", "source": "review", "at": f"2026-11-21T00:00:0{n}Z"}
+            for n in range(1, 4)]
+        group["failure_history"].append({"attempt_id": "fault", "source": "review", "tool_fault": True,
+                                         "at": "2026-11-21T00:00:04Z"})
+        group["unblock_history"] = [{"owner_override": True, "covered_attempts": ["review-1", "review-2", "review-3"],
+                                     "at": "2026-11-21T00:00:05Z"}]
+        with self.assertRaisesRegex(ValueError, "remaining review items to be filed"):
+            transition(doc, "start-job", "review", "review-4")
+        manager.place_new_finding(doc["findings"], {"id": "ISSUE-02", "title": "Remaining review item",
+            "status": "open"}, new=True)
+        transition(doc, "start-job", "review", "review-4")
+
+    def test_review_lane_membership_is_immutable_but_standalone_add_works(self):
+        before = {"groups": [{"id": "A", "phase": "review", "finding_ids": ["ISSUE-01"]}]}
+        after = {"groups": [{"id": "A", "phase": "review", "finding_ids": ["ISSUE-01", "ISSUE-02"]}]}
+        with self.assertRaisesRegex(ValueError, "cannot add findings to lane A"):
+            manager._refuse_review_lane_membership(before, after)
+        # A replan that leaves review may replace membership (runtime identity reset).
+        replaced = {"groups": [{"id": "A", "phase": "planned", "finding_ids": ["ISSUE-02"]}]}
+        manager._refuse_review_lane_membership(before, replaced)
+        findings = [{"id": "ISSUE-01", "title": "Existing", "status": "open"}]
+        item = {"id": "ISSUE-02", "title": "Standalone follow-up", "status": "open"}
+        self.assertTrue(manager.place_new_finding(findings, item, new=True))
+        self.assertIn("created_at", item)
+
     def test_fix_requires_a_recorded_plan_group_and_review_requires_passed_fix(self):
         no_plan = {"findings": [{"id": "ISSUE-01"}], "tracking": {}}
         with self.assertRaisesRegex(ValueError, "current recorded plan"):
@@ -123,6 +166,9 @@ class JobLifecycleTests(unittest.TestCase):
         for n in (1, 2):
             transition(doc, "start-job", "plan_review", f"plan-{n}")
             finish(doc, "plan_review", f"plan-{n}", code=1, reply="VERDICT: CHANGES\n## Must-fix\n1. tighten the plan")
+            if n == 1:
+                manager.place_new_finding(doc["findings"], {"id": "ISSUE-02", "title": "Plan follow-up",
+                    "status": "open"}, new=True)
         self.assertNotEqual(group["status"], "blocked")
         self.assertEqual(len(group["failure_history"]), 1)
         with self.assertRaisesRegex(ValueError, "passed plan_review"):
@@ -191,7 +237,7 @@ class JobLifecycleTests(unittest.TestCase):
         doc, group = self._second_review_failure("VERDICT: CHANGES\n## Must-fix\n1. guard the lane\n"
                                                  "## ROOT CAUSE\nguard missing\n## FAILING TEST\ntest_guard")
         self.assertTrue(group["failure_history"][-1]["plan_answered"])
-        with self.assertRaisesRegex(ValueError, "already had its one plan review"):
+        with self.assertRaisesRegex(ValueError, "filed as standalone findings"):
             transition(doc, "start-job", "plan_review", "plan-2")
         transition(doc, "start-job", "fix", "fix-3")
         self.assertEqual(len(group["plan_review_history"]), 1)
@@ -201,6 +247,8 @@ class JobLifecycleTests(unittest.TestCase):
         self.assertNotIn("plan_answered", group["failure_history"][-1])
         with self.assertRaisesRegex(ValueError, "passed plan_review"):
             transition(doc, "start-job", "fix", "fix-3")
+        manager.place_new_finding(doc["findings"], {"id": "ISSUE-02", "title": "Plan follow-up",
+            "status": "open"}, new=True)
         transition(doc, "start-job", "plan_review", "plan-2")
         finish(doc, "plan_review", "plan-2", reply=("VERDICT: PASS\n## Must-fix\nnone\n"
                "## ROOT CAUSE\nwhy\n## FAILING TEST\ntest_lane"), timestamp="2099-01-01T00:00:00Z")
@@ -283,6 +331,8 @@ class JobLifecycleTests(unittest.TestCase):
                                    "timestamp": "2026-11-21T00:00:01Z"})
         with self.assertRaisesRegex(ValueError, "passed plan_review"):
             transition(doc, "start-job", "fix", "fix-stale")
+        manager.place_new_finding(doc["findings"], {"id": "ISSUE-02", "title": "Fresh follow-up",
+            "status": "open"}, new=True)
         transition(doc, "start-job", "plan_review", "fresh")
         finish(doc, "plan_review", "fresh", reply=("VERDICT: PASS\n## Must-fix\nnone\n"
                "## ROOT CAUSE\nwhy\n## FAILING TEST\ntest_lane"), timestamp="2026-11-21T00:00:02Z")

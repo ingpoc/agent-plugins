@@ -172,7 +172,11 @@ _USAGE_FIELDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("cached_tokens", ("input_tokens_details", "cached_tokens")),
     ("reasoning_tokens", ("output_tokens_details", "reasoning_tokens")),
     ("voice_seconds", ("seconds",)),
+    ("voice_seconds", ("billable_audio_seconds",)),
+    ("input_tokens", ("prompt_tokens",)),
+    ("output_tokens", ("completion_tokens",)),
 )
+
 
 
 def _usage_int(usage: Any, path: tuple[str, ...]) -> int | None:

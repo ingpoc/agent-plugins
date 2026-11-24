@@ -55,8 +55,19 @@ class LaneStateTests(unittest.TestCase):
                     "job": {"finished_phase_status": "passed"}}
                 self.live.write_text(json.dumps(document))
         process = MagicMock(pid=90210)
-        process.wait.side_effect = [TimeoutExpired(["check"], 60), 0]
+        waits = {"n": 0}
+        clock = {"t": 0.0}
+        def wait(*_args, **_kwargs):
+            waits["n"] += 1
+            if waits["n"] == 1:
+                clock["t"] += 60
+                raise TimeoutExpired(["check"], 60)
+            return 0
+        process.wait.side_effect = wait
+        process.poll.side_effect = lambda: 0 if waits["n"] >= 2 else None
         with patch.object(test_bcl.bcl_entrypoint.subprocess, "Popen", return_value=process), \
+             patch.object(test_bcl.bcl_entrypoint, "_group_pids", return_value=set()), \
+             patch.object(test_bcl.bcl_entrypoint.time, "monotonic", side_effect=lambda: clock["t"]), \
              patch.object(test_bcl.bcl_entrypoint, "_job_write", side_effect=write_job), \
              patch.object(test_bcl.bcl_entrypoint, "_utc_now", side_effect=["2026-11-18T09:00:00Z",
                    "2026-11-18T09:00:30Z", "2026-11-18T09:01:00Z", "2026-11-18T09:02:00Z"]):
@@ -72,13 +83,24 @@ class LaneStateTests(unittest.TestCase):
 
     def test_heartbeat_write_conflict_keeps_child_running(self):
         process = MagicMock(pid=90211)
-        process.wait.side_effect = [TimeoutExpired(["check"], 60), 0]
+        waits = {"n": 0}
+        clock = {"t": 0.0}
+        def wait(*_args, **_kwargs):
+            waits["n"] += 1
+            if waits["n"] == 1:
+                clock["t"] += 60
+                raise TimeoutExpired(["check"], 60)
+            return 0
+        process.wait.side_effect = wait
+        process.poll.side_effect = lambda: 0 if waits["n"] >= 2 else None
         conflict = RuntimeError("live tracker changed during snapshot; retry")
         output = SimpleNamespace(returncode=0, stderr="", stdout="")
         with patch.object(test_bcl.bcl_entrypoint.subprocess, "Popen", return_value=process), \
+             patch.object(test_bcl.bcl_entrypoint, "_group_pids", return_value=set()), \
              patch.object(test_bcl.bcl_entrypoint.subprocess, "run", return_value=output), \
              patch.object(test_bcl.bcl_entrypoint.live_state, "snapshot", side_effect=[None, None, conflict, conflict, conflict, None]) as snapshot, \
              patch.object(test_bcl.bcl_entrypoint.time, "sleep"), \
+             patch.object(test_bcl.bcl_entrypoint.time, "monotonic", side_effect=lambda: clock["t"]), \
              patch.object(test_bcl.bcl_entrypoint, "_utc_now", side_effect=["2026-11-18T09:00:00Z",
                    "2026-11-18T09:00:30Z", "2026-11-18T09:01:00Z", "2026-11-18T09:02:00Z"]), \
              contextlib.redirect_stderr(io.StringIO()) as errors:
@@ -92,7 +114,9 @@ class LaneStateTests(unittest.TestCase):
     def test_final_write_failure_reports_child_exit_code(self):
         process = MagicMock(pid=90212)
         process.wait.return_value = 7
+        process.poll.return_value = 7
         with patch.object(test_bcl.bcl_entrypoint.subprocess, "Popen", return_value=process), \
+             patch.object(test_bcl.bcl_entrypoint, "_group_pids", return_value=set()), \
              patch.object(test_bcl.bcl_entrypoint, "_job_write", side_effect=[None, None, OSError("write failed"),
                    OSError("write failed"), OSError("write failed")]), \
              patch.object(test_bcl.bcl_entrypoint.time, "sleep"):
@@ -229,6 +253,22 @@ class LaneStateTests(unittest.TestCase):
         self.assertIn("bcl review", row["run"])
         self.assertIn("bcl job", row["run"])
 
+
+
+    def test_renderer_reads_lane_copy_tally_and_step_chips_from_the_lane_table(self):
+        group = {"id": "A", "finding_ids": ["ISSUE-01"], "status": "installing", "phase": "install",
+                 "install": {"started_at": "2026-11-18T08:00:00Z"}, "codex": {}}
+        self.assertEqual(render.lane_display(group, 1)["copy"], "In install · A")
+        with patch.dict(render.LANE["status_copy"], {"installing": "Shipping"}), \
+                patch.dict(render.LANE, {"tally": (("installing", "shipping now", ""),)}):
+            self.assertEqual(render.lane_display(group, 1)["copy"], "Shipping · A")
+            page = render.render_plan({"findings": []}, {}, {"round": 1, "groups": [group]}, 1, None)
+            self.assertIn("<b>1</b> shipping now", page)
+        deferred = {"id": "B", "finding_ids": ["ISSUE-02"], "status": "deferred", "parked_to": 2,
+                    "codex": {"review_status": "changes_requested"}}
+        self.assertEqual(render.lane_display(deferred, 1)["copy"], "Parked → Round 2")
+        with patch.dict(render.LANE["groups"], {"busy": frozenset()}):
+            self.assertNotIn('class="spinner"', render.render_plan({"findings": []}, {}, {"round": 1, "groups": [group]}, 1, None))
 
 if __name__ == "__main__":
     unittest.main()

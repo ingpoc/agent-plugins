@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.38
+
+- A localhost page serves the existing observability dashboard and backend on a saved loopback port for each project, never the reserved Samantha port, with text-size controls and without blocking browser zoom (DO-4).
+
+## 0.1.37
+
+- Official collect marks the change-list job log collected with a last event time, names token gaps from the job's model instead of a wrapper such as python3, and does not total incomplete tokens (DO-2). The issues query, used by both the agent and the dashboard, can filter a snapshot by pull request, round, stage, plugin, change class, and a time window, returning only stamped rows plus unstamped counts and a per-round timeline (DO-3).
+
+## 0.1.36
+
+- Collect reads the change list's job event log as a source and reports token coverage, named usage gaps, and incomplete jobs without totaling incomplete tokens (BCL-177).
+
+## 0.1.35
+
+- The change list's own tracker snapshot commits (only docs/triage/ paths) no longer show as unpushed-commit failures; paths are read NUL-delimited so non-ASCII and undecodable names are classified correctly, and empty or uninspectable commits still count (DO-1).
+
 ## 0.1.34
 
 - A failure with an empty message shows its exception type and says the message was empty, and a failed connect start borrows the exception type from the error logged for the same session (DEVOBS-05).

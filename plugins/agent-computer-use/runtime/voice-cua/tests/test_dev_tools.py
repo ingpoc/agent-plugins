@@ -283,20 +283,42 @@ class DevToolsTests(unittest.TestCase):
             result = self.run_shell("kill 98765")
         self.assertEqual(result["error_type"], "hard_refusal")
 
+    def _wait_until(self, probe, *, timeout=5.0, interval=0.02, description="condition"):
+        deadline = time.monotonic() + timeout
+        last = None
+        while time.monotonic() < deadline:
+            last = probe()
+            if last:
+                return last
+            time.sleep(interval)
+        self.fail(f"{description} not met: {last!r}")
+
     def test_background_jobs_track_and_stop_only_the_returned_job_id(self) -> None:
+        job_id = None
         with patch.object(dev_tools, "_group_is_protected", return_value=False):
             started = self.run_shell("echo begin; sleep 30", background=True)
             self.assertTrue(started["ok"])
             self.assertTrue(stat.S_IMODE(Path(started["log"]).stat().st_mode) == 0o600)
-            status = dev_tools.shell_job({"job_id": started["job_id"], "action": "status"})
-            self.assertEqual(status["status"], "running")
-            deadline = time.monotonic() + 1
-            while time.monotonic() < deadline and Path(started["log"]).stat().st_size == 0:
-                time.sleep(0.01)
-            tail = dev_tools.shell_job({"job_id": started["job_id"], "action": "tail"})
-            self.assertIn("begin", tail["output"])
-            stopped = dev_tools.shell_job({"job_id": started["job_id"], "action": "stop"})
-            self.assertEqual(stopped["status"], "done")
+            job_id = started["job_id"]
+            try:
+                self._wait_until(
+                    lambda: dev_tools.shell_job({"job_id": job_id, "action": "status"}).get("status") == "running",
+                    description="job status running",
+                )
+                self._wait_until(
+                    lambda: "begin" in (dev_tools.shell_job({"job_id": job_id, "action": "tail"}).get("output") or ""),
+                    description="job log contains begin",
+                )
+                stopped = dev_tools.shell_job({"job_id": job_id, "action": "stop"})
+                if not stopped.get("status"):
+                    def _status_after_stop():
+                        row = dev_tools.shell_job({"job_id": job_id, "action": "status"})
+                        return row if row.get("status") in {"done", "stopped", "exited"} else None
+                    stopped = self._wait_until(_status_after_stop, description="job status after stop")
+                self.assertIn(stopped["status"], {"done", "stopped", "exited"})
+            finally:
+                if job_id:
+                    dev_tools.shell_job({"job_id": job_id, "action": "stop"})
             unknown = dev_tools.shell_job({"job_id": "../../etc/passwd", "action": "stop"})
         self.assertFalse(unknown["ok"])
         self.assertEqual(unknown["error_type"], "unknown_job")

@@ -37,7 +37,7 @@ import urllib.parse
 import urllib.request
 
 SOURCES = {"grok-bot": "grok", "grok": "grok", "cursor": "cursor", "codex": "codex", "samantha": "samantha", "agent": "agent", "claude": "claude"}
-KINDS = ("running", "needs_you", "done", "error", "approval", "choice", "clear", "peek")
+KINDS = ("running", "needs_you", "done", "stopped", "error", "approval", "choice", "clear", "peek")
 CONTROLS = ("stop", "retry")
 MAX_WAIT = 3600
 CHOICE_TTL = 900.0   # 15 min unless --ttl

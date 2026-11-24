@@ -51,6 +51,13 @@ class ReferenceTests(unittest.TestCase):
             self.assertIn(phrase, text)
         self.assertNotIn("unittest discover", text)
 
+    def test_review_does_not_make_version_or_changelog_a_must_fix(self):
+        text = (SKILL / "references/review.md").read_text(encoding="utf-8").lower()
+        self.assertEqual(
+            text.count("the plugin version and changelog belong to integration, not to a lane-review must-fix."),
+            1,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
