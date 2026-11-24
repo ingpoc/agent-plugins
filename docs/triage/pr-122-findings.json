@@ -11003,9 +11003,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T18:30:50Z",
-      "now": "2026-11-24T18:30:50Z — Presuite started"
+      "stage": "install",
+      "updated_at": "2026-11-24T18:36:07Z",
+      "now": "2026-11-24T18:36:07Z — Install in progress"
     },
     "rollover": {
       "source_pr": 121,
@@ -12662,7 +12662,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T18:33:54Z",
+    "last_written_at": "2026-11-24T18:36:07Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12966,7 +12966,8 @@
     "stages_reached": [
       "collect",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "cycle": 14,
@@ -14490,8 +14491,8 @@
             "plugins/batched-change-list/skills/batched-change-list/statechart.html"
           ],
           "reason": "The separate review and resort-failures commands duplicate the review job, release-check, and unblock.",
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "codex": {
             "implementer_session": "grokbot-122-r4-gates",
             "reviewer_session": "grokbot-122-r4-gates-review",
@@ -14749,7 +14750,7 @@
             "failed": 0,
             "total": 1
           },
-          "stage_entered_at": "2026-11-24T18:27:30Z",
+          "stage_entered_at": "2026-11-24T18:36:07Z",
           "failure_history": [
             {
               "attempt_id": "41a8451169c645b8a4a169e564d0da1c",
@@ -14780,6 +14781,15 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-24T18:33:54Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T18:36:07Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot subagent",
+            "at": "2026-11-24T18:36:07Z"
           }
         }
       ]
@@ -14791,73 +14801,218 @@
       "installed_at": "2026-11-24T17:58:10Z",
       "install_evidence": "bcl install-local receipt /Users/gurusharan/.agents/artifacts/bcl-122/r3/install-local-r3.txt: bcl install-local: revision be5aabd6581d0bacc28b6856610250b335e3760d /Users/gurusharan/.agents/plugins/batched-change-list (70 files, sha256 41b21e7b8aad878e9f0fc6a85e9f84b7172d3e8875ab0f3d4b8a14a3b64fb89c) /Users/gurusharan/.agents/skills/batched-change-list (63 files, sha256 a1a188d1b10a9d9f12aaa3f1937ff22ba378f9e50b3f7f54b4ddb86b098467a8) /Users/gurusharan/.cursor/plugins/cache/ingpoc-agent-plugins/batched-change-list/0.1.74 (70 files, sha256 41b21e7b8aad878e9f0fc6a85e9f84b7172d3e8875ab0f3d4b8a14a3b64fb89c) /Users/gurusharan/.cursor/plugins/cache/ingpoc-agent-plugins/batched-change-list/be5aabd6581d0bacc28b6856610250b335e3760d (70 files, sha256 41b21e7b8aad878e9f0fc6a85e9f84b7172d3e8875ab0f3d4b8a14a3b64fb89c) /Users/gurusharan/.codex/plugins/cache/ingpoc-agent-plugins/batched-change-list/0.1.74 (70 files, sha256 41b21e7b8aad878e9f0fc6a85e9f84b7172d3e8875ab0f3d4b8a14a3b64fb89c) /Users/gurusharan/.codex/plugins/cache/ingpoc-agent-plugins/batched-change-list/be5aabd6581d0bacc28b6856610250b335e3760d (70 files, sha256 41b21e7b8aad878e9f0fc6a85e9f84b7172d3e8875ab0f3d4b8a14a3b64fb89c)",
       "cycle": 14,
-      "status": "active",
+      "status": "complete",
       "checks": {
         "BCL-106": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "BCL-108": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "BCL-120": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "BCL-125": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "BCL-139": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "BCL-144": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "BCL-147": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "BCL-149": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "BCL-159": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "BCL-166": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "BCL-171": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "DO-1": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "PR120-r6-collect-job-coverage": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "DO-6": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "DO-8": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "DO-11": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "PR121-r2-live-state-guard": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "DO-13": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "PR122-r1-release-deadlock": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         },
         "PR122-parked-backlog": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-24T18:35:47Z",
+          "stopped": true,
+          "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observation": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+          "observed_at": "2026-11-24T18:35:47Z",
+          "updated_at": "2026-11-24T18:35:47Z",
+          "finished_at": "2026-11-24T18:35:47Z"
         }
       },
       "run_id": "pr122-r3-be5aabd6581d0bacc28b6856610250b335e3760d",
       "pr": 122,
       "round": 3,
-      "started_at": "2026-11-24T17:58:10Z"
+      "started_at": "2026-11-24T17:58:10Z",
+      "stopped": {
+        "reason": "R3 verification run on be5aabd6 is still active with pending checks; stopping it before installing the R4-GATES revision 5ffc6f77",
+        "at": "2026-11-24T18:35:47Z"
+      },
+      "ended_at": "2026-11-24T18:35:47Z"
     },
     "introspect": {
       "result": "Introspect recorded",
@@ -15037,11 +15192,17 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:35:47Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T17:02:35Z",
-        "source": "review"
+        "at": "2026-11-24T18:35:47Z",
+        "source": "verification_check"
       },
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh (exit 0)"
@@ -15082,10 +15243,16 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:35:47Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T14:05:51.113094Z",
+        "at": "2026-11-24T18:35:47Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15132,11 +15299,17 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:35:47Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T17:45:44Z",
-        "source": "review"
+        "at": "2026-11-24T18:35:47Z",
+        "source": "verification_check"
       },
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r3-intro.sh (exit 0)"
@@ -15177,8 +15350,8 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:27:43Z",
-        "source": "review"
+        "at": "2026-11-24T18:35:47Z",
+        "source": "verification_check"
       }
     },
     {
@@ -15217,10 +15390,16 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:35:47Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T14:05:51.126334Z",
+        "at": "2026-11-24T18:35:47Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15257,7 +15436,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-24T14:05:51.132992Z",
+        "at": "2026-11-24T18:35:47Z",
         "source": "verification_check"
       }
     },
@@ -15300,10 +15479,16 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:35:47Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T14:05:51.136233Z",
+        "at": "2026-11-24T18:35:47Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15349,11 +15534,17 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:35:47Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T15:39:24Z",
-        "source": "review"
+        "at": "2026-11-24T18:35:47Z",
+        "source": "verification_check"
       },
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh (exit 0)"
@@ -15398,11 +15589,17 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:35:47Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T15:39:24Z",
-        "source": "review"
+        "at": "2026-11-24T18:35:47Z",
+        "source": "verification_check"
       },
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh (exit 0)"
@@ -15445,10 +15642,16 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:35:47Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T14:05:51.149569Z",
+        "at": "2026-11-24T18:35:47Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15486,11 +15689,17 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:35:47Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T04:43:44Z",
-        "source": "review"
+        "at": "2026-11-24T18:35:47Z",
+        "source": "verification_check"
       },
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-171.sh (exit 0)"
@@ -15522,7 +15731,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-24T14:05:51.156116Z",
+        "at": "2026-11-24T18:35:47Z",
         "source": "verification_check"
       }
     },
@@ -15562,10 +15771,16 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:35:47Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T14:05:51.162842Z",
+        "at": "2026-11-24T18:35:47Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15606,10 +15821,16 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:35:47Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T14:05:51.172770Z",
+        "at": "2026-11-24T18:35:47Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15650,11 +15871,17 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:35:47Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T15:39:24Z",
-        "source": "review"
+        "at": "2026-11-24T18:35:47Z",
+        "source": "verification_check"
       },
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh (exit 0)"
@@ -15694,7 +15921,7 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T14:05:51.182849Z",
+        "at": "2026-11-24T18:35:47Z",
         "source": "verification_check"
       },
       "merged_into": "PR122-parked-backlog",
@@ -15730,10 +15957,16 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:35:47Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T14:05:51.189600Z",
+        "at": "2026-11-24T18:35:47Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -15775,12 +16008,22 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:35:47Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-cosmetic.sh (exit 0)"
       ],
-      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-cosmetic.sh"
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-cosmetic.sh",
+      "last_seen": {
+        "at": "2026-11-24T18:35:47Z",
+        "source": "verification_check"
+      }
     },
     {
       "title": "A ready release can be stuck behind unfinished extra lanes that cannot be scheduled",
@@ -15818,12 +16061,22 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-24T18:35:47Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh (exit 0)"
       ],
-      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh"
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-deadlock.sh",
+      "last_seen": {
+        "at": "2026-11-24T18:35:47Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "PR122-parked-backlog",
@@ -15854,7 +16107,11 @@
           "to": "blocked",
           "source": "tracker_update"
         }
-      ]
+      ],
+      "last_seen": {
+        "at": "2026-11-24T18:35:47Z",
+        "source": "verification_check"
+      }
     }
   ]
 }
