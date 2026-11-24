@@ -313,7 +313,9 @@ if(bcl[2].cls!=='nav-group nav-done'||text(bcl[2].children[0].children[0])!=='Do
         finding = {'id':'ISSUE-01', 'status':'verified_fixed', 'verification_refs':['old receipt']}
         tracking = {'rollover_threshold':1, 'verification_run':{'checks':{'ISSUE-01':{'state':'fixed'}}}}
         self.assertEqual(renderer.rollover_gate([finding], tracking), (1, 1, True))
-        for state in ('checking', 'blocked', 'inconclusive', 'not_fixed'):
+        tracking['verification_run']['checks']['ISSUE-01']['state'] = 'checking'
+        self.assertEqual(renderer.rollover_gate([finding], tracking), (1, 1, True))
+        for state in ('blocked', 'inconclusive', 'not_fixed'):
             with self.subTest(state=state):
                 tracking['verification_run']['checks']['ISSUE-01']['state'] = state
                 self.assertEqual(renderer.rollover_gate([finding], tracking), (0, 1, False))
