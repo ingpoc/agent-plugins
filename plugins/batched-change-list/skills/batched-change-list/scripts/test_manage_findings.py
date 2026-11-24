@@ -3009,6 +3009,31 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIn("Checks pending", html)
         self.assertNotIn("Blocked · Remaining issue checks pending", html)
 
+    def test_listing_tool_faults_does_not_block_a_verified_lane(self):
+        group = {
+            "id": "A",
+            "status": "verified",
+            "phase": "verify",
+            "finding_ids": ["ISSUE-01"],
+            "failure_history": [
+                {"attempt_id": "a1", "source": "review", "at": "2026-11-01T00:00:00Z", "reason": "one"},
+                {"attempt_id": "a2", "source": "review", "at": "2026-11-02T00:00:00Z", "reason": "two"},
+            ],
+        }
+        document = {
+            "findings": [{"id": "ISSUE-01", "status": "verified_fixed"}],
+            "tracking": {"plan": {"cycle": 1, "round": 1, "groups": [group]}},
+        }
+        before = json.dumps(document, sort_keys=True)
+        report = manage_findings.resort_failures(document, {"apply": False})
+        self.assertEqual(group["status"], "verified")
+        self.assertIsNone(group.get("blocked_reason"))
+        self.assertEqual(json.dumps(document, sort_keys=True), before)
+        self.assertFalse(report["applied"])
+        # A write still applies the two-failure gate.
+        rows = manage_findings._lane_history(group, "failure_history")
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(group["status"], "blocked")
 
 
 if __name__ == "__main__":

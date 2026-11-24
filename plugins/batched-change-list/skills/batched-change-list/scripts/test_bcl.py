@@ -2826,4 +2826,59 @@ elif args[:2] != ['pr', 'edit']:
         codex = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["codex"]
         self.assertEqual((codex["implementer_session"], codex["review_status"], codex["job"]["id"]), ("s2", "passed", "j1"))
 
+    def test_unknown_stage_is_rejected_before_viewer_state_is_read(self):
+        viewers = self.state / "viewers"
+        viewers.mkdir(parents=True, exist_ok=True)
+        for path in viewers.glob("*.json"):
+            path.write_text("{not-json")
+        (viewers / "damaged.json").write_text("{not-json")
+        for stage in ("sync-main", "merge", "not-a-command"):
+            result = self.call(stage)
+            combined = (result.stderr or "") + (result.stdout or "")
+            self.assertNotEqual(result.returncode, 0, combined)
+            self.assertIn("unknown stage", combined)
+            self.assertNotIn("Traceback", combined)
+            self.assertNotIn("JSONDecodeError", combined)
+
+    def test_install_local_ignores_tracker_snapshot_and_page(self):
+        repo = self.root / "plugin-home-repo"
+        plugin = repo / "plugins/batched-change-list"
+        shutil.copytree(PLUGIN, plugin)
+        triage = repo / "docs/triage"
+        triage.mkdir(parents=True)
+        (triage / "pr-123-findings.json").write_text("{}")
+        (triage / "pr-123.html").write_text("page")
+        self.git(repo, "init", "-q")
+        self.git(repo, "config", "user.email", "test@example.com")
+        self.git(repo, "config", "user.name", "Test")
+        self.git(repo, "add", ".")
+        self.git(repo, "commit", "-qm", "fixture")
+        (triage / "pr-123-findings.json").write_text('{"dirty": true}')
+        (triage / "pr-123.html").write_text("dirty page")
+        home = self.root / "install-home-ignore-triage"
+        with patch.object(bcl_entrypoint, "HERE", plugin), patch.object(Path, "home", return_value=home), \
+             patch.object(sys, "argv", [str(BCL), "install-local"]), contextlib.redirect_stdout(io.StringIO()) as receipt:
+            bcl_entrypoint.main()
+        self.assertTrue((home / ".agents/plugins/batched-change-list/plugin.json").is_file())
+        self.assertIn("bcl install-local: revision", receipt.getvalue())
+        (plugin / "plugin.json").write_text(json.dumps({"name": "batched-change-list", "version": "dirty"}))
+        stderr = io.StringIO()
+        with patch.object(bcl_entrypoint, "HERE", plugin), patch.object(Path, "home", return_value=home), \
+             patch.object(sys, "argv", [str(BCL), "install-local"]), contextlib.redirect_stderr(stderr), \
+             self.assertRaises(SystemExit) as exit_result:
+            bcl_entrypoint.main()
+        self.assertNotEqual(exit_result.exception.code, 0)
+        self.assertIn("plugin checkout has local changes", stderr.getvalue())
+
+    def test_release_check_does_not_rewrite_the_live_tracker(self):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        before = live.read_bytes()
+        mtime = live.stat().st_mtime_ns
+        result = self.call("release-check")
+        self.assertIn(result.returncode, (0, 2), result.stderr)
+        self.assertEqual(live.read_bytes(), before)
+        self.assertEqual(live.stat().st_mtime_ns, mtime)
+
+
+
 if __name__ == "__main__": unittest.main()

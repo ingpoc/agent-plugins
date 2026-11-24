@@ -416,7 +416,7 @@ def _lane_groups(document, ids):
     return tracking, plan, groups
 
 
-def _lane_history(group, field):
+def _lane_history(group, field, *, mutate=True):
     history = group.get(field, [])
     if isinstance(history, dict):
         if any(not isinstance(rows, list) for rows in history.values()):
@@ -438,6 +438,8 @@ def _lane_history(group, field):
         if key[0]:
             seen.add(key)
         unique.append(row)
+    if not mutate:
+        return unique
     group[field] = unique
     if field == "failure_history":
         failures = _counted_failures(unique)
@@ -1032,7 +1034,7 @@ def resort_failure_candidates(document):
             continue
         if not group.get("failure_history"):
             continue
-        rows = _lane_history(group, "failure_history")
+        rows = _lane_history(group, "failure_history", mutate=False)
         counted = _counted_failures(rows)
         matches = [row for row in counted if _looks_like_tool_fault(row)]
         ambiguous = [row for row in counted if _ambiguous_legacy_incomplete(row)]
