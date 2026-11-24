@@ -397,12 +397,14 @@ def lane_display(group, round_number, paused=None):
         if checks_pending_reason(group):
             return display(f"Checks pending · {group.get('blocked_reason')}", "run",
                            "verifying", "Checks pending")
-        return display(f"Blocked · {group.get('blocked_reason') or 'blocked'}", "blk",
+        return display(f"Blocked · {group.get('blocked_reason') or ''}".rstrip(), "blk",
                        "blocked", "Blocked")
     if status == "failed":
         return display(f"Fix failed · {group_id}", "bad", "failed", "Failed")
     if status == "parked":
-        return display(f"Parked → Round {group.get('parked_to') or round_number + 1}", "prk",
+        target = group.get("parked_to")
+        copy = f"Parked → Round {target}" if target is not None else "Parked"
+        return display(copy, "prk",
                        "parked", "Parked")
 
     # 2. A paused round stops every lane that is still in flight.

@@ -304,6 +304,9 @@ def store_verification_evidence(document, item, record):
 
 def validate_plan_group_fields(group, round_number):
     status = group.get("status")
+    if status in LANE["status_aliases"]:
+        status = LANE["status_aliases"][status]
+        group["status"] = status
     valid_statuses = set(LANE["statuses"]) | set(LANE["status_aliases"]) | LANE["raw_statuses"]
     if status not in valid_statuses:
         raise ValueError(f"plan group {group.get('id')} has invalid status")
@@ -317,7 +320,7 @@ def validate_plan_group_fields(group, round_number):
         raise ValueError(f"plan group {group.get('id')} blocked_reason must be at most 6 words")
     if status == "blocked" and not reason:
         raise ValueError(f"plan group {group.get('id')} requires blocked_reason")
-    if status == "deferred" and group.get("parked_to") is None:
+    if status == "parked" and group.get("parked_to") is None:
         group["parked_to"] = round_number + 1
     parked_to = group.get("parked_to")
     if parked_to is not None and (type(parked_to) is not int or parked_to < 1):
@@ -645,10 +648,17 @@ def _has_runtime_receipt(group):
 def carry_plan_runtime_state(groups, previous, same_round):
     old = {group.get("id"): group for group in previous.get("groups", [])} if isinstance(previous, dict) else {}
     protected_codex = tuple(path.split(".", 1)[1] for path in LANE["protected_paths"] if path.startswith("codex."))
-    protected_group = ("status", "phase") + tuple(path for path in LANE["protected_paths"] if "." not in path)
+    protected_group = ("status", "phase", "blocked_reason", "parked_to") + tuple(path for path in LANE["protected_paths"] if "." not in path)
     for prior in old.values():
         _lane_history(prior, "failure_history")
         _lane_history(prior, "plan_review_history")
+    for group in groups:
+        prior = old.get(group.get("id"))
+        if prior and set(group.get("finding_ids", [])) == set(prior.get("finding_ids", [])):
+            for field in ("blocked_reason", "parked_to"):
+                if field in prior and (prior.get("status") == "blocked" and field == "blocked_reason"
+                                       or prior.get("status") == "parked"):
+                    group[field] = copy.deepcopy(prior[field])
     def gated(group):
         return (group.get("status") == "blocked" or
                 group.get("status") == "parked" and bool(group.get("blocked_reason")) or
@@ -684,7 +694,8 @@ def carry_plan_runtime_state(groups, previous, same_round):
             for field in protected_group:
                 if field in prior and (same_round or field in LANE["gate_paths"] or
                                        prior.get("status") == "blocked" and field == "status" or
-                                       prior.get("status") == "parked" and prior.get("blocked_reason") and field == "status"):
+                                       prior.get("status") == "blocked" and field == "blocked_reason" or
+                                       prior.get("status") == "parked" and field in ("blocked_reason", "parked_to")):
                     group[field] = copy.deepcopy(prior[field])
                 else:
                     group.pop(field, None)
@@ -2868,6 +2879,14 @@ def run(args, parser):
                             raise ValueError("use bcl job to start a lane phase")
                         if "verify" in patch and patch["verify"].get("summary") is not None and (not isinstance(patch["verify"]["summary"], str) or len(patch["verify"]["summary"].split()) > 10):
                             raise ValueError("verify.summary must be at most 10 words")
+                        target_status = LANE["status_aliases"].get(patch.get("status"), patch.get("status"))
+                        if target_status in ("blocked", "parked"):
+                            if patch.get("reason") and not patch.get("blocked_reason"):
+                                patch["blocked_reason"] = patch["reason"]
+                            if target_status == "parked" and patch.get("parked_to") is None:
+                                patch["parked_to"] = RENDERER.rollover_round(tracking) + 1
+                            patch["status"] = target_status
+                            patch.pop("reason", None)
                         activity_fields = ('status', 'phase', 'verify', 'blocked_reason', 'codex')
                         before_activity = {key: copy.deepcopy(group.get(key)) for key in activity_fields}
                         if operation.get("merge_codex") and "codex" in patch:

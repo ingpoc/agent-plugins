@@ -1376,7 +1376,7 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         finding = self.data['findings'][0]
         finding['status'] = 'failing'
         self.data['tracking'] = {'plan': {'round': 1, 'groups': [
-            {'id': 'CORE', 'finding_ids': [finding['id']], 'status': 'deferred'}]}}
+            {'id': 'CORE', 'finding_ids': [finding['id']], 'status': 'deferred', 'parked_to': 2}]}}
         page = renderer.render(self.data, self.base)
         payload = page.split('<script type="application/json" id="findings-data">', 1)[1].split('</script>', 1)[0]
         rendered = json.loads(payload)[0]

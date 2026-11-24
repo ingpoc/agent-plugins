@@ -2528,7 +2528,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         saved = json.loads(self.data.read_text())["tracking"]["plan"]
         lane_a = next(group for group in saved["groups"] if group["id"] == "A")
-        self.assertEqual(lane_a["status"], "deferred")
+        self.assertEqual(lane_a["status"], "parked")
         self.assertEqual(lane_a["parked_to"], 3)
         self.assertEqual(len(manage_findings._counted_failures(lane_a["failure_history"])), 1)
 
@@ -2710,7 +2710,7 @@ class ManageFindingsTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 saved = json.loads(self.data.read_text())
                 saved_group = saved["tracking"]["plan"]["groups"][0]
-                self.assertEqual((saved_group["status"], saved_group["phase"]), ("deferred", "deferred"))
+                self.assertEqual((saved_group["status"], saved_group["phase"]), ("parked", "deferred"))
                 self.assertEqual(saved_group["codex"]["review_status"], "changes_requested")
                 self.assertEqual(saved_group["failure_history"], [{"attempt": 1, "status": "failed"}])
                 self.assertEqual(manage_findings.release_check_payload(saved)["lanes"], [])
